@@ -6,9 +6,17 @@
 
 #' Gather model data from a formula
 #'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `gather_model_data()` was deprecated in goldfish 2.0.0. Use
+#' [compute_statistics()] with `output = "gather"`, which produces the same
+#' stack and additionally reaches the sub-models this wrapper's own narrower
+#' validation rejected (`sub_model = "rate_ordered"`).
+#'
 #' Gather the preprocess data from a formula given a model and sub model,
-#' where the output corresponds to the data structure used by the engine
-#' `gather_compute`; see [estimate].
+#' where the output corresponds to the data structure used by the `gather`
+#' backend; see [estimate].
 #'
 #' It differs from the `estimate_dynam()`, `estimate_rem()` and
 #' `estimate_dynami()` output when the argument `preprocessing_only`
@@ -41,12 +49,15 @@
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
 #' @param control_preprocessing An object of class
-#'   `"preprocessing_options.goldfish"`, usually the result of a call to
-#'   [set_preprocessing_opt()]. This object contains parameters that control
-#'   the data preprocessing. See [set_preprocessing_opt()] for details on
-#'   the available parameters.
+#'   `"preprocessing.goldfish"`, usually the result of a call to
+#'   [set_preprocessing()]. This object contains parameters that control
+#'   the data preprocessing. See [set_preprocessing()] for details on
+#'   the available parameters. This function keeps the pre-2.0.0 argument
+#'   name: it is superseded as a whole, so renaming it here would ask users
+#'   to update a call they are about to replace.
 #' @param max_length integer. Maximum number of characters for each produced
-#'   effect/column name in `namesEffects` (default `63`, a database-safe value).
+#'   effect/column name in `names_effects` (default `63`, a database-safe
+#'   value).
 #'   Names are made valid and unique; the uniqueness suffix is applied after
 #'   truncation so uniqueness is preserved.
 #'
@@ -88,7 +99,7 @@
 #'    For right-censored events the receiver values is not meaningful.}
 #'   \item{has_intercept}{
 #'    a logical value indicating if the model has an intercept.}
-#'   \item{namesEffects}{a character vector with a short name of the effect.
+#'   \item{names_effects}{a character vector with a short name of the effect.
 #'   It includes the name of the object used to calculate the effects and
 #'   modifiers of the effect, e.g., the type of effect, weighted effect.}
 #'   \item{effect_description}{
@@ -103,7 +114,7 @@
 #'   \item{timespan}{
 #'    a numeric vector with the time span between events,
 #'    including right-censored events.}
-#'   \item{isDependent}{
+#'   \item{is_dependent}{
 #'    a logical vector indicating if the event is dependent or right-censored.}
 #'  }
 #'
@@ -125,10 +136,15 @@ gather_model_data <- function(
   model = c("DyNAM", "REM"),
   sub_model = c("choice", "choice_coordination", "rate"),
   data = NULL,
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   progress = getOption("progress"),
   max_length = 63L
 ) {
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = "gather_model_data()",
+    with = I('compute_statistics(output = "gather")')
+  )
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM")
@@ -138,13 +154,13 @@ gather_model_data <- function(
     progress <- FALSE
   }
 
-  compute_stats(
-    formula = formula,
-    data = data,
+  compute_statistics(
+    x = formula,
     model = model,
     sub_model = sub_model,
+    data = data,
     output = "gather",
-    control_preprocessing = control_preprocessing,
+    control_prep = control_preprocessing,
     progress = progress,
     max_length = max_length
   )
@@ -154,7 +170,7 @@ gather_model_data <- function(
 #'
 #' Completes the gather output produced by `gather_from_prep()` (via
 #' `writer_gather()`) with the sender/receiver labels, the rate-model
-#' `timespan` / `isDependent` fields, and the `namesEffects` /
+#' `timespan` / `is_dependent` fields, and the `names_effects` /
 #' `effect_description` printing metadata, matching the field set and order of
 #' the legacy `gather_model_data()` result. Internal carry attributes are
 #' stripped so the returned list is value-comparable to the legacy output.
@@ -178,11 +194,22 @@ finalize_gather_output <- function(
   timespan <- attr(gathered, "timespan")
 
   gathered$sender <- nodes$label[event_sender]
-  if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
+  # A DyNAM-i choice row is an actor x group dyad, so its receiver (the group
+  # joined or left) labels exactly as a DyNAM choice receiver does; the
+  # interaction rate model is sender-indexed, like the DyNAM one.
+  is_dyad_labelled <- model == "REM" ||
+    (model %in% c("DyNAM", "DyNAMi") && sub_model != "rate")
+  if (is_dyad_labelled) {
     gathered$receiver <- nodes2$label[event_receiver]
-  } else if (model == "DyNAM" && sub_model == "rate" && has_intercept) {
+  }
+  # Exposure fields ride on the intercept, not on the model: an exact-time REM
+  # stores right-censored rows exactly as an exact-time DyNAM rate does, and
+  # without `timespan` those rows cannot be told apart or used as an offset.
+  # The documented return has always promised them for `model = "REM"`; only
+  # the DyNAM branch ever delivered.
+  if (has_intercept) {
     gathered$timespan <- timespan
-    gathered$isDependent <- is_dependent
+    gathered$is_dependent <- is_dependent
   }
 
   # Single source of truth from the spec mapping when supplied;
@@ -191,17 +218,84 @@ finalize_gather_output <- function(
   if (is.null(effect_description)) {
     effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   }
-  namesEffects <- CreateNames(effect_description, max_length = max_length)
+  names_effects <- CreateNames(effect_description, max_length = max_length)
 
-  gathered$namesEffects <- namesEffects
-  colnames(gathered$stat_all_events) <- namesEffects
+  gathered$names_effects <- names_effects
+  colnames(gathered$stat_all_events) <- names_effects
   gathered$effect_description <- effect_description
+  # Reported on every output form so a consumer never has to infer the
+  # likelihood shape from the columns: an exact-time sub-model carries the time
+  # intercept and the right-censored rows, an ordinal one carries neither.
+  gathered$has_intercept <- has_intercept
+  gathered$right_censored <- has_intercept
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL
   attr(gathered, "is_dependent") <- NULL
   attr(gathered, "timespan") <- NULL
   gathered
+}
+
+#' Assemble the ready-to-estimate long frame from a gather stack
+#'
+#' One row per event x realized candidate — the same rows the gather stack
+#' holds, so a constraint has already removed what it excludes. The identity
+#' block comes first (`event`, `chosen`, `sender`, `receiver`, `index_i`,
+#' `index_j`, `timespan`, `is_dependent`), then one column per effect
+#' statistic; `effect_description` rides along as an attribute.
+#'
+#' `sender` / `receiver` are the labels of THAT ROW's dyad, decoded from its
+#' own `index_i` / `index_j`, not the observed event's actors repeated down the
+#' event's rows: for a dyad-indexed family the rows enumerate candidate dyads,
+#' so repeating the observed pair would label most rows with actors they do not
+#' describe. `receiver` is NA where the family has no receiver axis
+#' (sender-set rate rows), which is exactly where `index_j` is NA.
+#'
+#' @noRd
+gather_to_frame <- function(gathered, nodes, nodes2) {
+  n_candidates <- gathered$n_candidates
+  n_events <- length(n_candidates)
+  # A right-censored event has no selected row (`selected` is 0 there), so the
+  # comparison marks none of its rows -- `chosen` is 0 across the event.
+  chosen <- as.integer(
+    sequence(n_candidates) == rep.int(gathered$selected, n_candidates)
+  )
+  index_i <- gathered$index_i %||% rep(NA_integer_, sum(n_candidates))
+  index_j <- gathered$index_j %||% rep(NA_integer_, sum(n_candidates))
+  # The exposure fields exist only on an exact-time model; the multinomial
+  # families have no waiting time and no right-censored rows.
+  timespan <- if (is.null(gathered$timespan)) {
+    rep(NA_real_, sum(n_candidates))
+  } else {
+    rep.int(gathered$timespan, n_candidates)
+  }
+  is_dependent <- if (is.null(gathered$is_dependent)) {
+    rep(TRUE, sum(n_candidates))
+  } else {
+    rep.int(as.logical(gathered$is_dependent), n_candidates)
+  }
+
+  stat_df <- as.data.frame(gathered$stat_all_events)
+  names(stat_df) <- stat_column_names(
+    gathered$names_effects,
+    FRAME_RESERVED_COLUMNS
+  )
+  frame <- cbind(
+    data.frame(
+      event = rep.int(seq_len(n_events), n_candidates),
+      chosen = chosen,
+      sender = nodes$label[index_i],
+      receiver = nodes2$label[index_j],
+      index_i = index_i,
+      index_j = index_j,
+      timespan = timespan,
+      is_dependent = is_dependent,
+      stringsAsFactors = FALSE
+    ),
+    stat_df
+  )
+  attr(frame, "effect_description") <- gathered$effect_description
+  frame
 }
 
 #' Generate names for statistics effects
@@ -237,5 +331,9 @@ CreateNames <- function(names, max_length = 63L) {
     )
   }
 
-  return(nombres)
+  # `GetDetailPrint()` (the DyNAM-i and legacy paths) builds a list-mode matrix,
+  # so a column of it is a list; the recipe spec_map builds a character one.
+  # Both describe the same thing, and the return is documented -- and consumed
+  # as column names -- as a character vector.
+  as.character(nombres)
 }

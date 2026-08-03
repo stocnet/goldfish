@@ -31,8 +31,8 @@ test_that("a bare-name rate formula on a stocnet matches the legacy path", {
     data = dataDyNAMi,
     preprocessing_only = TRUE
   )
-  expect_equal(surface$initialStats, legacy$initialStats)
-  expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
+  expect_equal(surface$initial_stats, legacy$initial_stats)
+  expect_equal(surface$dependent_stats_change, legacy$dependent_stats_change)
 })
 
 test_that("a bare-name choice formula on a stocnet matches the legacy path", {
@@ -53,8 +53,8 @@ test_that("a bare-name choice formula on a stocnet matches the legacy path", {
     data = dataDyNAMi,
     preprocessing_only = TRUE
   )
-  expect_equal(surface$initialStats, legacy$initialStats)
-  expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
+  expect_equal(surface$initial_stats, legacy$initial_stats)
+  expect_equal(surface$dependent_stats_change, legacy$dependent_stats_change)
 })
 
 test_that("a keyed DyNAM-i rate specification equals the legacy flag formula", {
@@ -83,8 +83,8 @@ test_that("a keyed DyNAM-i rate specification equals the legacy flag formula", {
     data = dataDyNAMi,
     preprocessing_only = TRUE
   )
-  expect_equal(surface$initialStats, legacy$initialStats)
-  expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
+  expect_equal(surface$initial_stats, legacy$initial_stats)
+  expect_equal(surface$dependent_stats_change, legacy$dependent_stats_change)
 })
 
 test_that("an effect under both rate flavors becomes two statistics", {
@@ -102,7 +102,7 @@ test_that("an effect under both rate flavors becomes two statistics", {
     sub_model = "rate",
     preprocessing_only = TRUE
   )
-  expect_equal(dim(surface$initialStats)[3], 2L)
+  expect_equal(dim(surface$initial_stats)[3], 2L)
 })
 
 test_that("a flavor-keyed DyNAM-i choice is rejected", {
@@ -191,6 +191,6 @@ test_that("a past-network effect resolves the past layer on a stocnet", {
     data = dataDyNAMi,
     preprocessing_only = TRUE
   )
-  expect_equal(surface$initialStats, legacy$initialStats)
-  expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
+  expect_equal(surface$initial_stats, legacy$initial_stats)
+  expect_equal(surface$dependent_stats_change, legacy$dependent_stats_change)
 })

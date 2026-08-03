@@ -15,7 +15,7 @@ test_that("ignore_repetitions = TRUE aborts before preprocessing", {
     "ignore_repetitions"
   )
   expect_error(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ inertia + indeg(networkState, ignore_repetitions = TRUE),
       data = dataTest,
       model = "DyNAM",

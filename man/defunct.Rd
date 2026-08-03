@@ -99,8 +99,8 @@ related packages.
 \item \code{defineGroups_interaction()} -> \code{make_groups_interaction()}
 \item \code{linkEvents(x)} -> \code{link_events(x)}
 \item \code{estimate()} -> \code{estimate_dynam()}, \code{estimate_rem()} & \code{estimate_dynami()}
-\item \code{examineOutliers()} -> \code{examine_outliers()}
-\item \code{examineChangepoints()} -> \code{examine_changepoints()}
+\item \code{examineOutliers()} -> \code{diagnose_outliers()}
+\item \code{examineChangepoints()} -> \code{diagnose_changepoints()}
 \item \code{egoAlterInt()} -> \code{ego_alter_interaction()}
 \item \code{nodeTrans()} -> \code{node_trans()}
 \item \code{commonSender()} & \code{commonReceiver()} -> \code{common_sender()} &

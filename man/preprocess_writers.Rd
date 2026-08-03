@@ -13,7 +13,7 @@ format they produce. Every writer exposes three hooks:
 model spec and a \code{dims} list describing the problem
 (\code{nEffects}, \code{n1}, \code{n2}, \code{is_sender}, \code{buf_capacity}, \code{max_store},
 \code{has_intercept}, \code{twomode_or_reflexive}, \code{initial_stats_fn} — a thunk
-returning the recipe's \code{initialStats} once pre-start updates are
+returning the recipe's \code{initial_stats} once pre-start updates are
 applied).}
 \item{\code{write_event(event_updates, event_info, event_broadcast)}}{called
 once per stored event. \code{event_updates} is a 4 x k matrix of flat point
@@ -25,14 +25,14 @@ entries (rows \code{kind}, \code{fixed}, \code{effect}, \code{replace}; see the
 broadcast-update entry format documented on \code{writer_default()}),
 defaulting to an empty 4 x 0 matrix.}
 \item{\code{finalize(tail)}}{called once after the loop with a \code{tail} list of
-recipe-computed assembly inputs (\code{initialStats},
+recipe-computed assembly inputs (\code{initial_stats},
 \code{active_sender_init} / \code{active_sender_changes},
-\code{active_dyad_init} / \code{active_dyad_changes}, \code{startTime}, \code{endTime},
+\code{active_dyad_init} / \code{active_dyad_changes}, \code{start_time}, \code{end_time},
 \code{intercept_scalars}). Returns the writer's output.}
 }
 
 Recipe methods emit output exclusively through these hooks; they never
-branch on the output format. \code{compute_stats(output = ...)} selects the
+branch on the output format. \code{compute_statistics(output = ...)} selects the
 writer.
 }
 \section{Future extension points (documented, not implemented)}{

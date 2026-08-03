@@ -1,4 +1,13 @@
-baselines_engines <- c("default", "default_c")
+# Backends covered by the main coefficient set (v2). gather joined at v2 and is
+# the only column computed fresh there; r and cpp are v1's numbers carried
+# forward, so the floor frozen at b890cd0 is unchanged.
+baselines_backends <- c("r", "cpp", "gather")
+
+# The separately versioned `global_v1` set predates the gather freeze and holds
+# no gather column, so it states its own coverage rather than inheriting a
+# vector that has since grown. Extending it is a deliberate regeneration, not
+# something that should happen by editing a shared constant.
+baselines_backends_global <- c("r", "cpp")
 
 baselines_social_evolution_data <- function() {
   data("Social_Evolution", envir = environment())
@@ -187,12 +196,12 @@ baselines_global_model_grid <- function() {
   )
 }
 
-baselines_fit <- function(spec, engine, data_list) {
-  controlArgs <- c(list(engine = engine), spec$estimation_args)
+baselines_fit <- function(spec, backend, data_list) {
+  controlArgs <- c(list(backend = backend), spec$estimation_args)
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(set_estimation_opt, controlArgs),
+    control_algo = do.call(set_algorithm_newton, controlArgs),
     progress = FALSE,
     verbose = FALSE
   )
@@ -209,9 +218,65 @@ baselines_fit <- function(spec, engine, data_list) {
   }
 }
 
-# Worker count for parallel baseline fitting. Serial on Windows (no fork) and
-# for a tiny grid; otherwise detectCores(), overridable via TESTTHAT_CPUS. The
-# baseline blocks are skip_on_cran(), so CRAN's 2-core limit does not apply.
+# The shared baseline build loop, used by every generator script under
+# `_baselines/`. It lives here rather than in those scripts because nothing runs
+# them: both generators had rotted against the `baselines_engines` ->
+# `baselines_backends` rename and no test noticed. Every baseline test sources
+# this file, so a rename now breaks a test immediately instead of lying dormant.
+#
+# Each generator keeps its own policy as an argument:
+#   `backends`  the columns to produce.
+#   `carry`     function(model_name, backend) returning an already-frozen entry
+#               to copy VERBATIM instead of refitting, or NULL to fit. This is
+#               how v2 keeps v1's r/cpp numbers bit-identical -- refitting them
+#               would absorb the drift accumulated since v1 and make any later
+#               regression smaller than that drift invisible.
+#   `key`       backend value -> stored column name, because `global_v1` records
+#               the legacy engine tokens it was written with while v2 records
+#               backend values. A new artifact should not record a retired
+#               vocabulary, but an existing one should not silently rewrite its
+#               own key scheme on regeneration either.
+#   `fit_fn`    the fitter, injectable so the fresh-fit path is testable without
+#               a full grid refit (minutes, and duplicating what the baseline
+#               tests already assert).
+baselines_build <- function(
+  grid,
+  get_data,
+  backends,
+  carry = NULL,
+  key = function(backend) backend,
+  fit_fn = baselines_fit
+) {
+  baselines <- list()
+  for (model_name in names(grid)) {
+    spec <- grid[[model_name]]
+    for (backend in backends) {
+      entry <- if (is.null(carry)) NULL else carry(model_name, backend)
+      carried <- !is.null(entry)
+      if (!carried) {
+        fit <- suppressWarnings(fit_fn(spec, backend, get_data(spec$dataset)))
+        stopifnot(isTRUE(fit$convergence$is_converged))
+        entry <- list(coef = coef(fit), logLik = as.numeric(logLik(fit)))
+      }
+      baselines[[model_name]][[key(backend)]] <- entry
+      cat(sprintf(
+        "%-28s %-7s logLik: %.8f  (%s)\n",
+        model_name,
+        backend,
+        entry$logLik,
+        if (carried) "carried" else "fitted"
+      ))
+    }
+  }
+  baselines
+}
+
+# Worker count for parallel baseline fitting. Serial on Windows (no fork), when
+# `parallel` is not installed (it is only Suggests -- these helpers are its sole
+# consumer, so requiring it would make every user install it just to fit a
+# model), and for a tiny grid; otherwise detectCores(), overridable via
+# TESTTHAT_CPUS. The baseline blocks are skip_on_cran(), so CRAN's 2-core limit
+# does not apply.
 baselines_cores <- function(n_jobs) {
   if (.Platform$OS.type == "windows") {
     return(1L)
@@ -219,8 +284,10 @@ baselines_cores <- function(n_jobs) {
   env <- Sys.getenv("TESTTHAT_CPUS", "")
   n <- if (nzchar(env)) {
     suppressWarnings(as.integer(env))
-  } else {
+  } else if (requireNamespace("parallel", quietly = TRUE)) {
     parallel::detectCores()
+  } else {
+    1L
   }
   if (is.na(n) || n < 1L) {
     n <- 1L
@@ -228,26 +295,26 @@ baselines_cores <- function(n_jobs) {
   max(1L, min(n, n_jobs))
 }
 
-# Fit every (model, engine) cell of a baseline grid up front, in parallel, so
+# Fit every (model, backend) cell of a baseline grid up front, in parallel, so
 # the per-cell test_that() blocks only assert. The independent fits are the
 # suite's dominant cost; forking them (copy-on-write over the parent-loaded
 # datasets) collapses that wall time without touching the frozen baselines.
-# Returns a named list keyed "<model>::<engine>" holding each fit, or the
+# Returns a named list keyed "<model>::<backend>" holding each fit, or the
 # captured error condition so the owning test can re-raise it with the right
 # attribution. `run` gates fitting to when the tests will actually execute
 # (skip_on_cran() stays authoritative): nothing is fit on CRAN.
 baselines_precompute_fits <- function(
   grid,
   get_data,
-  engines = baselines_engines,
+  backends = baselines_backends,
   run = interactive() || identical(Sys.getenv("NOT_CRAN"), "true")
 ) {
   keys <- expand.grid(
     model = names(grid),
-    engine = engines,
+    backend = backends,
     stringsAsFactors = FALSE
   )
-  labels <- paste(keys$model, keys$engine, sep = "::")
+  labels <- paste(keys$model, keys$backend, sep = "::")
   if (!run) {
     return(stats::setNames(vector("list", length(labels)), labels))
   }
@@ -261,14 +328,16 @@ baselines_precompute_fits <- function(
       {
         spec <- grid[[keys$model[i]]]
         suppressWarnings(
-          baselines_fit(spec, keys$engine[i], get_data(spec$dataset))
+          baselines_fit(spec, keys$backend[i], get_data(spec$dataset))
         )
       },
       error = function(e) e
     )
   }
   cores <- baselines_cores(nrow(keys))
-  results <- if (cores > 1L) {
+  # baselines_cores() already returns 1 when `parallel` is absent, so the guard
+  # here covers a TESTTHAT_CPUS override on a machine that lacks it.
+  results <- if (cores > 1L && requireNamespace("parallel", quietly = TRUE)) {
     parallel::mclapply(
       seq_len(nrow(keys)),
       fit_cell,
@@ -283,8 +352,8 @@ baselines_precompute_fits <- function(
 
 # Retrieve a precomputed fit, re-raising a worker-side failure (error condition,
 # try-error, or NULL from a crashed fork) as a test failure attributed here.
-baselines_fits_cell <- function(fits, model, engine) {
-  key <- paste(model, engine, sep = "::")
+baselines_fits_cell <- function(fits, model, backend) {
+  key <- paste(model, backend, sep = "::")
   fit <- fits[[key]]
   if (is.null(fit)) {
     stop("baseline fit missing or crashed for ", key, call. = FALSE)

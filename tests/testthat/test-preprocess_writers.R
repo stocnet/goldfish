@@ -1,7 +1,7 @@
 se_data <- baselines_social_evolution_data()
 
-test_that("compute_stats(output = 'default') returns a preprocessed object", {
-  prep <- compute_stats(
+test_that("compute_statistics(output = 'preprocessed') returns a preprocessed object", {
+  prep <- compute_statistics(
     calls_dependent ~ inertia + recip + trans,
     data = se_data,
     model = "DyNAM",
@@ -12,15 +12,16 @@ test_that("compute_stats(output = 'default') returns a preprocessed object", {
   expect_null(prep$stats_change)
 })
 
-test_that("compute_stats(output = 'gather') matches gather_model_data (choice)", {
+test_that("compute_statistics(output = 'gather') matches gather_model_data (choice)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ inertia + recip + trans,
     model = "DyNAM",
     sub_model = "choice",
     data = se_data
   )
-  new <- compute_stats(
+  new <- compute_statistics(
     calls_dependent ~ inertia + recip + trans,
     model = "DyNAM",
     sub_model = "choice",
@@ -33,22 +34,23 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (choice)",
     "n_candidates",
     "sender",
     "receiver",
-    "namesEffects",
+    "names_effects",
     "has_intercept"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
   }
 })
 
-test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
+test_that("compute_statistics(output = 'gather') matches gather_model_data (REM)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ 1 + inertia + recip,
     model = "REM",
     sub_model = "rate",
     data = se_data
   )
-  new <- compute_stats(
+  new <- compute_statistics(
     calls_dependent ~ 1 + inertia + recip,
     model = "REM",
     sub_model = "rate",
@@ -63,21 +65,22 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
     "index_j",
     "sender",
     "receiver",
-    "namesEffects"
+    "names_effects"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
   }
 })
 
-test_that("compute_stats(output = 'gather') matches gather_model_data (coordination)", {
+test_that("compute_statistics(output = 'gather') matches gather_model_data (coordination)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ inertia + trans,
     model = "DyNAM",
     sub_model = "choice_coordination",
     data = se_data
   )
-  new <- compute_stats(
+  new <- compute_statistics(
     calls_dependent ~ inertia + trans,
     model = "DyNAM",
     sub_model = "choice_coordination",
@@ -92,7 +95,7 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (coordinat
     "index_j",
     "sender",
     "receiver",
-    "namesEffects"
+    "names_effects"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
   }
@@ -102,8 +105,8 @@ test_that("gather output for rate models is internally consistent", {
   skip_on_cran()
   # gather_model_data() errors on one-mode rate (twomode_or_reflexive = FALSE
   # with a single receiver column); the gather writer follows the working
-  # gather_compute estimation path (twomode_or_reflexive = TRUE) instead.
-  gathered <- compute_stats(
+  # gather backend's estimation path (twomode_or_reflexive = TRUE) instead.
+  gathered <- compute_statistics(
     calls_dependent ~ 1 + indeg + outdeg,
     model = "DyNAM",
     sub_model = "rate",
@@ -113,25 +116,25 @@ test_that("gather output for rate models is internally consistent", {
   expect_equal(nrow(gathered$stat_all_events), sum(gathered$n_candidates))
   expect_true(gathered$has_intercept)
   expect_equal(ncol(gathered$stat_all_events), 3L)
-  expect_equal(gathered$namesEffects[1], "Intercept")
+  expect_equal(gathered$names_effects[1], "Intercept")
 })
 
-test_that("compute_stats rejects unknown output values", {
+test_that("compute_statistics rejects unknown output values", {
   expect_error(
-    compute_stats(
+    compute_statistics(
       calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
       sub_model = "choice",
       output = "parquet"
     ),
-    "default"
+    "preprocessed"
   )
 })
 
-test_that("compute_stats(output = 'db') requires a DBI connection", {
+test_that("compute_statistics(output = 'db') requires a DBI connection", {
   expect_error(
-    compute_stats(
+    compute_statistics(
       calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
@@ -164,7 +167,7 @@ test_that("preprocessed object carries a well-formed broadcast buffer", {
 
   for (nm in names(grid)) {
     spec <- grid[[nm]]
-    prep <- compute_stats(
+    prep <- compute_statistics(
       spec$formula,
       data = data_list[[spec$dataset]],
       model = spec$model,
@@ -185,7 +188,7 @@ test_that("preprocessed object carries a well-formed broadcast buffer", {
       ncol(prep$stat_mat_broadcast),
       info = nm
     )
-    expect_equal(prep$version, PREPROCESSED_GOLDFISH_VERSION, info = nm)
+    expect_equal(prep$prep_version, PREP_VERSION, info = nm)
     if (isTRUE(has_broadcast[nm])) {
       expect_gt(ncol(prep$stat_mat_broadcast), 0L)
     }

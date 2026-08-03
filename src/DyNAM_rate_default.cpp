@@ -1,6 +1,8 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "event_reductions.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -40,7 +42,12 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_event_scores = false,
      const bool return_ranks = false,
      const bool return_margins = false,
-     const bool return_total_rate = false
+     const bool return_total_rate = false,
+     const bool return_probabilities = false,
+     const bool return_availability = false,
+     const bool return_conditional_scores = false,
+     const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+     const bool return_event_information_trace = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -57,6 +64,22 @@ inline arma::mat reduce_mat_to_vector(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
+   // Opt-in weighted per-interval information: one p x p slice per weight
+   // column, and the per-interval trace. Both stay empty when not requested,
+   // which is how the shared accumulator reads "not asked for". The block this
+   // family contributes carries the timespan, matching what `fisher` receives.
+   const arma::mat weights_mat =
+     as_event_weights(event_weights, (arma::uword) n_events);
+   arma::cube weighted_information;
+   if (!weights_mat.is_empty()) {
+       weighted_information.zeros(
+         n_parameters, n_parameters, weights_mat.n_cols
+       );
+   }
+   arma::vec event_information_trace;
+   if (return_event_information_trace) {
+       event_information_trace.zeros(n_events);
+   }
    // Opt-in per-event score matrix. Each row is the per-event
    // increment already accumulated into `derivative` (the timed weighted sum
    // plus the observed statistic on dependent events); allocated only when
@@ -86,6 +109,43 @@ inline arma::mat reduce_mat_to_vector(
    // evaluation pass. Allocated only when requested.
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
+   // Opt-in probability-scale margins, beside the compensator-scale ones above.
+   // `expected[s]` sums the competing-risks probability that s creates the next
+   // event, over DEPENDENT events only, so it totals the event count at ANY
+   // parameter vector rather than only at the MLE. Allocated only when requested.
+   arma::vec margin_probability;
+   if (return_margins) margin_probability = arma::vec(n_actors_1, fill::zeros);
+   // Opt-in Cox partial-likelihood contribution log p_obs, the "which" half of
+   // the which/when split of the per-event log-likelihood. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::vec conditional_logl;
+   if (return_total_rate) conditional_logl = arma::vec(n_events, fill::zeros);
+   // Opt-in per-event probability vector over the WHOLE sender set, zero off
+   // the risk set. Allocated only when requested.
+   List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in conditional (partial-likelihood) score rows: the same shared
+   // reduction the stored score rows use, at UNIT scale instead of the
+   // compensator's, so the exposure term drops and what is left is the
+   // observed-minus-risk-set-mean row -- the Schoenfeld residual. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::mat conditional_scores;
+   if (return_conditional_scores) {
+     conditional_scores.set_size(n_events, n_parameters);
+   }
+   // Opt-in per-actor availability: the denominators the per-actor margins are
+   // read against. On this sender-axis family a risk-set position IS a sender,
+   // so the membership indicator is the presence mask itself. Allocated only
+   // when requested.
+   arma::vec availability_exposure;
+   arma::vec availability_opportunities;
+   arma::vec availability_seen;
+   if (return_availability) {
+     availability_exposure = arma::vec(n_actors_1, fill::zeros);
+     availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+     availability_seen = arma::vec(n_actors_1, fill::zeros);
+   }
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -161,25 +221,41 @@ inline arma::mat reduce_mat_to_vector(
      arma::mat reduce_stat_mat =
        reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                             twomode_or_reflexive);
-     // Rank the observed sender's rate against the other active senders in the
-     // same pass; the observed sender's own rate equals `obs_rate`, so the
-     // strict `>` test excludes it (rank 1 = highest rate).
      const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
-     double obs_rate = 0;
-     int rank = 1;
-     if (do_rank) {
-       obs_rate = std::exp(dot(reduce_stat_mat.row(id_sender), parameters));
-     }
+     // The shared reductions read a rate vector, which this loop does not
+     // otherwise need, so it stores the very doubles it already computes rather
+     // than rebuilding them as one matrix-vector product afterwards. A GEMV
+     // sums in a different order from the per-row `dot()` below, so the rebuilt
+     // values differ in the last bits.
+     //
+     // The reason is consistency, NOT coefficient safety, and the difference
+     // between those two was measured rather than assumed. `rates` feeds only
+     // the reductions -- the margins, the rank, and the stored per-event score;
+     // the normalizer and the derivative are accumulated from
+     // `exp_current_sender` directly, so rebuilding it CANNOT move a
+     // coefficient, and does not: patching in the GEMV leaves every frozen
+     // 1e-6 baseline passing and every log-likelihood and aggregate score
+     // bitwise unchanged, shifting only stored diagnostics -- 18 of 84 actors'
+     // margins on the social-evolution rate model, by at most 2.6e-15 relative.
+     //
+     // What is preserved is therefore worth stating exactly: a stored
+     // diagnostic should report the numbers the likelihood actually used, not a
+     // near-copy recomputed by another route. That is cheap to keep here and
+     // impossible to verify from R -- 2.6e-15 in a diagnostic is far inside
+     // both the 1e-10 cross-backend and 1e-6 baseline tolerances -- so this
+     // comment, not a test, is the guard on this line.
+     //
+     // Zero on inactive senders, as the header requires.
+     const bool need_rates = do_rank || return_margins || return_event_scores;
+     arma::vec rates;
+     if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
      // go through all actor1
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
          // exp_current_sender is \exp(\beta^T s)
          double exp_current_sender =
            std::exp(dot(reduce_stat_mat.row(i), parameters));
-         if (do_rank && exp_current_sender > obs_rate) rank++;
-         if (return_margins) {
-           margin_expected(i) += timespan_current_event * exp_current_sender;
-         }
+         if (need_rates) rates(i) = exp_current_sender;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
            exp_current_sender * (reduce_stat_mat.row(i));
@@ -197,12 +273,14 @@ inline arma::mat reduce_mat_to_vector(
      //Rcpp::Rcout << "mat:" << std::endl << reduce_stat_mat << std::endl;
      //Rcpp::Rcout << "timespan:" << timespan_current_event << std::endl;
      //Rcpp::Rcout << "Derivative:" << weighted_sum_current_event << std::endl;
-     arma::rowvec score_before;
-     if (return_event_scores) score_before = derivative.row(0);
      derivative -= timespan_current_event * weighted_sum_current_event;
 
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
+     accumulate_event_information(
+       fisher_current_event, timespan_current_event, id_event, weights_mat,
+       weighted_information, event_information_trace
+     );
      //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
      if (return_total_rate) total_rate(id_event) = normalizer;
      // logLikelihood
@@ -213,11 +291,87 @@ inline arma::mat reduce_mat_to_vector(
        derivative += reduce_stat_mat.row(id_sender);
        //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
        //Rcpp::Rcout << "sender:" << id_sender << std::endl;
-       if (return_margins) margin_observed(id_sender) += 1;
      }
-     if (do_rank) observed_rank[id_event] = rank;
+     if (return_margins) {
+       // Compensator scale: c = Dt on the raw rates, so the contribution is
+       // Dt * lambda_i. A right-censored interval still accumulates exposure on
+       // the expected side but has no observed mover to count.
+       std::vector<margin_side> sides;
+       sides.push_back(margin_side(&margin_observed, &margin_expected));
+       accumulate_margins(
+         rates, timespan_current_event, active_sender, id_sender,
+         is_dependent(id_event) == 1, sides
+       );
+     }
+     if (do_rank) {
+       observed_rank[id_event] =
+         rank_of_observed(rates, active_sender, id_sender);
+     }
+     if (return_availability) {
+       availability_seen.zeros();
+       mark_availability(
+         n_actors_1, active_sender, nullptr, availability_seen
+       );
+       accumulate_availability(
+         availability_seen, timespan_current_event,
+         is_dependent(id_event) == 1,
+         &availability_exposure, &availability_opportunities
+       );
+     }
+     // Quantities that enter as a ratio or as a log of the normalizer, from a
+     // max-shifted pass computed BESIDE the raw one above rather than replacing
+     // it. The likelihood's total rate must stay on the absolute scale — it
+     // enters as -Dt * T, so shifting it would be a different model, not a
+     // stabilization — and leaving the raw pass untouched is also what keeps
+     // every frozen coefficient exactly where it was. These three are
+     // shift-invariant, and are exact where the raw ratio silently returns 1
+     // (subnormal underflow) or NaN (overflow).
+     if (
+       return_probabilities || return_margins || return_total_rate ||
+       return_conditional_scores
+     ) {
+       arma::vec lin_pred = reduce_stat_mat * parameters;
+       arma::vec weights;
+       double log_normalizer =
+         log_sum_exp_masked(lin_pred, active_sender, weights);
+       double shifted_total = arma::sum(weights);
+       arma::vec probabilities = weights / shifted_total;
+       if (return_total_rate) {
+         conditional_logl(id_event) = is_dependent(id_event)
+           ? lin_pred(id_sender) - log_normalizer
+           : NA_REAL;
+       }
+       if (return_margins && is_dependent(id_event)) {
+         // Probability scale, over dependent events only: this is the
+         // parallel-to-choice calibration map, so it must total the same set
+         // `margin_observed` counts — events, not intervals.
+         margin_probability += probabilities;
+       }
+       if (return_probabilities) {
+         event_probabilities[id_event] =
+           NumericVector(probabilities.begin(), probabilities.end());
+       }
+       if (return_conditional_scores) {
+         if (is_dependent(id_event)) {
+           conditional_scores.row(id_event) = event_score_row(
+             reduce_stat_mat, probabilities, 1.0, id_sender, true
+           );
+         } else {
+           conditional_scores.row(id_event).fill(NA_REAL);
+         }
+       }
+     }
+     // The stored per-event score comes from the shared reduction over the same
+     // `rates` the margin and rank reductions read, rather than from the
+     // before/after difference of the running derivative, so the definition
+     // lives in one place instead of once per kernel. The derivative above is
+     // deliberately untouched: it drives the optimizer, and no coefficient may
+     // move.
      if (return_event_scores) {
-       event_scores.row(id_event) = derivative.row(0) - score_before;
+       event_scores.row(id_event) = event_score_row(
+         reduce_stat_mat, rates, timespan_current_event, id_sender,
+         is_dependent(id_event) == 1
+       );
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);
@@ -232,7 +386,15 @@ inline arma::mat reduce_mat_to_vector(
      Named("observed_rank") = observed_rank,
      Named("margin_observed") = margin_observed,
      Named("margin_expected") = margin_expected,
-     Named("total_rate") = total_rate
+     Named("margin_probability") = margin_probability,
+     Named("total_rate") = total_rate,
+     Named("conditional_logl") = conditional_logl,
+     Named("conditional_scores") = conditional_scores,
+     Named("availability_exposure") = availability_exposure,
+     Named("availability_n_opportunities") = availability_opportunities,
+     Named("event_probabilities") = event_probabilities,
+     Named("weighted_information") = weighted_information,
+     Named("event_information_trace") = event_information_trace
    );
  }
 

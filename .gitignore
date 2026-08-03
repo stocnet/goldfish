@@ -21,6 +21,8 @@ docs
 # personal permission allow-lists and local worktrees out of git.
 .claude/settings.local.json
 .claude/worktrees/
+# Personal memory: points at an Obsidian decision-record vault only I have.
+CLAUDE.local.md
 
 # OpenSpec: share config, the living folded spec, and active proposals so a
 # collaborator has the same standards; keep the personal per-change session
@@ -34,3 +36,4 @@ openspec/changes/*/progress.md
 !.plan/goldfish_versions.csv
 !.plan/profile_goldfish.R
 !.plan/opsx-archive-track.sh
+!.plan/opsx-spec-placement-check.sh

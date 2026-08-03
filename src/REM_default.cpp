@@ -1,6 +1,8 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -127,7 +129,12 @@ List estimate_REM(
     const bool return_event_scores = false,
     const bool return_ranks = false,
     const bool return_margins = false,
-    const bool return_total_rate = false
+    const bool return_total_rate = false,
+    const bool return_probabilities = false,
+    const bool return_availability = false,
+    const bool return_conditional_scores = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -143,6 +150,22 @@ List estimate_REM(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
+   // Opt-in weighted per-interval information: one p x p slice per weight
+   // column, and the per-interval trace. Both stay empty when not requested,
+   // which is how the shared accumulator reads "not asked for". The block this
+   // family contributes carries the timespan, matching what `fisher` receives.
+   const arma::mat weights_mat =
+     as_event_weights(event_weights, (arma::uword) n_events);
+   arma::cube weighted_information;
+   if (!weights_mat.is_empty()) {
+       weighted_information.zeros(
+         n_parameters, n_parameters, weights_mat.n_cols
+       );
+   }
+   arma::vec event_information_trace;
+   if (return_event_information_trace) {
+       event_information_trace.zeros(n_events);
+   }
    // Opt-in per-event score matrix. Each row is the per-event
    // increment already accumulated into `derivative` (the timed weighted sum
    // plus the observed statistic on dependent events); allocated only when
@@ -177,6 +200,68 @@ List estimate_REM(
    // Allocated only when requested.
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
+   // Flat dyad position -> actor id on each axis, for the shared two-sided
+   // margin reduction. `e` is flattened sender-major (dyad (i, j) at
+   // i * n_actors_2 + j), and the map is the same at every event.
+   arma::uvec dyad_sender(n_actors_1 * n_actors_2);
+   arma::uvec dyad_receiver(n_actors_1 * n_actors_2);
+   for (int i = 0; i < n_actors_1; ++i) {
+     for (int j = 0; j < n_actors_2; ++j) {
+       dyad_sender(i * n_actors_2 + j) = i;
+       dyad_receiver(i * n_actors_2 + j) = j;
+     }
+   }
+   // Opt-in probability-scale margins, beside the compensator-scale ones above.
+   // These sum the competing-risks probability that the dyad creates the next
+   // event, over DEPENDENT events only, so each side totals the event count at
+   // ANY parameter vector rather than only at the MLE. Allocated when requested.
+   arma::vec margin_probability_sender;
+   arma::vec margin_probability_receiver;
+   if (return_margins) {
+     margin_probability_sender = arma::vec(n_actors_1, fill::zeros);
+     margin_probability_receiver = arma::vec(n_actors_2, fill::zeros);
+   }
+   // Opt-in Cox partial-likelihood contribution log p_obs, the "which" half of
+   // the which/when split of the per-event log-likelihood. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::vec conditional_logl;
+   if (return_total_rate) conditional_logl = arma::vec(n_events, fill::zeros);
+   // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
+   // risk set. `weights` is flattened sender-major (dyad (i, j) at
+   // i * n_actors_2 + j) while an arma::mat fills column-major, so the n1 x n2
+   // grid is recovered by reshaping to n2 x n1 and transposing.
+   List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in conditional (partial-likelihood) score rows: the same shared
+   // reduction the stored score rows use, at UNIT scale instead of the
+   // compensator's, so the exposure term drops and what is left is the
+   // observed-minus-risk-set-mean row -- the Schoenfeld residual. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::mat conditional_scores;
+   if (return_conditional_scores) {
+     conditional_scores.set_size(n_events, n_parameters);
+   }
+   // Opt-in per-actor availability, per SIDE as the margins are: a dyad at risk
+   // makes its sender available on one side and its receiver on the other, and
+   // an actor whose outgoing dyads are all masked while its incoming ones are
+   // open is available as a receiver only. Marked once per actor per interval
+   // through the shared indicator, so an actor at risk in many dyads collects
+   // that interval's length once, not once per dyad. Allocated when requested.
+   arma::vec availability_exposure_sender;
+   arma::vec availability_opportunities_sender;
+   arma::vec availability_seen_sender;
+   arma::vec availability_exposure_receiver;
+   arma::vec availability_opportunities_receiver;
+   arma::vec availability_seen_receiver;
+   if (return_availability) {
+     availability_exposure_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_opportunities_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_seen_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_exposure_receiver = arma::vec(n_actors_2, fill::zeros);
+     availability_opportunities_receiver = arma::vec(n_actors_2, fill::zeros);
+     availability_seen_receiver = arma::vec(n_actors_2, fill::zeros);
+   }
 
 
    // Check whether there are composition change and initialize
@@ -280,6 +365,27 @@ List estimate_REM(
          }
        }
      }
+     if (return_availability) {
+       const bool dependent_interval = is_dependent(id_event) == 1;
+       availability_seen_sender.zeros();
+       mark_availability(
+         n_actors_1 * n_actors_2, allowed, &dyad_sender,
+         availability_seen_sender
+       );
+       accumulate_availability(
+         availability_seen_sender, timespan_current_event, dependent_interval,
+         &availability_exposure_sender, &availability_opportunities_sender
+       );
+       availability_seen_receiver.zeros();
+       mark_availability(
+         n_actors_1 * n_actors_2, allowed, &dyad_receiver,
+         availability_seen_receiver
+       );
+       accumulate_availability(
+         availability_seen_receiver, timespan_current_event, dependent_interval,
+         &availability_exposure_receiver, &availability_opportunities_receiver
+       );
+     }
      arma::vec lin_pred = stat_mat * parameters;
      // exp() first, then zero the masked dyads (avoids Inf * 0 = NaN when a
      // masked row overflows); an allowed dyad may legitimately overflow — that
@@ -289,25 +395,32 @@ List estimate_REM(
      double normalizer = accu(e);
      if (return_total_rate) total_rate(id_event) = normalizer;
      if (return_margins) {
-       // `e` is already zero on masked dyads, so the double sum ranges over the
-       // realized risk set; sender and receiver totals coincide by construction.
-       for (int i = 0; i < n_actors_1; ++i) {
-         for (int j = 0; j < n_actors_2; j++) {
-           const double contrib = timespan_current_event * e(i * n_actors_2 + j);
-           margin_expected_sender(i) += contrib;
-           margin_expected_receiver(j) += contrib;
-         }
-       }
+       // Compensator scale: c = Dt applied to the raw intensities, so the
+       // contribution is Dt * lambda_ij, credited to both endpoints. The
+       // observed side is counted in the dependent-event branch below, which is
+       // why `dependent` is false here.
+       std::vector<margin_side> sides;
+       sides.push_back(margin_side(
+         &margin_observed_sender, &margin_expected_sender, &dyad_sender
+       ));
+       sides.push_back(margin_side(
+         &margin_observed_receiver, &margin_expected_receiver, &dyad_receiver
+       ));
+       accumulate_margins(
+         e, timespan_current_event, allowed, 0, false, sides
+       );
      }
      weighted_sum_current_event = e.t() * stat_mat;
      fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
      // derivative
-     arma::rowvec score_before;
-     if (return_event_scores) score_before = derivative.row(0);
      derivative -= timespan_current_event * weighted_sum_current_event;
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
+     accumulate_event_information(
+       fisher_current_event, timespan_current_event, id_event, weights_mat,
+       weighted_information, event_information_trace
+     );
      // logLikelihood
      intervalLogL(id_event) = -timespan_current_event * normalizer;
      if (is_dependent(id_event)) {
@@ -319,16 +432,77 @@ List estimate_REM(
          margin_observed_receiver(id_receiver) += 1;
        }
        if (return_ranks) {
-         const double obs_rate = e(id_obs);
-         int rank = 1;
-         for (unsigned int d = 0; d < e.n_elem; d++) {
-           if (allowed(d) == 1 && e(d) > obs_rate) rank++;
-         }
-         observed_rank[id_event] = rank;
+         observed_rank[id_event] = rank_of_observed(e, allowed, id_obs);
        }
      }
+     // Quantities that enter as a ratio or as a log of the normalizer, from a
+     // max-shifted pass computed BESIDE the raw `e` above rather than replacing
+     // it. The likelihood's total rate must stay on the absolute scale — it
+     // enters as -Dt * T, so shifting it would be a different model, not a
+     // stabilization — and leaving the raw pass untouched is also what keeps
+     // every frozen coefficient exactly where it was. These three are
+     // shift-invariant, and are exact where the raw ratio silently returns 1
+     // (subnormal underflow) or NaN (overflow).
+     if (
+       return_probabilities || return_margins || return_total_rate ||
+       return_conditional_scores
+     ) {
+       arma::vec weights;
+       double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
+       double shifted_total = arma::sum(weights);
+       arma::vec probabilities = weights / shifted_total;
+       if (return_total_rate) {
+         conditional_logl(id_event) = NA_REAL;
+       }
+       if (return_conditional_scores) {
+         conditional_scores.row(id_event).fill(NA_REAL);
+       }
+       if (is_dependent(id_event)) {
+         const int id_obs = id_sender * n_actors_2 + id_receiver;
+         if (return_total_rate) {
+           conditional_logl(id_event) = lin_pred(id_obs) - log_normalizer;
+         }
+         if (return_conditional_scores) {
+           conditional_scores.row(id_event) = event_score_row(
+             stat_mat, probabilities, 1.0,
+             static_cast<arma::uword>(id_obs), true
+           );
+         }
+         if (return_margins) {
+           // Probability scale, over dependent events only: this is the
+           // parallel-to-choice calibration map, so it must total the same set
+           // the observed sides count — events, not intervals.
+           for (int i = 0; i < n_actors_1; ++i) {
+             for (int j = 0; j < n_actors_2; j++) {
+               const double p = probabilities(i * n_actors_2 + j);
+               margin_probability_sender(i) += p;
+               margin_probability_receiver(j) += p;
+             }
+           }
+         }
+       }
+       if (return_probabilities) {
+         arma::mat grid =
+           arma::reshape(probabilities, n_actors_2, n_actors_1).t();
+         event_probabilities[id_event] = wrap(grid);
+       }
+     }
+     // The stored per-event score comes from the shared reduction over the same
+     // raw rate vector `e` the margin reduction reads, rather than from the
+     // before/after difference of the running derivative, so the definition
+     // lives in one place instead of once per kernel. On a right-censored
+     // interval there is no observed dyad, so the observed-row index is unused
+     // and passed as 0, exactly as the margin call above does. The derivative
+     // is deliberately untouched: it drives the optimizer, and no coefficient
+     // may move.
      if (return_event_scores) {
-       event_scores.row(id_event) = derivative.row(0) - score_before;
+       const bool dependent_event = is_dependent(id_event) == 1;
+       const arma::uword obs_row = dependent_event
+         ? static_cast<arma::uword>(id_sender * n_actors_2 + id_receiver)
+         : 0;
+       event_scores.row(id_event) = event_score_row(
+         stat_mat, e, timespan_current_event, obs_row, dependent_event
+       );
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);
@@ -345,6 +519,19 @@ List estimate_REM(
      Named("margin_expected_sender") = margin_expected_sender,
      Named("margin_observed_receiver") = margin_observed_receiver,
      Named("margin_expected_receiver") = margin_expected_receiver,
-     Named("total_rate") = total_rate
+     Named("margin_probability_sender") = margin_probability_sender,
+     Named("margin_probability_receiver") = margin_probability_receiver,
+     Named("total_rate") = total_rate,
+     Named("conditional_logl") = conditional_logl,
+     Named("conditional_scores") = conditional_scores,
+     Named("availability_exposure_sender") = availability_exposure_sender,
+     Named("availability_n_opportunities_sender") =
+       availability_opportunities_sender,
+     Named("availability_exposure_receiver") = availability_exposure_receiver,
+     Named("availability_n_opportunities_receiver") =
+       availability_opportunities_receiver,
+     Named("event_probabilities") = event_probabilities,
+     Named("weighted_information") = weighted_information,
+     Named("event_information_trace") = event_information_trace
    );
  }

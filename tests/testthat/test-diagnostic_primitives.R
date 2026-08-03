@@ -1,19 +1,24 @@
 # In-pass diagnostic primitives (ranks, margins, total_rate) computed by the
-# default_c engines. For the multinomial engines observed_rank is validated
+# cpp backend. For the multinomial sub-models observed_rank is validated
 # against ranks enumerated from the default R engine's per-event probabilities
-# at the same MLE, and the parity tests at the end compare default_c ranks and
+# at the same MLE, and the parity tests at the end compare cpp ranks and
 # margins to the default R engine evaluated at identical parameters; the
 # exact-time engines get their own structural and Cox-Snell identity checks.
 
 # Rank of the observed alternative among the risk set, enumerated from a fit
 # that stored per-event probabilities. For a multinomial submodel
-# exp(intervalLogL) is the observed alternative's probability, so its rank is
-# 1 + (# alternatives strictly more likely).
-ranks_from_probabilities <- function(fit) {
-  p_obs <- exp(fit$intervalLogL)
+# exp(interval_log_lik) is the observed alternative's probability, so its rank is
+# 1 + (# alternatives more likely by more than the documented tie tolerance).
+# The tolerance is applied here exactly as the kernels apply it -- relative to
+# the observed probability -- so this reconstruction tests the same rule rather
+# than a second one.
+ranks_from_probabilities <- function(fit, tolerance = 1e-12) {
+  p_obs <- exp(fit$interval_log_lik)
   vapply(
-    seq_along(fit$eventProbabilities),
-    function(i) 1L + sum(fit$eventProbabilities[[i]] > p_obs[i] + 1e-9),
+    seq_along(fit$event_probabilities),
+    function(i) {
+      1L + sum(fit$event_probabilities[[i]] > p_obs[i] * (1 + tolerance))
+    },
     integer(1)
   )
 }
@@ -24,7 +29,9 @@ estimate_with_ranks <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_estimation_opt(diagnostics = c("loglik", "ranks"))
+    control_algo = set_algorithm_newton(
+      diagnostics = c("loglik", "ranks")
+    )
   )
 }
 
@@ -34,8 +41,8 @@ estimate_with_probabilities <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_estimation_opt(
-      engine = "default",
+    control_algo = set_algorithm_newton(
+      backend = "r",
       return_probabilities = TRUE
     )
   )
@@ -48,7 +55,7 @@ test_that("observed_rank matches enumerated probabilities (DyNAM choice)", {
   fit_probs <- estimate_with_probabilities(formula, "DyNAM", "choice")
 
   expect_type(fit_ranks$observed_rank, "integer")
-  expect_length(fit_ranks$observed_rank, fit_ranks$nEvents)
+  expect_length(fit_ranks$observed_rank, fit_ranks$n_events)
   expect_equal(fit_ranks$observed_rank, ranks_from_probabilities(fit_probs))
 })
 
@@ -86,10 +93,48 @@ test_that("observed_rank is a valid rank vector on exact-time REM", {
 
   ranks <- fit$observed_rank
   expect_type(ranks, "integer")
-  expect_length(ranks, fit$nEvents)
+  expect_length(ranks, fit$n_events)
   dependent <- !is.na(ranks)
   expect_true(all(ranks[dependent] >= 1L))
 })
+
+# Rank ties. Exact ties are the rule, not the edge case: on a nearly empty
+# network most alternatives carry identical statistics, so a tolerance-free
+# strict comparison resolves whole blocks by whichever way the last bit of each
+# backend's log-normalizer happens to fall. The tie rule -- strictly greater
+# than the observed weight widened by a 1e-12 RELATIVE tolerance -- collapses
+# those blocks identically everywhere. Relative rather than absolute because
+# the kernels rank proportional but differently scaled vectors (raw weights,
+# normalized probabilities, log-symmetric values), which an absolute tolerance
+# would treat differently.
+
+test_that("the tie rule ties near-ties and keeps distinct levels apart", {
+  # Within the tolerance: tied, so every member of the block shares rank 1.
+  block <- c(1, 1 + 1e-13, 1 - 1e-13, 1 + 5e-13)
+  for (i in seq_along(block)) {
+    expect_equal(rank_of_observed(block, i), 1L)
+  }
+  # Beyond it: distinct ranks, so the tolerance does not flatten real
+  # differences. 1e-10 relative is two orders above the rule and still far
+  # below any structure a model produces.
+  expect_equal(rank_of_observed(c(1, 1 + 1e-10), 1L), 2L)
+  expect_equal(rank_of_observed(c(1, 1 + 1e-10), 2L), 1L)
+  expect_equal(rank_of_observed(c(0.5, 0.3, 0.2), 3L), 3L)
+
+  # The log-scale form (the coordination path ranks there) is the same rule:
+  # an additive tolerance, since log(1 + tol) = tol to first order.
+  logs <- log(block)
+  for (i in seq_along(logs)) {
+    expect_equal(rank_of_observed(logs, i, log_scale = TRUE), 1L)
+  }
+  expect_equal(
+    rank_of_observed(log(c(1, 1 + 1e-10)), 1L, log_scale = TRUE),
+    2L
+  )
+})
+
+# The two fixture-based tie scenarios live at the end of this file, where the
+# shared `parity_fit()` helper is defined.
 
 # In-pass actor margins (per-actor observed vs expected event counts). The
 # calibration identity splits by flavor: multinomial expected counts sum
@@ -110,7 +155,7 @@ margins_eval <- function(spec, data_list, params = NULL) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(set_estimation_opt, opt_args),
+    control_algo = do.call(set_algorithm_newton, opt_args),
     progress = FALSE,
     verbose = FALSE
   )
@@ -239,8 +284,8 @@ total_rate_fit <- function(spec, data_list, preprocessing_only = FALSE) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(
-      set_estimation_opt,
+    control_algo = do.call(
+      set_algorithm_newton,
       c(list(), spec$estimation_args)
     ),
     preprocessing_only = preprocessing_only,
@@ -264,18 +309,18 @@ test_that("total_rate reproduces the Cox-Snell residuals on exact-time fits", {
   grid <- baselines_model_grid()
 
   # DyNAM rate: default diagnostics store total_rate; the compensator identity is
-  # exact on right-censored intervals (intervalLogL = -Dt * total_rate there) and
+  # exact on right-censored intervals (interval_log_lik = -Dt * total_rate there) and
   # the compensators sum to the dependent-event count at the MLE.
   fit_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list)
   prep_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list, TRUE)
   dt_rate <- prep_rate$intervals
   expect_false(is.null(fit_rate$total_rate))
-  expect_length(fit_rate$total_rate, fit_rate$nEvents)
+  expect_length(fit_rate$total_rate, fit_rate$n_events)
   expect_true(all(fit_rate$total_rate > 0))
   censored <- prep_rate$is_dependent == 0
   expect_equal(
     fit_rate$total_rate[censored] * dt_rate[censored],
-    -fit_rate$intervalLogL[censored]
+    -fit_rate$interval_log_lik[censored]
   )
   expect_equal(
     sum(fit_rate$total_rate * dt_rate),
@@ -317,9 +362,86 @@ test_that("total_rate is stored only for exact-time submodels", {
     model = "REM",
     sub_model = "rate",
     data = dataTest,
-    control_estimation = set_estimation_opt(diagnostics = "scores")
+    control_algo = set_algorithm_newton(diagnostics = "scores")
   ))
   expect_null(fit_no_loglik$total_rate)
+})
+
+# conditional_logl (the "which" component of the exact-time loglik, the Cox
+# partial-likelihood contribution log p_obs) is NA on right-censored intervals
+# by design: a censored interval realizes no mover, so there is no observed
+# alternative to condition on (D21). The gather Poisson kernel previously stored
+# a placeholder (lin_pred[selected] - lse, `selected` being the exogenous
+# event's actor) there; it now stores NA at exactly those positions, matching
+# the r backend. `indeg(networkExog)` -- an effect on an exogenous network -- is
+# what gives this fixture right-censored intervals at all, so the precondition
+# is asserted rather than assumed (the vacuous-fixture trap of D21).
+test_that("gather conditional_logl is NA on right-censored intervals only", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  formula <- depNetwork ~ 1 + indeg + outdeg(networkExog, weighted = TRUE)
+
+  # A converged gather fit supplies the fixed parameter vector both fits share.
+  conv <- suppressWarnings(estimate_wrapper(
+    formula,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = "loglik"
+    )
+  ))
+  params <- conv$parameters
+
+  fit_gather <- suppressWarnings(estimate_wrapper(
+    formula,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = "loglik",
+      initial_parameters = params,
+      max_iterations = 0
+    )
+  ))
+
+  censored <- fit_gather$right_censored_events
+  # Precondition: the fixture must actually carry a right-censored interval, or
+  # every NA assertion below would pass vacuously.
+  expect_gt(sum(censored), 0)
+
+  expect_false(is.null(fit_gather$conditional_logl))
+  # NA at exactly the censored positions, finite log-probabilities elsewhere.
+  expect_true(all(is.na(fit_gather$conditional_logl[censored])))
+  expect_true(all(!is.na(fit_gather$conditional_logl[!censored])))
+  expect_true(all(fit_gather$conditional_logl[!censored] <= 0))
+
+  # Independent r-backend reference: the conditional component log p_obs is the
+  # ordinal ("which", timing removed) per-event log-likelihood, so a DyNAM
+  # rate_ordered fit at the same non-intercept coefficients reproduces it
+  # through an entirely different kernel (the intercept cancels in the softmax).
+  ord_r <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ indeg + outdeg(networkExog, weighted = TRUE),
+    model = "DyNAM",
+    sub_model = "rate_ordered",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      return_interval_loglik = TRUE,
+      initial_parameters = params[-1],
+      max_iterations = 0
+    )
+  ))
+  expect_equal(
+    fit_gather$conditional_logl[!censored],
+    ord_r$interval_log_lik,
+    tolerance = 1e-10
+  )
 })
 
 test_that("large per-event storage emits a footprint note above the threshold", {
@@ -366,17 +488,17 @@ test_that("large per-event storage emits a footprint note above the threshold", 
   )
 })
 
-# Cross-engine parity: the in-pass default_c ranks and margins must equal the
-# independent quantities the default R engine computes from its per-event
-# probability matrix. Both engines are evaluated at the SAME parameter vector
-# (default_c's MLE, pinned on the default engine via max_iterations = 0) so the
-# parity is machine-precision rather than the coarser cross-engine tolerance.
+# Cross-backend parity: the in-pass ranks and margins of the cpp and r backends
+# are the same reduction over the same per-event weights, so they must agree
+# natively -- no reconstruction in between. Both backends are evaluated at the
+# SAME parameter vector (cpp's MLE, pinned on r via max_iterations = 0) so the
+# parity is machine-precision rather than the coarser cross-backend tolerance.
 parity_fit <- function(spec, data_list, ...) {
-  ctrl <- do.call(set_estimation_opt, list(...))
+  ctrl <- do.call(set_algorithm_newton, list(...))
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = ctrl,
+    control_algo = ctrl,
     progress = FALSE,
     verbose = FALSE
   )
@@ -391,7 +513,7 @@ parity_fit <- function(spec, data_list, ...) {
   }
 }
 
-test_that("default_c ranks match the default engine at the same parameters", {
+test_that("r ranks match cpp at the same parameters (multinomial)", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
@@ -399,42 +521,642 @@ test_that("default_c ranks match the default engine at the same parameters", {
   for (nm in c("se_dynam_choice", "se_dynam_rate_ordered", "se_rem_ordered")) {
     spec <- grid[[nm]]
     fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
-    fd <- parity_fit(
+    fr <- parity_fit(
       spec,
       data_list,
-      engine = "default",
-      return_probabilities = TRUE,
+      backend = "r",
+      diagnostics = c("loglik", "ranks"),
       initial_parameters = fc$parameters,
       max_iterations = 0
     )
-    expect_equal(fc$observed_rank, ranks_from_probabilities(fd), info = nm)
+    # A count of strict inequalities on both sides: exact, not toleranced.
+    expect_equal(fr$observed_rank, fc$observed_rank, info = nm)
   }
 })
 
-test_that("default_c margins match the default engine at the same parameters", {
+test_that("r margins match cpp at the same parameters (multinomial)", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
   grid <- baselines_model_grid()
-  # Single-sided multinomial margins are the column sums of the default engine's
-  # per-event probability vectors (receiver for choice, sender for ordered rate).
-  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered")) {
+  # choice and rate_ordered are single-sided (receiver / sender); REM_ordered is
+  # two-sided, a geometry the probability-matrix reconstruction could not reach.
+  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered", "se_rem_ordered")) {
     spec <- grid[[nm]]
     fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "margins"))
-    fd <- parity_fit(
+    fr <- parity_fit(
       spec,
       data_list,
-      engine = "default",
-      return_probabilities = TRUE,
+      backend = "r",
+      diagnostics = c("loglik", "margins"),
       initial_parameters = fc$parameters,
       max_iterations = 0
     )
-    expected_from_prob <- Reduce(`+`, fd$eventProbabilities)
+    expect_named(fr$margins, names(fc$margins), info = nm)
+    for (field in names(fc$margins)) {
+      expect_equal(
+        fr$margins[[field]],
+        fc$margins[[field]],
+        tolerance = 1e-10,
+        info = paste(nm, field)
+      )
+    }
+  }
+})
+
+# Both backends now run the same shared reduction, so agreeing with each other
+# cannot rule out a shared mistake inside it. One fixture keeps the original
+# reconstruction from the per-event probability matrix as an independent third
+# expectation: it recomputes ranks and margins outside the reduction entirely,
+# from probabilities the estimator stores rather than from the accumulators.
+test_that("probability-matrix reconstruction confirms both backends (choice)", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()[["se_dynam_choice"]]
+
+  fc <- parity_fit(
+    spec,
+    data_list,
+    diagnostics = c("loglik", "ranks", "margins")
+  )
+  fr <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    diagnostics = c("loglik", "ranks", "margins"),
+    initial_parameters = fc$parameters,
+    max_iterations = 0
+  )
+  fp <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    return_probabilities = TRUE,
+    initial_parameters = fc$parameters,
+    max_iterations = 0
+  )
+
+  reconstructed_ranks <- ranks_from_probabilities(fp)
+  expect_equal(fc$observed_rank, reconstructed_ranks)
+  expect_equal(fr$observed_rank, reconstructed_ranks)
+
+  # Single-sided multinomial expected margins are the column sums of the
+  # per-event probability vectors (receiver for choice). Compared unnamed: the
+  # stored margins carry actor labels and a scale marker, which the raw
+  # reconstruction from the probability matrix has no counterpart for.
+  reconstructed_margins <- Reduce(`+`, fp$event_probabilities)
+  expect_equal(
+    unname(fc$margins$expected),
+    reconstructed_margins,
+    ignore_attr = TRUE,
+    tolerance = 1e-9
+  )
+  expect_equal(
+    unname(fr$margins$expected),
+    reconstructed_margins,
+    ignore_attr = TRUE,
+    tolerance = 1e-9
+  )
+})
+
+# The r backend accumulates ranks and margins in its contribution loop from the
+# per-event probability vector, without materializing the whole probability
+# matrix. These directly compare the native r reductions to the cpp kernels at a
+# fixed parameter vector, for the families the reconstruction tests above do not
+# cover (the exact-time rate / REM, whose margins carry both scale variants).
+test_that("r ranks and margins match cpp at the same parameters (exact-time)", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  for (nm in c("se_dynam_rate", "se_rem")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(
+      spec,
+      data_list,
+      diagnostics = c("loglik", "ranks", "margins")
+    )
+    fr <- parity_fit(
+      spec,
+      data_list,
+      backend = "r",
+      diagnostics = c("loglik", "ranks", "margins"),
+      initial_parameters = fc$parameters,
+      max_iterations = 0
+    )
+    expect_equal(fr$observed_rank, fc$observed_rank, info = nm)
+    # total_rate and the conditional loglik component now exist natively on r.
+    expect_equal(fr$total_rate, fc$total_rate, tolerance = 1e-10, info = nm)
+    # Compensator-scale margins (the variant cpp also carries) agree; the
+    # probability-scale variant is r-only until cpp gains it in task 5.1.
+    mc <- fc$margins
+    mr <- fr$margins
+    for (field in intersect(names(mc), names(mr))) {
+      expect_equal(
+        mr[[field]],
+        mc[[field]],
+        tolerance = 1e-9,
+        info = paste(nm, field)
+      )
+    }
+  }
+})
+
+test_that("requesting margins but not probabilities carries no probability matrix", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The point of accumulating in the loop rather than reconstructing: margins
+  # come back without the O(events x actors) probability matrix ever forming.
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      diagnostics = c("loglik", "margins")
+    )
+  ))
+  expect_false(is.null(fit$margins))
+  expect_null(fit$event_probabilities)
+  expect_null(fit$pMatrix)
+})
+
+# Per-event probabilities are indexed by actor over the whole node set, not by
+# position in the event's reduced risk set, so a position means the same actor
+# at every event and on every backend. Requesting margins alongside is the point
+# of the contract: the two primitives must agree about what an index is, which
+# is why each shape below is asserted against the margin vector's own length.
+probability_fit <- function(model, sub_model, formula, data = dataTest) {
+  suppressWarnings(suppressMessages(estimate_wrapper(
+    formula,
+    model = model,
+    sub_model = sub_model,
+    data = data,
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      diagnostics = c("loglik", "margins", "probabilities"),
+      max_iterations = 1
+    )
+  )))
+}
+
+test_that("per-event probabilities are actor-indexed on the sender axis", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  for (sub_model in c("rate", "rate_ordered")) {
+    formula <- if (identical(sub_model, "rate")) {
+      depNetwork ~ 1 + indeg
+    } else {
+      depNetwork ~ indeg + outdeg
+    }
+    fit <- probability_fit("DyNAM", sub_model, formula)
+    p <- fit$event_probabilities[[1]]
+    expect_length(p, length(fit$margins$expected))
+    expect_equal(sum(p), 1, info = sub_model)
+  }
+})
+
+test_that("per-event probabilities zero the receivers outside the risk set", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- probability_fit("DyNAM", "choice", depNetwork ~ inertia + recip)
+  p <- fit$event_probabilities[[1]]
+  expect_length(p, length(fit$margins$expected))
+  expect_equal(sum(p), 1)
+  # A DyNAM-choice sender cannot choose itself, so the reflexive position is a
+  # zero rather than a dropped entry -- the case that made the old reduced
+  # shape ragged even with no composition change at all. Every event therefore
+  # carries strictly fewer alternatives at risk than the vector is long.
+  n_at_risk <- vapply(
+    fit$event_probabilities,
+    function(p) sum(p > 0),
+    integer(1)
+  )
+  expect_true(all(n_at_risk < length(p)))
+})
+
+test_that("per-event probabilities span the whole dyad grid", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- probability_fit("REM", "rate", depNetwork ~ 1 + inertia)
+  p <- fit$event_probabilities[[1]]
+  n1 <- length(fit$margins$expected_sender)
+  n2 <- length(fit$margins$expected_receiver)
+  expect_equal(dim(p), c(n1, n2))
+  expect_equal(sum(p), 1)
+})
+
+test_that("per-event probability length is constant under composition change", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The fisheries fixture's actors enter and leave, which under the reduced
+  # shape gave 13 distinct per-event lengths across 215 events. Actor indexing
+  # makes the length constant and moves the variation into how many entries are
+  # nonzero -- the same information, at a stable position per actor.
+  data_list <- list(fisheries = baselines_fisheries_data())
+  spec <- baselines_model_grid()[["fish_dynam_rate"]]
+  fit <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    diagnostics = c("loglik", "margins", "probabilities"),
+    max_iterations = 1
+  )
+
+  lengths <- vapply(fit$event_probabilities, length, integer(1))
+  expect_equal(unique(lengths), length(fit$margins$expected))
+  # The precondition: this fixture must actually exercise composition change,
+  # or the test passes vacuously on a constant risk set.
+  n_at_risk <- vapply(
+    fit$event_probabilities,
+    function(p) sum(p > 0),
+    integer(1)
+  )
+  expect_gt(length(unique(n_at_risk)), 1L)
+  expect_true(all(n_at_risk < unique(lengths)))
+  expect_equal(vapply(fit$event_probabilities, sum, numeric(1)), rep(1, 215))
+})
+
+test_that("per-event probabilities agree on all three backends", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  families <- c(
+    "se_dynam_rate",
+    "se_dynam_rate_ordered",
+    "se_dynam_choice",
+    "se_rem",
+    "se_rem_ordered"
+  )
+  for (nm in families) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(
+      spec,
+      data_list,
+      diagnostics = c("loglik", "probabilities")
+    )
+    at_fixed <- function(backend) {
+      parity_fit(
+        spec,
+        data_list,
+        backend = backend,
+        diagnostics = c("loglik", "probabilities"),
+        initial_parameters = fc$parameters,
+        max_iterations = 0
+      )
+    }
+    fr <- at_fixed("r")
+    fg <- at_fixed("gather")
+
+    # Precondition, not decoration: requesting probabilities used to redirect
+    # every non-r backend onto r, which would make each comparison below run r
+    # against r -- passing while proving nothing.
+    expect_equal(fc$backend, "cpp", info = nm)
+    expect_equal(fg$backend, "gather", info = nm)
+
     expect_equal(
-      fc$margins$expected,
-      expected_from_prob,
-      tolerance = 1e-9,
+      lapply(fc$event_probabilities, as.numeric),
+      lapply(fr$event_probabilities, as.numeric),
+      tolerance = 1e-10,
       info = nm
     )
+    expect_equal(
+      lapply(fg$event_probabilities, as.numeric),
+      lapply(fr$event_probabilities, as.numeric),
+      tolerance = 1e-10,
+      info = nm
+    )
+    # The same softmax on the same predictors, so the per-event totals hold on
+    # every family (D16's next-event probability).
+    expect_equal(
+      vapply(fc$event_probabilities, sum, numeric(1)),
+      rep(1, fc$n_events),
+      info = nm
+    )
+  }
+})
+
+test_that("requesting probabilities does not substitute the backend", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The redirect this replaces warned and moved the fit onto r. It also drove
+  # an ordering artifact: firing before the scores gate, it could turn an abort
+  # into a success on a backend the user did not choose.
+  for (backend in c("cpp", "gather")) {
+    # Collect rather than suppress: the storage-footprint guardrail legitimately
+    # warns whenever probabilities are requested, so the assertion has to name
+    # the substitution warning instead of demanding silence.
+    warned <- character(0)
+    withCallingHandlers(
+      fit <- suppressMessages(estimate_wrapper(
+        depNetwork ~ inertia + recip,
+        model = "DyNAM",
+        sub_model = "choice",
+        data = dataTest,
+        control_algo = set_algorithm_newton(
+          backend = backend,
+          diagnostics = c("loglik", "probabilities"),
+          max_iterations = 1
+        )
+      )),
+      warning = function(w) {
+        warned <<- c(warned, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+    expect_false(any(grepl("does not.*support", warned)), info = backend)
+    expect_false(any(grepl("Estimating with", warned)), info = backend)
+    expect_equal(fit$backend, backend)
+    expect_false(is.null(fit$event_probabilities))
+  }
+})
+
+test_that("a superset request keeps every primitive it names", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # Asking for more used to return less: the redirect moved a cpp fit onto r
+  # for the sake of probabilities, and ranks and margins silently vanished from
+  # the result -- on the default backend, with no message.
+  fit <- suppressWarnings(suppressMessages(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "cpp",
+      diagnostics = c("loglik", "scores", "ranks", "margins", "probabilities"),
+      max_iterations = 1
+    )
+  )))
+  expect_equal(fit$backend, "cpp")
+  expect_false(is.null(fit$observed_rank))
+  expect_false(is.null(fit$margins))
+  expect_false(is.null(fit$event_scores))
+  expect_false(is.null(fit$event_probabilities))
+})
+
+test_that("the cpp exact-time kernels carry the conditional loglik component", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The Cox partial-likelihood contribution log p_obs. The cpp kernels compute
+  # it from a max-shifted pass added beside the raw one -- the same `x_obs - lse`
+  # form the gather kernel uses -- so the three backends agree exactly rather
+  # than only where nothing over- or underflows.
+  formula <- depNetwork ~ 1 + indeg(networkExog)
+  fit_at <- function(backend, initial = NULL, iterations = 1) {
+    suppressWarnings(suppressMessages(estimate_wrapper(
+      formula,
+      model = "DyNAM",
+      sub_model = "rate",
+      data = dataTest,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = c("loglik", "margins"),
+        initial_parameters = initial,
+        max_iterations = iterations
+      )
+    )))
+  }
+  fc <- fit_at("cpp")
+  fr <- fit_at("r", fc$parameters, 0)
+  fg <- fit_at("gather", fc$parameters, 0)
+
+  # Precondition: without a right-censored interval the NA contract below is
+  # vacuous, and this fixture is the one that produces them (an effect on an
+  # exogenous network turns its events into intervals with no mover).
+  censored <- fc$right_censored_events
+  expect_gt(sum(censored), 0L)
+
+  expect_false(is.null(fc$conditional_logl))
+  expect_equal(is.na(fc$conditional_logl), unname(censored))
+  dependent <- !censored
+  expect_equal(
+    fc$conditional_logl[dependent],
+    fr$conditional_logl[dependent],
+    tolerance = 1e-10
+  )
+  expect_equal(
+    fc$conditional_logl[dependent],
+    fg$conditional_logl[dependent],
+    tolerance = 1e-10
+  )
+  # Exact-time margins now carry BOTH scales on cpp, so its component set
+  # matches the r backend's rather than trailing it by one.
+  expect_named(fc$margins, names(fr$margins))
+  expect_equal(
+    fc$margins$expected_probability,
+    fr$margins$expected_probability,
+    tolerance = 1e-10
+  )
+  # The probability scale totals the event count at ANY parameter vector,
+  # which is what makes it the calibration map; the compensator scale does so
+  # only at the MLE.
+  expect_equal(sum(fc$margins$expected_probability), sum(dependent))
+})
+
+test_that("a right-censored interval's NA rank is not read as a failure", {
+  # `observed_rank` is allocated NA-filled and written only for dependent
+  # events, so any model with a right-censored interval leaves NAs behind when
+  # ranks are requested. The initial-parameters guard scans the kernel result
+  # for NA meaning "the likelihood could not be evaluated"; before the guard
+  # learned to skip this component, requesting ranks on such a model aborted
+  # with "Estimation not possible with initial parameters".
+  #
+  # The effect must sit on an EXOGENOUS network: that is what turns its events
+  # into likelihood intervals with no mover. A plain `indeg` here preprocesses
+  # to zero censored intervals, which this test used to use -- leaving both
+  # assertions below quantified over an empty set and passing vacuously.
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ 1 + indeg(networkExog),
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "cpp",
+      diagnostics = c("loglik", "ranks"),
+      initial_parameters = c(-3, 0.1),
+      max_iterations = 0
+    )
+  ))
+  expect_gt(sum(fit$right_censored_events), 0L)
+  expect_false(is.null(fit$observed_rank))
+  # Right-censored intervals keep their NA; dependent events are ranked.
+  expect_true(all(is.na(fit$observed_rank[fit$right_censored_events])))
+  expect_true(all(!is.na(fit$observed_rank[!fit$right_censored_events])))
+})
+
+# The guard above runs once, at the initial parameters. The Newton loop scans
+# the same result again every iteration to decide whether to accept a step, so
+# a by-design NA has to be excluded there too. `indeg(networkExog)` is what
+# gives this fixture right-censored intervals at all: an effect on an exogenous
+# network turns that network's events into likelihood intervals with no mover,
+# which is why the plain `~ 1 + indeg` fixture above cannot exercise either
+# guard (it preprocesses to zero censored intervals).
+test_that("requesting ranks does not perturb a free fit with censored events", {
+  formula <- depNetwork ~ 1 + indeg(networkExog)
+  fit_free <- function(diagnostics, backend) {
+    suppressWarnings(estimate_wrapper(
+      formula,
+      model = "DyNAM",
+      sub_model = "rate",
+      data = dataTest,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = diagnostics
+      )
+    ))
+  }
+
+  for (backend in c("cpp", "gather")) {
+    reference <- fit_free("loglik", backend)
+    expect_gt(sum(reference$right_censored_events), 0)
+
+    # Before the step-acceptance guard learned to skip `observed_rank`, every
+    # step was rejected as a numerical failure and the first reset restored a
+    # NULL information matrix, surfacing as "Matrix cannot be inverted".
+    with_ranks <- expect_no_error(fit_free(c("loglik", "ranks"), backend))
+    expect_equal(
+      coef(with_ranks),
+      coef(reference),
+      info = backend
+    )
+    expect_true(
+      all(is.na(with_ranks$observed_rank[with_ranks$right_censored_events])),
+      info = backend
+    )
+    expect_true(
+      all(!is.na(with_ranks$observed_rank[!with_ranks$right_censored_events])),
+      info = backend
+    )
+  }
+})
+
+# The replay object on the fit (`return_preprocessed`) and the precedence rule
+# every diagnostic that needs a statistics replay reads it through.
+
+test_that("return_preprocessed attaches the replay object and reports its size", {
+  # The size is asserted as a message, not a snapshot: `object.size()` depends
+  # on the platform's pointer width, so the rendered figure is not reproducible
+  # across the machines that run this suite.
+  expect_message(
+    fit <- estimate_dynam(
+      depNetwork ~ inertia + recip,
+      sub_model = "choice",
+      data = dataTest,
+      return_preprocessed = TRUE
+    ),
+    "preprocessed statistics"
+  )
+  expect_s3_class(fit$preprocessed, "preprocessed.goldfish")
+})
+
+test_that("a fit does not carry the replay object unless it is asked for", {
+  fit <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_null(fit$preprocessed)
+})
+
+test_that("the attached object re-estimates through preprocessed =", {
+  fit <- suppressMessages(estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    return_preprocessed = TRUE
+  ))
+  replayed <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    preprocessed = fit$preprocessed
+  )
+  expect_equal(coef(replayed), coef(fit))
+})
+
+test_that("resolve_preprocessed prefers a supplied object over the attached one", {
+  fit <- suppressMessages(estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    return_preprocessed = TRUE
+  ))
+  supplied <- compute_statistics(
+    depNetwork ~ inertia,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_identical(resolve_preprocessed(supplied, fit), supplied)
+  expect_identical(resolve_preprocessed(NULL, fit), fit$preprocessed)
+})
+
+test_that("a missing replay object names both supply routes", {
+  fit <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_snapshot(resolve_preprocessed(fit = fit), error = TRUE)
+  expect_snapshot(resolve_preprocessed(fit$names, fit), error = TRUE)
+})
+
+# The tie rule's two fixture scenarios (the unit-level one is with the other
+# rank tests above): the cross-backend identity it exists to guarantee, and the
+# agreement between a rank and a top-k recall over the same event.
+
+test_that("tied alternatives get the same rank on every backend", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  # Coordination is the fixture the rule was sized on: its events sit inside
+  # exactly tied blocks early in the sequence, and one event's rank differed by
+  # 57 places between the r and cpp backends under the tolerance-free rule.
+  for (nm in c("se_dynam_choice_coord", "se_dynam_choice", "se_rem")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
+    for (backend in c("r", "gather")) {
+      other <- parity_fit(
+        spec,
+        data_list,
+        backend = backend,
+        diagnostics = c("loglik", "ranks"),
+        initial_parameters = fc$parameters,
+        max_iterations = 0
+      )
+      expect_identical(
+        other$observed_rank,
+        fc$observed_rank,
+        info = paste(nm, backend)
+      )
+    }
+  }
+})
+
+test_that("top-k recall and the stored rank agree about ties", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()[["se_dynam_choice"]]
+  fit <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
+  probs <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    return_probabilities = TRUE,
+    initial_parameters = fit$parameters,
+    max_iterations = 0
+  )
+  # A recall statistic enumerated from the probabilities under the same rule
+  # cannot disagree with the stored rank about whether the observed alternative
+  # is within the top k, including where a tied block spans k.
+  enumerated <- ranks_from_probabilities(probs)
+  for (k in c(1L, 3L, 10L)) {
+    expect_identical(fit$observed_rank <= k, enumerated <= k, info = k)
   }
 })

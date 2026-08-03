@@ -520,6 +520,17 @@ ds_node_lookup.data_source_stocnet <- function(src) {
   layer_node_lookup(src$mode_map, src$focal)
 }
 
+# The name of the focal layer, for exports that record which layer a process
+# belongs to. The legacy environment has no layer vocabulary at all -- its
+# dependent events name a network object, not a layer -- so it answers NA.
+ds_focal_layer <- function(src) UseMethod("ds_focal_layer")
+
+#' @exportS3Method
+ds_focal_layer.data_source_envir <- function(src) NA_character_
+
+#' @exportS3Method
+ds_focal_layer.data_source_stocnet <- function(src) src$focal
+
 # Does `nodeset` name the global-attribute container rather than a node set?
 ds_is_global <- function(src, nodeset) UseMethod("ds_is_global")
 
@@ -830,7 +841,7 @@ ds_composition.data_source_stocnet <- function(src, nodeset, n) {
   if (is.null(cc) || nrow(cc) == 0) {
     return(list(init = init, changes = list()))
   }
-  cc <- order_events(cc[!is.na(cc$time), , drop = FALSE])
+  cc <- arrange_events(cc[!is.na(cc$time), , drop = FALSE])
   values <- unlist(cc$value, use.names = FALSE)
   list(
     init = init,
@@ -893,7 +904,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
   }
   if (key %in% names(src$streams$global)) {
     stream <- src$streams$global[[key]]
-    timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+    timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
     return(data.frame(
       time = timed$time,
       replace = unlist(timed$value, use.names = FALSE),
@@ -915,7 +926,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
     return(dyadic_stream_events(src, src$streams$network[[key]], key))
   }
   stream <- src$streams$attribute[[key]]
-  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
   data.frame(
     time = timed$time,
     node = timed$node,
@@ -929,7 +940,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
 # value column is named for -- the dependent stream carries the focal layer's
 # rows, so it takes the focal layer's semantics.
 dyadic_stream_events <- function(src, stream, layer, keep_flavor = FALSE) {
-  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
   events <- data.frame(
     time = timed$time,
     sender = timed$from,
@@ -1026,7 +1037,7 @@ ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
 #' @param src a data source.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
 #' @param policy an optional named character vector, keyed by attribute, giving
-#'   the per-attribute imputation policy from `set_preprocessing_opt(impute =)`.
+#'   the per-attribute imputation policy from `set_preprocessing(impute =)`.
 #'   `NULL` (or an unnamed attribute) uses the default summary contract.
 #' @return the source, with imputed values resolvable through the accessors.
 #' @noRd

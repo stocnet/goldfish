@@ -1,5 +1,5 @@
 # support_constraint consumption for DyNAM choice_coordination (DyNAM-MM) across
-# the default / gather_compute / default_c engines. Coordination's
+# the r / gather / cpp backends. Coordination's
 # likelihood is two-sided (`getLikelihoodMM` pairs both directed choices), so
 # constraint is symmetrised (`support[i, j] & support[j, i]`) and folded into a
 # dense point `active_dyad` consumed as the FULL risk mask — never a per-sender
@@ -74,8 +74,8 @@ coord_formula <- create_bilat ~
 test_that("an all-allowing coordination constraint is an identity", {
   skip_on_cran()
   d <- make_coord_fixture()
-  opt <- set_estimation_opt(
-    engine = "default",
+  opt <- set_algorithm_newton(
+    backend = "r",
     max_iterations = 30,
     initial_damping = 40
   )
@@ -84,23 +84,23 @@ test_that("an all-allowing coordination constraint is an identity", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   )
   m_unc <- estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-6)
-  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_cstr$log_likelihood, m_unc$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("a restricting coordination constraint changes the estimate", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 2000L)
-  opt <- set_estimation_opt(
-    engine = "default",
+  opt <- set_algorithm_newton(
+    backend = "r",
     max_iterations = 30,
     initial_damping = 40
   )
@@ -109,18 +109,18 @@ test_that("a restricting coordination constraint changes the estimate", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   ))
   m_unc <- estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
-test_that("coordination constraint runs natively on default_c", {
+test_that("coordination constraint runs natively on cpp", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
   m_def <- suppressWarnings(estimate_dynam(
@@ -128,35 +128,35 @@ test_that("coordination constraint runs natively on default_c", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(
-      engine = "default",
+    control_algo = set_algorithm_newton(
+      backend = "r",
       max_iterations = 30,
       initial_damping = 40
     )
   ))
   # estimate_DyNAM_MM reads the symmetrised dense point active_dyad cell-wise,
-  # default_c matches the default engine exactly.
+  # cpp matches the r backend exactly.
   m_dc <- suppressWarnings(estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(
-      engine = "default_c",
+    control_algo = set_algorithm_newton(
+      backend = "cpp",
       max_iterations = 30,
       initial_damping = 40
     )
   ))
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-6)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-6)
 })
 
-test_that("gather_compute runs a coordination constraint natively", {
+test_that("gather runs a coordination constraint natively", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
-  opt <- function(engine) {
-    set_estimation_opt(
-      engine = engine,
+  opt <- function(backend) {
+    set_algorithm_newton(
+      backend = backend,
       max_iterations = 30,
       initial_damping = 40
     )
@@ -166,23 +166,23 @@ test_that("gather_compute runs a coordination constraint natively", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt("default_c")
+    control_algo = opt("cpp")
   ))
   # The gather now emits the symmetrically-folded off-diagonal dyad list (only
   # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
   # the dyad-triangle kernel reads that ragged list directly — no square
-  # candidate matrix, no redirect to default_c, no informational message.
+  # candidate matrix, no redirect to cpp, no informational message.
   expect_no_message(
     m_gc <- suppressWarnings(estimate_dynam(
       coord_formula,
       sub_model = "choice_coordination",
       data = d,
       support_constraint = ~ tie(allowedNet),
-      control_estimation = opt("gather_compute")
+      control_algo = opt("gather")
     ))
   )
   expect_equal(coef(m_gc), coef(m_dc), tolerance = 1e-6)
-  expect_equal(m_gc$logLikelihood, m_dc$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_gc$log_likelihood, m_dc$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("a coordination constraint folds active_dyad symmetric point", {

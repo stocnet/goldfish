@@ -3,31 +3,14 @@
 ## Purpose
 TBD - created by archiving change refactor-likelihood-compute. Update Purpose after archive.
 ## Requirements
-### Requirement: Optimizer selection via set_estimation_opt()
-`set_estimation_opt()` SHALL accept an `optimizer` argument as a flat
-algorithm list — `"newton_raphson"` (default), `"bfgs"`, `"bhhh"`,
-`"nelder_mead"` — validated with `match.arg()`. `"newton_raphson"` SHALL
-preserve the existing damped Newton-Raphson estimation path unchanged
-(interface and, up to floating-point summation order, results). The returned
-`estimation_opt.goldfish` object SHALL carry the selected optimizer.
-
-#### Scenario: default is the existing Newton-Raphson
-- **WHEN** `set_estimation_opt()` is called without `optimizer`
-- **THEN** estimation runs the existing damped Newton-Raphson loop and
-  produces the same results and result object as before this change.
-
-#### Scenario: invalid optimizer value
-- **WHEN** `set_estimation_opt(optimizer = "gradient_descent")` is called
-- **THEN** `match.arg()` rejects it, naming the valid choices.
-
 ### Requirement: maxLik-backed optimizers behind a Suggests dependency
 Optimizer values other than `"newton_raphson"` SHALL be driven by
 `maxLik::maxLik()` with maxLik declared in `Suggests` (never Imports). When
 maxLik is not installed, selecting such a value SHALL abort with a cli error
 that names the missing package and how to install it. The adapter SHALL feed
-maxLik through closures over the `default_c` evaluator with the preprocessed
-data fixed, evaluating the C++ function at most once per parameter vector
-(memoized across the logLik/gradient/Hessian closures).
+maxLik through closures over the `cpp` backend's evaluator with the
+preprocessed data fixed, evaluating the C++ function at most once per parameter
+vector (memoized across the logLik/gradient/Hessian closures).
 
 #### Scenario: maxLik missing
 - **WHEN** `optimizer = "bfgs"` is used and maxLik is not installed
@@ -39,18 +22,6 @@ data fixed, evaluating the C++ function at most once per parameter vector
   same parameter vector
 - **THEN** the C++ evaluator runs once and all three closures read from that
   single evaluation.
-
-### Requirement: maxLik optimizers run only on the default_c evaluator
-Estimation SHALL abort with an informative error when a maxLik-backed
-optimizer is combined with the `gather_compute` or `default` engine, stating
-that maxLik optimizers require the `default_c` engine. Because the default
-engine value is already `default_c`, selecting a maxLik optimizer without an
-explicit engine SHALL work without further user action.
-
-#### Scenario: incompatible engine
-- **WHEN** `set_estimation_opt(optimizer = "bfgs", engine = "gather_compute")`
-  reaches estimation
-- **THEN** it aborts informatively, naming the required engine.
 
 ### Requirement: Result-object parity across optimizers
 A model estimated with a maxLik-backed optimizer SHALL return the same class
@@ -88,40 +59,201 @@ the aggregate derivative within floating-point tolerance.
   well-conditioned fixtures to coefficients agreeing with Newton-Raphson
   within the cross-engine tolerance.
 
-### Requirement: User-facing return_event_scores option
-`set_estimation_opt()` SHALL accept a logical `return_event_scores` argument
-(default `FALSE`), parallel to the existing `return_interval_loglik` and
-`return_probabilities` flags. When `TRUE`, the fitted result object SHALL
-contain the per-event score matrix as `event_scores` (n_events × p, columns
-named by effect), evaluated at the returned parameter estimates. The option
-SHALL be honored by the `default_c` engine (via the evaluator flag) and the
-`default` R engine (captured in its contribution loop); requesting it with
-the `gather_compute` engine SHALL abort with an informative error. Both
-supported engines SHALL agree on the returned matrix within the cross-engine
-tolerance. The documentation SHALL describe the intended uses (robust
+### Requirement: Per-event scores primitive
+Estimation SHALL store the per-event score matrix as `event_scores`
+(n_events × p, columns named by effect), evaluated at the returned parameter
+estimates, when the `"scores"` primitive is requested through the
+`diagnostics` vector defined by the diagnostic-primitives capability (part of
+its default set). The primitive SHALL be honored by **all three backends** —
+`backend = "cpp"` (via the evaluator flag), `backend = "r"` (captured in its
+contribution loop) and `backend = "gather"` (accumulated in its compute
+kernels from the per-event increment they already form) — and the three SHALL
+agree on the returned matrix within the cross-backend tolerance. The legacy
+`return_event_scores` flag SHALL NOT exist at 2.0.0: it never shipped in a
+public release (CRAN 1.6.x or tag v1.7.0), so it is removed without a
+deprecation cycle rather than soft-deprecated like the two public
+`return_*` flags. The documentation SHALL describe the intended uses (robust
 sandwich and clustered standard errors, per-effect score-process diagnostics,
 event-influence measures) without this change implementing those diagnostics.
 
 #### Scenario: scores returned on request
-- **WHEN** a model is estimated with `return_event_scores = TRUE` on the
-  `default_c` or `default` engine
+- **WHEN** a model is estimated with the `"scores"` primitive requested on any
+  backend
 - **THEN** the result contains `event_scores` with one row per dependent event
-  and one column per effect, and its column sums agree with the (near-zero)
-  aggregate score at convergence.
+  and one column per effect, and its column sums agree with the aggregate
+  score at convergence (an algebraic 1e-10 identity; the aggregate score is
+  near zero only for free parameters — offset columns carry the fixed value's
+  nonzero score).
 
-#### Scenario: engines agree on the score matrix
-- **WHEN** the same fixture model is estimated on `default` and `default_c`
-  with `return_event_scores = TRUE`
-- **THEN** the two `event_scores` matrices agree within 1e-10.
+#### Scenario: backends agree on the score matrix
+- **WHEN** the same fixture model is estimated on `backend = "r"`,
+  `backend = "cpp"` and `backend = "gather"` at one fixed parameter vector with
+  the `"scores"` primitive requested
+- **THEN** the three `event_scores` matrices agree within 1e-10.
 
-#### Scenario: gather_compute rejects the option
-- **WHEN** `return_event_scores = TRUE` is combined with
-  `engine = "gather_compute"`
-- **THEN** estimation aborts with an informative error naming the supported
-  engines.
+#### Scenario: the gather backend stores the matrix rather than aborting
+- **WHEN** the `"scores"` primitive is combined with `backend = "gather"`
+- **THEN** estimation completes and the result carries `event_scores`, with no
+  abort and no substitution of another backend.
 
-#### Scenario: off by default
-- **WHEN** a model is estimated without setting `return_event_scores`
-- **THEN** the result contains no `event_scores` component and no per-event
-  score matrix is accumulated.
+#### Scenario: scores stored by default
+- **WHEN** a model is estimated with the default `diagnostics` value
+- **THEN** the result contains `event_scores` (the `"scores"` primitive is
+  part of the default set).
 
+#### Scenario: the removed flag is not an argument
+- **WHEN** `set_algorithm_newton(return_event_scores = TRUE)` is called at
+  2.0.0
+- **THEN** the call fails as an unknown argument, with no lifecycle warning
+  path for it.
+### Requirement: Optimizer selection via set_algorithm_newton()
+`set_algorithm_newton()` (the renamed `set_estimation_opt()`) SHALL accept an
+`optimizer` argument as a flat algorithm list — `"newton_raphson"` (default),
+`"bfgs"`, `"bhhh"`, `"nelder_mead"` — validated with `match.arg()`.
+`"newton_raphson"` SHALL preserve the existing damped Newton-Raphson
+estimation path unchanged (interface and, up to floating-point summation
+order, results). The returned object SHALL carry the selected optimizer and
+SHALL have class `c("algorithm_newton.goldfish", "algorithm.goldfish",
+"list")`; the `algorithm.goldfish` superclass is the shared dispatch and
+validation hook for all algorithm objects (the DyNES EM constructor joins it
+later).
+
+#### Scenario: default is the existing Newton-Raphson
+- **WHEN** `set_algorithm_newton()` is called without `optimizer`
+- **THEN** estimation runs the existing damped Newton-Raphson loop and
+  produces the same results and result object as before this change.
+
+#### Scenario: invalid optimizer value
+- **WHEN** `set_algorithm_newton(optimizer = "gradient_descent")` is called
+- **THEN** `match.arg()` rejects it, naming the valid choices.
+
+#### Scenario: class hierarchy
+- **WHEN** `set_algorithm_newton()` returns
+- **THEN** the object inherits both `algorithm_newton.goldfish` and
+  `algorithm.goldfish`, and the `print` method renders under the new class.
+
+### Requirement: Estimators accept the algorithm object via control_algo
+`estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
+the algorithm object through a `control_algo` argument (default
+`set_algorithm_newton()`), validated with a single
+`inherits(x, "algorithm.goldfish")` check so future algorithm objects pass
+the same gate. The internal estimation plumbing SHALL carry the object under
+the same name end to end.
+
+#### Scenario: algorithm object forwarded
+- **WHEN** `estimate_dynam(spec, data = d, control_algo =
+  set_algorithm_newton(max_iterations = 5))` is called
+- **THEN** estimation honors the option values exactly as
+  `control_estimation` did before the rename.
+
+#### Scenario: wrong object rejected
+- **WHEN** `control_algo` receives an object that does not inherit
+  `algorithm.goldfish`
+- **THEN** estimation aborts with a cli error naming the expected
+  constructor.
+
+### Requirement: maxLik optimizers run only on the cpp backend
+Estimation SHALL abort with an informative error when a maxLik-backed
+optimizer is combined with the `"gather"` or `"r"` backend, stating that
+maxLik optimizers require the `"cpp"` backend. Because the default
+backend value is already `"cpp"`, selecting a maxLik optimizer without an
+explicit backend SHALL work without further user action.
+
+#### Scenario: incompatible backend
+- **WHEN** `set_algorithm_newton(optimizer = "bfgs", backend = "gather")`
+  reaches estimation
+- **THEN** it aborts informatively, naming the required backend.
+
+### Requirement: backend replaces engine with descriptive values
+`set_algorithm_newton()` SHALL accept the computational implementation
+through `backend = c("cpp", "r", "gather")` — the C++ event loop
+(default), the R reference implementation, and the gather-stack C++
+variant — replacing the `engine` argument and its legacy values
+(`"default_c"`, `"default"`, `"gather_compute"`). `engine =` SHALL remain
+as a `lifecycle::deprecated()` sentinel, and the legacy values SHALL be
+accepted wherever supplied (mapped `default_c → cpp`, `default → r`,
+`gather_compute → gather`) with a single soft-deprecation warning naming
+the final spelling. The backend values SHALL be the only runtime vocabulary
+downstream of the constructor: the returned control object SHALL carry the
+resolved value as its `backend` component and SHALL NOT carry an `engine`
+component, and estimation gating, dispatch and their messages SHALL compare
+and report backend values directly, with no translation from a legacy token.
+Estimation SHALL accept a control object that carries only a legacy `engine`
+component (built before 2.0.0), resolving it to the corresponding backend
+value on read. Estimation behavior per backend SHALL be identical to the
+corresponding legacy engine.
+
+#### Scenario: descriptive value selects the backend
+- **WHEN** `set_algorithm_newton(backend = "r")` drives an estimation
+- **THEN** the R reference implementation runs, identical to the legacy
+  `engine = "default"` path.
+
+#### Scenario: legacy argument and value map with one warning
+- **WHEN** `set_algorithm_newton(engine = "gather_compute")` is called
+- **THEN** one soft-deprecation warning names `backend = "gather"` and
+  the returned options select the gather backend.
+
+#### Scenario: invalid backend value lists the new vocabulary
+- **WHEN** `set_algorithm_newton(backend = "fortran")` is called
+- **THEN** it aborts with a cli error naming `cpp`, `r`, and `gather`, and the
+  value that was supplied.
+
+#### Scenario: the control object speaks the backend vocabulary
+- **WHEN** `set_algorithm_newton(backend = "cpp")` is called
+- **THEN** the returned control object's `backend` component is `"cpp"` and
+  the object has no `engine` component.
+
+#### Scenario: a pre-2.0.0 control object still estimates
+- **WHEN** a control list whose only implementation field is
+  `engine = "default_c"` (as built by any pre-2.0.0 constructor —
+  `set_estimation_opt()` since v1.7.0 or `set_algorithm_newton()` in 1.9.x) is
+  supplied to an estimator
+- **THEN** estimation runs on the `cpp` backend.
+
+
+### Requirement: initial parameter values align to terms by name
+
+`set_algorithm_newton(initial_parameters =)` SHALL accept, in addition to the full-length
+unnamed numeric vector aligned by coefficient position, a named numeric vector whose names
+are matched against the fit's coefficient labels, seeding only the named coefficients and
+leaving every other coefficient at its default starting value. The full-length unnamed form
+SHALL keep its current behavior unchanged. An unnamed vector of partial length SHALL abort
+naming the expected length; an unknown name SHALL abort listing the available coefficient
+labels. Seeding only non-intercept terms SHALL NOT disable the rate intercept's
+data-derived warm start — whether the intercept was seeded SHALL be derived from the
+structured contract, not from whether an initial vector was supplied at all. In a
+multi-process specification a flat named vector SHALL broadcast — each process seeds the
+labels its own coefficients carry, and a name matching no process SHALL abort; a nested
+list keyed by flavor, optionally by family within a flavor, SHALL seed only the targeted
+process(es), with an unknown flavor or family key aborting naming the valid ones, and the
+nested and flat forms SHALL NOT be mixed in one call; an unnamed full-length vector
+supplied to a multi-process specification SHALL abort with guidance to use the named
+forms.
+
+#### Scenario: a named partial vector seeds only the named terms
+- **WHEN** a rate model with an intercept is estimated with
+  `initial_parameters = c(inertia = 1.5)`
+- **THEN** the `inertia` coefficient starts at 1.5, every other coefficient starts at its
+  default, and the intercept still receives its data-derived warm start.
+
+#### Scenario: the positional full-length form is unchanged
+- **WHEN** a full-length unnamed `initial_parameters` vector is supplied
+- **THEN** every coefficient, including the intercept, starts at the supplied value, and
+  the warm start is not applied — exactly the current documented behavior.
+
+#### Scenario: an unknown name aborts listing the labels
+- **WHEN** `initial_parameters = c(inertai = 1.5)` misspells a term
+- **THEN** estimation aborts with a cli error naming the unknown entry and listing the
+  available coefficient labels.
+
+#### Scenario: a flat named vector broadcasts across a flavored specification
+- **WHEN** a two-flavor specification whose rate and choice formulas all carry `inertia`
+  is estimated with `initial_parameters = c(inertia = 0.5)`
+- **THEN** every process seeds its own `inertia` coefficient at 0.5, the rate intercepts
+  keep their data-derived warm start, and no other coefficient is disturbed.
+
+#### Scenario: a nested list seeds one targeted process
+- **WHEN** the same specification is estimated with
+  `initial_parameters = list(creation = list(rate = c(inertia = 0.5)))`
+- **THEN** only the creation rate process seeds `inertia`; every other process starts at
+  its defaults, and an unknown flavor or family key would abort naming the valid ones.

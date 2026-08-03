@@ -1,7 +1,8 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -29,7 +30,11 @@ List estimate_DyNAM_choice(
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
     const bool return_ranks = false,
-    const bool return_margins = false
+    const bool return_margins = false,
+    const bool return_probabilities = false,
+    const bool return_availability = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -64,6 +69,36 @@ List estimate_DyNAM_choice(
     if (return_margins) {
         margin_observed = arma::vec(n_actors_2, fill::zeros);
         margin_expected = arma::vec(n_actors_2, fill::zeros);
+    }
+    // Opt-in per-event probability vector over the WHOLE receiver set, zero off
+    // the risk set: the shared max-shift helper already leaves disallowed
+    // entries at 0, so `weights / normalizer` is the actor-indexed vector the
+    // contract asks for with no scatter step. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability. A multinomial family defines no exposure
+    // time, so only the opportunity counts are accumulated -- here over the
+    // receiver set, where a risk-set position IS a receiver. Allocated only
+    // when requested.
+    arma::vec availability_opportunities;
+    arma::vec availability_seen;
+    if (return_availability) {
+        availability_opportunities = arma::vec(n_actors_2, fill::zeros);
+        availability_seen = arma::vec(n_actors_2, fill::zeros);
+    }
+    // Opt-in weighted per-interval information: one p x p slice per weight
+    // column, and the per-interval trace. Both stay empty when not requested,
+    // which is how the shared accumulator reads "not asked for".
+    const arma::mat weights_mat =
+      as_event_weights(event_weights, (arma::uword) n_events);
+    arma::cube weighted_information;
+    if (!weights_mat.is_empty()) {
+        weighted_information.zeros(
+          n_parameters, n_parameters, weights_mat.n_cols
+        );
+    }
+    arma::vec event_information_trace;
+    if (return_event_information_trace) {
+        event_information_trace.zeros(n_events);
     }
     // Check whether there are composition change and initialize
     // the presence of actor2
@@ -156,31 +191,53 @@ List estimate_DyNAM_choice(
             }
         }
         arma::vec weights;
-        double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
+        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
+        // Opt-in primitives via the shared reductions. Ranks read the shifted
+        // weights directly (scale-free); margins take the probability vector
+        // with c = 1, which is the multinomial family's only scale.
+        arma::vec probabilities;
+        if (return_margins || return_probabilities || return_event_scores) {
+            probabilities = weights / normalizer;
+        }
+        if (return_availability) {
+            availability_seen.zeros();
+            mark_availability(
+              n_actors_2, allowed, nullptr, availability_seen
+            );
+            accumulate_availability(
+              availability_seen, 0.0, true, nullptr,
+              &availability_opportunities
+            );
+        }
         if (return_ranks) {
-            const double obs_weight = weights(id_receiver);
-            int rank = 1;
-            for (int j = 0; j < n_actors_2; j++) {
-                if (allowed(j) == 1 && weights(j) > obs_weight) rank++;
-            }
-            observed_rank[id_event] = rank;
+            observed_rank[id_event] =
+              rank_of_observed(weights, allowed, id_receiver);
         }
         if (return_margins) {
-            for (int j = 0; j < n_actors_2; j++) {
-                if (allowed(j) == 1) margin_expected(j) += weights(j) / normalizer;
-            }
-            margin_observed(id_receiver) += 1;
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(&margin_observed, &margin_expected));
+            accumulate_margins(
+              probabilities, 1.0, allowed, id_receiver, true, sides
+            );
+        }
+        if (return_probabilities) {
+            event_probabilities[id_event] =
+              NumericVector(probabilities.begin(), probabilities.end());
         }
         expected_stat_current_event = (weights.t() * current_data_matrix) /
           normalizer;
         // derivative
-        arma::rowvec score_before;
-        if (return_event_scores) score_before = derivative.row(0);
         derivative += current_data_matrix.row(id_receiver);
         derivative -= expected_stat_current_event;
+        // The stored per-event score comes from the shared reduction rather
+        // than from the before/after difference of the running derivative, so
+        // the definition lives in one place instead of once per kernel. The
+        // derivative above is deliberately left as it was: it drives the
+        // optimizer, and no coefficient may move.
         if (return_event_scores) {
-            event_scores.row(id_event) = derivative.row(0) - score_before;
+            event_scores.row(id_event) =
+              event_score_row(current_data_matrix, probabilities, 1.0, id_receiver, true);
         }
         // fisher matrix: sum_j p_j s_j s_j^T - E E^T
         fisher_current_event =
@@ -188,6 +245,10 @@ List estimate_DyNAM_choice(
           normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
+        accumulate_event_information(
+          fisher_current_event, 1.0, id_event, weights_mat,
+          weighted_information, event_information_trace
+        );
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = lin_pred(id_receiver) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -201,7 +262,11 @@ List estimate_DyNAM_choice(
       Named("event_scores") = event_scores,
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
-      Named("margin_expected") = margin_expected
+      Named("margin_expected") = margin_expected,
+      Named("availability_n_opportunities") = availability_opportunities,
+      Named("event_probabilities") = event_probabilities,
+      Named("weighted_information") = weighted_information,
+      Named("event_information_trace") = event_information_trace
     );
 }
 

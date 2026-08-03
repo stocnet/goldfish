@@ -13,8 +13,8 @@
 # The per-event math mirrors the compiled estimators one-for-one (choice /
 # rate / rate-ordered / REM / REM-ordered / coordination), and the consistency
 # tests assert the reconstructed per-event interval log-likelihood reproduces
-# the estimator's `intervalLogL` at 1e-10 — that gate guards the buffer assembly
-# here against drift from `estimate_c_int()`'s sibling assembly.
+# the estimator's `interval_log_lik` at 1e-10 — that gate guards the buffer
+# assembly here against drift from `estimate_c_int()`'s sibling assembly.
 
 # Reproduce, for a single event index, the buffer assembly that
 # `estimate_c_int()` performs once for a whole fit: prepare the statistics list
@@ -42,31 +42,30 @@ materialize_process_state <- function(
 
   sl <- prepare_statslist(
     statsList = statsList,
-    excludeParameters = NULL,
     addInterceptEffect = has_intercept,
     is_sender = is_rate
   )
 
   if (is_rate) {
-    n_parameters <- ncol(sl$initialStats)
-    n_actors1 <- nrow(sl$initialStats)
+    n_parameters <- ncol(sl$initial_stats)
+    n_actors1 <- nrow(sl$initial_stats)
     n_actors2 <- 1L
     twomode_or_reflexive <- TRUE
   } else {
-    n_parameters <- dim(sl$initialStats)[3]
-    n_actors1 <- dim(sl$initialStats)[1]
-    n_actors2 <- dim(sl$initialStats)[2]
+    n_parameters <- dim(sl$initial_stats)[3]
+    n_actors1 <- dim(sl$initial_stats)[1]
+    n_actors2 <- dim(sl$initial_stats)[2]
     twomode_or_reflexive <- allow_reflexive || is_two_mode
   }
 
   # Flatten the initial statistics to the sender-major layout the compiled
   # estimators use (dyad (i, j) at row (i - 1) * n2 + j); rate stats stay n1xp.
   if (is_rate) {
-    stat_mat <- sl$initialStats
+    stat_mat <- sl$initial_stats
   } else {
     stat_mat <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat[, i] <- t(sl$initialStats[,, i])
+      stat_mat[, i] <- t(sl$initial_stats[,, i])
     }
   }
 

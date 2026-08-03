@@ -57,7 +57,10 @@ move. That is the central scoping constraint, not an afterthought.
 
 - **Sequencing**: independent of the 2.0.0 track; consumes `flavored-processes`
   only for rendered process labels in multi-process fits, and degrades to plain
-  coefficient names without it. Can land before or after 2.0.0. It directly
+  coefficient names without it. Can land before or after 2.0.0 — **decided
+  after (user, 2026-07-27): post-release**, and strictly after
+  `fixed-parameter-contract` (release-scoped, same two inversion-site
+  files); re-ground names/anchors before apply (see progress.md). It directly
   serves the vignette section `flavored-processes` 5.4 writes: that section must
   warn users off `creation ~ inertia`, and this change turns the resulting error
   into an explanation if they try it anyway.

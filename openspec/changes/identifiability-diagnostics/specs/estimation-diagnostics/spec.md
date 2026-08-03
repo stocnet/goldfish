@@ -78,3 +78,60 @@ errors are interpreted. A model SHALL NOT be refused for being ill-conditioned.
 - **WHEN** a model's information matrix is near-singular but invertible
 - **THEN** `summary()` reports the condition number and warns that the standard
   errors are unstable, while still returning the fit.
+
+### Requirement: Declared convergence is not reported while the iterate is still moving
+
+Estimation SHALL warn when it declares gradient convergence (return code 1)
+while the final damped Newton step remains large, because the two stopping rules
+are evaluated independently and either one ends the loop, so a likelihood-scaled
+gradient can fall under its tolerance while the parameter vector is still moving
+by order one. The warning SHALL report both the relative score norm and the
+maximum absolute update, and SHALL name the argument that tightens the gradient
+rule. The fit SHALL still be returned: this reports a doubt, it does not refuse
+a model.
+
+#### Scenario: gradient convergence with a unit step warns
+- **WHEN** a fit stops with return code 1, a relative score norm inside
+  `score_tol`, and a maximum absolute update of order one
+- **THEN** a warning reports both quantities and states that lowering
+  `score_tol` forces a tighter stop, while the fitted object is returned
+  unchanged
+
+#### Scenario: a settled fit warns about nothing
+- **WHEN** a fit stops with return code 1 and a maximum absolute update far
+  below the documented threshold
+- **THEN** no convergence warning is emitted
+
+### Requirement: A successful fit reports how far the score is from zero in inferential units
+
+`summary()` SHALL report a dimensionless convergence statistic scaling the final
+score by the estimator's own uncertainty, so a user can judge a fit without
+knowing the parameter scale. The statistic SHALL be the maximum t-ratio over all
+linear combinations of the score, computed from the score and the
+variance-covariance matrix already available on the fit, and SHALL be flagged
+above a reference value calibrated for this estimator rather than borrowed from
+one with a different noise source. The raw maximum absolute score SHALL remain
+available, since it is what the stopping rule uses. The statistic SHALL be
+reported only and SHALL NOT govern whether estimation stops.
+
+#### Scenario: the statistic is comparable across models of different sizes
+- **WHEN** two fits over data of very different size report the same value of
+  the statistic
+- **THEN** both are equally close to their optimum in standard-error units,
+  though their raw maximum absolute scores differ by orders of magnitude
+
+#### Scenario: a badly converged fit is distinguishable from a healthy one
+- **WHEN** the statistic is computed for a fit whose optimizer settles cleanly
+  and for one whose damped step collapses before its gradient does
+- **THEN** the two values differ by orders of magnitude, and the reference value
+  lies between them with margin on both sides
+
+#### Scenario: the statistic does not change which fits converge
+- **WHEN** a model is estimated before and after the statistic is reported
+- **THEN** the same iterations run and the same stopping rule fires, because the
+  statistic is a diagnostic and not a criterion
+
+#### Scenario: the raw score is still reported
+- **WHEN** a user inspects a fitted model's convergence component
+- **THEN** the maximum absolute score and the relative score norm are both still
+  present, because they are the quantities the stopping rules compare

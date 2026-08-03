@@ -36,14 +36,14 @@ make_ego_fold_fixture <- function(n_events = 80L) {
   )
 }
 
-fit_ego <- function(fx, engine = "default", constrained = TRUE) {
+fit_ego <- function(fx, backend = "r", constrained = TRUE) {
   args <- list(
     fx$formula,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(
+    control_algo = set_algorithm_newton(
       return_interval_loglik = TRUE,
-      engine = engine
+      backend = backend
     )
   )
   if (constrained) {
@@ -68,41 +68,41 @@ test_that("an ego-kind choice constraint now folds into active_dyad", {
 test_that("folded ego fit reproduces the captured standalone-mask reference", {
   ref <- readRDS(test_path("_fixtures", "ego_outer_standalone_ref.rds"))
   fx <- make_ego_fold_fixture()
-  fit <- fit_ego(fx, engine = "default")
+  fit <- fit_ego(fx, backend = "r")
   expect_equal(fit$parameters, ref$parameters, tolerance = 1e-10)
   expect_equal(
-    as.numeric(fit$logLikelihood),
-    ref$logLikelihood,
+    as.numeric(fit$log_likelihood),
+    ref$log_likelihood,
     tolerance = 1e-10
   )
-  expect_equal(fit$standardErrors, ref$standardErrors, tolerance = 1e-10)
+  expect_equal(fit$standard_errors, ref$standard_errors, tolerance = 1e-10)
   # per-event log-likelihood: the representation-invariant per-event quantity.
-  expect_equal(fit$intervalLogL, ref$intervalLogL, tolerance = 1e-10)
+  expect_equal(fit$interval_log_lik, ref$interval_log_lik, tolerance = 1e-10)
 })
 
 test_that("folded ego constraint agrees across engines", {
   fx <- make_ego_fold_fixture()
-  default <- fit_ego(fx, engine = "default")
-  gather <- fit_ego(fx, engine = "gather_compute")
-  default_c <- fit_ego(fx, engine = "default_c")
-  expect_equal(gather$parameters, default$parameters, tolerance = 1e-8)
-  expect_equal(default_c$parameters, default$parameters, tolerance = 1e-8)
-  expect_equal(gather$intervalLogL, default$intervalLogL, tolerance = 1e-8)
-  expect_equal(default_c$intervalLogL, default$intervalLogL, tolerance = 1e-8)
+  r <- fit_ego(fx, backend = "r")
+  gather <- fit_ego(fx, backend = "gather")
+  cpp <- fit_ego(fx, backend = "cpp")
+  expect_equal(gather$parameters, r$parameters, tolerance = 1e-8)
+  expect_equal(cpp$parameters, r$parameters, tolerance = 1e-8)
+  expect_equal(gather$interval_log_lik, r$interval_log_lik, tolerance = 1e-8)
+  expect_equal(cpp$interval_log_lik, r$interval_log_lik, tolerance = 1e-8)
 })
 
 test_that("an identity ego mask equals the unconstrained fit", {
   fx <- make_ego_fold_fixture()
-  constrained <- fit_ego(fx, engine = "default", constrained = TRUE)
-  unconstrained <- fit_ego(fx, engine = "default", constrained = FALSE)
+  constrained <- fit_ego(fx, backend = "r", constrained = TRUE)
+  unconstrained <- fit_ego(fx, backend = "r", constrained = FALSE)
   expect_equal(
     constrained$parameters,
     unconstrained$parameters,
     tolerance = 1e-10
   )
   expect_equal(
-    constrained$intervalLogL,
-    unconstrained$intervalLogL,
+    constrained$interval_log_lik,
+    unconstrained$interval_log_lik,
     tolerance = 1e-10
   )
 })

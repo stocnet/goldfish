@@ -13,7 +13,7 @@ Delivers two functions: `lr_test_dynes(m1, m0)` (Phases 1–2) and `gof_dynes(fi
 ## 0. Shared foundation
 
 - [ ] 0.1 Add the opt-in `retain_pool = FALSE` control to the estimation surface
-      (`set_alg_em()` / `estimate_dynes()`): when `TRUE` attach the lightweight pool
+      (`set_algorithm_em()` / `estimate_dynes()`): when `TRUE` attach the lightweight pool
       bundle (per draw: sequence, `log w`, `log q`) tagged with the augmentation
       scheme (`last_iteration` | `accumulated`) and a `theta` fingerprint; always
       record the `pool_recipe` (seed, augmenter/weighting settings, size). Add the

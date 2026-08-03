@@ -25,14 +25,17 @@ Three structural redundancies:
    when the effect set is symmetric (s_ij = s_ji), the two directions are
    duplicates of each other.
 
-Constraints: `gather_model_data()` is **exported API** (`NAMESPACE:105`) —
-its documented contract is already ragged ("up to" events × actors rows,
+Constraints: the gather stack is **exported API** through
+`compute_statistics(..., output = "gather")` (and the deprecated
+`gather_model_data()` wrapper over it) — its documented contract is
+already ragged ("up to" events × actors rows,
 per-event `n_candidates`), and after `refactor-likelihood-compute` D13 its
 rows carry `index_i`/`index_j`, so the compatibility bar is SAME INFORMATION
-(the index-keyed row multiset), not byte identity; the gather engine is NOT
+(the index-keyed row multiset), not byte identity; the gather backend is NOT
 in the frozen baseline grid
-(`baselines_engines = c("default", "default_c")`), so the equivalence floor
-is cross-engine agreement tests, not the frozen files;
+(`baselines_backends = c("r", "cpp")`; the frozen `.rds` keys keep their
+legacy `default` / `default_c` names), so the equivalence floor
+is cross-backend agreement tests, not the frozen files;
 `refactor-likelihood-compute` D9/D13 fix the index-based, ragged-safe compute
 contract this storage sits behind; `support-constraint-as-stat` (ARCHIVED
 2026-07-10) landed the availability consumption in the gather loop — final.
@@ -45,11 +48,12 @@ contract this storage sits behind; `support-constraint-as-stat` (ARCHIVED
   encodings.
 - Cut per-iteration estimation cost for gather REM via sufficient-statistics
   aggregation (unique rows × counts).
-- Preserve `gather_model_data()`'s user-facing shape via on-demand expansion.
+- Preserve the exported gather stack's user-facing shape via on-demand
+  expansion.
 - Numerical equivalence with the current gather engine at ~1e-10 on fixtures.
 
 **Non-Goals:**
-- No change to the `default` / `default_c` engines or to choice/rate gather
+- No change to the `r` / `cpp` backends or to choice/rate gather
   (already n-sized per event).
 - No change to the coordination *estimator algebra* — that is
   `refactor-likelihood-compute` D9; this change only feeds it a better layout.
@@ -92,9 +96,9 @@ The design space, from least to most aggressive:
    pass itself.
 3. **Delta/base hybrid** — store a base snapshot + per-event deltas and replay
    inside the estimator: rejected as a primary candidate because it converges
-   to what `default_c` already is (replay per iteration), erasing the gather
-   engine's reason to exist; kept in the sketch only as the fallback if (b)
-   shows the dictionary doesn't compress.
+   to what the `cpp` backend already is (replay per iteration), erasing the
+   gather backend's reason to exist; kept in the sketch only as the fallback
+   if (b) shows the dictionary doesn't compress.
 
 Coordination does NOT get the multiset aggregation: the pairwise weights
 p(i→j)·p(j→i) and deviations D_d = s_ij + s_ji − E_i − E_j need per-dyad
@@ -106,7 +110,7 @@ pure storage with per-dyad row_ids.
 **The ragged/support-mask path is NOT this change's job (moved 2026-07-10).**
 The index-based ragged emit (per-row `index_i`/`index_j`, per-sender CSR
 offsets, dyad-pairing indices), the diagonal drop, and the lifting of the
-constrained-coordination `default_c` redirect all land in
+constrained-coordination redirect onto the `cpp` backend all land in
 `refactor-likelihood-compute` (its D9/D13, tasks 5.7–5.9) — the earlier split
 (compute half there, emit half here as task 2.4) left a consumer with no
 producer and was dissolved. By the time this change starts, the kernel
@@ -123,10 +127,10 @@ explicit row), never reconstructing it from aggregates. Right-censored
 intervals (timed REM) carry aggregates only — they have no observed dyad —
 so the multiset suffices there.
 
-### D4 — gather_model_data() expands on demand, verified as same information
-The exported `gather_model_data()` keeps its documented output by
-materializing from the internal representation (dictionary lookup / triangle
-expansion) at call time. The compatibility bar is **self-describing
+### D4 — the gather stack expands on demand, verified as same information
+The exported gather stack (`compute_statistics(..., output = "gather")`)
+keeps its documented output by materializing from the internal
+representation (dictionary lookup / triangle expansion) at call time. The compatibility bar is **self-describing
 equivalence, not byte identity** (amended 2026-07-10): the expansion SHALL
 reproduce the same index-keyed row multiset — identical
 (`index_i`, `index_j`, statistics) tuples per event, identical
@@ -173,7 +177,7 @@ measurements before building. The measurement phase (D1) can start any time.
 - **Symmetry assumption for coordination dedup** → gated on the effect-binding
   audit (D1d); if asymmetric effects are reachable, ship the two-directed-rows
   triangle variant instead (still no diagonal).
-- **`gather_model_data()` drift** → byte-identical expansion test (D4).
+- **gather stack drift** → byte-identical expansion test (D4).
 - **In-flight changes touching the same files** → D6 sequencing;
   `support-constraint-as-stat` landed (2026-07-10); this change stays in
   proposal state until `refactor-likelihood-compute` lands and the §1
@@ -189,7 +193,7 @@ measurements before building. The measurement phase (D1) can start any time.
    mapping updated, equivalence green.
 3. REM dictionary + multiset gather and estimator consumption, equivalence
    green, per-iteration timing recorded.
-4. `gather_model_data()` expansion path + byte-identical test.
+4. Gather-stack expansion path + byte-identical test.
 5. Delete the dense gather path; cross-engine floor green; record
    before/after memory + timing.
 

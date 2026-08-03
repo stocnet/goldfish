@@ -18,9 +18,9 @@ test_that("dynam choice recipe produces the flat preprocessing output", {
     )
   )
   expect_true(all(diff(preproData$stat_mat_pointer) >= 0))
-  expect_length(dim(preproData$initialStats), 3L)
+  expect_length(dim(preproData$initial_stats), 3L)
   expect_identical(
-    dim(preproData$initialStats),
+    dim(preproData$initial_stats),
     c(5L, 5L, 2L)
   )
 })
@@ -53,7 +53,7 @@ test_that("dynam choice recipe replay matches the final statistics", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  statsArray <- preproData$initialStats
+  statsArray <- preproData$initial_stats
   pointer <- 0L
   for (i in seq_along(preproData$stat_mat_pointer)) {
     upto <- preproData$stat_mat_pointer[i]
@@ -103,13 +103,13 @@ test_that("choice coordination recipe matches the choice recipe output", {
     preprocessing_only = TRUE
   )
   expect_null(prepCoord$stats_change)
-  expect_equal(prepCoord$initialStats, prepChoice$initialStats)
+  expect_equal(prepCoord$initial_stats, prepChoice$initial_stats)
   expect_equal(prepCoord$stat_mat_update, prepChoice$stat_mat_update)
   expect_equal(prepCoord$stat_mat_pointer, prepChoice$stat_mat_pointer)
   expect_equal(prepCoord$is_dependent, prepChoice$is_dependent)
 })
 
-test_that("flat choice preprocessing reused through preprocessing_init", {
+test_that("flat choice preprocessing reused through preprocessed", {
   formulaFull <- depNetwork ~ inertia(networkState, weighted = TRUE) +
     tie(networkExog, weighted = TRUE)
   preproData <- estimate_wrapper(
@@ -124,7 +124,7 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
     model = "DyNAM",
     sub_model = "choice",
     data = dataTest,
-    preprocessing_init = preproData,
+    preprocessed = preproData,
     preprocessing_only = TRUE
   )
   prepDirect <- estimate_wrapper(
@@ -134,7 +134,7 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_equal(prepSubset$initialStats, prepDirect$initialStats)
+  expect_equal(prepSubset$initial_stats, prepDirect$initial_stats)
   expect_equal(prepSubset$stat_mat_update, prepDirect$stat_mat_update)
   expect_equal(prepSubset$stat_mat_pointer, prepDirect$stat_mat_pointer)
 })
@@ -153,8 +153,8 @@ test_that("rem rate recipe produces the flat preprocessing output", {
   expect_true(is.matrix(preproData$stat_mat_update))
   expect_identical(nrow(preproData$stat_mat_update), 4L)
   expect_length(preproData$stat_mat_pointer, length(preproData$is_dependent))
-  expect_length(dim(preproData$initialStats), 3L)
-  expect_identical(dim(preproData$initialStats), c(5L, 5L, 2L))
+  expect_length(dim(preproData$initial_stats), 3L)
+  expect_identical(dim(preproData$initial_stats), c(5L, 5L, 2L))
   expect_gt(sum(preproData$is_dependent == 0L), 0)
 })
 
@@ -192,7 +192,7 @@ test_that("rem rate ordered recipe stores dependent events only", {
   expect_null(preproData$stats_change)
   expect_true(is.matrix(preproData$stat_mat_update))
   expect_true(all(preproData$is_dependent == 1L))
-  expect_length(dim(preproData$initialStats), 3L)
+  expect_length(dim(preproData$initial_stats), 3L)
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_entity)

@@ -24,7 +24,7 @@ are tracked so collaborators share the same standards. Kept local (gitignored):
 each change's `progress.md` (personal session journal), `changes/archive/`
 (deleted from the tree on archive — history retains it), `.claude/settings.local.json`
 (personal permissions), and `.plan/` scratch except the tracked
-`goldfish_versions.csv` ledger + its two tooling scripts. Project-specific notes:
+`goldfish_versions.csv` ledger + its three tooling scripts. Project-specific notes:
 
 - **Archive tracking (run FIRST during `/opsx:archive`)**: before the sync/move
   steps, while the change dir still exists, run
@@ -34,9 +34,22 @@ each change's `progress.md` (personal session journal), `changes/archive/`
   explicit archive step (see `openspec/config.yaml`
   `rules.archive`), NOT a hook — nothing runs on unrelated commands.
 
+- **Spec-delta placement pre-flight (run during `/opsx:archive`, before the
+  delta sync)**: `bash .plan/opsx-spec-placement-check.sh <name>` — exit 0 means
+  every `## MODIFIED`/`## REMOVED` header resolves in the living spec and no
+  `## ADDED` duplicates one. `openspec validate` checks SHALL wording and
+  scenario structure but **not** `##` section placement, so a `## MODIFIED`
+  block naming a requirement the living spec does not have validates cleanly and
+  then lands as an ADD at archive, leaving the old wording in place beside the
+  new one. The check understands `## RENAMED` blocks (either side resolving is
+  enough), so it neither flags a legitimate rename nor breaks when re-run on an
+  already-archived change via `archive/<date>-<name>`. A non-zero exit is a
+  reason to fix the delta before syncing, not to skip the step.
+
 - **Workflow disciplines are authoritative in `openspec/config.yaml`**: commit-per-task,
   run `devtools::document()` inline when roxygen/exports/signatures change, bump
-  `DESCRIPTION` + `NEWS.md` at each phase milestone, and test with `NOT_CRAN=true`
+  `DESCRIPTION` + `NEWS.md` at each phase milestone, `air format` the touched R files
+  before `lintr` runs on them, and test with `NOT_CRAN=true`
   (the coefficient-baseline and C++ golden tests use `skip_on_cran()`). Read it
   before implementing.
 - **Do not regenerate the frozen coefficient baselines** in

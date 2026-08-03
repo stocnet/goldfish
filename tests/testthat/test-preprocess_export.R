@@ -1,4 +1,29 @@
+test_that("gather_model_data() is soft-deprecated onto compute_statistics()", {
+  expect_snapshot(invisible(gather_model_data(
+    depNetwork ~ inertia(networkState),
+    data = dataTest
+  )))
+})
+
+test_that("gather_model_data() returns what compute_statistics() returns", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  expect_identical(
+    gather_model_data(
+      depNetwork ~ inertia(networkState) + recip,
+      data = dataTest
+    ),
+    compute_statistics(
+      depNetwork ~ inertia(networkState) + recip,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      output = "gather"
+    )
+  )
+})
+
 test_that("Args check", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_error(
     gather_model_data(
       depNetwork ~ inertia(networkState, ignore_repetitions = TRUE),
@@ -27,6 +52,7 @@ test_that("Args check", {
   )
 })
 test_that("Printing", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_output(
     gather_model_data(
       depNetwork ~ inertia(networkState),
@@ -38,21 +64,25 @@ test_that("Printing", {
   )
 })
 test_that("Output", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState),
     data = dataTest
   )
   expect_type(out, "list")
   # +2 vs the legacy 8: the shared index vocabulary index_i / index_j; +1 for the
-  # node_lookup resolving those indices to original node identity (stocnet path).
-  expect_length(out, 11)
+  # node_lookup resolving those indices to original node identity (stocnet path);
+  # +1 for right_censored, reported alongside has_intercept on every output form.
+  expect_length(out, 12)
+  expect_contains(names(out), c("has_intercept", "right_censored"))
 })
 test_that("export names are valid, unique R names", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState, weighted = TRUE) + outdeg(networkExog),
     data = dataTest
   )
-  nm <- out$namesEffects
+  nm <- out$names_effects
   expect_equal(nm, colnames(out$stat_all_events))
   expect_true(all(make.names(nm) == nm))
   expect_false(any(grepl("[/·\\[\\] ]", nm, perl = TRUE)))

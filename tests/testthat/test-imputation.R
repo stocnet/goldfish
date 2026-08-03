@@ -75,7 +75,7 @@ initial_ego_stat <- function(data, attribute, node) {
     data = as_goldfish(data),
     preprocessing_only = TRUE
   ))
-  prep$initialStats[node, 1, 1]
+  prep$initial_stats[node, 1, 1]
 }
 
 test_that("a numeric attribute imputes from the mean of its mode category", {
@@ -92,7 +92,7 @@ test_that("a numeric attribute imputes from the mean of its mode category", {
   ))
   # alter reads the receiver (task) side; T2's imputed skill is the mean of the
   # other tasks, i.e. T1 = 2.
-  expect_equal(prep$initialStats[1, , 1], c(2, 2))
+  expect_equal(prep$initial_stats[1, , 1], c(2, 2))
 })
 
 test_that("a view spanning two modes imputes each mode separately", {

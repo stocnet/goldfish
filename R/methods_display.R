@@ -17,7 +17,7 @@
 #' printing `summary.result.goldfish` and `preprocessed.goldfish`,
 #' see  [print.default()].
 #' @param complete logical. Indicates whether the parameter coefficients
-#' of effects fixed during estimation using `fixedParameters` should be printed.
+#' of effects held fixed during estimation (via `offset()`) should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
 #' `result.goldfish` and `summary.result.goldfish`.
 #' @param compact logical. For objects of class `summary.result.goldfish`,
@@ -52,6 +52,7 @@ print.result.goldfish <- function(
   width = getOption("width"),
   complete = FALSE
 ) {
+  inform_if_stale_result(x)
   cat("\nCall:\n")
   print(x$call)
   cat("\n\n")
@@ -75,7 +76,8 @@ print.result.goldfish <- function(
 #' @export
 #' @noRd
 summary.result.goldfish <- function(object, ...) {
-  nParams <- object$nParams
+  abort_if_stale_result(object, "a summary")
+  nParams <- object$n_params
 
   if (is.null(object$names)) {
     object$names <- seq_len(nParams)
@@ -83,7 +85,7 @@ summary.result.goldfish <- function(object, ...) {
   # names <- object$names
 
   est <- object$parameters
-  std.err <- object$standardErrors
+  std.err <- object$standard_errors
   z <- est / std.err
   p <- 2 * (1 - stats::pnorm(abs(z)))
 
@@ -110,7 +112,7 @@ summary.result.goldfish <- function(object, ...) {
     c("Estimate", "Std. Error", "z-value", "Pr(>|z|)")
   )
 
-  object$coefMat <- coefmat
+  object$coef_mat <- coefmat
   object$AIC <- stats::AIC(object)
   object$BIC <- stats::BIC(object)
   class(object) <- "summary.result.goldfish"
@@ -146,8 +148,8 @@ print.summary.result.goldfish <- function(
   compact = TRUE,
   complete = FALSE
 ) {
-  nParams <- x$nParams
-  aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$nEvents - nParams - 1)
+  nParams <- x$n_params
+  aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$n_events - nParams - 1)
   cat("\nCall:\n")
   print(x$call, width = width, ...)
   cat("\n")
@@ -158,18 +160,17 @@ print.summary.result.goldfish <- function(
 
   isFixed <- GetFixed(x)
 
-  displayCols <- !startsWith(colnames(x$names), ".")
   if (!complete && any(isFixed)) {
-    names <- x$names[!isFixed, displayCols, drop = FALSE]
-    coefMat <- x$coefMat[!isFixed, ]
-    isDetPrint <- !((ncol(names) == 2) &&
-      (length(unique(names[, "Object"])) == 1))
+    names <- detail_display_table(x$names[!isFixed, , drop = FALSE])
+    coefMat <- x$coef_mat[!isFixed, ]
   } else {
-    names <- x$names[, displayCols, drop = FALSE]
-    coefMat <- x$coefMat
-    isDetPrint <- !((ncol(names) == 1) &&
-      (length(unique(names[, "Object"])) == 1))
+    names <- detail_display_table(x$names)
+    coefMat <- x$coef_mat
   }
+  # Nothing to detail when every term names the same one object and no flag
+  # applies to any of them.
+  isDetPrint <- !((ncol(names) == 1) &&
+    (length(unique(names[, "Object"])) == 1))
 
   legendLines <- character(0)
   if (compact) {
@@ -190,7 +191,9 @@ print.summary.result.goldfish <- function(
     legendLines <- .compactLegend(terms, termsFull)
   } else if (isDetPrint) {
     cat("\nEffects details:\n")
-    print.default(names, quote = FALSE, width = width, ...)
+    # As a matrix: the table is a data.frame, and print.default() would render
+    # one as its underlying list of columns.
+    print.default(as.matrix(names), quote = FALSE, width = width, ...)
   }
 
   cat("\nCoefficients:\n")
@@ -200,7 +203,7 @@ print.summary.result.goldfish <- function(
     writeLines(strwrap(legendLines, width = width, exdent = 2))
   }
   cat("\n")
-  rc <- x$convergence$returnCode
+  rc <- x$convergence$return_code
   if (is.null(rc) || rc == 0L) {
     cat("  Not converged (return code 0)\n")
   } else if (rc == 1L) {
@@ -209,10 +212,10 @@ print.summary.result.goldfish <- function(
     cat("  Return code 2: step size close to zero (damped)\n")
   }
   scoreRel <- x$convergence$score_rel_norm
-  if (is.null(scoreRel) && !is.null(x$convergence$maxAbsScore)) {
-    scoreRel <- x$convergence$maxAbsScore / max(1, abs(x$logLikelihood))
+  if (is.null(scoreRel) && !is.null(x$convergence$max_abs_score)) {
+    scoreRel <- x$convergence$max_abs_score / max(1, abs(x$log_likelihood))
   }
-  stepAbs <- x$convergence$maxAbsUpdate
+  stepAbs <- x$convergence$max_abs_update
   if (!is.null(scoreRel) && !is.null(stepAbs)) {
     cat(sprintf(
       "    score (rel. norm): %s    step (max|update|): %s\n",
@@ -220,7 +223,7 @@ print.summary.result.goldfish <- function(
       formatC(stepAbs, format = "e", digits = 2)
     ))
   }
-  nFree <- x$nParams
+  nFree <- x$n_params
   nTotal <- length(x$parameters)
   nFixed <- nTotal - nFree
   cat(
@@ -233,7 +236,7 @@ print.summary.result.goldfish <- function(
   )
   cat(
     " ",
-    paste("Log-Likelihood: ", signif(x$logLikelihood, digits), "\n", sep = "")
+    paste("Log-Likelihood: ", signif(x$log_likelihood, digits), "\n", sep = "")
   )
   cat(
     " ",
@@ -963,7 +966,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 
   description <- data.frame(
     name = c(
-      "initialStats",
+      "initial_stats",
       "stat_mat_update",
       "stat_mat_pointer",
       "stat_mat_broadcast",
@@ -984,8 +987,8 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
       "n_dep_events",
       "total_time",
       "avg_active_entity",
-      "startTime",
-      "endTime",
+      "start_time",
+      "end_time",
       "formula",
       "nodes",
       "nodes2"
@@ -1047,12 +1050,13 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-# Print estimation_opt.goldfish object
+# Print algorithm_newton.goldfish object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `estimation_opt.goldfish`, print a summary of the estimation control options.
-print.estimation_opt.goldfish <- function(x, ...) {
-  cat("Estimation Control Options (estimation_opt.goldfish):\n")
+#' @return For objects of class `algorithm_newton.goldfish`, print a summary
+#'   of the estimation algorithm options.
+print.algorithm_newton.goldfish <- function(x, ...) {
+  cat("Estimation Algorithm Options (algorithm_newton.goldfish):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {
@@ -1079,12 +1083,13 @@ print.estimation_opt.goldfish <- function(x, ...) {
   invisible(x)
 }
 
-# Print preprocessing_opt.goldfish object
+# Print preprocessing.goldfish object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `preprocessing_opt.goldfish`, print a summary of the preprocessing control options.
-print.preprocessing_opt.goldfish <- function(x, ...) {
-  cat("Preprocessing Control Options (preprocessing_opt.goldfish):\n")
+#' @return For objects of class `preprocessing.goldfish`, print a summary
+#'   of the preprocessing control options.
+print.preprocessing.goldfish <- function(x, ...) {
+  cat("Preprocessing Control Options (preprocessing.goldfish):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {
@@ -1123,7 +1128,7 @@ tidy.result.goldfish <- function(
   ...
 ) {
   isFixed <- GetFixed(x)
-  coefMat <- summary.result.goldfish(x)$coefMat
+  coefMat <- summary.result.goldfish(x)$coef_mat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf.int) {
@@ -1131,7 +1136,7 @@ tidy.result.goldfish <- function(
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
 
-  dispNames <- x$names[, !startsWith(colnames(x$names), "."), drop = FALSE]
+  dispNames <- detail_display_table(x$names)
 
   if (compact) {
     terms <- term_label(x$names, ".term_export", "export")
@@ -1142,7 +1147,16 @@ tidy.result.goldfish <- function(
 
     terms <- cbind(term = terms)
   } else {
-    terms <- cbind(term = rownames(dispNames), dispNames)
+    # The term names become a column, so the row names are dropped rather than
+    # carried: two rows may legitimately share a name (one effect used twice),
+    # which a data.frame will not hold.
+    terms <- data.frame(
+      term = rownames(dispNames),
+      dispNames,
+      row.names = NULL,
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
     terms[, "Object"] <- gsub("\\$", " ", terms[, "Object"])
 
     if (!complete) terms <- terms[!isFixed, ]
@@ -1199,67 +1213,136 @@ glance.result.goldfish <- function(x, ...) {
       BIC = stats::BIC(x),
       # deviance = stats::deviance(x),
       # df.residual = df.residual(x),
-      df = x$nParams,
-      nobs = x$nEvents
+      df = x$n_params,
+      nobs = x$n_events
     )
   )
 }
 
-#' @title Augment method for goldfish.diagnostic objects
-#' @description Augments results for plotting
-#' @param x an object of class \code{result.goldfish}
+#' @importFrom generics augment
+#' @export
+generics::augment
+
+#' Augment the modeled events with per-interval model quantities
+#'
+#' @description
+#' One row per interval of the likelihood — the dependent events and, on a
+#' sub-model that has them, the right-censored intervals — with the model's
+#' own per-interval quantities beside the event columns.
+#'
+#' @details
+#' Rows are in **interval order**, the order the likelihood ran in, which is
+#' what makes the per-interval columns line up with the event they belong to.
+#' A right-censored interval carries its time and its log-likelihood
+#' contribution, but no sender, receiver or increment, and no `.fitted` or
+#' `.resid`: it realizes no outcome, so a fitted outcome probability and its
+#' deviance are not defined there.
+#'
+#' @param x a fitted model of class `"result.goldfish"`.
 #' @param ... Additional arguments passed to or from other methods
 #'   (currently unused).
-#' @return tibble
+#'
+#' @return A [tibble::tibble()] with the modeled event columns plus
+#'   `right_censored_event`, `interval_log_lik`, and the broom-convention
+#'   `.fitted` (the fitted outcome probability, `exp(interval_log_lik)`) and
+#'   `.resid` (its deviance residual, `-2 * interval_log_lik`).
+#'
+#' @examples
+#' data("social_evolution")
+#' fit <- estimate_dynam(
+#'   calls ~ inertia + recip,
+#'   sub_model = "choice",
+#'   data = social_evolution
+#' )
+#' augment(fit)
+#'
+#' @seealso [residuals.result.goldfish()] and [fitted.result.goldfish()] for
+#'   the same quantities on their own, and the other types they come in.
+#' @method augment result.goldfish
 #' @export
 augment.result.goldfish <- function(x, ...) {
+  # Aborts: the per-event column it appends comes from `interval_log_lik`, so on
+  # an old object it would hand back a tibble with a column of NULL-turned-NA
+  # rather than the per-event log-likelihood it promises.
+  abort_if_stale_result(x, "an augmented event table")
   # The stocnet path carries the modeled dependent events on the result; the
   # legacy path resolves the dependent-events object from the formula LHS name.
   data <- x$dependent_events %||% get(as.character(x$formula[2]))
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
-  N <- nrow(tib)
-  tib$rightCensoredEvent <- rep(FALSE, N)
-  if (x$right_censored) {
-    censoredTime <- x$event_time[x$right_censored_events]
-    tibCen <- tibble::as_tibble(censoredTime)
-    names(tibCen) <- c("time")
-    N_censored <- nrow(tibCen)
-    tibCen$rightCensoredEvent <- TRUE
-    tibCen$sender <- rep(NA_character_, N_censored)
-    tibCen$receiver <- rep(NA_character_, N_censored)
-    tibCen$increment <- rep(NA_integer_, N_censored)
-    tib <- rbind(tib, tibCen)
+  censored <- x$right_censored_events
+  if (isTRUE(x$right_censored) && any(censored)) {
+    # Interleave rather than append. The censored intervals are interleaved
+    # among the dependent events in time, and every per-interval column below
+    # is in that order -- appending them at the end would pair each column
+    # with the wrong row from the first censored interval onwards.
+    censored_rows <- tib[rep(NA_integer_, sum(censored)), , drop = FALSE]
+    censored_rows$time <- x$event_time[censored]
+    tib <- rbind(tib, censored_rows)
+    tib[c(which(!censored), which(censored)), ] <- tib
   }
+  tib$right_censored_event <- censored
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
-  tib$intervalLogL <- x$intervalLogL
-  return(tib)
+  tib$interval_log_lik <- x$interval_log_lik
+  # broom's conventions, on the intervals where the model made a call: a
+  # right-censored interval realizes no outcome, so it has no fitted
+  # probability and no deviance for one.
+  tib$.fitted <- ifelse(censored, NA_real_, exp(x$interval_log_lik))
+  tib$.resid <- ifelse(censored, NA_real_, -2 * x$interval_log_lik)
+  tib
 }
 
-#' @title Print method for goldfish.diagnostic objects
-#' @description Prints a summary of the identified diagnostics.
-#' @param x An object of class \code{goldfish.diagnostic}.
-#' @param ... Additional arguments passed to or from other methods
-#'   (currently unused).
-#' @return Print diagnostic summary
+#' @return The object, invisibly.
+#' @rdname diagnose
+#' @method print diagnose_outliers
 #' @export
-print.diagnostic.goldfish <- function(x, ...) {
-  if ("cpt" %in% names(x)) {
-    column_text <- "Change Point(s):\n"
-    points <- sum(x$cpt == TRUE)
-  } else {
-    column_text <- "Outliers(s):\n"
-    points <- sum(x$outlier == TRUE)
+print.diagnose_outliers <- function(x, ...) {
+  print_diagnose_table(x, x$outlier, "outlier")
+}
+
+#' @rdname diagnose
+#' @method print diagnose_changepoints
+#' @export
+print.diagnose_changepoints <- function(x, ...) {
+  print_diagnose_table(x, x$cpt, "changepoint")
+}
+
+# The header both diagnostic tables share. It reads its counts from the D18
+# metadata rather than sniffing which columns are present, which is what let
+# one print method serve two different objects by guessing.
+print_diagnose_table <- function(x, flagged, noun) {
+  context <- attr(x, "context")
+  params <- attr(x, "params")
+  n_flagged <- sum(flagged, na.rm = TRUE)
+  # `qty()` sits between the noun and the plural marker: cli takes the
+  # quantity from the interpolation immediately before the marker, and the
+  # noun is a length-1 string, so without it every count reads as singular.
+  cli::cli_text(
+    "{.strong {n_flagged}} {noun}{cli::qty(n_flagged)}{?s} identified by the
+     {.val {params$method}} method."
+  )
+  # Which intervals took part is the one thing a reader cannot recover from
+  # the table, since the censored rows are present either way.
+  if (!is.null(context$n_analyzed) && !is.null(context$n_intervals)) {
+    scope <- if (isTRUE(params$include_censored)) {
+      "all intervals, right-censored included"
+    } else {
+      "the dependent intervals"
+    }
+    cli::cli_text(
+      "Computed over {scope}: {context$n_analyzed} of
+       {context$n_intervals} interval{?s}."
+    )
   }
-
-  cat("Identified", points, column_text)
-
-  # print data frame to display the table
-  obj <- x
-  class(obj) <- c("tbl_df", "tbl", "data.frame")
-  print(obj)
-
-  return(invisible(x))
+  # The flagged rows, not the head of the series: the first ten intervals are
+  # almost never the interesting ones, and taking both the count and the
+  # listing from one column is what keeps the header from disagreeing with
+  # what is shown. Nothing flagged prints the header alone -- the full series
+  # is in the object either way.
+  if (n_flagged > 0) {
+    print(tibble::as_tibble(x)[which(flagged), ])
+  }
+  invisible(x)
 }

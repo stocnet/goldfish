@@ -130,7 +130,7 @@ build_object_keys <- function(
 # Imputation policy vocabulary ------------------------------------------------
 #
 # The per-attribute policies a user may declare through
-# `set_preprocessing_opt(impute = ...)`. `summary` is the default contract (mean
+# `set_preprocessing(impute = ...)`. `summary` is the default contract (mean
 # / most common value within the mode category); `as_category` recodes a
 # categorical attribute's missing values to a reserved level so missingness by
 # design survives to the summarizers; `locf` is reserved for a future
@@ -154,7 +154,7 @@ imputation_policy_for <- function(policy, key) {
 
 # Validate a declared imputation policy against the objects the effects read.
 # Structural validation (shape, value set, reserved value) already happened at
-# `set_preprocessing_opt()`; this is the contextual half, run once the registry
+# `set_preprocessing()`; this is the contextual half, run once the registry
 # and its value types exist: a policy naming an attribute no effect reads, or
 # declaring `as_category` for a numeric attribute, aborts here before any
 # recode. Nodal rows are those the resolver classified (they carry a value type;

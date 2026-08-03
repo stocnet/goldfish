@@ -2,7 +2,7 @@
 
 ### Requirement: Warm-start initial parameters for augmentation-based estimation
 
-`set_estimation_opt()` SHALL offer a warm-start option for the initial
+`set_algorithm_newton()` SHALL offer a warm-start option for the initial
 parameter vector used by augmentation-based estimation: draw one random
 endpoint-consistent augmentation, estimate the model on it with the standard
 estimator, and use those estimates as the starting vector. The default initial

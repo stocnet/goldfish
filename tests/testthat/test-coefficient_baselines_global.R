@@ -13,18 +13,25 @@ baselines_get_global_data <- function(dataset) {
 
 baselinesGlobalFits <- baselines_precompute_fits(
   baselinesGlobalGrid,
-  baselines_get_global_data
+  baselines_get_global_data,
+  backends = baselines_backends_global
 )
 
 for (modelName in names(baselinesGlobalGrid)) {
-  for (engine in baselines_engines) {
+  for (backend in baselines_backends_global) {
     test_that(
-      sprintf("global baseline coefficients: %s engine %s", modelName, engine),
+      sprintf(
+        "global baseline coefficients: %s backend %s",
+        modelName,
+        backend
+      ),
       {
         skip_on_cran()
-        fit <- baselines_fits_cell(baselinesGlobalFits, modelName, engine)
-        expected <- baselinesGlobal[[modelName]][[engine]]
-        expect_true(fit$convergence$isConverged)
+        fit <- baselines_fits_cell(baselinesGlobalFits, modelName, backend)
+        # Keyed by the engine token frozen into the baseline file.
+        token <- BACKEND_ENGINE_TOKENS[[backend]]
+        expected <- baselinesGlobal[[modelName]][[token]]
+        expect_true(fit$convergence$is_converged)
         expect_equal(
           coef(fit),
           expected$coef,

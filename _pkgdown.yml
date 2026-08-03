@@ -53,7 +53,16 @@ reference:
   - title: "Diagnostics"
     contents:
       - logLik.result.goldfish
-      - starts_with("examine")
+      - starts_with("diagnose")
+      - residuals.result.goldfish
+      - fitted.result.goldfish
+      - predict.result.goldfish
+      - augment.result.goldfish
+      - evaluate_model
+      - margin_table
+      - model_terms
+      - diagnostic-tables
+      - risk_set_axis
   - title: "Data"
     desc: |
       The package contains several datasets that are used in vignettes
@@ -66,7 +75,8 @@ reference:
       - starts_with("Social_")
   - title: "Gather preprocessing"
     contents:
-      - gather_model_data 
+      - compute_statistics
+      - gather_model_data
 articles:
   - title: "goldfish effects"
     navbar: "goldfish effects"
@@ -76,6 +86,10 @@ articles:
     navbar: "How to start"
     contents:
       - teaching1
+  - title: "Diagnosing a fitted model"
+    navbar: "diagnostics"
+    contents:
+      - diagnostics
   - title: "Two-mode DyNAM: political discourse dynamics"
     navbar: "two-mode"
     contents:

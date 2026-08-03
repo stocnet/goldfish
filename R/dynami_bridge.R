@@ -142,6 +142,24 @@ dynami_fold_availability <- function(prep, masks) {
   build_active_dyad_point(prep, recv, masks, senders, n1, n2)
 }
 
+# The monolith object mapped to the recipe shape every shared consumer reads,
+# joining availability folded in where the sub-model has one. Estimation and the
+# statistics export both enter through here, so a gather stack and a fit
+# describe the same risk set by construction rather than by two matching call
+# sequences.
+dynami_recipe_input <- function(
+  prep,
+  sub_model,
+  is_two_mode,
+  availability = NULL
+) {
+  prep <- dynami_recipe_statslist(prep, sub_model, is_two_mode)
+  if (!is.null(availability)) {
+    prep <- dynami_fold_availability(prep, availability)
+  }
+  prep
+}
+
 # The DyNAM-i choice availability as a support-constraint formula: a joining
 # actor chooses among the groups occupied at the decision point (`indeg >= 1`).
 # This is the grammar statement of what `dynami_choice_availability()` folds
@@ -378,9 +396,9 @@ stocnet_to_dynami_env <- function(
 #
 # TEMPORARY SEAM (retired with the monolith by the DyNAM-i engine conversion).
 # The interaction monolith (`preprocess_interaction`) still emits the pre-recipe
-# preprocessing shape -- a 3D `initialStats` (actors x groups x effects),
-# per-event `dependentStatsChange` / `rightCensoredStatsChange` nested lists (one
-# change matrix per effect), and `orderEvents` (1 = dependent, 2 =
+# preprocessing shape -- a 3D `initial_stats` (actors x groups x effects),
+# per-event `dependent_stats_change` / `right_censored_stats_change` nested lists (one
+# change matrix per effect), and `order_events` (1 = dependent, 2 =
 # right-censored). The shared kernel (`run_nr_loop` / `compute_step.default`)
 # instead reads the recipe shape: an integer `is_dependent`, a per-event
 # `intervals` vector, a flat 4 x M point buffer `stat_mat_update` with a
@@ -398,12 +416,12 @@ stocnet_to_dynami_env <- function(
 # flat sender updates onto the reduced matrix. Choice keeps the 3D array and its
 # 3-column change rows as dyad point updates.
 dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
-  order_events <- unlist(prep$orderEvents)
+  order_events <- unlist(prep$order_events)
   n_events <- length(order_events)
   is_dependent <- as.integer(order_events == 1L)
   is_rate <- sub_model == "rate"
 
-  dims <- dim(prep$initialStats)
+  dims <- dim(prep$initial_stats)
   n1 <- dims[1L]
   n2 <- dims[2L]
   n_effects <- dims[3L]
@@ -418,18 +436,18 @@ dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
     }
     initial_stats <- vapply(
       seq_len(n_effects),
-      function(k) reduce_slice(prep$initialStats[,, k]),
+      function(k) reduce_slice(prep$initial_stats[,, k]),
       numeric(n1)
     )
   } else {
-    initial_stats <- prep$initialStats
+    initial_stats <- prep$initial_stats
   }
 
   # Flatten each event's per-effect change matrices into the 4 x M point buffer
   # (rows: node1, node2, effect, replace; monolith indices are 1-based, the
   # buffer is 0-based). Node2 is unused for sender (rate) updates.
-  dep_change <- prep$dependentStatsChange
-  rc_change <- prep$rightCensoredStatsChange
+  dep_change <- prep$dependent_stats_change
+  rc_change <- prep$right_censored_stats_change
   dep_ptr <- 0L
   rc_ptr <- 0L
   event_cols <- vector("list", n_events)
@@ -473,7 +491,7 @@ dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
 
   # Interleave dependent and right-censored waiting times by event order.
   dep_iv <- unlist(prep$intervals)
-  rc_iv <- unlist(prep$rightCensoredIntervals)
+  rc_iv <- unlist(prep$right_censored_intervals)
   intervals <- numeric(n_events)
   di <- 0L
   ri <- 0L
@@ -487,7 +505,7 @@ dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
     }
   }
 
-  prep$initialStats <- initial_stats
+  prep$initial_stats <- initial_stats
   prep$is_dependent <- is_dependent
   prep$intervals <- intervals
   prep$stat_mat_update <- stat_mat_update

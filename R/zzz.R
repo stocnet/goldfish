@@ -1,3 +1,32 @@
+.onLoad <- function(libname, pkgname) {
+  register_diagnostic_reconstruct()
+}
+
+# dplyr is not a goldfish dependency, so its extension point is registered only
+# if and when dplyr itself is loaded -- either already, or later through the
+# load hook. The diagnostic tables need the reconstruction method for the dplyr
+# verbs to demote on the same rule `[` demotes on.
+register_diagnostic_reconstruct <- function() {
+  register <- function(...) {
+    for (class in c(
+      "diagnose_outliers",
+      "diagnose_changepoints",
+      "margin_table"
+    )) {
+      registerS3method(
+        "dplyr_reconstruct",
+        class,
+        dplyr_reconstruct_diagnostic,
+        envir = asNamespace("dplyr")
+      )
+    }
+  }
+  if (isNamespaceLoaded("dplyr")) {
+    register()
+  }
+  setHook(packageEvent("dplyr", "onLoad"), register)
+}
+
 #' @importFrom utils packageVersion packageDescription
 .onAttach <- function(libname, pkgname) {
   if (!interactive()) {

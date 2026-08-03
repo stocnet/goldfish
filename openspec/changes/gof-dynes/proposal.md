@@ -49,7 +49,7 @@ parameters — and both parallelize their heavy loops behind a `mirai` map seam.
     geodesics and tie-creation/deletion variants are future extensions. No
     user-extension surface in v1.
 - **Estimation-surface addition + reporting.** One additive, default-off
-  `retain_pool` control on `set_alg_em()`/`estimate_dynes()` (lightweight bundle +
+  `retain_pool` control on `set_algorithm_em()`/`estimate_dynes()` (lightweight bundle +
   recipe + scheme tag; an opt-in heavier preprocessed-statistics tier). Two classed
   result objects with cli `print()`/`summary()` (LR: two references side by side;
   GoF: per-statistic Mahalanobis + tail), a `plot()` for `gof_dynes()`, and a shared
@@ -103,7 +103,7 @@ vcov)` GoF bands; adaptive bootstrap `B`; GoF for the event-stream estimators
   taking the fit; it reuses a retained pool when present, else regenerates from a
   stored recipe.
 - **One additive estimation-surface change**: an opt-in `retain_pool = FALSE`
-  control on `set_alg_em()` / `estimate_dynes()` (GoF is the consumer that needs it,
+  control on `set_algorithm_em()` / `estimate_dynes()` (GoF is the consumer that needs it,
   so this change adds it). When `TRUE`, the result carries a lightweight pool bundle
   (per draw: sequence, log-weight, log proposal density) plus a scheme tag and a
   `theta` fingerprint; the fit always records a reproducible pool recipe. The change

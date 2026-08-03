@@ -14,7 +14,7 @@ test_that("DyNAM rate with no-intercept formula adds the intercept", {
   expect_s3_class(prep$model_spec, "dynam_rate_spec")
   expect_true(prep$model_spec$has_intercept)
   expect_message(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ indeg,
       data = dataTest,
       model = "DyNAM",
@@ -55,7 +55,7 @@ test_that("REM choice sub_model warns and behaves as rate", {
   )
   expect_s3_class(prep$model_spec, "rem_rate_spec")
   expect_warning(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ 1 + inertia,
       data = dataTest,
       model = "REM",

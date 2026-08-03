@@ -64,3 +64,58 @@
       examples run
 - [ ] 4.4 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
       DESCRIPTION + NEWS.md entry; commit
+
+## 5. Convergence reporting (folded from the parity-followups investigation)
+
+Background, measurements and the cross-package comparison live in
+`.plan/convergence_criteria.md`. Read it first: it records why the
+likelihood-scaled criterion exists (a 787-actor / 23,065-event fit that never
+converged under an absolute gradient tolerance), which is the constraint any
+change here must not break.
+
+- [ ] 5.1 Warn when return code 1 coincides with a large `maxAbsUpdate`. The
+      live case is in `.plan/residuals_comparison_v01.html`: a fisheries REM
+      reporting "gradient close to zero" at `score_rel_norm = 5.67e-07` with
+      `max|update| = 1.00e+00`. Warning text via cli, naming both numbers and
+      `score_tol` as the lever; the fit is still returned. Settle the threshold
+      against real fits rather than picking one
+- [ ] 5.2 Report `tconv_max = sqrt(t(g) %*% vcov %*% g)` in `summary()`, beside
+      the condition number from 4.1 — the RSiena `tconv.max` analogue (max
+      t-ratio over all linear combinations), flagged above **1e-6**.
+      **Do not cite RSiena's 0.25**: that is calibrated for Monte Carlo noise in
+      a Robbins-Monro estimator, and goldfish's score is deterministic, so its
+      floor is several orders smaller. Every cell below passes 0.25, including
+      the two that are badly converged.
+
+      The 1e-6 figure is calibrated from what the estimator can actually reach
+      (`step_tol = 1e-16`, `max_iterations = 100`, tightening `score_tol`):
+
+      | cell | default | floor | iters (default -> floor) | exit code |
+      |---|---|---|---|---|
+      | `se_dynam_choice` | 6.8e-04 | 1.3e-12 | 7 -> 9 | 1 |
+      | `se_dynam_rate` | 4.7e-05 | 1.6e-10 | 7 -> 8 | 1 |
+      | `se_rem` | 4.8e-03 | 4.9e-09 | 12 -> 13 | 1 |
+      | `se_dynam_choice_coord` | 2.0e-02 | 1.9e-04 | 16 -> 66 | 2 |
+      | `fish_rem` | 3.4e-03 | 4.2e-04 | 12 -> 53 | 2 |
+
+      Healthy and degenerate models separate by 4.6 orders with nothing between;
+      1e-6 is the log-midpoint, giving 200x margin on each side. **1e-8 (matching
+      `step_tol`) is too tight** — `se_rem` floors at 4.9e-09 and cannot improve,
+      so it would clear by only 2x and a slightly larger dataset would false-alarm
+      on an ordinary model. Re-derive if the fixture set changes; this rests on
+      five cells
+- [ ] 5.2b Keep `tconv_max` **reporting-only** — do not make it a stopping rule.
+      On the degenerate cells above it costs 53-66 iterations and still exits on
+      code 2, which is the "runs to the cap while circling the same region"
+      behavior the likelihood-scaled criterion exists to prevent. Record this in
+      design.md so it is not re-proposed as an improvement
+- [ ] 5.3 Document the scaling in `set_algorithm_newton(score_tol = )`: the rule
+      is relative to `|logLik|`, so the absolute gradient it permits grows with
+      the data (1.6e-03 on `fish_rem`, ~1e-01 on a 23k-event fit). Include how to
+      force a tighter stop, and that `step_tol` is a separate rule that will not
+      do it
+- [ ] 5.4 Tests: the warning fires on a large-step code-1 fit and is silent on a
+      settled one; `tconv_max` is reported and is invariant to data scale on two
+      fixtures of different size
+- [ ] 5.5 Verification: full `NOT_CRAN=true` run (PASS not SKIP); NEWS entry;
+      commit

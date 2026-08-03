@@ -25,7 +25,7 @@ make_rate_fixture <- function() {
 
 test_that("rate a:b column equals the per-sender operand product", {
   d <- make_rate_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ 1 + indeg:outdeg,
     data = d,
     model = "DyNAM",
@@ -107,7 +107,7 @@ test_that("global is permitted as a rate_ordered operand but not as a main", {
   )
   # ... but the same global as an interaction operand is allowed (it restores
   # per-sender variation), so preprocessing produces the columns.
-  prep <- compute_stats(
+  prep <- compute_statistics(
     calls_dependent ~ global(seasons$winter):indeg,
     data = d,
     model = "DyNAM",

@@ -1,3 +1,11 @@
+> **Naming (user, 2026-07-27):** the constructor is
+> **`make_joint_specification()`**, per the 2026-07-21 decision recorded in
+> `.plan/release-2.0.0-plan.md`. The change directory
+> (`make-multivariate-spec`) and the `multivariate-specification`
+> capability keep their names; only the exported function name follows the
+> decision. All active artifacts (this change, `dynes-augmentation`,
+> `abmcem`, `.plan/mv_branch.md`) were swept 2026-07-27.
+
 ## Why
 
 DyNES estimates the co-evolution of panel-observed relational states and
@@ -141,7 +149,7 @@ and `abmcem`'s, the general `simulate()` is `process-simulation`'s.
   (fid/process_map vocabulary D9, walk-count-agnostic consumers D10, derived
   flavor constraints) and precedes `abmcem` (whose `estimate_dynes()` takes a
   `make_joint_specification()` object), `dynes-augmentation` (whose augmenters and
-  batched `evaluate_engine()` bind to this change's walk handle), and
+  batched `evaluate_model()` bind to this change's walk handle), and
   `process-simulation` (whose `simulate()` consumes this surface directly — a
   `joint_specification.goldfish` + `coef` drawn forward — as well as driving the walk
   handle; an estimation-separable no-panel join is still a valid simulation input, so
@@ -166,7 +174,7 @@ and `abmcem`'s, the general `simulate()` is `process-simulation`'s.
   `multimode-network-support` (which touched `R/make_specification.R` /
   `R/formula_parser.R`) has landed; its mode map is the per-mode-pair block
   substrate D8 builds on. This change needs nothing from
-  `residuals-gof`; the `evaluate_engine()` dependency is
+  `residuals-gof`; the `evaluate_model()` dependency is
   `dynes-augmentation`'s (E-step evaluation), not this change's.
 - **R**: `R/make_joint_specification.R` (surface, validation, coupling, print,
   join-time regime guard); the generative-completion transform (D9, e.g.

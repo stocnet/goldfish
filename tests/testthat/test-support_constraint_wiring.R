@@ -101,7 +101,7 @@ test_that("constrained choice preprocessing is unchanged until the mask is consu
     preprocessing_only = TRUE,
     support_constraint = ~ tie(call_network)
   )
-  expect_equal(prep1$initialStats, prep0$initialStats)
+  expect_equal(prep1$initial_stats, prep0$initial_stats)
   expect_equal(prep1$stat_mat_update, prep0$stat_mat_update)
 })
 

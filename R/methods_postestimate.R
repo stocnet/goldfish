@@ -8,7 +8,7 @@
 #' @param object an object of class `result.goldfish` output from an
 #' [estimate] call.
 #' @param complete logical. Indicates whether the parameter coefficients of
-#' effects fixed during estimation using `fixedParameters` should be printed.
+#' effects held fixed during estimation (via `offset()`) should be printed.
 #' @param ... additional arguments to be passed.
 #' @method coef result.goldfish
 #' @export
@@ -33,6 +33,9 @@
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
+  # Deliberately unguarded: `parameters` was never renamed, so an old object's
+  # coefficients are still the right numbers, and `print()` -- which calls this
+  # twice -- already carries the diagnosis for the interactive case.
   result <- object$parameters
   names(result) <- term_label(object$names, ".coef_name", "coef")
   isFixed <- GetFixed(object)
@@ -84,14 +87,17 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' @export
 #' @method logLik result.goldfish
 logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
+  # Guards the AIC() / BIC() path too: the default methods reach the fit only
+  # through logLik(), and a NULL `df` is exactly what let them misreport.
+  abort_if_stale_result(object, "a log-likelihood")
   if (avgPerEvent) {
-    return(object$logLikelihood / object$nEvents)
+    return(object$log_likelihood / object$n_events)
   }
 
-  val <- object$logLikelihood
-  # attr(val, "nall") <- object$nEvents
-  attr(val, "nobs") <- object$nEvents
-  attr(val, "df") <- object$nParams
+  val <- object$log_likelihood
+  # attr(val, "nall") <- object$n_events
+  attr(val, "nobs") <- object$n_events
+  attr(val, "df") <- object$n_params
   class(val) <- "logLik"
   return(val)
 }
@@ -99,10 +105,11 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 #' @export
 #' @method vcov result.goldfish
 vcov.result.goldfish <- function(object, complete = FALSE, ...) {
+  abort_if_stale_result(object, "a variance-covariance matrix")
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
 
-  vc <- solve(object$finalInformationMatrix[!isFixed, !isFixed])
+  vc <- solve(object$final_information_matrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)
   if (!complete) {
     namesCoef <- namesCoef[!isFixed]

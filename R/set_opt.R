@@ -1,7 +1,10 @@
-#' Control Parameters for Estimation
+#' Control Parameters for the Newton-type Estimation Algorithm
 #'
-#' Specifies control parameters for the model estimation process in
-#' `[estimate]`.
+#' Specifies the algorithm and its control parameters for the model estimation
+#' process in `[estimate]`. The name records the algorithm family: direct
+#' maximization with Newton-type steps (damped Newton-Raphson, BFGS, BHHH;
+#' Nelder-Mead is the derivative-free exception), as opposed to the
+#' ascent-based Monte Carlo algorithms of other model families.
 #'
 #' The damping factors arguments control the step size at each iteration of
 #' the Newton-Raphson algorithm. They have a bigger impact in the first
@@ -19,10 +22,19 @@
 #' (in a similar vein to the step size parameter in gradient descendent).
 
 #'
-#' @param initial_parameters A numeric vector. It includes initial parameter
-#'   values used to initialize the estimation process.
+#' @param initial_parameters Starting values for the estimation process.
+#'   Accepts an unnamed numeric vector of the same length as the number of
+#'   coefficients, aligned by position, or a *named* numeric vector matched
+#'   against the coefficient labels the model reports (the names `coef()`
+#'   returns), which seeds only the coefficients it names and leaves every
+#'   other one at its default. For a multi-process specification a flat named
+#'   vector applies to every process carrying a matching label, while a list
+#'   keyed by flavor (`list(creation = c(inertia = 0.5))`), optionally by
+#'   family within it (`list(creation = list(rate = c(inertia = 0.5)))`),
+#'   targets the named process(es).
 #'   Default is `NULL`, which means parameters are initialized at zero,
-#'   except for the rate intercept when present.
+#'   except for the rate intercept when present. Seeding only non-intercept
+#'   coefficients keeps that intercept's data-derived starting value.
 #' @param fixed_parameters `r lifecycle::badge("superseded")` A numeric vector
 #'   of the same length as the number of parameters to be estimated in the model.
 #'   `NA` values indicate parameters to be estimated,
@@ -35,9 +47,12 @@
 #'   name instead of by counting coefficient positions.
 #' @param offset_coef A numeric vector giving the fixed coefficient value(s) for
 #'   the `offset()` term(s) in the model formula, aligned to the offset terms in
-#'   formula order. For example, `~ inertia + offset(ego(sex)) + recip` with
+#'   formula order when unnamed, or matched to them by coefficient label when
+#'   named. For example, `~ inertia + offset(ego(sex)) + recip` with
 #'   `offset_coef = 2` holds the `ego(sex)` coefficient at 2 while estimating the
-#'   rest. Default is `NULL` (no offsets).
+#'   rest. An offset term can also carry its value in the formula itself, as
+#'   `offset(ego(sex), coef = 2)`; a term given a value by both routes aborts.
+#'   Default is `NULL` (no offsets).
 #' @param max_iterations An integer non-negative.
 #'   The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 #'   Default is `20`.
@@ -75,33 +90,36 @@
 #'     the choice set present at the time of the event.
 #'   * When `model = "REM"` the probabilities correspond to all dyads present at
 #'     the time of the event.
-#' @param return_event_scores `r lifecycle::badge("deprecated")` Superseded by
-#'   `diagnostics = "scores"`. Whether to keep and return the per-event score
-#'   matrix (one row per
-#'   dependent event, one column per effect) evaluated at the returned
-#'   parameter estimates, stored as the `event_scores` component of the result.
-#'   Each row is the observation-level gradient contribution whose column sums
-#'   equal the aggregate score. The matrix supports downstream diagnostics
-#'   (implemented by other tools, not here): robust sandwich and clustered
-#'   standard errors from the outer product of gradients `crossprod(event_scores)`,
-#'   per-effect score-process diagnostics that localize where individual effects
-#'   drift over the event sequence, and event-influence measures. Only the
-#'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
 #' @param diagnostics Names the per-event diagnostic *primitives* estimation
-#'   stores on the fitted result, superseding the three `return_*` flags above.
+#'   stores on the fitted result, superseding the `return_*` flags above.
 #'   Accepts a character vector drawn from
-#'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
-#'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
-#'   five), and `FALSE` / `character(0)` (none). Each primitive maps to a stored
-#'   component of the result: `"loglik"` to `intervalLogL` (and `total_rate` on
-#'   exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
-#'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
-#'   `"probabilities"` to per-event probability vectors. Unknown names abort with
-#'   an error listing the valid primitives. Default is `c("loglik", "scores")`,
+#'   `c("loglik", "scores", "ranks", "margins", "availability",
+#'   "conditional_scores", "probabilities")`, or the shorthands `TRUE`
+#'   (equivalent to `c("loglik", "scores")`), `"all"` (all seven), and
+#'   `FALSE` / `character(0)` (none). Each primitive maps to a stored
+#'   component of the result: `"loglik"` to `interval_log_lik` (and `total_rate`
+#'   and `conditional_logl` on exact-time submodels), `"scores"` to
+#'   `event_scores`, `"ranks"` to `observed_rank`, `"margins"` to per-actor
+#'   observed and expected counts, `"availability"` to the per-actor
+#'   denominators those counts are read against, `"conditional_scores"` to the
+#'   partial-likelihood score rows of an exact-time submodel, and
+#'   `"probabilities"` to per-event probability vectors; each is documented
+#'   under the fitted object in [estimate_dynam()], including the tie rule
+#'   `observed_rank` resolves equally likely alternatives by. Two of them are
+#'   defined only where the model defines them, and are absent — silently —
+#'   elsewhere: `"conditional_scores"` off the exact-time submodels, whose
+#'   `event_scores` already *are* the conditional rows, and the exposure half
+#'   of `"availability"`, which measures a compensator scale the multinomial
+#'   submodels do not have. Unknown names abort with an error listing the valid
+#'   primitives.
+#'   Default is `c("loglik", "scores")`,
 #'   preserving today's stored log-likelihood and adding the (free) scores. For
 #'   fits with more than 100,000 events a one-time message reports the
 #'   approximate footprint of the per-event vectors and names `diagnostics =
-#'   FALSE` as the opt-out.
+#'   FALSE` as the opt-out; `"conditional_scores"` is sized there exactly as
+#'   `"scores"` is, being the same shape again. `"availability"` is exempt: its
+#'   vectors are one value per actor rather than one per event, and they do not
+#'   depend on the parameter vector.
 #' @param optimizer `r lifecycle::badge("experimental")` A character string
 #'   naming the optimization algorithm. Options are:
 #'   \describe{
@@ -113,22 +131,30 @@
 #'      \item{nelder_mead}{Derivative-free Nelder-Mead, via `maxLik::maxLik()`.}
 #'    }
 #'   Any value other than `"newton_raphson"` requires the \pkg{maxLik} package
-#'   (in `Suggests`) and runs only on the `"default_c"` engine. Default is
+#'   (in `Suggests`) and runs only on the `"cpp"` backend. Default is
 #'   `"newton_raphson"`.
-#' @param engine A character string specifying the estimation engine.
-#'   Options are:
+#' @param backend A character string naming the computational implementation
+#'   that runs the estimation. Options are:
 #'   \describe{
-#'      \item{default_c}{`C++` based implementation using RcppEigen
+#'      \item{cpp}{`C++` based implementation using RcppEigen
 #'       and RcppParallel.}
-#'      \item{default}{R-based implementation.}
-#'      \item{gather_compute}{`C++` based implementation with a different data
+#'      \item{r}{R-based reference implementation.}
+#'      \item{gather}{`C++` based implementation with a different data
 #'       structure that reduces the time but it can increase the memory usage.}
 #'    }
-#'   Default is `"default_c"`.
+#'   Default is `"cpp"`.
+#' @param engine `r lifecycle::badge("deprecated")` Renamed to `backend`, whose
+#'   values name what runs instead of recording implementation history:
+#'   `"default_c"` is now `"cpp"`, `"default"` is now `"r"`, and
+#'   `"gather_compute"` is now `"gather"`. The legacy values are still accepted
+#'   and mapped, with one warning naming the new spelling.
 #'
-#' @return An object of class `estimation_opt.goldfish` (a list object),
+#' @return An object of class
+#'  `c("algorithm_newton.goldfish", "algorithm.goldfish", "list")`,
 #'  where the components values are the default values or the values provided
-#'  to the function. The list object has the following components:
+#'  to the function. The `algorithm.goldfish` superclass is the shared gate
+#'  estimators validate against, so every algorithm object passes the same
+#'  check. The list object has the following components:
 #'   \item{initial_parameters}{Initial parameter values used during
 #'      the estimation process.}
 #'   \item{fixed_parameters}{Values for parameters fixed during
@@ -152,15 +178,16 @@
 #'   \item{diagnostics}{Character vector of the diagnostic primitives to store
 #'      on the fitted result.}
 #'   \item{optimizer}{Optimization algorithm used in the estimation process.}
-#'   \item{engine}{Estimation engine used in the estimation process.}
+#'   \item{backend}{Computational implementation used in the estimation
+#'      process, one of `"cpp"`, `"r"` or `"gather"`.}
 #' @export
 #' @examples
-#' est_ctrl <- set_estimation_opt(
+#' est_ctrl <- set_algorithm_newton(
 #'   max_iterations = 50,
 #'   score_tol = 1e-7,
 #'   step_tol = 1e-9
 #' )
-set_estimation_opt <- function(
+set_algorithm_newton <- function(
   initial_parameters = NULL,
   fixed_parameters = NULL,
   offset_coef = NULL,
@@ -173,12 +200,30 @@ set_estimation_opt <- function(
   damping_decrease_factor = 3,
   return_interval_loglik = deprecated(),
   return_probabilities = deprecated(),
-  return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
-  engine = c("default_c", "default", "gather_compute")
+  backend = c("cpp", "r", "gather"),
+  engine = deprecated()
 ) {
-  engine <- match.arg(engine)
+  backend_supplied <- !missing(backend)
+  engine_present <- lifecycle::is_present(engine)
+  # `backend` wins when both are supplied, as `fold_renamed_arg()` decides.
+  selected <- if (backend_supplied || !engine_present) backend else engine
+  backend <- fold_renamed_arg(
+    backend,
+    backend_supplied,
+    engine,
+    "set_algorithm_newton",
+    "engine",
+    "backend",
+    details = legacy_backend_note(selected)
+  )
+  # A legacy value on the new argument is the half-migrated call; it warns on
+  # its own only when the argument fold above has not already named it.
+  if (!engine_present) {
+    warn_legacy_backend_value(backend)
+  }
+  backend <- resolve_backend(backend)
   optimizer <- match.arg(optimizer)
   diagnostics_supplied <- !missing(diagnostics)
   diagnostics <- resolve_diagnostics(diagnostics)
@@ -186,33 +231,28 @@ set_estimation_opt <- function(
     diagnostics,
     diagnostics_supplied,
     return_interval_loglik,
-    return_probabilities,
-    return_event_scores
+    return_probabilities
   )
   diagnostics <- resolved$diagnostics
   # `diagnostics` is the single source of truth for per-event storage. The three
-  # legacy booleans are derived from it (reconcile has already folded any supplied
-  # return_* flag into `diagnostics`), so the default `c("loglik", "scores")`
-  # stores the per-event scores.
+  # storage booleans below are derived from it (reconcile has already folded any
+  # supplied return_* flag into `diagnostics`), so the default
+  # `c("loglik", "scores")` stores the per-event scores. Only two of the three
+  # are also arguments: `return_event_scores` never shipped in a public release,
+  # so it was removed rather than deprecated, and the name survives here as the
+  # control-list component the estimators read.
   return_interval_loglik <- "loglik" %in% diagnostics
   return_probabilities <- "probabilities" %in% diagnostics
   return_event_scores <- "scores" %in% diagnostics
-  # Whether the score matrix was asked for explicitly (a supplied `diagnostics`
-  # naming "scores", or the legacy `return_event_scores` flag) rather than
-  # inherited from the default. The gather_compute engine, which has no per-event
-  # decomposition, aborts only on an explicit request and silently drops
-  # default-sourced scores.
-  scores_explicit <- return_event_scores &&
-    (diagnostics_supplied || "return_event_scores" %in% resolved$deprecated)
 
   # Emit the soft-deprecation from this frame so lifecycle attributes it to the
   # direct caller (a nested helper frame reads as an internal, silent call).
   for (flag_name in resolved$deprecated) {
     primitive <- LEGACY_DIAGNOSTIC_FLAGS[[flag_name]]
     lifecycle::deprecate_soft(
-      when = "1.9.11",
-      what = paste0("set_estimation_opt(", flag_name, ")"),
-      with = "set_estimation_opt(diagnostics)",
+      when = "2.0.0",
+      what = paste0("set_algorithm_newton(", flag_name, ")"),
+      with = "set_algorithm_newton(diagnostics)",
       details = c(
         "i" = paste0(
           "Request the ",
@@ -228,7 +268,7 @@ set_estimation_opt <- function(
   if (lifecycle::is_present(convergence_criterion)) {
     lifecycle::deprecate_warn(
       when = "1.7.2",
-      what = "set_estimation_opt(convergence_criterion)",
+      what = "set_algorithm_newton(convergence_criterion)",
       details = paste0(
         "`convergence_criterion` is ignored; ",
         "please use `score_tol` instead (default: 1e-6)."
@@ -237,12 +277,7 @@ set_estimation_opt <- function(
   }
 
   # Argument checks
-  if (!is.null(initial_parameters) && !is.numeric(initial_parameters)) {
-    stop(
-      "'initial_parameters' must be a numeric vector or NULL.",
-      call. = FALSE
-    )
-  }
+  check_initial_parameters(initial_parameters)
   if (!is.null(fixed_parameters)) {
     if (!is.numeric(fixed_parameters)) {
       stop(
@@ -252,7 +287,7 @@ set_estimation_opt <- function(
     }
     lifecycle::deprecate_soft(
       when = "1.8.4",
-      what = "set_estimation_opt(fixed_parameters)",
+      what = "set_algorithm_newton(fixed_parameters)",
       details = c(
         "!" = "Wrap the term in `offset()` in the model formula and supply its
                value through `offset_coef` instead.",
@@ -330,14 +365,121 @@ set_estimation_opt <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
-    scores_explicit = scores_explicit,
     diagnostics = diagnostics,
     optimizer = optimizer,
-    engine = engine
+    backend = backend
   )
 
-  class(control_list) <- c("estimation_opt.goldfish", "list")
+  class(control_list) <- c(
+    "algorithm_newton.goldfish",
+    "algorithm.goldfish",
+    "list"
+  )
   return(control_list)
+}
+
+# The backend vocabulary, paired with the pre-2.0.0 engine token each value
+# replaced. Nothing downstream reads a token any more: the pair survives as the
+# input-side compatibility map (the `engine =` sentinel, its legacy values, and
+# the read shim for control objects built before 2.0.0), plus the key the frozen
+# coefficient baselines were written under.
+BACKEND_ENGINE_TOKENS <- c(
+  cpp = "default_c",
+  r = "default",
+  gather = "gather_compute"
+)
+BACKEND_VALUES <- names(BACKEND_ENGINE_TOKENS)
+# The inverse map: the pre-2.0.0 `engine` values, keyed by token, valued by the
+# backend that replaced each one.
+LEGACY_ENGINE_BACKENDS <- stats::setNames(
+  BACKEND_VALUES,
+  BACKEND_ENGINE_TOKENS
+)
+
+# The backend an algorithm-control object selects. A control list built before
+# 2.0.0 carries only the legacy `engine` token (`set_estimation_opt()` since
+# 1.7.0, or `set_algorithm_newton()` in the 1.9 line) — restored from an .rds or
+# built once in a long-lived script — so its token resolves here on read.
+# Deliberately silent: the deprecated surface already warned when the object was
+# constructed, and warning again at estimation time would charge a serialized
+# object twice for one mistake.
+algo_backend <- function(control_algo) {
+  if (!is.null(control_algo$backend)) {
+    return(control_algo$backend)
+  }
+  unname(LEGACY_ENGINE_BACKENDS[[control_algo$engine]])
+}
+
+# Translate a pre-2.0.0 `engine` value to its backend spelling, leaving anything
+# else (including the untouched default vector) for `resolve_backend()` to
+# judge.
+map_legacy_backend <- function(value) {
+  if (length(value) == 1L && value %in% names(LEGACY_ENGINE_BACKENDS)) {
+    return(unname(LEGACY_ENGINE_BACKENDS[[value]]))
+  }
+  value
+}
+
+# Settle `backend` to one of the three values: the untouched default vector
+# resolves to its first element, a legacy value maps, anything else aborts
+# naming the vocabulary the user should pick from.
+resolve_backend <- function(backend, call = rlang::caller_env()) {
+  if (identical(backend, BACKEND_VALUES)) {
+    return(BACKEND_VALUES[[1L]])
+  }
+  backend <- map_legacy_backend(backend)
+  if (!rlang::is_string(backend) || !backend %in% BACKEND_VALUES) {
+    cli::cli_abort(
+      c(
+        "{.arg backend} must be one of {.val {BACKEND_VALUES}}.",
+        "x" = "You supplied {.val {backend}}."
+      ),
+      call = call
+    )
+  }
+  backend
+}
+
+# Warn for a pre-2.0.0 value supplied to `backend` itself. `user_env` reaches
+# past this helper and `set_algorithm_newton()` so lifecycle attributes the
+# warning to the user's own call.
+warn_legacy_backend_value <- function(value, user_env = rlang::caller_env(2)) {
+  if (length(value) != 1L || !value %in% names(LEGACY_ENGINE_BACKENDS)) {
+    return(invisible())
+  }
+  # `I()` because lifecycle's `fn(arg = "...")` spec reads what follows the `=`
+  # as a reason, not as the deprecated value.
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = I(paste0(
+      "The `set_algorithm_newton()` backend value ",
+      encodeString(value, quote = "\"")
+    )),
+    with = I(encodeString(LEGACY_ENGINE_BACKENDS[[value]], quote = "\"")),
+    user_env = user_env
+  )
+}
+
+# The bullet that carries the value half of the rename, so a call using both the
+# old argument and an old value gets one warning naming the final spelling
+# rather than being pointed at `backend = "default_c"`, itself deprecated.
+legacy_backend_note <- function(value) {
+  if (
+    !lifecycle::is_present(value) ||
+      length(value) != 1L ||
+      !value %in% names(LEGACY_ENGINE_BACKENDS)
+  ) {
+    return(NULL)
+  }
+  c(
+    "i" = paste0(
+      "The value ",
+      encodeString(value, quote = "\""),
+      " is now ",
+      encodeString(LEGACY_ENGINE_BACKENDS[[value]], quote = "\""),
+      "."
+    )
+  )
 }
 
 # The per-event diagnostic primitives estimation can store, in the order the
@@ -347,8 +489,73 @@ DIAGNOSTIC_PRIMITIVES <- c(
   "scores",
   "ranks",
   "margins",
+  "availability",
+  "conditional_scores",
   "probabilities"
 )
+
+# Which backends produce which primitive: the one source of truth, consulted
+# once before any preprocessing. Every cell is currently supported, because each
+# primitive is a reduction of the same per-event weight vector and so is
+# computable wherever that vector is formed.
+#
+# The table stays even so. It replaced three different reactions to the same
+# class of problem -- an abort for one primitive, a silent drop for another, an
+# unmarked absence for two more, plus a backend substitution that made the
+# verdict depend on what else was requested alongside. Encoding availability as
+# data means the next primitive that is not universal on day one gets the one
+# existing failure mode rather than a fourth invented one.
+DIAGNOSTIC_BACKEND_SUPPORT <- list(
+  loglik = BACKEND_VALUES,
+  scores = BACKEND_VALUES,
+  ranks = BACKEND_VALUES,
+  margins = BACKEND_VALUES,
+  availability = BACKEND_VALUES,
+  conditional_scores = BACKEND_VALUES,
+  probabilities = BACKEND_VALUES
+)
+
+# Abort if the chosen backend cannot produce a requested primitive, naming the
+# backends that can. Nothing is dropped, downgraded, or rerouted: the caller
+# chose a backend, and silently honoring the request somewhere else is what the
+# `probabilities` redirect used to do.
+check_diagnostic_support <- function(
+  diagnostics,
+  backend,
+  support = DIAGNOSTIC_BACKEND_SUPPORT,
+  call = rlang::caller_env()
+) {
+  supported <- vapply(
+    diagnostics,
+    function(primitive) {
+      backends <- support[[primitive]]
+      is.null(backends) || backend %in% backends
+    },
+    logical(1)
+  )
+  if (all(supported)) {
+    return(invisible(NULL))
+  }
+  # Report the first unsupported primitive in the vocabulary's own order, so the
+  # verdict does not depend on the order the user happened to request them in.
+  unsupported <- diagnostics[!supported]
+  primitive <- intersect(DIAGNOSTIC_PRIMITIVES, unsupported)[1]
+  # Pre-format one code span per backend: interpolating the vector inside a
+  # single `{.code}` collapses it into one span reading `backend = "cpp" or "r"`,
+  # which is not a call anyone can copy.
+  alternatives <- paste0(
+    "backend = ",
+    encodeString(support[[primitive]], quote = "\"")
+  )
+  cli::cli_abort(
+    c(
+      "The {.val {primitive}} diagnostic is not available with
+       {.code backend = {.val {backend}}}.",
+      "i" = "Use {.or {.code {alternatives}}} to store it."
+    ),
+    call = call
+  )
+}
 
 # Resolve the user-facing `diagnostics =` value (TRUE/FALSE/"all"/name vector)
 # to the canonical character vector of primitive names stored in the options.
@@ -395,16 +602,16 @@ resolve_diagnostics <- function(diagnostics, call = rlang::caller_env()) {
 }
 
 # The one-to-one mapping from each deprecated return_* flag to the diagnostics
-# primitive it stores; the third element is the flag's historical default.
+# primitive it stores, paired with the flag's historical default. Both flags
+# shipped publicly (CRAN 1.6.x as camelCase `estimationInit` entries, v1.7.0 as
+# arguments), which is what earns them a deprecation cycle rather than removal.
 LEGACY_DIAGNOSTIC_FLAGS <- c(
   return_interval_loglik = "loglik",
-  return_probabilities = "probabilities",
-  return_event_scores = "scores"
+  return_probabilities = "probabilities"
 )
 LEGACY_DIAGNOSTIC_DEFAULTS <- c(
   return_interval_loglik = TRUE,
-  return_probabilities = FALSE,
-  return_event_scores = FALSE
+  return_probabilities = FALSE
 )
 
 # Reconcile the deprecated return_* flags with the `diagnostics` vector.
@@ -420,13 +627,11 @@ reconcile_legacy_diagnostics <- function(
   diagnostics_supplied,
   return_interval_loglik,
   return_probabilities,
-  return_event_scores,
   call = rlang::caller_env()
 ) {
   values <- list(
     return_interval_loglik = return_interval_loglik,
-    return_probabilities = return_probabilities,
-    return_event_scores = return_event_scores
+    return_probabilities = return_probabilities
   )
   present <- vapply(values, lifecycle::is_present, logical(1))
 
@@ -471,8 +676,7 @@ reconcile_legacy_diagnostics <- function(
     diagnostics = diagnostics,
     deprecated = names(present)[present],
     return_interval_loglik = flags[["return_interval_loglik"]],
-    return_probabilities = flags[["return_probabilities"]],
-    return_event_scores = flags[["return_event_scores"]]
+    return_probabilities = flags[["return_probabilities"]]
   )
 }
 
@@ -480,8 +684,8 @@ reconcile_legacy_diagnostics <- function(
 #'
 #' Specifies control parameters for the data preprocessing stage,
 #' used by `estimate_dynam()`, `estimate_rem()` and `estimate_dynami()`
-#' (when `preprocessing_init` is not a
-#' `preprocessed.goldfish` object) and `gather_model_data()`.
+#' (when `preprocessed` is not a
+#' `preprocessed.goldfish` object) and [compute_statistics()].
 #'
 #' @param start_time A numerical value or a date-time character string
 #'   (parsable by `as.POSIXct`) indicating the starting time when the events
@@ -521,18 +725,22 @@ reconcile_legacy_diagnostics <- function(
 #'   reserved for a future estimator and currently aborts as unimplemented.
 #'   Default is `NULL`.
 #' @param db A `DBIConnection` object or `NULL` (default). When supplied
-#'   together with `compute_stats(..., output = "db")`, the gather statistics
-#'   are streamed to the database table named by `db_table` instead of being
-#'   held in memory.
-#' @param db_table A single character string naming the database table to
-#'   write to when a `db` connection is configured. Default is `"stats"`.
+#'   together with `compute_statistics(..., output = "db")`, the gather statistics
+#'   are streamed to the database tables prefixed by `db_table` instead of
+#'   being held in memory.
+#' @param db_table A single character string naming the table prefix of the
+#'   export written when a `db` connection is configured. Default is
+#'   `"stats"`. Every export writes one statistics table per modeled process,
+#'   `<db_table>_<fid>` (a specification without flavors is process 1), plus
+#'   `<db_table>_map` naming those tables and `<db_table>_nodes` resolving the
+#'   `index_i` / `index_j` columns back to the original nodes.
 # @param keep_sender_index A logical value. If `TRUE`, the sender index,
 #   the index in the nodeset, of the potential senders of the events is
 #   kept in the preprocessed data.
 # @param keep_receiver_index A logical value. If `TRUE`, the receiver index,
 #  the index in the nodeset, of the potential receivers of the events is
 #  kept in the preprocessed data.
-#' @return An object of class `preprocessing_opt.goldfish` (a list object), with
+#' @return An object of class `preprocessing.goldfish` (a list object), with
 #'  where the components values are the default values or the values provided
 #'  to the function. The list object has the following components:
 #'   \item{start_time}{Value from `start_time` argument.}
@@ -541,11 +749,11 @@ reconcile_legacy_diagnostics <- function(
 #'   \item{impute}{Value from `impute` argument.}
 #' @export
 #' @examples
-#' prep_ctrl <- set_preprocessing_opt(
+#' prep_ctrl <- set_preprocessing(
 #'   start_time = "2000-01-01 00:00:00",
 #'   end_time = "2000-12-31 23:59:59"
 #' )
-set_preprocessing_opt <- function(
+set_preprocessing <- function(
   start_time = NULL,
   end_time = NULL,
   opportunities_list = NULL,
@@ -584,7 +792,7 @@ set_preprocessing_opt <- function(
   if (!is.null(opportunities_list)) {
     lifecycle::deprecate_warn(
       when = "1.8.6",
-      what = "set_preprocessing_opt(opportunities_list)",
+      what = "set_preprocessing(opportunities_list)",
       details = c(
         i = paste(
           "Use the `support_constraint` argument of `estimate_dynam()` /",
@@ -673,6 +881,57 @@ set_preprocessing_opt <- function(
     db_table = db_table
   )
 
-  class(control_list) <- c("preprocessing_opt.goldfish", "list")
+  class(control_list) <- c("preprocessing.goldfish", "list")
   return(control_list)
+}
+
+# Starting values come in three shapes, all resolved to positions at estimation
+# where the coefficient labels are known: a full-length unnamed vector (aligned
+# by position), a named vector (aligned by coefficient label, seeding only the
+# names it carries), and -- for a multi-process specification, whose processes
+# have separate coefficient vectors -- a list keyed by flavor and optionally by
+# family within it. Only the shape is checked here; the labels a name has to
+# match are not known until a formula is parsed.
+check_initial_parameters <- function(x, arg = "initial_parameters") {
+  if (is.null(x) || is.numeric(x)) {
+    return(invisible(NULL))
+  }
+  if (!is.list(x)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a numeric vector, a named list of them, or
+       {.code NULL}."
+    )
+  }
+  if (is.null(names(x)) || !all(nzchar(names(x)))) {
+    cli::cli_abort(c(
+      "Every entry of a list-valued {.arg {arg}} must be named.",
+      "i" = "Key the outer level by flavor, e.g.
+             {.code list(creation = c(inertia = 0.5))}."
+    ))
+  }
+  for (key in names(x)) {
+    entry <- x[[key]]
+    if (is.numeric(entry)) {
+      next
+    }
+    if (!is.list(entry)) {
+      cli::cli_abort(
+        "{.arg {arg}}${key} must be a numeric vector or a named list of them."
+      )
+    }
+    if (is.null(names(entry)) || !all(nzchar(names(entry)))) {
+      cli::cli_abort(c(
+        "Every entry of {.arg {arg}}${key} must be named.",
+        "i" = "Key the inner level by family, e.g.
+               {.code list({key} = list(rate = c(inertia = 0.5)))}."
+      ))
+    }
+    if (!all(vapply(entry, is.numeric, logical(1)))) {
+      cli::cli_abort(
+        "{.arg {arg}}${key} may nest one level only; its entries must be
+         numeric vectors."
+      )
+    }
+  }
+  invisible(NULL)
 }

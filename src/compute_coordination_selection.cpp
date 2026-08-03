@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
+#include "event_reductions.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -86,15 +87,41 @@ List compute_coordination_selection(
     const arma::uvec& n_candidates,
     const arma::uvec& selected,
     const arma::uvec& sender_of_row,
-    const arma::uvec& dyad_partner
+    const arma::uvec& dyad_partner,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j,
+    const arma::uword n_actors_1,
+    const bool return_event_scores,
+    const bool return_ranks,
+    const bool return_margins,
+    const bool return_probabilities = false,
+    const bool return_availability = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
     int n_events = selected.size();
     int n_parameters = parameters.size();
     // declare return variables
     arma::mat fisher(n_parameters, n_parameters, fill::zeros);
+    arma::mat fisher_current_event(n_parameters, n_parameters);
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
+    // Opt-in weighted per-interval information: one p x p slice per weight
+    // column, and the per-interval trace. Both stay empty when not requested,
+    // which is how the shared accumulator reads "not asked for".
+    const arma::mat weights_mat =
+      as_event_weights(event_weights, (arma::uword) n_events);
+    arma::cube weighted_information;
+    if (!weights_mat.is_empty()) {
+        weighted_information.zeros(
+          n_parameters, n_parameters, weights_mat.n_cols
+        );
+    }
+    arma::vec event_information_trace;
+    if (return_event_information_trace) {
+        event_information_trace.zeros(n_events);
+    }
 
     // Linear predictors beta^T s for every candidate dyad in every event (one
     // GEMV); the staged dyad-triangle softmax below works in log space.
@@ -118,6 +145,44 @@ List compute_coordination_selection(
     arma::vec ones_mask(max_n_cand, fill::ones);
     arma::vec sender_weights;
     arma::vec dyad_weights;
+    // Opt-in per-event primitives. The event's realized risk set is the DYAD
+    // list, not the row list and not the per-sender CSR groups -- the score,
+    // the likelihood and the softmax below all range over dyads -- so the
+    // reductions run on the dyad-level probability vector (D14).
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    arma::vec margin_observed, margin_expected;
+    const bool do_margins = return_margins && index_i.n_elem > 0;
+    const bool do_availability = return_availability && index_i.n_elem > 0;
+    // The dyad endpoints are also what an actor-indexed probability grid needs,
+    // so they are built whenever ANY of these primitives is requested.
+    const bool need_endpoints =
+      do_margins || do_availability ||
+      (return_probabilities && index_i.n_elem > 0);
+    if (do_margins) {
+        margin_observed = arma::vec(n_actors_1, fill::zeros);
+        margin_expected = arma::vec(n_actors_1, fill::zeros);
+    }
+    // A dyad credits BOTH its endpoints, into the same accumulator pair -- one
+    // actor set, two contributions per dyad, matching the cpp MM kernel. Two
+    // reduction sides over one pair of vectors expresses exactly that.
+    arma::uvec dyad_endpoint_a(max_n_dyads);
+    arma::uvec dyad_endpoint_b(max_n_dyads);
+    arma::vec dyad_probabilities;
+    // Opt-in per-event probability grid, actor-indexed over the whole node set
+    // and zero off the risk set. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability over the endpoint set: both endpoint maps
+    // mark into ONE indicator, so an actor available in several pairs of the
+    // same event counts one opportunity. Coordination stays single-sided,
+    // exactly as its margins do, and defines no exposure time.
+    arma::vec availability_opportunities, availability_seen;
+    if (do_availability) {
+        availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+        availability_seen = arma::vec(n_actors_1, fill::zeros);
+    }
     // start address in stat_all_events of current events
     int id_start = 0;
 
@@ -140,7 +205,7 @@ List compute_coordination_selection(
             arma::vec lin_pred_g(
                 lin_pred_all.memptr() + id_start + start, gsize, false);
             arma::vec allowed_g(ones_mask.memptr(), gsize, false);
-            logZ(gid) = stable_softmax_masked(lin_pred_g, allowed_g, sender_weights);
+            logZ(gid) = log_sum_exp_masked(lin_pred_g, allowed_g, sender_weights);
             double norm_g = accu(sender_weights);
             E.row(gid) = (sender_weights.t() *
               stat_all_events.rows(id_start + start, id_start + row - 1)) / norm_g;
@@ -169,6 +234,11 @@ List compute_coordination_selection(
                     pr == id_obs_row) {
                     idx_obs = idx;
                 }
+                if (need_endpoints) {
+                    // The canonical directed row carries both endpoints.
+                    dyad_endpoint_a(idx) = index_i(id_start + r);
+                    dyad_endpoint_b(idx) = index_j(id_start + r);
+                }
                 ++idx;
             }
         }
@@ -177,15 +247,80 @@ List compute_coordination_selection(
         arma::vec logw_event(logw_dyad.memptr(), n_dyads, false);
         arma::vec allowed_event(ones_mask.memptr(), n_dyads, false);
         double log_normalizer =
-          stable_softmax_masked(logw_event, allowed_event, dyad_weights);
+          log_sum_exp_masked(logw_event, allowed_event, dyad_weights);
         double normalizer = accu(dyad_weights);
         arma::subview<double> D_event = D.rows(0, n_dyads - 1);
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D_event) / normalizer;
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g
-        fisher += (D_event.each_col() % dyad_weights).t() * D_event /
-          normalizer - g.t() * g;
+        fisher_current_event = (D_event.each_col() % dyad_weights).t() *
+          D_event / normalizer - g.t() * g;
+        fisher += fisher_current_event;
+        accumulate_event_information(
+          fisher_current_event, 1.0, id_event, weights_mat,
+          weighted_information, event_information_trace
+        );
+        // Opt-in primitives, all reductions of the dyad-level probability
+        // vector on the probability scale (c = 1).
+        if (
+          return_event_scores || return_ranks || do_margins ||
+          return_probabilities
+        ) {
+            dyad_probabilities = dyad_weights / normalizer;
+        }
+        if (do_availability) {
+            arma::uvec endpoint_a(dyad_endpoint_a.memptr(), n_dyads, false);
+            arma::uvec endpoint_b(dyad_endpoint_b.memptr(), n_dyads, false);
+            availability_seen.zeros();
+            mark_availability(
+              n_dyads, allowed_event, &endpoint_a, availability_seen
+            );
+            mark_availability(
+              n_dyads, allowed_event, &endpoint_b, availability_seen
+            );
+            accumulate_availability(
+              availability_seen, 0.0, true, nullptr,
+              &availability_opportunities
+            );
+        }
+        if (return_ranks) {
+            observed_rank[id_event] =
+              rank_of_observed(dyad_probabilities, allowed_event, idx_obs);
+        }
+        if (do_margins) {
+            arma::uvec endpoint_a(dyad_endpoint_a.memptr(), n_dyads, false);
+            arma::uvec endpoint_b(dyad_endpoint_b.memptr(), n_dyads, false);
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(
+              &margin_observed, &margin_expected, &endpoint_a
+            ));
+            sides.push_back(margin_side(
+              &margin_observed, &margin_expected, &endpoint_b
+            ));
+            accumulate_margins(
+              dyad_probabilities, 1.0, allowed_event, idx_obs, true, sides
+            );
+        }
+        if (return_event_scores) {
+            event_scores.row(id_event) = event_score_row(
+              D_event, dyad_probabilities, 1.0, idx_obs, true
+            );
+        }
+        if (return_probabilities) {
+            // Coordination's risk set is the unordered-pair list, so the grid
+            // is symmetric: each dyad's probability lands on both sides of the
+            // diagonal and the event totals 2, one per pair. Not the shared
+            // scatter helper, which writes one direction per row.
+            arma::mat grid(n_actors_1, n_actors_1, fill::zeros);
+            for (int d = 0; d < n_dyads; ++d) {
+                const arma::uword a = dyad_endpoint_a(d);
+                const arma::uword b = dyad_endpoint_b(d);
+                grid(a, b) = dyad_probabilities(d);
+                grid(b, a) = dyad_probabilities(d);
+            }
+            event_probabilities[id_event] = wrap(grid);
+        }
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -198,6 +333,14 @@ List compute_coordination_selection(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed") = margin_observed,
+      Named("margin_expected") = margin_expected,
+      Named("availability_n_opportunities") = availability_opportunities,
+      Named("event_probabilities") = event_probabilities,
+      Named("weighted_information") = weighted_information,
+      Named("event_information_trace") = event_information_trace
     );
 }

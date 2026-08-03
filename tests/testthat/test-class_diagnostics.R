@@ -3,32 +3,58 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
     depNetwork ~ inertia,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = FALSE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = FALSE),
     progress = FALSE,
     verbose = FALSE
   )
-  expect_error(
-    examine_outliers(mod00, method = "Top", parameter = 2),
-    "Outlier identification only available when interval log likelihood
-      returned in results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_outliers(mod00, method = "Top", threshold = 2)
   )
-  expect_error(
-    examine_changepoints(mod00, moment = "mean", method = "PELT"),
-    "Changepoint identification only available when interval log likelihood
-      returned in results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_changepoints(mod00, moment = "mean", method = "PELT")
   )
 })
 
 test_that("diagnostic methods does not accept non-result objects", {
-  expect_error(
-    examine_outliers(depNetwork, method = "Top", parameter = 2),
-    "Not a goldfish results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_outliers(depNetwork, method = "Top", threshold = 2)
   )
-  expect_error(
-    examine_changepoints(depNetwork, moment = "mean", method = "PELT"),
-    "Not a goldfish results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_changepoints(depNetwork, moment = "mean", method = "PELT")
   )
+  expect_snapshot(error = TRUE, diagnose_onset(depNetwork))
+})
+
+test_that("the diagnose_* family dispatches on the fitted object", {
+  # The entry points are generics, so a class carries the choice of method
+  # rather than a branch inside one body.
+  for (fn in c(
+    "diagnose_outliers",
+    "diagnose_changepoints",
+    "diagnose_onset"
+  )) {
+    expect_true("UseMethod" %in% all.names(body(get(fn))))
+    expect_false(is.null(getS3method(fn, "result.goldfish", optional = TRUE)))
+    expect_false(is.null(getS3method(fn, "default", optional = TRUE)))
+  }
+
+  mod00 <- estimate_dynam(
+    depNetwork ~ inertia + trans,
+    sub_model = "choice",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores")),
+    progress = FALSE,
+    verbose = FALSE
+  )
+  expect_s3_class(diagnose_outliers(mod00), "diagnose_outliers")
+  expect_s3_class(diagnose_changepoints(mod00), "diagnose_changepoints")
+  expect_s3_class(diagnose_onset(mod00), "diagnose_onset")
 })
 
 
@@ -37,26 +63,26 @@ test_that("diagnostic methods work on \"choice\" models.", {
     depNetwork ~ inertia + trans + indeg,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
+  expect_s3_class(p1, "diagnose_outliers")
   expect_equal(sum(p1$outlier), 2)
-  p11 <- examine_outliers(mod00, method = "IQR")
-  expect_s3_class(p11, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
-  p21 <- examine_changepoints(
+  p11 <- diagnose_outliers(mod00, method = "IQR")
+  expect_s3_class(p11, "diagnose_outliers")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
+  expect_s3_class(p2, "diagnose_changepoints")
+  p21 <- diagnose_changepoints(
     mod00,
     moment = "variance",
     method = "PELT",
     window = 2
   )
-  expect_s3_class(p2, "diagnostic.goldfish")
+  expect_s3_class(p21, "diagnose_changepoints")
 })
 
 test_that("diagnostic methods work on \"rate\" models.", {
@@ -86,7 +112,7 @@ test_that("diagnostic methods work on \"rate\" models.", {
     actors
   )
 
-  # this block is required for examine_changepoints otherwise "calls_dependent" throws an error
+  # this block is required for diagnose_changepoints otherwise "calls_dependent" throws an error
   assign("calls_dependent", calls_dependent, envir = .GlobalEnv)
   on.exit(rm(calls_dependent, envir = .GlobalEnv))
 
@@ -94,16 +120,16 @@ test_that("diagnostic methods work on \"rate\" models.", {
     calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
     sub_model = "rate",
     data = social_evolution_data,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
+  expect_s3_class(p1, "diagnose_outliers")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
+  expect_s3_class(p2, "diagnose_changepoints")
 })
 
 test_that("diagnostic methods work on \"rem\" models.", {
@@ -133,21 +159,21 @@ test_that("diagnostic methods work on \"rem\" models.", {
     actors
   )
 
-  # this block is required for examine_changepoints otherwise "calls_dependent" throws an error
+  # this block is required for diagnose_changepoints otherwise "calls_dependent" throws an error
   assign("calls_dependent", calls_dependent, envir = .GlobalEnv)
   on.exit(rm(calls_dependent, envir = .GlobalEnv))
 
   mod00 <- estimate_rem(
     calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
     data = social_evolution_data,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
+  expect_s3_class(p1, "diagnose_outliers")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
+  expect_s3_class(p2, "diagnose_changepoints")
 })

@@ -1,5 +1,3 @@
-PREPROCESSED_GOLDFISH_VERSION <- 4L
-
 #' Preprocess a model given its specification
 #'
 #' S3 generic dispatched on the model specification class.
@@ -127,7 +125,7 @@ run_dynami_monolith <- function(
     groups_network = groups_network,
     prep_envir = prep_envir
   )
-  prep$version <- PREPROCESSED_GOLDFISH_VERSION
+  prep$prep_version <- PREP_VERSION
   prep
 }
 
@@ -237,7 +235,7 @@ preprocess.dynami_choice_spec <- function(
 #' the state container owned by the recipe, the
 #' merged event schedule, and the compiled update plan. Statistic updates
 #' are written into one flat `stat_mat_update` buffer with doubling growth
-#' covering dependent and right-censored events; `initialStats`
+#' covering dependent and right-censored events; `initial_stats`
 #' is kept in the sender-native `n1 x nEffects` form. Global-attribute
 #' events update the `globals` component of the state container and emit
 #' right-censored statistic updates without sender/receiver recording.
@@ -363,7 +361,7 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
 # window, impute missing data, initialize the per-effect cache/stat matrices,
 # then build the state container, event schedule, composition-change streams,
 # and net/att update lookups. They diverge only in the `sub_model` passed to
-# `initialize_cache_stat()` and in how each shapes `initialStats` (a 2D sender
+# `initialize_cache_stat()` and in how each shapes `initial_stats` (a 2D sender
 # kernel vs a 3D dyad array) — that shaping stays in each loop. The context is
 # returned as a list the caller splats into its frame; it is also the seam a
 # future multi-consumer walk over one shared state builds on.
@@ -578,11 +576,11 @@ run_sender_recipe_loop <- function(
   )
   # Splat the shared setup (spec unpack, streams, window, cache, state,
   # schedule, composition, lookups) into this frame; each loop then shapes its
-  # own `initialStats` (2D sender kernel vs 3D dyad array).
+  # own `initial_stats` (2D sender kernel vs 3D dyad array).
   list2env(ctx, environment())
 
-  initialStats <- matrix(0, nrow = n1, ncol = nEffects)
-  initialStats[, seq_len(n_fun)] <- do.call(
+  initial_stats <- matrix(0, nrow = n1, ncol = nEffects)
+  initial_stats[, seq_len(n_fun)] <- do.call(
     cbind,
     lapply(stat_cache, "[[", "stat")
   )
@@ -601,7 +599,7 @@ run_sender_recipe_loop <- function(
   if (n_inter > 0) {
     operand_gids <- sort(unique(unlist(plan$interactions)))
     for (og in operand_gids) {
-      assign(as.character(og), initialStats[, og], envir = op_state)
+      assign(as.character(og), initial_stats[, og], envir = op_state)
     }
     for (ig in inter_ids) {
       ops <- plan$interactions[[as.character(ig)]]
@@ -609,7 +607,7 @@ run_sender_recipe_loop <- function(
       for (o in ops[-1]) {
         prod_vec <- prod_vec * get(as.character(o), envir = op_state)
       }
-      initialStats[, ig] <- prod_vec
+      initial_stats[, ig] <- prod_vec
     }
   }
 
@@ -673,7 +671,7 @@ run_sender_recipe_loop <- function(
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),
-    initial_stats_fn = function() initialStats
+    initial_stats_fn = function() initial_stats
   )
   rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
 
@@ -915,7 +913,7 @@ run_sender_recipe_loop <- function(
               }
             }
             if (hasStartTime && next_event_time < startTime) {
-              initialStats[cbind(updates[, "node1"], gid)] <-
+              initial_stats[cbind(updates[, "node1"], gid)] <-
                 updates[, "replace"]
             } else if (bcast_kind[gid] != 0L) {
               bc_block <- broadcast_entries_from_updates(
@@ -955,7 +953,7 @@ run_sender_recipe_loop <- function(
               prodv <- prodv * get(as.character(o), envir = op_state)[senders]
             }
             if (hasStartTime && next_event_time < startTime) {
-              initialStats[cbind(senders, ig)] <- prodv
+              initial_stats[cbind(senders, ig)] <- prodv
             } else {
               block <- rbind(senders - 1, 0, ig - 1, prodv)
               for (cs in consumers) {
@@ -998,13 +996,13 @@ run_sender_recipe_loop <- function(
     consumer_specs,
     tail = list(
       spec = spec,
-      initialStats = initialStats,
+      initial_stats = initial_stats,
       active_sender_init = active_sender_init,
       active_sender_changes = active_sender_changes,
       active_dyad_init = active_dyad_init,
       active_dyad_changes = active_dyad_changes,
-      startTime = startTime,
-      endTime = endTime,
+      start_time = startTime,
+      end_time = endTime,
       intercept_scalars = intercept_scalars
     ),
     default_constraint = plan$support_constraint,
@@ -1095,7 +1093,7 @@ dedup_cells <- function(cells, n1) {
 #' Shared event loop for the dyad-indexed model variants.
 #' It mirrors `run_sender_recipe_loop()` over the same three recipe input
 #' structures but produces dyad-shaped statistics:
-#' `initialStats` is kept in the engine-native `n1 x n2 x nEffects` (3D)
+#' `initial_stats` is kept in the engine-native `n1 x n2 x nEffects` (3D)
 #' form and the flat `stat_mat_update` buffer carries `node2` in its second
 #' row. Right-censored events are stored only when the configuration sets
 #' `right_censored = TRUE` (rate models with a time intercept); choice
@@ -1438,11 +1436,11 @@ run_dyad_recipe_loop <- function(
   )
   # Splat the shared setup (spec unpack, streams, window, cache, state,
   # schedule, composition, lookups) into this frame; each loop then shapes its
-  # own `initialStats` (2D sender kernel vs 3D dyad array).
+  # own `initial_stats` (2D sender kernel vs 3D dyad array).
   list2env(ctx, environment())
 
-  initialStats <- array(0, dim = c(n1, n2, nEffects))
-  initialStats[,, seq_len(n_fun)] <- array(
+  initial_stats <- array(0, dim = c(n1, n2, nEffects))
+  initial_stats[,, seq_len(n_fun)] <- array(
     unlist(lapply(stat_cache, "[[", "stat")),
     dim = c(n1, n2, n_fun)
   )
@@ -1463,7 +1461,7 @@ run_dyad_recipe_loop <- function(
   if (n_inter > 0) {
     operand_gids <- sort(unique(unlist(plan$interactions)))
     for (og in operand_gids) {
-      assign(as.character(og), initialStats[,, og], envir = op_state)
+      assign(as.character(og), initial_stats[,, og], envir = op_state)
     }
     for (ig in inter_ids) {
       ops <- plan$interactions[[as.character(ig)]]
@@ -1471,7 +1469,7 @@ run_dyad_recipe_loop <- function(
       for (o in ops[-1]) {
         prod_mat <- prod_mat * get(as.character(o), envir = op_state)
       }
-      initialStats[,, ig] <- prod_mat
+      initial_stats[,, ig] <- prod_mat
     }
   }
 
@@ -1535,7 +1533,7 @@ run_dyad_recipe_loop <- function(
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),
-    initial_stats_fn = function() initialStats
+    initial_stats_fn = function() initial_stats
   )
   rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
 
@@ -1774,7 +1772,7 @@ run_dyad_recipe_loop <- function(
               }
             }
             if (hasStartTime && next_event_time < startTime) {
-              initialStats[cbind(
+              initial_stats[cbind(
                 updates[, "node1"],
                 updates[, "node2"],
                 gid
@@ -1816,7 +1814,7 @@ run_dyad_recipe_loop <- function(
               prodv <- prodv * get(as.character(o), envir = op_state)[cells]
             }
             if (hasStartTime && next_event_time < startTime) {
-              initialStats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
+              initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
             } else {
               block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
               for (cs in consumers) {
@@ -1855,13 +1853,13 @@ run_dyad_recipe_loop <- function(
     consumer_specs,
     tail = list(
       spec = spec,
-      initialStats = initialStats,
+      initial_stats = initial_stats,
       active_sender_init = active_sender_init,
       active_sender_changes = active_sender_changes,
       active_dyad_init = active_dyad_init,
       active_dyad_changes = active_dyad_changes,
-      startTime = startTime,
-      endTime = endTime,
+      start_time = startTime,
+      end_time = endTime,
       intercept_scalars = intercept_scalars
     ),
     default_constraint = plan$support_constraint,
@@ -2077,9 +2075,9 @@ preprocess_monolith <- function(
   )
   is_rate <- model == "DyNAM" && sub_model == "rate"
   if (is_rate) {
-    initialStats <- do.call(cbind, lapply(stat_cache, "[[", "stat"))
+    initial_stats <- do.call(cbind, lapply(stat_cache, "[[", "stat"))
   } else {
-    initialStats <- array(
+    initial_stats <- array(
       unlist(lapply(stat_cache, "[[", "stat")),
       dim = c(n1, n2, nEffects)
     )
@@ -2536,11 +2534,11 @@ preprocess_monolith <- function(
           if (!is.null(updates)) {
             if (hasStartTime && next_event_time < startTime) {
               if (is_rate) {
-                initialStats[cbind(updates[, "node1"], id)] <- updates[,
+                initial_stats[cbind(updates[, "node1"], id)] <- updates[,
                   "replace"
                 ]
               } else {
-                initialStats[cbind(
+                initial_stats[cbind(
                   updates[, "node1"],
                   updates[, "node2"],
                   id
@@ -2602,7 +2600,7 @@ preprocess_monolith <- function(
 
   return(structure(
     list(
-      initialStats = initialStats,
+      initial_stats = initial_stats,
       stats_change = stats_change,
       intervals = intervals,
       is_dependent = is_dependent,
@@ -2615,8 +2613,8 @@ preprocess_monolith <- function(
       active_dyad_init = active_dyad_init,
       active_dyad_changes = active_dyad_changes,
       active_dyad_encoding = if (identical(model, "REM")) "outer" else "alter",
-      startTime = startTime,
-      endTime = endTime
+      start_time = startTime,
+      end_time = endTime
     ),
     class = "preprocessed.goldfish"
   ))

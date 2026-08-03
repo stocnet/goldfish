@@ -21,7 +21,7 @@ test_that("frozen two-mode DyNAM choice baseline", {
       data = irps_subset_data()
     )
   )
-  expect_true(fit$convergence$isConverged)
+  expect_true(fit$convergence$is_converged)
   expect_equal(
     coef(fit),
     c(0.12506808475813694, 0.00805525215385681, 0.11402852287910364),
@@ -42,7 +42,7 @@ test_that("frozen two-mode DyNAM rate baseline", {
     ),
     sub_model = "rate"
   )
-  expect_true(fit$convergence$isConverged)
+  expect_true(fit$convergence$is_converged)
   expect_equal(
     coef(fit),
     c(-15.394980089388412, 0.212964855063395, 1.749560971289161),
@@ -61,7 +61,7 @@ test_that("frozen two-mode REM baseline", {
       data = irps_subset_data()
     )
   )
-  expect_true(fit$convergence$isConverged)
+  expect_true(fit$convergence$is_converged)
   expect_equal(
     coef(fit),
     c(-18.01054716585719362, 3.39773349777084288, -0.00541016426182189),

@@ -108,11 +108,11 @@ partnerSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
-  engine = "default"
+  backend = "r"
 )
 
 system.time(
@@ -120,25 +120,25 @@ system.time(
     partnerSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 
 
 ## ----estimate-rerun-----------------------------------------------------------
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   initial_parameters = coef(partnerModel),
-  engine = "default"
+  backend = "r"
 )
 
 partnerModel <- estimate_dynam(
   partnerSpec,
   sub_model = "choice_coordination",
   data = fisheries_treaties,
-  control_estimation = est_opts
+  control_algo = est_opts
 )
 summary(partnerModel)
 
@@ -159,8 +159,8 @@ tieSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30
 )
@@ -170,7 +170,7 @@ system.time(
     tieSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 
@@ -188,6 +188,36 @@ glance(tieModel)
 
 
 ## ----plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3----
-examine_outliers(tieModel)
-examine_changepoints(tieModel)
+diagnose_outliers(tieModel)
+diagnose_changepoints(tieModel)
+
+
+
+
+## ----diag-refit---------------------------------------------------------------
+tieModelDiag <- estimate_dynam(
+  tieSpec,
+  sub_model = "choice_coordination",
+  data = fisheries_treaties,
+  control_algo = set_algorithm_newton(
+    diagnostics = c("loglik", "scores"),
+    initial_damping = 40,
+    max_iterations = 30
+  ),
+  return_preprocessed = TRUE
+)
+
+
+## ----diag-gof2----------------------------------------------------------------
+# Qualified: this vignette attaches migraph, which exports a `test_gof` of its
+# own, so the bare name resolves to whichever package was attached last.
+goldfish::test_gof(tieModelDiag)
+
+
+## ----diag-time2---------------------------------------------------------------
+goldfish::test_time(tieModelDiag)
+
+
+## ----diag-time-plot2, eval = has_plots, fig.width=6, fig.height=4, fig.align='center', fig.retina=3, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate as reference."----
+# plot(goldfish::test_time(tieModelDiag))
 

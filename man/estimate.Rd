@@ -11,46 +11,66 @@ estimate_dynam(
   x,
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
-  control_preprocessing = set_preprocessing_opt(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 
 estimate_dynami(
   x,
   sub_model = c("choice", "rate"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
-  control_preprocessing = set_preprocessing_opt(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 
 estimate_rem(
   x,
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
-  control_preprocessing = set_preprocessing_opt(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 }
 \arguments{
 \item{x}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfish_effects")}).}
+(see \code{vignette("goldfish_effects")}).
+Wrapping a term in \code{offset()} holds its coefficient at a supplied value
+instead of estimating it, keeping the term's statistic in the model. The
+value can ride in the formula itself, as
+\code{offset(inertia(net), coef = -1.2)}, or come from
+\code{\link[=set_algorithm_newton]{set_algorithm_newton()}}'s \code{offset_coef}; a term given a value by both
+routes aborts. A multi-process specification takes offset values from its
+process formulas only, since a value written in a formula is unambiguous
+about which process it belongs to.}
 
 \item{sub_model}{A character string specifying the sub-model to be estimated.
 It can be \code{"rate"} to model the waiting times between events,
@@ -80,25 +100,36 @@ modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
-\item{control_estimation}{An object of class \code{control_estimation.goldfish}
-(typically created by \code{\link[=set_estimation_opt]{set_estimation_opt()}}),
-specifying parameters for the estimation algorithm.}
+\item{control_algo}{An object of class \code{algorithm.goldfish}
+(typically created by \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}),
+specifying the algorithm and its parameters for the estimation.}
 
-\item{control_preprocessing}{An object of class
-\code{control_preprocessing.goldfish} (typically created by
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}),
+\item{control_prep}{An object of class
+\code{preprocessing.goldfish} (typically created by
+\code{\link[=set_preprocessing]{set_preprocessing()}}),
 specifying parameters for data preprocessing. This is only used
-if \code{preprocessing_init} is not a \code{preprocessed.goldfish} object or NULL.}
+if \code{preprocessed} is not a \code{preprocessed.goldfish} object or NULL.}
 
-\item{preprocessing_init}{an optional preprocessed object of class
+\item{preprocessed}{an optional preprocessed object of class
 \code{preprocessed.goldfish} from a previous estimation. When it is provided,
 the function will skip the preprocessing of the effects that are already
 present in the object and only preprocess the new effects. Default to
 \code{NULL}.}
 
-\item{preprocessing_only}{logical. If \code{TRUE}, the function will only run
-the preprocessing stage and return an object of class
-\code{preprocessed.goldfish}. Default to \code{FALSE}.}
+\item{preprocessing_only}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} logical. If
+\code{TRUE}, the function will only run the preprocessing stage and return an
+object of class \code{preprocessed.goldfish}. Default to \code{FALSE}. Superseded in
+goldfish 2.0.0 by \code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "preprocessed"},
+which returns the same object from a function that says what it does; it
+keeps working through 2.x.}
+
+\item{return_preprocessed}{logical. If \code{TRUE}, the returned fit carries the
+\code{preprocessed.goldfish} object it was estimated from, under \code{preprocessed},
+and a message reports its approximate size. Diagnostics that replay the
+change statistics read it from there instead of asking for one. It is much
+larger than the fit itself, so it is opt-in; the alternative is to supply
+such a diagnostic its own object through \verb{preprocessed =}. Default to
+\code{FALSE}.}
 
 \item{support_constraint}{a one-sided formula restricting the per-event risk
 set, written in the restricted boolean-tree grammar: effect atoms
@@ -118,6 +149,16 @@ estimation processes.}
 \item{verbose}{logical indicating whether should print
 very detailed intermediate results of the iterative Newton-Raphson
 procedure; slows down the routine significantly.}
+
+\item{control_estimation}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{control_algo} in goldfish 2.0.0.}
+
+\item{control_preprocessing}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{control_prep} in goldfish 2.0.0.}
+
+\item{preprocessing_init}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{preprocessed} in goldfish 2.0.0, the name every diagnostic consumer of a
+\code{preprocessed.goldfish} object uses.}
 }
 \value{
 returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
@@ -127,44 +168,162 @@ when \code{preprocessing_only = TRUE}.
 
 An object of class \code{"result.goldfish"} is a list including:
 \item{parameters}{a numeric vector with the coefficients estimates.}
-\item{standardErrors}{
+\item{standard_errors}{
 a numeric vector with the standard errors of the coefficients estimates.}
-\item{logLikelihood}{the log-likelihood of the estimated model}
-\item{finalScore}{
+\item{log_likelihood}{the log-likelihood of the estimated model}
+\item{final_score}{
 a vector with the final score reach by the parameters during estimation.}
-\item{finalInformationMatrix}{
+\item{final_information_matrix}{
 a matrix with the final values of the negative Fisher information matrix.
 The inverse of this matrix gives the variance-covariance matrix for the
 parameters estimates.}
 \item{convergence}{a list reporting the convergence of the
-Newton-Raphson procedure: \code{isConverged} (logical),
-\code{returnCode} (\code{1} gradient close to zero, \code{2} step size
-close to zero, \code{0} not converged), \code{maxAbsScore} (final maximum
-absolute score), \code{maxAbsUpdate} (final step, the maximum absolute
+Newton-Raphson procedure: \code{is_converged} (logical),
+\code{return_code} (\code{1} gradient close to zero, \code{2} step size
+close to zero, \code{0} not converged), \code{max_abs_score} (final maximum
+absolute score), \code{max_abs_update} (final step, the maximum absolute
 parameter update), and \code{score_rel_norm} (the likelihood-scaled
 relative gradient norm compared against \code{score_tol}).}
-\item{nIterations}{
+\item{n_iterations}{
 an integer with the total number of iterations performed during the
 estimation process.}
-\item{nEvents}{
+\item{n_events}{
 an integer reporting the number of events considered in the model.}
 \item{names}{
 a matrix with a description of the effects used for model fitting.
 It includes the name of the object used to calculate the effects and
 additional parameter description.}
+\item{interval_log_lik}{a numeric vector with each interval's contribution
+to the log-likelihood, stored when \code{"loglik"} is among the
+\code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics} primitives (the default).}
+\item{total_rate}{a numeric vector with the fitted intensity summed over
+the realized risk set of each interval. Exact-time sub-models only, where
+it rides along with the \code{"loglik"} primitive; multiplied by the interevent
+time it is the Cox-Snell residual.}
+\item{conditional_logl}{a numeric vector with the \emph{which} half of the
+exact-time log-likelihood: the log probability that the observed
+alternative is the one to move next, the Cox partial-likelihood
+contribution, leaving \code{interval_log_lik} minus it as the \emph{when} half. It is
+computed in the estimation pass as the observed alternative's linear
+predictor minus the log normalizer, not reassembled afterwards from
+\code{interval_log_lik} and \code{total_rate} — that identity cancels a large term
+against itself and loses digits away from the maximum. It is \code{NA} on a
+right-censored interval, which realizes no mover, so the log probability of
+an observed alternative is undefined there. Exact-time sub-models only,
+riding along with the \code{"loglik"} primitive.}
+\item{event_scores}{a matrix with one row per interval and one column per
+coefficient, the per-event contributions to the score. Stored when
+\code{"scores"} is among the \code{diagnostics} primitives (the default).}
+\item{observed_rank}{an integer vector with the rank of the alternative
+that was realized among the interval's risk set, \code{1} being the most likely
+one, stored when \code{"ranks"} is among the \code{diagnostics} primitives. It is
+\code{NA} on a right-censored interval, which realizes no alternative. Ties are
+resolved by counting only the alternatives that are \strong{more likely by more
+than a relative tolerance of 1e-12}, so tied alternatives share the
+better rank and a rank is reproducible: exact ties are common in these
+models — on a nearly empty network most alternatives carry identical
+statistics — and without a tolerance whole blocks of them would be
+ordered by whichever way the last bit of a normalizer happened to fall,
+differently on each backend. The tolerance is relative, so the rank does
+not depend on whether a kernel holds rates or probabilities, and the same
+rule governs every rank-sensitive quantity: a top-k recall computed from
+these ranks cannot disagree with them about which alternatives are tied.}
+\item{margins}{a list of per-actor observed and expected event-count
+vectors, stored when \code{"margins"} is among the \code{diagnostics} primitives.
+Each vector is named by actor label, and each expected vector carries a
+\code{scale} attribute — \code{"probability"} for the sums of next-event
+probabilities every family stores, \code{"expected_count"} for the compensator
+sums exact-time fits additionally store. A tie-oriented (REM) fit carries
+both a sender and a receiver side, spelled with those suffixes; the
+actor-oriented families carry one unsuffixed pair. Read them through
+\code{\link[=margin_table]{margin_table()}}, which presents one schema for every family.}
+\item{availability}{a list of per-actor availability vectors, stored when
+\code{"availability"} is among the \code{diagnostics} primitives: \code{n_opportunities},
+the number of dependent events whose realized risk set contained the
+actor, and — on exact-time sub-models only — \code{exposure}, the interval
+length summed over every interval during which it was at risk,
+right-censored ones included. These are the denominators the \code{margins}
+above are read against, and they take exactly the margins' shape: the same
+actor labels, and the same \verb{_sender} / \verb{_receiver} suffixes on a
+tie-oriented (REM) fit, since a dyad at risk makes its sender available on
+one side and its receiver on the other. Both count per actor
+\strong{membership}: an actor at risk in many dyads of the same interval
+contributes that interval once, so \code{observed / exposure} is an event rate
+per unit time at risk. \code{exposure} is absent from the multinomial families,
+which have no compensator scale for it to measure, exactly as \code{total_rate}
+is.}
+\item{conditional_scores}{a matrix with one row per interval and one
+column per coefficient, the score rows of the model's \emph{conditional}
+(partial) likelihood — the observed alternative's statistic minus the
+risk-set probability-weighted mean, with no exposure term. These are the
+Schoenfeld residuals. Stored when \code{"conditional_scores"} is among the
+\code{diagnostics} primitives, and \code{NA} on a right-censored interval, which
+realizes no observed alternative. Exact-time sub-models only: a
+multinomial likelihood is already conditional, so there the stored
+\code{event_scores} \emph{are} these rows and the component is absent rather than
+duplicated. They cannot be recovered from \code{event_scores} afterwards — the
+exposure term cannot be removed without the observed alternative's own
+statistic row — which is why they are computed in the estimation pass.}
+\item{event_probabilities}{a list with one per-event vector of fitted
+probabilities over the whole node set (zero off the risk set), stored when
+\code{"probabilities"} is among the \code{diagnostics} primitives.}
+\item{fit_version}{an integer identifying the layout of this object —
+which components it carries and how they are spelled. It moves only when
+that layout changes, not on every release, so a fit stays current across
+ordinary upgrades. Absent on objects fitted before goldfish 2.0.0, which
+the post-estimation methods recognize and refuse rather than compute from.
+A preprocessed object records its own layout under \code{prep_version}; the two
+are named separately so that both stay readable when a fit carries the
+preprocessed object it was estimated from.}
 \item{formula}{a formula with the information of the model fitted.}
 \item{model}{a character value of the model type.}
 \item{sub_model}{a character value of the sub_model type.}
+\item{backend}{a character value naming the computational implementation
+that produced the fit (\code{"cpp"}, \code{"r"} or \code{"gather"}), after any
+estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
+consumers treat a missing value as an unknown backend.}
+\item{risk_set_axis}{a character value naming the axis a position in any
+per-event diagnostic component refers to: \code{"sender"},
+\code{"receiver_given_sender"}, \code{"dyad"} or \code{"dyad_symmetric"}. Read it with
+\code{\link[=risk_set_axis]{risk_set_axis()}}, which documents the four values and how each joins to
+\code{node_lookup}. Absent on objects fitted before goldfish 2.0.0.}
+\item{node_lookup}{the \verb{(side, local, global, label)} table documented
+under \code{\link[=compute_statistics]{compute_statistics()}}, carried on the fit so a per-event diagnostic
+index resolves to the original node row and its label. It is \emph{the} index
+resolver: join a position to the side \code{\link[=risk_set_axis]{risk_set_axis()}} names — side 1 for
+\code{"sender"}, side 2 for \code{"receiver_given_sender"} on a two-mode model, and
+side 1 for both dyad axes on a one-mode model, whose sender and receiver
+sets are the same nodes. The per-event components deliberately carry no
+\code{names()} or \code{dimnames()} of their own: this one table per fit would
+otherwise be repeated once per event, which on a long sequence is exactly
+the size blow-up the per-event primitives are guarded against.}
+\item{preprocessed}{the \code{preprocessed.goldfish} object the model was
+estimated from, present only when \code{return_preprocessed = TRUE}. It is the
+same object \code{\link[=compute_statistics]{compute_statistics()}} returns under
+\code{output = "preprocessed"}, so a diagnostic reads it from the fit or takes
+an equivalent one through its own \code{preprocessed} argument.}
 \item{right_censored}{
 a logical value indicating if the estimation process considered
 right-censored events.
 Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
 REM (\code{estimate_rem()}), when the model includes the intercept.}
 \item{right_censored_events}{a logical vector indicating whether or not an
-event is a right censored event}
+event is a right censored event. It is the fit's \strong{only} spelling of that
+fact: the preprocessed object carries the same information as
+\code{is_dependent}, its negation, and no second indicator is stored here.}
 \item{event_times}{
 a numerical vector of times of events (including right censored events)
 }
+\item{intervals}{a numeric vector with the elapsed time of each interval
+the likelihood was computed over, one value per interval, in the same
+order as \code{interval_log_lik}. Present on every fit regardless of the
+\code{diagnostics} request — it is the clock the likelihood already used, not a
+diagnostic. With the \code{"loglik"} primitive it makes the Cox-Snell residual
+of an exact-time fit the exact product \code{intervals * total_rate}, so that
+residual needs neither an evaluation pass nor the preprocessed statistics.}
+\item{start_time, end_time}{the bounds of the observation window the
+intervals span, so a per-event quantity can be placed on the observed time
+axis without reconstructing the window from the event times.}
 }
 \description{
 Estimates parameters for a dynamic network model via maximum likelihood
@@ -288,7 +447,7 @@ data("social_evolution")
 mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
   sub_model = "choice",
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod01)
 
@@ -296,7 +455,7 @@ summary(mod01)
 mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
   sub_model = "rate",
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod02)
 
@@ -307,7 +466,7 @@ mod03 <- estimate_rem(
     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
     inertia + recip + trans,
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod03)
 
@@ -335,10 +494,10 @@ partner_model <- estimate_dynam(
   partner_spec,
   sub_model = "choice_coordination",
   data = fish,
-  control_estimation =
-    set_estimation_opt(
+  control_algo =
+    set_algorithm_newton(
       initial_damping = 40, max_iterations = 30,
-      engine = "default"
+      backend = "r"
     )
 )
 summary(partner_model)

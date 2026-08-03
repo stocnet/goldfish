@@ -5,6 +5,54 @@
 #
 #################### ###
 
+# The estimation-side counterpart of the front-end assembler: it turns the two
+# contracts -- which coefficients are held at supplied values, which were seeded
+# with starting values -- into the pieces the estimation loops need. Every
+# estimation path reads them from here, so the alignment between a term and its
+# position is decided once, where the coefficient count is known, instead of
+# being re-derived from an encoded vector by each consumer.
+#
+# Seeding is applied first and fixing overwrites it, so a coefficient named by
+# both ends up at its fixed value. `intercept_seeded` is what a data-derived
+# intercept start must consult: seeding some other coefficient says nothing
+# about the intercept, which is why "was any starting vector supplied at all"
+# is not the question to ask.
+resolve_coefficient_mask <- function(fixed_spec, initial_spec, n_params) {
+  parameters <- numeric(n_params)
+  if (!is.null(initial_spec)) {
+    check_spec_positions(initial_spec, n_params, "seeded")
+    parameters[initial_spec$idx] <- initial_spec$values
+  }
+  if (!is.null(fixed_spec)) {
+    check_spec_positions(fixed_spec, n_params, "fixed")
+    parameters[fixed_spec$idx] <- fixed_spec$values
+  }
+  id_fixed <- fixed_spec$idx
+  list(
+    parameters = parameters,
+    id_fixed = id_fixed,
+    id_unfixed = setdiff(seq_len(n_params), id_fixed),
+    likelihood_only = length(id_fixed) == n_params && n_params > 0,
+    intercept_fixed = 1L %in% id_fixed,
+    intercept_seeded = 1L %in% initial_spec$idx
+  )
+}
+
+check_spec_positions <- function(spec, n_params, what) {
+  bad <- spec$idx > n_params | spec$idx < 1L
+  if (!any(bad)) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(c(
+    "A {what} coefficient falls outside this model's {n_params}
+     coefficient{?s}.",
+    "x" = "Out of range: {.code {spec$names[bad]}} at
+           position {.val {spec$idx[bad]}}.",
+    "i" = "The model the values were written for is not the model being
+           estimated."
+  ))
+}
+
 # Estimation
 #
 # S3 generic dispatched on the model specification class. The family
@@ -39,9 +87,8 @@ estimate_int_impl <- function(
   reduceArrayToMatrix,
   nodes,
   nodes2,
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
+  initial_spec = NULL,
+  fixed_spec = NULL,
   initialDamping = 1,
   maxIterations = 20,
   dampingIncreaseFactor = 2,
@@ -57,6 +104,11 @@ estimate_int_impl <- function(
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
   return_event_scores = FALSE,
+  return_ranks = FALSE,
+  return_margins = FALSE,
+  return_total_rate = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -67,62 +119,28 @@ estimate_int_impl <- function(
   ## SET VARIABLES
 
   # preprocessing guarantees NA-free statistics
-  stopifnot(!anyNA(statsList$initialStats))
+  stopifnot(!anyNA(statsList$initial_stats))
 
   minDampingFactor <- initialDamping
   nParams <- (if (is_rate_model) {
-    ncol(statsList$initialStats)
+    ncol(statsList$initial_stats)
   } else {
-    dim(statsList$initialStats)[3]
-  }) -
-    length(excludeParameters) +
+    dim(statsList$initial_stats)[3]
+  }) +
     hasIntercept
-  parameters <- initialParameters
-  if (is.null(initialParameters)) {
-    parameters <- numeric(nParams)
-  }
-  # deal with fixedParameters
-  idUnfixedCompnents <- seq_len(nParams)
-  idFixedCompnents <- NULL
-  likelihoodOnly <- FALSE
-  if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams) {
-      stop(
-        "The length of fixedParameters is inconsistent with",
-        "the number of the parameters.",
-        "\n\tLength ",
-        dQuote("fixedParameters"),
-        " vector:",
-        length(fixedParameters),
-        "\n\tNumber of parameters:",
-        nParams,
-        call. = FALSE
-      )
-    }
-
-    if (all(!is.na(fixedParameters))) {
-      likelihoodOnly <- TRUE
-    }
-    parameters[!is.na(fixedParameters)] <-
-      fixedParameters[!is.na(fixedParameters)]
-    idUnfixedCompnents <- which(is.na(fixedParameters))
-    idFixedCompnents <- which(!is.na(fixedParameters))
-  }
+  # The same decode the compiled path reads: one helper, so the two backends
+  # cannot drift on which coefficients they hold or where they start.
+  mask <- resolve_coefficient_mask(
+    fixed_spec,
+    initial_spec,
+    nParams
+  )
+  parameters <- mask$parameters
+  id_unfixed <- mask$id_unfixed
+  id_fixed <- mask$id_fixed
+  likelihood_only <- mask$likelihood_only
 
   ## PARAMETER CHECKS
-
-  if (length(parameters) != nParams) {
-    stop(
-      " Wrong number of initial parameters passed to function.",
-      "\n\tLength ",
-      dQuote("parameters"),
-      " vector:",
-      length(parameters),
-      "\n\tNumber of parameters:",
-      nParams,
-      call. = FALSE
-    )
-  }
 
   if (!(length(minDampingFactor) %in% c(1, nParams))) {
     stop(
@@ -145,74 +163,25 @@ estimate_int_impl <- function(
     )
   }
 
-  ## REDUCE STATISTICS LIST
-
-  if (verbose) {
-    cat("Reducing data\n")
-  }
-
-  statsList <- prepare_statslist(
-    statsList = statsList,
-    excludeParameters = excludeParameters,
-    addInterceptEffect = hasIntercept,
-    is_sender = is_rate_model
+  engine <- make_r_engine_evaluator(
+    spec = spec,
+    stats_list = statsList,
+    parameters = parameters,
+    nodes = nodes,
+    nodes2 = nodes2,
+    has_intercept = hasIntercept,
+    is_rate_model = is_rate_model,
+    is_two_mode = is_two_mode,
+    allow_reflexive = allowReflexive,
+    reduce_array_to_matrix = reduceArrayToMatrix,
+    seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
+    opportunities_list = opportunitiesList,
+    parallelize = parallelize,
+    cpus = cpus,
+    verbose = verbose
   )
-
-  ## GET COMPOSITION CHANGES
-  hasCompChange1 <- length(statsList$active_sender_changes) > 0
-  hasCompChange2 <- length(statsList$active_dyad_changes) > 0 &&
-    !is_rate_model
-
-  compChange1 <- if (hasCompChange1) {
-    data.frame(
-      time = vapply(statsList$active_sender_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_sender_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_sender_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-  compChange2 <- if (hasCompChange2) {
-    data.frame(
-      time = vapply(statsList$active_dyad_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_dyad_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_dyad_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-
-  presence <- statsList$active_sender_init
-  presence2 <- statsList$active_dyad_init
-
-  nEvents <- length(statsList$is_dependent)
-
-  ## ADD INTERCEPT
-  # CHANGED MARION
-  # replace first parameter with an initial estimate of the intercept
-  if (
-    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
-      hasIntercept &&
-      is.null(initialParameters) &&
-      (is.null(fixedParameters) || is.na(fixedParameters[1]))
-  ) {
-    parameters[1] <- log(
-      statsList$n_dep_events /
-        statsList$total_time /
-        statsList$avg_active_entity
-    )
-  }
-  ## SET VARIABLES BASED ON STATSLIST
+  parameters <- engine$parameters
+  nEvents <- engine$n_events
 
   ## ESTIMATION: INITIALIZATION
 
@@ -223,11 +192,10 @@ estimate_int_impl <- function(
   nr <- run_nr_loop(
     spec = spec,
     parameters = parameters,
-    initialParameters = initialParameters,
     nParams = nParams,
-    idUnfixedCompnents = idUnfixedCompnents,
-    idFixedCompnents = idFixedCompnents,
-    likelihoodOnly = likelihoodOnly,
+    id_unfixed = id_unfixed,
+    id_fixed = id_fixed,
+    likelihood_only = likelihood_only,
     minDampingFactor = minDampingFactor,
     maxIterations = maxIterations,
     dampingIncreaseFactor = dampingIncreaseFactor,
@@ -237,30 +205,25 @@ estimate_int_impl <- function(
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,
+    return_ranks = return_ranks,
+    return_margins = return_margins,
+    return_total_rate = return_total_rate,
+    return_availability = return_availability,
+    return_conditional_scores = return_conditional_scores,
     verbose = verbose,
     progress = progress,
-    step_args = list(
-      statsList = statsList,
-      nodes = nodes,
-      nodes2 = nodes2,
-      updatepresence = hasCompChange1,
-      presence = presence,
-      compChange1 = compChange1,
-      updatepresence2 = hasCompChange2,
-      presence2 = presence2,
-      compChange2 = compChange2,
-      hasIntercept = hasIntercept,
-      spec = spec,
-      parallelize = parallelize,
-      cpus = cpus,
-      returnIntervalLogL = returnIntervalLogL,
-      returnEventProbabilities = returnEventProbabilities,
-      return_event_scores = return_event_scores,
-      allowReflexive = allowReflexive,
-      is_two_mode = is_two_mode,
-      reduceArrayToMatrix = reduceArrayToMatrix,
-      verbose = verbose,
-      opportunitiesList = opportunitiesList
+    step_args = c(
+      engine$step_args,
+      list(
+        returnIntervalLogL = returnIntervalLogL,
+        returnEventProbabilities = returnEventProbabilities,
+        return_event_scores = return_event_scores,
+        return_ranks = return_ranks,
+        return_margins = return_margins,
+        return_total_rate = return_total_rate,
+        return_availability = return_availability,
+        return_conditional_scores = return_conditional_scores
+      )
     )
   )
 
@@ -292,33 +255,65 @@ estimate_int_impl <- function(
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)
-  stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
+  stdErrors[id_unfixed] <- sqrt(diag(inverseInformationUnfixed))
 
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standardErrors = stdErrors,
-    logLikelihood = logLikelihood,
-    finalScore = score,
-    finalInformationMatrix = informationMatrix,
+    standard_errors = stdErrors,
+    log_likelihood = logLikelihood,
+    final_score = score,
+    final_information_matrix = informationMatrix,
     convergence = list(
-      isConverged = isConverged,
-      returnCode = returnCode,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update)),
+      is_converged = isConverged,
+      return_code = returnCode,
+      max_abs_score = max(abs(score)),
+      max_abs_update = max(abs(update)),
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
-    nIterations = iIteration,
-    nEvents = nEvents
+    n_iterations = iIteration,
+    n_events = nEvents
   )
   if (returnIntervalLogL) {
-    estimationResult$intervalLogL <- intervalLogL
+    estimationResult$interval_log_lik <- intervalLogL
   }
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
   }
   if (returnEventProbabilities) {
-    estimationResult$eventProbabilities <- eventProbabilities
+    estimationResult$event_probabilities <- eventProbabilities
+  }
+  if (return_ranks && !is.null(nr$observed_rank)) {
+    estimationResult$observed_rank <- nr$observed_rank
+  }
+  if (return_margins && !is.null(nr$margins)) {
+    # Same helper the compiled path calls: actor labels and the scale marker
+    # are attached once, so the two backends cannot drift on either.
+    estimationResult$margins <- label_margins(
+      nr$margins,
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2,
+      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    )
+  }
+  if (return_availability && !is.null(nr$availability)) {
+    estimationResult$availability <- label_availability(
+      nr$availability,
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2
+    )
+  }
+  if (return_conditional_scores && !is.null(nr$conditional_scores)) {
+    estimationResult$conditional_scores <- nr$conditional_scores
+  }
+  # total_rate / conditional_logl exist only on the exact-time (Poisson)
+  # contribution; the multinomial families leave them NULL, so they stay off
+  # those fits exactly as on the cpp backend.
+  if (return_total_rate && !is.null(nr$total_rate)) {
+    estimationResult$total_rate <- nr$total_rate
+    estimationResult$conditional_logl <- nr$conditional_logl
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
@@ -332,8 +327,8 @@ estimate_int_impl <- function(
 #' updates, and stops on the dual `score_tol` / `step_tol` criteria with the
 #' documented return codes (1 = gradient close to zero, 2 = step size close
 #' to zero). The convergence logic is unchanged from the in-lined version;
-#' algorithm variants (e.g. the future incremental REM engine) reuse it by
-#' overriding `compute_step()`.
+#' an algorithm variant reuses it by overriding `compute_step()` rather than
+#' reimplementing the loop.
 #'
 #' @param step_args list of arguments forwarded to `compute_iteration_step()`
 #'   each iteration (everything except `parameters`).
@@ -345,11 +340,10 @@ estimate_int_impl <- function(
 run_nr_loop <- function(
   spec,
   parameters,
-  initialParameters,
   nParams,
-  idUnfixedCompnents,
-  idFixedCompnents,
-  likelihoodOnly,
+  id_unfixed,
+  id_fixed,
+  likelihood_only,
   minDampingFactor,
   maxIterations,
   dampingIncreaseFactor,
@@ -359,6 +353,11 @@ run_nr_loop <- function(
   returnIntervalLogL,
   returnEventProbabilities,
   return_event_scores,
+  return_ranks = FALSE,
+  return_margins = FALSE,
+  return_total_rate = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
   verbose,
   progress,
   step_args
@@ -372,12 +371,19 @@ run_nr_loop <- function(
   update <- rep(0, nParams)
   isInitialEstimation <- TRUE
   logLikelihood.old <- -Inf
-  parameters.old <- initialParameters
+  # The starting point is the last accepted one until a step is accepted.
+  parameters.old <- parameters
   score.old <- NULL
   informationMatrix.old <- NULL
   intervalLogL <- NULL
   event_scores <- NULL
   eventProbabilities <- NULL
+  observed_rank <- NULL
+  margins <- NULL
+  availability <- NULL
+  conditional_scores <- NULL
+  total_rate <- NULL
+  conditional_logl <- NULL
 
   # if (parallelize && require("snowfall", quietly = TRUE)) {
   #   snowfall::sfStop()
@@ -406,6 +412,22 @@ run_nr_loop <- function(
     if (return_event_scores) {
       event_scores <- res$event_scores
     }
+    if (return_ranks) {
+      observed_rank <- res$observed_rank
+    }
+    if (return_margins) {
+      margins <- res$margins
+    }
+    if (return_availability) {
+      availability <- res$availability
+    }
+    if (return_conditional_scores) {
+      conditional_scores <- res$conditional_scores
+    }
+    if (return_total_rate) {
+      total_rate <- res$total_rate
+      conditional_logl <- res$conditional_logl
+    }
     # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
@@ -417,7 +439,7 @@ run_nr_loop <- function(
 
     if (
       isInitialEstimation &&
-        any(is.na(unlist(res))) &&
+        has_unexpected_na(res) &&
         !all(parameters[-1] == 0)
     ) {
       # # Check
@@ -429,7 +451,7 @@ run_nr_loop <- function(
     }
 
     # If we only want the likelihood break here
-    if (likelihoodOnly) {
+    if (likelihood_only) {
       inverseInformationUnfixed <- matrix(0, nParams, nParams)
       score <- rep(0, nParams)
       isConverged <- TRUE
@@ -439,7 +461,7 @@ run_nr_loop <- function(
 
     # we don't consider the fixed components of the score.
     # It's for the fixing parameter feature. \
-    score[idFixedCompnents] <- 0
+    score[id_fixed] <- 0
 
     if (verbose) {
       cat(
@@ -455,10 +477,10 @@ run_nr_loop <- function(
       # print(informationMatrix)
     }
 
-    stepAccepted <- !any(is.na(unlist(res))) &&
+    step_accepted <- !has_unexpected_na(res) &&
       is.finite(logLikelihood) &&
       logLikelihood > logLikelihood.old
-    if (!stepAccepted) {
+    if (!step_accepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -493,7 +515,7 @@ run_nr_loop <- function(
     # The fixed components of the score have already be set to be 0.
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <-
-      informationMatrix[idUnfixedCompnents, idUnfixedCompnents]
+      informationMatrix[id_unfixed, id_unfixed]
     inverseInformationUnfixed <- try(
       solve(informationMatrixUnfixed),
       silent = TRUE
@@ -506,8 +528,8 @@ run_nr_loop <- function(
     }
 
     update <- rep(0, nParams)
-    update[idUnfixedCompnents] <-
-      (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
+    update[id_unfixed] <-
+      (inverseInformationUnfixed %*% score[id_unfixed]) / dampingFactor
 
     if (verbose) {
       cat(
@@ -523,7 +545,7 @@ run_nr_loop <- function(
       score = score,
       log_likelihood = logLikelihood,
       update = update,
-      step_accepted = stepAccepted,
+      step_accepted = step_accepted,
       score_tol = score_tol,
       step_tol = step_tol
     )
@@ -578,7 +600,13 @@ run_nr_loop <- function(
     nIterations = iIteration,
     intervalLogL = intervalLogL,
     event_scores = event_scores,
-    eventProbabilities = eventProbabilities
+    eventProbabilities = eventProbabilities,
+    observed_rank = observed_rank,
+    margins = margins,
+    availability = availability,
+    conditional_scores = conditional_scores,
+    total_rate = total_rate,
+    conditional_logl = conditional_logl
   )
 }
 
@@ -736,31 +764,80 @@ event_contribution_rate <- function(
   objectiveFunctions <- (statsArray %*% parameters)[, 1] # a vector
   objectiveFunctionOfSender <- objectiveFunctions[activeActor]
   statsOfSender <- statsArray[activeActor, ]
-  rates <- exp(objectiveFunctions)
-  rates[idEdgeNotConsidered] <- 0
-  rates[maskedOut] <- 0
-  ratesSum <- sum(rates)
-  # k vector with all rho * s_k summed over all actors i
-  ratesStats <- rates * statsArray
-  ratesStatsSum <- colSums(rates * statsArray)
 
-  # Rate-weighted Fisher information sum_i rho_i s_i s_i^T as a single weighted
-  # cross-product: crossprod(S, S * rates) = S^T diag(rates) S. This preserves
+  # One shifted exp pass yields both exact-time scales, mirroring the gather
+  # Poisson kernel so the two backends share their overflow behavior. The
+  # likelihood needs the total rate on the ABSOLUTE scale -- it enters as
+  # -Dt * T, not as a ratio -- so T is recovered as exp(logNormalizer), which
+  # overflows exactly where the raw sum of rates did. That is deliberate:
+  # shifting the likelihood would be a different model, and an overflowing step
+  # is already rejected by the estimation loop's is.finite() gate. What the
+  # shift does buy is an exact probability vector, where the raw ratio
+  # sum(rates) gives NaN on overflow or a spurious 1 when every rate is
+  # subnormal.
+  inRiskSet <- rep(TRUE, length(objectiveFunctions))
+  inRiskSet[idEdgeNotConsidered] <- FALSE
+  inRiskSet[maskedOut] <- FALSE
+  shift <- if (any(inRiskSet)) max(objectiveFunctions[inRiskSet]) else 0
+  if (!is.finite(shift)) {
+    shift <- 0
+  }
+  weights <- exp(objectiveFunctions - shift)
+  weights[!inRiskSet] <- 0
+  shiftedTotal <- sum(weights)
+  logNormalizer <- shift + log(shiftedTotal)
+  totalRate <- exp(logNormalizer)
+  probabilities <- weights / shiftedTotal
+  if (shiftedTotal == 0) {
+    probabilities[] <- 0
+    logNormalizer <- -Inf
+    totalRate <- 0
+  }
+
+  # The reduction runs on the probability scale with the compensator applied
+  # once outside, since Dt * T * p_j == Dt * lambda_j (D20's factorization).
+  # That keeps the only large factor in a scalar: a rate that overflowed inside
+  # the vector would meet a mixed-sign statistic and give Inf - Inf = NaN.
+  compensator <- timespan * totalRate
+  # k vector with all p_k * s_k summed over all actors i
+  weightedStatsSum <- colSums(probabilities * statsArray)
+
+  # Probability-weighted Fisher information sum_i p_i s_i s_i^T as a single
+  # weighted cross-product: crossprod(S, S * p) = S^T diag(p) S. This preserves
   # the nParams x nParams shape for every parameter count, so the former
   # single-parameter special-case loop (which patched the degenerate outer())
   # is no longer needed.
-  ratesStatsStatsSum <- crossprod(statsArray, statsArray * rates)
+  weightedStatsStatsSum <- crossprod(statsArray, statsArray * probabilities)
 
-  logL <- -timespan *
-    ratesSum +
+  logL <- -compensator +
     if (!isRightCensored) objectiveFunctionOfSender else 0
 
-  score <- -timespan *
-    ratesStatsSum +
+  score <- -compensator *
+    weightedStatsSum +
     if (!isRightCensored) statsOfSender else 0
 
-  hessian <- -timespan * ratesStatsStatsSum
-  pVector <- objectiveFunctions + (-timespan * ratesSum)
+  hessian <- -compensator * weightedStatsStatsSum
+  # The Cox partial-likelihood contribution, computed as x_obs - lse rather
+  # than reassembled from `intervalLogL - log T + Dt * T`: that identity cancels
+  # a term against itself and loses digits in proportion to Dt * T, which is the
+  # regime a diagnostic evaluated away from the MLE lives in. A right-censored
+  # interval realizes no mover, so it has no observed alternative to condition
+  # on and the component is NA there by design.
+  conditionalLogL <- if (isRightCensored) {
+    NA_real_
+  } else {
+    objectiveFunctionOfSender - logNormalizer
+  }
+  # The conditional score row is the same reduction as `score` above at UNIT
+  # scale: `weightedStatsSum` is already the probability-weighted mean, so
+  # dropping the compensator leaves X_obs - sum_j p_j X_j, the Schoenfeld row.
+  # NA where there is no observed alternative to condition on.
+  conditionalScore <- if (isRightCensored) {
+    rep(NA_real_, length(parameters))
+  } else {
+    statsOfSender - weightedStatsSum
+  }
+  pVector <- probabilities
   if (isREM) {
     dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
   }
@@ -769,7 +846,15 @@ event_contribution_rate <- function(
     logLikelihood = logL,
     score = score,
     informationMatrix = -hessian,
-    pMatrix = pVector
+    pMatrix = pVector,
+    probabilities = probabilities,
+    # Risk-set MEMBERSHIP, not "the weight is nonzero": an at-risk alternative
+    # whose fitted rate underflows is still at risk, so availability reads the
+    # mask the likelihood applied rather than the weights it produced.
+    in_risk_set = inRiskSet,
+    total_rate = totalRate,
+    conditional_logl = conditionalLogL,
+    conditional_score = conditionalScore
   )
 }
 
@@ -854,7 +939,8 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    in_risk_set = is.finite(softmax$logProbabilities)
   )
 }
 
@@ -896,7 +982,11 @@ compute_event_contribution.dynam_choice_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    # An excluded alternative enters the softmax as a -Inf linear predictor, so
+    # a finite log-probability is exactly risk-set membership -- and unlike the
+    # probability it stays finite where the probability underflows to zero.
+    in_risk_set = is.finite(multinomial$logProbabilities)
   )
 }
 
@@ -949,7 +1039,13 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventLikelihoods
+    pMatrix = eventLikelihoods,
+    # The per-cell unordered-dyad log-weights (log p(i->j) + log p(j->i), diag
+    # -Inf). Ranks reduce over these rather than `eventLikelihoods` because the
+    # product P(i->j)*P(j->i) underflows for low-probability dyads, collapsing
+    # distinct dyads into spurious exact ties; the log-space weights stay
+    # distinct and rank identically to the DyNAM_MM_default.cpp dyad softmax.
+    logSymmetric = logSymmetric
   )
 }
 
@@ -989,7 +1085,8 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    in_risk_set = is.finite(multinomial$logProbabilities)
   )
 }
 
@@ -1104,8 +1201,8 @@ bind_compute_step <- function(spec) {
 # running statsArray via apply_flat_update(), filter the active presence /
 # opportunity set, zero the reflexive diagonal where applicable, call the
 # bound compute_event_contribution(), and accumulate logL / score /
-# information into `state`. Algorithm variants (e.g. the future incremental
-# REM engine) override this method. `ctx` carries the loop-invariant context
+# information into `state`. An algorithm variant overrides this method rather
+# than the loop around it. `ctx` carries the loop-invariant context
 # and `state` the mutable running quantities; the updated `state` is
 # returned.
 compute_step <- function(spec, state, i, ctx) {
@@ -1261,11 +1358,19 @@ compute_step.default <- function(spec, state, i, ctx) {
   # dropped. Coordination joins REM here because its two-sided likelihood needs the
   # full matrix, not a per-sender row.
   folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
+  # Reduced-position -> global-actor slot maps for the margin reduction: an
+  # entry k of the (reduced) risk set belongs to global actor `sender_slots[k]`
+  # / `receiver_slots[k]`. `which(keepIn)` when an axis is filtered; identity
+  # over the full node set otherwise. Captured before the second `keepIn`
+  # assignment (receiver) shadows the first (sender).
+  sender_slots <- NULL
+  receiver_slots <- NULL
   if ((ctx$updatepresence || ctx$active_sender_folded) && !folded_full) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
     keepIn <- state$presence
+    sender_slots <- which(keepIn)
     # if (updateopportunities && !is_two_mode)
     #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
@@ -1290,6 +1395,9 @@ compute_step.default <- function(spec, state, i, ctx) {
     }
   } else {
     posSender <- activeDyad[1]
+    sender_slots <- seq_len(
+      if (is_rate) nrow(statsArrayComp) else dim(statsArrayComp)[1]
+    )
   }
   if (
     (ctx$updatepresence2 ||
@@ -1321,6 +1429,7 @@ compute_step.default <- function(spec, state, i, ctx) {
     } else {
       allowReflexiveCorrected <- FALSE
     }
+    receiver_slots <- which(keepIn)
     statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
     if (isDependent) {
       position <- which(activeDyad[2] == which(keepIn))
@@ -1338,6 +1447,9 @@ compute_step.default <- function(spec, state, i, ctx) {
     }
   } else {
     allowReflexiveCorrected <- ctx$allowReflexive
+    if (!is_rate) {
+      receiver_slots <- seq_len(dim(statsArrayComp)[2])
+    }
   }
 
   # reduce array to matrices
@@ -1381,13 +1493,398 @@ compute_step.default <- function(spec, state, i, ctx) {
     state$event_scores[i, ] <- eventValues$score
   }
   if (ctx$returnEventProbabilities) {
-    state$EventProbabilities[[i]] <- eventValues$pMatrix
+    state$EventProbabilities[[i]] <- expand_event_probabilities(
+      eventValues$pMatrix,
+      ctx$margin_axis,
+      sender_slots,
+      receiver_slots,
+      ctx$n_actors1,
+      ctx$n_actors2
+    )
+  }
+
+  if (
+    ctx$return_ranks ||
+      ctx$return_margins ||
+      ctx$return_total_rate ||
+      ctx$return_availability ||
+      ctx$return_conditional_scores
+  ) {
+    state <- r_reduce_event(
+      state,
+      ctx,
+      i,
+      eventValues,
+      activeDyad,
+      isDependent,
+      timespan,
+      sender_slots,
+      receiver_slots
+    )
   }
 
   state$logLikelihood <- state$logLikelihood + eventValues$logLikelihood
   state$score <- state$score + eventValues$score
   state$informationMatrix <- state$informationMatrix +
     eventValues$informationMatrix
+
+  # Weighted accumulation on the same block the total information receives, so
+  # a column of ones reproduces it. A zero weight is skipped, which keeps a set
+  # of J period indicators O(n p^2) rather than O(n J p^2).
+  if (!is.null(ctx$event_weights)) {
+    weights_row <- ctx$event_weights[i, ]
+    for (m in which(weights_row != 0)) {
+      state$weighted_information[,, m] <- state$weighted_information[,, m] +
+        weights_row[m] * eventValues$informationMatrix
+    }
+  }
+  if (ctx$return_event_information_trace) {
+    state$event_information_trace[i] <-
+      sum(diag(eventValues$informationMatrix))
+  }
+
+  state
+}
+
+# Scatter the contribution's reduced-risk-set probability vector over the whole
+# node set, so that a position IS an actor id at every event regardless of which
+# actors were present or in the risk set; alternatives absent from the risk set
+# read 0. Without this the vector is uninterpretable downstream: the reduction
+# is per event, so index 3 is a different actor at different events, and the
+# reflexive receiver is dropped rather than zeroed even when nobody enters or
+# leaves. The reduced -> global slot maps are the same `which(keepIn)` ones the
+# margin accumulators already scatter through, which is what keeps the two
+# primitives agreeing about what an index means.
+expand_event_probabilities <- function(
+  p_reduced,
+  axis,
+  sender_slots,
+  receiver_slots,
+  n_actors1,
+  n_actors2
+) {
+  switch(
+    axis,
+    sender = {
+      full <- numeric(n_actors1)
+      full[sender_slots] <- as.numeric(p_reduced)
+      full
+    },
+    receiver_given_sender = {
+      full <- numeric(n_actors2)
+      full[receiver_slots] <- as.numeric(p_reduced)
+      full
+    },
+    # dyad (REM, REM_ordered) and dyad_symmetric (coordination) carry the
+    # reduced n1r x n2r grid, which scatters into the whole n1 x n2 grid.
+    {
+      full <- matrix(0, n_actors1, n_actors2)
+      full[sender_slots, receiver_slots] <- p_reduced
+      full
+    }
+  )
+}
+
+# The per-event opt-in reductions on the r backend (ranks, margins,
+# total_rate / conditional_logl), mirroring the shared C++ reduction
+# (event_reductions.h) that the cpp and gather kernels run in-pass. Called from
+# compute_step() with the reduced-risk-set probability vector already formed by
+# the contribution, and the reduced-position -> global-actor-slot maps captured
+# during the presence reduction. `w` is the flattened probability vector over
+# the event's realized risk set (column-major for the two-sided dyad families,
+# matching event_contribution_rate's linearization); `obs_pos` is the observed
+# alternative's position in `w`, NA on a right-censored interval (no mover).
+r_reduce_event <- function(
+  state,
+  ctx,
+  i,
+  eventValues,
+  activeDyad,
+  isDependent,
+  timespan,
+  sender_slots,
+  receiver_slots
+) {
+  axis <- ctx$margin_axis
+  # Coordination (DyNAM-MM) is a fourth geometry: its realized risk set is the
+  # UNORDERED dyad list {a > b}, not the n1 x n2 grid (D14). Rank and margins
+  # run over that list, matching DyNAM_MM_default.cpp, so it takes its own path.
+  if (identical(axis, "dyad_symmetric")) {
+    return(r_reduce_event_coordination(
+      state,
+      ctx,
+      i,
+      eventValues,
+      activeDyad,
+      isDependent,
+      sender_slots
+    ))
+  }
+  # rate / REM carry a flat `probabilities`; the multinomial families carry the
+  # probability vector as `pMatrix` (a matrix for the two-sided ones).
+  w <- if (!is.null(eventValues$probabilities)) {
+    as.numeric(eventValues$probabilities)
+  } else {
+    as.numeric(eventValues$pMatrix)
+  }
+  n1r <- length(sender_slots)
+  obs_pos <- if (isDependent) {
+    switch(
+      axis,
+      sender = activeDyad[1],
+      receiver_given_sender = activeDyad[2],
+      # dyad / dyad_symmetric: column-major linear index into the n1r x n2r grid
+      activeDyad[1] + (activeDyad[2] - 1L) * n1r
+    )
+  } else {
+    NA_integer_
+  }
+
+  if (ctx$return_availability) {
+    # Membership, per actor and per side. `in_risk_set` is the contribution's
+    # own mask over the reduced risk set, so the reduced -> global slot maps
+    # scatter it onto actor ids exactly as they scatter the margins. On the
+    # two-sided families a sender is available if ANY of its dyads is at risk,
+    # which is what makes one interval contribute one exposure rather than one
+    # per dyad.
+    in_risk_set <- eventValues$in_risk_set
+    if (identical(axis, "sender")) {
+      available_i <- sender_slots[as.logical(in_risk_set)]
+      available_j <- NULL
+    } else if (identical(axis, "receiver_given_sender")) {
+      available_i <- NULL
+      available_j <- receiver_slots[as.logical(in_risk_set)]
+    } else {
+      grid <- matrix(
+        as.logical(in_risk_set),
+        length(sender_slots),
+        length(receiver_slots)
+      )
+      available_i <- sender_slots[rowSums(grid) > 0]
+      available_j <- receiver_slots[colSums(grid) > 0]
+    }
+    state <- accumulate_r_availability(
+      state,
+      available_i,
+      available_j,
+      timespan,
+      isDependent,
+      ctx$is_exact_time
+    )
+  }
+
+  if (ctx$return_ranks && isDependent) {
+    state$observed_rank[i] <- rank_of_observed(w, obs_pos)
+  }
+
+  if (ctx$return_total_rate && ctx$is_exact_time) {
+    state$total_rate[i] <- eventValues$total_rate
+    state$conditional_logl[i] <- eventValues$conditional_logl
+  }
+
+  if (ctx$return_conditional_scores && ctx$is_exact_time) {
+    state$conditional_scores[i, ] <- eventValues$conditional_score
+  }
+
+  if (ctx$return_margins) {
+    two_sided <- identical(axis, "dyad")
+    if (two_sided) {
+      n2r <- length(receiver_slots)
+      idx_i <- rep(sender_slots, times = n2r)
+      idx_j <- rep(receiver_slots, each = n1r)
+    } else if (identical(axis, "sender")) {
+      idx_i <- sender_slots
+    } else {
+      idx_j <- receiver_slots
+    }
+
+    # Primary scale: compensator (Dt * total_rate) on exact-time sub-models,
+    # probability (c = 1) on multinomial ones. Accumulated over ALL intervals;
+    # the observed side is counted for dependent events only.
+    primary_c <- if (ctx$is_exact_time) {
+      timespan * eventValues$total_rate
+    } else {
+      1
+    }
+    if (identical(axis, "sender")) {
+      sides <- accumulate_margins(
+        w,
+        primary_c,
+        obs_pos,
+        isDependent,
+        list(list(
+          index = idx_i,
+          observed = state$m_obs_i,
+          expected = state$m_exp_i
+        ))
+      )
+      state$m_obs_i <- sides[[1]]$observed
+      state$m_exp_i <- sides[[1]]$expected
+    } else if (identical(axis, "receiver_given_sender")) {
+      sides <- accumulate_margins(
+        w,
+        primary_c,
+        obs_pos,
+        isDependent,
+        list(list(
+          index = idx_j,
+          observed = state$m_obs_j,
+          expected = state$m_exp_j
+        ))
+      )
+      state$m_obs_j <- sides[[1]]$observed
+      state$m_exp_j <- sides[[1]]$expected
+    } else {
+      sides <- accumulate_margins(
+        w,
+        primary_c,
+        obs_pos,
+        isDependent,
+        list(
+          list(
+            index = idx_i,
+            observed = state$m_obs_i,
+            expected = state$m_exp_i
+          ),
+          list(
+            index = idx_j,
+            observed = state$m_obs_j,
+            expected = state$m_exp_j
+          )
+        )
+      )
+      state$m_obs_i <- sides[[1]]$observed
+      state$m_exp_i <- sides[[1]]$expected
+      state$m_obs_j <- sides[[2]]$observed
+      state$m_exp_j <- sides[[2]]$expected
+    }
+
+    # Probability-scale variant (exact-time only), over DEPENDENT events only;
+    # `dependent = FALSE` so the shared observed vectors are not double-counted.
+    if (ctx$is_exact_time && isDependent) {
+      if (identical(axis, "sender")) {
+        sides_p <- accumulate_margins(
+          w,
+          1,
+          obs_pos,
+          FALSE,
+          list(list(
+            index = idx_i,
+            observed = numeric(length(state$m_prob_i)),
+            expected = state$m_prob_i
+          ))
+        )
+        state$m_prob_i <- sides_p[[1]]$expected
+      } else {
+        sides_p <- accumulate_margins(
+          w,
+          1,
+          obs_pos,
+          FALSE,
+          list(
+            list(
+              index = idx_i,
+              observed = numeric(length(state$m_prob_i)),
+              expected = state$m_prob_i
+            ),
+            list(
+              index = idx_j,
+              observed = numeric(length(state$m_prob_j)),
+              expected = state$m_prob_j
+            )
+          )
+        )
+        state$m_prob_i <- sides_p[[1]]$expected
+        state$m_prob_j <- sides_p[[2]]$expected
+      }
+    }
+  }
+
+  state
+}
+
+# Coordination (DyNAM-MM) reductions over the unordered-dyad risk set, matching
+# DyNAM_MM_default.cpp. `eventValues$pMatrix` is the reduced n x n symmetric
+# matrix of unordered-dyad probabilities `p_ab` (getLikelihoodMM: each cell of a
+# dyad carries the same `p_ab`, the strict lower triangle sums to 1). Rank is
+# over that triangle; margins credit each dyad's probability to BOTH members in
+# ONE actor-set accumulator (so per-actor observed / expected each total the
+# event count over the pair — 2 * n_events across the vector), exactly as the MM
+# kernel does.
+r_reduce_event_coordination <- function(
+  state,
+  ctx,
+  i,
+  eventValues,
+  activeDyad,
+  isDependent,
+  sender_slots
+) {
+  likelihood_matrix <- eventValues$pMatrix
+  lower <- lower.tri(likelihood_matrix)
+  dyad_weights <- likelihood_matrix[lower]
+  members <- which(lower, arr.ind = TRUE)
+  member_a <- members[, 1] # the larger index (row > col)
+  member_b <- members[, 2]
+
+  obs_dyad <- NA_integer_
+  if (isDependent) {
+    ra <- max(activeDyad[1], activeDyad[2])
+    rb <- min(activeDyad[1], activeDyad[2])
+    obs_dyad <- which(member_a == ra & member_b == rb)
+  }
+
+  if (ctx$return_ranks && isDependent) {
+    # Rank in log-space (see logSymmetric's doc on the coord contribution): the
+    # product-space likelihoods tie underflowed dyads that the cpp kernel keeps
+    # distinct.
+    state$observed_rank[i] <- rank_of_observed(
+      eventValues$logSymmetric[lower],
+      obs_dyad,
+      log_scale = TRUE
+    )
+  }
+
+  if (ctx$return_availability) {
+    # One actor set, as the margins have: an actor is available if it belongs
+    # to any pair of the realized triangle, in either role. A masked dyad
+    # enters the log-weights as -Inf, so a finite entry IS membership.
+    finite_dyad <- is.finite(eventValues$logSymmetric[lower])
+    available <- unique(sender_slots[
+      c(member_a[finite_dyad], member_b[finite_dyad])
+    ])
+    state <- accumulate_r_availability(
+      state,
+      available,
+      NULL,
+      timespan = NA_real_,
+      isDependent = isDependent,
+      is_exact_time = FALSE
+    )
+  }
+
+  if (ctx$return_margins) {
+    # One actor-set accumulator; each dyad's probability credits both members,
+    # so scatter the doubled (member, weight) list through the shared reduction.
+    global_a <- sender_slots[member_a]
+    global_b <- sender_slots[member_b]
+    sides <- accumulate_margins(
+      c(dyad_weights, dyad_weights),
+      1,
+      NA_integer_,
+      FALSE,
+      list(list(
+        index = c(global_a, global_b),
+        observed = state$m_obs_i,
+        expected = state$m_exp_i
+      ))
+    )
+    state$m_exp_i <- sides[[1]]$expected
+    if (isDependent) {
+      obs_actors <- sender_slots[c(activeDyad[1], activeDyad[2])]
+      state$m_obs_i[obs_actors] <- state$m_obs_i[obs_actors] + 1
+    }
+  }
 
   state
 }
@@ -1397,6 +1894,171 @@ compute_step.default <- function(spec, state, i, ctx) {
 # for the MM, M, REM, and M-Rate function, and REM-ordered.
 # Builds the loop-invariant context and the mutable running state once,
 # resolves the compute_step() method once, and iterates events.
+# One r-backend pass, as a closure over the arguments it does not vary
+#
+# The counterpart of `make_engine_evaluator()` on the compiled side: everything
+# `compute_iteration_step()` takes that does not depend on the parameter vector
+# or on which components are wanted is prepared once -- the reduced statistics
+# list, the composition-change frames, the initial presence vectors -- and
+# `evaluate()` runs one pass. Estimation iterates it through `run_nr_loop()`;
+# `evaluate_model()` calls it once. `step_args` is the same list in both cases,
+# which is what keeps a single-pass evaluation on the estimation code path.
+#
+# `seed_intercept` is the caller's decision (see the compiled counterpart): an
+# evaluation at a supplied vector must use that vector verbatim.
+make_r_engine_evaluator <- function(
+  spec,
+  stats_list,
+  parameters,
+  nodes,
+  nodes2,
+  has_intercept = FALSE,
+  is_rate_model = identical(risk_set_axis(spec), "sender"),
+  is_two_mode = FALSE,
+  # FALSE, as the compiled counterpart and `estimate_int_impl()` both default:
+  # a caller that leaves this alone gets the same risk set from either engine.
+  # The two defaults disagreed until 2026-07-31, which silently gave an
+  # evaluation on this engine the reflexive alternative estimation excludes.
+  allow_reflexive = FALSE,
+  reduce_array_to_matrix = FALSE,
+  seed_intercept = TRUE,
+  opportunities_list = NULL,
+  parallelize = FALSE,
+  cpus = 4,
+  verbose = FALSE
+) {
+  ## REDUCE STATISTICS LIST
+
+  if (verbose) {
+    cat("Reducing data\n")
+  }
+
+  stats_list <- prepare_statslist(
+    statsList = stats_list,
+    addInterceptEffect = has_intercept,
+    is_sender = is_rate_model
+  )
+
+  ## GET COMPOSITION CHANGES
+  has_comp_change1 <- length(stats_list$active_sender_changes) > 0
+  has_comp_change2 <- length(stats_list$active_dyad_changes) > 0 &&
+    !is_rate_model
+
+  compChange1 <- if (has_comp_change1) {
+    data.frame(
+      time = vapply(stats_list$active_sender_changes, `[[`, double(1), "time"),
+      node = vapply(stats_list$active_sender_changes, `[[`, integer(1), "node"),
+      replace = vapply(
+        stats_list$active_sender_changes,
+        `[[`,
+        logical(1),
+        "replace"
+      )
+    )
+  } else {
+    NULL
+  }
+  compChange2 <- if (has_comp_change2) {
+    data.frame(
+      time = vapply(stats_list$active_dyad_changes, `[[`, double(1), "time"),
+      node = vapply(stats_list$active_dyad_changes, `[[`, integer(1), "node"),
+      replace = vapply(
+        stats_list$active_dyad_changes,
+        `[[`,
+        logical(1),
+        "replace"
+      )
+    )
+  } else {
+    NULL
+  }
+
+  presence <- stats_list$active_sender_init
+  presence2 <- stats_list$active_dyad_init
+
+  n_events <- length(stats_list$is_dependent)
+
+  ## ADD INTERCEPT
+  # CHANGED MARION
+  # replace first parameter with an initial estimate of the intercept
+  # Applied unless the intercept itself carries a value: fixed, so there is
+  # nothing to start, or seeded, so the user chose the start.
+  if (
+    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
+      has_intercept &&
+      seed_intercept
+  ) {
+    parameters[1] <- log(
+      stats_list$n_dep_events /
+        stats_list$total_time /
+        stats_list$avg_active_entity
+    )
+  }
+
+  # Names are `compute_iteration_step()`'s own argument names, which are still
+  # the camelCase spelling that function carries.
+  step_args <- list(
+    statsList = stats_list,
+    nodes = nodes,
+    nodes2 = nodes2,
+    updatepresence = has_comp_change1,
+    presence = presence,
+    compChange1 = compChange1,
+    updatepresence2 = has_comp_change2,
+    presence2 = presence2,
+    compChange2 = compChange2,
+    hasIntercept = has_intercept,
+    spec = spec,
+    parallelize = parallelize,
+    cpus = cpus,
+    allowReflexive = allow_reflexive,
+    is_two_mode = is_two_mode,
+    reduceArrayToMatrix = reduce_array_to_matrix,
+    verbose = verbose,
+    opportunitiesList = opportunities_list
+  )
+
+  evaluate <- function(
+    pars,
+    need_scores,
+    need_ranks = FALSE,
+    need_margins = FALSE,
+    need_total_rate = FALSE,
+    need_probabilities = FALSE,
+    need_availability = FALSE,
+    need_conditional_scores = FALSE,
+    event_weights = NULL,
+    need_information_trace = FALSE
+  ) {
+    do.call(
+      compute_iteration_step,
+      c(
+        step_args,
+        list(
+          parameters = pars,
+          returnIntervalLogL = TRUE,
+          returnEventProbabilities = need_probabilities,
+          return_event_scores = need_scores,
+          return_ranks = need_ranks,
+          return_margins = need_margins,
+          return_total_rate = need_total_rate,
+          return_availability = need_availability,
+          return_conditional_scores = need_conditional_scores,
+          event_weights = event_weights,
+          return_event_information_trace = need_information_trace
+        )
+      )
+    )
+  }
+
+  list(
+    evaluate = evaluate,
+    step_args = step_args,
+    parameters = parameters,
+    n_events = n_events
+  )
+}
+
 compute_iteration_step <- function(
   statsList,
   nodes,
@@ -1415,6 +2077,13 @@ compute_iteration_step <- function(
   returnIntervalLogL = FALSE,
   returnEventProbabilities = FALSE,
   return_event_scores = FALSE,
+  return_ranks = FALSE,
+  return_margins = FALSE,
+  return_total_rate = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
+  event_weights = NULL,
+  return_event_information_trace = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
@@ -1426,10 +2095,20 @@ compute_iteration_step <- function(
   # never from the statistics array dimensionality.
   is_rate <- identical(risk_set_axis(spec), "sender")
   nParams <- if (is_rate) {
-    ncol(statsList$initialStats)
+    ncol(statsList$initial_stats)
   } else {
-    dim(statsList$initialStats)[3]
+    dim(statsList$initial_stats)[3]
   }
+  # Margin accumulators are per-actor over the WHOLE node set (not the
+  # per-event reduced risk set), so the reduced-position -> global-slot mapping
+  # `which(keepIn)` scatters into them. Sender axis = nodes; receiver / dyad
+  # axes = nodes2 (two-mode) or nodes.
+  n_actors1 <- nrow(nodes)
+  n_actors2 <- nrow(nodes2)
+  margin_axis <- risk_set_axis(spec)
+  # Exact-time (Poisson) sub-models carry the compensator scale; all families
+  # carry the probability scale. total_rate exists only on the Poisson kernel.
+  is_exact_time <- identical(risk_set_normalizer(spec), "poisson")
 
   updateopportunities <- !is.null(opportunitiesList) && !is_rate
   correctReflexive <- !allowReflexive &&
@@ -1469,6 +2148,20 @@ compute_iteration_step <- function(
   step_fn <- bind_compute_step(spec)
   contribution_fn <- bind_event_contribution(spec)
 
+  # The weight matrix is indexed by interval, not by dependent event: the
+  # exact-time families carry right-censored intervals that contribute to the
+  # information, so a column that skipped them would silently misalign. The
+  # compiled kernels enforce the same row count.
+  if (!is.null(event_weights)) {
+    event_weights <- as.matrix(event_weights)
+    if (nrow(event_weights) != nEvents) {
+      cli::cli_abort(c(
+        "{.arg event_weights} must have one row per interval.",
+        "x" = "It has {nrow(event_weights)}; the pass has {nEvents}."
+      ))
+    }
+  }
+
   ctx <- list(
     statsList = statsList,
     nodes2 = nodes2,
@@ -1497,14 +2190,27 @@ compute_iteration_step <- function(
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,
+    return_ranks = return_ranks,
+    return_margins = return_margins,
+    return_total_rate = return_total_rate,
+    return_availability = return_availability,
+    return_conditional_scores = return_conditional_scores,
+    event_weights = event_weights,
+    return_event_information_trace = return_event_information_trace,
+    margin_axis = margin_axis,
+    is_exact_time = is_exact_time,
+    # Whole-node-set sizes, used to scatter the reduced per-event risk set back
+    # onto actor ids: margins accumulate into them, probabilities expand to them.
+    n_actors1 = n_actors1,
+    n_actors2 = n_actors2,
     contribution_fn = contribution_fn
   )
 
   # CHANGED Marion: fill in the loop! stats array needs to be computed
   # also changes for dependent and rc events!
   state <- list(
-    statsArray = statsList$initialStats,
-    time = statsList$startTime,
+    statsArray = statsList$initial_stats,
+    time = statsList$start_time,
     flatPointer = 0L,
     bcPointer = 0L,
     oldTime = -Inf,
@@ -1514,6 +2220,19 @@ compute_iteration_step <- function(
     logLikelihood = 0,
     score = rep(0, nParams),
     informationMatrix = matrix(0, nParams, nParams),
+    # Opt-in weighted per-interval information: one p x p slice per weight
+    # column, and the per-interval trace. Mirrors the compiled accumulator in
+    # event_reductions.h, on the same per-interval block.
+    weighted_information = if (!is.null(event_weights)) {
+      array(0, dim = c(nParams, nParams, ncol(event_weights)))
+    } else {
+      NULL
+    },
+    event_information_trace = if (return_event_information_trace) {
+      numeric(nEvents)
+    } else {
+      NULL
+    },
     eventLogL = if (returnIntervalLogL) numeric(nEvents) else NULL,
     event_scores = if (return_event_scores) {
       matrix(0, nEvents, nParams)
@@ -1524,7 +2243,56 @@ compute_iteration_step <- function(
       vector(mode = "list", length = nEvents)
     } else {
       NULL
-    }
+    },
+    # Opt-in per-event primitives accumulated in the contribution loop, mirroring
+    # the shared C++ reduction (event_reductions.h). observed_rank is NA on
+    # right-censored intervals by design (no observed alternative to rank, D21).
+    observed_rank = if (return_ranks) {
+      rep(NA_integer_, nEvents)
+    } else {
+      NULL
+    },
+    total_rate = if (return_total_rate && is_exact_time) {
+      numeric(nEvents)
+    } else {
+      NULL
+    },
+    conditional_logl = if (return_total_rate && is_exact_time) {
+      numeric(nEvents)
+    } else {
+      NULL
+    },
+    conditional_scores = if (return_conditional_scores && is_exact_time) {
+      matrix(NA_real_, nEvents, nParams)
+    } else {
+      NULL
+    },
+    # Per-actor margin accumulators over the WHOLE node set. `expected` is the
+    # primary scale (compensator for exact-time, probability for multinomial);
+    # `prob` is the extra probability-scale variant carried only by exact-time
+    # fits (D12/D20). Which sides are populated is the risk-set axis (side i =
+    # sender, side j = receiver), matching the cpp kernels.
+    m_obs_i = if (return_margins) numeric(n_actors1) else NULL,
+    m_exp_i = if (return_margins) numeric(n_actors1) else NULL,
+    m_prob_i = if (return_margins) numeric(n_actors1) else NULL,
+    m_obs_j = if (return_margins) numeric(n_actors2) else NULL,
+    m_exp_j = if (return_margins) numeric(n_actors2) else NULL,
+    m_prob_j = if (return_margins) numeric(n_actors2) else NULL,
+    # Per-actor availability accumulators, on the same two sides and over the
+    # same whole node set the margins use. `exposure` is exact-time only: a
+    # multinomial family has no compensator scale to be a denominator on.
+    a_exp_i = if (return_availability && is_exact_time) {
+      numeric(n_actors1)
+    } else {
+      NULL
+    },
+    a_opp_i = if (return_availability) numeric(n_actors1) else NULL,
+    a_exp_j = if (return_availability && is_exact_time) {
+      numeric(n_actors2)
+    } else {
+      NULL
+    },
+    a_opp_j = if (return_availability) numeric(n_actors2) else NULL
   )
 
   for (i in seq_len(nEvents)) {
@@ -1545,8 +2313,131 @@ compute_iteration_step <- function(
   if (returnEventProbabilities) {
     returnList$pMatrix <- state$EventProbabilities
   }
+  if (return_ranks) {
+    returnList$observed_rank <- state$observed_rank
+  }
+  if (return_total_rate && is_exact_time) {
+    returnList$total_rate <- state$total_rate
+    returnList$conditional_logl <- state$conditional_logl
+  }
+  if (return_margins) {
+    returnList$margins <- assemble_r_margins(state, margin_axis, is_exact_time)
+  }
+  if (return_availability) {
+    returnList$availability <- assemble_r_availability(state, margin_axis)
+  }
+  if (return_conditional_scores && is_exact_time) {
+    returnList$conditional_scores <- state$conditional_scores
+  }
+  # Appended last on purpose: the Newton-Raphson loop reads the first four
+  # components of this list positionally, so an opt-in component may only ever
+  # be added after them.
+  if (!is.null(event_weights)) {
+    returnList$weighted_information <- state$weighted_information
+  }
+  if (return_event_information_trace) {
+    returnList$event_information_trace <- state$event_information_trace
+  }
 
   return(returnList)
+}
+
+# Shape the raw per-side margin accumulators into the result list the cpp
+# backend also produces (cpp_interface.R): two accumulators for the two-sided
+# families (dyad / dyad_symmetric -> sender + receiver), one for the single-
+# sided ones. The primary `expected` is the compensator scale on exact-time
+# fits and the probability scale on multinomial ones; exact-time fits carry the
+# probability-scale variant additionally under `expected_probability*`.
+# Fold one interval's per-side membership into the availability accumulators,
+# mirroring the shared C++ reduction (event_reductions.h). `available_i` /
+# `available_j` are global actor slots, already deduplicated by construction:
+# exposure gains the interval length on EVERY interval (right-censored
+# included -- the compensator integrates over all exposure time), opportunities
+# gain one on dependent events only.
+accumulate_r_availability <- function(
+  state,
+  available_i,
+  available_j,
+  timespan,
+  isDependent,
+  is_exact_time
+) {
+  dt <- if (is_exact_time && !is.na(timespan)) timespan else 0
+  if (length(available_i) > 0) {
+    if (is_exact_time) {
+      state$a_exp_i[available_i] <- state$a_exp_i[available_i] + dt
+    }
+    if (isDependent) {
+      state$a_opp_i[available_i] <- state$a_opp_i[available_i] + 1
+    }
+  }
+  if (length(available_j) > 0) {
+    if (is_exact_time) {
+      state$a_exp_j[available_j] <- state$a_exp_j[available_j] + dt
+    }
+    if (isDependent) {
+      state$a_opp_j[available_j] <- state$a_opp_j[available_j] + 1
+    }
+  }
+  state
+}
+
+# Shape the raw per-side availability accumulators into the list the cpp
+# backend also produces, using the margins' own side rule: the two-sided dyad
+# families report each side separately, the sender / receiver / endpoint
+# families report one vector per quantity. `exposure` is absent off exact-time.
+assemble_r_availability <- function(state, margin_axis) {
+  # Exposure first, as the compiled assembly orders it, so the two backends
+  # produce identical lists rather than the same set in a different order.
+  if (identical(margin_axis, "dyad")) {
+    availability <- list()
+    if (!is.null(state$a_exp_i)) {
+      availability$exposure_sender <- state$a_exp_i
+      availability$exposure_receiver <- state$a_exp_j
+    }
+    availability$n_opportunities_sender <- state$a_opp_i
+    availability$n_opportunities_receiver <- state$a_opp_j
+    return(availability)
+  }
+  side <- if (identical(margin_axis, "receiver_given_sender")) "j" else "i"
+  availability <- list()
+  exposure <- state[[paste0("a_exp_", side)]]
+  if (!is.null(exposure)) {
+    availability$exposure <- exposure
+  }
+  availability$n_opportunities <- state[[paste0("a_opp_", side)]]
+  availability
+}
+
+assemble_r_margins <- function(state, margin_axis, is_exact_time) {
+  # Only standard REM / REM_ordered (axis "dyad") are two-sided (distinct sender
+  # and receiver accumulators). Coordination ("dyad_symmetric") credits both
+  # endpoints into ONE actor set, so its result is single-sided like the sender
+  # / receiver families.
+  if (identical(margin_axis, "dyad")) {
+    margins <- list(
+      observed_sender = state$m_obs_i,
+      expected_sender = state$m_exp_i,
+      observed_receiver = state$m_obs_j,
+      expected_receiver = state$m_exp_j
+    )
+    if (is_exact_time) {
+      margins$expected_probability_sender <- state$m_prob_i
+      margins$expected_probability_receiver <- state$m_prob_j
+    }
+  } else {
+    one <- if (identical(margin_axis, "receiver_given_sender")) {
+      list(obs = state$m_obs_j, exp = state$m_exp_j, prob = state$m_prob_j)
+    } else {
+      # sender or dyad_symmetric (coordination): the side-i accumulators.
+      list(obs = state$m_obs_i, exp = state$m_exp_i, prob = state$m_prob_i)
+    }
+    margins <- list(observed = one$obs, expected = one$exp)
+    if (is_exact_time) {
+      margins$expected_probability <- one$prob
+    }
+  }
+  margins
 }
 
 # Function to calculate the log likelihoods for each tie i<->j
@@ -1634,6 +2525,74 @@ stable_softmax <- function(x, rowwise = FALSE) {
   list(probabilities = probabilities, logProbabilities = logProbabilities)
 }
 
+# Per-event reductions, mirroring `src/event_reductions.h` so the r backend
+# produces the same primitives as the compiled ones. This is a *strict* mirror —
+# same inputs, same outputs, pinned to the C++ by a parity test
+# (test-event_reductions.R) on constructed values, which is what keeps a mirror
+# honest. (`stable_softmax()` above is only an algorithmic cousin of
+# `log_sum_exp_masked()`: same max-shift, different arguments and returns.)
+#
+# Same contract as the header: `w` is a nonnegative weight vector over the
+# event's risk set and ZERO outside it, `c` the scale whose product `c * w` is
+# each alternative's contribution. Callers pass the probability vector as `w` in
+# every family, with `c = 1` for the probability scale and `c = Dt * total_rate`
+# for the exact-time compensator. `observed` indexes `w`, 1-based here as R code
+# reads.
+
+# Relative tolerance of the rank tie rule. MUST hold the same number as
+# `RANK_TIE_TOL` in `src/event_reductions.h`, which documents why the tolerance
+# is relative rather than absolute (the kernels rank proportional but
+# differently scaled vectors) and how it was sized.
+RANK_TIE_TOL <- 1e-12
+
+# 1 + the number of alternatives whose weight exceeds the observed one by more
+# than `RANK_TIE_TOL` relatively; ties -- exact ones and near-ties within the
+# tolerance -- share the better rank. Scale-free, so `c` never enters. On the
+# log scale (`log_scale = TRUE`, which the coordination path ranks on) the same
+# rule is additive, since log(1 + tol) = tol to first order.
+rank_of_observed <- function(w, observed, log_scale = FALSE) {
+  threshold <- if (log_scale) {
+    w[observed] + RANK_TIE_TOL
+  } else {
+    w[observed] * (1 + RANK_TIE_TOL)
+  }
+  1L + sum(w > threshold)
+}
+
+# Accumulate `expected[actor(j)] += c * w[j]` over the risk set, and
+# `observed[actor(obs)] += 1` for a dependent event. `sides` is a list of
+# `list(index = , observed = , expected = )`; `index` maps risk-set position to
+# accumulator slot, or NULL when position IS the slot. Two sides are the REM /
+# coordination shape (sender and receiver from one contribution).
+accumulate_margins <- function(w, c, observed, dependent, sides) {
+  contribution <- c * w
+  lapply(sides, function(side) {
+    slot <- if (is.null(side$index)) seq_along(w) else side$index
+    # tapply-free scatter: one add per accumulator slot, order-independent.
+    side$expected <- side$expected +
+      vapply(
+        seq_along(side$expected),
+        function(k) sum(contribution[slot == k]),
+        numeric(1)
+      )
+    if (dependent) {
+      side$observed[slot[observed]] <- side$observed[slot[observed]] + 1
+    }
+    side
+  })
+}
+
+# The event's score contribution: the observed statistic (dependent events only)
+# minus the contribution-weighted mean `c * w'X`. `w` being zero outside the
+# risk set is what lets this ignore the mask.
+event_score_row <- function(x_mat, w, c, observed, dependent) {
+  score <- -c * as.vector(w %*% x_mat)
+  if (dependent) {
+    score <- score + x_mat[observed, ]
+  }
+  score
+}
+
 # Function to calculate a matrix of i->j multinomial choice probabilities
 # (non-logged) for one term of the model. Returns a list with `probabilities`
 # and the matching stable `logProbabilities`: the excluded
@@ -1700,16 +2659,14 @@ getMultinomialProbabilities <- function(
 
 #' Prepare the statistics list for estimation
 #'
-#' The only two transformations estimation applies to a preprocessed
-#' object: dropping the effect columns listed in `excludeParameters` from
-#' `initialStats`, and prepending the constant rate-intercept statistic
-#' (a dummy for the theta_0 parameter) when the model carries a time
-#' intercept. Replaces `modifyStatisticsList()` in the estimation entries;
-#' the right-censoring and array reductions of `reduceStatisticsList()`
-#' were no-ops at those call sites.
+#' The one transformation estimation applies to a preprocessed object:
+#' prepending the constant rate-intercept statistic (a dummy for the theta_0
+#' parameter) when the model carries a time intercept. Replaces
+#' `modifyStatisticsList()` in the estimation entries; the right-censoring and
+#' array reductions of `reduceStatisticsList()` were no-ops at those call
+#' sites.
 #'
 #' @param statsList a `preprocessed.goldfish` object.
-#' @param excludeParameters integer positions of effects to drop.
 #' @param addInterceptEffect logical, whether to prepend the intercept
 #'   statistic.
 #' @param is_sender logical, whether the statistics are sender-indexed (a rate
@@ -1721,37 +2678,17 @@ getMultinomialProbabilities <- function(
 #' @noRd
 prepare_statslist <- function(
   statsList,
-  excludeParameters = NULL,
   addInterceptEffect = FALSE,
   is_sender = FALSE
 ) {
   is_sender_stats <- isTRUE(is_sender)
-  if (!is.null(excludeParameters)) {
-    nEffects <- if (is_sender_stats) {
-      ncol(statsList$initialStats)
-    } else {
-      dim(statsList$initialStats)[3]
-    }
-    unknownIndexes <- setdiff(excludeParameters, seq_len(nEffects))
-    if (length(unknownIndexes) > 0) {
-      stop(
-        "Unknown parameter indexes in 'excludeIndexes': ",
-        paste(unknownIndexes, collapse = " ")
-      )
-    }
-    statsList$initialStats <- if (is_sender_stats) {
-      statsList$initialStats[, -excludeParameters, drop = FALSE]
-    } else {
-      statsList$initialStats[,, -excludeParameters, drop = FALSE]
-    }
-  }
   if (addInterceptEffect) {
-    dimensions <- dim(statsList$initialStats)
-    statsList$initialStats <- if (is_sender_stats) {
-      cbind(1, statsList$initialStats)
+    dimensions <- dim(statsList$initial_stats)
+    statsList$initial_stats <- if (is_sender_stats) {
+      cbind(1, statsList$initial_stats)
     } else {
       array(
-        c(matrix(1, dimensions[1], dimensions[2]), statsList$initialStats),
+        c(matrix(1, dimensions[1], dimensions[2]), statsList$initial_stats),
         dim = dimensions + c(0, 0, 1)
       )
     }

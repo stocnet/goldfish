@@ -1,7 +1,8 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -32,7 +33,11 @@ List estimate_REM_ordered(
     const bool active_dyad_is_point = false,
     const bool return_event_scores = false,
     const bool return_ranks = false,
-    const bool return_margins = false
+    const bool return_margins = false,
+    const bool return_probabilities = false,
+    const bool return_availability = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -71,6 +76,54 @@ List estimate_REM_ordered(
         margin_expected_sender = arma::vec(n_actors_1, fill::zeros);
         margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
         margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
+    }
+    // Opt-in weighted per-interval information: one p x p slice per weight
+    // column, and the per-interval trace. Both stay empty when not requested,
+    // which is how the shared accumulator reads "not asked for".
+    const arma::mat weights_mat =
+      as_event_weights(event_weights, (arma::uword) n_events);
+    arma::cube weighted_information;
+    if (!weights_mat.is_empty()) {
+        weighted_information.zeros(
+          n_parameters, n_parameters, weights_mat.n_cols
+        );
+    }
+    arma::vec event_information_trace;
+    if (return_event_information_trace) {
+        event_information_trace.zeros(n_events);
+    }
+    // Flat dyad position -> actor id on each axis, for the shared two-sided
+    // margin reduction. `weights` is flattened sender-major (dyad (i, j) at
+    // i * n_actors_2 + j), and the map is the same at every event.
+    arma::uvec dyad_sender(n_actors_1 * n_actors_2);
+    arma::uvec dyad_receiver(n_actors_1 * n_actors_2);
+    for (int i = 0; i < n_actors_1; ++i) {
+        for (int j = 0; j < n_actors_2; ++j) {
+            dyad_sender(i * n_actors_2 + j) = i;
+            dyad_receiver(i * n_actors_2 + j) = j;
+        }
+    }
+    // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
+    // risk set (the max-shift helper leaves masked dyads at 0). `weights` is
+    // flattened sender-major (dyad (i, j) at i * n_actors_2 + j) while an
+    // arma::mat fills column-major, so the n1 x n2 grid is recovered by
+    // reshaping to n2 x n1 and transposing. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability, per SIDE as the margins are: a dyad at
+    // risk makes its sender available on one side and its receiver on the
+    // other. Marked once per actor per event through the shared indicator, so
+    // an actor at risk in many dyads counts one opportunity, not one per dyad.
+    // A multinomial family defines no exposure time. Allocated when requested.
+    arma::vec availability_opportunities_sender;
+    arma::vec availability_seen_sender;
+    arma::vec availability_opportunities_receiver;
+    arma::vec availability_seen_receiver;
+    if (return_availability) {
+        availability_opportunities_sender = arma::vec(n_actors_1, fill::zeros);
+        availability_seen_sender = arma::vec(n_actors_1, fill::zeros);
+        availability_opportunities_receiver =
+          arma::vec(n_actors_2, fill::zeros);
+        availability_seen_receiver = arma::vec(n_actors_2, fill::zeros);
     }
 
     // Check whether there are composition change and initialize
@@ -176,44 +229,78 @@ List estimate_REM_ordered(
         arma::vec lin_pred = stat_mat * parameters;
         arma::vec weights;
         double log_normalizer =
-          stable_softmax_masked(lin_pred, allowed, weights);
+          log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         const int id_obs = id_sender * n_actors_2 + id_receiver;
+        // Opt-in primitives via the shared reductions. Ranks read the shifted
+        // weights directly (scale-free); margins take the probability vector
+        // with c = 1 and scatter one contribution into both endpoints.
+        arma::vec probabilities;
+        if (return_margins || return_probabilities || return_event_scores) {
+            probabilities = weights / normalizer;
+        }
+        if (return_availability) {
+            availability_seen_sender.zeros();
+            mark_availability(
+              n_actors_1 * n_actors_2, allowed, &dyad_sender,
+              availability_seen_sender
+            );
+            accumulate_availability(
+              availability_seen_sender, 0.0, true, nullptr,
+              &availability_opportunities_sender
+            );
+            availability_seen_receiver.zeros();
+            mark_availability(
+              n_actors_1 * n_actors_2, allowed, &dyad_receiver,
+              availability_seen_receiver
+            );
+            accumulate_availability(
+              availability_seen_receiver, 0.0, true, nullptr,
+              &availability_opportunities_receiver
+            );
+        }
         if (return_ranks) {
-            const double obs_weight = weights(id_obs);
-            int rank = 1;
-            for (unsigned int d = 0; d < weights.n_elem; d++) {
-                if (allowed(d) == 1 && weights(d) > obs_weight) rank++;
-            }
-            observed_rank[id_event] = rank;
+            observed_rank[id_event] =
+              rank_of_observed(weights, allowed, id_obs);
         }
         if (return_margins) {
-            // `weights` is zero on masked dyads, so the double sum ranges over
-            // the realized risk set; sender and receiver totals coincide.
-            for (int i = 0; i < n_actors_1; ++i) {
-                for (int j = 0; j < n_actors_2; j++) {
-                    const double p = weights(i * n_actors_2 + j) / normalizer;
-                    margin_expected_sender(i) += p;
-                    margin_expected_receiver(j) += p;
-                }
-            }
-            margin_observed_sender(id_sender) += 1;
-            margin_observed_receiver(id_receiver) += 1;
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(
+              &margin_observed_sender, &margin_expected_sender, &dyad_sender
+            ));
+            sides.push_back(margin_side(
+              &margin_observed_receiver, &margin_expected_receiver,
+              &dyad_receiver
+            ));
+            accumulate_margins(probabilities, 1.0, allowed, id_obs, true, sides);
+        }
+        if (return_probabilities) {
+            event_probabilities[id_event] = wrap(
+              arma::mat(arma::reshape(probabilities, n_actors_2, n_actors_1).t())
+            );
         }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
-        arma::rowvec score_before;
-        if (return_event_scores) score_before = derivative.row(0);
         derivative += stat_mat.row(id_obs);
         derivative -= expected_stat_current_event;
+        // The stored per-event score comes from the shared reduction rather
+        // than from the before/after difference of the running derivative, so
+        // the definition lives in one place instead of once per kernel. The
+        // derivative above is deliberately left as it was: it drives the
+        // optimizer, and no coefficient may move.
         if (return_event_scores) {
-            event_scores.row(id_event) = derivative.row(0) - score_before;
+            event_scores.row(id_event) =
+              event_score_row(stat_mat, probabilities, 1.0, id_obs, true);
         }
         // fisher matrix: sum_d p_d s_d s_d^T - E^T E
         fisher_current_event =
           (stat_mat.each_col() % weights).t() * stat_mat / normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
+        accumulate_event_information(
+          fisher_current_event, 1.0, id_event, weights_mat,
+          weighted_information, event_information_trace
+        );
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = lin_pred(id_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -229,6 +316,13 @@ List estimate_REM_ordered(
       Named("margin_observed_sender") = margin_observed_sender,
       Named("margin_expected_sender") = margin_expected_sender,
       Named("margin_observed_receiver") = margin_observed_receiver,
-      Named("margin_expected_receiver") = margin_expected_receiver
+      Named("margin_expected_receiver") = margin_expected_receiver,
+      Named("availability_n_opportunities_sender") =
+        availability_opportunities_sender,
+      Named("availability_n_opportunities_receiver") =
+        availability_opportunities_receiver,
+      Named("event_probabilities") = event_probabilities,
+      Named("weighted_information") = weighted_information,
+      Named("event_information_trace") = event_information_trace
     );
 }

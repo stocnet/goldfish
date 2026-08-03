@@ -1,15 +1,12 @@
+# The effect description as the builder receives it: a typed table, so `fixed`
+# carries a logical beside the character columns.
 mkNames <- function(effects, ...) {
-  cols <- list(...)
-  mat <- matrix(
-    "",
-    nrow = length(effects),
-    ncol = length(cols),
-    dimnames = list(effects, names(cols))
-  )
-  for (nm in names(cols)) {
-    mat[, nm] <- cols[[nm]]
-  }
-  mat
+  cols <- lapply(list(...), function(v) rep(v, length.out = length(effects)))
+  out <- as.data.frame(cols, stringsAsFactors = FALSE)
+  # assigned directly: an effect used twice gives two rows the same name, which
+  # is what the disambiguation under test exists to resolve
+  attr(out, "row.names") <- effects
+  out
 }
 
 test_that("layout grammar: effect/object and bracket omission", {
@@ -41,7 +38,7 @@ test_that("arguments collected in one bracket block", {
     Object = "friendship",
     weighted = "W",
     type = "ego",
-    fixed = "TRUE"
+    fixed = TRUE
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_equal(unname(out), "inertia/friendship [W,ego,Fx]")

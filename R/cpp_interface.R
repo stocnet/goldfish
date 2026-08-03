@@ -5,133 +5,57 @@
 #
 ##################### ###
 
-# Estimation
-estimate_c_int <- function(
-  statsList,
-  nodes,
-  nodes2,
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
-  initialDamping = 1,
-  maxIterations = 20,
-  dampingIncreaseFactor = 2,
-  dampingDecreaseFactor = 3,
-  score_tol = 1e-6,
-  step_tol = 1e-8,
-  # additional return objects
-  returnEventProbabilities = FALSE,
-  # additional parameter for DyNAM-MM
-  allowReflexive = FALSE,
+# Both NA guards on the kernel result -- the initial-parameters check and the
+# Newton loop's step acceptance -- read NA as "the likelihood could not be
+# evaluated here". Some opt-in per-event components carry NA by DESIGN and must
+# be excluded, or the guards report a numerical failure that did not happen:
+# `observed_rank` is allocated NA-filled and written only for dependent events,
+# so any model with a right-censored interval leaves NAs behind whenever ranks
+# are requested. `conditional_logl` (the Cox partial-likelihood component of the
+# exact-time loglik) is NA on right-censored intervals for the same reason: a
+# censored interval realizes no mover, so log p_obs is undefined there. This is
+# the ONLY place the by-design-NA exclusion list lives -- any future per-event
+# NA scan MUST route through this guard, never an ad-hoc is.na() sweep.
+diagnostic_components_with_na <- c(
+  "observed_rank",
+  "conditional_logl",
+  "conditional_scores"
+)
+
+has_unexpected_na <- function(res) {
+  scanned <- res[setdiff(names(res), diagnostic_components_with_na)]
+  any(is.na(unlist(scanned)))
+}
+
+# One compiled-engine pass, as a closure over the buffers it needs
+#
+# Everything the engines take that does not depend on the parameter vector is
+# prepared once here -- the reduced statistics list, the presence/availability
+# buffers, the event matrix, the flattened initial statistics, and (on the
+# gather backend) the gathered stack -- and `evaluate()` runs one pass at a
+# supplied vector. Estimation builds this once and iterates `evaluate()`;
+# `evaluate_model()` builds it and calls `evaluate()` exactly once, which is
+# what keeps the two on the same code path by construction rather than by
+# resemblance.
+#
+# `seed_intercept` is the caller's decision, not this function's: estimation
+# starts an unfixed, unseeded time intercept at its data-derived value, while
+# an evaluation at a supplied vector must use that vector verbatim.
+make_engine_evaluator <- function(
+  spec,
+  stats_list,
+  parameters,
+  backend = c("cpp", "gather"),
+  has_intercept = FALSE,
+  is_rate_model = identical(risk_set_axis(spec), "sender"),
   is_two_mode = FALSE,
-  # additional parameter for DyNAM-M-Rate
-  hasIntercept = FALSE,
-  returnIntervalLogL = FALSE,
-  return_event_scores = FALSE,
-  return_ranks = FALSE,
-  return_margins = FALSE,
-  return_total_rate = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
-  verbose = FALSE,
-  progress = FALSE,
-  testing = FALSE,
-  get_data_matrix = FALSE,
+  allow_reflexive = FALSE,
   impute = FALSE,
-  opportunitiesList = NULL,
-  spec = NULL,
-  engine = c("default_c", "gather_compute"),
-  optimizer = "newton_raphson"
+  seed_intercept = TRUE,
+  verbose = FALSE,
+  progress = FALSE
 ) {
-  if (!is.null(opportunitiesList)) {
-    stop(
-      "opportunitiesList is not supported in the C interface.",
-      call. = FALSE
-    )
-  }
-
-  minDampingFactor <- initialDamping
-  # CHANGED MARION
-  # nParams: number of effects + 1 (if has intercept)
-  is_rate_model <- identical(risk_set_axis(spec), "sender")
-  nParams <- (if (is_rate_model) {
-    ncol(statsList$initialStats)
-  } else {
-    dim(statsList$initialStats)[3]
-  }) -
-    length(excludeParameters) +
-    hasIntercept
-  #
-
-  parameters <- initialParameters
-  if (is.null(initialParameters)) {
-    parameters <- numeric(nParams)
-  }
-  # deal with fixedParameters
-  idUnfixedCompnents <- seq_len(nParams)
-  idFixedCompnents <- NULL
-  likelihoodOnly <- FALSE
-  if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams) {
-      stop(
-        "The length of fixedParameters is inconsistent with",
-        "the number of the parameters.",
-        "\n\tLength ",
-        dQuote("fixedParameters"),
-        " vector:",
-        length(fixedParameters),
-        "\n\tNumber of parameters:",
-        nParams,
-        call. = FALSE
-      )
-    }
-
-    if (all(!is.na(fixedParameters))) {
-      likelihoodOnly <- TRUE
-    }
-    parameters[!is.na(fixedParameters)] <-
-      fixedParameters[!is.na(fixedParameters)]
-    idUnfixedCompnents <- which(is.na(fixedParameters))
-    idFixedCompnents <- which(!is.na(fixedParameters))
-  }
-
-  engine <- match.arg(engine)
-
-  ## PARAMETER CHECKS
-
-  if (length(parameters) != nParams) {
-    stop(
-      " Wrong number of initial parameters passed to function.",
-      "\n\tLength ",
-      dQuote("parameters"),
-      " vector:",
-      length(parameters),
-      "\n\tNumber of parameters:",
-      nParams,
-      call. = FALSE
-    )
-  }
-
-  if (!(length(minDampingFactor) %in% c(1, nParams))) {
-    stop(
-      "minDampingFactor has wrong length:",
-      "\n\tLength ",
-      dQuote("minDampingFactor"),
-      " vector:",
-      length(minDampingFactor),
-      "\n\tNumber of parameters:",
-      nParams,
-      "\nIt should be length 1 or same as number of parameters.",
-      call. = FALSE
-    )
-  }
-
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
-    stop(
-      "Damping increase / decrease factors cannot be smaller than one.",
-      call. = FALSE
-    )
-  }
+  backend <- match.arg(backend)
 
   ## REDUCE STATISTICS LIST
 
@@ -139,76 +63,77 @@ estimate_c_int <- function(
     cat("Reducing data\n")
   }
 
-  statsList <- prepare_statslist(
-    statsList = statsList,
-    excludeParameters = excludeParameters,
-    addInterceptEffect = hasIntercept,
+  stats_list <- prepare_statslist(
+    statsList = stats_list,
+    addInterceptEffect = has_intercept,
     is_sender = is_rate_model
   )
 
   ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING
-  active_sender_update <- statsList$active_sender_update
-  active_sender_update_pointer <- statsList$active_sender_update_pointer
+  active_sender_update <- stats_list$active_sender_update
+  active_sender_update_pointer <- stats_list$active_sender_update_pointer
   if (is.null(active_sender_update)) {
     active_sender_update <- matrix(0, 0, 0)
     active_sender_update_pointer <- numeric(1)
   }
 
-  active_dyad_update <- statsList$active_dyad_update
-  active_dyad_update_pointer <- statsList$active_dyad_update_pointer
+  active_dyad_update <- stats_list$active_dyad_update
+  active_dyad_update_pointer <- stats_list$active_dyad_update_pointer
   if (is.null(active_dyad_update)) {
     active_dyad_update <- matrix(0, 0, 0)
     active_dyad_update_pointer <- numeric(1)
   }
 
-  active_sender_init <- statsList$active_sender_init
-  active_dyad_init <- statsList$active_dyad_init
-  active_dyad_encoding <- if (is.null(statsList$active_dyad_encoding)) {
+  active_sender_init <- stats_list$active_sender_init
+  active_dyad_init <- stats_list$active_dyad_init
+  active_dyad_encoding <- if (is.null(stats_list$active_dyad_encoding)) {
     "alter"
   } else {
-    statsList$active_dyad_encoding
+    stats_list$active_dyad_encoding
   }
 
-  nEvents <- length(statsList$is_dependent)
+  n_events <- length(stats_list$is_dependent)
 
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
+  # The data-derived start applies unless the intercept itself was given a
+  # value -- fixed, so there is nothing to start, or seeded, so the user chose
+  # the start. Seeding some other coefficient leaves the intercept alone.
   if (
     identical(risk_set_normalizer(spec), "poisson") &&
-      hasIntercept &&
-      is.null(initialParameters) &&
-      (is.null(fixedParameters) || is.na(fixedParameters[1]))
+      has_intercept &&
+      seed_intercept
   ) {
     parameters[1] <- log(
-      statsList$n_dep_events /
-        statsList$total_time /
-        statsList$avg_active_entity
+      stats_list$n_dep_events /
+        stats_list$total_time /
+        stats_list$avg_active_entity
     )
   }
   ## SET VARIABLES BASED ON STATSLIST
-  twomode_or_reflexive <- (allowReflexive || is_two_mode)
+  twomode_or_reflexive <- (allow_reflexive || is_two_mode)
   if (is_rate_model) {
-    n_parameters <- ncol(statsList$initialStats)
-    n_actors1 <- nrow(statsList$initialStats)
+    n_parameters <- ncol(stats_list$initial_stats)
+    n_actors1 <- nrow(stats_list$initial_stats)
     n_actors2 <- 1L
     twomode_or_reflexive <- TRUE
   } else {
-    n_parameters <- dim(statsList$initialStats)[3]
-    n_actors1 <- dim(statsList$initialStats)[1]
-    n_actors2 <- dim(statsList$initialStats)[2]
+    n_parameters <- dim(stats_list$initial_stats)[3]
+    n_actors1 <- dim(stats_list$initial_stats)[1]
+    n_actors2 <- dim(stats_list$initial_stats)[2]
   }
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  stat_mat_update <- statsList$stat_mat_update
-  stat_mat_update_pointer <- statsList$stat_mat_pointer
-  stat_mat_broadcast <- statsList$stat_mat_broadcast
-  stat_mat_broadcast_pointer <- statsList$stat_mat_broadcast_pointer
+  stat_mat_update <- stats_list$stat_mat_update
+  stat_mat_update_pointer <- stats_list$stat_mat_pointer
+  stat_mat_broadcast <- stats_list$stat_mat_broadcast
+  stat_mat_broadcast_pointer <- stats_list$stat_mat_broadcast_pointer
   if (is.null(stat_mat_broadcast)) {
     stat_mat_broadcast <- matrix(0, 4L, 0L)
     stat_mat_broadcast_pointer <- numeric(length(stat_mat_update_pointer))
   }
-  if (hasIntercept) {
+  if (has_intercept) {
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
     if (ncol(stat_mat_broadcast) > 0L) {
       stat_mat_broadcast[3, ] <- stat_mat_broadcast[3, ] + 1
@@ -219,52 +144,37 @@ estimate_c_int <- function(
   ## BY C FUNCTIONS
   # Poisson (rate / standard REM) carries a timespan; the ordinal and
   # coordination sender-set families need is_dependent but no timespan; choice
-  # (receiver-given-sender) reads neither.
+  # (receiver-given-sender) reads neither. The two stay NULL where the family
+  # has no use for them: the dispatchers below forward only what each kernel
+  # takes, so a NULL never reaches a kernel that would read it.
+  is_dependent <- NULL
+  timespan <- NA
   if (identical(risk_set_normalizer(spec), "poisson")) {
-    is_dependent <- as.logical(statsList$is_dependent)
-    timespan <- statsList$intervals
+    is_dependent <- as.logical(stats_list$is_dependent)
+    timespan <- stats_list$intervals
   } else if (!identical(risk_set_axis(spec), "receiver_given_sender")) {
-    is_dependent <- as.logical(statsList$is_dependent)
-  } else {
-    timespan <- NA
+    is_dependent <- as.logical(stats_list$is_dependent)
   }
 
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
-  event_mat <- rbind(statsList$event_sender, statsList$event_receiver)
+  event_mat <- rbind(stats_list$event_sender, stats_list$event_receiver)
 
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
   if (is_rate_model) {
-    stat_mat_init <- statsList$initialStats
+    stat_mat_init <- stats_list$initial_stats
   } else {
     stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat_init[, i] <- t(statsList$initialStats[,, i])
+      stat_mat_init[, i] <- t(stats_list$initial_stats[,, i])
     }
   }
 
-  ## ESTIMATION: INITIALIZATION
-
-  if (verbose) {
-    cat("Estimating model ", spec$model, " ", spec$sub_model, ".\n", sep = "")
-  }
-
-  iIteration <- 1
-  informationMatrix <- matrix(0, nParams, nParams)
-  score <- rep(0, nParams)
-  logLikelihood <- 0
-  isConverged <- FALSE
-  returnCode <- 0L
-  update <- rep(0, nParams)
-  isInitialEstimation <- TRUE
-  logLikelihood.old <- -Inf
-  parameters.old <- initialParameters
-  score.old <- NULL
-  informationMatrix.old <- NULL
-
-  ## GATHERING INFO IF WE USE THE GATHER-COMPUTE ENGINE.
-  if (engine == "gather_compute") {
+  ## GATHERING INFO IF WE USE THE GATHER BACKEND.
+  gathered_data <- NULL
+  size_gathered_data <- NULL
+  if (backend == "gather") {
     gathered_data <- gather_(
       spec = spec,
       event_mat = event_mat,
@@ -302,13 +212,47 @@ estimate_c_int <- function(
   } else {
     active_dyad_init
   }
-  evaluate_default_c <- function(
+
+  evaluate <- function(
     pars,
     need_scores,
     need_ranks = FALSE,
     need_margins = FALSE,
-    need_total_rate = FALSE
+    need_total_rate = FALSE,
+    need_probabilities = FALSE,
+    need_availability = FALSE,
+    need_conditional_scores = FALSE,
+    event_weights = NULL,
+    need_information_trace = FALSE
   ) {
+    if (backend == "gather") {
+      # The gathered stack computes the exact-time components whenever the
+      # family has them, so it takes no total-rate flag of its own.
+      return(compute_(
+        spec = spec,
+        parameters = pars,
+        stat_all_events = gathered_data$stat_all_events,
+        selected = gathered_data$selected,
+        n_candidates = gathered_data$n_candidates,
+        timespan = timespan,
+        is_dependent = is_dependent,
+        twomode_or_reflexive = twomode_or_reflexive,
+        index_i = gathered_data$index_i,
+        index_j = gathered_data$index_j,
+        n_actors_1 = n_actors1,
+        n_actors_2 = n_actors2,
+        return_event_scores = need_scores,
+        return_ranks = need_ranks,
+        return_margins = need_margins,
+        return_probabilities = need_probabilities,
+        return_availability = need_availability,
+        return_conditional_scores = need_conditional_scores,
+        sender_of_row = gathered_data$sender_of_row,
+        dyad_partner = gathered_data$dyad_partner,
+        event_weights = event_weights,
+        return_event_information_trace = need_information_trace
+      ))
+    }
     estimate_(
       spec = spec,
       parameters = pars,
@@ -334,9 +278,165 @@ estimate_c_int <- function(
       return_event_scores = need_scores,
       return_ranks = need_ranks,
       return_margins = need_margins,
-      return_total_rate = need_total_rate
+      return_total_rate = need_total_rate,
+      return_probabilities = need_probabilities,
+      return_availability = need_availability,
+      return_conditional_scores = need_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = need_information_trace
     )
   }
+
+  list(
+    evaluate = evaluate,
+    parameters = parameters,
+    n_events = n_events,
+    n_parameters = n_parameters,
+    n_actors1 = n_actors1,
+    n_actors2 = n_actors2,
+    gathered = gathered_data,
+    size_gathered = size_gathered_data
+  )
+}
+
+# Estimation
+estimate_c_int <- function(
+  statsList,
+  nodes,
+  nodes2,
+  initial_spec = NULL,
+  fixed_spec = NULL,
+  initialDamping = 1,
+  maxIterations = 20,
+  dampingIncreaseFactor = 2,
+  dampingDecreaseFactor = 3,
+  score_tol = 1e-6,
+  step_tol = 1e-8,
+  # additional return objects
+  returnEventProbabilities = FALSE,
+  # additional parameter for DyNAM-MM
+  allowReflexive = FALSE,
+  is_two_mode = FALSE,
+  # additional parameter for DyNAM-M-Rate
+  hasIntercept = FALSE,
+  returnIntervalLogL = FALSE,
+  return_event_scores = FALSE,
+  return_ranks = FALSE,
+  return_margins = FALSE,
+  return_total_rate = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
+  parallelize = FALSE,
+  cpus = 6,
+  verbose = FALSE,
+  progress = FALSE,
+  testing = FALSE,
+  get_data_matrix = FALSE,
+  impute = FALSE,
+  opportunitiesList = NULL,
+  spec = NULL,
+  backend = c("cpp", "gather"),
+  optimizer = "newton_raphson"
+) {
+  if (!is.null(opportunitiesList)) {
+    stop(
+      "opportunitiesList is not supported in the C interface.",
+      call. = FALSE
+    )
+  }
+
+  minDampingFactor <- initialDamping
+  # CHANGED MARION
+  # nParams: number of effects + 1 (if has intercept)
+  is_rate_model <- identical(risk_set_axis(spec), "sender")
+  nParams <- (if (is_rate_model) {
+    ncol(statsList$initial_stats)
+  } else {
+    dim(statsList$initial_stats)[3]
+  }) +
+    hasIntercept
+  #
+
+  # Which coefficients are held at supplied values, which were seeded, and the
+  # parameter vector both produce: decided once, by the shared helper every
+  # estimation path reads.
+  mask <- resolve_coefficient_mask(
+    fixed_spec,
+    initial_spec,
+    nParams
+  )
+  parameters <- mask$parameters
+  id_unfixed <- mask$id_unfixed
+  id_fixed <- mask$id_fixed
+  likelihood_only <- mask$likelihood_only
+
+  backend <- match.arg(backend)
+
+  ## PARAMETER CHECKS
+
+  if (!(length(minDampingFactor) %in% c(1, nParams))) {
+    stop(
+      "minDampingFactor has wrong length:",
+      "\n\tLength ",
+      dQuote("minDampingFactor"),
+      " vector:",
+      length(minDampingFactor),
+      "\n\tNumber of parameters:",
+      nParams,
+      "\nIt should be length 1 or same as number of parameters.",
+      call. = FALSE
+    )
+  }
+
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
+    stop(
+      "Damping increase / decrease factors cannot be smaller than one.",
+      call. = FALSE
+    )
+  }
+
+  engine <- make_engine_evaluator(
+    spec = spec,
+    stats_list = statsList,
+    parameters = parameters,
+    backend = backend,
+    has_intercept = hasIntercept,
+    is_rate_model = is_rate_model,
+    is_two_mode = is_two_mode,
+    allow_reflexive = allowReflexive,
+    impute = impute,
+    seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
+    verbose = verbose,
+    progress = progress
+  )
+  parameters <- engine$parameters
+  nEvents <- engine$n_events
+  n_actors1 <- engine$n_actors1
+  n_actors2 <- engine$n_actors2
+  if (backend == "gather") {
+    gathered_data <- engine$gathered
+    size_gathered_data <- engine$size_gathered
+  }
+
+  ## ESTIMATION: INITIALIZATION
+
+  if (verbose) {
+    cat("Estimating model ", spec$model, " ", spec$sub_model, ".\n", sep = "")
+  }
+
+  iIteration <- 1
+  informationMatrix <- matrix(0, nParams, nParams)
+  score <- rep(0, nParams)
+  logLikelihood <- 0
+  isConverged <- FALSE
+  returnCode <- 0L
+  update <- rep(0, nParams)
+  isInitialEstimation <- TRUE
+  logLikelihood.old <- -Inf
+  # The starting point is the last accepted one until a step is accepted.
+  parameters.old <- parameters
+  score.old <- NULL
+  informationMatrix.old <- NULL
 
   # maxLik-backed optimizers replace the Newton-Raphson loop below:
   # the preprocessed data is fixed, the C++ evaluator is fed to maxLik through
@@ -344,10 +444,10 @@ estimate_c_int <- function(
   # object. Runs on the default_c evaluator only (guarded upstream).
   if (!identical(optimizer, "newton_raphson")) {
     return(estimate_via_maxlik(
-      evaluate = evaluate_default_c,
+      evaluate = engine$evaluate,
       optimizer = optimizer,
       start = parameters,
-      id_fixed = idFixedCompnents,
+      id_fixed = id_fixed,
       n_params = nParams,
       n_events = nEvents,
       return_interval_loglik = returnIntervalLogL,
@@ -360,32 +460,16 @@ estimate_c_int <- function(
     ## CALCULATE THE LOGLIKELIHOOD,
     ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
 
-    ## GATHER-COMPUTE ENGINE
-    if (engine == "gather_compute") {
-      res <- compute_(
-        spec = spec,
-        parameters = parameters,
-        stat_all_events = gathered_data$stat_all_events,
-        selected = gathered_data$selected,
-        n_candidates = gathered_data$n_candidates,
-        timespan = timespan,
-        is_dependent = is_dependent,
-        twomode_or_reflexive = twomode_or_reflexive,
-        sender_of_row = gathered_data$sender_of_row,
-        dyad_partner = gathered_data$dyad_partner
-      )
-    }
-
-    ### DEFAULT_C ENGINE
-    if (engine == "default_c") {
-      res <- evaluate_default_c(
-        parameters,
-        return_event_scores,
-        return_ranks,
-        return_margins,
-        return_total_rate
-      )
-    }
+    res <- engine$evaluate(
+      parameters,
+      return_event_scores,
+      return_ranks,
+      return_margins,
+      return_total_rate,
+      returnEventProbabilities,
+      return_availability,
+      return_conditional_scores
+    )
 
     logLikelihood <- res$logLikelihood
     score <- as.numeric(res$derivative)
@@ -401,16 +485,15 @@ estimate_c_int <- function(
     }
 
     if (returnEventProbabilities) {
-      eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model", spec$model, spec$sub_model)
-      } else {
-        res$pMatrix
-      }
+      # One per-event element, actor-indexed over the whole node set and zero
+      # off the risk set, in the same shape the r backend produces: a vector on
+      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
+      eventProbabilities <- res$event_probabilities
     }
 
     if (
       isInitialEstimation &&
-        any(is.na(unlist(res))) &&
+        has_unexpected_na(res) &&
         !all(parameters[-1] == 0)
     ) {
       stop(
@@ -421,7 +504,7 @@ estimate_c_int <- function(
     }
 
     # If we only want the likelihood break here
-    if (likelihoodOnly) {
+    if (likelihood_only) {
       inverseInformationUnfixed <- matrix(0, nParams, nParams)
       score <- rep(0, nParams)
       isConverged <- TRUE
@@ -431,7 +514,7 @@ estimate_c_int <- function(
 
     # we don't consider the fixed components of the score.
     #  It's for the fixing parameter feature. \
-    score[idFixedCompnents] <- 0
+    score[id_fixed] <- 0
 
     if (verbose) {
       cat(
@@ -447,10 +530,10 @@ estimate_c_int <- function(
       # print(informationMatrix)
     }
 
-    stepAccepted <- !any(is.na(unlist(res))) &&
+    step_accepted <- !has_unexpected_na(res) &&
       is.finite(logLikelihood) &&
       logLikelihood > logLikelihood.old
-    if (!stepAccepted) {
+    if (!step_accepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -486,7 +569,7 @@ estimate_c_int <- function(
     # The fixed components of the score have already be set to be 0.
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <-
-      informationMatrix[idUnfixedCompnents, idUnfixedCompnents]
+      informationMatrix[id_unfixed, id_unfixed]
     inverseInformationUnfixed <- try(
       solve(informationMatrixUnfixed),
       silent = TRUE
@@ -500,8 +583,8 @@ estimate_c_int <- function(
     }
 
     update <- rep(0, nParams)
-    update[idUnfixedCompnents] <-
-      (inverseInformationUnfixed %*% score[idUnfixedCompnents]) /
+    update[id_unfixed] <-
+      (inverseInformationUnfixed %*% score[id_unfixed]) /
       dampingFactor
 
     if (verbose) {
@@ -518,7 +601,7 @@ estimate_c_int <- function(
       score = score,
       log_likelihood = logLikelihood,
       update = update,
-      step_accepted = stepAccepted,
+      step_accepted = step_accepted,
       score_tol = score_tol,
       step_tol = step_tol
     )
@@ -565,33 +648,33 @@ estimate_c_int <- function(
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)
-  stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
+  stdErrors[id_unfixed] <- sqrt(diag(inverseInformationUnfixed))
 
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standardErrors = stdErrors,
-    logLikelihood = logLikelihood,
-    finalScore = score,
-    finalInformationMatrix = informationMatrix,
+    standard_errors = stdErrors,
+    log_likelihood = logLikelihood,
+    final_score = score,
+    final_information_matrix = informationMatrix,
     convergence = list(
-      isConverged = isConverged,
-      returnCode = returnCode,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update)),
+      is_converged = isConverged,
+      return_code = returnCode,
+      max_abs_score = max(abs(score)),
+      max_abs_update = max(abs(update)),
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
-    nIterations = iIteration,
-    nEvents = nEvents
+    n_iterations = iIteration,
+    n_events = nEvents
   )
-  if (engine == "gather_compute") {
-    estimationResult$sizeIntermediate <- size_gathered_data
+  if (backend == "gather") {
+    estimationResult$size_intermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
   # if (testing) estimationResult$intermediateData <-
   #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) {
-    estimationResult$intervalLogL <- intervalLogL
+    estimationResult$interval_log_lik <- intervalLogL
   }
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
@@ -600,25 +683,29 @@ estimate_c_int <- function(
     estimationResult$observed_rank <- observed_rank
   }
   if (return_margins) {
-    # `res` holds the final evaluation pass. REM engines return both sender and
-    # receiver margins; the single-sided engines return one pair. The
-    # gather_compute engine returns neither, leaving margins unset.
-    margins <- if (!is.null(res$margin_expected_sender)) {
-      list(
-        observed_sender = as.numeric(res$margin_observed_sender),
-        expected_sender = as.numeric(res$margin_expected_sender),
-        observed_receiver = as.numeric(res$margin_observed_receiver),
-        expected_receiver = as.numeric(res$margin_expected_receiver)
-      )
-    } else if (!is.null(res$margin_expected)) {
-      list(
-        observed = as.numeric(res$margin_observed),
-        expected = as.numeric(res$margin_expected)
-      )
-    } else {
-      NULL
-    }
+    # Actor labels and the scale marker are attached by the shared helper both
+    # backends call, so a fit's margins carry the same names and scales
+    # whichever implementation produced them.
+    margins <- label_margins(
+      assemble_engine_margins(res),
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2,
+      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    )
     if (!is.null(margins)) estimationResult$margins <- margins
+  }
+  if (return_availability) {
+    # Availability rides the same labeling the margins do -- one side rule, one
+    # actor-label convention -- so a per-actor table can join the two without
+    # reconciling two spellings of the same actor set.
+    availability <- label_availability(
+      assemble_engine_availability(res),
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2
+    )
+    if (!is.null(availability)) estimationResult$availability <- availability
   }
   if (
     return_total_rate &&
@@ -629,8 +716,31 @@ estimate_c_int <- function(
     # multinomial engines leave it empty, so it stays off their fits.
     estimationResult$total_rate <- as.numeric(res$total_rate)
   }
+  if (
+    return_total_rate &&
+      !is.null(res$conditional_logl) &&
+      length(res$conditional_logl) > 0
+  ) {
+    # The which/when split of the exact-time log-likelihood: the conditional
+    # component is the Cox partial-likelihood contribution, the log probability
+    # that the observed alternative is the one to move next. It rides the same
+    # `loglik` primitive as total_rate, and is computed in the kernel as
+    # x_obs - log_normalizer rather than reassembled from the identity, which
+    # cancels a term against itself and loses digits away from the MLE.
+    estimationResult$conditional_logl <- as.numeric(res$conditional_logl)
+  }
+  if (
+    return_conditional_scores &&
+      !is.null(res$conditional_scores) &&
+      length(res$conditional_scores) > 0
+  ) {
+    # Only the exact-time kernels return conditional score rows; on a
+    # multinomial family the stored `event_scores` ARE the conditional rows, so
+    # the component is absent rather than duplicated.
+    estimationResult$conditional_scores <- res$conditional_scores
+  }
   if (returnEventProbabilities) {
-    estimationResult$eventProbabilities <- eventProbabilities
+    estimationResult$event_probabilities <- eventProbabilities
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
@@ -660,7 +770,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #' closures on the `default_c` evaluator, then maps the result into the standard
 #' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
 #' post-estimation methods work unchanged. Only reached for
-#' `optimizer != "newton_raphson"`, guarded upstream to the default_c engine
+#' `optimizer != "newton_raphson"`, guarded upstream to the cpp backend
 #' with maxLik installed.
 #'
 #' @param evaluate closure `function(pars, need_scores)` returning the C++
@@ -757,22 +867,22 @@ estimate_via_maxlik <- function(
 
   estimation_result <- list(
     parameters = fit_pars,
-    standardErrors = std_errors,
-    logLikelihood = log_likelihood,
-    finalScore = score,
-    finalInformationMatrix = information_matrix,
+    standard_errors = std_errors,
+    log_likelihood = log_likelihood,
+    final_score = score,
+    final_information_matrix = information_matrix,
     convergence = list(
-      isConverged = is_converged,
-      returnCode = return_code,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = NA_real_,
+      is_converged = is_converged,
+      return_code = return_code,
+      max_abs_score = max(abs(score)),
+      max_abs_update = NA_real_,
       score_rel_norm = max(abs(score)) / max(1, abs(log_likelihood))
     ),
-    nIterations = n_iter,
-    nEvents = n_events
+    n_iterations = n_iter,
+    n_events = n_events
   )
   if (return_interval_loglik) {
-    estimation_result$intervalLogL <- as.numeric(final$intervalLogL)
+    estimation_result$interval_log_lik <- as.numeric(final$intervalLogL)
   }
   if (return_event_scores) {
     estimation_result$event_scores <- final$event_scores
@@ -809,7 +919,12 @@ estimate_ <- function(
   return_event_scores = FALSE,
   return_ranks = FALSE,
   return_margins = FALSE,
-  return_total_rate = FALSE
+  return_total_rate = FALSE,
+  return_probabilities = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
+  event_weights = NULL,
+  return_event_information_trace = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -836,7 +951,11 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -859,7 +978,11 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -885,7 +1008,11 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -914,7 +1041,12 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_total_rate = return_total_rate
+      return_total_rate = return_total_rate,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      return_conditional_scores = return_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -942,7 +1074,12 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_total_rate = return_total_rate
+      return_total_rate = return_total_rate,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      return_conditional_scores = return_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -967,7 +1104,11 @@ estimate_ <- function(
       impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities,
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
   return(res)
@@ -981,9 +1122,10 @@ estimate_ <- function(
 #' `gather_sender_model()`, `gather_receiver_model()`, and
 #' `gather_sender_receiver_model()` (removed in the writer refactor): the
 #' gather stack is now produced once, in R, from `writer_default()`'s flat
-#' output and consumed by both `engine = "gather_compute"` and
-#' `gather_model_data()`. The per-iteration model fitting stays in C++ via
-#' `compute_()`, so the one-time expansion in R does not affect the
+#' output and consumed by both `backend = "gather"` and
+#' `compute_statistics(output = "gather")`. The per-iteration model fitting
+#' stays in C++ via `compute_()`, so the one-time expansion in R does not
+#' affect the
 #' estimation hot path. The `verbose` / `impute` arguments are retained for
 #' call-site compatibility; `impute` is always `FALSE` in the current
 #' code paths (the impute machinery was dropped from estimation).
@@ -1571,6 +1713,17 @@ gather_sender_model_r <- function(
 
 
 ## COMPUTE FOR DIFFERENT MODELS
+# Translate a gather stack's 1-based per-row actor index into the 0-based slots
+# the shared C++ reduction scatters margins into. An absent axis -- the sender
+# models carry `index_j = NA` after reducing the receiver axis away -- becomes
+# an empty vector, which the kernel reads as "this side does not exist".
+margin_slots <- function(index) {
+  if (is.null(index) || length(index) == 0 || all(is.na(index))) {
+    return(integer(0))
+  }
+  as.integer(index) - 1L
+}
+
 # The likelihood kernel is selected by the spec's normalizer, not a model-type
 # string: multinomial (choice / ordinal rate), Poisson (rate), or coordination.
 compute_ <- function(
@@ -1582,15 +1735,60 @@ compute_ <- function(
   timespan,
   is_dependent,
   twomode_or_reflexive,
+  index_i = NULL,
+  index_j = NULL,
+  n_actors_1 = 0L,
+  n_actors_2 = 0L,
+  return_event_scores = FALSE,
+  return_ranks = FALSE,
+  return_margins = FALSE,
+  return_probabilities = FALSE,
+  return_availability = FALSE,
+  return_conditional_scores = FALSE,
   sender_of_row = NULL,
-  dyad_partner = NULL
+  dyad_partner = NULL,
+  event_weights = NULL,
+  return_event_information_trace = FALSE
 ) {
+  # Per-row actor slots for the margin sides, as the shared reduction wants
+  # them: 0-based, and empty for an axis this shape does not have (the sender
+  # models reduce away the receiver axis and carry index_j = NA).
+  #
+  # Which sides a model marginalises is its risk-set axis, NOT which indices
+  # happen to exist. A choice model carries both a (constant) sender index and a
+  # receiver index, but its cpp counterpart accumulates receiver margins only --
+  # so handing the kernel both would give a gather fit a sender margin its cpp
+  # counterpart does not have, and the two backends would disagree in SHAPE
+  # while agreeing in every value. Blanking the unused side here keeps the
+  # kernels free of model knowledge: they already read an empty index as "no
+  # such side".
+  axis <- risk_set_axis(spec)
+  margin_i <- margin_slots(index_i)
+  margin_j <- margin_slots(index_j)
+  if (identical(axis, "receiver_given_sender")) {
+    margin_i <- integer(0) # receiver margins only
+  } else if (identical(axis, "sender")) {
+    margin_j <- integer(0) # sender margins only
+  }
+  # dyad / dyad_symmetric keep both sides.
+
   if (identical(risk_set_normalizer(spec), "multinomial")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
       n_candidates,
-      selected
+      selected,
+      margin_i,
+      margin_j,
+      n_actors_1,
+      n_actors_2,
+      return_event_scores,
+      return_ranks,
+      return_margins,
+      return_probabilities,
+      return_availability,
+      event_weights,
+      return_event_information_trace
     )
   }
 
@@ -1601,7 +1799,19 @@ compute_ <- function(
       n_candidates,
       selected,
       timespan,
-      is_dependent
+      is_dependent,
+      margin_i,
+      margin_j,
+      n_actors_1,
+      n_actors_2,
+      return_event_scores,
+      return_ranks,
+      return_margins,
+      return_probabilities,
+      return_availability,
+      return_conditional_scores,
+      event_weights,
+      return_event_information_trace
     )
   }
 
@@ -1612,7 +1822,17 @@ compute_ <- function(
       n_candidates,
       selected,
       sender_of_row,
-      dyad_partner
+      dyad_partner,
+      margin_i,
+      margin_j,
+      n_actors_1,
+      return_event_scores,
+      return_ranks,
+      return_margins,
+      return_probabilities,
+      return_availability,
+      event_weights,
+      return_event_information_trace
     )
   }
 

@@ -1096,7 +1096,7 @@ merged_route_rc <- function(engine, event_info) {
 
 # Build one per-unit walk engine: the recipe context (effects, cache, lookups,
 # composition, imputation policy) reused from `prepare_recipe_context()`, the
-# unit's `initialStats` and interaction operand state shaped as its recipe loop
+# unit's `initial_stats` and interaction operand state shaped as its recipe loop
 # would, and its per-fid consumers over the block union. The per-unit state and
 # schedule `prepare_recipe_context()` also builds are discarded: the walk runs
 # over the ONE shared state and schedule, which every unit's effect templates
@@ -1128,7 +1128,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   inter_ids <- ctx$inter_ids
   plan <- ctx$plan
 
-  # Shape `initialStats` and the interaction operand state exactly as the sender
+  # Shape `initial_stats` and the interaction operand state exactly as the sender
   # (2D kernel) or dyad (3D array) recipe loop does before the walk begins.
   op_state <- new.env(parent = emptyenv())
   if (unit$is_sender) {
@@ -1273,13 +1273,13 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   spec_map <- engine$spec_map
   tail <- list(
     spec = spec_map,
-    initialStats = engine$initial_stats,
+    initial_stats = engine$initial_stats,
     active_sender_init = ctx$active_sender_init,
     active_sender_changes = ctx$active_sender_changes,
     active_dyad_init = ctx$active_dyad_init,
     active_dyad_changes = ctx$active_dyad_changes,
-    startTime = start_time,
-    endTime = end_time,
+    start_time = start_time,
+    end_time = end_time,
     intercept_scalars = engine$is_timed_rate
   )
 

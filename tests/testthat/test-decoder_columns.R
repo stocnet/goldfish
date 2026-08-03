@@ -9,12 +9,13 @@ test_that("decoder columns persisted on result$names", {
   expect_true(all(
     c(".effect_short", ".object_short", ".term_export", ".coef_name") %in% cols
   ))
-  expect_length(mod$names[, ".coef_name"], mod$nParams)
+  expect_length(mod$names[, ".coef_name"], mod$n_params)
   expect_false(anyDuplicated(mod$names[, ".coef_name"]) > 0)
   expect_false(anyDuplicated(mod$names[, ".term_export"]) > 0)
 })
 
 test_that("decoder columns carried through gather_model_data", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState) +
       outdeg(networkExog, weighted = TRUE),

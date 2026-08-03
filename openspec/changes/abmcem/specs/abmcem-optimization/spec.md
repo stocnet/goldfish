@@ -30,8 +30,9 @@ between EM iterations.
 
 ### Requirement: Weight staleness guards warn and refresh
 
-With a persistent pool (`refresh = FALSE`), the effective sample size
-(ESS = 1/Σ normalized-weights²) SHALL be monitored every EM iteration. When
+The E-step SHALL monitor the effective sample size
+(ESS = 1/Σ normalized-weights²) every EM iteration with a persistent pool
+(`refresh = FALSE`). When
 the guard is enabled and ESS falls below `ess_threshold` × pool size (default
 0.5), the pool SHALL be redrawn at the current parameters with a cli warning
 informing that new draws are generated; when the guard is disabled but the

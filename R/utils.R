@@ -228,11 +228,11 @@ ReducePreprocess <- function(
   )
   type <- match.arg(type)
 
-  is_rate <- length(dim(preproData$initialStats)) == 2L
+  is_rate <- length(dim(preproData$initial_stats)) == 2L
   nEffects <- if (is_rate) {
-    ncol(preproData$initialStats)
+    ncol(preproData$initial_stats)
   } else {
-    dim(preproData$initialStats)[3]
+    dim(preproData$initial_stats)[3]
   }
 
   stopifnot(
@@ -332,8 +332,8 @@ ReducePreprocess <- function(
     colsKeep <- eventsKeep[colEvent]
     bcK <- bc[, colsKeep, drop = FALSE]
     bcEvent <- colEvent[colsKeep]
-    n1 <- dim(preproData$initialStats)[1]
-    n2 <- if (is_rate) 1L else dim(preproData$initialStats)[2]
+    n1 <- dim(preproData$initial_stats)[1]
+    n2 <- if (is_rate) 1L else dim(preproData$initial_stats)[2]
     # The mode-map reading rides on the spec; the side-name comparison stays only
     # as a fallback for a bare object that never carried a spec.
     is_two_mode <- preproData$model_spec$is_two_mode %||%
@@ -586,7 +586,7 @@ apply_broadcast_update <- function(
 #' stored-event sequence.
 #'
 #' @param old_prep `preprocessed.goldfish` object reused through
-#'   `preprocessing_init`.
+#'   `preprocessed`.
 #' @param new_prep `preprocessed.goldfish` object with the newly added
 #'   effects, or NULL when the new formula adds no effects.
 #' @param effects_indexes integer vector from `compare_formulas()`: for
@@ -625,7 +625,7 @@ merge_flat_updates <- function(old_prep, new_prep, effects_indexes) {
 GetDetailPrint <- function(
   objects_effects_link,
   parsedformula,
-  fixedParameters = NULL
+  is_fixed = NULL
 ) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
@@ -676,79 +676,90 @@ GetDetailPrint <- function(
   #   effect_description
   # )
 
-  if (any(unlist(parsedformula$ignore_rep_parameter))) {
-    effect_description <- cbind(
-      effect_description,
-      ignore_repetitions = ifelse(parsedformula$ignore_rep_parameter, "B", "")
-    )
+  # A data.frame with a stable schema from here on: every flag column exists on
+  # every fit, empty where the feature is unused, so a consumer reads a column
+  # rather than testing whether it was worth creating. `fixed` is the reason
+  # the schema matters -- it holds a logical, which a character matrix could
+  # not, and which is why fixedness used to be stored as the strings "TRUE" and
+  # "FALSE". The `Object <k>` columns stay formula-dependent: how many objects
+  # a term names is a property of the term, not a flag.
+  # Row labels are carried alongside and reattached once the rows are final:
+  # `as.data.frame()` and `rbind()` both uniquify duplicate row names, and an
+  # effect used twice (`indeg + indeg(other)`) legitimately produces two rows
+  # with the same name -- the disambiguation belongs to the coefficient labels,
+  # which derive from these, not to the names themselves.
+  row_labels <- rownames(effect_description)
+  effect_description <- as.data.frame(
+    effect_description,
+    stringsAsFactors = FALSE,
+    row.names = NULL
+  )
+  n_effects <- nrow(effect_description)
+  effect_description$ignore_repetitions <- ifelse(
+    detail_flag_lgl(parsedformula$ignore_rep_parameter, n_effects),
+    "B",
+    ""
+  )
+  effect_description$weighted <- ifelse(
+    detail_flag_lgl(parsedformula$weighted_parameter, n_effects),
+    "W",
+    ""
+  )
+  effect_description$type <- detail_flag_chr(
+    parsedformula$type_parameter,
+    n_effects
+  )
+  windows <- vapply(
+    parsedformula$window_parameters,
+    function(x) if (is.null(x)) "" else gsub("['\"]", "", x),
+    character(1)
+  )
+  if (length(windows) != n_effects) {
+    windows <- rep("", n_effects)
   }
-  if (any(unlist(parsedformula$weighted_parameter))) {
-    effect_description <- cbind(
-      effect_description,
-      weighted = ifelse(parsedformula$weighted_parameter, "W", "")
-    )
-  }
-  if (any(parsedformula$type_parameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      type = parsedformula$type_parameter
-    )
-  }
-  has_windows <- FALSE
-  if (!all(vapply(parsedformula$window_parameters, is.null, logical(1)))) {
-    has_windows <- TRUE
-    effect_description <- cbind(
-      effect_description,
-      window = vapply(
-        parsedformula$window_parameters,
-        function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
+  has_windows <- any(nzchar(windows))
+  effect_description$window <- windows
+  if (has_windows) {
+    # reduce object name: each row's own window suffix, so the pattern is per
+    # row rather than vectorized over a single one
+    for (col in objectsName) {
+      effect_description[[col]] <- vapply(
+        seq_len(n_effects),
+        function(i) {
+          if (!nzchar(windows[[i]])) {
+            return(effect_description[[col]][[i]])
+          }
+          sub(
+            paste0("^(.+)_", gsub(" ", "", windows[[i]]), "$"),
+            "\\1",
+            effect_description[[col]][[i]]
+          )
+        },
         character(1)
       )
-    )
-    # reduce object name
-    effect_description[, objectsName] <- t(apply(
-      effect_description,
-      1,
-      \(x) {
-        gsub(
-          paste0("^(.+)_", gsub(" ", "", x["window"]), "$"),
-          "\\1",
-          x[objectsName]
-        )
-      }
-    ))
+    }
   }
-  if (any(parsedformula$trans_parameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      transformer_fn = parsedformula$trans_parameter
-    )
-  }
-  if (any(parsedformula$summ_parameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      summarizer_fn = parsedformula$summ_parameter
-    )
-  }
+  effect_description$transformer_fn <- detail_flag_chr(
+    parsedformula$trans_parameter,
+    n_effects
+  )
+  effect_description$summarizer_fn <- detail_flag_chr(
+    parsedformula$summ_parameter,
+    n_effects
+  )
   # DyNAMi
-  if (any(parsedformula$joining_parameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      joining = parsedformula$joining_parameter
-    )
-  }
-  if (any(parsedformula$sub_type_parameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      sub_type = parsedformula$sub_type_parameter
-    )
-  }
-  if (any(parsedformula$historyParameter != "")) {
-    effect_description <- cbind(
-      effect_description,
-      history = parsedformula$historyParameter
-    )
-  }
+  effect_description$joining <- detail_flag_chr(
+    parsedformula$joining_parameter,
+    n_effects
+  )
+  effect_description$sub_type <- detail_flag_chr(
+    parsedformula$sub_type_parameter,
+    n_effects
+  )
+  effect_description$history <- detail_flag_chr(
+    parsedformula$historyParameter,
+    n_effects
+  )
   # Interaction columns have no object/attribute of their own, so
   # they are absent from objects_effects_link; append one row per interaction after
   # the function-effect rows. The row keeps the term string as its (readable)
@@ -762,25 +773,29 @@ GetDetailPrint <- function(
       function(x) x$label,
       character(1)
     )
-    inter_mat <- matrix(
-      "",
-      nrow = length(labels),
-      ncol = ncol(effect_description),
-      dimnames = list(labels, colnames(effect_description))
+    effect_description <- rbind(
+      effect_description,
+      empty_detail_rows(effect_description, length(labels))
     )
-    effect_description <- rbind(effect_description, inter_mat)
+    row_labels <- c(row_labels, labels)
   }
   # rownames(effect_description) <- NULL
   if (parsedformula$has_intercept) {
-    effect_description <- rbind("", effect_description)
-    rownames(effect_description)[1] <- "Intercept"
-  }
-
-  if (!is.null(fixedParameters)) {
-    effect_description <- cbind(
-      effect_description,
-      fixed = !is.na(fixedParameters)
+    effect_description <- rbind(
+      empty_detail_rows(effect_description, 1L),
+      effect_description
     )
+    row_labels <- c("Intercept", row_labels)
+  }
+  attr(effect_description, "row.names") <- row_labels
+
+  # Which coefficients are held at supplied values. A logical column, on every
+  # fit: what a consumer needs is the answer, not the question of whether the
+  # column was created.
+  effect_description$fixed <- if (is.null(is_fixed)) {
+    rep(FALSE, nrow(effect_description))
+  } else {
+    is_fixed
   }
 
   decoder <- .decoderColumns(effect_description)
@@ -806,22 +821,89 @@ GetDetailPrint <- function(
     }
   }
 
+  # cbind() on a data.frame warns and drops repeated row names, so the labels
+  # step aside for it and are reattached after.
+  attr(effect_description, "row.names") <- seq_along(row_labels)
   effect_description <- cbind(effect_description, decoder)
+  attr(effect_description, "row.names") <- row_labels
 
   attr(effect_description, "has_windows") <- has_windows
   return(effect_description)
 }
 
 GetFixed <- function(object) {
-  if ("fixed" %in% colnames(object$names)) {
-    vapply(
-      object$names[, "fixed"],
-      function(x) eval(parse(text = x)),
-      logical(1)
-    )
-  } else {
-    rep(FALSE, length(object$parameters))
+  fixed <- if ("fixed" %in% colnames(object$names)) {
+    object$names[, "fixed"]
   }
+  # A fit that records fixedness any other way -- as the strings "TRUE" and
+  # "FALSE", which is what a character matrix forced before the description
+  # became a typed table -- predates this layout. It is not decoded here: the
+  # result-format guard is what diagnoses such an object, refusing it on the
+  # computing surfaces and saying so on the ones that only print.
+  if (!is.logical(fixed)) {
+    return(rep(FALSE, length(object$parameters)))
+  }
+  stats::setNames(fixed, rownames(object$names))
+}
+
+# The columns of the effect description worth showing a reader: the object
+# columns, and the flags that carry something on this fit. The stored schema is
+# stable so a consumer can read a column without first asking whether it was
+# worth creating -- which is exactly why a table printed for a person must not
+# show the ones that are empty.
+detail_display_table <- function(names) {
+  cols <- colnames(names)
+  is_object <- grepl("^Object( [0-9]+)?$", cols)
+  informative <- vapply(
+    cols,
+    function(col) {
+      values <- names[, col]
+      if (is.logical(values)) {
+        any(values)
+      } else {
+        any(nzchar(as.character(values)))
+      }
+    },
+    logical(1)
+  )
+  names[, !startsWith(cols, ".") & (is_object | informative), drop = FALSE]
+}
+
+# Per-effect slots on a parsed formula are lists, one entry per effect, whose
+# entries may be NULL. Flattened here rather than at each use so the table's
+# columns are plain vectors of the length the table has.
+detail_flag_chr <- function(values, n) {
+  if (length(values) != n) {
+    return(rep("", n))
+  }
+  vapply(
+    values,
+    function(v) if (is.null(v) || length(v) == 0) "" else as.character(v)[[1]],
+    character(1),
+    USE.NAMES = FALSE
+  )
+}
+
+detail_flag_lgl <- function(values, n) {
+  if (length(values) != n) {
+    return(rep(FALSE, n))
+  }
+  vapply(
+    values,
+    function(v) isTRUE(as.logical(v)[[1]]),
+    logical(1),
+    USE.NAMES = FALSE
+  )
+}
+
+# Rows for terms that have no object of their own -- the time intercept and the
+# interaction columns. Empty in every column, typed as that column is typed.
+empty_detail_rows <- function(template, n) {
+  out <- template[rep(1L, n), , drop = FALSE]
+  for (col in names(out)) {
+    out[[col]] <- if (is.logical(out[[col]])) rep(FALSE, n) else rep("", n)
+  }
+  out
 }
 
 checkArgsEstimation <- function(variables) {}
@@ -914,7 +996,17 @@ checkArgsEstimation <- function(variables) {}
 }
 
 .isFixedToken <- function(v) {
-  !is.na(v) && (identical(v, "TRUE") || identical(v, TRUE))
+  isTRUE(v)
+}
+
+# One row of the effect-description table as a named list, so a column's type
+# survives the extraction: the table is a data.frame carrying a logical column
+# beside the character ones.
+.detailRow <- function(mat, i) {
+  if (is.data.frame(mat)) {
+    return(as.list(mat[i, , drop = FALSE]))
+  }
+  stats::setNames(as.list(mat[i, ]), colnames(mat))
 }
 
 .rowTokens <- function(row, argCols, forceFn, subPref, joinPref) {
@@ -961,7 +1053,7 @@ checkArgsEstimation <- function(variables) {}
 }
 
 .objectForms <- function(row, objCols, objLk, useShort) {
-  objs <- row[objCols]
+  objs <- unlist(row[objCols], use.names = FALSE)
   objs <- .trimObject(objs[nzchar(objs)])
   if (length(objs) == 0L) {
     return(character(0))
@@ -990,7 +1082,7 @@ checkArgsEstimation <- function(variables) {}
   vapply(
     seq_len(nrow(mat)),
     function(i) {
-      row <- stats::setNames(mat[i, ], colnames(mat))
+      row <- .detailRow(mat, i)
       objs <- .objectForms(row, objCols, objLk, useShortObject)
       toks <- .rowTokens(row, argCols, forceFn, subPref, joinPref)
       out <- effForm[i]
@@ -1060,7 +1152,7 @@ checkArgsEstimation <- function(variables) {}
     objStr <- vapply(
       seq_len(nrow(mat)),
       function(i) {
-        row <- stats::setNames(mat[i, ], colnames(mat))
+        row <- .detailRow(mat, i)
         paste(.objectForms(row, objCols, objLk, TRUE), collapse = "_")
       },
       character(1)
@@ -1072,7 +1164,7 @@ checkArgsEstimation <- function(variables) {}
       argStr <- vapply(
         seq_len(nrow(mat)),
         function(i) {
-          row <- stats::setNames(mat[i, ], colnames(mat))
+          row <- .detailRow(mat, i)
           paste(
             .rowTokens(row, argCols, FALSE, subPref, joinPref),
             collapse = "_"
@@ -1184,7 +1276,7 @@ compact_term_strings <- function(
   objShort <- vapply(
     seq_len(nrow(names)),
     function(i) {
-      row <- stats::setNames(names[i, ], colnames(names))
+      row <- .detailRow(names, i)
       paste(.objectForms(row, objCols, objLk, TRUE), collapse = "·")
     },
     character(1)

@@ -154,8 +154,8 @@ and variable names, erroring with the available candidates on an unknown name.
 #### Scenario: Untouched downstream pipeline
 - **WHEN** a model expressible in both input formats is estimated via the stocnet path and
   the legacy path
-- **THEN** preprocessing output and coefficients agree to within 1e-6 for both engines
-  (`default`, `default_c`), and the frozen baselines PASS (not SKIP) under `NOT_CRAN=true`.
+- **THEN** preprocessing output and coefficients agree to within 1e-6 for both compute
+  backends (`r`, `cpp`), and the frozen baselines PASS (not SKIP) under `NOT_CRAN=true`.
 
 #### Scenario: active changes route to composition and the mask factors
 - **WHEN** `changes` contains rows with `var == "active"` and logical values

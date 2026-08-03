@@ -1,11 +1,14 @@
 test_that("summary goldfish", {
   objSum <- summary(resModObject)
   expect_s3_class(objSum, "summary.result.goldfish")
-  expect_length(objSum, 18)
-  expect_true(inherits(objSum$coefMat, "array"))
-  expect_type(objSum$coefMat, "double")
-  expect_length(objSum$coefMat, resModObject$nParams * 4)
-  expect_true(is.na(objSum$coefMat[2, 2]))
+  # The fixture's own components plus the three `summary()` adds (`coef_mat`,
+  # `AIC`, `BIC`), so this count moves whenever the fit's layout does -- 20 now
+  # that the fixture records `fit_version`.
+  expect_length(objSum, 20)
+  expect_true(inherits(objSum$coef_mat, "array"))
+  expect_type(objSum$coef_mat, "double")
+  expect_length(objSum$coef_mat, resModObject$n_params * 4)
+  expect_true(is.na(objSum$coef_mat[2, 2]))
   expect_type(objSum$AIC, "double")
   expect_type(objSum$BIC, "double")
   expect_length(objSum$AIC, 1)
@@ -240,5 +243,5 @@ test_that("glance results", {
   expect_s3_class(glance(resModObject), "tbl_df")
   expect_length(glance(resModObject), 5)
   expect_equal(nrow(glance(resModObject)), 1L)
-  expect_equal(glance(resModObject)$logLik, resModObject$logLikelihood)
+  expect_equal(glance(resModObject)$logLik, resModObject$log_likelihood)
 })

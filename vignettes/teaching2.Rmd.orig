@@ -242,11 +242,11 @@ partnerSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
-  engine = "default"
+  backend = "r"
 )
 
 system.time(
@@ -254,7 +254,7 @@ system.time(
     partnerSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 ```
@@ -263,19 +263,19 @@ Did the model converge? If not, you can restart the estimation process using
 the same specification and current parameter estimates:
 
 ```{r estimate-rerun}
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   initial_parameters = coef(partnerModel),
-  engine = "default"
+  backend = "r"
 )
 
 partnerModel <- estimate_dynam(
   partnerSpec,
   sub_model = "choice_coordination",
   data = fisheries_treaties,
-  control_estimation = est_opts
+  control_algo = est_opts
 )
 summary(partnerModel)
 ```
@@ -303,8 +303,8 @@ tieSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
-  return_interval_loglik = TRUE,
+est_opts <- set_algorithm_newton(
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30
 )
@@ -314,7 +314,7 @@ system.time(
     tieSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 ```
@@ -348,9 +348,66 @@ Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
 ```{r plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
-examine_outliers(tieModel)
-examine_changepoints(tieModel)
+diagnose_outliers(tieModel)
+diagnose_changepoints(tieModel)
 ```
+
+Both of these **describe** — they flag and segment a per-interval series, and
+neither attaches a p-value. The `test_*` family makes claims instead.
+
+```{r diag-gate2, include = FALSE}
+#| purl = FALSE
+has_plots <- requireNamespace("autograph", quietly = TRUE) &&
+  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+```
+
+What a diagnostic can tell you is decided at estimation time: a primitive not
+requested was never computed, and the statistics a test replays over are not
+carried unless asked for. This fit stores only `"loglik"`, so testing needs a
+re-fit that stores more.
+
+```{r diag-refit}
+tieModelDiag <- estimate_dynam(
+  tieSpec,
+  sub_model = "choice_coordination",
+  data = fisheries_treaties,
+  control_algo = set_algorithm_newton(
+    diagnostics = c("loglik", "scores"),
+    initial_damping = 40,
+    max_iterations = 30
+  ),
+  return_preprocessed = TRUE
+)
+```
+
+Is each effect's contribution spread over the sequence the way a constant
+coefficient implies?
+
+```{r diag-gof2}
+# Qualified: this vignette attaches migraph, which exports a `test_gof` of its
+# own, so the bare name resolves to whichever package was attached last.
+goldfish::test_gof(tieModelDiag)
+```
+
+And did any coefficient drift over the observation window?
+
+```{r diag-time2}
+goldfish::test_time(tieModelDiag)
+```
+
+```{r diag-time-plot2, eval = has_plots, fig.width=6, fig.height=4, fig.align='center', fig.retina=3, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate as reference."}
+plot(goldfish::test_time(tieModelDiag))
+```
+
+A coordination model has no waiting-time component — the sub-model is
+multinomial over unordered pairs — so the Cox–Snell residuals and the
+waiting-time Q-Q of the exact-time families do not apply here. Asking for them
+reports that rather than returning a number.
+
+The [diagnostics vignette](diagnostics.html) is the full treatment: which
+residual type reads which primitive, margins as a calibration map, the clock
+workflow behind `test_gof()`, and — the one most likely to save a wrong
+conclusion — what these tests cannot see on a binary statistic.
 
 For more, please see Hollway (2020) Network Embeddedness and
 the Rate of Water Cooperation and Conflict.

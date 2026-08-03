@@ -9,7 +9,7 @@ gather_model_data(
   model = c("DyNAM", "REM"),
   sub_model = c("choice", "choice_coordination", "rate"),
   data = NULL,
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   progress = getOption("progress"),
   max_length = 63L
 )
@@ -60,17 +60,20 @@ It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
 \item{control_preprocessing}{An object of class
-\code{"preprocessing_options.goldfish"}, usually the result of a call to
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}. This object contains parameters that control
-the data preprocessing. See \code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}} for details on
-the available parameters.}
+\code{"preprocessing.goldfish"}, usually the result of a call to
+\code{\link[=set_preprocessing]{set_preprocessing()}}. This object contains parameters that control
+the data preprocessing. See \code{\link[=set_preprocessing]{set_preprocessing()}} for details on
+the available parameters. This function keeps the pre-2.0.0 argument
+name: it is superseded as a whole, so renaming it here would ask users
+to update a call they are about to replace.}
 
 \item{progress}{logical indicating whether should print a minimal output
 to the console of the progress of the preprocessing and
 estimation processes.}
 
 \item{max_length}{integer. Maximum number of characters for each produced
-effect/column name in \code{namesEffects} (default \code{63}, a database-safe value).
+effect/column name in \code{names_effects} (default \code{63}, a database-safe
+value).
 Names are made valid and unique; the uniqueness suffix is applied after
 truncation so uniqueness is preserved.}
 }
@@ -113,7 +116,7 @@ a character vector with the label of the sender/receiver actor.
 For right-censored events the receiver values is not meaningful.}
 \item{has_intercept}{
 a logical value indicating if the model has an intercept.}
-\item{namesEffects}{a character vector with a short name of the effect.
+\item{names_effects}{a character vector with a short name of the effect.
 It includes the name of the object used to calculate the effects and
 modifiers of the effect, e.g., the type of effect, weighted effect.}
 \item{effect_description}{
@@ -128,16 +131,22 @@ additional elements are included:
 \item{timespan}{
 a numeric vector with the time span between events,
 including right-censored events.}
-\item{isDependent}{
+\item{is_dependent}{
 a logical vector indicating if the event is dependent or right-censored.}
 }
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+
+\code{gather_model_data()} was deprecated in goldfish 2.0.0. Use
+\code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "gather"}, which produces the same
+stack and additionally reaches the sub-models this wrapper's own narrower
+validation rejected (\code{sub_model = "rate_ordered"}).
+
 Gather the preprocess data from a formula given a model and sub model,
-where the output corresponds to the data structure used by the engine
-\code{gather_compute}; see \link{estimate}.
-}
-\details{
+where the output corresponds to the data structure used by the \code{gather}
+backend; see \link{estimate}.
+
 It differs from the \code{estimate_dynam()}, \code{estimate_rem()} and
 \code{estimate_dynami()} output when the argument \code{preprocessing_only}
 is set to \code{TRUE} regarding the memory space requirement.

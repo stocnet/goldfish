@@ -6,9 +6,7 @@ statistic: one `active_sender` object from the sender loop and one folded
 `active_dyad` object from the dyad loop, with per-family folding, opportunity
 absorption, sender-loop row-reduction, and a homogenized name consumed through
 accessors across all engines. Created by archiving change support-constraint-as-stat.
-
 ## Requirements
-
 ### Requirement: Availability output keyed by recipe loop
 Preprocessing SHALL emit exactly ONE availability object per recipe loop:
 `active_sender` (a length-n1 logical stat) from the sender recipe loop
@@ -168,8 +166,8 @@ re-derived per estimation iteration. For each dependent event `e` with sender
 update slice SHALL be applied before that event's likelihood, and the first
 dependent event's opportunity SHALL be in `active_dyad_init`. The
 `updateopportunities` per-iteration recompute and the `mask_to_opportunities`
-adapter SHALL be removed, and the `default_c`/`gather_compute` opportunity
-rejection SHALL be lifted.
+adapter SHALL be removed, and the opportunity rejection on the `cpp` and
+`gather` backends SHALL be lifted.
 
 #### Scenario: opportunity produces per-event point updates
 - **WHEN** a choice model is estimated with an `opportunities_list`
@@ -188,8 +186,8 @@ rejection SHALL be lifted.
 #### Scenario: opportunity reproduces the pre-change coefficients
 - **WHEN** the same `opportunities_list` model is estimated before and after this
   change
-- **THEN** the estimated coefficients agree to within 1e-6 on every engine
-  (`default`, `gather_compute`, `default_c`).
+- **THEN** the estimated coefficients agree to within 1e-6 on every backend
+  (`r`, `gather`, `cpp`).
 
 ### Requirement: avg_active_entity declared by the recipe constructor
 The rate-intercept denominator SHALL be stored as `avg_active_entity` (renaming
@@ -223,7 +221,8 @@ site that today references `presence1`/`presence2` or
 writers. The object keeps its name at every encoding; consumers switch on the
 encoding field, never on the name. Because this changes the
 `preprocessed.goldfish` structure, the preprocessed format version SHALL be
-bumped so stale `preprocessing_init` objects are rejected with the existing
+bumped so stale objects supplied through the estimators' `preprocessed =`
+argument (formerly `preprocessing_init =`) are rejected with the existing
 outdated-format error.
 
 #### Scenario: consistent naming end to end
@@ -231,9 +230,9 @@ outdated-format error.
 - **THEN** it reads `active_sender`/`active_dyad` (not `presence1`/`presence2`,
   `active_mode1_*`/`active_mode2_*`, or `active1`/`active2`).
 
-#### Scenario: stale preprocessing_init rejected
-- **WHEN** a `preprocessing_init` object produced before this change is passed to
-  estimation
+#### Scenario: stale preprocessed object rejected
+- **WHEN** a preprocessed object produced before this change is passed to
+  estimation via `preprocessed =`
 - **THEN** it is rejected with the outdated-preprocessing-format error, prompting
   recomputation.
 
@@ -248,3 +247,4 @@ diagonal) in one-mode choice/REM models; it SHALL NOT be folded into
 - **THEN** `active_dyad` is at the alter encoding (not outer/point), carries no
   diagonal information, and self-ties are still excluded from every event's
   candidate set by the likelihood.
+

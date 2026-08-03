@@ -299,7 +299,7 @@ behind its contract.
 
 ### D12 — Retained-pool contract: `retain_pool = FALSE`, lightweight bundle (+ opt-in stats), recipe, scheme-aware
 The estimation surface gains an opt-in **`retain_pool = FALSE`** control (on
-`set_alg_em()` / `estimate_dynes()`); GoF is the consumer that needs it, so this
+`set_algorithm_em()` / `estimate_dynes()`); GoF is the consumer that needs it, so this
 change owns adding it. When `FALSE` (default) the result carries no pool, only the
 **recipe**; when `TRUE` the result additionally carries a lightweight pool bundle.
 This is additive and a no-op at `FALSE`, so it does not change any existing

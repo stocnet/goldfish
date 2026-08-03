@@ -398,13 +398,13 @@ test_that("a plain single process matches its standalone preprocessing", {
   spec <- calls_with_offbeat_friendship()
   merged <- suppressWarnings(preprocess_joint(spec))
 
-  rate_solo <- suppressWarnings(compute_stats(
+  rate_solo <- suppressWarnings(compute_statistics(
     calls ~ 1 + indeg,
     data = spec$data,
     model = "DyNAM",
     sub_model = "rate"
   ))
-  choice_solo <- suppressWarnings(compute_stats(
+  choice_solo <- suppressWarnings(compute_statistics(
     calls ~ inertia + tie(friendship),
     data = spec$data,
     model = "DyNAM",
@@ -742,7 +742,7 @@ test_that("a non-focal process's fid matches its standalone preprocessing", {
   fx <- joint_multilevel()
   out <- suppressWarnings(preprocess_joint(fx$joint))
 
-  advice_solo <- suppressWarnings(compute_stats(
+  advice_solo <- suppressWarnings(compute_statistics(
     advice ~ inertia,
     data = fx$event_data,
     model = "DyNAM",

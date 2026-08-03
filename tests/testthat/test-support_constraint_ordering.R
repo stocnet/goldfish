@@ -45,31 +45,31 @@ make_ordering_fixture <- function(n_events = 60L) {
   )
 }
 
-fit_ordering <- function(fx, engine, constrained = TRUE) {
+fit_ordering <- function(fx, backend, constrained = TRUE) {
   estimate_dynam(
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = engine),
+    control_algo = set_algorithm_newton(backend = backend),
     support_constraint = if (constrained) ~ tie(allowedNet) else NULL
   )
 }
 
 test_that("the event-1 restriction lands (constrained != unconstrained)", {
   fx <- make_ordering_fixture()
-  m_cstr <- fit_ordering(fx, "default")
-  m_unc <- fit_ordering(fx, "default", constrained = FALSE)
+  m_cstr <- fit_ordering(fx, "r")
+  m_unc <- fit_ordering(fx, "r", constrained = FALSE)
   # Reading event 1 from the init (not the unconstrained set) moves the fit.
-  expect_gt(abs(m_cstr$logLikelihood - m_unc$logLikelihood), 1e-3)
+  expect_gt(abs(m_cstr$log_likelihood - m_unc$log_likelihood), 1e-3)
 })
 
 test_that("every wired engine consumes the event-1 slice identically", {
   fx <- make_ordering_fixture()
-  m_def <- fit_ordering(fx, "default")
-  m_gc <- fit_ordering(fx, "gather_compute")
-  m_dc <- fit_ordering(fx, "default_c")
-  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  m_def <- fit_ordering(fx, "r")
+  m_gc <- fit_ordering(fx, "gather")
+  m_dc <- fit_ordering(fx, "cpp")
+  expect_equal(m_gc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
 })
@@ -89,11 +89,11 @@ test_that("opportunities_list[[1]] restricting event 1 equals the constraint", {
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = "default"),
-    control_preprocessing = set_preprocessing_opt(opportunities_list = opp)
+    control_algo = set_algorithm_newton(backend = "r"),
+    control_prep = set_preprocessing(opportunities_list = opp)
   )
-  m_cstr <- fit_ordering(fx, "default")
+  m_cstr <- fit_ordering(fx, "r")
   # opp[[1]] rides in active_dyad_init exactly as the support atom does.
-  expect_equal(m_opp$logLikelihood, m_cstr$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_opp$log_likelihood, m_cstr$log_likelihood, tolerance = 1e-8)
   expect_equal(coef(m_opp), coef(m_cstr), tolerance = 1e-8)
 })

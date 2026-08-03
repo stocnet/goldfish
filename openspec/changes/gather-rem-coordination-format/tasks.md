@@ -56,7 +56,7 @@
 
 ## 4. Exported API + cleanup
 
-- [ ] 4.1 `gather_model_data()` expansion path from the internal
+- [ ] 4.1 Gather-stack expansion path from the internal
       representation; same-information test against the pre-compression
       output — identical index-keyed row multiset per event, identical
       `selected`/`n_candidates`/`index_i`/`index_j` (design D4, amended:

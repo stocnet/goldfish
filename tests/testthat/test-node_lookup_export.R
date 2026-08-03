@@ -39,6 +39,7 @@ join_side <- function(lookup, index, side) {
 }
 
 test_that("one-mode gather lookup joins index_i/index_j back to node labels", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- make_stocnet_fixture()
   out <- gather_model_data(
     calls ~ inertia,
@@ -61,6 +62,7 @@ test_that("one-mode gather lookup joins index_i/index_j back to node labels", {
 })
 
 test_that("subset one-mode lookup carries global ids that skip off-side nodes", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- subset_one_mode_fixture()
   out <- gather_model_data(
     calls ~ inertia,
@@ -85,6 +87,7 @@ test_that("subset one-mode lookup carries global ids that skip off-side nodes", 
 })
 
 test_that("two-mode gather lookup resolves each side's indices", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- make_stocnet_fixture_twomode()
   out <- gather_model_data(
     membership ~ inertia,
@@ -138,19 +141,19 @@ test_that("the db export descriptor carries the node lookup", {
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  descriptor <- compute_stats(
+  descriptor <- compute_statistics(
     calls ~ inertia,
     model = "DyNAM",
     sub_model = "choice",
     output = "db",
     data = make_stocnet_fixture(),
-    control_preprocessing = set_preprocessing_opt(db = con, db_table = "stats")
+    control_prep = set_preprocessing(db = con, db_table = "stats")
   )
 
   expect_s3_class(descriptor, "preprocessed_db.goldfish")
   lookup <- descriptor$node_lookup
   expect_named(lookup, c("side", "local", "global", "label"))
   # The long SQL table's index_i / index_j join to this lookup off-database.
-  tbl <- DBI::dbReadTable(con, "stats")
+  tbl <- DBI::dbReadTable(con, "stats_1")
   expect_false(anyNA(join_side(lookup, tbl$index_i, 1L)))
 })

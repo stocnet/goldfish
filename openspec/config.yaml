@@ -20,6 +20,14 @@ context: |
     are computationally expensive and use skip_on_cran(), so a bare
     Rscript run silently skips them and verifies nothing about
     coefficient reproducibility. Confirm they report PASS, not SKIP.
+  - Format the R files touched by a task with air BEFORE linting them:
+    `air format <paths>` (config in air.toml, pinned to .lintr's 80-column
+    width and 2-space indentation), then `lintr::lint(<path>)` on the same
+    files. Formatting first means lintr only reports what the formatter
+    cannot fix (naming, line length in comments/strings, ...) instead of
+    whitespace noise. Never run `air format` over the whole package in a
+    task commit — only the files that task edited, so the diff stays
+    reviewable.
 
   Required skills (hard rules — invoke the skill before doing the work it
   covers; do not rely on memory):
@@ -59,3 +67,4 @@ rules:
     # unrelated commands. The tracker now runs only as an explicit archive step.
     - Before doing anything else in the /opsx:archive flow — FIRST, while the change dir still exists at openspec/changes/<name>/ — run `bash .plan/opsx-archive-track.sh <name>`. It snapshots that change's progress.md to .plan/ (local-only) and appends a version row to the tracked .plan/goldfish_versions.csv ledger (idempotent on the change name).
     - This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
+    - Then, still BEFORE the delta-spec sync, run `bash .plan/opsx-spec-placement-check.sh <name>`. `openspec validate` does not check `##` section placement, so a `## MODIFIED`/`## REMOVED` block naming a requirement absent from openspec/specs/** validates cleanly and then silently lands as an ADD at archive, leaving the old wording in place. Unlike the tracker above, this one CAN block: a non-zero exit means fix the delta's section placement (or declare the rename in `## RENAMED`) before syncing. It is rename-aware and safe to re-run post-archive as `archive/<date>-<name>`.

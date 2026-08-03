@@ -61,7 +61,7 @@ test_that("choice formula", {
 
   # rhs_names <- parse_multiple_effects(rhs_names, envir = envirTest)
 
-  expect_vector(parsed_formula, ptype = list(), size = 19)
+  expect_vector(parsed_formula, ptype = list(), size = 20)
   expect_setequal(
     names(parsed_formula),
     c(
@@ -79,6 +79,7 @@ test_that("choice formula", {
       "sub_type_parameter",
       "history_parameter",
       "offset_parameter",
+      "offset_coef_parameter",
       "is_main_parameter",
       "is_operand_parameter",
       "estimate_parameter",

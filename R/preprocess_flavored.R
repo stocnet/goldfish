@@ -19,6 +19,30 @@
 # columns.
 # =========================================================================== #
 
+# The statistic-bearing terms of one formula, in the order that formula's own
+# parse produces its columns. Read off the terms' variables rather than
+# `term.labels`, because `term.labels` omits `offset()` terms: an offset keeps
+# its statistic column and only fixes its coefficient, so a union built from
+# the labels would leave that column uncomputed for every member that wraps a
+# term. The wrapper is stripped here -- the union exists to compute
+# statistics, and which member holds which coefficient is settled per process
+# at estimation.
+flavor_statistic_labels <- function(formula) {
+  parsed <- stats::terms(formula, keep.order = TRUE)
+  variables <- as.list(attr(parsed, "variables"))[-1]
+  response <- attr(parsed, "response")
+  offset_pos <- attr(parsed, "offset")
+  if (response > 0) {
+    variables <- variables[-response]
+    offset_pos <- offset_pos - response
+  }
+  formula_env <- environment(formula) %||% parent.frame()
+  for (i in offset_pos) {
+    variables[[i]] <- unwrap_offset_term(variables[[i]], formula_env)$term
+  }
+  vapply(variables, deparse1, character(1))
+}
+
 # The resolved object each of `raw_labels`' effects binds to, aligned to the
 # formula's canonical term labels. The parser substitutes the focal layer as the
 # object of an object-less effect (bare `inertia` becomes inertia on the focal),
@@ -95,9 +119,7 @@ explicit_effect_label <- function(raw_label, object) {
 build_effect_union <- function(bundles) {
   keys <- names(bundles)
   formulas <- lapply(bundles, `[[`, "input_formula")
-  labels_by_key <- lapply(formulas, function(f) {
-    attr(stats::terms(f), "term.labels")
-  })
+  labels_by_key <- lapply(formulas, flavor_statistic_labels)
   objects_by_key <- Map(effect_resolved_objects, bundles, labels_by_key)
   has_intercept <- vapply(bundles, `[[`, logical(1), "has_intercept")
 
@@ -261,7 +283,7 @@ project_update_block <- function(block, gid_lookup) {
 # right-censoring -- over the shared union walk.
 #
 # `initial_stats_fn` stays a thunk all the way down: the recipe applies
-# pre-start updates to `initialStats` after this call, and the writers read it
+# pre-start updates to `initial_stats` after this call, and the writers read it
 # only at finalize.
 init_consumers <- function(
   consumer_specs,
@@ -463,11 +485,16 @@ finalize_consumers <- function(
   realize_masks = NULL,
   scalar_entity = "sender"
 ) {
+  # The writer contract is three staged calls: `finalize()` assembles the
+  # default shape, `finish_output()` realizes and folds the support constraint
+  # on it (it still carries `event_time` and the availability encoding), and
+  # `render()` produces the writer's product from the folded object. Rendering
+  # last is what lets a candidate-enumerating product (the gather stack) expand
+  # only the post-fold risk set.
   if (is.null(consumer_specs)) {
-    return(finish_output(
-      consumers[[1L]]$writer$finalize(tail),
-      default_constraint
-    ))
+    writer <- consumers[[1L]]$writer
+    out <- finish_output(writer$finalize(tail), default_constraint)
+    return(writer$render(out, tail$spec))
   }
 
   # Finalize every consumer's writer first: each output carries its own
@@ -477,14 +504,17 @@ finalize_consumers <- function(
   # sliced mask -- the atom maintenance is walked once, not once per output.
   finalized <- lapply(names(consumers), function(fl) {
     cspec <- consumer_specs[[fl]]
+    writer <- consumers[[fl]]$writer
     flavor_tail <- tail
-    flavor_tail$initialStats <- project_initial_stats(
-      tail$initialStats,
+    flavor_tail$initial_stats <- project_initial_stats(
+      tail$initial_stats,
       cspec$effect_map
     )
     list(
-      out = consumers[[fl]]$writer$finalize(flavor_tail),
-      constraint = cspec$constraint
+      out = writer$finalize(flavor_tail),
+      constraint = cspec$constraint,
+      writer = writer,
+      spec = flavor_tail$spec
     )
   })
 
@@ -501,7 +531,7 @@ finalize_consumers <- function(
     if (!is.null(out$avg_active_entity)) {
       out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
     }
-    out
+    finalized[[i]]$writer$render(out, finalized[[i]]$spec)
   })
   names(outputs) <- names(consumers)
   outputs
@@ -707,7 +737,7 @@ render_process_label <- function(process_map, fid) {
 # `process_map` identity table as an attribute.
 preprocess_flavored <- function(
   spec,
-  control_preprocessing = set_preprocessing_opt(),
+  control_prep = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
@@ -755,7 +785,7 @@ preprocess_flavored <- function(
       model = spec$model,
       sub_model = union$sub_model,
       data = spec$data,
-      control_preprocessing = control_preprocessing,
+      control_prep = control_prep,
       preprocessing_only = TRUE,
       progress = progress,
       verbose = verbose,

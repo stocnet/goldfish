@@ -61,7 +61,7 @@ estRateM1 <- estimate_dynami(
   formulaRateM1,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(backend = "r")
 )
 summary(estRateM1)
 
@@ -71,7 +71,7 @@ estChoiceM1 <- estimate_dynami(
   formulaChoiceM1,
   sub_model = "choice",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(backend = "r")
 )
 summary(estChoiceM1)
 
@@ -109,7 +109,7 @@ estRateM2 <- estimate_dynami(
   formulaRateM2,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(backend = "r")
 )
 summary(estRateM2)
 
@@ -119,7 +119,7 @@ estChoiceM2 <- estimate_dynami(
   formulaChoiceM2,
   sub_model = "choice",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(backend = "r")
 )
 summary(estChoiceM2)
 

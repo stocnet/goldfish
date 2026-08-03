@@ -152,7 +152,7 @@ test_that("each object carries its own formula, not the union", {
   # The union formula that drove the walk is `~ 1 + indeg + outdeg`, but each
   # object holds only its own projected columns, so stamping the union here
   # would describe columns the object does not have — and misalign the effect
-  # matching of any later `preprocessing_init` re-parse.
+  # matching of any later `preprocessed` re-parse.
   creation <- prep_of(out, "creation", "rate")
   dissolution <- prep_of(out, "dissolution", "rate")
 
@@ -165,9 +165,9 @@ test_that("each object carries its own formula, not the union", {
   for (i in seq_len(nrow(map))) {
     prep <- out[[as.character(map$fid[i])]]
     n_cols <- if (identical(map$family[i], "rate")) {
-      ncol(prep$initialStats)
+      ncol(prep$initial_stats)
     } else {
-      dim(prep$initialStats)[3]
+      dim(prep$initial_stats)[3]
     }
     n_terms <- length(attr(stats::terms(prep$formula), "term.labels"))
     expect_equal(n_cols, n_terms)
@@ -186,8 +186,8 @@ test_that("an effect shared across flavors is computed once", {
   out <- goldfish:::preprocess_flavored(two_flavor_spec())
   # Each flavor's object carries only its OWN columns, projected out of the
   # shared computation.
-  expect_equal(ncol(prep_of(out, "creation", "rate")$initialStats), 1L)
-  expect_equal(ncol(prep_of(out, "dissolution", "rate")$initialStats), 2L)
+  expect_equal(ncol(prep_of(out, "creation", "rate")$initial_stats), 1L)
+  expect_equal(ncol(prep_of(out, "dissolution", "rate")$initial_stats), 2L)
 })
 
 test_that("intercept scalars are per-flavor over that flavor's risk set", {

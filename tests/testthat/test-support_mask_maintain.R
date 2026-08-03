@@ -145,5 +145,5 @@ test_that("a constrained model attaches support_mask; unconstrained does not", {
   expect_false(is.null(prep_c$support_mask))
   expect_length(prep_c$support_mask$support, fx$n_events)
   # the statistics output is unchanged by attaching the mask
-  expect_equal(prep_c$initialStats, prep_u$initialStats)
+  expect_equal(prep_c$initial_stats, prep_u$initial_stats)
 })

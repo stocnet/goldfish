@@ -28,7 +28,7 @@ component_rank <- c(ties = 1L, changes = 2L, global = 3L)
 #'
 #' @return `events` reordered; aborts on an unresolved same-time replace tie.
 #' @noRd
-order_events <- function(events, call = rlang::caller_env()) {
+arrange_events <- function(events, call = rlang::caller_env()) {
   n <- nrow(events)
   if (n == 0) {
     return(events)

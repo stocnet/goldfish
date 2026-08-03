@@ -639,7 +639,7 @@ test_that("an attribute aggregated over a covariate's senders reads there", {
   )
 
   expect_equal(
-    prep$initialStats[,, 1],
+    prep$initial_stats[,, 1],
     matrix(c(12, 12, 12, 8, 8, 8), nrow = 3, ncol = 2)
   )
   # The org view's own attribute stream drives the walk: O2's size replaced at

@@ -3637,7 +3637,7 @@ update_DyNAM_choice_ego_alter_interaction <- function(
 # shared REM-choice global, exactly as the degree
 # family aliases REM. The statistic is a global covariate broadcast to the dyad
 # (via `to_ego`); it is not identified as a bare main effect in choice, so
-# `validate_effects()` rejects it at estimation while `compute_stats()` still
+# `validate_effects()` rejects it at estimation while `compute_statistics()` still
 # produces the column (a design column for interactions / random effects).
 #' @export
 init_DyNAM_choice.global <- function(effect_fun, attribute, n1, n2, ...) {

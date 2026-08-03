@@ -11,8 +11,8 @@
 \alias{print.joint_specification.goldfish}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
-\alias{print.estimation_opt.goldfish}
-\alias{print.preprocessing_opt.goldfish}
+\alias{print.algorithm_newton.goldfish}
+\alias{print.preprocessing.goldfish}
 \title{Methods for \code{goldfish} objects.}
 \usage{
 \method{print}{result.goldfish}(
@@ -46,9 +46,9 @@
 
 \method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
 
-\method{print}{estimation_opt.goldfish}(x, ...)
+\method{print}{algorithm_newton.goldfish}(x, ...)
 
-\method{print}{preprocessing_opt.goldfish}(x, ...)
+\method{print}{preprocessing.goldfish}(x, ...)
 }
 \arguments{
 \item{x}{an object of class \code{result.goldfish}, \code{summary.result.goldfish},
@@ -65,7 +65,7 @@ printing \code{summary.result.goldfish} and \code{preprocessed.goldfish},
 see  \code{\link[=print.default]{print.default()}}.}
 
 \item{complete}{logical. Indicates whether the parameter coefficients
-of effects fixed during estimation using \code{fixedParameters} should be printed.
+of effects held fixed during estimation (via \code{offset()}) should be printed.
 The default value is \code{FALSE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 
@@ -135,9 +135,11 @@ For objects of class \code{joint_specification.goldfish} print one section
 per modeled layer (flavors nested), each formula's fid and separable/coupled
 status, and the derived and combined support constraints.
 
-For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
+For objects of class \code{algorithm_newton.goldfish}, print a summary
+of the estimation algorithm options.
 
-For objects of class \code{preprocessing_opt.goldfish}, print a summary of the preprocessing control options.
+For objects of class \code{preprocessing.goldfish}, print a summary
+of the preprocessing control options.
 }
 \description{
 Printing functions for \code{goldfish} objects.

@@ -1,29 +1,28 @@
-# maxLik optimizers reject engines other than default_c
+# maxLik optimizers reject backends other than cpp
 
     Code
-      fit_call("gather_compute")
+      fit_call("gather")
     Condition
       Error in `estimate_wrapper()`:
-      ! `optimizer` "bfgs" requires `engine = "default_c"`.
-      x It is not available with `engine = "gather_compute"`.
-      i maxLik-backed optimizers run only on the default_c evaluator.
+      ! `optimizer` "bfgs" requires `backend = "cpp"`.
+      x It is not available with `backend = "gather"`.
+      i maxLik-backed optimizers run only on the "cpp" backend.
 
 ---
 
     Code
-      fit_call("default")
+      fit_call("r")
     Condition
       Error in `estimate_wrapper()`:
-      ! `optimizer` "bfgs" requires `engine = "default_c"`.
-      x It is not available with `engine = "default"`.
-      i maxLik-backed optimizers run only on the default_c evaluator.
+      ! `optimizer` "bfgs" requires `backend = "cpp"`.
+      x It is not available with `backend = "r"`.
+      i maxLik-backed optimizers run only on the "cpp" backend.
 
 # a maxLik optimizer aborts when maxLik is not installed
 
     Code
       estimate_dynam(spec$formula, data = data_list$social_evolution, sub_model = spec$
-        sub_model, control_estimation = set_estimation_opt(optimizer = "bfgs"),
-      progress = FALSE)
+        sub_model, control_algo = set_algorithm_newton(optimizer = "bfgs"), progress = FALSE)
     Condition
       Error in `estimate_wrapper()`:
       ! `optimizer` "bfgs" requires the maxLik package.

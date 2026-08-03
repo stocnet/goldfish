@@ -23,3 +23,11 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.8,local,stocnet/goldfish,895cba4,895cba4,archive,FALSE,Archived OpenSpec change 'dynami-stocnet-boundary' on 2026-07-23 (version 1.9.8); see openspec/changes/archive/.
 1.9.9,local,stocnet/goldfish,ec5a9d3,ec5a9d3,archive,FALSE,Archived OpenSpec change 'make-data-always-assembles' on 2026-07-23 (version 1.9.9); see openspec/changes/archive/.
 1.9.10,local,stocnet/goldfish,20a08c8,20a08c8,archive,FALSE,Archived OpenSpec change 'spec-driven-dispatch' on 2026-07-23 (version 1.9.10); see openspec/changes/archive/.
+1.9.11,local,stocnet/goldfish,5ea7beb,5ea7beb,archive,FALSE,Archived OpenSpec change 'algorithm-naming' on 2026-07-24 (version 1.9.11); see openspec/changes/archive/.
+1.9.13,local,stocnet/goldfish,12a55c9,12a55c9,archive,FALSE,Archived OpenSpec change 'backend-vocabulary' on 2026-07-25 (version 1.9.13); see openspec/changes/archive/.
+1.9.14,local,stocnet/goldfish,4468fbd,4468fbd,archive,FALSE,Archived OpenSpec change 'backend-parity' on 2026-07-26 (version 1.9.14); see openspec/changes/archive/.
+1.9.15,local,stocnet/goldfish,96c9c4d,96c9c4d,archive,FALSE,Archived OpenSpec change 'parity-followups' on 2026-07-26 (version 1.9.15); see openspec/changes/archive/.
+1.9.16,local,stocnet/goldfish,9d747ff,9d747ff,archive,FALSE,Archived OpenSpec change 'snake-case-result-components' on 2026-07-27 (version 1.9.16); see openspec/changes/archive/.
+1.9.17,local,stocnet/goldfish,2109e88,2109e88,archive,FALSE,Archived OpenSpec change 'revise-gather-output' on 2026-07-27 (version 1.9.17); see openspec/changes/archive/.
+1.9.18,local,stocnet/goldfish,a0ec963,a0ec963,archive,FALSE,Archived OpenSpec change 'fixed-parameter-contract' on 2026-07-28 (version 1.9.18); see openspec/changes/archive/.
+1.9.23,local,stocnet/goldfish,fa4f371,fa4f371,archive,FALSE,Archived OpenSpec change 'residuals-gof' on 2026-07-31 (version 1.9.23); see openspec/changes/archive/.
