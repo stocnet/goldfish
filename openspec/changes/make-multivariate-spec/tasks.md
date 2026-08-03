@@ -286,7 +286,7 @@
       Each fid's engine-readiness check and side/mode/dependent-row resolution run
       against that fid's per-fid data-source view (focal = `proc$layer`, D8a), never
       a shared stamped `info$focal`
-- [ ] 3.3 Tests: merged-walk equivalence against the two-walk outputs on
+- [x] 3.3 Tests: merged-walk equivalence against the two-walk outputs on
       flavored fixtures; multivariate fixtures per fid; two fids sharing one
       `constraint_id` but with different stored-event timelines (a timed rate
       fid carrying right-censored rows and a choice fid without them) get

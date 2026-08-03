@@ -576,3 +576,246 @@ test_that("each constraint is compiled once into the merged plan, snapshot per f
   expect_equal(length(rate$support_mask$support), length(rate$event_time))
   expect_equal(length(choice$support_mask$support), length(choice$event_time))
 })
+
+# ---- Multilevel per-fid focal (D8a) -----------------------------------------
+
+# advice staff -> director and nominations director -> project over one shared
+# node universe, distinct mode-pairs sharing the whole `director` mode. The
+# object's single info$focal names only nominations, so advice -- modeled by
+# advice_spec -- is the NON-focal two-mode process whose sides must still resolve
+# against its own layer (staff -> director), never info$focal's
+# (director -> project). Both processes carry a timed rate, so a dependent event
+# of either right-censors the other's rate fid across the mode-pair boundary. A
+# third layer `mentoring` (director -> staff) sits in the data unmodeled, so
+# info$focal can be flipped to a real non-modeled layer for the poison-check.
+multilevel_data <- function(advice = "panel") {
+  nodes <- data.frame(
+    label = c("S1", "S2", "S3", "D1", "D2", "P1", "P2"),
+    mode = c(
+      "staff",
+      "staff",
+      "staff",
+      "director",
+      "director",
+      "project",
+      "project"
+    ),
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 1L),
+      to = c(4L, 5L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "advice",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(4L, 5L, 4L),
+      to = c(6L, 7L, 7L),
+      time = c(1.5, 2.5, 3.5),
+      layer = "nominations",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(4L, 5L),
+      to = c(1L, 2L),
+      time = c(2, 3),
+      layer = "mentoring",
+      stringsAsFactors = FALSE
+    )
+  )
+  info <- list(
+    name = "ml",
+    focal = "nominations",
+    update = c(
+      advice = "increment",
+      nominations = "increment",
+      mentoring = "increment"
+    ),
+    directed = c(advice = TRUE, nominations = TRUE, mentoring = TRUE),
+    observation = c(
+      advice = advice,
+      nominations = "event",
+      mentoring = "panel"
+    ),
+    sender = c(
+      advice = "staff",
+      nominations = "director",
+      mentoring = "director"
+    ),
+    receiver = c(
+      advice = "director",
+      nominations = "project",
+      mentoring = "staff"
+    )
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+joint_multilevel <- function() {
+  event_data <- multilevel_data(advice = "event")
+  advice_spec <- make_specification(
+    rate = ~ 1 + outdeg,
+    choice = ~inertia,
+    support_constraint = ~ !tie(advice),
+    layer = "advice",
+    model = "DyNAM",
+    data = event_data
+  )
+  nominations_spec <- make_specification(
+    rate = ~ 1 + outdeg,
+    choice = ~inertia,
+    layer = "nominations",
+    model = "DyNAM",
+    data = event_data
+  )
+  list(
+    joint = make_joint_specification(
+      advice_spec,
+      nominations_spec,
+      data = multilevel_data(advice = "panel")
+    ),
+    event_data = event_data,
+    advice = advice_spec
+  )
+}
+
+# The node labels on a fid's modeled side (1 = sender, 2 = receiver), read from
+# its node_lookup -- the two-mode side-validity resolved during the walk.
+fid_side_labels <- function(prep, side) {
+  prep$node_lookup$label[prep$node_lookup$side == side]
+}
+
+test_that("each two-mode process resolves its own mode-pair, not info$focal", {
+  # D8a, the walk-boundary analogue of the 1b.3 construction-time test: the object
+  # carries one info$focal ("nominations"), yet advice -- the non-focal modeled
+  # process -- must resolve staff -> director (its own pair), and its snapshotted
+  # support mask must be sized over that pair (staff x director), never
+  # info$focal's director -> project. A shared stamped focal would collapse both
+  # processes' side/mode resolution onto nominations' pair.
+  fx <- joint_multilevel()
+  out <- suppressWarnings(preprocess_joint(fx$joint))
+
+  advice_rate <- prep_by(out, "advice", "rate")
+  advice_choice <- prep_by(out, "advice", "choice")
+  expect_identical(fid_side_labels(advice_rate, 1), c("S1", "S2", "S3"))
+  expect_identical(fid_side_labels(advice_rate, 2), c("D1", "D2"))
+  expect_identical(fid_side_labels(advice_choice, 1), c("S1", "S2", "S3"))
+  expect_identical(fid_side_labels(advice_choice, 2), c("D1", "D2"))
+  # The snapshotted mask is staff x director (advice's own pair): 3 x 2, not the
+  # 2 x 2 that info$focal's director -> project would produce.
+  expect_identical(dim(advice_choice$support_mask$initial), c(3L, 2L))
+
+  # nominations, the info$focal layer, resolves its own director -> project pair.
+  expect_identical(
+    fid_side_labels(prep_by(out, "nominations", "rate"), 1),
+    c("D1", "D2")
+  )
+  expect_identical(
+    fid_side_labels(prep_by(out, "nominations", "choice"), 2),
+    c("P1", "P2")
+  )
+})
+
+test_that("flipping info$focal to a non-modeled layer leaves every fid identical", {
+  # The poison that distinguishes per-fid focal (Pattern A) from a shared stamped
+  # focal (Pattern B): the walk must never consult the object-level info$focal, so
+  # pointing it at a third, non-modeled layer (mentoring, director -> staff) must
+  # change nothing. A shared-focal fallback would re-resolve the fids against
+  # mentoring and differ.
+  fx <- joint_multilevel()
+  base <- suppressWarnings(preprocess_joint(fx$joint))
+
+  poison <- fx$joint
+  poison$data$info$focal <- "mentoring"
+  flipped <- suppressWarnings(preprocess_joint(poison))
+
+  expect_identical(unclass(base), unclass(flipped))
+})
+
+test_that("a non-focal process's fid matches its standalone preprocessing", {
+  # advice reads only its own layer, so joining it with nominations leaves its
+  # choice fid byte-identical to preprocessing the advice spec on its own -- the
+  # per-fid focal resolves advice's staff -> director sides identically inside the
+  # join and standalone, despite info$focal naming nominations.
+  fx <- joint_multilevel()
+  out <- suppressWarnings(preprocess_joint(fx$joint))
+
+  advice_solo <- suppressWarnings(compute_stats(
+    advice ~ inertia,
+    data = fx$event_data,
+    model = "DyNAM",
+    sub_model = "choice",
+    support_constraint = ~ !tie(advice)
+  ))
+  expect_equal(
+    strip_prep_deco(prep_by(out, "advice", "choice")),
+    strip_prep_deco(advice_solo)
+  )
+})
+
+test_that("a dependent event right-censors a rate fid over a different mode-pair", {
+  # The merged walk's cross-process right-censoring crosses mode-pair boundaries:
+  # an advice (staff x director) event is a right-censoring boundary for the
+  # nominations (director x project) rate fid and vice versa, exactly as a
+  # cross-flavor event would be, despite the differing dyad shape.
+  fx <- joint_multilevel()
+  out <- suppressWarnings(preprocess_joint(fx$joint))
+
+  advice_rate <- prep_by(out, "advice", "rate")
+  nominations_rate <- prep_by(out, "nominations", "rate")
+
+  # advice fires at 1, 2, 3, 4; nominations at 1.5, 2.5, 3.5. Each other's events
+  # add interior right-censoring rows (is_dependent 0) without adding dependent
+  # observations.
+  expect_identical(advice_rate$event_time, c(1, 1.5, 2, 2.5, 3, 3.5, 4))
+  expect_identical(advice_rate$is_dependent, c(1L, 0L, 1L, 0L, 1L, 0L, 1L))
+  expect_identical(nominations_rate$event_time, c(1.5, 2, 2.5, 3, 3.5, 4))
+  expect_identical(nominations_rate$is_dependent, c(1L, 0L, 1L, 0L, 1L, 0L))
+
+  # Standalone, advice-rate carries only its own four events; the cross-mode-pair
+  # rows only partition existing intervals, so the total observation time and the
+  # dependent-event count are unchanged.
+  solo_rate <- prep_by(
+    suppressWarnings(preprocess_joint(fx$advice)),
+    "advice",
+    "rate"
+  )
+  expect_identical(solo_rate$event_time, c(1, 2, 3, 4))
+  expect_equal(sum(advice_rate$intervals), sum(solo_rate$intervals))
+  expect_equal(advice_rate$n_dep_events, solo_rate$n_dep_events)
+})
+
+test_that("the merged walk does not regress the single-process hot path", {
+  # The single-process hot path is the untouched two-walk oracle; the merged
+  # driver runs a separate walk that single-process specs will route through once
+  # the dispatch flips. This records the merged/oracle preprocess-time ratio on
+  # the flavored fixture and guards only a catastrophic regression, staying immune
+  # to CI timing noise on a tiny fixture.
+  skip_on_cran()
+  spec <- two_flavor_spec()
+  suppressWarnings(preprocess_joint(spec)) # warm up the compile caches
+
+  reps <- 20L
+  oracle_s <- system.time(
+    for (i in seq_len(reps)) {
+      suppressWarnings(preprocess_flavored(spec))
+    }
+  )[["elapsed"]]
+  merged_s <- system.time(
+    for (i in seq_len(reps)) {
+      suppressWarnings(preprocess_joint(spec))
+    }
+  )[["elapsed"]]
+  ratio <- merged_s / oracle_s
+
+  message(sprintf(
+    "merged/oracle preprocess ratio on the flavored fixture: %.2fx (oracle %.3fs, merged %.3fs over %d reps)",
+    ratio,
+    oracle_s,
+    merged_s,
+    reps
+  ))
+  expect_lt(ratio, 10)
+})
