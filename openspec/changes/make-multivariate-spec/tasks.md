@@ -310,23 +310,23 @@
 
 ## 4. Walk handle (stepping + injection)
 
-- [ ] 4.1 `walk_open()` / `walk_advance()` / `walk_evaluate()` /
+- [x] 4.1 `walk_open()` / `walk_advance()` / `walk_evaluate()` /
       `walk_inject()` over the merged walk's stepper; evaluation applies the
       fid's compiled mask; injection updates shared state for all consumers;
       `walk_evaluate()` resolves the evaluated fid against its per-fid data-source
       view (focal = `proc$layer`, D8a), not a shared focal; roxygen with lifecycle
       experimental badges; `devtools::document()`
-- [ ] 4.1b `walk_open()` **asserts** generative completeness (D9): abort with a
+- [x] 4.1b `walk_open()` **asserts** generative completeness (D9): abort with a
       `cli` error pointing to `simulate()` / `estimate_dynes()` when handed a spec
       with unfilled completion gaps; it NEVER performs completion (that transform
       is 1c.2, run once at the consumer entry). Keep `walk_open` internal (not
       user-exported) in this change
-- [ ] 4.2 Batch-vs-replay equality: replaying observed fixtures through the
+- [x] 4.2 Batch-vs-replay equality: replaying observed fixtures through the
       handle reproduces the batch driver's per-fid quantities
-- [ ] 4.3 Tests: advance/evaluate between events, injection visibility across
+- [x] 4.3 Tests: advance/evaluate between events, injection visibility across
       fids, handle misuse aborts (evaluate before open, inject out of order,
       **open on an incomplete spec** → 4.1b assert) with cli errors
-- [ ] 4.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 4.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
       commit
 
 ## 5. Documentation and milestone
