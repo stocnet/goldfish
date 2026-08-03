@@ -331,9 +331,9 @@
 
 ## 5. Documentation and milestone
 
-- [ ] 5.1 Vignette section: specifying co-evolving processes (panel + events),
+- [x] 5.1 Vignette section: specifying co-evolving processes (panel + events),
       coupling and separability, what estimation requires (`estimate_dynes()`
       in the DyNES change); developer documentation of the walk handle for the
       augmenter/simulate consumers
-- [ ] 5.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump
+- [x] 5.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump
       in DESCRIPTION + NEWS.md entry (multivariate substrate milestone); commit

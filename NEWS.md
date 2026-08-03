@@ -1,3 +1,22 @@
+# goldfish 1.9.13
+
+## Documentation
+
+* New vignette `vignette("multivariate-specification")`: composing co-evolving
+  processes with `make_joint_specification()`, reading the extended
+  `process_map`, and how coupling and separability are detected (a fid couples
+  only by reading a *modeled* panel layer's latent state; an exogenous-only
+  panel reference stays separable). It documents what estimating a joint
+  specification will require once `estimate_dynes()` lands -- the event-stream
+  estimators' rejection of a joint object is demonstrated live -- and the
+  zero-free-parameter generative-readiness completion transform. A developer
+  notes section documents the internal stepping walk handle
+  (`walk_open()`/`walk_advance()`/`walk_evaluate()`/`walk_inject()`) for
+  authors of the DyNES augmenter and the future `simulate()`. This closes out
+  the multivariate specification and preprocessing substrate
+  (`make_joint_specification()`, the extended `process_map`, the merged
+  single-clock walk, and the walk handle).
+
 # goldfish 1.9.12
 
 ## New features

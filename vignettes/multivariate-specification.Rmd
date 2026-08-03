@@ -1,0 +1,384 @@
+---
+title: "Composing co-evolving processes: the multivariate specification"
+subtitle: "The DyNES specification and preprocessing substrate (experimental)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Composing co-evolving processes: the multivariate specification}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+`goldfish` usually models one dependent process at a time: `estimate_dynam()`
+and `estimate_rem()` each take a single [make_specification()] object. Some
+questions need more than one process modeled *together* -- for example, DyNES
+(Dynamic Network Event/State models) asks how a panel-observed relational
+state (survey waves) and a time-stamped relational-event stream co-evolve, with
+the panel process's latent between-wave path *augmented* from the observed
+waves. That joint model needs a specification portraying several co-evolving
+processes at once, evaluated against one shared clock and process state --
+`make_joint_specification()`.
+
+This vignette covers what ships **today**: composing process specifications,
+reading the extended `process_map`, and how coupling and separability are
+detected. The estimator that actually fits a DyNES model, `estimate_dynes()`,
+and the data-augmentation path that lets a panel layer be *modeled* (not just
+read as a covariate), ship in later, still-in-development changes. What is
+here is the substrate they are built on: this package version does not export
+an estimator for the objects this vignette builds.
+
+# Step 0: Load the package and data
+
+
+``` r
+library(goldfish)
+library(manynet)
+data("social_evolution")
+social_evolution
+#> # A tibble: 84 × 4
+#>   label    active floor gradeType
+#>   <chr>    <lgl>  <dbl>     <dbl>
+#> 1 Actor 47 TRUE       4         3
+#> 2 Actor 57 TRUE       2         1
+#> 3 Actor 9  TRUE       9         2
+#> 4 Actor 68 TRUE       8         1
+#> 5 Actor 23 TRUE       5         2
+#> 6 Actor 49 TRUE       7         4
+#> # ℹ 78 more rows
+#> # A tibble: 1,205 × 5
+#>    from    to time                weight layer     
+#>   <int> <int> <dttm>               <dbl> <chr>     
+#> 1     1    64 2008-09-09 00:00:00      1 friendship
+#> 2     2    64 2008-09-09 00:00:00      1 friendship
+#> 3     3    67 2008-09-09 00:00:00      1 friendship
+#> 4     4    62 2008-09-09 00:00:00      1 friendship
+#> 5     5    62 2008-09-09 00:00:00      1 friendship
+#> 6     6    62 2008-09-09 00:00:00      1 friendship
+#> # ℹ 1,199 more rows
+```
+
+`social_evolution` carries two layers over one node set of 84 actors: `calls`
+(time-stamped phone calls, an `"event"` layer) and `friendship` (survey
+nominations, a `"panel"` layer) -- see `vignette("teaching1")` for how it is
+assembled. A multivariate specification needs **at least two** modeled
+processes, so this vignette adds a second, synthetic `"event"` layer,
+`meetings`, over the same actors -- purely illustrative, not a real measure of
+anything in the Social Evolution study.
+
+
+``` r
+set.seed(1)
+n_actors <- nrow(social_evolution$nodes)
+n_meetings <- 40L
+from_idx <- sample.int(n_actors, n_meetings, replace = TRUE)
+to_idx <- (from_idx + sample.int(n_actors - 1, n_meetings, replace = TRUE) - 1) %%
+  n_actors + 1L
+meetings <- data.frame(
+  from = from_idx,
+  to = to_idx,
+  time = sort(as.POSIXct("2008-09-09") + sort(sample(1:1e6, n_meetings))),
+  weight = 1,
+  layer = "meetings"
+)
+
+joint_data <- social_evolution
+joint_data$ties <- rbind(as.data.frame(social_evolution$ties), meetings)
+joint_data$info$directed <- c(joint_data$info$directed, meetings = TRUE)
+joint_data$info$update <- c(joint_data$info$update, meetings = "increment")
+joint_data$info$observation <- c(joint_data$info$observation, meetings = "event")
+```
+
+A layer is added to a `stocnet` object the same way regardless of how many
+processes will model it: append its rows to `ties` and declare it in `info`
+(`directed`, `update`, `observation`) -- exactly the metadata
+`vignette("teaching1")`'s `add_info()` step records, just merged into an
+existing object here instead of built fresh.
+
+# Step 1: Specifying two co-evolving processes
+
+Build one `specification.goldfish` per process with [make_specification()],
+as for a single-process model, then combine them with
+`make_joint_specification()`. `meetings`' choice formula reads
+`tie(friendship)` -- a relational process reading the panel layer as a
+covariate, which is exactly the kind of cross-process reference that makes
+joining meaningful.
+
+
+``` r
+calls_spec <- make_specification(
+  rate = ~ 1 + indeg,
+  choice = ~ inertia + recip,
+  layer = "calls",
+  model = "DyNAM",
+  data = joint_data
+)
+
+meetings_spec <- make_specification(
+  rate = ~ 1 + outdeg,
+  choice = ~ inertia + tie(friendship),
+  layer = "meetings",
+  model = "DyNAM",
+  data = joint_data
+)
+
+joint_spec <- make_joint_specification(calls_spec, meetings_spec, data = joint_data)
+joint_spec
+#> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+#> 2 processes over one shared data object · 4 formulas · 0 coupled · 4 separable
+#> · 0 auto-supplied
+#> 
+#> Layer "calls" — Model "DyNAM"
+#> • Rate [fid 1, separable]: `~1 + indeg`
+#> • Choice [fid 2, separable]: `~inertia + recip`
+#> 
+#> Layer "meetings" — Model "DyNAM"
+#> • Rate [fid 3, separable]: `~1 + outdeg`
+#> • Choice [fid 4, separable]: `~inertia + tie(friendship)`
+#> 
+#> ℹ Estimate a multivariate specification with
+#> `estimate_dynes()`.
+```
+
+The print sections the composition per layer (flavors nested, when a layer has
+them), names each formula's `fid` -- the integer id every downstream consumer
+indexes by -- and marks whether it is `coupled` or `separable`.
+
+A few construction rules worth knowing before combining processes of your own:
+
+- **One focal layer per specification.** Each joined specification must model
+  a *distinct* focal (dependent) layer; a layer's flavors cannot be split
+  across two joined specifications. Reading a layer as a covariate is
+  unrestricted, and reusing a layer that way across several specifications is
+  exactly the coupling the join exists to portray.
+- **One shared mode-map object.** All composed processes must be built over
+  the same node universe. One- and two-mode processes may be joined, and
+  dependent processes over *distinct* mode-pairs compose as long as every
+  cross-process read conforms by *mode-set identity* -- the shared node space
+  is a whole shared mode (e.g., a `{staff}x{director}` process and a
+  `{director}x{project}` process sharing the whole `director` mode). A read
+  bridging a mode subset to a larger union containing it does not conform and
+  aborts at construction.
+- **No panel layer is required.** Unlike an earlier iteration of this
+  interface, construction does **not** require any process to reference a
+  panel-observed layer. A combination referencing no panel layer at all still
+  composes -- it is estimation-separable (each process's likelihood
+  factorizes) but *generatively* coupled through the shared clock, so it
+  remains a meaningful object once a generative consumer (a future
+  `simulate()`) exists. Whether a composition is *estimable* as DyNES is a
+  question for the estimator, not the constructor -- see Step 3.
+
+# Step 2: Reading the `process_map`
+
+The composed object carries an extended `process_map`: one row per
+likelihood-producing formula across every composed process, unchanged in kind
+from a single (possibly flavored) specification's, just with rows from every
+process and one added column.
+
+
+``` r
+joint_spec$process_map
+#>   fid    layer flavor family   stat_block has_intercept constraint_id coupled
+#> 1   1    calls   <NA>   rate   DyNAM:rate          TRUE            NA   FALSE
+#> 2   2    calls   <NA> choice DyNAM:choice         FALSE            NA   FALSE
+#> 3   3 meetings   <NA>   rate   DyNAM:rate          TRUE            NA   FALSE
+#> 4   4 meetings   <NA> choice DyNAM:choice         FALSE            NA   FALSE
+```
+
+- **`fid`** is the canonical integer identity for every downstream consumer
+  (preprocessing, the walk handle, results) -- `layer`/`flavor` are rendered
+  labels, never parsed back.
+- **`stat_block`** is the dispatch family a formula's effects are deduplicated
+  within (`model:sub_model`); a shared effect (say `tie(friendship)` read by
+  two processes' choice formulas) is computed once per block, never across
+  blocks.
+- **`constraint_id`** is shared by a process's rate and choice when they carry
+  the same support constraint.
+- **`coupled`** is described next.
+
+# Step 3: Coupling and separability
+
+A fid is **coupled** iff its effects or support-constraint atoms *directly*
+reference the state of a **modeled** panel layer -- a panel-observed layer
+that is itself one of the joined processes' focal layers, so its between-wave
+path is latent. Reading a panel layer that appears only as an **exogenous
+covariate** -- modeled by none of the composed processes -- does not couple:
+that covariate is a static step-covariate (its value jumps at wave times, not
+augmented), so a fid reading it touches nothing latent.
+
+
+``` r
+joint_spec$process_map[, c("fid", "layer", "coupled")]
+#>   fid    layer coupled
+#> 1   1    calls   FALSE
+#> 2   2    calls   FALSE
+#> 3   3 meetings   FALSE
+#> 4   4 meetings   FALSE
+joint_spec$modeled_panel
+#> character(0)
+```
+
+Here every fid is `coupled = FALSE`: `meetings`' choice reads `friendship`,
+but `friendship` is panel-observed and modeled by *neither* composed process
+(`joint_spec$modeled_panel` is empty), so it is a static covariate, not a
+latent one. This is the **exogenous-only-panel** case -- it composes, but has
+nothing latent to jointly estimate.
+
+Making a fid coupled needs a **modeled panel layer** in the join -- a
+specification whose focal layer is itself panel-observed, so its own
+between-wave path is what augmentation would fill in. `make_specification()`
+does not build one directly today: a panel-observed focal layer is rejected as
+"SAOM/RSiena territory," matching goldfish's current event-stream estimators
+(`estimate_dynam()` / `estimate_rem()`), which model event streams, not
+between-wave states. The change that lifts that restriction and supplies the
+augmented data path (`dynes-augmentation`) is still in development. Once a
+join *does* carry a modeled panel process, every fid reading its state --
+directly, through a support-constraint atom, or through a windowed effect --
+is marked coupled, and the print sections separable fids apart so a mixed
+specification's DyNES-estimable core is visible at a glance.
+
+Separability is **not** simply "not coupled": a fid whose own focal layer is a
+modeled panel process is never separable, even when its own formula reads
+nothing -- its likelihood is over that layer's latent path, so it cannot be
+estimated apart from the augmentation that fills it in. Reading (or not
+reading) another modeled panel layer is what `coupled` tracks; a fid's own
+layer being one is a separate, stronger condition.
+
+# Step 4: What estimating a joint specification requires
+
+`goldfish` does not yet export a multivariate estimator -- `estimate_dynes()`
+ships in a later change (`abmcem`, with its data-augmentation path in
+`dynes-augmentation`). What this version *does* enforce is that the
+event-stream estimators refuse to silently mis-fit a joint object:
+
+
+``` r
+tryCatch(
+  estimate_dynam(joint_spec, sub_model = "choice"),
+  error = function(e) conditionMessage(e)
+)
+#> [1] "A <joint_specification.goldfish> cannot be estimated with the\nevent-stream estimators.\nℹ Multivariate specifications are estimated with `estimate_dynes()`."
+```
+
+`estimate_dynam()` and `estimate_rem()` abort on a
+`joint_specification.goldfish` object -- it is a distinct S3 class that
+deliberately does not inherit `specification.goldfish`, so it never reaches
+their single-specification dispatch path -- and point to `estimate_dynes()`.
+The same estimators (plus `estimate_dynami()`) also abort on a *single*
+specification whose focal layer is panel-observed, for the same reason.
+
+When `estimate_dynes()` lands, its viability rule mirrors the separability
+rule above: a mixed specification (some fids coupled, some separable)
+proceeds, informing which fids could equally be estimated on their own; a
+specification where **every** fid is separable -- equivalently, no joined
+process's focal layer is a modeled panel process -- aborts, naming
+`estimate_dynam()` and explaining that its panel layers would only ever be
+static covariates. Construction never makes this call itself: it composes any
+valid join and leaves estimability to the consumer, because a fully-separable
+join is still a meaningful object for a different consumer -- generative
+simulation, next.
+
+# Step 5: Generative-readiness completion
+
+A specification that will *generate* events -- drive the walk handle via a
+future `simulate()` or a DyNES augmenter -- or be estimated *jointly* must be
+**generatively complete**: every modeled DyNAM flavor needs both a rate and a
+choice (REM needs only a rate, already enforced). `make_specification()`
+itself no longer aborts on a half-specified flavor (one keyed in `rate` but
+not `choice`, or vice versa) so such a specification can still be built and
+reach a generative consumer; a *single-process* estimation
+(`estimate_dynam()` / `estimate_rem()`) still refuses to estimate the gap, so
+rate-only and choice-only single-process models are unaffected.
+
+Filling the gap is a separate, **zero-free-parameter** completion transform
+run once at each generative consumer's entry (not part of construction, and
+never inside the internal walk handle, which only asserts completeness and
+aborts otherwise):
+
+| missing half | default |
+|---|---|
+| choice | uniform over the support-legal alternatives (no effects) |
+| `choice_coordination` | uniform on both sides |
+| rate, ordered regime | uniform `rate_ordered` (no effects) |
+| rate, timed regime | intercept-only rate, per-actor intercept **pinned** per wave-period from observed counts -- never estimated |
+
+Every default adds *no* parameter to the estimated coefficient vector; the
+transform only ever lets a half-specified process reach a generative consumer
+without fabricating a scientifically meaningful default. As with
+`estimate_dynes()`, no user-facing function calls this transform yet in this
+package version -- it is documented here because its contract shapes what a
+*complete* joint specification is required to look like once those consumers
+land.
+
+# Developer notes: the walk handle
+
+The pieces above build and read a `joint_specification.goldfish`; actually
+*preprocessing* it for estimation, or *driving* it forward for simulation or
+augmentation, are different jobs. This package version supplies both
+substrates internally, for `dynes-augmentation` and `process-simulation` to
+build on:
+
+- **Batch preprocessing** (`preprocess_joint()`, internal) walks the composed
+  event sequence **once**, on a single shared clock hosting every process's
+  statistic blocks, and returns one `preprocessed.goldfish` per fid -- the
+  same object shape a single-process `preprocess()` returns, just one per fid
+  instead of one for the whole call. An event is dependent for its own
+  `(layer, flavor)` fids, a right-censoring boundary for every *other* timed
+  rate fid regardless of layer, and state-only for choice/ordered fids --
+  cross-process right-censoring works exactly like cross-flavor
+  right-censoring in a single flavored specification.
+
+- **The stepping walk handle** (`walk_open()` / `walk_advance()` /
+  `walk_evaluate()` / `walk_inject()`, internal, not exported) is for a driver
+  that cannot work in one batch pass -- a DyNES augmenter proposing and
+  applying latent events mid-walk, or a future `simulate()` drawing new ones.
+  It owns the same merged clock and shared process state as the batch walk,
+  stepped instead of replayed.
+
+`walk_open(spec, data)` builds the handle. It **asserts** -- never performs --
+generative completeness (Step 5): a half-specified spec aborts, pointing at
+the consumer that would complete it. `walk_advance(handle, t)` moves the
+clock, applying every *exogenous* covariate event (a layer no composed
+process models) up to `t`. `walk_evaluate(handle, fid, theta)` returns that
+fid's rate vector or choice matrix at the live state and parameters, its
+support mask applied -- a thin wrapper over the same process-state evaluators
+single-process estimation uses, not a reimplementation. `walk_inject(handle,
+event)` applies one event -- observed or sampled -- to the shared state, so
+every fid's next evaluation reflects it.
+
+Replaying an observed sequence through advance/evaluate/inject reproduces the
+batch walk's per-fid quantities exactly (batch-vs-replay equality); a driver
+loop over a proposed sequence looks like this (sketch, not runnable as shown
+-- the handle is an internal substrate with no exported entry point):
+
+```r
+handle <- walk_open(joint_spec)                 # asserts completeness
+for (event in proposed_events) {
+  walk_advance(handle, event$time)               # apply exogenous covariates
+  rate <- walk_evaluate(handle, fid = rate_fid, theta = theta_rate)
+  choice <- walk_evaluate(handle, fid = choice_fid, theta = theta_choice)
+  # ... accept/reject or record `rate`/`choice` here ...
+  walk_inject(handle, event)                     # commit the event
+}
+```
+
+Two contracts carry over from the batch walk and matter to anyone driving
+the handle: focal is resolved **per fid**, over the one shared state --
+  each fid's side/mode/dependent-row resolution rides its own process's
+  focal, never a single object-level stamp, so a non-focal process in a
+  multilevel join resolves correctly regardless of which layer the data
+  object's own `info$focal` happens to name. And a fid carrying an
+  auto-supplied, effect-free default (Step 5's uniform choice or pinned rate)
+  is a boundary the handle does not yet step past -- those are the generative
+  consumers' own domain to walk, not this substrate's.
+
+# See also
+
+- `vignette("teaching1")` for how a `stocnet` data object -- the single input
+  every specification here is built over -- is assembled.
+- [make_specification()] for the single-process specification each joined
+  process starts from.
+- [make_joint_specification()] for the full construction contract (mode-map
+  conformance, focal uniqueness, regime compatibility) referenced in Step 1.
