@@ -1,8 +1,8 @@
 # The internal stocnet -> environment bridge for DyNAM-i.
 #
 # The bridge reverses an assembled DyNAM-i stocnet into the legacy environment
-# the preprocessInteraction monolith consumes. Its correctness contract (design
-# D3) is exact equivalence with the constructor path: the environment objects
+# the preprocessInteraction monolith consumes. Its correctness contract is
+# exact equivalence with the constructor path: the environment objects
 # the monolith reads must equal the ones the legacy constructors build, and the
 # environment must resolve internally (every name-recording attribute names an
 # object it contains).
@@ -74,10 +74,10 @@ test_that("the dependent object is a dependent.goldfish on the focal network", {
 })
 
 test_that("preprocessing through the bridge equals the constructor path", {
-  # The strongest D3 statement: a DyNAM-i model preprocessed through the bridged
-  # environment yields identical statistics to the same model on the legacy
-  # constructor environment. The bridge environment needs a parent that reaches
-  # the base functions the operand expressions use.
+  # The strongest form of that contract: a model preprocessed through the
+  # bridged environment yields identical statistics to the same model on the
+  # legacy constructor environment. The bridge environment needs a parent that
+  # reaches the base functions the operand expressions use.
   env <- stocnet_to_dynami_env(
     as_goldfish(make_stocnet_fixture_dynami()),
     parent_env = environment()

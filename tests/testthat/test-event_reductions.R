@@ -461,7 +461,7 @@ test_that("gather and cpp agree on the exact-time margins", {
 })
 
 # --- gather coordination kernel: the ragged risk set ---------------------------
-# D14: the rank counts strictly-greater weights over the event's whole realized
+# The rank counts strictly-greater weights over the event's whole realized
 # risk set. For coordination that risk set is the DYAD list -- the per-sender CSR
 # groups are an intermediate the normalizer is built from, not the alternatives.
 # If the groups were semantically load-bearing for ranks, gather and cpp would

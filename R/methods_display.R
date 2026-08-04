@@ -1235,9 +1235,9 @@ print.diagnose_changepoints <- function(x, ...) {
   print_diagnose_table(x, x$cpt, "changepoint")
 }
 
-# The header both diagnostic tables share. It reads its counts from the D18
-# metadata rather than sniffing which columns are present, which is what let
-# one print method serve two different objects by guessing.
+# The header both diagnostic tables share. It reads its counts from the
+# `context` metadata rather than sniffing which columns are present, which is
+# what let one print method serve two different objects by guessing.
 print_diagnose_table <- function(x, flagged, noun) {
   context <- attr(x, "context")
   params <- attr(x, "params")

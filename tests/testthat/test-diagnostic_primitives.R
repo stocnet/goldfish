@@ -372,12 +372,13 @@ test_that("total_rate is stored only for exact-time submodels", {
 # conditional_logl (the "which" component of the exact-time loglik, the Cox
 # partial-likelihood contribution log p_obs) is NA on right-censored intervals
 # by design: a censored interval realizes no mover, so there is no observed
-# alternative to condition on (D21). The gather Poisson kernel previously stored
+# alternative to condition on. The gather Poisson kernel previously stored
 # a placeholder (lin_pred[selected] - lse, `selected` being the exogenous
 # event's actor) there; it now stores NA at exactly those positions, matching
 # the r backend. `indeg(networkExog)` -- an effect on an exogenous network -- is
 # what gives this fixture right-censored intervals at all, so the precondition
-# is asserted rather than assumed (the vacuous-fixture trap of D21).
+# is asserted rather than assumed: without it the fixture would have no
+# censored interval to check and the test would pass vacuously.
 test_that("gather conditional_logl is NA on right-censored intervals only", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
@@ -831,8 +832,8 @@ test_that("per-event probabilities agree on all three backends", {
       tolerance = 1e-10,
       info = nm
     )
-    # The same softmax on the same predictors, so the per-event totals hold on
-    # every family (D16's next-event probability).
+    # The same softmax on the same predictors, so the next-event probabilities
+    # total one per event on every family.
     expect_equal(
       vapply(fc$event_probabilities, sum, numeric(1)),
       rep(1, fc$n_intervals),

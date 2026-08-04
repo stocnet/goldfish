@@ -575,9 +575,10 @@ abort_if_not_diagnosable <- function(
   invisible(NULL)
 }
 
-# The D18 context: what the table was computed from, and how much of the
-# sequence took part. `n_analyzed` is what separates the two settings of
-# `include_censored`, so a reader of a saved object can tell which it was.
+# The `context` metadata every diagnostic table carries: what the table was
+# computed from, and how much of the sequence took part. `n_analyzed` is what
+# separates the two settings of `include_censored`, so a reader of a saved
+# object can tell which it was.
 diagnose_context <- function(x, candidate) {
   list(
     model = x$model,

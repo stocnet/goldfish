@@ -534,9 +534,9 @@ single_process_map <- function(model, sub_model, layer, has_intercept) {
 #' Export one gather stack as a complete single-process db export
 #'
 #' Writes `<db_table>_1`, the one-row map and the node table, and returns that
-#' process's descriptor — the asymmetric return of D10: a single process gives
-#' back its descriptor, a flavored specification a fid-keyed list, because the
-#' caller of the first knows there is only one.
+#' process's descriptor. The return is deliberately asymmetric: a single
+#' process gives back its descriptor, a flavored specification a fid-keyed
+#' list, because the caller of the first knows there is only one.
 #'
 #' @noRd
 export_single_process_db <- function(

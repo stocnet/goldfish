@@ -797,7 +797,7 @@ event_contribution_rate <- function(
   }
 
   # The reduction runs on the probability scale with the compensator applied
-  # once outside, since Dt * T * p_j == Dt * lambda_j (D20's factorization).
+  # once outside, since Dt * T * p_j == Dt * lambda_j.
   # That keeps the only large factor in a scalar: a rate that overflowed inside
   # the vector would meet a mixed-sign statistic and give Inf - Inf = NaN.
   compensator <- timespan * totalRate
@@ -1609,7 +1609,7 @@ r_reduce_event <- function(
 ) {
   axis <- ctx$margin_axis
   # Coordination (DyNAM-MM) is a fourth geometry: its realized risk set is the
-  # UNORDERED dyad list {a > b}, not the n1 x n2 grid (D14). Rank and margins
+  # UNORDERED dyad list {a > b}, not the n1 x n2 grid. Rank and margins
   # run over that list, matching DyNAM_MM_default.cpp, so it takes its own path.
   if (identical(axis, "dyad_symmetric")) {
     return(r_reduce_event_coordination(
@@ -2253,7 +2253,8 @@ compute_iteration_step <- function(
     },
     # Opt-in per-event primitives accumulated in the contribution loop, mirroring
     # the shared C++ reduction (event_reductions.h). observed_rank is NA on
-    # right-censored intervals by design (no observed alternative to rank, D21).
+    # right-censored intervals by design: there is no observed alternative to
+    # rank on an interval that realizes nothing.
     observed_rank = if (return_ranks) {
       rep(NA_integer_, nEvents)
     } else {
@@ -2277,8 +2278,10 @@ compute_iteration_step <- function(
     # Per-actor margin accumulators over the WHOLE node set. `expected` is the
     # primary scale (compensator for exact-time, probability for multinomial);
     # `prob` is the extra probability-scale variant carried only by exact-time
-    # fits (D12/D20). Which sides are populated is the risk-set axis (side i =
-    # sender, side j = receiver), matching the cpp kernels.
+    # fits -- on a multinomial family `expected` is already that scale, so a
+    # second copy would carry nothing new. Which sides are populated is the
+    # risk-set axis (side i = sender, side j = receiver), matching the cpp
+    # kernels.
     m_obs_i = if (return_margins) numeric(n_actors1) else NULL,
     m_exp_i = if (return_margins) numeric(n_actors1) else NULL,
     m_prob_i = if (return_margins) numeric(n_actors1) else NULL,

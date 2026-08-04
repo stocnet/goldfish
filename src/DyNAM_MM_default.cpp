@@ -295,8 +295,8 @@ List estimate_DyNAM_MM(
         const int b_obs = (id_sender > id_receiver) ? id_receiver : id_sender;
         const int idx_obs = a_obs * (a_obs - 1) / 2 + b_obs;
         // Opt-in primitives via the shared reductions, over the unordered-dyad
-        // triangle (D14: coordination ranks and marginalises over its realized
-        // risk set, which is that pair list, not the n1 x n2 grid).
+        // triangle: coordination ranks and marginalises over its realized risk
+        // set, which is that pair list, not the n1 x n2 grid.
         arma::vec dyad_probabilities;
         if (return_margins || return_probabilities || return_event_scores) {
             dyad_probabilities = dyad_weights / normalizer;
