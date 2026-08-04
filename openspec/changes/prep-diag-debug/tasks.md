@@ -203,18 +203,22 @@
       (D20). Drop the `NA` rows on `.fitted` / `.resid`, which no longer arise,
       and confirm the table aligns row-for-row with `residuals()` and with the
       dependent-events table of task 1.1.
-- [ ] 7.7b Read `test_gof()` on the accumulated basis (D19). This is a
-      correctness fix, not a smoothing: the per-interval outer-product constant
-      understates the variance because within-span contributions are positively
-      correlated (measured scale ratios 1.03-1.17), which makes the test
-      anti-conservative on every fit carrying right-censored intervals. Amend
-      the `gof_processes()` comment so the `n`-cancels claim is not read as an
-      aggregation claim.
-- [ ] 7.7c Test that the accumulated standardizing constant exceeds the
+- [x] 7.7b Read `test_gof()` on the accumulated basis (D19). This is a
+      correctness fix, not a smoothing: the outer-product constant is only a
+      valid variance estimate for uncorrelated increments, and the pieces of one
+      waiting time are not that. **The direction is NOT universal** — measured
+      1.03-1.17 (scale rises, test was anti-conservative) on a windowed rate
+      fit, and 0.23-0.80 (scale falls, test was conservative) on the flavored
+      fixture's rate processes, where the accumulated row is near zero while its
+      parts are not. Amend the `gof_processes()` comment so the `n`-cancels
+      claim is not read as an aggregation claim.
+- [x] 7.7c Test that the accumulated standardizing constant exceeds the
       per-interval one on a windowed rate fit, that the statistic falls
       accordingly, and that a choice fit's statistics and p-values are
-      unchanged. Honor ADR-0003: assert relationships and equalities, not
-      p-value values.
+      unchanged. Add the counter-case the measurement forced: a fit where the
+      constant FALLS instead, so neither test states a general direction. Honor
+      ADR-0003: assert relationships and equalities, not p-value values — the
+      flavored print snapshot redacts its numbers for the same reason.
 - [x] 7.8 Retire `include_censored` on the two describers (D18) via the
       r-lib:lifecycle skill — deprecate with a warning, ignore the value — and
       route their series through the same accumulation the residual methods use,

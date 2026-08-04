@@ -779,21 +779,41 @@ way. The supremum is taken over a coarser grid, so it can only shrink; and the
 standardizing scale — the root of the summed squared per-row contributions —
 *grows* on every effect.
 
-That growing scale is the substantive finding. `scale` is an outer-product
-variance estimate, and it is only a valid one for **uncorrelated** increments. A
-ratio above one says the within-span pieces are positively correlated, which they
-must be: a dependent event and the window closure it opens are two views of the
-same tie, so their score contributions point the same way. The per-interval
-denominator therefore **understates** the variance of the cumulative process,
-which inflates the standardized path.
+That changing scale is the substantive finding. `scale` is an outer-product
+variance estimate, and it is only a valid one for **uncorrelated** increments.
+A ratio above one says the within-span pieces are positively correlated, so the
+per-interval denominator understates the variance of the cumulative process and
+inflates the standardized path.
 
-So `test_gof()` is currently **anti-conservative on any fit carrying
-right-censored intervals** — it treats correlated pieces of one event's
-contribution as independent martingale increments. Accumulation restores the
-unit the theory assumes: score contributions at distinct events are martingale
-differences and are uncorrelated, spans between events are not. The 3–17%
-variance understatement here moved no conclusion, but it is the direction that
-over-rejects, and a borderline effect would flip the wrong way.
+**Corrected while implementing 7.7b: the direction is not universal, and the
+claim that once stood here — anti-conservative on *any* fit carrying
+right-censored intervals — is false.** Measured on the flavored fixture's rate
+processes, where each span holds one dependent interval and one censored one:
+
+| process | intervals | events | scale ratio (accumulated / interval) |
+|---|---|---|---|
+| creation · rate | 80 | 40 | 0.252 (Intercept), 0.781 (indeg) |
+| dissolution · rate | 79 | 40 | 0.227 (Intercept), 0.803 (indeg) |
+| creation · choice | 40 | 40 | 1.000 |
+| dissolution · choice | 40 | 40 | 1.000 |
+
+The scale **falls** by up to a factor of four, and the statistic rises with it
+(the container's `dissolution · rate` intercept goes 0.503 → 1.72). The
+mechanism is plain once written down: an exact-time rate model's intercept
+contributes `1 − c₁` on a span's dependent interval and `−c₂` on its censored
+one, and the score equation puts `c₁ + c₂` near 1, so the **accumulated row is
+near zero while its parts are not**. Within-span contributions there correlate
+strongly *negatively*. On that fixture the per-interval reading was
+conservative, not anti-conservative.
+
+Both readings are consistent with the same correction. Accumulation restores the
+unit the theory assumes — score contributions at distinct events are martingale
+differences and are uncorrelated, the pieces of one waiting time are not — and
+whether that raises or lowers the constant depends on how the compensator mass
+divides inside a span. **The basis is chosen because it is the one the null
+distribution is defined on, never because it moves the answer in a preferred
+direction.** Any statement of the form "this makes the test more/less
+conservative" is a statement about a fixture.
 
 The scope is narrow and worth stating: only the sub-models that store
 right-censored intervals are affected. A choice, ordinal or coordination fit has
@@ -803,12 +823,15 @@ unchanged.
 The code comment at `gof_processes()` asserting that the statistic "does not
 depend on whether intervals or events are counted" is correct about the `n` in
 `sqrt(n · J_d)` cancelling, and does not speak to aggregation. It is worth
-amending so the two claims are not confused.
+amending so the two claims are not confused — the cancellation is about the
+*form* of the constant for one set of rows, not about two different sets of rows
+giving the same number.
 
 *Consequence for the reference:* the analytic Kolmogorov band assumes
 proportional information accrual, and the accumulated process is closer to that
-than a path that alternates event and closure steps. This is a second, weaker
-argument in the same direction; the variance argument is the one that carries.
+than a path that alternates event and closure steps. This argument is unaffected
+by the direction correction above, since it concerns the shape of the accrual
+rather than the size of the constant.
 
 ### D21 — The margin reports level; a shape column reports what it cannot
 
