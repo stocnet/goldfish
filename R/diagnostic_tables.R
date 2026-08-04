@@ -516,27 +516,32 @@ margin_table.result.goldfish <- function(x, ...) {
 #' @export
 margin_table.flavored_result.goldfish <- function(x, ...) {
   map <- x$process_map
-  per_fid <- lapply(seq_len(nrow(map)), function(i) {
-    fit <- x$results[[as.character(map$fid[i])]]
-    rows <- margin_rows(fit, flavor = map$flavor[i], family = map$family[i])
-    rows$table$flavor <- map$flavor[i]
-    rows$table$family <- map$family[i]
+  processes <- flavored_processes(x)
+  per_fid <- lapply(processes, function(process) {
+    rows <- margin_rows(
+      process$fit,
+      flavor = process$flavor,
+      family = process$family
+    )
+    rows$table <- append_process_identity(rows$table, process)
     rows
   })
   tables <- lapply(per_fid, `[[`, "table")
-  context <- margin_context(x$results[[as.character(map$fid[1])]], per_fid[[1]])
+  context <- margin_context(processes[[1]]$fit, per_fid[[1]])
   # The combined table describes the whole multi-process fit, so the per-fid
   # identity is what varies: the context keeps the map columns rather than one
   # fid's own flavor, and the defined scales are the union over the processes.
+  # Flavor-major throughout, matching the rows: a context listing the processes
+  # in a different order from the table it describes is the same disagreement
+  # this method was fixed for, one level down.
   context$model <- x$model
-  context$sub_model <- unique(map$family)
-  context$flavor <- unique(map$flavor)
-  context$fid <- map$fid
+  context$sub_model <- unique(vapply(processes, `[[`, character(1), "family"))
+  context$flavor <- unique(vapply(processes, `[[`, character(1), "flavor"))
+  context$fid <- vapply(processes, `[[`, map$fid[1], "fid")
   context$n_events <- vapply(
-    as.character(map$fid),
-    function(key) as.integer(x$results[[key]]$n_events),
-    integer(1),
-    USE.NAMES = FALSE
+    processes,
+    function(process) as.integer(process$fit$n_events),
+    integer(1)
   )
   defined <- unique(unlist(lapply(per_fid, `[[`, "defined_scales")))
   context$defined_scales <- defined

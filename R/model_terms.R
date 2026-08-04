@@ -100,14 +100,8 @@ model_terms.result.goldfish <- function(x, pattern = NULL, ...) {
 #' @rdname model_terms
 #' @export
 model_terms.flavored_result.goldfish <- function(x, pattern = NULL, ...) {
-  map <- x$process_map
-  tables <- lapply(seq_len(nrow(map)), function(i) {
-    rows <- term_table(x$results[[as.character(map$fid[i])]]$names)
-    # Appended, not prepended: the term columns stay positionally stable
-    # between a single-process fit and a multi-process one.
-    rows$flavor <- map$flavor[i]
-    rows$family <- map$family[i]
-    rows
+  tables <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(term_table(process$fit$names), process)
   })
   filter_model_terms(do.call(rbind, tables), pattern)
 }

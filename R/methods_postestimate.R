@@ -162,6 +162,36 @@ flavored_row_order <- function(object) {
   )
 }
 
+# The container's processes, flavor-major, each with the identity its rows are
+# tagged by. Every flavored method walks this rather than the map's own fid
+# order, which is what stops two diagnostics of one fit disagreeing about row
+# order -- `model_terms()` and `margin_table()` used to iterate the map
+# directly and so ordered their rows differently from the `test_*` family.
+flavored_processes <- function(object) {
+  map <- object$process_map
+  lapply(flavored_row_order(object), function(i) {
+    list(
+      fit = object$results[[as.character(map$fid[i])]],
+      fid = map$fid[i],
+      flavor = map$flavor[i],
+      family = map$family[i]
+    )
+  })
+}
+
+# Tag a per-process table with the process it came from.
+#
+# Appended, never prepended: the term columns stay positionally stable between
+# a single-process fit and a multi-process one, so a consumer indexing by
+# position does not break when a second flavor appears. These are identity
+# columns and NOT defining ones -- dropping them leaves the table's class, and
+# therefore its plot dispatch, intact.
+append_process_identity <- function(table, process) {
+  table$flavor <- process$flavor
+  table$family <- process$family
+  table
+}
+
 # Rendered labels for the container's components, flavor-major.
 flavored_component_labels <- function(object) {
   map <- object$process_map
