@@ -18,7 +18,7 @@ diagnose_outliers(x, ...)
   threshold = 3,
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   parameter = deprecated(),
   ...
@@ -32,7 +32,7 @@ diagnose_changepoints(x, ...)
   method = c("PELT", "AMOC", "BinSeg"),
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   ...
 )
@@ -69,12 +69,11 @@ term} section. Accepts any name the term answers to (the compact string
 the summary prints, the export form, the \code{coef()} label) or its position;
 \code{\link[=model_terms]{model_terms()}} lists them.}
 
-\item{include_censored}{logical, whether the right-censored intervals take
-part in the statistic. Defaults to \code{FALSE} — see the
-\emph{Which intervals are analyzed} section, which explains why the
-pooled series misleads. Either way the returned table keeps one row per
-interval; the setting decides which rows can be flagged, not which rows
-exist.}
+\item{include_censored}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} It selected
+whether the right-censored intervals joined the statistic. Each row is now
+one dependent event whose span already accumulates the censored intervals
+of its own waiting time, so there is no pooled alternative left to choose
+and the argument is ignored.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object, needed only when
 \code{effect} is given on an exact-time fit that did not store the
@@ -139,27 +138,28 @@ window closing, a covariate updating — and contributes only the timing
 term, with no observed alternative.}
 }
 
-Pooling them makes the median, the interquartile range, the Hampel window
-and the changepoint segmentation describe the \emph{censoring pattern} rather
-than the fit. The effect is largest exactly where windowed effects are
-used: a window opens at each event and closes a fixed time later, so the
-two kinds of interval alternate almost one for one, and the series becomes
-a square wave whose transitions a changepoint detector dutifully reports.
-On a windowed rate model of the \code{social_evolution} calls, segmenting the
-pooled series finds a changepoint at nearly every window closure, while
-the dependent intervals alone yield an order of magnitude fewer.
+A series mixing the two described the \emph{censoring pattern} rather than the
+fit. The effect was largest exactly where windowed effects are used: a window
+opens at each event and closes a fixed time later, so the two kinds of
+interval alternated almost one for one and the series became a square wave
+whose transitions a changepoint detector dutifully reported.
 
-The default therefore analyzes the dependent intervals only. Set
-\code{include_censored = TRUE} to pool them, knowing what the pooled series
-mixes. On the multinomial sub-models — choice, the ordinal rate and REM
-sub-models, coordination — there are no right-censored intervals and the
-two settings agree.
+\strong{That alternation no longer exists.} These functions read one row per
+\strong{dependent event}, and each row's span has already accumulated the
+right-censored intervals of its own waiting time — so the censored
+contribution is present, attributed to the event it belongs to, rather than
+interleaved as rows of its own. The \code{include_censored} argument that used to
+choose between the two readings is deprecated and ignored: there is no longer
+a second reading to select.
 
-This restriction is deliberately \emph{not} applied to the score-based
-diagnostics (\code{\link[=diagnose_onset]{diagnose_onset()}}): a right-censored interval's score row is
-a genuine contribution to the gradient, which sums to zero over all
-intervals, so a score series restricted to a subset has no null to be read
-against.
+A fit whose observation window outlives its last event carries one final span
+that closes no waiting time. It appears as a censored row, is not a
+candidate for flagging, and is the only row for which \code{.resid} is \code{NA}.
+
+\code{\link[=diagnose_onset]{diagnose_onset()}} never had this problem and still does not: a
+right-censored interval's score row is a genuine contribution to the
+gradient, which sums to zero over all intervals, so a score series
+restricted to a subset has no null to be read against.
 }
 
 \section{Outliers}{

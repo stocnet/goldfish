@@ -1151,27 +1151,51 @@ augment.result.goldfish <- function(x, ...) {
   data <- x$dependent_events %||% get(as.character(x$formula[2]))
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
-  censored <- x$right_censored_events
-  if (isTRUE(x$right_censored) && any(censored)) {
-    # Interleave rather than append. The censored intervals are interleaved
-    # among the dependent events in time, and every per-interval column below
-    # is in that order -- appending them at the end would pair each column
-    # with the wrong row from the first censored interval onwards.
-    censored_rows <- tib[rep(NA_integer_, sum(censored)), , drop = FALSE]
-    censored_rows$time <- x$event_time[censored]
-    tib <- rbind(tib, censored_rows)
-    tib[c(which(!censored), which(censored)), ] <- tib
+
+  # One row per dependent event, not per likelihood interval. The censored
+  # intervals are not rows of their own: each belongs to the waiting time of
+  # the event that follows it, and is accumulated into that event's span. The
+  # interleaving this replaces existed because the table carried one row per
+  # interval and had to keep them in time order.
+  index <- accumulation_index(x)
+  span <- if (is.null(index)) {
+    rep(1L, nrow(tib))
+  } else {
+    unname(tabulate(index))
   }
-  tib$right_censored_event <- censored
+
+  # Intervals after the last dependent event close no waiting time. They are a
+  # censored remainder, and the table carries it as one final row so it stays
+  # aligned with `residuals()`, which returns the same shape. Letting the two
+  # disagree would reproduce the mis-pairing this change exists to remove.
+  remainder <- length(span) > nrow(tib)
+  if (remainder) {
+    tail_row <- tib[NA_integer_, , drop = FALSE]
+    tail_row$time <- utils::tail(x$event_time, 1)
+    tib <- rbind(tib, tail_row)
+  }
+  tib$right_censored_event <- c(
+    rep(FALSE, nrow(tib) - remainder),
+    rep(TRUE, remainder)
+  )
+
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
-  tib$interval_log_lik <- x$interval_log_lik
-  # broom's conventions, on the intervals where the model made a call: a
-  # right-censored interval realizes no outcome, so it has no fitted
-  # probability and no deviance for one.
-  tib$.fitted <- ifelse(censored, NA_real_, exp(x$interval_log_lik))
-  tib$.resid <- ifelse(censored, NA_real_, -2 * x$interval_log_lik)
+  # How many likelihood intervals were accumulated into this event's span. It
+  # is the only place the interval structure stays visible once every other
+  # surface is per event, and it is what lets the two counts a fit reports be
+  # reconstructed from this table alone.
+  tib$n_intervals <- span
+  tib$interval_log_lik <- accumulate_over_events(x$interval_log_lik, x)
+  # broom's conventions. `.fitted` is the span's density contribution and
+  # `.resid` its deviance -- exactly the literature's `f_k` and `D_k`, which
+  # are defined over the waiting time rather than over one stored interval. The
+  # censored remainder realizes no outcome, so it has neither.
+  fitted <- exp(tib$interval_log_lik)
+  resid <- -2 * tib$interval_log_lik
+  tib$.fitted <- ifelse(tib$right_censored_event, NA_real_, fitted)
+  tib$.resid <- ifelse(tib$right_censored_event, NA_real_, resid)
   tib
 }
 

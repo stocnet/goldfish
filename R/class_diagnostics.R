@@ -11,12 +11,11 @@
 #' \code{diagnose_changepoints} passes them on to the \pkg{changepoint}
 #' function its \code{moment} selects; the other methods have none of their
 #' own.
-#' @param include_censored logical, whether the right-censored intervals take
-#'   part in the statistic. Defaults to `FALSE` — see the
-#'   \emph{Which intervals are analyzed} section, which explains why the
-#'   pooled series misleads. Either way the returned table keeps one row per
-#'   interval; the setting decides which rows can be flagged, not which rows
-#'   exist.
+#' @param include_censored `r lifecycle::badge("deprecated")` It selected
+#'   whether the right-censored intervals joined the statistic. Each row is now
+#'   one dependent event whose span already accumulates the censored intervals
+#'   of its own waiting time, so there is no pooled alternative left to choose
+#'   and the argument is ignored.
 #' @param effect an optional single model term, naming the series to diagnose
 #'   instead of the per-interval log-likelihood — see the \emph{Diagnosing one
 #'   term} section. Accepts any name the term answers to (the compact string
@@ -68,27 +67,28 @@
 #'     term, with no observed alternative.}
 #' }
 #'
-#' Pooling them makes the median, the interquartile range, the Hampel window
-#' and the changepoint segmentation describe the *censoring pattern* rather
-#' than the fit. The effect is largest exactly where windowed effects are
-#' used: a window opens at each event and closes a fixed time later, so the
-#' two kinds of interval alternate almost one for one, and the series becomes
-#' a square wave whose transitions a changepoint detector dutifully reports.
-#' On a windowed rate model of the `social_evolution` calls, segmenting the
-#' pooled series finds a changepoint at nearly every window closure, while
-#' the dependent intervals alone yield an order of magnitude fewer.
+#' A series mixing the two described the *censoring pattern* rather than the
+#' fit. The effect was largest exactly where windowed effects are used: a window
+#' opens at each event and closes a fixed time later, so the two kinds of
+#' interval alternated almost one for one and the series became a square wave
+#' whose transitions a changepoint detector dutifully reported.
 #'
-#' The default therefore analyzes the dependent intervals only. Set
-#' `include_censored = TRUE` to pool them, knowing what the pooled series
-#' mixes. On the multinomial sub-models — choice, the ordinal rate and REM
-#' sub-models, coordination — there are no right-censored intervals and the
-#' two settings agree.
+#' **That alternation no longer exists.** These functions read one row per
+#' **dependent event**, and each row's span has already accumulated the
+#' right-censored intervals of its own waiting time — so the censored
+#' contribution is present, attributed to the event it belongs to, rather than
+#' interleaved as rows of its own. The `include_censored` argument that used to
+#' choose between the two readings is deprecated and ignored: there is no longer
+#' a second reading to select.
 #'
-#' This restriction is deliberately *not* applied to the score-based
-#' diagnostics ([diagnose_onset()]): a right-censored interval's score row is
-#' a genuine contribution to the gradient, which sums to zero over all
-#' intervals, so a score series restricted to a subset has no null to be read
-#' against.
+#' A fit whose observation window outlives its last event carries one final span
+#' that closes no waiting time. It appears as a censored row, is not a
+#' candidate for flagging, and is the only row for which `.resid` is `NA`.
+#'
+#' [diagnose_onset()] never had this problem and still does not: a
+#' right-censored interval's score row is a genuine contribution to the
+#' gradient, which sums to zero over all intervals, so a score series
+#' restricted to a subset has no null to be read against.
 #'
 #' @name diagnose
 #' @examples
@@ -149,7 +149,7 @@ diagnose_outliers.result.goldfish <- function(
   threshold = 3,
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   parameter = deprecated(),
   ...
@@ -162,13 +162,14 @@ diagnose_outliers.result.goldfish <- function(
     "parameter",
     "threshold"
   )
+  warn_include_censored(include_censored, "diagnose_outliers")
   abort_if_not_diagnosable(x, "Outlier identification")
   method <- match.arg(method)
 
   # Through the generic, like the other broom surfaces: the method is no longer
   # an exported name of its own.
   data <- augment(x)
-  candidate <- diagnosable_intervals(data, include_censored)
+  candidate <- diagnosable_intervals(data)
   positions <- which(candidate)
   # Without `effect` the series is the per-interval log-likelihood: how
   # surprising each interval was. With it, the term's own influence series --
@@ -243,8 +244,7 @@ diagnose_outliers.result.goldfish <- function(
         "Interval log likelihood"
       } else {
         "Absolute dfbeta"
-      },
-      include_censored = include_censored
+      }
     ),
     defining = c("outlier", ".series")
   )
@@ -290,10 +290,11 @@ diagnose_changepoints.result.goldfish <- function(
   method = c("PELT", "AMOC", "BinSeg"),
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   ...
 ) {
+  warn_include_censored(include_censored, "diagnose_changepoints")
   abort_if_not_diagnosable(x, "Changepoint identification")
 
   moment <- match.arg(moment)
@@ -302,7 +303,7 @@ diagnose_changepoints.result.goldfish <- function(
   # Through the generic, like the other broom surfaces: the method is no longer
   # an exported name of its own.
   data <- augment(x)
-  candidate <- diagnosable_intervals(data, include_censored)
+  candidate <- diagnosable_intervals(data)
   positions <- which(candidate)
   # Without `effect` the series is the per-interval log-likelihood, and a
   # changepoint is a shift in how well the model fits. With it, the term's
@@ -375,8 +376,7 @@ diagnose_changepoints.result.goldfish <- function(
         "Interval log likelihood"
       } else {
         "Scaled Schoenfeld residual"
-      },
-      include_censored = include_censored
+      }
     ),
     defining = c("cpt", ".series")
   )
@@ -386,11 +386,40 @@ diagnose_changepoints.result.goldfish <- function(
 # `augment()` already carries on `.resid`, which marks exactly the intervals
 # realizing no outcome -- a second definition of "is this a dependent event"
 # is what would let the two drift apart.
-diagnosable_intervals <- function(data, include_censored) {
-  if (isTRUE(include_censored)) {
-    return(rep(TRUE, nrow(data)))
-  }
+diagnosable_intervals <- function(data) {
   !is.na(data$.resid)
+}
+
+# `include_censored` existed to suppress the alternation of dependent and
+# right-censored intervals, which made a segmented series describe the
+# censoring pattern rather than the fit. Under the per-event contract there is
+# no alternation left to suppress: `augment()` returns one row per dependent
+# event, each already carrying the censored intervals of its own waiting time.
+#
+# The argument is therefore inert rather than merely discouraged, and it is
+# deprecated rather than removed because it ships in 1.9.23. Ignoring it
+# silently would be the failure mode this change spent its guard work removing.
+warn_include_censored <- function(
+  include_censored,
+  fn,
+  user_env = rlang::caller_env(2)
+) {
+  if (!lifecycle::is_present(include_censored)) {
+    return(invisible())
+  }
+  lifecycle::deprecate_warn(
+    when = "2.0.0",
+    what = paste0(fn, "(include_censored)"),
+    details = c(
+      "i" = cli::format_inline(
+        "Each row is now one dependent event, whose span already accumulates
+         the right-censored intervals of its own waiting time, so there is no
+         pooled alternative to select."
+      )
+    ),
+    user_env = user_env
+  )
+  invisible()
 }
 
 # Which term `effect =` selected, or NULL for the default log-likelihood

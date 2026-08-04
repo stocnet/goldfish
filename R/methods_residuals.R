@@ -210,8 +210,14 @@ residuals.result.goldfish <- function(
       object
     ),
     cox_snell = accumulate_over_events(cox_snell_residuals(object), object),
-    schoenfeld = schoenfeld_rows(object, preprocessed),
-    scaled_schoenfeld = scaled_schoenfeld_rows(object, preprocessed),
+    schoenfeld = event_aligned_rows(
+      schoenfeld_rows(object, preprocessed),
+      object
+    ),
+    scaled_schoenfeld = event_aligned_rows(
+      scaled_schoenfeld_rows(object, preprocessed),
+      object
+    ),
     response = response_residuals(object, preprocessed),
     martingale = martingale_residuals(object, level, preprocessed),
     score = accumulate_over_events(
@@ -231,6 +237,29 @@ residuals.result.goldfish <- function(
       type
     )
   )
+}
+
+# Realign a per-interval matrix whose censored rows are NA onto the per-event
+# axis every other residual type now uses.
+#
+# The Schoenfeld forms are not accumulated -- they are already one meaningful
+# row per event, with `NA` where a right-censored interval realized no
+# alternative to compare against. Dropping those rows is what makes them per
+# event; a censored remainder, closing no waiting time, is then padded back as
+# the final NA row so the series still lines up with the accumulating types and
+# with `augment()`.
+event_aligned_rows <- function(rows, object) {
+  censored <- object$right_censored_events
+  if (is.null(censored) || !any(censored) || is.null(rows)) {
+    return(rows)
+  }
+  kept <- rows[!censored, , drop = FALSE]
+  n_returned <- length(accumulate_over_events(object$interval_log_lik, object))
+  if (n_returned > nrow(kept)) {
+    kept <- rbind(kept, rows[NA_integer_, , drop = FALSE])
+  }
+  rownames(kept) <- NULL
+  kept
 }
 
 # Which dependent event's waiting time each interval belongs to.

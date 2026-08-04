@@ -549,6 +549,23 @@ time_residual_table <- function(
     preprocessed = prep
   )
   estimate <- stats::coef(x, complete = TRUE)
+  # The reported table is a per-event view: the scaled Schoenfeld rows carry no
+  # realized alternative on a right-censored interval, so those rows were
+  # dropped when the residual moved onto the event axis. The clock follows them
+  # rather than the other way round -- the test kernel keeps its own
+  # per-interval basis, which is where the censored intervals do contribute.
+  censored <- x$right_censored_events
+  if (!is.null(censored) && any(censored)) {
+    keep <- which(!censored)
+    if (nrow(scaled) > length(keep)) {
+      keep <- c(keep, utils::tail(keep, 1))
+    }
+    clock <- clock[keep]
+    weights <- weights[keep, , drop = FALSE]
+    if (!is.null(grouping)) {
+      grouping <- grouping[keep]
+    }
+  }
   n <- length(clock)
   out <- lapply(seq_along(tested), function(i) {
     d <- tested[i]
