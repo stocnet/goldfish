@@ -902,6 +902,53 @@ answer. Whatever is dropped is named.
 remaining scoping question should not be resolved inside an implementation
 session.
 
+### D25 — A flavored process records its own events, and the filter for it already exists
+
+Found 2026-08-04 while adding the flavored `augment()` method (task 9.2), which
+could not be written because the table underneath it was wrong.
+
+On a multi-process fit **every process records the whole layer's events**:
+
+```
+fid 1 (creation)     events=40   intervals=80   dependent_events rows=80
+fid 2 (dissolution)  events=40   intervals=79   dependent_events rows=80
+
+the fit's modeled event times:   1  3  5  7  9 11    creations only
+dependent_events$time:           1  2  3  4  5  6    both flavors interleaved
+```
+
+This is **D1 surviving on the flavored path**. Task 1.1 filtered
+`stocnet_dependent_events()` by the observation *window*; the flavor dimension
+was never applied on a container.
+
+**The filter is not missing — it is unreached.** `stocnet_dependent_events()`
+takes `modeled_flavor` and applies it
+(`R/legacy_wrappers.R:552-554`). `make_specification()` sets that field when a
+single flavor is modeled (`R/make_specification.R:280`) and to `NULL` when
+several are (`:263`), carrying the plural `modeled_flavors` instead. So the
+single-flavor path is correct — which is why the `teaching2` vignette is fine —
+and the multi-process path silently skips the filter.
+
+The fix is therefore plumbing rather than design: the flavored driver must pass
+each process's own flavor when it estimates that process.
+
+**Why nothing caught it.** On the fixture the layer holds 40 creations and 40
+dissolutions, so an unfiltered table has 80 rows against 80 intervals — the
+counts matched, and `augment()` interleaved silently while pairing every row
+with the wrong event from the first censored interval onward. It became an error
+only when D17 made the table per event, 80 against 41. A length assertion would
+never have caught it; the row-**identity** assertion D1 chose for exactly this
+reason would have.
+
+**Third instance of one pattern**, which is now worth naming: a guard or filter
+exists, and the dispatch does not forward the value that would reach it. The
+others are the DyNAMi observation window
+([ADR-0012](../../../decisions/ADR-0012-dynami-silently-ignores-the-observation-window.md),
+where `preprocess_interaction()` refuses a window it is never handed) and the
+inert `transformer_fn` of ADR-0007. In all three the code that would do the
+right thing is present and unreachable, so no reviewer reading that code sees a
+defect.
+
 ### D20 — `augment()` follows, and reports what it accumulated
 
 `augment()` returns one row per **dependent event**, matching `residuals()`, and
