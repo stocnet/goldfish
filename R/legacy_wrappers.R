@@ -531,11 +531,34 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
 # so the postestimation broom/diagnostic surface can align them with the
 # per-event scores. On the stocnet path they are the focal layer's timed ties,
 # filtered to the modeled flavor; `from`/`to` indices resolve to node labels.
-stocnet_dependent_events <- function(data, layer, modeled_flavor = NULL) {
+#
+# `start_time`/`end_time` are the observation window preprocessing resolved, not
+# the caller's raw arguments: the resolution substitutes the event span when an
+# argument is absent. Filtering here rather than in each consumer keeps the
+# returned rows paired with the fit's per-interval components: an unfiltered
+# table pairs wrongly with every one of them, and the length mismatch only
+# happens to be loud in `augment()`. The bounds are inclusive on both sides,
+# matching the walk, which admits an event at `>= start_time` and stops
+# only past `end_time`.
+stocnet_dependent_events <- function(
+  data,
+  layer,
+  modeled_flavor = NULL,
+  start_time = NULL,
+  end_time = NULL
+) {
   ties <- as.data.frame(data$ties)
   sel <- ties$layer == layer & !is.na(ties$time)
   if (!is.null(modeled_flavor) && "flavor" %in% names(ties)) {
     sel <- sel & !is.na(ties$flavor) & ties$flavor == modeled_flavor
+  }
+  # `time` may be POSIXct while the resolved bounds are numeric seconds.
+  event_time <- as.numeric(ties$time)
+  if (!is.null(start_time)) {
+    sel <- sel & event_time >= as.numeric(start_time)
+  }
+  if (!is.null(end_time)) {
+    sel <- sel & event_time <= as.numeric(end_time)
   }
   ties <- ties[sel, , drop = FALSE]
   order_key <- if (!is.null(ties$order)) ties$order else seq_len(nrow(ties))

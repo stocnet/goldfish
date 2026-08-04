@@ -2641,7 +2641,9 @@ estimate_wrapper <- function(
     result$dependent_events <- stocnet_dependent_events(
       data,
       dep_name,
-      modeled_flavor
+      modeled_flavor,
+      start_time = prep$start_time,
+      end_time = prep$end_time
     )
   }
   # The node lookup (side, local index, global id, label) travels with the

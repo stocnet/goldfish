@@ -14,22 +14,22 @@
       expectations in the suite in the meantime. The burden moves to 2.2 and
       2.5, strengthened below; the audit trail is 0.1's inventory in
       `progress.md` plus the commit messages.
-- [ ] 0.3 Verify with the not-cran-test skill; confirm the frozen baselines
+- [x] 0.3 Verify with the not-cran-test skill; confirm the frozen baselines
       report PASS not SKIP.
 
 ## 1. The window bug: a fit records the events it modeled
 
-- [ ] 1.1 Thread the resolved observation window into
+- [x] 1.1 Thread the resolved observation window into
       `stocnet_dependent_events()` (`R/legacy_wrappers.R:534-551`) from its call
       site (`R/model_estimate.R:2641`) and filter the returned rows to it (D1).
       Read the boundary convention off the preprocessing loop rather than
       assuming it.
-- [ ] 1.2 Test row **identity**, not row count: the filtered `time` column must
+- [x] 1.2 Test row **identity**, not row count: the filtered `time` column must
       equal `event_time[!right_censored_events]` exactly, on a `start_time` fit,
       an `end_time` fit and a both-bounds fit, for a rate and a choice
       sub-model. Assert `augment()` returns one row per interval and that
       `diagnose_outliers()` / `diagnose_changepoints()` run on a windowed fit.
-- [ ] 1.3 Verify with the not-cran-test skill and commit.
+- [x] 1.3 Verify with the not-cran-test skill and commit.
 
 ## 2. The window semantics
 
