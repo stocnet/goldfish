@@ -277,7 +277,7 @@
       row-identity assertion task 1.2 used rather than a row count. **Write it
       against the unfixed code and confirm it fails**: the counts happened to
       match before, so a length check alone would have passed throughout.
-- [ ] 9.2 Add the flavored `augment()` method: row-bind per process with
+- [x] 9.2 Add the flavored `augment()` method: row-bind per process with
       `flavor` and `family` appended after the existing columns (D10).
 - [ ] 9.3 Add the flavored `diagnose_outliers()`, `diagnose_changepoints()` and
       `diagnose_onset()` methods. These are required by a shipped requirement
