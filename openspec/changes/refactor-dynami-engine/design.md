@@ -45,6 +45,38 @@ _To be written when the change is taken up._ Open questions to resolve then:
 3. `subType` normalisation placement (plan vs effect closure).
 4. The DyNAMi `stat_state` / broadcast classification (if any) versus a plain
    point-update loop.
+5. **The observation window is silently ignored, and this change owns the fix**
+   (found 2026-08-04 while applying `prep-diag-debug` group 2; deferred to here
+   rather than fixed there). `preprocess_interaction()` refuses a window
+   outright (`R/model_preprocess_group.R:100-107`, "DyNAMi doesn't support
+   setting the endTime parameter"), but `preprocess.dynami_rate_spec()` and its
+   siblings absorb `startTime`/`endTime` into `...` and never forward them, so
+   the guard is unreachable. Measured on the RFID fixture: an `end_time` at the
+   median of the interaction span produces preprocessed output identical to
+   setting none, with the fit reporting the last event as its end time and
+   storing rows past the requested boundary — no error, no warning, no message.
+
+   The cheap remedy is to forward the two arguments so the existing `stop()`
+   fires. The question this change has to answer is whether that is the right
+   one, because the recipe loop it converts to **does** support a window, and
+   the honest end state may be DyNAMi accepting one rather than aborting on it.
+   Decide that before wiring the abort, so the abort is not built and then
+   immediately retired.
+
+   ADR-0007 (`decisions/ADR-0007-an-inert-argument-is-signaled-not-dropped.md`)
+   decides the general form: an argument rendered inert is signaled where the
+   user made the choice, not silently dropped, because the mistake and the
+   moment of discovery are far apart and the diagnostics that would ordinarily
+   catch it report nothing wrong. That reasoning describes this case exactly.
+   The ADR is scoped to effect-term arguments and is still `proposed`, so it
+   does not formally bind; if it is accepted as stated, this is a second
+   instance and the ADR is worth widening to control arguments. Until the fix
+   lands, `set_preprocessing()`'s documentation names `estimate_dynami()` as
+   ignoring both time arguments, so the documented contract stays true.
+
+   Scope note: only `startTime`/`endTime` are affected. The dispatch absorbs
+   other arguments into `...` as well, but those are exercised by DyNAMi's
+   existing use and are working.
 
 **Dev-plan guidance (added 2026-07-03):** the interface proposal
 (`goldfish_asta/code/plan/goldfish_dev_plan.md`, §ties notes) recommends rethinking the
