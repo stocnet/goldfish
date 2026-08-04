@@ -1,3 +1,56 @@
+# goldfish 1.9.24
+
+* **A fit records the events it modeled.** A model fitted with a `start_time`
+  or an `end_time` stored every timed event of its focal layer as its dependent
+  events, including the ones the observation window excluded, so the recorded
+  table and the fit's own per-interval vectors described different likelihoods.
+  Every consumer pairing the two was mis-paired; the mismatch happened to be
+  loud in `augment()`, which aborted rather than interleaving and took
+  `diagnose_outliers()` and `diagnose_changepoints()` with it --- on exactly the
+  warm-started fit `diagnose_onset()` recommends building. The filter is applied
+  where the table is built, so no surface can be reached with the unfiltered
+  one.
+
+* **`end_time` past the last event is no longer a silent no-op, and baseline
+  rates fall accordingly.** Preprocessing opened the closing interval only on
+  meeting an event beyond the boundary. When the schedule ran out first that
+  branch never ran, so the exposure between the last event and the end of the
+  window left the likelihood entirely: on the package's own fixture an
+  `end_time` of 40 and one of 60, against events ending at 36, both produced
+  byte-identical results to setting none at all. That biases the baseline rate
+  upward, the model being told its events happened in a shorter window than the
+  one observed.
+
+  The window now closes when the schedule runs out, not only when the walk
+  steps past the boundary. **Any exact-time `rate` or REM fit with an
+  `end_time` beyond its last event changes: its baseline rate falls**, by the
+  ratio of the two exposures where the covariates are time-constant. Which
+  sub-models store the trailing row remains a property of the likelihood --- the
+  multinomial families have no compensator, so they store nothing and are
+  unchanged.
+
+* **An order-dependent effect means the same thing with and without a
+  `start_time`.** The per-event order counter advanced only for events the
+  observation window admitted, so a pre-`start_time` event left a gap and every
+  pair of events straddling it looked non-adjacent. The closure effects that
+  read adjacency in the event stream --- `trans()` and `cycle()` under
+  `history = "consecutive"` --- therefore counted nothing at all during the
+  burn-in and folded a matrix of zeros into their initial statistics. **A fit
+  combining `history = "consecutive"` with a `start_time` changes**, and anyone
+  who ran one was estimating a coefficient from a degenerate statistic.
+
+* **The window's closing row reports no sender or receiver.** It used to borrow
+  them from the out-of-window event that triggered the stop --- stale rather
+  than wrong for the likelihood, which reads none of it, but visible in
+  `augment()` and in the dependent-events table, where nothing distinguished it
+  from a real observation.
+
+* **Preprocessing stops at `end_time` on both paths**, the legacy monolith
+  having drained its remaining pointers instead. The `end_time` documentation
+  said the opposite of the code and is corrected to it; it now also states what
+  happens when the schedule ends first, and names `estimate_dynami()`, which
+  does not support an observation window and ignores both time arguments.
+
 # goldfish 1.9.23
 
 * **The `test_*` family is complete: `test_gof()`, `test_parameter()` and

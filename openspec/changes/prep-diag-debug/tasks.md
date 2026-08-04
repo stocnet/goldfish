@@ -33,51 +33,51 @@
 
 ## 2. The window semantics
 
-- [ ] 2.1 Fix the `event_order` burn-in drift (D2) so a pre-`start_time`
+- [x] 2.1 Fix the `event_order` burn-in drift (D2) so a pre-`start_time`
       dependent row advances the counters as an in-window one does
       (`R/model_preprocess.R:718`, `:739`, `:853`).
-- [ ] 2.2 Test the two-way equality: a fit with `start_time = t` and a fit whose
+- [x] 2.2 Test the two-way equality: a fit with `start_time = t` and a fit whose
       data is truncated so `t` is the first event, with the earlier events as
       history, agree on the `history = "consecutive"` statistic where the
       histories coincide; and the burn-in statistic is not identically zero.
       This test carries the whole burden of proving the fix, 0.2 having been
       dropped, so **write it against the unfixed code first and confirm it
       fails** — a test that passes before the fix proves nothing here.
-- [ ] 2.2b Add the control 0.1 found missing: `history = "consecutive"` is never
+- [x] 2.2b Add the control 0.1 found missing: `history = "consecutive"` is never
       estimated anywhere in the suite, only name-formatted. Cover it unwindowed
       and without a `start_time`, so 2.1's counter change is pinned against
       breaking the ordinary case as well as fixing the burn-in one. Follow the
       r-lib:testing-r-packages skill.
-- [ ] 2.3 Close the observation window when the schedule exhausts before
+- [x] 2.3 Close the observation window when the schedule exhausts before
       `end_time` (D5), storing the trailing exposure interval on the sub-models
       whose likelihood defines a compensator and nothing on the multinomial
       families.
-- [ ] 2.4 Stop the final right-censored row from carrying the sender and
+- [x] 2.4 Stop the final right-censored row from carrying the sender and
       receiver of the out-of-window event that triggered the stop
       (`R/model_preprocess.R:741-750`).
-- [ ] 2.5 Test that an exact-time rate fit with `end_time` past its last event
+- [x] 2.5 Test that an exact-time rate fit with `end_time` past its last event
       differs from the same fit without one, that a later `end_time` gives a
       lower baseline rate, and that a choice fit's log-likelihood is unchanged.
       This is the regression for a bug that made `end_time` a silent no-op, and
       with 0.2 dropped it is the only proof of the fix — **write it against the
       unfixed code first and confirm it fails.**
-- [ ] 2.5b Pin the branch that already works, which 0.1 showed is the only one
+- [x] 2.5b Pin the branch that already works, which 0.1 showed is the only one
       the suite exercises: every existing `end_time` test sets it *inside* the
       event stream (`dataTest` events run to 36; the tests stop at 24 and 30),
       so the loop always meets an out-of-window event and takes the `final_step`
       path. 2.3 adds a second way to close the window and must not disturb that
       one — assert the in-stream `end_time` results are unchanged.
-- [ ] 2.6 Make `preprocess_monolith()` stop traversing at `end_time` as the
+- [x] 2.6 Make `preprocess_monolith()` stop traversing at `end_time` as the
       recipe loops do (D4), and correct the `set_preprocessing()` documentation
       that states the opposite (`R/set_opt.R:703-704`). Run
       `devtools::document()` in this task.
-- [ ] 2.7 Verify with the not-cran-test skill and commit; where a frozen
+- [x] 2.7 Verify with the not-cran-test skill and commit; where a frozen
       baseline moved, regenerate it as its own commit naming the fix and the
       reason.
 
 ## 3. Phase 1 milestone
 
-- [ ] 3.1 Bump `DESCRIPTION` to 1.9.24 and add the `NEWS.md` entry: the
+- [x] 3.1 Bump `DESCRIPTION` to 1.9.24 and add the `NEWS.md` entry: the
       dependent-events window fix, the `event_order` correction and the
       combination it affected, the `end_time` no-op fix and its direction
       (baseline rates fall), and the monolith traversal stop.
