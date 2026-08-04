@@ -150,12 +150,12 @@
       message does not become an error under `options(warn = 2)` and that the
       stored `event_scores` are unchanged. Pin messages with a reproducible cli
       context.
-- [ ] 5.7 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 5.7 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 
 ## 6. Phase 2 milestone
 
-- [ ] 6.1 Bump `DESCRIPTION` to 1.9.25 and add the `NEWS.md` entry for the
+- [x] 6.1 Bump `DESCRIPTION` to 1.9.25 and add the `NEWS.md` entry for the
       parser floor, the intercept-only support, and the four guard/message
       changes.
 

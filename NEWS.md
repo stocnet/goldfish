@@ -1,3 +1,52 @@
+# goldfish 1.9.25
+
+* **A formula with no effect term aborts, naming the reason it has none.**
+  `~ 1`, `~ offset(x)`, `~ 1 + offset(x)` and multi-offset formulas failed on an
+  internal `invalid 'length' argument`, because `terms()` drops the shape of its
+  `factors` attribute along with the columns when there is no non-offset term.
+  They now parse, and a formula carrying no effect is refused by a stated rule
+  before preprocessing rather than by a dimension error inside it.
+
+  The two refusals differ, because the reasons differ. On the multinomial and
+  coordination sub-models a constant statistic cancels in the risk-set
+  normalization, so an intercept identifies nothing --- a property of the
+  likelihood. On the exact-time `rate` families an intercept alone is a
+  well-defined baseline rate, and goldfish is declining a model it could fit ---
+  a property of goldfish. **`rate_ordered` belongs with the first group, not
+  with the `rate` family whose name it shares**, its likelihood normalizing over
+  the risk set.
+
+  A model whose coefficients are all *fixed* is unaffected: it estimates nothing
+  and evaluates its likelihood, which is a supported use --- `test_parameter()`
+  is the diagnostic that shape exists for. An `offset()`-only formula is that
+  case, not a degenerate one.
+
+* **`cox_snell` refusals name the family being asked.** The message asserted
+  that "a multinomial likelihood has none" for every sub-model without a
+  compensator, which is false for `choice_coordination` --- that likelihood is a
+  softmax over unordered dyads, not over one sender's alternatives.
+
+* **Requesting `"conditional_scores"` where it is an identity now says so.** On
+  a family whose likelihood is already conditional the primitive stores nothing,
+  because the score rows carry no exposure term and *are* the conditional rows.
+  That was silent, so the argument appeared to take effect and the absence was
+  discovered later, indistinguishable from a typo or a bug. It is a message, not
+  a warning: the fit is correct and complete, and a warning would become an
+  error under `options(warn = 2)`.
+
+  `evaluate_model(return = "conditional_scores")` on the same families now
+  aborts instead of returning `NULL`, as `"exposure"` already did. The asymmetry
+  is deliberate: asking to *store* a primitive is a preference, asking the
+  evaluator *for* a value is a demand.
+
+* **`vcov()` on a fit with no estimated coefficient** aborts naming that, rather
+  than failing inside `solve()` with `'a' is 0-diml`. The summary of such a fit
+  also prints its empty coefficient table without internal warnings.
+
+* **`risk_set_axis()` on a flavored fit** aborts naming the `$results` route,
+  rather than returning `NULL` as though the model had no axis. A container
+  holds one fit per process, each with its own.
+
 # goldfish 1.9.24
 
 * **A fit records the events it modeled.** A model fitted with a `start_time`
