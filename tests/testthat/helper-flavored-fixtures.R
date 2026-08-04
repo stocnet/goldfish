@@ -75,3 +75,16 @@ fit_of <- function(res, flavor, family) {
   fid <- map$fid[map$flavor == flavor & map$family == family]
   res$results[[as.character(fid)]]
 }
+
+# The standard four-process container -- two flavors by two families -- which is
+# the shape every flavored-method test needs. Kept here for the same reason the
+# generator is: the specification is identical in each of them, and a second
+# copy is a second thing to keep in step.
+flavored_container_fit <- function(data = flavored_fixture_data()) {
+  suppressWarnings(estimate_dynam(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  )))
+}

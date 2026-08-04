@@ -10,18 +10,9 @@
 # intervals, so `nrow(dependent_events)` and the interval count agree to within
 # one. A length check passes on the unfiltered table.
 
-flavored_container <- function(data) {
-  suppressWarnings(estimate_dynam(make_specification(
-    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
-    choice = list(creation ~ trans, dissolution ~ trans),
-    model = "DyNAM",
-    data = data
-  )))
-}
-
 test_that("each process records only the events of its own flavor", {
   skip_on_cran()
-  container <- flavored_container(flavored_fixture_data())
+  container <- flavored_container_fit()
   map <- container$process_map
 
   for (i in seq_len(nrow(map))) {
@@ -41,7 +32,7 @@ test_that("the flavors partition the layer rather than each holding it", {
   # unfiltered table: two processes of the same family record disjoint event
   # sets whose union is the layer, not two copies of the layer.
   skip_on_cran()
-  container <- flavored_container(flavored_fixture_data())
+  container <- flavored_container_fit()
 
   creation <- fit_of(container, "creation", "rate")$dependent_events$time
   dissolution <- fit_of(container, "dissolution", "rate")$dependent_events$time

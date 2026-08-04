@@ -1201,6 +1201,25 @@ augment.result.goldfish <- function(x, ...) {
   tib
 }
 
+#' @export
+#' @method augment flavored_result.goldfish
+#' @noRd
+augment.flavored_result.goldfish <- function(x, ...) {
+  # A tidy return, so the identity travels as columns rather than as a list:
+  # the per-process tables row-bind and gain `flavor` and `family` appended
+  # after the existing columns. That keeps the event columns positionally
+  # stable between a single-process fit and a multi-process one, and it is what
+  # lets a plot facet on the identity instead of needing a flavored method of
+  # its own.
+  #
+  # The non-tidy methods take the other route -- a list named by process label
+  # -- because a vector cannot carry a column. See `?diagnostic-requirements`.
+  tables <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(augment(process$fit, ...), process)
+  })
+  do.call(rbind, tables)
+}
+
 #' @return The object, invisibly.
 #' @rdname diagnose
 #' @method print diagnose_outliers
