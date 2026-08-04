@@ -253,20 +253,26 @@
       route all five existing flavored methods through it, using
       `flavored_row_order()` everywhere so `model_terms()` and `margin_table()`
       stop disagreeing with the `test_*` family on row order (D10).
-- [ ] 9.1b Establish the blast radius of the flavored dependent-events filter
+- [x] 9.1b Establish the blast radius of the flavored dependent-events filter
       before changing it (the D14 discipline, which group 2 earned): which
       tests, fixtures, snapshots and vignette chunks read `dependent_events`,
       `augment()` or a describer on a **multi-process** fit, and which of those
       would change when each process stops reporting the other flavors' events.
       The frozen coefficient baselines cannot move — this touches a recorded
       table, not the likelihood — so a baseline run is not the check here.
-- [ ] 9.1c Pass each process's own flavor when the flavored driver estimates it,
-      so `stocnet_dependent_events()`'s existing `modeled_flavor` filter applies
-      (D25). The mechanism is already there and is reached only on the
-      single-flavor path: `make_specification()` sets `modeled_flavor` when one
-      flavor is modeled (`R/make_specification.R:280`) and `NULL` when several
-      are (`:263`), so a container's processes each record the whole layer.
-- [ ] 9.1d Test that each process records only its own events — the recorded
+- [x] 9.1c Carry each process's own flavor to the **recording** call so
+      `stocnet_dependent_events()` filters the table it records (D25). Task 9.1b
+      established that the obvious implementation is wrong: `modeled_flavor` is
+      not a filter argument but the single-flavor path's whole restriction
+      mechanism, with five consumers — it filters the dependent event stream
+      itself (`R/event_streams.R:215`), the parse, the alias resolution and the
+      constraint derivation. The flavored path restricts by a different
+      mechanism (`preprocess_flavored()` writes a fid-indexed list already split
+      per flavor), so setting `spec$modeled_flavor` there would double-apply the
+      restriction against an already-split preprocessed object. Pass the flavor
+      to the recording site at `R/model_estimate.R:2687` **only**, leaving
+      `:1681`/`:1912`/`:2272` on the NULL they get today.
+- [x] 9.1d Test that each process records only its own events — the recorded
       times equal that process's `event_time[!right_censored_events]`, the same
       row-identity assertion task 1.2 used rather than a row count. **Write it
       against the unfixed code and confirm it fails**: the counts happened to
