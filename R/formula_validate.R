@@ -482,6 +482,58 @@ fixed_spec_mask <- function(fixed_spec, n_params) {
 # `offset_coef`, aligned by formula order), interaction operand-only terms (kept
 # in the design but held out of estimation by fixing at 0 — a 0 coefficient
 # contributes 0 * stat, i.e. the column is excluded from the model while
+# A formula with no effect term carries nothing to estimate and nothing to
+# evaluate, and the preprocessing builders below assume at least one effect
+# throughout -- they fail on zero-length dimensions rather than on a stated
+# rule, so this runs ahead of them.
+#
+# A term held at a fixed value still counts: an all-fixed model estimates
+# nothing but evaluates its likelihood, which is a supported use.
+#
+# The reason differs by risk set, and so does the message. Where the normalizer
+# is Poisson an intercept alone is a well-defined baseline rate against elapsed
+# time, and goldfish is declining a model it could in principle fit; saying it
+# is unidentified there would be false and would send the reader looking for a
+# statistical error. Everywhere else a constant statistic cancels in the
+# normalization, which is a property of the likelihood.
+abort_if_no_effect_terms <- function(
+  rhs_names,
+  parsed_formula,
+  spec,
+  call = rlang::caller_env()
+) {
+  n_terms <- length(rhs_names) + length(parsed_formula$interactions)
+  if (n_terms > 0L) {
+    return(invisible(NULL))
+  }
+
+  sub_model <- spec$sub_model
+  if (identical(risk_set_normalizer(spec), "poisson")) {
+    cli::cli_abort(
+      c(
+        "A model needs at least one effect term.",
+        "x" = "This formula carries none.",
+        "i" = "On {.val {sub_model}} an intercept alone is a well-defined
+               baseline rate, but goldfish does not fit a formula with no
+               effect.",
+        "i" = "Add an effect term."
+      ),
+      call = call
+    )
+  }
+  cli::cli_abort(
+    c(
+      "A model needs at least one effect term.",
+      "x" = "This formula carries none.",
+      "i" = "An intercept would not serve on {.val {sub_model}}: a statistic
+             constant across the alternatives cancels in the risk-set
+             normalization, so it identifies nothing.",
+      "i" = "Add an effect that varies across the alternatives."
+    ),
+    call = call
+  )
+}
+
 # retained for downstream), and the superseded positional `fixed_parameters`
 # vector, which is converted here so the wire carries one encoding only. An
 # effect at rhs position j maps to coefficient j (+1 when the intercept is

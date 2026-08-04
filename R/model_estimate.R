@@ -1965,6 +1965,11 @@ estimate_wrapper <- function(
     has_intercept = has_intercept
   )
 
+  # Decided here rather than downstream: the risk-set descriptor the message
+  # depends on is only available once the specification exists, and the
+  # preprocessing that follows assumes at least one effect.
+  abort_if_no_effect_terms(rhs_names, parsed_formula, model_spec)
+
   # Recipe (DyNAM/REM) models compile the spec_map upfront and
   # dispatch preprocess() on it (`preprocess_recipe()`); DyNAMi runs its own
   # isolated front-end (`preprocess_dynami()`). `spec_map` stays NULL
