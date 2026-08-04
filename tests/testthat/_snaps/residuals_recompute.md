@@ -5,7 +5,17 @@
     Condition
       Error in `residuals()`:
       ! Cox-Snell residuals are defined for the exact-time sub-models only.
-      x They are the compensator of an interval, and a multinomial likelihood has none: it models which alternative was realized, not when.
+      x "choice" has a multinomial likelihood, which carries no compensator: it models which alternative was realized, not when.
+      i Use `type = "deviance"` for a per-interval goodness-of-fit measure on this sub-model.
+
+---
+
+    Code
+      residuals(fit_coordination(), type = "cox_snell")
+    Condition
+      Error in `residuals()`:
+      ! Cox-Snell residuals are defined for the exact-time sub-models only.
+      x "choice_coordination" has a coordination likelihood, which carries no compensator: it models which unordered dyad formed, not when.
       i Use `type = "deviance"` for a per-interval goodness-of-fit measure on this sub-model.
 
 # schoenfeld names both routes when neither is available

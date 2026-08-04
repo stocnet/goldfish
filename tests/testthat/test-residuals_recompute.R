@@ -32,6 +32,17 @@ fit_choice <- function(...) {
   )
 }
 
+fit_coordination <- function(...) {
+  estimate_wrapper(
+    depNetwork ~ inertia,
+    model = "DyNAM",
+    sub_model = "choice_coordination",
+    data = dataTest,
+    control_algo = residual_control(),
+    ...
+  )
+}
+
 test_that("cox_snell is the compensator, from stored components only", {
   fit <- fit_rate()
 
@@ -52,7 +63,51 @@ test_that("cox_snell is the compensator, from stored components only", {
 })
 
 test_that("cox_snell says so where there is no compensator", {
+  # Each refusal names the family being asked, because they are not the same
+  # family: a coordination likelihood is a softmax over unordered dyads, not
+  # over one sender's alternatives, so describing it as multinomial is wrong.
   expect_snapshot(error = TRUE, residuals(fit_choice(), type = "cox_snell"))
+  expect_snapshot(
+    error = TRUE,
+    residuals(fit_coordination(), type = "cox_snell")
+  )
+})
+
+test_that("cox_snell computes on a DyNAM-i rate fit", {
+  # The guard admits it on the risk-set descriptor, with nothing behind that
+  # until now. DyNAM-i rate shares the DyNAM rate event contribution, so the
+  # arithmetic is the same family and the compensator identity is the check.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  env <- new.env()
+  data("RFID_Validity_Study", package = "goldfish", envir = env)
+  participants <- env$participants
+  participants$label <- as.character(participants$label)
+  groups <- make_groups_interaction(
+    env$video,
+    participants,
+    seed_randomization = 1
+  )
+  fit <- suppressWarnings(estimate_dynami(
+    interactions ~
+      1 +
+      intercept(interactions, joining = 1) +
+      ego(age, joining = 1, subType = "centered"),
+    sub_model = "rate",
+    data = groups,
+    control_algo = set_algorithm_newton(backend = "r", diagnostics = "loglik")
+  ))
+
+  residual <- residuals(fit, type = "cox_snell")
+  expect_equal(residual, fit$intervals * fit$total_rate)
+  expect_true(all(is.finite(residual)))
+  expect_true(all(residual >= 0))
+  # The time intercept's own score equation, as on a DyNAM rate fit.
+  expect_equal(
+    sum(residual),
+    sum(!fit$right_censored_events),
+    tolerance = 1e-4
+  )
 })
 
 test_that("cox_snell residuals are unit exponential under the model", {
