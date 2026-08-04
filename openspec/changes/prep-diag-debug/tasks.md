@@ -84,22 +84,43 @@
 
 ## 4. Parser: degenerate formulas and the free-parameter floor
 
-- [ ] 4.1 Normalize the degenerate `terms()` `factors` shape in
+- [x] 4.1 Normalize the degenerate `terms()` `factors` shape in
       `get_rhs_names()` (`R/formula_parser.R:1217-1231`) so `~ 1`,
       `~ offset(x)`, `~ 1 + offset(x)` and multi-offset formulas parse instead
-      of failing on `nrow()` (D6).
-- [ ] 4.2 Add the free-parameter floor where the fixed set is already known
-      (`assemble_fixed_parameters()`, `R/formula_validate.R:501`), with a cli
-      abort distinguishing "every term fixed" from "this sub-model cannot
-      identify a lone intercept" (D6, D7). Use the risk-set descriptor already
-      on the specification as the predicate, not a second derivation from the
-      sub-model name. Retire the unreachable `stop()` at
+      of failing on `nrow()` (D6). Parsing only — the pipeline past it still
+      assumes at least one effect, and D23 says why that stays true.
+- [ ] 4.2 Add the parameter floor and place it **before preprocessing**, not in
+      `assemble_fixed_parameters()` as D6 first had it: the crash chain past
+      that point is out of scope (D23), so the abort has to fire ahead of it.
+      The floor is zero *parameters*, not zero *free* parameters — an all-fixed
+      model is an evaluation the package relies on (D6 revised). Two messages,
+      not one: unidentified on the multinomial families, unsupported on the
+      exact-time ones (D7, ADR-0011). Use the risk-set descriptor already on the
+      specification as the predicate. Retire the unreachable `stop()` at
       `R/formula_parser.R:55-58`. Follow the r-lib:cli skill.
-- [ ] 4.3 Test that an intercept-only exact-time rate model estimates and
-      returns a baseline rate; that an intercept-only choice model aborts naming
-      the identification; that offset-only formulas abort naming the zero free
-      parameters; and that one free term beside an `offset()` is unaffected.
-      Pin the messages with a reproducible cli context.
+- [ ] 4.2b Revert the eight zero-effect tolerances taken while measuring whether
+      to support intercept-only rate models (D23). They are unreachable behind
+      4.2's abort, and left in place they would read as "zero effects is
+      handled". The table in D23 and ADR-0011 is the record; the code is not.
+- [ ] 4.3 Test that an intercept-only model aborts on **every** sub-model, with
+      the multinomial message naming the identification and the exact-time one
+      naming the unsupported formula and *not* claiming unidentifiability; that
+      the abort arrives before preprocessing rather than as an internal
+      dimension error; that an offset-only formula still evaluates and reports
+      zero estimated coefficients; and that one free term beside an `offset()`
+      is unaffected. Pin the messages with a reproducible cli context.
+- [ ] 4.3b Close the two diagnostic gaps D24 measured on an all-fixed fit:
+      `vcov()` reaches `solve()` and fails with `'a' is 0-diml`, and
+      `print(summary())` emits three `max(nchar(...))` warnings over an empty
+      coefficient table. Leave the surfaces that already abort correctly alone.
+      Test that the still-defined diagnostics — log-likelihood, the information
+      criteria, `fitted()`, `augment()`, `margin_table()`, the residual types
+      carrying no inverse information — are unaffected.
+- [ ] 4.3c Measure `test_parameter()`, `evaluate_model()` and `predict()` on an
+      all-fixed fit **carrying** its preprocessed statistics, which the D24 probe
+      did not. `test_parameter()` may be more meaningful there rather than less,
+      it being the diagnostic for a coefficient held through `offset()`. Decide
+      from the measurement, as 5.2 does for the `cox_snell` guard.
 - [ ] 4.4 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 

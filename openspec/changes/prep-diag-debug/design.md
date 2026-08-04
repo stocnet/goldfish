@@ -217,23 +217,116 @@ attribute is read, so a formula with no non-offset term parses instead of failin
 on `nrow()`. Lines 1236-1252 already tolerate zero terms; only the `row_to_rhs`
 construction needs it.
 
-The **verdict** is a free-parameter floor, evaluated where the fixed set is
-already known (`assemble_fixed_parameters()`, `R/formula_validate.R:501`). The
-existing "A model without effects cannot be estimated" check
-(`R/formula_parser.R:55-58`) is not reused: it is unreachable behind the crash,
-it runs before `parse_intercept()`, and it counts offset terms as effects, so it
-would pass every case in question. It is replaced by a cli abort naming the count.
+The **verdict** is a parameter floor. The existing "A model without effects
+cannot be estimated" check (`R/formula_parser.R:55-58`) is not reused: it is
+unreachable behind the crash, it runs before `parse_intercept()`, and it counts
+offset terms as effects, so it would pass every case in question. It is replaced
+by a cli abort naming the reason.
 
-### D7 — An intercept is a free parameter only where the normalizer identifies it
+**Revised 2026-08-04, on two counts, after implementation measured what the
+original placement and threshold cost.**
 
-`~ 1` is a legitimate baseline on `rate` and exact-time REM, where the intercept
-is a baseline rate estimated against elapsed time. On `choice` and
-`choice_coordination` a constant statistic cancels in the normalization and
-identifies nothing, so `~ 1` there has zero free parameters and aborts.
+*The floor is a **parameter** floor, not a free-parameter one.* An all-fixed
+model is not a degenerate fit: it is a likelihood evaluated at given values, and
+goldfish relies on it — `pse_reference()` takes the process-state evaluators'
+1e-10 reference from exactly such a fit, and `test-fixed_spec.R` asserts that an
+all-fixed model yields a contract covering every coefficient. An offset-only
+formula *is* an all-fixed model, so aborting it while accepting
+`fixed_parameters = c(1, 2, 3)` would give fixedness two meanings depending on
+where it came from — the second-source-of-truth problem D7 exists to avoid,
+reintroduced one field over. Only a formula yielding **no coefficient at all**
+aborts.
 
-The predicate is the risk-set `normalizer` already carried on `model_spec`, which
-is the same field `is_exact_time_fit()` reads. Deriving it from `sub_model`
-strings a second time would be a second source of truth for one fact.
+*The floor runs before preprocessing, not in `assemble_fixed_parameters()`.* The
+original placement was chosen so the fixed set would already be known; the
+narrowed floor does not need the fixed set, only the parameter count and the
+normalizer, both of which are known at parse time. It has to move anyway,
+because the abort must fire before the preprocessing builders do — see D23, which
+records why the crash they raise is not fixed here.
+
+### D7 — An intercept-only model aborts everywhere, for two different reasons
+
+**Revised 2026-08-04; see ADR-0011, which carries the full reasoning and the
+map of what supporting it would take.**
+
+As originally written, `~ 1` was a legitimate baseline on `rate` and exact-time
+REM and aborted only on the multinomial families. The first half is true of the
+statistics and false of the code: making it estimate takes eight zero-effect
+tolerances through the recipe builders, which is out of scope here (D23). So
+`~ 1` aborts on every sub-model — but the two aborts carry **different
+messages**, because they are different facts:
+
+```
+choice / coordination   the intercept identifies nothing        about the likelihood
+rate / exact-time REM   goldfish carries no effect-free model   about goldfish
+```
+
+On the multinomial families a constant statistic cancels in the normalization,
+so the intercept carries no information; that holds regardless of implementation.
+On the exact-time families the model is perfectly well-defined — it estimates to
+`Intercept = -2.5123` on `dataTest`, reconciling with the fixture's exposure —
+and we are declining to fit it. Telling a rate user their intercept "identifies
+nothing" would be false and would cost them an afternoon looking for a
+statistical mistake that is not there.
+
+The predicate separating them is the risk-set `normalizer` already carried on
+`model_spec`, which is the same field `is_exact_time_fit()` reads. Deriving it
+from `sub_model` strings a second time would be a second source of truth for one
+fact.
+
+### D23 — The zero-effect crash chain is out of scope, and is recorded rather than fixed
+
+`~ 1` does not fail in one place. Normalizing the `terms()` shape makes it
+*parse*; making it *estimate* took eight sites, seven of them the same root
+cause — `unlist()`, `ifelse()` and `rownames()` returning `NULL` where a
+zero-length vector was assumed:
+
+| # | site | what breaks with zero effects |
+|---|---|---|
+| 1 | `formula_parser.R` `get_rhs_names()` | `attr(terms(), "factors")` is `integer(0)`, no `nrow()` |
+| 2 | `utils.R` `get_data_objects()` | `ifelse()` over an empty condition yields logical; `strsplit()` rejects it |
+| 3 | `preprocess_builders.R` | `rownames(NULL)` against `character(0)` |
+| 4 | `preprocess_builders.R` | scalar `stat_kind` in a zero-row `data.frame()` |
+| 5 | `preprocess_builders.R` `augment_interactions()` | `unlist(list())` is `NULL`, so `!is_main` errors |
+| 6-7 | `utils.R` `GetDetailPrint()` | `max()` of nothing; `matrix(NULL, ...)` |
+| 8 | `model_preprocess.R` `run_dyad_recipe_loop()` | `array(NULL, ...)` seeding the dyad statistics |
+
+The eight were found by successive crashes, which is evidence about the eight
+and not about the pipeline: nothing here establishes there is no ninth. The
+honest acceptance test for supporting effect-free models is not "does `~ 1` fit"
+but "does every recipe builder have an exercised zero-effect path", and that is
+a change of its own with its own coverage story — not something to land in the
+phase billed as this change's small one.
+
+So the tolerances are **reverted rather than kept as defensive code**. Keeping
+them behind an abort would leave them unreachable and untested while reading to
+the next maintainer as "zero effects is handled", which is exactly the belief
+that would make the ninth site a surprise. The table above is the record, and it
+is duplicated in ADR-0011 because this change will be archived.
+
+### D24 — A diagnostic undefined without free parameters aborts; the rest keep working
+
+Measured on an all-fixed choice fit, the diagnostic surface is **already almost
+right**, which narrows this to a gap rather than a policy:
+
+| behavior | surfaces |
+|---|---|
+| already aborts cleanly | `residuals()` for `dfbeta`, `dfbetas`, `cooks`, `scaled_schoenfeld` ("the information matrix of this fit cannot be inverted"); `test_gof()` and `test_time()` ("no free coefficient to test"); `diagnose_onset()` |
+| defined, and keeps working | `logLik()`, `AIC()`, `BIC()`, `glance()`, `fitted()`, `augment()`, `margin_table()`, `residuals()` for `score` and `deviance`, `diagnose_outliers()` |
+| **gap** | `vcov()` reaches `solve()` and fails with `'a' is 0-diml` |
+| **gap** | `print(summary())` emits three `max(nchar(...))` "no non-missing arguments" warnings over an empty coefficient table |
+
+The boundary is whether the quantity is a function of the free parameters, not
+whether it is "advanced": the log-likelihood needs none, the inverse information
+needs at least one. Only the two gaps are in scope; the surfaces that already
+abort are left exactly as they are.
+
+`test_parameter()`, `evaluate_model()` and `predict()` are **unmeasured on this
+question** — the probe fit carried no preprocessed statistics, so all three
+aborted for that unrelated reason. `test_parameter()` is the interesting one,
+since it exists to test a coefficient held fixed through `offset()` and may be
+the one diagnostic that is *more* meaningful on an all-fixed fit, not less. It
+is listed under Open Questions.
 
 ### D8 — Absence that is an identity is announced once
 
@@ -663,6 +756,17 @@ augmented table becomes joinable with the dependent-events table of D1 by
 position, which it currently is not on a windowed fit.
 
 ## Open Questions
+
+**Is `test_parameter()` defined on an all-fixed fit?** See D24. It exists to test
+a coefficient held at an imposed value through `offset()`, so an all-fixed fit is
+arguably its best case rather than its worst. Unmeasured — the probe fit carried
+no preprocessed statistics. `evaluate_model()` and `predict()` are unmeasured for
+the same reason.
+
+**Does the intercept-only abort belong on `rate_ordered`?** Its normalizer is not
+Poisson, so D7's identification wording does not apply as written, but an ordinal
+likelihood with only an intercept has nothing to rank either. Unmeasured; carried
+in ADR-0011.
 
 **What happens to the trailing span?** See D17. Live only once D5 lands, and one
 observation wide.
