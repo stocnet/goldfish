@@ -13,6 +13,17 @@ events cannot occur at the same instant. Real data ties anyway. In the shipped
 timestamp with the event before them** — 13 of 241 intervals have `dt == 0`, and
 12 of those carry a dependent event.
 
+A second measurement, taken 2026-08-04 while settling `prep-diag-debug`'s
+`cox_snell` guard against DyNAM-i, is sharper still: on the `RFID_Validity_Study`
+interaction fixture **127 of 234 intervals have `dt == 0` — 54%**. Group joins
+and leaves are recorded at coarse timestamps, so ties are the norm there rather
+than the exception, and the consequence is visible in a diagnostic: the
+Cox-Snell residuals of that fit are exactly zero on all 127 tied intervals, with
+the remaining 107 inflated to a mean of 2.19 where a unit exponential would be
+1. The compensator identity still holds — the zeros and the inflated remainder
+cancel — so nothing looks wrong in the totals, while a Q-Q plot reads as gross
+misspecification. That is the shape of the problem this change exists for.
+
 Today goldfish neither refuses this nor tells the user. A tied dependent event
 contributes its linear predictor to the log-likelihood but `-dt * total_rate = 0`
 exposure, so it informs *which* dyad acted and says nothing about *when*. The

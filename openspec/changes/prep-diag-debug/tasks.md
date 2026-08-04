@@ -126,10 +126,10 @@
 
 ## 5. Guards and messages
 
-- [ ] 5.1 Make the `cox_snell` abort message name the requesting sub-model's own
+- [x] 5.1 Make the `cox_snell` abort message name the requesting sub-model's own
       likelihood family instead of asserting "multinomial" for every
       compensator-less case (D13), which is false for `choice_coordination`.
-- [ ] 5.2 Settle DyNAMi `rate` against the guard (D13): add the test and let it
+- [x] 5.2 Settle DyNAMi `rate` against the guard (D13): add the test and let it
       pass if the residuals are correct, or block it with a stated reason if
       they are not. Decide from the measurement. The ordinal-REM half of this
       task is **already answered** and needs no work: `sub_model = "rate"`

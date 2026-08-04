@@ -452,6 +452,38 @@ with no test behind it. It shares the DyNAM-rate event contribution
 to add the test and let it pass, or to block it with a reason. The decision is
 deferred to the measurement, not to taste.
 
+**Measured 2026-08-04 on the RFID fixture: the guard passes, and the residuals
+are arithmetically correct.**
+
+```
+residuals == intervals * total_rate     exact
+sum(residuals) = 234.0000001            the dependent-event count, 234
+                                        -- the time intercept's score equation
+all finite, all >= 0
+```
+
+So the guard is right to admit DyNAMi `rate`, and the test is added rather than
+a block. The measurement surfaced something the task did not ask about, though,
+and it is worth recording before someone reads a Q-Q plot of these:
+
+```
+127 of 234 intervals have dt == 0       54% tied event times
+  -> 127 residuals are exactly 0
+the remaining 107 have mean 2.19        a unit exponential would be 1
+```
+
+The compensator identity survives ties — the zeros and the inflated remainder
+cancel exactly — but the *distributional* reading does not, and that reading is
+the whole purpose of the type: the Q-Q plot against a unit exponential is what
+makes it a goodness-of-fit check. A user plotting these would see a point mass
+at zero and read gross misspecification, when the cause is timestamp resolution.
+
+**Not a DyNAMi defect, and not fixed here.** Any exact-time fit with tied times
+behaves this way; DyNAMi is where it is worst, group joins and leaves being
+recorded at coarse timestamps. It belongs to the post-release `tied-event-times`
+change, whose proposal motivates itself on `Fisheries_Treaties_6070` at **17%**
+ties — this fixture is at **54%** and is the sharper case for it to cite.
+
 ### D14 — Two fixes move numbers, and that is verified before it is accepted
 
 D2, D4 and D5 change coefficients for specific combinations. The policy is:
