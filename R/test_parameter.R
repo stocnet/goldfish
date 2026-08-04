@@ -163,7 +163,7 @@ test_parameter.result.goldfish <- function(
       model = x$model,
       sub_model = x$sub_model,
       backend = x$backend,
-      n_events = sum(!x$right_censored_events),
+      n_events = x$n_events,
       joint = joint_score_test(score, information, tested, is_fixed)
     ),
     params = list(n_fixed = sum(is_fixed)),
@@ -412,7 +412,7 @@ test_parameter.flavored_result.goldfish <- function(
       backend = per_process[[1]]$fit$backend,
       n_events = vapply(
         per_process,
-        function(p) sum(!p$fit$right_censored_events),
+        function(p) p$fit$n_events,
         integer(1)
       ),
       joint = do.call(rbind, lapply(per_process, `[[`, "joint"))

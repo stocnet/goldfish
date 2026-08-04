@@ -284,7 +284,7 @@ test_gof.result.goldfish <- function(
       sub_model = object$sub_model,
       backend = object$backend,
       n_intervals = nrow(object$event_scores),
-      n_events = sum(!object$right_censored_events)
+      n_events = object$n_events
     ),
     params = list(clock = clock, n_sim = n_sim)
   )
@@ -655,7 +655,7 @@ gof_flavored_context <- function(object, map, rows, effects) {
     n_intervals = vapply(fits, function(f) nrow(f$event_scores), integer(1)),
     n_events = vapply(
       fits,
-      function(f) sum(!f$right_censored_events),
+      function(f) f$n_events,
       integer(1)
     ),
     joint = cauchy_omnibus(effects$p_value, n_blocks = length(rows))

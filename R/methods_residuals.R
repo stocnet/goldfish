@@ -343,7 +343,7 @@ scaled_schoenfeld_rows <- function(
 ) {
   rows <- schoenfeld_rows(object, preprocessed, call = call)
   is_fixed <- GetFixed(object)
-  n_events <- sum(!object$right_censored_events)
+  n_events <- object$n_events
   inverse <- invert_free_information(object)
   estimate <- stats::coef(object, complete = TRUE)
   scaled <- matrix(

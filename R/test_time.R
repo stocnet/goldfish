@@ -230,7 +230,7 @@ test_time.result.goldfish <- function(
       sub_model = x$sub_model,
       backend = x$backend,
       n_intervals = nrow(scores),
-      n_events = sum(!x$right_censored_events),
+      n_events = x$n_events,
       global = augmented$global
     ),
     params = list(
