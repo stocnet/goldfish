@@ -225,10 +225,10 @@ test_that("a timed choice-only flavor reaches the pinned primitive; ordered does
   expect_null(cc_ord$completed_rates)
 })
 
-# --- D1/D2 numeric time coercion ---------------------------------------------
+# --- Numeric time coercion ----------------------------------------------------
 
 # `timed_panel_join()`'s friendship/calls topology with `ties$time` cast to a
-# POSIXct or Date axis, so the D1 coercion path (`panel_wave_risk_set()`,
+# POSIXct or Date axis, so the coercion path (`panel_wave_risk_set()`,
 # `default_window()`) is exercised on the non-numeric time classes that
 # previously crashed.
 timed_panel_join_cast <- function(time_class = c("POSIXct", "Date")) {
@@ -352,9 +352,9 @@ test_that("a completed rate pins on Date data (single-window fallback)", {
 test_that("the single-window fallback is scoped to the pinned layer's extent", {
   # friendship (the pinned layer) is only observed over [1, 4]; calls, an
   # unrelated layer in the same joint dataset, extends to time 9. Regression
-  # test for D2: the pre-fix `default_window()` ranged over every layer's
-  # ties, so it would have picked up calls' later extent instead of stopping
-  # at friendship's own.
+  # test: the pre-fix `default_window()` ranged over every layer's ties, so
+  # it would have picked up calls' later extent instead of stopping at
+  # friendship's own.
   data <- plain_data("event")
   data$ties <- rbind(
     data$ties,
@@ -472,7 +472,7 @@ test_that("a single-period relational pin matches goldfish's starting value", {
   )
 })
 
-# --- D3 panel/relational risk-set dispatch -----------------------------------
+# --- Panel/relational risk-set dispatch ---------------------------------------
 
 # A flavored (creation/dissolution) calls process, EVENT-observed at join time,
 # composed with a plain emails process. The creation flavor is keyed in choice
@@ -612,7 +612,7 @@ test_that("a flavored relational layer's completed rate stays on the panel path"
   )
 })
 
-# --- D4 degenerate (no-timed-events) layer handling --------------------------
+# --- Degenerate (no-timed-events) layer handling ------------------------------
 
 # A join whose completed layer carries only `time = NA` history (no timed
 # events). `friendship_obs` sets friendship's observation so the same tie set
@@ -767,6 +767,104 @@ test_that("an empty inter-wave period in a grid stays a silent -Inf pin", {
   )
   expect_identical(intercept[[2]], -Inf)
   expect_true(all(is.finite(intercept[-2])))
+})
+
+# --- End-to-end crash reproduction --------------------------------------------
+
+# The originally-reported crash, end to end: a multi-flavor DyNAM spec on a
+# panel-observed, POSIXct-timed layer (friendship), one flavor's rate omitted
+# but that flavor kept in choice, joined with a second layer (calls). Before
+# the fix, `panel_wave_risk_set()`'s `duration <- diff(wave_times)` received
+# POSIXct `wave_times` unconverted, returning a non-numeric `difftime` that
+# failed `pin_intercept_only_rate()`'s numeric guard two calls downstream.
+joint_spec4_reproduction <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  origin <- as.POSIXct("2020-01-01", tz = "GMT")
+  friendship <- rbind(
+    # A `time = NA` history row seeds (1, 2) present before the window opens,
+    # so the timed dissolution row below has something to dissolve.
+    data.frame(
+      from = 1L,
+      to = 2L,
+      time = NA,
+      layer = "friendship",
+      weight = 1
+    ),
+    data.frame(
+      from = c(3L, 2L, 1L, 4L),
+      to = c(4L, 3L, 2L, 5L),
+      # The dissolution row (day 3) sits strictly inside the window; the day-4
+      # creation row only exists to push the window's max boundary past it, so
+      # the dissolution is visible at the final materialized state.
+      time = origin + c(1, 2, 3, 4) * 86400,
+      layer = "friendship",
+      weight = c(1, 1, -1, 1)
+    )
+  )
+  calls <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 5L),
+    to = c(2L, 3L, 4L, 5L, 1L),
+    time = origin + c(1, 2, 3, 4, 5) * 86400,
+    layer = "calls",
+    weight = 1
+  )
+  make_data <- function(friendship_obs) {
+    info <- list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = friendship_obs, calls = "event")
+    )
+    add_flavor(
+      list(info = info, nodes = nodes, ties = rbind(friendship, calls)),
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1),
+      flavor_style = "mutually_exclusive"
+    )
+  }
+  ev <- make_data("event")
+  fr <- make_specification(
+    rate = list(creation ~ 1 + outdeg), # dissolution's rate omitted
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    layer = "friendship",
+    model = "DyNAM",
+    data = ev
+  )
+  calls_spec <- make_specification(
+    rate = ~ 1 + outdeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  make_joint_specification(fr, calls_spec, data = make_data("panel"))
+}
+
+test_that("the joint_spec4 crash reproduction completes without error", {
+  local_cli_context()
+  js <- joint_spec4_reproduction()
+  expect_identical(js$modeled_panel, "friendship")
+
+  for (consumer in c("estimate_dynes", "simulate")) {
+    cc <- expect_no_error(
+      suppressWarnings(complete_generative_spec(js, consumer = consumer))
+    )
+    map <- cc$process_map
+    dissolution_rate <- map$fid[
+      map$layer == "friendship" &
+        map$flavor == "dissolution" &
+        map$family == "rate"
+    ]
+    expect_length(dissolution_rate, 1L)
+    expect_true(map$completed[map$fid == dissolution_rate])
+    rate <- cc$completed_rates[[as.character(dissolution_rate)]]
+    expect_true(is.finite(rate$intercept))
+  }
 })
 
 # --- Regime and completion scope --------------------------------------------

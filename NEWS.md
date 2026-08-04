@@ -1,3 +1,16 @@
+# goldfish 1.9.27
+
+## Bug fixes
+
+* `complete_generative_spec()`'s timed-rate pinning no longer crashes on a
+  POSIXct- or Date-timed panel layer: the wave-period durations it derives are
+  now coerced to plain numeric before use. A completed rate on a fully
+  event-observed relational layer now sources its risk-set counts from
+  goldfish's own preprocessing scalars instead of the panel wave-endpoint
+  approximation. A completed layer with no timed events at all now warns
+  (panel, pinning a well-defined zero hazard) or aborts (relational, where no
+  finite pin exists), naming the offending layer in both cases.
+
 # goldfish 1.9.26
 
 ## Documentation

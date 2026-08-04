@@ -65,29 +65,29 @@
       events aborts naming the layer; (c) a multi-wave grid with one empty
       inter-wave period stays **silent** and pins that period to `-Inf` (no
       warning raised).
-- [ ] 3.4 `air format` the touched files, then `lintr::lint()` them; run the
+- [x] 3.4 `air format` the touched files, then `lintr::lint()` them; run the
       not-cran-test skill and confirm the frozen baselines report PASS, not SKIP;
       commit.
 
 ## 4. Reproduction regression, docs, and release bookkeeping
 
-- [ ] 4.1 Add a regression test reproducing the originally-reported crash end to
+- [x] 4.1 Add a regression test reproducing the originally-reported crash end to
       end (the `joint_spec4` shape from the vignette): a multi-flavor DyNAM spec
       on a panel-observed, POSIXct-timed layer with one flavor's rate omitted but
       that flavor kept in `choice`, joined with another layer, run through
       `complete_generative_spec(consumer = "estimate_dynes")` (and
       `consumer = "simulate"`), asserting it completes without error and the
       resulting `completed_rates` entry carries a finite pinned intercept.
-- [ ] 4.2 Update the in-file derivation comments in `R/complete_generative_spec.R`
+- [x] 4.2 Update the in-file derivation comments in `R/complete_generative_spec.R`
       (`panel_wave_risk_set()`, `default_window()`, `pin_completed_rates()`,
       `relational_window_risk_set()`) to describe the numeric-coercion step, the
       panel/relational dispatch, the flavored-relational stopgap *reasoning*
       (until a flavor-aware relational risk-set exists — no OpenSpec change name
       or task number in the source, project convention), and the D4 warn/abort.
-- [ ] 4.3 Bump the package version in `DESCRIPTION` (patch) and add a `NEWS.md`
+- [x] 4.3 Bump the package version in `DESCRIPTION` (patch) and add a `NEWS.md`
       entry: POSIXct/Date-timed panel completion no longer crashes; relational
       layers' completed rates now use the correct risk-set source; a
       no-timed-events layer warns (panel) or aborts (relational) naming the layer.
-- [ ] 4.4 Full verification: `air format` + `lintr::lint()` on every file touched
+- [x] 4.4 Full verification: `air format` + `lintr::lint()` on every file touched
       across this change, run the not-cran-test skill for a final NOT_CRAN=true
       pass confirming the frozen baselines PASS (not SKIP), then commit.

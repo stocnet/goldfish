@@ -451,9 +451,10 @@ flavor_support_kind <- function(spec, flavor) {
   }
 }
 
-# The pinned layer's own timed (non-NA) event times. Scoped to the layer (D2)
-# so the single-window fallback and the degenerate-layer check both read only
-# the layer being pinned, never the whole joint dataset.
+# The pinned layer's own timed (non-NA) event times. Scoped to the layer being
+# pinned (not the whole joint dataset) so the single-window fallback and the
+# degenerate-layer check both read only that layer's own extent -- a sibling
+# layer in the same joint dataset may span a different time range entirely.
 layer_event_times <- function(data, layer) {
   ties <- as.data.frame(data$ties)
   times <- ties$time[ties$layer == layer]
