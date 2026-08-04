@@ -20,15 +20,34 @@ reader looking for a statistical error that is not there.
 The predicate separating the two SHALL be the risk-set descriptor the
 specification already carries, not a second derivation from the sub-model name.
 
+The mapping this produces is part of the contract, and it does not follow the
+sub-model names. An ordinal sub-model normalizes over the risk set, so a
+constant intercept cancels there exactly as it does in a multinomial choice —
+`rate_ordered` belongs with the families that identify nothing, not with the
+`rate` family whose name it shares:
+
+| model · sub_model | normalizer | branch |
+|---|---|---|
+| DyNAM · rate, REM · rate | `poisson` | unsupported |
+| DyNAM · rate_ordered, REM · rate_ordered | `multinomial` | identifies nothing |
+| DyNAM · choice | `multinomial` | identifies nothing |
+| DyNAM · choice_coordination | `coordination` | identifies nothing |
+
 #### Scenario: an intercept-only choice model aborts as unidentified
 - **WHEN** a choice or coordination model is specified with an intercept and no
   other term
 - **THEN** it aborts, naming the intercept as identifying nothing under that
   sub-model's normalization
 
-#### Scenario: an intercept-only rate model aborts as unsupported
-- **WHEN** an exact-time rate or REM model is specified with an intercept and no
-  other term
+#### Scenario: an intercept-only ordinal model aborts as unidentified
+- **WHEN** a `rate_ordered` model of either family is specified with an
+  intercept and no other term
+- **THEN** it aborts naming the intercept as identifying nothing, its likelihood
+  normalizing over the risk set, and not as merely unsupported
+
+#### Scenario: an intercept-only exact-time rate model aborts as unsupported
+- **WHEN** a `rate` model of either family — the exact-time families, whose
+  normalizer is Poisson — is specified with an intercept and no other term
 - **THEN** it aborts, naming the formula as carrying no effect, and does not
   claim the intercept is unidentified
 
