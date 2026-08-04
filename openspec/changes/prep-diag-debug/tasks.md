@@ -131,7 +131,12 @@
       compensator-less case (D13), which is false for `choice_coordination`.
 - [ ] 5.2 Settle DyNAMi `rate` against the guard (D13): add the test and let it
       pass if the residuals are correct, or block it with a stated reason if
-      they are not. Decide from the measurement.
+      they are not. Decide from the measurement. The ordinal-REM half of this
+      task is **already answered** and needs no work: `sub_model = "rate"`
+      without an explicit intercept adds one rather than going ordinal, so its
+      Poisson stamp is correct, and the only ordinal route
+      (`sub_model = "rate_ordered"`) is stamped `multinomial` and already
+      excluded by the guard.
 - [ ] 5.3 Emit the informational cli message when `"conditional_scores"` is
       requested on a multinomial family (D8), naming the identity and the
       `set_algorithm_newton()` adjustment. A message, not a warning. Follow the

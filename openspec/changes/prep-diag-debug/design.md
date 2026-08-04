@@ -274,6 +274,25 @@ The predicate separating them is the risk-set `normalizer` already carried on
 from `sub_model` strings a second time would be a second source of truth for one
 fact.
 
+**Measured 2026-08-04, and the descriptor earns its keep on the ordinal
+sub-models.** An ordinal likelihood normalizes over the risk set, so a constant
+intercept cancels there exactly as it does in a multinomial choice — an
+intercept-only ordinal model is impossible, not merely unsupported. Both
+`rate_ordered` variants are stamped `multinomial` and so already take the
+identification branch:
+
+| model · sub_model | normalizer | branch |
+|---|---|---|
+| DyNAM · rate, REM · rate | poisson | unsupported |
+| DyNAM · rate_ordered, REM · rate_ordered | multinomial | identifies nothing |
+| DyNAM · choice | multinomial | identifies nothing |
+| DyNAM · choice_coordination | coordination | identifies nothing |
+
+The single-source-of-truth argument above is the reason to read the descriptor;
+this is the payoff. A name-based predicate would plausibly have been written
+`sub_model %in% c("choice", "choice_coordination")` and would have put **both**
+ordinal sub-models on the wrong message.
+
 ### D23 — The zero-effect crash chain is out of scope, and is recorded rather than fixed
 
 `~ 1` does not fail in one place. Normalizing the `terms()` shape makes it
@@ -779,11 +798,29 @@ in ADR-0011.
 **What happens to the trailing span?** See D17. Live only once D5 lands, and one
 observation wide.
 
-**Is the `cox_snell` guard right for an ordinal REM?** `estimate_rem()` without an
-intercept warns "(ordinal likelihood)" yet the fit is stamped
-`normalizer = "poisson"`, so `is_exact_time_fit()` admits it and `cox_snell`
-computes. Either the stamp or the warning is wrong. Folded into task 5.2, which
-already settles the guard against the sub-models that pass it untested.
+**~~Is the `cox_snell` guard right for an ordinal REM?~~ Answered 2026-08-04:
+there is no ordinal REM stamped Poisson, and the question had a false premise.**
+It read the message `estimate_rem()` emits on an intercept-free rate formula as
+a statement that the fit *is* ordinal. It is not: the text says "a time
+intercept has been added" and points at `rate_ordered` for the ordinal
+alternative, and the code adds the intercept
+(`R/model_estimate.R:1755-1763`), setting `has_intercept <- TRUE`. Measured:
+
+```
+estimate_rem(~ inertia, sub_model = "rate")          coef: Intercept, inrt
+                                                     normalizer: poisson
+                                                     is_exact_time_fit: TRUE
+
+estimate_rem(~ inertia, sub_model = "rate_ordered")  coef: inrt
+                                                     normalizer: multinomial
+                                                     is_exact_time_fit: FALSE
+```
+
+So the fit really is exact-time with a baseline hazard, the Poisson stamp is
+correct, and `cox_snell` is right to compute on it. The only route to an ordinal
+likelihood is `sub_model = "rate_ordered"`, which is stamped `multinomial` and
+which the guard already excludes. **Task 5.2 loses this half** and keeps only
+its DyNAMi `rate` question.
 
 ## Risks / Trade-offs
 
