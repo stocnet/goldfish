@@ -53,9 +53,6 @@ parse_formula <- function(
   src <- new_data_source(data = data, envir = envir, focal = dep_name)
   ds_check_dependent(src, dep_name)
   rhs_names <- get_rhs_names(formula)
-  if (length(rhs_names) == 0) {
-    stop("A model without effects cannot be estimated.", call. = FALSE)
-  }
   # Per-term flags from get_rhs_names: offset (fixed-coefficient) and
   # the interaction roles is_main / is_operand + the interaction structure.
   # All are kept aligned with rhs_names through the intercept drop
@@ -1218,6 +1215,17 @@ get_rhs_names <- function(formula) {
   term_order <- attr(parsed, "order")
   term_labels <- attr(parsed, "term.labels")
   n_vars <- length(variables)
+
+  # With no non-offset term to record -- `~ 1`, `~ offset(x)`,
+  # `~ 1 + offset(x)`, several offsets -- `terms()` returns `integer(0)`
+  # rather than a 0-column
+  # matrix, dropping the shape along with the columns, so `nrow()` below has
+  # nothing to read. Restore it: one row per model variable, the response
+  # included, and no columns. Everything downstream already tolerates zero
+  # terms.
+  if (!is.matrix(factors)) {
+    factors <- matrix(0L, nrow = n_vars + (response > 0L), ncol = 0L)
+  }
 
   # factors rows are 1:1 with attr "variables" (response included); map each
   # factors row back to its rhs-variable index (response dropped, offsets kept

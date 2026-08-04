@@ -50,6 +50,20 @@ get_data_objects <- function(
     objNames <- unique(objNames)
   }
 
+  # A formula whose only term is an intercept references no object, and the
+  # pipeline below is written for at least one: `ifelse()` over an empty
+  # condition yields a logical, which `strsplit()` rejects as non-character.
+  # Parsing has to reach the end for the model-level check to run on it.
+  if (length(objNames) == 0) {
+    return(data.frame(
+      name = character(0),
+      object = character(0),
+      nodeset = character(0),
+      attribute = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
   # # case list(...)
   areList <- grepl("list\\(\\s*(.+)\\s*\\)", objNames)
   .split <- ifelse(
@@ -1253,7 +1267,8 @@ compact_term_strings <- function(
       subPref,
       joinPref
     )
-    if (max(nchar(terms)) <= width) {
+    # No term to measure on an all-fixed fit, and `max()` of nothing warns.
+    if (length(terms) == 0 || max(nchar(terms)) <= width) {
       return(stats::setNames(terms, rownames(names)))
     }
   }
