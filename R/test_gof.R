@@ -255,7 +255,22 @@ test_gof.result.goldfish <- function(
   n_sim <- check_replication_count(n_sim)
 
   tested <- gof_tested_effects(object, effects)
-  columns <- object$event_scores[, tested, drop = FALSE]
+  # Accumulated to one row per dependent event before anything is standardized.
+  # The reference distribution is a Brownian bridge, which needs increments that
+  # are uncorrelated martingale differences: the score at distinct event times
+  # is one, the intervals inside a single waiting time are not.
+  #
+  # Which way that moves the statistic is not fixed, and it is worth not
+  # assuming. Where the within-span contributions correlate positively the
+  # per-interval constant is too small and the test was anti-conservative;
+  # where they correlate negatively it is too large and the test was
+  # conservative. The latter is the ordinary case for an exact-time rate model,
+  # whose intercept contributes `1 - c1` on the dependent interval and `-c2` on
+  # a censored one with `c1 + c2` near 1, so the accumulated row is near zero
+  # while its parts are not. The basis is chosen because it is the one the null
+  # distribution is defined on, not to move the answer in a direction.
+  accumulated <- accumulate_over_events(object$event_scores, object)
+  columns <- accumulated[, tested, drop = FALSE]
   paths <- gof_processes(columns, clock, tested = tested)
   statistic <- apply(abs(paths$standardized), 2, max)
   p_value <- if (identical(clock, "event")) {
@@ -339,10 +354,17 @@ gof_tested_effects <- function(object, effects, call = rlang::caller_env()) {
 }
 
 # The standardized processes, their axis, and the constant that standardized
-# them. `scale` is `sqrt(n * J_d)` with `J_d` the empirical per-event variance
-# of the centered contributions, which is the same as the root of their
-# summed squares -- so the `n` of the normalization cancels and the statistic
-# does not depend on whether intervals or events are counted.
+# them. `scale` is `sqrt(n * J_d)` with `J_d` the empirical per-row variance of
+# the centered contributions, which is the same as the root of their summed
+# squares -- so the `n` of the normalization cancels algebraically.
+#
+# That cancellation is about the FORM of the constant, not about which rows are
+# handed in. It says `sqrt(n * J_d)` and `sqrt(sum(centered^2))` are the same
+# number for one set of rows; it does not say two different sets give the same
+# number. Summing an event's intervals into one row leaves the total score
+# unchanged but raises the summed squares, because the contributions within a
+# span are positively correlated -- so the caller's choice of basis moves the
+# statistic even though the `n` cancels. The caller accumulates first.
 #
 # The origin is carried as step 0 rather than left implicit: a path that starts
 # at zero and ends at zero is the whole reading, and a plot method should not

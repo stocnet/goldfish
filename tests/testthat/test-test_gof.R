@@ -2,6 +2,14 @@
 # references a p-value can come from. Everything here reads stored score rows,
 # so the first thing to hold is that nothing else is touched.
 
+# The rows the test standardizes: one per dependent event, which is the basis
+# `test_gof()` reads. Accumulating is the identity on a multinomial fit, where
+# every span holds one interval, and is not on an exact-time fit carrying
+# right-censored ones.
+gof_rows <- function(fit) {
+  goldfish:::accumulate_over_events(fit$event_scores, fit)
+}
+
 gof_fixture <- function(
   formula = depNetwork ~ 1 + indeg + outdeg + indeg(networkExog),
   control_algo = set_algorithm_newton(diagnostics = "scores"),
@@ -127,7 +135,7 @@ test_that("each process is a bridge, and every effect is free", {
   expect_identical(gof$effects$index, seq_len(nrow(fit$names)))
   expect_identical(
     nrow(gof$process),
-    (nrow(fit$event_scores) + 1L) * nrow(gof$effects)
+    (nrow(gof_rows(fit)) + 1L) * nrow(gof$effects)
   )
   expect_true(all(gof$effects$p_value >= 0 & gof$effects$p_value <= 1))
   expect_identical(gof$omnibus$n_effects, nrow(gof$effects))
@@ -148,7 +156,7 @@ test_that("the statistic is the same under both clocks; the axis is not", {
     information$effects$p_value
   )))
 
-  n <- nrow(fit$event_scores)
+  n <- nrow(gof_rows(fit))
   expect_identical(unique(event$process$clock), "event")
   expect_equal(
     event$process$u[event$process$index == 1],
@@ -158,7 +166,7 @@ test_that("the statistic is the same under both clocks; the axis is not", {
   # outer-product information delivered by it -- its own axis per effect.
   expect_identical(unique(information$process$clock), "information")
   for (d in seq_len(nrow(event$effects))) {
-    squares <- fit$event_scores[, d]^2
+    squares <- gof_rows(fit)[, d]^2
     expect_equal(
       information$process$u[information$process$index == d],
       c(0, cumsum(squares) / sum(squares))
@@ -424,7 +432,17 @@ test_that("a term absent from one process names that process", {
 test_that("the blocked print groups by process, with no combination", {
   withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
   container <- gof_container()
-  expect_snapshot(print(test_gof(container)))
+  # What this snapshot owns is the layout -- the grouping, the headers, the
+  # absence of a combined line. The numbers are redacted rather than pinned:
+  # honoring ADR-0003, no test asserts a p-value on the flavored fixture, and a
+  # layout snapshot that also fixes the arithmetic churns on every change to
+  # the basis the statistic is read on.
+  expect_snapshot(
+    print(test_gof(container)),
+    transform = function(lines) {
+      gsub("-?[0-9]+\\.[0-9]+(e[-+][0-9]+)?", "<num>", lines)
+    }
+  )
 })
 
 test_that("the Cauchy combination survives a p-value at the pole", {
@@ -531,5 +549,125 @@ test_that("an effect name tests every one of its terms", {
   expect_identical(
     family,
     test_gof(fit, effects = c("indeg/networkState", "indeg/networkExog"))
+  )
+})
+
+test_that("the test reads accumulated rows, not the intervals inside them", {
+  # The reference distribution is a Brownian bridge, so the increments have to
+  # be uncorrelated martingale differences. The score at distinct event times
+  # is one; the intervals inside a single waiting time are not.
+  #
+  # On THIS fixture the within-span contributions correlate positively, so
+  # accumulating raises the standardizing constant and lowers the statistic.
+  # That direction is a property of the fixture and not of the correction --
+  # the test below it measures a fit where it goes the other way -- so it is
+  # asserted here and generalized nowhere.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data("social_evolution", package = "goldfish", envir = environment())
+  fit <- estimate_dynam(
+    calls ~ 1 + indeg(calls) + indeg(calls, window = 300) + indeg(friendship),
+    sub_model = "rate",
+    data = social_evolution,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+  )
+  expect_gt(fit$n_intervals, fit$n_events)
+
+  tested <- goldfish:::gof_tested_effects(fit, NULL)
+  per_interval <- goldfish:::gof_processes(
+    fit$event_scores[, tested, drop = FALSE],
+    "event",
+    tested
+  )
+  accumulated <- goldfish:::gof_processes(
+    goldfish:::accumulate_over_events(fit$event_scores, fit)[,
+      tested,
+      drop = FALSE
+    ],
+    "event",
+    tested
+  )
+
+  expect_true(all(accumulated$scale > per_interval$scale))
+  # And the statistic falls with it, on every tested effect: the path visits
+  # the same partial sums at the span ends, over a coarser grid, divided by a
+  # larger constant.
+  expect_true(all(
+    apply(abs(accumulated$standardized), 2, max) <
+      apply(abs(per_interval$standardized), 2, max)
+  ))
+
+  # What `test_gof()` reports is the accumulated reading.
+  expect_equal(
+    unname(test_gof(fit)$effects$scale),
+    unname(accumulated$scale)
+  )
+})
+
+test_that("a multinomial fit is untouched by the accumulation", {
+  # Every span there holds exactly one interval, so the regrouping is the
+  # identity and the test is the one it always was -- statistics and p-values
+  # alike. Asserted as an equality between two readings, not as a p-value.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data("social_evolution", package = "goldfish", envir = environment())
+  fit <- estimate_dynam(
+    calls ~ inertia + trans,
+    sub_model = "choice",
+    data = social_evolution,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+  )
+  expect_identical(fit$n_events, fit$n_intervals)
+
+  tested <- goldfish:::gof_tested_effects(fit, NULL)
+  per_interval <- goldfish:::gof_processes(
+    fit$event_scores[, tested, drop = FALSE],
+    "event",
+    tested
+  )
+  reported <- test_gof(fit)
+
+  expect_equal(unname(reported$effects$scale), unname(per_interval$scale))
+  expect_equal(
+    unname(reported$effects$statistic),
+    unname(apply(abs(per_interval$standardized), 2, max))
+  )
+  expect_equal(
+    reported$effects$p_value,
+    kolmogorov_p(apply(abs(per_interval$standardized), 2, max)),
+    ignore_attr = TRUE
+  )
+})
+
+test_that("the accumulation is not a one-directional smoothing", {
+  # The counter-case to the test above, and the reason neither states a general
+  # direction. An exact-time rate model's intercept contributes `1 - c1` on the
+  # dependent interval of a span and `-c2` on a censored one, with `c1 + c2`
+  # near 1 by the score equation -- so the accumulated row is near zero while
+  # its parts are not. The within-span contributions correlate NEGATIVELY, the
+  # standardizing constant falls rather than rises, and the per-interval
+  # reading was conservative rather than anti-conservative.
+  skip_on_cran()
+  container <- flavored_container_fit()
+
+  fit <- fit_of(container, "creation", "rate")
+  expect_gt(fit$n_intervals, fit$n_events)
+
+  tested <- goldfish:::gof_tested_effects(fit, NULL)
+  per_interval <- goldfish:::gof_processes(
+    fit$event_scores[, tested, drop = FALSE],
+    "event",
+    tested
+  )
+  accumulated <- goldfish:::gof_processes(
+    gof_rows(fit)[, tested, drop = FALSE],
+    "event",
+    tested
+  )
+
+  expect_true(all(accumulated$scale < per_interval$scale))
+  expect_equal(
+    unname(test_gof(fit)$effects$scale),
+    unname(accumulated$scale)
   )
 })

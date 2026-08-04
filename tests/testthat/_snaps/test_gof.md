@@ -100,8 +100,8 @@
       # A tibble: 2 x 3
         term        statistic p_value
         <chr>           <dbl>   <dbl>
-      1 Intercept       0.248   1.000
-      2 indeg/calls     0.647   0.797
+      1 Intercept       <num>   <num>
+      2 indeg/calls     <num>   <num>
     Message
       
       creation · choice
@@ -109,7 +109,7 @@
       # A tibble: 1 x 3
         term        statistic p_value
         <chr>           <dbl>   <dbl>
-      1 trans/calls     0.519   0.951
+      1 trans/calls     <num>   <num>
     Message
       
       dissolution · rate
@@ -117,8 +117,8 @@
       # A tibble: 2 x 3
         term        statistic p_value
         <chr>           <dbl>   <dbl>
-      1 Intercept       0.503   0.962
-      2 indeg/calls     0.805   0.536
+      1 Intercept       <num>  <num>
+      2 indeg/calls     <num> <num>  
     Message
       
       dissolution · choice
@@ -126,5 +126,5 @@
       # A tibble: 1 x 3
         term        statistic p_value
         <chr>           <dbl>   <dbl>
-      1 trans/calls     0.904   0.387
+      1 trans/calls     <num>   <num>
 
