@@ -166,10 +166,10 @@
       assert a BIC, an AICc or a `nobs`, and which of those fits carry
       right-censored intervals. This changes reported numbers without changing
       any coefficient, so a coefficient baseline will not catch it.
-- [ ] 7.2 Store both counts honestly (D16): `n_events` becomes the dependent
+- [x] 7.2 Store both counts honestly (D16): `n_events` becomes the dependent
       event count, and a new `n_intervals` carries what `n_events` holds today
       (`length(right_censored_events)`, set at `R/cpp_interface.R:95`).
-- [ ] 7.2b Point every reader at `n_events`, and delete the three independent
+- [x] 7.2b Point every reader at `n_events`, and delete the three independent
       recomputations of `sum(!x$right_censored_events)`. The six wrong readers
       are `logLik()`'s `nobs` (hence BIC), the AICc denominator
       (`R/methods_display.R:152`), `glance()`'s `nobs`,
@@ -178,14 +178,14 @@
       `scaled_schoenfeld_rows()` and the printed contexts of `diagnose_onset()`,
       `test_gof()` and `test_time()` — those keep their meaning and lose their
       workaround. `AIC()` needs no change, carrying no sample size.
-- [ ] 7.3 Test that a windowed and an unwindowed rate model on one event stream
+- [x] 7.3 Test that a windowed and an unwindowed rate model on one event stream
       report the same sample size to BIC and AICc; that `n_events` equals the
       dependent count and `n_intervals` the per-interval length; that
       `logLik(avgPerEvent = TRUE)` equals the total over the event count; and
       that no rendered "events" count shows an interval count. Include the
       measured cases: `nobs` 439 against 876, and `avgPerEvent` −12.889 against
       the current −6.459, on the `social_evolution` rate fixture.
-- [ ] 7.4 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 7.4 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 - [ ] 7.5 Make every per-interval residual type return one value per dependent
       event by accumulating between events (D17): deviance, score and cox_snell
