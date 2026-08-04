@@ -198,7 +198,7 @@
       accumulated cox_snell totals the dependent-event count and is the
       between-event compensator; every type returns one value per event on every
       sub-model.
-- [ ] 7.7 Make `augment()` return one row per dependent event with a column
+- [x] 7.7 Make `augment()` return one row per dependent event with a column
       giving how many likelihood intervals were accumulated into that span
       (D20). Drop the `NA` rows on `.fitted` / `.resid`, which no longer arise,
       and confirm the table aligns row-for-row with `residuals()` and with the
@@ -215,12 +215,12 @@
       accordingly, and that a choice fit's statistics and p-values are
       unchanged. Honor ADR-0003: assert relationships and equalities, not
       p-value values.
-- [ ] 7.8 Retire `include_censored` on the two describers (D18) via the
+- [x] 7.8 Retire `include_censored` on the two describers (D18) via the
       r-lib:lifecycle skill — deprecate with a warning, ignore the value — and
       route their series through the same accumulation the residual methods use,
       never a second implementation. Simplify `diagnose_onset()`'s documentation,
       which no longer needs to explain why its axis and its series disagree.
-- [ ] 7.9 Test the deprecation warning, that the argument no longer changes the
+- [x] 7.9 Test the deprecation warning, that the argument no longer changes the
       answer, and that a choice fit's series is unchanged. Pin messages with a
       reproducible cli context.
 - [ ] 7.10 Run `devtools::document()`, verify with the not-cran-test skill, and
