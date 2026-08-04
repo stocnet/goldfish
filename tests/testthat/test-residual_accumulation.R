@@ -56,6 +56,36 @@ test_that("accumulated cox_snell totals the dependent-event count", {
   residual <- residuals(fit, type = "cox_snell")
   expect_equal(sum(residual), fit$n_events, tolerance = 1e-6)
   expect_true(all(residual >= 0))
+
+  # The total does NOT discriminate the two readings -- it telescopes, so it
+  # holds whether the span or its pieces are reported, which is why nothing
+  # caught the collapsed form before.
+  per_interval <- fit$intervals * fit$total_rate
+  expect_equal(sum(per_interval), sum(residual), tolerance = 1e-6)
+})
+
+test_that("the mean discriminates the span from its pieces", {
+  # What the total cannot settle, the mean can: a Cox-Snell residual is unit
+  # exponential and Exp(1) has mean 1. Asserted on a fit with no censored
+  # remainder, where the returned length is the event count and the identity is
+  # therefore exact -- with a remainder the mean is n / (n + 1) instead.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- accumulation_fit(
+    calls ~ 1 + indeg(calls) + indeg(calls, window = 300)
+  )
+
+  residual <- residuals(fit, type = "cox_snell")
+  expect_length(residual, fit$n_events)
+  expect_equal(mean(residual), 1, tolerance = 1e-6)
+
+  # The pieces do not have that property, and not marginally: the per-interval
+  # reading sits at 0.80 on this fixture, and at 0.71 on the 30-minute
+  # two-effect fit `.plan/sp/residuals-gof.md` measures. How far below 1 it
+  # falls depends on how many intervals a span holds, so the bound is loose on
+  # purpose -- what matters is that it is not 1.
+  per_interval <- fit$intervals * fit$total_rate
+  expect_lt(mean(per_interval[!fit$right_censored_events]), 0.9)
 })
 
 test_that("a censored remainder is returned and flagged, not folded or dropped", {

@@ -916,11 +916,38 @@ reader see that a fit with windows accumulated roughly two intervals per event
 while an unwindowed one accumulated one. It also makes the two counts of D16
 reconstructable from the augmented table alone.
 
-Consequences that follow rather than needing their own decisions: `.resid` and
-`.fitted` lose their `NA` rows, because every returned row now realizes an
-outcome; the describers stop reading candidacy from that `NA` pattern; and the
-augmented table becomes joinable with the dependent-events table of D1 by
-position, which it currently is not on a windowed fit.
+Consequences that follow rather than needing their own decisions: the describers
+stop reading candidacy from the `NA` pattern, and the augmented table becomes
+joinable with the dependent-events table of D1 by position, which it currently is
+not on a windowed fit.
+
+**Corrected 2026-08-04 (task 7.7): the two halves of this decision conflicted
+once the trailing span was settled.** "One row per dependent event" and "aligns
+row-for-row with `residuals()`" stopped agreeing when D17 settled the trailing
+span as a **censored final observation** — `residuals()` returns `n + 1` values
+where a span outlives the last event, so a strictly `n`-row table would not
+align.
+
+The alignment requirement wins, and not on taste: letting the two disagree would
+reproduce exactly the mis-pairing D1 opens this change by fixing — a table whose
+rows do not correspond to the per-event vectors beside it. So `augment()` carries
+the censored remainder as one final row, flagged in the existing
+`right_censored_event` column, which becomes meaningful again rather than
+vestigial: at most one row is ever `TRUE`.
+
+It follows that `.fitted` and `.resid` do **not** lose their `NA` rows entirely,
+as this decision first said. They lose the interleaved ones — one per censored
+interval, which is what made the table unreadable — and keep exactly one where a
+remainder exists, for the row that realizes no outcome. Measured:
+
+```
+windowed only     439 rows   439 events   876 intervals   sum(n_intervals)=876   0 censored rows
+with exogenous    440 rows   439 events   441 intervals   sum(n_intervals)=441   1 censored row
+```
+
+`.fitted` is now the span's density contribution and `.resid` its deviance —
+which is to say exactly the literature's `f_k` and `D_k`, defined over the
+waiting time rather than over one stored interval.
 
 ## Open Questions
 
