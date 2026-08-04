@@ -48,7 +48,13 @@ test_that("cox_snell is the compensator, from stored components only", {
 
   residual <- residuals(fit, type = "cox_snell")
   expect_null(fit$preprocessed)
-  expect_equal(residual, fit$intervals * fit$total_rate)
+  # Still the interval clock times the stored total rate, now accumulated over
+  # each event's waiting time -- the arithmetic is unchanged, the grouping is
+  # what moved.
+  expect_equal(
+    residual,
+    goldfish:::accumulate_over_events(fit$intervals * fit$total_rate, fit)
+  )
   # At the maximum the compensators total the dependent-event count: the time
   # intercept's own score equation.
   expect_equal(
@@ -57,9 +63,13 @@ test_that("cox_snell is the compensator, from stored components only", {
     tolerance = 1e-4
   )
   # On a right-censored interval the compensator IS the whole log-likelihood
-  # contribution, so there the identity is exact rather than asymptotic.
+  # contribution, so there the identity is exact rather than asymptotic. That is
+  # a fact about an interval, so it is asserted on the per-interval compensator:
+  # the returned series has accumulated those intervals into their events and no
+  # longer exposes them one by one.
   censored <- fit$right_censored_events
-  expect_equal(residual[censored], -fit$interval_log_lik[censored])
+  per_interval <- fit$intervals * fit$total_rate
+  expect_equal(per_interval[censored], -fit$interval_log_lik[censored])
 })
 
 test_that("cox_snell says so where there is no compensator", {

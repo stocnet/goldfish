@@ -457,8 +457,11 @@ test_that("the intercept's score is the event indicator minus the compensator", 
   # residual of the same interval. Identical, not merely close: the intercept
   # column of the statistics is 1 everywhere, so the two are the same
   # arithmetic.
+  # Per interval on both sides: `event_scores` is a per-interval matrix, so the
+  # compensator it is compared against is the per-interval one, not the
+  # accumulated series `residuals()` now returns.
   observed <- as.numeric(!fit$right_censored_events)
-  compensator <- residuals(fit, type = "cox_snell")
+  compensator <- fit$intervals * fit$total_rate
   expect_equal(fit$event_scores[, intercept], observed - compensator)
 
   # Hence the cumulative process is N(t) - Lambda(t), and its score equation
