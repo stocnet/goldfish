@@ -321,12 +321,26 @@ whether it is "advanced": the log-likelihood needs none, the inverse information
 needs at least one. Only the two gaps are in scope; the surfaces that already
 abort are left exactly as they are.
 
-`test_parameter()`, `evaluate_model()` and `predict()` are **unmeasured on this
-question** — the probe fit carried no preprocessed statistics, so all three
-aborted for that unrelated reason. `test_parameter()` is the interesting one,
-since it exists to test a coefficient held fixed through `offset()` and may be
-the one diagnostic that is *more* meaningful on an all-fixed fit, not less. It
-is listed under Open Questions.
+**Measured 2026-08-04 with the statistics supplied, and the answer is that all
+three work.** The first probe's aborts were an artifact of the fit carrying no
+preprocessed statistics, not of the fixedness. Handed them through
+`preprocessed =`, `evaluate_model()` returns its log-likelihood and information,
+`predict()` returns its per-event list, and `test_parameter()` — the interesting
+one — returns a full score test:
+
+```
+Score test of 2 coefficients held at an imposed value, over 12 events.
+Joint: LM = 8.752 on 2 degrees of freedom
+  inrt   imposed  0.5   score 0.359   statistic 0.0612
+  rec    imposed -0.2   score 2.84    statistic 3.94
+```
+
+So `test_parameter()` is not merely defined on an all-fixed fit, it is the
+diagnostic that fit exists for: every coefficient held at an imposed value is
+the pure case of the question it asks. That is the strongest argument yet that
+an all-fixed model is an evaluation rather than a degenerate fit — the package
+already ships a first-class diagnostic whose subject is exactly this shape.
+None of the three needs an abort.
 
 ### D8 — Absence that is an identity is announced once
 
@@ -756,12 +770,6 @@ augmented table becomes joinable with the dependent-events table of D1 by
 position, which it currently is not on a windowed fit.
 
 ## Open Questions
-
-**Is `test_parameter()` defined on an all-fixed fit?** See D24. It exists to test
-a coefficient held at an imposed value through `offset()`, so an all-fixed fit is
-arguably its best case rather than its worst. Unmeasured — the probe fit carried
-no preprocessed statistics. `evaluate_model()` and `predict()` are unmeasured for
-the same reason.
 
 **Does the intercept-only abort belong on `rate_ordered`?** Its normalizer is not
 Poisson, so D7's identification wording does not apply as written, but an ordinal
