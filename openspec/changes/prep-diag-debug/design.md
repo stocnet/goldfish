@@ -533,8 +533,24 @@ recording: it means the bugs were reachable precisely because nothing pinned the
 `n_events` on a fitted object is set to `length(is_dependent)`
 (`R/cpp_interface.R:95`) — the number of likelihood **intervals**. The name says
 events. On the multinomial families the two coincide, which is why it survived;
-on a rate or REM fit a windowed effect opens a right-censored interval per event
-and they diverge by roughly a factor of two.
+on a rate or REM fit they diverge.
+
+**Measured 2026-08-04 (task 7.1), and the trigger is broader than a windowed
+effect.** A right-censored row is written for *any* non-dependent event falling
+inside the window with a positive interval, on a sub-model that keeps a
+right-censoring consumer. Three sources, of very different size:
+
+| source | on `social_evolution`, 439 events |
+|---|---|
+| windowed effect (dissolve pseudo-events) | 876 intervals — roughly a factor of two |
+| **exogenous event stream** (e.g. `indeg(friendship)`) | 441 intervals |
+| estimation-window boundary row | +1 |
+
+The exogenous case matters more than its size suggests, and it is the one an
+earlier reading of this decision missed: a two-interval discrepancy looks like
+nothing, and silently shifts BIC and AICc on a fit no one would think to check.
+It also widens the documentation blast radius from one vignette fit to four —
+`teaching1` carries `indeg(friendship)` from `mod01Rate` onward.
 
 ```
 fit$n_events  =  876          the interval count, under an events name
@@ -551,15 +567,23 @@ wrong:
 | `glance()` `nobs` | 876 | 439 |
 | `logLik(avgPerEvent = TRUE)` | −6.459 | −12.889 |
 | `margin_table()` print, "N events" | 876 | 439 |
-| `test_parameter()` print, "over N events" | 876 | 439 |
+| flavored `margin_table()` context (`R/diagnostic_tables.R:535-537`) | 876 | 439 |
+
+**Corrected 2026-08-04 (task 7.1), after verifying each site rather than
+trusting this table.** `test_parameter()` is **not** a wrong reader — it already
+recomputes at `R/test_parameter.R:166` and `:415`, and belongs in the list
+below rather than here. The flavored `margin_table()` context, a second site in
+the same file reading `x$results[[key]]$n_events` per process, **is** one and
+was missing. The count of wrong readers is unchanged at six; the membership is
+not.
 
 `logLik(avgPerEvent = TRUE)` is the clearest: an argument named per-event
 dividing by intervals, off by exactly the censoring ratio.
 
-Three other consumers already read the right number, each by recomputing
+The other consumers already read the right number, each by recomputing
 `sum(!x$right_censored_events)` for itself — the Grambsch-Therneau scaling in
 `scaled_schoenfeld_rows()`, and the printed contexts of `diagnose_onset()`,
-`test_gof()` and `test_time()`. That the workaround was invented independently
+`test_gof()`, `test_time()` and (per the correction above) `test_parameter()`. That the workaround was invented independently
 three times is the evidence that the field, not the readers, is the defect.
 
 **Both consumers want the event count**, which is the correction to an earlier
