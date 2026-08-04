@@ -1476,6 +1476,7 @@ estimate_wrapper <- function(
   parsed_formula = NULL,
   support_constraint = NULL,
   modeled_flavor = NULL,
+  recorded_flavor = NULL,
   flavor_plan = NULL
 ) {
   output <- match.arg(output)
@@ -2684,7 +2685,13 @@ estimate_wrapper <- function(
     result$dependent_events <- stocnet_dependent_events(
       data,
       dep_name,
-      modeled_flavor,
+      # A multi-flavor specification restricts each process by splitting the
+      # preprocessed statistics per flavor, not through `modeled_flavor` -- that
+      # one drives the single-flavor path's stream filter, the parse and the
+      # constraint derivation, and is NULL here. So the flavor arrives by its
+      # own argument, narrowing what is recorded without re-restricting a
+      # stream that is already split.
+      recorded_flavor %||% modeled_flavor,
       start_time = prep$start_time,
       end_time = prep$end_time
     )
