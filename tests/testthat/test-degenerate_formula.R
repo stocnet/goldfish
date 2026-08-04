@@ -76,6 +76,82 @@ test_that("an intercept-only model aborts on every sub-model", {
   )
 })
 
+test_that("the ordinal sub-models get the identification message", {
+  # An ordinal likelihood normalizes over the risk set, so a constant intercept
+  # cancels there exactly as it does in a multinomial choice -- the model is
+  # impossible, not merely unsupported. Both `rate_ordered` variants therefore
+  # take the identification branch, which they reach through the risk-set
+  # descriptor rather than through their sub-model name.
+  expect_identical(
+    risk_set_normalizer(new_model_spec(
+      model = "DyNAM",
+      sub_model = "rate_ordered",
+      is_two_mode = FALSE,
+      nodes = "actors_ex",
+      nodes2 = "actors_ex",
+      has_intercept = TRUE
+    )),
+    "multinomial"
+  )
+  expect_identical(
+    risk_set_normalizer(new_model_spec(
+      model = "REM",
+      sub_model = "rate_ordered",
+      is_two_mode = FALSE,
+      nodes = "actors_ex",
+      nodes2 = "actors_ex",
+      has_intercept = TRUE
+    )),
+    "multinomial"
+  )
+
+  # Both drop the time intercept first, with the warning that is their ordinary
+  # behaviour and not the subject here.
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      depNetwork ~ 1,
+      sub_model = "rate_ordered",
+      data = dataTest
+    )),
+    "identifies nothing"
+  )
+  expect_error(
+    suppressWarnings(estimate_rem(
+      depNetwork ~ 1,
+      sub_model = "rate_ordered",
+      data = dataTest
+    )),
+    "identifies nothing"
+  )
+  # The exact-time families take the other branch, and must not claim
+  # unidentifiability for a model that is merely unsupported.
+  err <- tryCatch(
+    estimate_rem(depNetwork ~ 1, sub_model = "rate", data = dataTest),
+    error = function(e) e
+  )
+  expect_false(grepl("identifies nothing", conditionMessage(err)))
+})
+
+test_that("a rate formula without an intercept is not ordinal", {
+  # The message on an intercept-free rate formula points at `rate_ordered` for
+  # the ordinal alternative; it does not report that this fit became ordinal.
+  # The intercept is added, so the fit is exact-time and its Poisson stamp is
+  # correct -- which is what lets `cox_snell` compute on it.
+  fit <- estimate_rem(depNetwork ~ inertia, sub_model = "rate", data = dataTest)
+  expect_true("Intercept" %in% names(coef(fit)))
+  expect_identical(risk_set_normalizer(fit$model_spec), "poisson")
+  expect_true(is_exact_time_fit(fit))
+
+  ordinal <- estimate_rem(
+    depNetwork ~ inertia,
+    sub_model = "rate_ordered",
+    data = dataTest
+  )
+  expect_false("Intercept" %in% names(coef(ordinal)))
+  expect_identical(risk_set_normalizer(ordinal$model_spec), "multinomial")
+  expect_false(is_exact_time_fit(ordinal))
+})
+
 test_that("the abort arrives before preprocessing", {
   # The failure it replaces was an internal dimension error raised deep in the
   # builders, so the point is not only that it aborts but where.
