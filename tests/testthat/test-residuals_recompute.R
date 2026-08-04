@@ -170,16 +170,24 @@ test_that("cox_snell residuals are unit exponential under the model", {
 test_that("schoenfeld reads the conditional rows an exact-time fit stored", {
   fit <- fit_rate()
 
-  expect_equal(residuals(fit, type = "schoenfeld"), fit$conditional_scores)
+  # The stored conditional rows, realigned onto the per-event axis: the
+  # censored intervals carry no realized alternative to compare against, so
+  # dropping them is what makes these one row per event rather than per
+  # interval.
+  expect_equal(
+    residuals(fit, type = "schoenfeld"),
+    goldfish:::event_aligned_rows(fit$conditional_scores, fit)
+  )
+  expect_equal(nrow(residuals(fit, type = "schoenfeld")), fit$n_events)
   # They are NOT the score rows: those carry the exposure term, and dropping it
   # is why these do not sum to zero at the maximum even for free parameters.
   expect_false(identical(
     residuals(fit, type = "schoenfeld"),
     residuals(fit, type = "score")
   ))
-  expect_true(all(is.na(
-    residuals(fit, type = "schoenfeld")[fit$right_censored_events, ]
-  )))
+  # The NA rows the censored intervals used to contribute are gone rather than
+  # retained: they were dropped, not filled.
+  expect_false(anyNA(residuals(fit, type = "schoenfeld")))
 })
 
 test_that("schoenfeld is the score row on a multinomial sub-model", {
@@ -209,7 +217,7 @@ test_that("schoenfeld recomputes when the fit stored no conditional rows", {
   expect_null(plain$conditional_scores)
   expect_equal(
     unname(residuals(plain, type = "schoenfeld")),
-    unname(stored$conditional_scores)
+    unname(goldfish:::event_aligned_rows(stored$conditional_scores, stored))
   )
 })
 

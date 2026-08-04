@@ -99,12 +99,14 @@ test_that("an exact-time term-wise series drops its censored rows", {
     )
   )
 
-  # The scaled Schoenfeld rows are NA on a right-censored interval by
-  # construction, so the restriction is automatic there whatever
-  # `include_censored` says -- but the table still has one row per interval.
+  # The scaled Schoenfeld rows carry no realized alternative on a
+  # right-censored interval, so those rows were dropped when the series moved
+  # onto the per-event axis -- the restriction that `include_censored` used to
+  # express is now structural.
   expect_gt(sum(fit$right_censored_events), 0)
   segmented <- diagnose_changepoints(fit, effect = "indeg/networkExog")
-  expect_equal(nrow(segmented), length(fit$interval_log_lik))
+  expect_equal(nrow(segmented), fit$n_events)
+  expect_lt(nrow(segmented), length(fit$interval_log_lik))
   expect_false(any(segmented$cpt[segmented$right_censored_event]))
   expect_equal(
     which(segmented$cpt),
