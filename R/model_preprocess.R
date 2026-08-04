@@ -997,6 +997,32 @@ run_sender_recipe_loop <- function(
     if (final_step) break
   }
 
+  # The window closes at the end time even when the schedule runs out before
+  # reaching it. Only the branch that meets an out-of-window event used to
+  # write the closing row, so the exposure after the last event left the
+  # likelihood entirely, biasing the baseline rate upward. Whether the row is
+  # stored is a property of the likelihood: a family with no compensator keeps
+  # no right-censoring consumer, and a row there would contribute exactly zero
+  # while changing the interval count.
+  trailing_interval <- endTime - time
+  if (
+    isValidEvent &&
+      !final_step &&
+      length(rc_consumers) > 0L &&
+      trailing_interval > 0
+  ) {
+    route_right_censored_event(
+      rc_consumers,
+      list(
+        is_dependent = 0L,
+        interval = trailing_interval,
+        time = endTime,
+        sender = NA_integer_,
+        receiver = NA_integer_
+      )
+    )
+  }
+
   if (progress) {
     utils::setTxtProgressBar(pb, schedule$n)
     close(pb)
@@ -1854,6 +1880,32 @@ run_dyad_recipe_loop <- function(
     }
 
     if (final_step) break
+  }
+
+  # The window closes at the end time even when the schedule runs out before
+  # reaching it. Only the branch that meets an out-of-window event used to
+  # write the closing row, so the exposure after the last event left the
+  # likelihood entirely, biasing the baseline rate upward. Whether the row is
+  # stored is a property of the likelihood: a family with no compensator keeps
+  # no right-censoring consumer, and a row there would contribute exactly zero
+  # while changing the interval count.
+  trailing_interval <- endTime - time
+  if (
+    isValidEvent &&
+      !final_step &&
+      length(rc_consumers) > 0L &&
+      trailing_interval > 0
+  ) {
+    route_right_censored_event(
+      rc_consumers,
+      list(
+        is_dependent = 0L,
+        interval = trailing_interval,
+        time = endTime,
+        sender = NA_integer_,
+        receiver = NA_integer_
+      )
+    )
   }
 
   if (progress) {
