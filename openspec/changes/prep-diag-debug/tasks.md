@@ -279,7 +279,7 @@
       match before, so a length check alone would have passed throughout.
 - [x] 9.2 Add the flavored `augment()` method: row-bind per process with
       `flavor` and `family` appended after the existing columns (D10).
-- [ ] 9.3 Add the flavored `diagnose_outliers()`, `diagnose_changepoints()` and
+- [x] 9.3 Add the flavored `diagnose_outliers()`, `diagnose_changepoints()` and
       `diagnose_onset()` methods. These are required by a shipped requirement
       and absent, so this is conformance work.
 - [ ] 9.4 Record that `flavor` and `family` are not defining columns (D11), in
