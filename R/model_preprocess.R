@@ -715,8 +715,16 @@ run_sender_recipe_loop <- function(
       utils::setTxtProgressBar(pb, i_total_events)
     }
 
-    if (isValidEvent && isDependent) {
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
       i_dependent_events <- 1L + i_dependent_events
+    }
+
+    if (isValidEvent && isDependent) {
       if (schedule$shape[k] == "node") {
         ev_sender <- schedule$node[k]
         ev_receiver <- schedule$node[k]
@@ -1560,8 +1568,16 @@ run_dyad_recipe_loop <- function(
       utils::setTxtProgressBar(pb, i_total_events)
     }
 
-    if (isValidEvent && isDependent) {
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
       i_dependent_events <- 1L + i_dependent_events
+    }
+
+    if (isValidEvent && isDependent) {
       if (schedule$shape[k] == "node") {
         ev_sender <- schedule$node[k]
         ev_receiver <- schedule$node[k]
@@ -2241,9 +2257,17 @@ preprocess_monolith <- function(
     #      calculate statistics updates
     #      update objects
 
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
+      i_dependent_events <- 1L + i_dependent_events
+    }
+
     # 1. store statistic updates for DEPENDENT events
     if (isValidEvent && isDependent) {
-      i_dependent_events <- 1L + i_dependent_events
       stats_change[[event_pos]] <- updates_dependent
       intervals[[event_pos]] <- interval
       is_dependent[[event_pos]] <- 1L
