@@ -147,3 +147,114 @@ test_that("a term absent from one process names that process", {
   # `trans` is in the choice formulas only, so the rate processes reject it.
   expect_snapshot(error = TRUE, diagnose_outliers(container, effect = "trans"))
 })
+
+test_that("the identity columns are not defining ones", {
+  # Dropping `flavor` and `family` leaves a table that is still the diagnostic
+  # -- one that has merely stopped saying which process each row came from. A
+  # defining column is one the object cannot be read without, and provenance is
+  # not that, so the class and the metadata survive the drop.
+  skip_on_cran()
+  container <- flavored_container_fit()
+
+  outliers <- diagnose_outliers(container)
+  expect_false(any(c("flavor", "family") %in% attr(outliers, "defining")))
+
+  dropped <- outliers[, setdiff(names(outliers), c("flavor", "family"))]
+  expect_s3_class(dropped, "diagnose_outliers")
+  expect_equal(attr(dropped, "defining"), attr(outliers, "defining"))
+  expect_equal(attr(dropped, "context"), attr(outliers, "context"))
+
+  # The contrast that gives the distinction its content: a defining column
+  # demotes the object to a plain tibble, exactly as a `grouped_df` demotes
+  # when its groups are gone.
+  demoted <- outliers[, setdiff(names(outliers), "outlier")]
+  expect_false(inherits(demoted, "diagnose_outliers"))
+})
+
+test_that("plot dispatch survives dropping the identity columns", {
+  skip_on_cran()
+  skip_if_not_installed("autograph")
+  container <- flavored_container_fit()
+
+  outliers <- diagnose_outliers(container)
+  dropped <- outliers[, setdiff(names(outliers), c("flavor", "family"))]
+
+  expect_s3_class(plot(outliers), "ggplot")
+  expect_s3_class(plot(dropped), "ggplot")
+})
+
+test_that("each block equals the standalone result for its process", {
+  # The container recomputes nothing pooled: each block is what the process's
+  # own fit produces, and only the identity columns are added on top.
+  skip_on_cran()
+  container <- flavored_container_fit()
+  processes <- goldfish:::flavored_processes(container)
+
+  for (describer in list(diagnose_outliers, diagnose_changepoints)) {
+    joint <- describer(container)
+    for (process in processes) {
+      block <- joint[
+        joint$flavor == process$flavor & joint$family == process$family,
+      ]
+      expect_equal(
+        block[, setdiff(names(block), c("flavor", "family"))],
+        describer(process$fit),
+        ignore_attr = TRUE
+      )
+    }
+  }
+
+  # The list-shaped one, component by component.
+  joint <- diagnose_onset(container)
+  for (process in processes) {
+    alone <- diagnose_onset(process$fit)
+    for (name in names(alone)) {
+      component <- joint[[name]]
+      block <- component[
+        component$flavor == process$flavor & component$family == process$family,
+      ]
+      expect_equal(
+        block[, setdiff(names(block), c("flavor", "family"))],
+        alone[[name]],
+        ignore_attr = TRUE
+      )
+    }
+  }
+})
+
+test_that("two diagnostics agree on row order under a reversed declaration", {
+  # The declared flavor order is the presentation order, and it need not match
+  # the process map's own -- the map here is family-major and declares
+  # dissolution first, so a method iterating the map would order its blocks
+  # differently from one using the shared walk. Two diagnostics of one fit
+  # disagreeing about which process a row belongs to is the failure this
+  # guards, and it is invisible on a fixture where the two orders coincide.
+  skip_on_cran()
+  data <- flavored_fixture_data()
+  container <- suppressWarnings(estimate_dynam(make_specification(
+    rate = list(dissolution ~ 1 + indeg, creation ~ 1 + indeg),
+    choice = list(dissolution ~ trans, creation ~ trans),
+    model = "DyNAM",
+    data = data
+  )))
+
+  expected <- data.frame(
+    flavor = c("dissolution", "dissolution", "creation", "creation"),
+    family = c("rate", "choice", "rate", "choice"),
+    stringsAsFactors = FALSE
+  )
+  tables <- list(
+    augment(container),
+    diagnose_outliers(container),
+    diagnose_changepoints(container),
+    model_terms(container),
+    diagnose_onset(container)$summary
+  )
+  for (table in tables) {
+    expect_equal(
+      as.data.frame(unique(table[, c("flavor", "family")])),
+      expected,
+      ignore_attr = TRUE
+    )
+  }
+})
