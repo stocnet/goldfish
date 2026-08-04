@@ -746,7 +746,14 @@ run_sender_recipe_loop <- function(
       )
     } else if (!isDependent) {
       if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (schedule$shape[k] == "global") {
+        if (final_step) {
+          # The closing row is the window ending, not an event. The event that
+          # triggered the stop lies outside the window, and its sender and
+          # receiver would read as a real observation everywhere the row
+          # surfaces.
+          ev_sender <- NA_integer_
+          ev_receiver <- NA_integer_
+        } else if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
@@ -1599,7 +1606,14 @@ run_dyad_recipe_loop <- function(
       )
     } else if (!isDependent) {
       if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (schedule$shape[k] == "global") {
+        if (final_step) {
+          # The closing row is the window ending, not an event. The event that
+          # triggered the stop lies outside the window, and its sender and
+          # receiver would read as a real observation everywhere the row
+          # surfaces.
+          ev_sender <- NA_integer_
+          ev_receiver <- NA_integer_
+        } else if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
