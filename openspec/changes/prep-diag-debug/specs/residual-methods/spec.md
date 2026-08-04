@@ -211,6 +211,43 @@ obtained by summing per-interval values.
 
 ## ADDED Requirements
 
+### Requirement: A per-event column is not named for an interval
+A column SHALL be named for what its rows hold. Where a table moved from one
+row per likelihood interval to one row per dependent event, a column whose name
+says `interval` now describes something it does not contain, and SHALL be
+renamed rather than left to be read wrongly.
+
+This SHALL NOT be applied as a sweep over the word. The same vocabulary is
+correct wherever a quantity really is per interval — the stored
+`interval_log_lik` primitive, the `intervals` clock, `n_intervals`, and the
+printed contexts that report an interval count *beside* an event count, which
+are the one place both numbers are stated honestly.
+
+The renamed columns are `augment()`'s log-likelihood column, which now carries
+the span's contribution rather than one interval's; `augment()`'s censoring
+flag, which marks the one row that closes **no** waiting time and so is
+precisely not an event; and `test_time()`'s row index, which now indexes
+events.
+
+#### Scenario: the augmented table names its columns for events
+- **WHEN** `augment()` is called on any fit
+- **THEN** the per-event log-likelihood is `event_log_lik` and the censoring
+  flag is `censored`, a logical that is `TRUE` only on a span closing no
+  waiting time
+
+#### Scenario: a term-wise time table indexes events
+- **WHEN** `test_time()` returns its per-row table
+- **THEN** the row index is `event`, matching the per-event residual rows it
+  reports
+
+#### Scenario: the per-interval vocabulary is retained where it is accurate
+- **WHEN** a fit's stored components and the printed diagnostic contexts are
+  read
+- **THEN** `interval_log_lik`, `intervals` and `n_intervals` keep their names,
+  and a context reporting both counts still distinguishes intervals from
+  dependent events
+
+
 ### Requirement: waiting-time residuals stratify on request
 `residuals(type = "cox_snell", level = "actor")` SHALL return the
 waiting-time residuals stratified by acting actor: for each actor, the
