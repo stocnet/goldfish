@@ -249,7 +249,7 @@
 
 ## 9. Flavored diagnostics: the tidy surface
 
-- [ ] 9.1 Extract the per-method flavor/family append into one shared helper and
+- [x] 9.1 Extract the per-method flavor/family append into one shared helper and
       route all five existing flavored methods through it, using
       `flavored_row_order()` everywhere so `model_terms()` and `margin_table()`
       stop disagreeing with the `test_*` family on row order (D10).
