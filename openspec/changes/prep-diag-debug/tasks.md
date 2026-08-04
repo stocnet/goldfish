@@ -121,7 +121,7 @@
       did not. `test_parameter()` may be more meaningful there rather than less,
       it being the diagnostic for a coefficient held through `offset()`. Decide
       from the measurement, as 5.2 does for the `cox_snell` guard.
-- [ ] 4.4 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 4.4 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 
 ## 5. Guards and messages
