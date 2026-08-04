@@ -282,14 +282,14 @@
 - [x] 9.3 Add the flavored `diagnose_outliers()`, `diagnose_changepoints()` and
       `diagnose_onset()` methods. These are required by a shipped requirement
       and absent, so this is conformance work.
-- [ ] 9.4 Record that `flavor` and `family` are not defining columns (D11), in
+- [x] 9.4 Record that `flavor` and `family` are not defining columns (D11), in
       the documentation and in a test asserting the class and plot dispatch
       survive dropping the column.
-- [ ] 9.5 Test that each flavored table equals the standalone per-process result
+- [x] 9.5 Test that each flavored table equals the standalone per-process result
       excluding the identity columns, and that two diagnostics of one fit agree
       on row order when the declared flavor order differs from the process
       order. Honor ADR-0003: no test asserts a p-value on the flavored fixture.
-- [ ] 9.6 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 9.6 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 
 ## 10. Flavored diagnostics: the non-tidy surface
