@@ -109,6 +109,20 @@ vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
 
+  # A covariance is a statement about estimated coefficients, and a fit whose
+  # coefficients are all held has none. The information over the free
+  # parameters is then zero-dimensional and `solve()` reports that in its own
+  # vocabulary ("'a' is 0-diml"), which says nothing about the model.
+  if (!any(!isFixed)) {
+    cli::cli_abort(c(
+      "A variance-covariance matrix needs at least one estimated coefficient.",
+      "x" = "All {length(isFixed)} coefficient{?s} of this fit
+             {?is/are} held at a fixed value.",
+      "i" = "The log-likelihood and the information criteria are defined here;
+             the covariance is not."
+    ))
+  }
+
   vc <- solve(object$final_information_matrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)
   if (!complete) {

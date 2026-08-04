@@ -177,12 +177,15 @@ print.summary.result.goldfish <- function(
     termsFull <- compact_term_strings(names, "console", width = 10000L)
     tmp <- coefMat
     rownames(tmp) <- termsFull
+    # An all-fixed fit renders a coefficient table with no rows, so there is no
+    # term to measure; `max()` of nothing warns its way to -Inf.
+    fullWidth <- if (length(termsFull) > 0) max(nchar(termsFull)) else 0L
     numericWidth <- max(nchar(utils::capture.output(
       stats::printCoefmat(tmp, digits = digits, ...)
     ))) -
-      max(nchar(termsFull))
+      fullWidth
     avail <- max(12L, width - numericWidth)
-    terms <- if (max(nchar(termsFull)) <= avail) {
+    terms <- if (fullWidth <= avail) {
       termsFull
     } else {
       compact_term_strings(names, "console", width = avail)
