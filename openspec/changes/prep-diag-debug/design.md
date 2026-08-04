@@ -376,8 +376,12 @@ estimate call and so would be noisy in a loop, and a warning would trip
 full primitive set. The message names the identity and the
 `set_algorithm_newton()` adjustment.
 
-This revisits a settled requirement, so it carries a MODIFIED delta and a new ADR
-rather than being folded in silently.
+This revisits a settled requirement, so it carries a MODIFIED delta and a new
+ADR rather than being folded in silently. Recorded as **ADR-0013**
+(`decisions/ADR-0013-an-identity-is-announced-once.md`), which sets out why the
+spec's reasoning contains a hidden step — it moves from "the absence *is* an
+identity" to "the user will read the absence as an identity", and nothing
+supports the second.
 
 *Alternative rejected:* messaging only when `"conditional_scores"` was the sole
 requested primitive. More precise, but the rule is subtle to document, hard to

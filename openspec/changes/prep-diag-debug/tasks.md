@@ -137,16 +137,16 @@
       Poisson stamp is correct, and the only ordinal route
       (`sub_model = "rate_ordered"`) is stamped `multinomial` and already
       excluded by the guard.
-- [ ] 5.3 Emit the informational cli message when `"conditional_scores"` is
+- [x] 5.3 Emit the informational cli message when `"conditional_scores"` is
       requested on a multinomial family (D8), naming the identity and the
       `set_algorithm_newton()` adjustment. A message, not a warning. Follow the
       r-lib:cli skill.
-- [ ] 5.4 Make `evaluate_model(return = "conditional_scores")` on a multinomial
+- [x] 5.4 Make `evaluate_model(return = "conditional_scores")` on a multinomial
       fit abort as `"exposure"` already does (D9), and state the asymmetry with
       the estimation-time request in the documentation.
-- [ ] 5.5 Make `risk_set_axis()` abort on a flavored container naming the
+- [x] 5.5 Make `risk_set_axis()` abort on a flavored container naming the
       component and the per-process route, instead of returning `NULL` (D12).
-- [ ] 5.6 Test each of the above, including that the `conditional_scores`
+- [x] 5.6 Test each of the above, including that the `conditional_scores`
       message does not become an error under `options(warn = 2)` and that the
       stored `event_scores` are unchanged. Pin messages with a reproducible cli
       context.
@@ -318,8 +318,10 @@
 
 ## 13. Decisions and close-out
 
-- [ ] 13.1 Write the ADR revisiting the `conditional_scores` silence (D8), and
-      cite it from this change's `proposal.md`.
+- [x] 13.1 Write the ADR revisiting the `conditional_scores` silence (D8), and
+      cite it from this change's `proposal.md`. Written as ADR-0013, ahead of
+      task 5.3 rather than after it, so the decision governs the implementation
+      instead of being reverse-engineered from it.
 - [ ] 13.2 Settle ADR-0010: the flavored `test_time()` method establishes that
       each process has its own clock and interval count, so a caller-supplied
       time transform must be a function rather than a length-`n` vector. This
