@@ -1124,9 +1124,12 @@ generics::augment
 #'   (currently unused).
 #'
 #' @return A [tibble::tibble()] with the modeled event columns plus
-#'   `right_censored_event`, `interval_log_lik`, and the broom-convention
-#'   `.fitted` (the fitted outcome probability, `exp(interval_log_lik)`) and
-#'   `.resid` (its deviance residual, `-2 * interval_log_lik`).
+#'   `censored`, `n_intervals` (how many likelihood intervals were accumulated
+#'   into that event's waiting time), `event_log_lik`, and the broom-convention
+#'   `.fitted` (the fitted outcome probability, `exp(event_log_lik)`) and
+#'   `.resid` (its deviance residual, `-2 * event_log_lik`). A row is
+#'   `censored` only where the observation window outlives the last event: it
+#'   closes no waiting time, so it has neither a fitted outcome nor a deviance.
 #'
 #' @examples
 #' data("social_evolution")
@@ -1174,10 +1177,9 @@ augment.result.goldfish <- function(x, ...) {
     tail_row$time <- utils::tail(x$event_time, 1)
     tib <- rbind(tib, tail_row)
   }
-  tib$right_censored_event <- c(
-    rep(FALSE, nrow(tib) - remainder),
-    rep(TRUE, remainder)
-  )
+  # `censored`, not `right_censored_event`: it marks the one row that closes no
+  # waiting time, which is precisely the row that is NOT an event.
+  tib$censored <- c(rep(FALSE, nrow(tib) - remainder), rep(TRUE, remainder))
 
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
@@ -1187,15 +1189,15 @@ augment.result.goldfish <- function(x, ...) {
   # surface is per event, and it is what lets the two counts a fit reports be
   # reconstructed from this table alone.
   tib$n_intervals <- span
-  tib$interval_log_lik <- accumulate_over_events(x$interval_log_lik, x)
+  tib$event_log_lik <- accumulate_over_events(x$interval_log_lik, x)
   # broom's conventions. `.fitted` is the span's density contribution and
   # `.resid` its deviance -- exactly the literature's `f_k` and `D_k`, which
   # are defined over the waiting time rather than over one stored interval. The
   # censored remainder realizes no outcome, so it has neither.
-  fitted <- exp(tib$interval_log_lik)
-  resid <- -2 * tib$interval_log_lik
-  tib$.fitted <- ifelse(tib$right_censored_event, NA_real_, fitted)
-  tib$.resid <- ifelse(tib$right_censored_event, NA_real_, resid)
+  fitted <- exp(tib$event_log_lik)
+  resid <- -2 * tib$event_log_lik
+  tib$.fitted <- ifelse(tib$censored, NA_real_, fitted)
+  tib$.resid <- ifelse(tib$censored, NA_real_, resid)
   tib
 }
 

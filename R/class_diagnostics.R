@@ -177,7 +177,7 @@ diagnose_outliers.result.goldfish <- function(
   # different question and localizes rather than ranks.
   selected <- selected_term(x, effect, "diagnose_outliers")
   reported <- if (is.null(selected)) {
-    data$interval_log_lik[candidate]
+    data$event_log_lik[candidate]
   } else {
     abs(residuals(
       x,
@@ -311,7 +311,7 @@ diagnose_changepoints.result.goldfish <- function(
   # changepoint there is a regime shift in the effect itself.
   selected <- selected_term(x, effect, "diagnose_changepoints")
   series <- if (is.null(selected)) {
-    data$interval_log_lik[candidate]
+    data$event_log_lik[candidate]
   } else {
     residuals(
       x,

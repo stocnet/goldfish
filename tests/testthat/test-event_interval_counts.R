@@ -124,3 +124,44 @@ test_that("the per-interval components keep their own length", {
   expect_length(fit$interval_log_lik, fit$n_intervals)
   expect_equal(nrow(fit$event_scores), fit$n_intervals)
 })
+
+test_that("the per-interval vocabulary survives where it is accurate", {
+  # The columns that moved to the event axis were renamed; the components that
+  # really are per interval were not. This is the guard against a future sweep
+  # over the word: the printed contexts below are the one place a fit states
+  # both counts honestly, and a blanket rename would break exactly them.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data("social_evolution", package = "goldfish", envir = environment())
+  fit <- estimate_dynam(
+    calls ~ 1 + indeg(calls) + indeg(calls, window = 300),
+    sub_model = "rate",
+    data = social_evolution,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+  )
+
+  # Kept: these are per interval and say so.
+  expect_length(fit$interval_log_lik, fit$n_intervals)
+  expect_length(fit$intervals, fit$n_intervals)
+  expect_gt(fit$n_intervals, fit$n_events)
+
+  # Renamed: the table is per event, so its columns are named for events.
+  augmented <- augment(fit)
+  expect_true(all(
+    c("event_log_lik", "censored", "n_intervals") %in%
+      names(augmented)
+  ))
+  expect_false(any(
+    c("interval_log_lik", "right_censored_event") %in%
+      names(augmented)
+  ))
+  expect_type(augmented$censored, "logical")
+  expect_length(augmented$event_log_lik, fit$n_events)
+
+  # A context reporting both still distinguishes them, which is the whole
+  # reason the sweep was ruled out.
+  context <- attr(test_gof(fit), "context")
+  expect_equal(context$n_intervals, fit$n_intervals)
+  expect_equal(context$n_events, fit$n_events)
+  expect_gt(context$n_intervals, context$n_events)
+})

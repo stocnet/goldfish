@@ -34,7 +34,7 @@ test_that("augment carries the broom columns", {
   expect_equal(augmented$.fitted, exp(fit$interval_log_lik))
   expect_equal(augmented$.resid, -2 * fit$interval_log_lik)
   # The columns that were there before are unchanged.
-  expect_equal(augmented$interval_log_lik, fit$interval_log_lik)
+  expect_equal(augmented$event_log_lik, fit$interval_log_lik)
   expect_contains(names(augmented), c("time", "sender", "receiver"))
 })
 
@@ -66,7 +66,7 @@ test_that("rows are dependent events, and the span count carries the rest", {
 
   # The reported log-likelihood is the span's, so it totals the fit's.
   expect_equal(
-    sum(augmented$interval_log_lik),
+    sum(augmented$event_log_lik),
     sum(fit$interval_log_lik)
   )
   # And the table aligns row-for-row with the per-event residual series, which
@@ -80,7 +80,7 @@ test_that("a censored remainder has no fitted outcome", {
   # appears only where the observation window outlives the last event.
   fit <- augment_fixture_censored()
   augmented <- augment(fit)
-  censored <- augmented$right_censored_event
+  censored <- augmented$censored
 
   expect_lte(sum(censored), 1L)
   if (any(censored)) {
@@ -94,11 +94,11 @@ test_that("a censored remainder has no fitted outcome", {
   expect_false(anyNA(augmented$.fitted[!censored]))
   expect_equal(
     augmented$.fitted[!censored],
-    exp(augmented$interval_log_lik[!censored])
+    exp(augmented$event_log_lik[!censored])
   )
   expect_equal(
     augmented$.resid[!censored],
-    -2 * augmented$interval_log_lik[!censored]
+    -2 * augmented$event_log_lik[!censored]
   )
 })
 

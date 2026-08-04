@@ -27,8 +27,8 @@ test_that("rows are dependent events, and only a remainder is uncandidated", {
 
   # A censored row survives only where the window outlives the last event, and
   # is never flagged: it realizes no outcome to be surprising about.
-  expect_lte(sum(outliers$right_censored_event), 1L)
-  expect_false(any(outliers$outlier[outliers$right_censored_event]))
+  expect_lte(sum(outliers$censored), 1L)
+  expect_false(any(outliers$outlier[outliers$censored]))
   expect_equal(sum(outliers$outlier), 3L)
 })
 
@@ -245,7 +245,7 @@ test_that("the series is NA only on a row that took no part", {
   # series, so the NA pattern no longer describes the censoring structure.
   fit <- fit_censored()
   outliers <- diagnose_outliers(fit, method = "Top", threshold = 3)
-  censored <- outliers$right_censored_event
+  censored <- outliers$censored
 
   expect_lte(sum(censored), 1L)
   expect_true(all(is.na(outliers$.series[censored])))
@@ -254,6 +254,6 @@ test_that("the series is NA only on a row that took no part", {
   # carries, so the two describe one thing.
   expect_equal(
     outliers$.series[!censored],
-    augment(fit)$interval_log_lik[!censored]
+    augment(fit)$event_log_lik[!censored]
   )
 })

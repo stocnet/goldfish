@@ -14,9 +14,12 @@
 }
 \value{
 A \code{\link[tibble:tibble]{tibble::tibble()}} with the modeled event columns plus
-\code{right_censored_event}, \code{interval_log_lik}, and the broom-convention
-\code{.fitted} (the fitted outcome probability, \code{exp(interval_log_lik)}) and
-\code{.resid} (its deviance residual, \code{-2 * interval_log_lik}).
+\code{censored}, \code{n_intervals} (how many likelihood intervals were accumulated
+into that event's waiting time), \code{event_log_lik}, and the broom-convention
+\code{.fitted} (the fitted outcome probability, \code{exp(event_log_lik)}) and
+\code{.resid} (its deviance residual, \code{-2 * event_log_lik}). A row is
+\code{censored} only where the observation window outlives the last event: it
+closes no waiting time, so it has neither a fitted outcome nor a deviance.
 }
 \description{
 One row per interval of the likelihood — the dependent events and, on a

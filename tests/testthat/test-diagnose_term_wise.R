@@ -107,7 +107,7 @@ test_that("an exact-time term-wise series drops its censored rows", {
   segmented <- diagnose_changepoints(fit, effect = "indeg/networkExog")
   expect_equal(nrow(segmented), fit$n_events)
   expect_lt(nrow(segmented), length(fit$interval_log_lik))
-  expect_false(any(segmented$cpt[segmented$right_censored_event]))
+  expect_false(any(segmented$cpt[segmented$censored]))
   expect_equal(
     which(segmented$cpt),
     which(

@@ -22,7 +22,7 @@
       Computed over the dependent intervals: 12 of 12 intervals.
     Output
       # A tibble: 2 x 12
-         time sender  receiver increment right_censored_event n_intervals
+         time sender  receiver increment censored n_intervals event_log_lik .fitted
 
 ---
 
@@ -33,7 +33,7 @@
       Computed over the dependent intervals: 12 of 12 intervals.
     Output
       # A tibble: 1 x 11
-         time sender  receiver increment right_censored_event n_intervals
+         time sender  receiver increment censored n_intervals event_log_lik .fitted
 
 # the print lists the flagged rows, and only those
 
@@ -44,8 +44,8 @@
       Computed over the dependent intervals: 12 of 12 intervals.
     Output
       # A tibble: 2 x 12
-         time sender  receiver increment right_censored_event n_intervals
-        <dbl> <chr>   <chr>        <dbl> <lgl>                      <int>
+         time sender  receiver increment censored n_intervals event_log_lik .fitted
+        <dbl> <chr>   <chr>        <dbl> <lgl>          <int>         <dbl>   <dbl>
 
 ---
 

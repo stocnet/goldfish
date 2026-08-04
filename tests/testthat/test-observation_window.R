@@ -110,7 +110,7 @@ test_that("the augmented table and its describers reach a windowed fit", {
   augmented <- augment(fit)
   expect_s3_class(augmented, "tbl_df")
   expect_equal(nrow(augmented), length(fit$interval_log_lik))
-  expect_equal(sum(!augmented$right_censored_event), nrow(fit$dependent_events))
+  expect_equal(sum(!augmented$censored), nrow(fit$dependent_events))
 
   expect_no_error(diagnose_outliers(fit))
   expect_no_error(diagnose_changepoints(fit))

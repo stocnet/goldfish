@@ -572,7 +572,7 @@ time_residual_table <- function(
     tibble::tibble(
       index = d,
       term = labels$term[i],
-      interval = seq_len(n),
+      event = seq_len(n),
       clock = clock,
       transformed = if (identical(method, "trend")) {
         weights[, "g"]
