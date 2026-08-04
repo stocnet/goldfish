@@ -640,9 +640,8 @@ window closures split it — but the correction generalizes, and applying it onl
 there would leave `residuals()` with one length for one type and another for the
 rest.
 
-Aggregation is the right operation rather than a convenient one, because it is
-exactly total-preserving. Measured on a windowed rate fit, 876 intervals over 439
-events:
+Aggregation is total-preserving, and measured on a windowed rate fit, 876
+intervals over 439 events:
 
 ```
 score column sums, which are zero at the maximum
@@ -651,8 +650,36 @@ score column sums, which are zero at the maximum
   aggregated         0.000119     identical to all-intervals
 ```
 
-So the accumulated series carries the same information as the full interval
-series while being indexed by the thing users reason about.
+**Corrected 2026-08-04: that table settles a different question than it looks
+like it settles, and an earlier draft leaned on it too hard.** It compares
+accumulating against *dropping* the censored rows, and on that comparison it is
+decisive — 372 against 0.000119 is the whole case for not dropping them. It says
+nothing about accumulating against *keeping* the per-interval series, because
+both preserve every total. `residuals-gof.md` §2.2 makes the point exactly:
+
+> The total identity `sum_k r_k = n` holds under **both** readings, because the
+> sum telescopes — which is why no existing test discriminates between them.
+
+So total-preservation is not the reason to accumulate. The reason is that the
+quantity the theory defines *is* the span quantity, and the per-interval series
+holds its pieces:
+
+| type | what the theory defines | what a per-interval row holds |
+|---|---|---|
+| `cox_snell` | `r_k = int_{t_{k-1}}^{t_k} lambda`, unit exponential | one addend of that integral |
+| `deviance` | `D_k = -2 log f_k`, `f_k` carrying the **waiting-time density** over the span | one addend of `log f_k` |
+| `score` (via `test_gof`) | increments at distinct events, which are martingale differences and so uncorrelated | pieces within a span, which are positively correlated |
+
+The discriminating measurement is the **mean**, not the total. On a 30-minute
+windowed rate fit of the calls data:
+
+```
+cox_snell mean, dependent rows (the pieces)   0.7127
+cox_snell mean, accumulated (the span)        1.0000     <- Exp(1)
+cox_snell sum, either reading                 439.00     <- telescopes
+```
+
+Exp(1) has mean 1. The pieces do not have it and the span does, exactly.
 
 Not every type aggregates, and the distinction follows from where each is
 defined:
