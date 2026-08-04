@@ -269,7 +269,7 @@ goldfish::test_gof(mod01ChoiceDiag)
 
 
 ## ----diag-gof-plot, eval = has_plots, fig.alt = "Cumulative score process per effect against Brownian-bridge reference bands."----
-# plot(goldfish::test_gof(mod01ChoiceDiag))
+plot(goldfish::test_gof(mod01ChoiceDiag))
 
 
 ## ----diag-time----------------------------------------------------------------
@@ -277,5 +277,5 @@ goldfish::test_time(mod01ChoiceDiag)
 
 
 ## ----diag-time-plot, eval = has_plots, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate."----
-# plot(goldfish::test_time(mod01ChoiceDiag))
+plot(goldfish::test_time(mod01ChoiceDiag))
 

@@ -2032,7 +2032,7 @@ summary(mod04Rate)
 #>   Log-Likelihood: -5475.9
 #>   AIC:  10964 
 #>   AICc: 10964 
-#>   BIC:  10992 
+#>   BIC:  10988 
 #>   model: "DyNAM" sub_model: "rate"
 ```
 
@@ -2106,8 +2106,6 @@ AIC(mod02Choice, mod03Choice)
 
 # Compare different specifications of the subModel = "rate"
 AIC(mod03Rate, mod04Rate)
-#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the
-#> same number of observations
 #>           df      AIC
 #> mod03Rate  4 12014.20
 #> mod04Rate  6 10963.75
@@ -2200,8 +2198,8 @@ summary(mod01REM)
 #>   12 parameters estimated  
 #>   Log-Likelihood: -5639
 #>   AIC:  11302 
-#>   AICc: 11302 
-#>   BIC:  11359 
+#>   AICc: 11303 
+#>   BIC:  11351 
 #>   model: "REM" sub_model: "rate"
 ```
 
@@ -2288,6 +2286,11 @@ is dominated by its most extreme input in both directions.
 plot(goldfish::test_gof(mod01ChoiceDiag))
 ```
 
+<div class="figure">
+<img src="teaching/diag-gof-plot-1.png" alt="Cumulative score process per effect against Brownian-bridge reference bands."  />
+<p class="caption">plot of chunk diag-gof-plot</p>
+</div>
+
 ## Did a coefficient drift?
 
 `test_gof()` asks whether a contribution is evenly spread; `test_time()` asks
@@ -2317,6 +2320,11 @@ goldfish::test_time(mod01ChoiceDiag)
 ``` r
 plot(goldfish::test_time(mod01ChoiceDiag))
 ```
+
+<div class="figure">
+<img src="teaching/diag-time-plot-1.png" alt="Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate."  />
+<p class="caption">plot of chunk diag-time-plot</p>
+</div>
 
 One caveat worth carrying away, because it decides whether these tests can see
 anything at all: the default network statistics are **binary**, and a binary
