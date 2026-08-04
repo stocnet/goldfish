@@ -225,6 +225,186 @@ test_that("a timed choice-only flavor reaches the pinned primitive; ordered does
   expect_null(cc_ord$completed_rates)
 })
 
+# --- D1/D2 numeric time coercion ---------------------------------------------
+
+# `timed_panel_join()`'s friendship/calls topology with `ties$time` cast to a
+# POSIXct or Date axis, so the D1 coercion path (`panel_wave_risk_set()`,
+# `default_window()`) is exercised on the non-numeric time classes that
+# previously crashed.
+timed_panel_join_cast <- function(time_class = c("POSIXct", "Date")) {
+  time_class <- match.arg(time_class)
+  cast <- function(data) {
+    t <- data$ties$time
+    data$ties$time <- if (identical(time_class, "POSIXct")) {
+      as.POSIXct("2020-01-01", tz = "GMT") + t * 86400
+    } else {
+      as.Date("2020-01-01") + t
+    }
+    data
+  }
+  ev <- cast(plain_data("event"))
+  fr <- make_specification(
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = ev
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  make_joint_specification(fr, calls, data = cast(plain_data("panel")))
+}
+
+cast_wave_times <- function(t, time_class = c("POSIXct", "Date")) {
+  time_class <- match.arg(time_class)
+  if (identical(time_class, "POSIXct")) {
+    as.POSIXct("2020-01-01", tz = "GMT") + t * 86400
+  } else {
+    as.Date("2020-01-01") + t
+  }
+}
+
+test_that("a completed rate pins on POSIXct data (explicit wave grid)", {
+  js <- timed_panel_join_cast("POSIXct")
+  wave_times <- cast_wave_times(c(0, 2, 5), "POSIXct")
+  cc <- suppressWarnings(
+    complete_generative_spec(
+      js,
+      consumer = "estimate_dynes",
+      wave_times = wave_times
+    )
+  )
+  fr_rate <- cc$process_map$fid[
+    cc$process_map$layer == "friendship" & cc$process_map$family == "rate"
+  ]
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  expect_true(all(is.finite(rate$intercept)))
+  rs <- goldfish:::panel_wave_risk_set(
+    cc,
+    layer = "friendship",
+    flavor = NA,
+    entity = "sender",
+    wave_times = wave_times
+  )
+  expect_type(rs$duration, "double")
+  expect_equal(
+    exp(rate$intercept) * rs$duration * rs$risk_set_size,
+    rs$count
+  )
+})
+
+test_that("a completed rate pins on Date data (explicit wave grid)", {
+  js <- timed_panel_join_cast("Date")
+  wave_times <- cast_wave_times(c(0, 2, 5), "Date")
+  cc <- suppressWarnings(
+    complete_generative_spec(
+      js,
+      consumer = "estimate_dynes",
+      wave_times = wave_times
+    )
+  )
+  fr_rate <- cc$process_map$fid[
+    cc$process_map$layer == "friendship" & cc$process_map$family == "rate"
+  ]
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  expect_true(all(is.finite(rate$intercept)))
+  rs <- goldfish:::panel_wave_risk_set(
+    cc,
+    layer = "friendship",
+    flavor = NA,
+    entity = "sender",
+    wave_times = wave_times
+  )
+  expect_type(rs$duration, "double")
+  expect_equal(
+    exp(rate$intercept) * rs$duration * rs$risk_set_size,
+    rs$count
+  )
+})
+
+test_that("a completed rate pins on POSIXct data (single-window fallback)", {
+  js <- timed_panel_join_cast("POSIXct")
+  cc <- suppressWarnings(
+    complete_generative_spec(js, consumer = "estimate_dynes")
+  )
+  fr_rate <- cc$process_map$fid[
+    cc$process_map$layer == "friendship" & cc$process_map$family == "rate"
+  ]
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  expect_true(is.finite(rate$intercept))
+})
+
+test_that("a completed rate pins on Date data (single-window fallback)", {
+  js <- timed_panel_join_cast("Date")
+  cc <- suppressWarnings(
+    complete_generative_spec(js, consumer = "estimate_dynes")
+  )
+  fr_rate <- cc$process_map$fid[
+    cc$process_map$layer == "friendship" & cc$process_map$family == "rate"
+  ]
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  expect_true(is.finite(rate$intercept))
+})
+
+test_that("the single-window fallback is scoped to the pinned layer's extent", {
+  # friendship (the pinned layer) is only observed over [1, 4]; calls, an
+  # unrelated layer in the same joint dataset, extends to time 9. Regression
+  # test for D2: the pre-fix `default_window()` ranged over every layer's
+  # ties, so it would have picked up calls' later extent instead of stopping
+  # at friendship's own.
+  data <- plain_data("event")
+  data$ties <- rbind(
+    data$ties,
+    data.frame(from = 5L, to = 1L, time = 9, layer = "calls")
+  )
+  fr <- make_specification(
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = data
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  panel_data <- plain_data("panel")
+  panel_data$ties <- rbind(
+    panel_data$ties,
+    data.frame(from = 5L, to = 1L, time = 9, layer = "calls")
+  )
+  js <- make_joint_specification(fr, calls, data = panel_data)
+  cc <- suppressWarnings(complete_generative_spec(
+    js,
+    consumer = "estimate_dynes"
+  ))
+  expect_equal(
+    goldfish:::default_window(panel_data, "friendship"),
+    c(1, 4)
+  )
+  fr_rate <- cc$process_map$fid[
+    cc$process_map$layer == "friendship" & cc$process_map$family == "rate"
+  ]
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  rs <- goldfish:::panel_wave_risk_set(
+    cc,
+    layer = "friendship",
+    flavor = NA,
+    entity = "sender",
+    wave_times = NULL
+  )
+  # duration == 4 - 1 == 3, not 9 - 1 == 8 (the unfiltered joint extent).
+  expect_equal(rs$duration, 3)
+  expect_equal(
+    exp(rate$intercept) * rs$duration * rs$risk_set_size,
+    rs$count
+  )
+})
+
 # --- D9a shared risk-set helper ----------------------------------------------
 
 test_that("panel |R_w| equals the wave-endpoint average for both rate entities", {

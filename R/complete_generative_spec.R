@@ -432,15 +432,18 @@ flavor_support_kind <- function(spec, flavor) {
   }
 }
 
-# The single-window fallback boundaries: [min, max] of the data's timed events,
-# one plateau. A consumer with a wave grid supplies its own boundaries instead.
-default_window <- function(data) {
-  times <- as.data.frame(data$ties)$time
+# The single-window fallback boundaries: [min, max] of the pinned layer's own
+# timed events, one plateau. A consumer with a wave grid supplies its own
+# boundaries instead. Coerced to numeric (`coerce_time()`, `R/state_at.R`) so
+# a POSIXct/Date time axis yields a plain numeric range, not a `difftime`.
+default_window <- function(data, layer) {
+  ties <- as.data.frame(data$ties)
+  times <- ties$time[ties$layer == layer]
   times <- times[!is.na(times)]
   if (length(times) == 0L) {
     return(c(0, 1))
   }
-  rng <- range(times)
+  rng <- coerce_time(range(times))
   if (rng[1] == rng[2]) {
     rng[2] <- rng[1] + 1
   }
@@ -473,13 +476,19 @@ panel_wave_risk_set <- function(
   lm <- build_mode_map(info, nodes, layers)$layers[[layer]]
   one_mode <- !isTRUE(lm$is_two_mode)
 
-  wave_times <- wave_times %||% default_window(data)
+  wave_times <- wave_times %||% default_window(data, layer)
   if (length(wave_times) < 2L) {
     cli::cli_abort(
       "{.arg wave_times} needs at least two boundaries (one period).",
       call = call
     )
   }
+  # Coerce once so an explicit POSIXct/Date grid (and the already-numeric
+  # fallback above) both land numeric before `network_state_at()` and
+  # `diff()` -- `diff()` on POSIXct/Date returns a non-numeric `difftime`
+  # (`is.numeric.difftime` is FALSE by R's own definition), which would
+  # otherwise fail `pin_intercept_only_rate()`'s numeric guard downstream.
+  wave_times <- coerce_time(wave_times)
   states <- lapply(wave_times, function(w) {
     unname(network_state_at(data, layer, time = w))
   })
