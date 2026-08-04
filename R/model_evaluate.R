@@ -84,6 +84,15 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   list carries exactly these, in that order.
 #'   The components mean what the same-named components of a fitted object
 #'   mean; see [estimate_dynam()].
+#'
+#'   `"exposure"` and `"conditional_scores"` are undefined on the families
+#'   whose likelihood is already conditional — the multinomial and coordination
+#'   sub-models — and requesting either there aborts. That is deliberately
+#'   stricter than the estimation-time primitive request: asking
+#'   `set_algorithm_newton(diagnostics = "conditional_scores")` to *store* the
+#'   primitive is a preference, met with a message saying the score rows already
+#'   are those rows, while asking this function *for* the value is a demand, and
+#'   returning nothing under a name the caller supplied would be a lie.
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
 #'   returned by [compute_statistics()]. Defaults to the object attached by
 #'   `estimate_*(return_preprocessed = TRUE)`; with neither route available the
@@ -187,6 +196,7 @@ evaluate_model.result.goldfish <- function(
 
   spec <- prep$model_spec %||% x$model_spec
   abort_if_exposure_undefined(quantities, spec)
+  abort_if_conditional_scores_undefined(quantities, spec)
   weights <- resolve_evaluate_weights(weights, quantities, prep)
   needs <- evaluate_needs(quantities)
   res <- evaluate_engine_once(
@@ -280,6 +290,40 @@ abort_if_exposure_undefined <- function(
              the exact-time sub-models have.",
       "i" = "Use {.code return = \"n_opportunities\"}, the per-actor
              availability quantity every family defines."
+    ),
+    call = call
+  )
+}
+
+# The same case as exposure, and treated the same way. On a family whose
+# likelihood is already conditional there is nothing distinct to return: the
+# score rows carry no exposure term and so ARE the conditional rows.
+#
+# The asymmetry with the estimation-time request is deliberate. Asking
+# `set_algorithm_newton()` to STORE the primitive is a preference, and is met
+# with a message saying it is an identity here; asking the evaluator FOR the
+# value is a demand, and returning nothing under a name the caller supplied
+# would be a lie.
+abort_if_conditional_scores_undefined <- function(
+  quantities,
+  spec,
+  call = rlang::caller_env()
+) {
+  if (!"conditional_scores" %in% quantities) {
+    return(invisible(NULL))
+  }
+  if (identical(risk_set_normalizer(spec), "poisson")) {
+    return(invisible(NULL))
+  }
+  sub_model <- spec$sub_model
+  cli::cli_abort(
+    c(
+      "{.val conditional_scores} is not a distinct quantity for this
+       sub-model.",
+      "x" = "{.val {sub_model}} has an already-conditional likelihood, so its
+             score rows carry no exposure term and {.emph are} the conditional
+             rows.",
+      "i" = "Use {.code return = \"score\"}, which returns exactly those rows."
     ),
     call = call
   )
