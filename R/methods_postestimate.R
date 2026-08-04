@@ -74,16 +74,16 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' and with the following attributes:
 #'   \item{df}{degrees of freedom with the number of estimated parameters in
 #'     the model}
-#'   \item{nobs}{the number of observations used in estimation.
-#'     In general, it corresponds to the number of dependent events used in
-#'     estimation. For a `sub_model = "rate"` or `model = "REM"` with intercept,
-#'     it corresponds to the number of dependent events plus right-censored
-#'     events due to exogenous or endogenous changes.}
+#'   \item{nobs}{the number of dependent events the model was estimated on,
+#'     which is what the information criteria built on it should use. On a
+#'     censoring sub-model (`sub_model = "rate"`, or `model = "REM"` with an
+#'     intercept) the number of likelihood *intervals* is larger, since a
+#'     right-censored interval is opened by every non-dependent event inside
+#'     the observation window; that count is `n_intervals` on the fit and is
+#'     deliberately not what `nobs` reports.}
 #'
-#' When `avgPerEvent = TRUE`, the function returns a number with the average
-#' log-likelihood per event. The total number of events depends on the presence
-#' of right-censored events in a similar way that the attribute `nobs`
-#' is computed when `avgPerEvent = FALSE`.
+#' When `avgPerEvent = TRUE`, the function returns the average log-likelihood
+#' per dependent event, dividing by the same count `nobs` reports.
 #' @export
 #' @method logLik result.goldfish
 logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {

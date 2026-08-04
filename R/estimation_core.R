@@ -182,6 +182,7 @@ estimate_int_impl <- function(
   )
   parameters <- engine$parameters
   nEvents <- engine$n_events
+  nIntervals <- engine$n_intervals
 
   ## ESTIMATION: INITIALIZATION
 
@@ -272,7 +273,8 @@ estimate_int_impl <- function(
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
     n_iterations = iIteration,
-    n_events = nEvents
+    n_events = nEvents,
+    n_intervals = nIntervals
   )
   if (returnIntervalLogL) {
     estimationResult$interval_log_lik <- intervalLogL
@@ -1976,7 +1978,11 @@ make_r_engine_evaluator <- function(
   presence <- stats_list$active_sender_init
   presence2 <- stats_list$active_dyad_init
 
-  n_events <- length(stats_list$is_dependent)
+  # Two counts; see the same split on the C++ path. `n_events` is the
+  # dependent event count, `n_intervals` the likelihood interval count, and on
+  # a censoring sub-model they differ.
+  n_intervals <- length(stats_list$is_dependent)
+  n_events <- sum(stats_list$is_dependent == 1L)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -2055,7 +2061,8 @@ make_r_engine_evaluator <- function(
     evaluate = evaluate,
     step_args = step_args,
     parameters = parameters,
-    n_events = n_events
+    n_events = n_events,
+    n_intervals = n_intervals
   )
 }
 
