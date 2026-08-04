@@ -63,6 +63,11 @@ _To be written when the change is taken up._ Open questions to resolve then:
    Decide that before wiring the abort, so the abort is not built and then
    immediately retired.
 
+   Recorded as **ADR-0012**
+   (`decisions/ADR-0012-dynami-silently-ignores-the-observation-window.md`),
+   which carries the measurement, the options weighed, and the instruction to
+   decide *whether* DyNAM-i should accept a window before wiring any abort.
+
    ADR-0007 (`decisions/ADR-0007-an-inert-argument-is-signaled-not-dropped.md`)
    decides the general form: an argument rendered inert is signaled where the
    user made the choice, not silently dropped, because the mistake and the
