@@ -161,7 +161,7 @@
 
 ## 7. Interval and event accounting
 
-- [ ] 7.1 Establish the blast radius of the sample-size correction before
+- [x] 7.1 Establish the blast radius of the sample-size correction before
       changing it: which tests, vignette chunks, snapshots and `.plan` documents
       assert a BIC, an AICc or a `nobs`, and which of those fits carry
       right-censored intervals. This changes reported numbers without changing
