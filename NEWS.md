@@ -1,3 +1,52 @@
+# goldfish 1.9.26
+
+* **Information criteria count events, not likelihood intervals.** `n_events` on
+  a fitted object was set to the number of likelihood **intervals**, under a name
+  that says events. On the multinomial families the two coincide; on a censoring
+  sub-model they diverge, because a right-censored interval is opened by every
+  non-dependent event inside the observation window --- a windowed effect's
+  dissolve, an exogenous stream's change, the window's own boundary. **BIC and
+  AICc therefore penalized a fit for its own censoring**, and `glance()`'s `nobs`
+  and `logLik(avgPerEvent = TRUE)` reported the same wrong number.
+
+  A fit now carries both: `n_events`, the dependent events, and `n_intervals`,
+  the likelihood intervals. **Reported values move on any rate or REM fit that
+  carries censored intervals** --- and one such fit is in the package's own
+  teaching vignette, where `AIC(mod03Rate, mod04Rate)` had been printing a
+  warning that the two models were "not all fitted to the same number of
+  observations". They now are.
+
+* **A residual is one value per dependent event.** `deviance`, `score` and
+  `cox_snell` accumulate over the intervals of each event's waiting time;
+  `dfbeta` and `dfbetas` follow from the accumulated score rows, and `cooks` is
+  evaluated *on* the accumulated row rather than summed over its parts, being
+  the influence of the whole event. The Schoenfeld forms drop the rows that
+  realized no alternative.
+
+  This is a correction, not a smoothing. A Cox-Snell residual is the compensator
+  over a waiting time and is unit exponential only as that whole integral: on a
+  windowed rate fit the accumulated values have mean 1 exactly, where the
+  per-interval pieces sit near 0.7. The totals agree under both readings, which
+  is why nothing caught it before.
+
+  Where the observation window outlives the last event, the trailing span closes
+  no waiting time and is returned as a **censored final observation**, flagged.
+
+* **`augment()` returns one row per dependent event**, with `n_intervals` giving
+  how many likelihood intervals were accumulated into that event's span, and
+  aligns row-for-row with `residuals()`.
+
+* **`include_censored` is deprecated** on `diagnose_outliers()` and
+  `diagnose_changepoints()`. It selected between a per-event series and a pooled
+  per-interval one; every row now already carries the censored intervals of its
+  own span, so there is no pooled alternative to select.
+
+* **Renamed, there being no naming contract before 2.0.0:** `augment()`'s
+  `interval_log_lik` is `event_log_lik` and its `right_censored_event` is
+  `censored`; `test_time()`'s `interval` column is `event`. The per-interval
+  names are kept where they remain accurate --- the stored `interval_log_lik`
+  primitive, the `intervals` clock, and `n_intervals`.
+
 # goldfish 1.9.25
 
 * **A formula with no effect term aborts, naming the reason it has none.**

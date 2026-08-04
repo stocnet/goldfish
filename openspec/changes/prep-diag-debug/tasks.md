@@ -223,7 +223,7 @@
 - [x] 7.9 Test the deprecation warning, that the argument no longer changes the
       answer, and that a choice fit's series is unchanged. Pin messages with a
       reproducible cli context.
-- [ ] 7.9b Rename the columns the per-event contract left misnamed, there being
+- [x] 7.9b Rename the columns the per-event contract left misnamed, there being
       no naming contract to keep before 2.0.0 (ADR-0016). In `augment()`:
       `interval_log_lik` becomes `event_log_lik`, carrying the span's
       contribution rather than one interval's, and `right_censored_event`
@@ -231,18 +231,18 @@
       time and is therefore precisely not an event. In `test_time()`'s table:
       `interval` becomes `event`. Update the describers that read these columns
       and the `@return` documentation that lists them.
-- [ ] 7.9c Leave the per-interval vocabulary alone where it is accurate: the
+- [x] 7.9c Leave the per-interval vocabulary alone where it is accurate: the
       stored `interval_log_lik` primitive, the `intervals` clock, `n_intervals`,
       and the printed contexts reporting an interval count beside an event
       count. A sweep over the word would break the one place both numbers are
       stated honestly, which only became correct in 7.2. Add a test that a
       context still distinguishes the two.
-- [ ] 7.10 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 7.10 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 
 ## 8. Phase 3 milestone
 
-- [ ] 8.1 Bump `DESCRIPTION` to 1.9.26 and add the `NEWS.md` entry: the BIC/AICc
+- [x] 8.1 Bump `DESCRIPTION` to 1.9.26 and add the `NEWS.md` entry: the BIC/AICc
       sample-size correction and that it changes reported values on windowed rate
       and REM fits, the per-event residual contract and the length change it
       implies, and the `include_censored` deprecation.
