@@ -134,10 +134,36 @@ benchmark and a bitwise-equality proof against the replay.
 
 ### D4 — One traversal-stop rule, and the docs follow the code
 
-`preprocess_monolith()` changes to `break` as the recipe loops do. The monolith is
-the DyNAMi path, so this is a numeric change for DyNAMi fits with an `end_time`;
-it is nonetheless a correctness fix, since two preprocessing paths disagreeing
-about what "end time" means is a defect regardless of which one is nicer.
+`preprocess_monolith()` changes to `break` as the recipe loops do.
+
+**Measured 2026-08-04, and this decision's premise was wrong on two counts.**
+The monolith is *not* the DyNAMi path, and the change is not numeric.
+
+Every concrete specification class — `dynam_*`, `rem_*` and `dynami_*` alike —
+now has its own `preprocess()` method, so the `preprocess.model_spec()` fallback
+that reaches `preprocess_monolith()` has no live caller. The DyNAMi path is
+`preprocess_interaction()` in `R/model_preprocess_group.R`. The `break` is
+therefore correct and consistent, and reaches nothing today.
+
+The DyNAMi path has a different defect, and a worse one.
+`preprocess_interaction()` refuses a window outright
+(`R/model_preprocess_group.R:100-107`, "DyNAMi doesn't support setting the
+endTime parameter"), but `preprocess.dynami_rate_spec()` and its siblings absorb
+`startTime`/`endTime` into `...` and never forward them, so the guard is
+unreachable and the argument is **silently ignored**. Measured on the RFID
+fixture: an `end_time` at the median of the interaction span produces
+preprocessed output identical to no `end_time` at all, with the fit reporting
+the last event as its end time and storing rows past the requested boundary. No
+error, no warning, no message.
+
+That is the same family as D5 — an `end_time` that does nothing — reached by a
+different road, and it is **deferred to its own change** rather than fixed here.
+The remedy is small (forward the two arguments so the existing `stop()` fires,
+turning the silent no-op into an abort), but it changes the behavior of a
+released estimator for anyone passing the argument today, and it belongs with
+the DyNAMi boundary work rather than inside a preprocessing-semantics change.
+Until then the `start_time`/`end_time` documentation says DyNAMi ignores them,
+so the documented contract stays true.
 
 `set_opt.R:703-704` currently documents the discarded behavior ("won't stop at
 this time and will continue processing events after this time"). The

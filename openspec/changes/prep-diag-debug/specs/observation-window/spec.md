@@ -58,13 +58,21 @@ reached, on both the recipe-loop path and the legacy monolith path, since events
 beyond the window are not stored and traversing them only costs time. The two
 paths SHALL NOT disagree about what the end of the observation window means.
 
-The documentation of `end_time` SHALL describe this behavior.
+The documentation of `end_time` SHALL describe this behavior, and SHALL state
+which estimators do not accept an observation window at all. `estimate_dynami()`
+is such an estimator: its preprocessing rejects a window rather than applying
+one, so no traversal-stop rule is asserted of it here.
 
 #### Scenario: traversal stops rather than draining
 - **WHEN** a model is preprocessed with an `end_time` well before the last event
-  of the schedule, on either preprocessing path
+  of the schedule, on a path that accepts an observation window
 - **THEN** no stored row has an event time after `end_time`, and the events past
   it are not visited
+
+#### Scenario: an estimator without a window says so
+- **WHEN** the `start_time` or `end_time` documentation is read
+- **THEN** it names `estimate_dynami()` as ignoring the argument, so the
+  documented contract does not promise a window the estimator does not apply
 
 #### Scenario: the documented behavior matches the code
 - **WHEN** the `end_time` argument documentation is read
