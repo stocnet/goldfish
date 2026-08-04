@@ -665,11 +665,45 @@ defined:
 | `cooks` | per interval | compute **from** the accumulated score, never accumulate the scalar: the quadratic form does not commute, and the question is the influence of the whole event |
 | `response`, `martingale` | per event / per actor | unchanged |
 
-The trailing span is the one genuinely open edge: after D5 closes the window, a
-rate fit with an `end_time` past its last event has exposure with no event to
-attach to. Options are to attach it to the last event, drop it, or return it as a
-censored final observation. It is one observation out of hundreds, and it is
-listed under Open Questions rather than settled here.
+The trailing span is the one genuinely open edge: exposure with no event to
+attach to, because Cox-Snell groups intervals by **waiting time** — the span
+from event `k-1` to event `k` — so anything after the last event belongs to no
+event at all.
+
+**Settled 2026-08-04 (Alvaro): a censored final observation.** `residuals()`
+returns `n + 1` values there, the last flagged as censored. That is the standard
+survival treatment and the honest shape for a Q-Q plot, which already
+understands censoring. The cost is accepted knowingly: this type's length is no
+longer `n_events`, so D17's headline holds "one value per dependent event, plus
+a censored remainder where the window outlives the last event" rather than
+unconditionally.
+
+The two alternatives were **measured and rejected**, not weighed on taste:
+
+| option | consequence on the `social_evolution` windowed fit |
+|---|---|
+| attach to the last event | its residual goes `0.0335` -> `1.36`, a 40x inflation showing as an outlier in exactly the plot the type exists for, and meaning exposure *after* the event rather than before it |
+| drop it | the accumulated total falls from `439.0000` — precisely the event count, which is the compensator identity — to `437.67` |
+
+**When it arises is also corrected.** This decision assumed the span appears only
+when `end_time` runs past the last event. Measured, it appears whenever any
+non-dependent event follows the last dependent one, and the sources separate
+cleanly:
+
+```
+window only, no exogenous     876 intervals / 439 events    trailing = 0
+exogenous only, no window     441 / 439                     trailing = 1
+both                          880 / 439                     trailing = 3
+neither                       439 / 439                     trailing = 0
+```
+
+**Windowed effects never produce a trailing row**, which was worth checking
+rather than assuming: their dissolve pseudo-events are bounded by the
+observation window, so all 437 of them fall before the last event. Only
+exogenous streams and `end_time` reach past it. The `both` row is the window
+rule working rather than leaking — `end_time` resolves over the *non-window*
+streams, so adding friendship extends the window to the last friendship event,
+admitting call-window dissolves that were previously outside it.
 
 ### D18 — `include_censored` retires because its problem is gone
 
@@ -868,8 +902,10 @@ Poisson, so D7's identification wording does not apply as written, but an ordina
 likelihood with only an intercept has nothing to rank either. Unmeasured; carried
 in ADR-0011.
 
-**What happens to the trailing span?** See D17. Live only once D5 lands, and one
-observation wide.
+**~~What happens to the trailing span?~~ Settled 2026-08-04:** a censored final
+observation; see D17, which carries the measurements that rejected the two
+alternatives and the confirmation that windowed effects do not create the span
+at all.
 
 **~~Is the `cox_snell` guard right for an ordinal REM?~~ Answered 2026-08-04:
 there is no ordinal REM stamped Poisson, and the question had a false premise.**
