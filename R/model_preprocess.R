@@ -2648,6 +2648,13 @@ preprocess_monolith <- function(
     pointers[next_event] <- 1 + pointers[next_event]
     valid_pointers <- pointers <= vapply(events, nrow, integer(1)) &
       times <= endTime
+
+    # Stop at the end of the window rather than draining the remaining
+    # pointers. Nothing past it is stored, so visiting those events only costs
+    # time -- and the recipe loops already stop here, which is the disagreement
+    # that mattered: two preprocessing paths cannot mean different things by
+    # the end of the observation window.
+    if (final_step) break
   }
 
   if (progress && utils::getTxtProgressBar(pb) < n_total_events) {
