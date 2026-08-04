@@ -472,6 +472,146 @@ test_that("a single-period relational pin matches goldfish's starting value", {
   )
 })
 
+# --- D3 panel/relational risk-set dispatch -----------------------------------
+
+# A flavored (creation/dissolution) calls process, EVENT-observed at join time,
+# composed with a plain emails process. The creation flavor is keyed in choice
+# but omitted from rate, so its missing rate completes to a pinned intercept-only
+# rate -- and because the flavor is non-NA, the dispatch keeps it on the panel
+# wave-endpoint path (the flavored-relational stopgap), not the unflavored
+# relational scalar path. `flavored_event_stream()` is the shared helper fixture.
+flavored_relational_join <- function() {
+  n_actors <- 12L
+  calls <- flavored_event_stream(n_actors)
+  emails <- data.frame(
+    from = c(2L, 3L, 4L, 5L, 6L),
+    to = c(1L, 2L, 3L, 4L, 5L),
+    time = c(1, 2, 3, 4, 5),
+    layer = "emails",
+    weight = 1
+  )
+  data <- add_flavor(
+    list(
+      info = list(
+        name = "toy",
+        focal = "calls",
+        update = c(calls = "increment", emails = "increment"),
+        directed = c(calls = TRUE, emails = TRUE),
+        observation = c(calls = "event", emails = "event")
+      ),
+      nodes = data.frame(
+        label = paste0("N", seq_len(n_actors)),
+        mode = "p",
+        stringsAsFactors = FALSE
+      ),
+      ties = rbind(calls, emails)
+    ),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  calls_spec <- make_specification(
+    rate = list(dissolution ~ 1 + indeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
+test_that("an unflavored relational layer's completed rate uses the relational scalars", {
+  # calls is event-observed and unflavored, keyed in choice but not rate: its
+  # missing rate completes to a pinned intercept-only rate. Because calls is not
+  # a modeled panel layer and its process is unflavored, the dispatch sources
+  # (count, duration, |R|) from relational_window_risk_set()'s preprocessing
+  # scalars, NOT a synthesized wave-endpoint Hamming diff. friendship carries the
+  # authored waiting-time rate that makes the composition timed.
+  data <- plain_data("event")
+  calls <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  friendship <- make_specification(
+    rate = ~ 1 + inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = data
+  )
+  js <- make_joint_specification(calls, friendship, data = data)
+  cc <- suppressWarnings(
+    complete_generative_spec(js, consumer = "estimate_dynes")
+  )
+  map <- cc$process_map
+  # Both layers are event-observed, so neither is a modeled panel layer.
+  expect_length(cc$modeled_panel, 0L)
+  calls_rate <- map$fid[map$layer == "calls" & map$family == "rate"]
+  expect_length(calls_rate, 1L)
+  expect_true(map$completed[map$fid == calls_rate])
+  rate <- cc$completed_rates[[as.character(calls_rate)]]
+  expect_s3_class(rate, "intercept_only_rate")
+  rs <- goldfish:::relational_window_risk_set(cc$data, "calls", model = "DyNAM")
+  # The pin reproduces the relational scalars, not the panel Hamming derivation.
+  expect_equal(exp(rate$intercept), rs$count / rs$duration / rs$risk_set_size)
+})
+
+test_that("the relational risk-set source drives a REM tie-oriented pin", {
+  # A REM process always authors its rate (REM has no choice to leave a gap), so
+  # a completed REM rate never arises end to end; the dispatch's model plumbing
+  # is exercised directly on relational_window_risk_set(model = "REM"), the exact
+  # call pin_completed_rates() makes for an unflavored relational REM layer.
+  data <- plain_data("event")
+  rs <- goldfish:::relational_window_risk_set(data, "calls", model = "REM")
+  intercept <- pin_intercept_only_rate(
+    rs$count,
+    rs$duration,
+    rs$risk_set_size
+  )
+  expect_true(is.finite(intercept))
+  expect_equal(exp(intercept), rs$count / rs$duration / rs$risk_set_size)
+})
+
+test_that("a flavored relational layer's completed rate stays on the panel path", {
+  # calls is event-observed but FLAVORED: its creation flavor's missing rate must
+  # route through panel_wave_risk_set() (the is.na(flavor) stopgap), not the
+  # unflavored relational scalar path. Documents the current stopgap boundary --
+  # a later flavor-aware relational risk-set will flip this.
+  js <- flavored_relational_join()
+  expect_length(js$modeled_panel, 0L)
+  cc <- suppressWarnings(
+    complete_generative_spec(js, consumer = "estimate_dynes")
+  )
+  map <- cc$process_map
+  creation_rate <- map$fid[
+    map$layer == "calls" & map$flavor == "creation" & map$family == "rate"
+  ]
+  expect_length(creation_rate, 1L)
+  expect_true(map$completed[map$fid == creation_rate])
+  rate <- cc$completed_rates[[as.character(creation_rate)]]
+  # The pin reproduces the panel wave-endpoint/Hamming derivation for the
+  # creation flavor over calls' own extent -- proof it took the panel path.
+  rs <- goldfish:::panel_wave_risk_set(
+    cc,
+    layer = "calls",
+    flavor = "creation",
+    entity = "sender",
+    wave_times = NULL
+  )
+  expect_equal(
+    exp(rate$intercept) * rs$duration * rs$risk_set_size,
+    rs$count
+  )
+})
+
 # --- Regime and completion scope --------------------------------------------
 
 test_that("a mixed ordered+timed composition aborts at join time", {

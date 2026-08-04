@@ -307,28 +307,44 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
     joint_spec$completed_rates <- list()
     return(joint_spec)
   }
+  modeled_panel <- joint_spec$modeled_panel %||% character(0)
   pinned <- list()
   for (fid in rate_fids) {
     row <- map[map$fid == fid, , drop = FALSE]
-    entity <- rate_entity(joint_spec, row$layer)
-    rs <- panel_wave_risk_set(
-      joint_spec,
-      layer = row$layer,
-      flavor = row$flavor,
-      entity = entity,
-      wave_times = wave_times,
-      call = call
-    )
+    spec <- spec_of_layer(joint_spec, row$layer)
+    # Dispatch the risk-set source on HOW the completed layer is observed: an
+    # UNFLAVORED, fully event-observed relational layer reads goldfish's own
+    # preprocessing scalars (`relational_window_risk_set()`); a modeled panel
+    # layer -- and, as a deliberate stopgap until a flavor-aware relational
+    # risk-set exists, a FLAVORED relational layer -- reads the panel
+    # wave-endpoint/Hamming path (`panel_wave_risk_set()`). The `is.na(flavor)`
+    # guard is what routes a flavored relational layer to the panel path: its
+    # per-flavor gap is not something the bare-formula relational helper can
+    # slice out yet.
+    relational <- is.na(row$flavor) && !(row$layer %in% modeled_panel)
+    rs <- if (relational) {
+      relational_window_risk_set(
+        joint_spec$data,
+        layer = row$layer,
+        model = spec$model
+      )
+    } else {
+      panel_wave_risk_set(
+        joint_spec,
+        layer = row$layer,
+        flavor = row$flavor,
+        entity = rate_entity(joint_spec, row$layer),
+        wave_times = wave_times,
+        call = call
+      )
+    }
     intercept <- pin_intercept_only_rate(
       count = rs$count,
       duration = rs$duration,
       risk_set_size = rs$risk_set_size,
       call = call
     )
-    model_type <- pinned_rate_model_type(
-      spec_of_layer(joint_spec, row$layer)$model,
-      call = call
-    )
+    model_type <- pinned_rate_model_type(spec$model, call = call)
     pinned[[as.character(fid)]] <- make_intercept_only_rate(
       intercept,
       model_type = model_type,

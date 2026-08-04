@@ -25,24 +25,24 @@
 
 ## 2. Panel/relational risk-set dispatch (D3)
 
-- [ ] 2.1 In `pin_completed_rates()`, dispatch per completed fid: call
+- [x] 2.1 In `pin_completed_rates()`, dispatch per completed fid: call
       `relational_window_risk_set()` (passing the layer's `model`, DyNAM or REM)
       when `is.na(row$flavor)` and `row$layer` is not in
       `joint_spec$modeled_panel`; call `panel_wave_risk_set()` otherwise (modeled
       panel layers, and flavored relational layers — the `is.na(flavor)` stopgap
       per design D3). `relational_window_risk_set()` stays byte-identical
       (design Non-Goal / D3 byte-identical decision).
-- [ ] 2.2 Add a test completing a rate on an unflavored, fully event-observed
+- [x] 2.2 Add a test completing a rate on an unflavored, fully event-observed
       (non-panel) layer through `complete_generative_spec()`, asserting the pin's
       `(count, duration, risk_set_size)` match `relational_window_risk_set()`'s
       `n_dep_events` / `total_time` / `avg_active_entity` scalars for that layer,
       not a synthesized wave-endpoint Hamming diff. Cover both a DyNAM and a REM
       (tie-oriented) relational layer so the `model` plumbing is exercised.
-- [ ] 2.3 Add a test confirming a **flavored** relational layer's completed rate
+- [x] 2.3 Add a test confirming a **flavored** relational layer's completed rate
       still routes through `panel_wave_risk_set()` (documents the current
       stopgap boundary recorded as a design Non-Goal / Open Question — not a
       regression; `process-simulation` Task 2.6 will later flip this).
-- [ ] 2.4 `air format` the touched files, then `lintr::lint()` them; run the
+- [x] 2.4 `air format` the touched files, then `lintr::lint()` them; run the
       not-cran-test skill and confirm the frozen baselines report PASS, not SKIP;
       commit.
 
