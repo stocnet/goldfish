@@ -205,19 +205,97 @@ residuals.result.goldfish <- function(
   level <- match.arg(level)
   switch(
     type,
-    deviance = -2 * residual_stored(object, "interval_log_lik", "loglik", type),
-    cox_snell = cox_snell_residuals(object),
+    deviance = accumulate_over_events(
+      -2 * residual_stored(object, "interval_log_lik", "loglik", type),
+      object
+    ),
+    cox_snell = accumulate_over_events(cox_snell_residuals(object), object),
     schoenfeld = schoenfeld_rows(object, preprocessed),
     scaled_schoenfeld = scaled_schoenfeld_rows(object, preprocessed),
     response = response_residuals(object, preprocessed),
     martingale = martingale_residuals(object, level, preprocessed),
-    score = residual_stored(object, "event_scores", "scores", type),
+    score = accumulate_over_events(
+      residual_stored(object, "event_scores", "scores", type),
+      object
+    ),
+    # dfbeta and dfbetas are linear in the score row, so accumulating first
+    # commutes with the transform. cooks is a quadratic form and does not: it is
+    # the influence of the whole event, so it is evaluated ON the accumulated
+    # row rather than summed over the intervals inside it.
     influence_rows(
       object,
-      residual_stored(object, "event_scores", "scores", type),
+      accumulate_over_events(
+        residual_stored(object, "event_scores", "scores", type),
+        object
+      ),
       type
     )
   )
+}
+
+# Which dependent event's waiting time each interval belongs to.
+#
+# A Cox-Snell residual is the compensator over the span from one event to the
+# next, so an interval closes the waiting time of the event that FOLLOWS it and
+# accumulates there. That direction is forced by what the quantity means, not
+# chosen: grouping an interval with the preceding event would make its residual
+# the exposure *after* that event.
+#
+# Intervals following the last dependent event close no waiting time. They form
+# a censored remainder, reported as a final observation rather than folded into
+# the last event -- which would inflate it with exposure that came after it --
+# or dropped, which would lose it from totals the compensator identity depends
+# on. Windowed effects never produce such a tail, their dissolve pseudo-events
+# being bounded by the observation window; only exogenous streams and an
+# `end_time` past the last event do.
+accumulation_index <- function(object) {
+  censored <- object$right_censored_events
+  if (is.null(censored)) {
+    return(NULL)
+  }
+  dependent <- !censored
+  cumsum(c(0L, dependent[-length(dependent)])) + 1L
+}
+
+# Sum a per-interval vector or matrix over each event's span. On a family with
+# no censored intervals every group holds exactly one interval, so this is the
+# identity and those fits are untouched.
+accumulate_over_events <- function(x, object) {
+  index <- accumulation_index(object)
+  if (is.null(index)) {
+    return(x)
+  }
+  if (is.matrix(x)) {
+    accumulated <- rowsum(x, index, reorder = TRUE)
+    rownames(accumulated) <- NULL
+    return(flag_censored_tail(accumulated, object))
+  }
+  flag_censored_tail(
+    as.numeric(rowsum(as.numeric(x), index, reorder = TRUE)),
+    object
+  )
+}
+
+# Mark the censored remainder, and only where there is one. A caller reading the
+# series as one value per event has to be able to tell that a final entry closed
+# no waiting time; without the flag it reads as an ordinary, and unusually large,
+# last observation.
+#
+# The attribute is absent rather than all-FALSE on the fits that have no tail --
+# which is every multinomial fit and every windowed-only one. A flag that is
+# always present but almost never informative is noise: it would break every
+# comparison against the stored components while saying nothing. Absent means
+# "every value closes a waiting time", and `any(attr(x, "right_censored"))`
+# reads FALSE on NULL, so the idiom is the same either way.
+flag_censored_tail <- function(accumulated, object) {
+  n <- if (is.matrix(accumulated)) nrow(accumulated) else length(accumulated)
+  if (n <= object$n_events) {
+    return(accumulated)
+  }
+  censored <- logical(n)
+  censored[n] <- TRUE
+  attr(accumulated, "right_censored") <- censored
+  accumulated
 }
 
 # The stored primitive a type reads, or the error that names how to store it.
