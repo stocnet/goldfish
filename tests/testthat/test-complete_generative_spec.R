@@ -612,6 +612,163 @@ test_that("a flavored relational layer's completed rate stays on the panel path"
   )
 })
 
+# --- D4 degenerate (no-timed-events) layer handling --------------------------
+
+# A join whose completed layer carries only `time = NA` history (no timed
+# events). `friendship_obs` sets friendship's observation so the same tie set
+# builds a friendship-focal spec ("event") and joins as a modeled panel layer
+# ("panel"). calls carries the authored waiting-time rate that makes the
+# composition timed; friendship is choice-only, so its rate is completed.
+degenerate_panel_join <- function(friendship_obs) {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = NA_real_,
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    )
+  )
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = friendship_obs, calls = "event")
+    ),
+    nodes = nodes,
+    ties = ties
+  )
+}
+
+test_that("a panel layer with no timed events warns and pins a zero hazard", {
+  local_cli_context()
+  ev <- degenerate_panel_join("event")
+  fr <- make_specification(
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = ev
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  js <- make_joint_specification(
+    fr,
+    calls,
+    data = degenerate_panel_join("panel")
+  )
+  expect_identical(js$modeled_panel, "friendship")
+
+  # Collect every warning class so the degenerate-layer warning is asserted
+  # alongside (not masked by) the completion-default warnings.
+  seen <- list()
+  cc <- withCallingHandlers(
+    complete_generative_spec(js, consumer = "estimate_dynes"),
+    warning = function(w) {
+      seen[[length(seen) + 1L]] <<- class(w)
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_true(any(vapply(
+    seen,
+    function(cl) "goldfish_degenerate_panel_layer_warning" %in% cl,
+    logical(1)
+  )))
+
+  map <- cc$process_map
+  fr_rate <- map$fid[map$layer == "friendship" & map$family == "rate"]
+  expect_length(fr_rate, 1L)
+  expect_true(map$completed[map$fid == fr_rate])
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  # A well-defined zero hazard: the flavor cannot fire.
+  expect_identical(rate$intercept, -Inf)
+  expect_identical(exp(rate$intercept), 0)
+})
+
+test_that("an unflavored relational layer with no events aborts naming it", {
+  local_cli_context()
+  # calls is event-observed, unflavored, choice-only (its rate completes), but
+  # carries only `time = NA` history: the relational risk-set scalars come back
+  # with a zero denominator, so the pin aborts naming the layer -- before
+  # pin_intercept_only_rate()'s generic positivity guard fires.
+  data <- degenerate_panel_join("event")
+  data$ties$time[data$ties$layer == "calls"] <- NA_real_
+  data$ties$time[data$ties$layer == "friendship"] <- c(1, 2, 3, 4)
+  calls <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  friendship <- make_specification(
+    rate = ~ 1 + inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = data
+  )
+  js <- make_joint_specification(calls, friendship, data = data)
+  # Both layers event-observed here, so calls is not a modeled panel layer and
+  # its unflavored completed rate takes the relational dispatch.
+  expect_length(js$modeled_panel, 0L)
+  expect_error(
+    suppressWarnings(
+      complete_generative_spec(js, consumer = "estimate_dynes")
+    ),
+    class = "goldfish_degenerate_relational_layer_error"
+  )
+})
+
+test_that("an empty inter-wave period in a grid stays a silent -Inf pin", {
+  local_cli_context()
+  # An explicit multi-wave grid whose middle period spans no state change is the
+  # intended silent case: that period pins to -Inf, and NO degenerate-layer
+  # warning fires (the warning is scoped to the single-window fallback).
+  js <- timed_panel_join()
+  seen <- list()
+  rs <- withCallingHandlers(
+    goldfish:::panel_wave_risk_set(
+      js,
+      layer = "friendship",
+      flavor = NA,
+      entity = "sender",
+      wave_times = c(0, 1.5, 1.6, 5)
+    ),
+    warning = function(w) {
+      seen[[length(seen) + 1L]] <<- class(w)
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_false(any(vapply(
+    seen,
+    function(cl) "goldfish_degenerate_panel_layer_warning" %in% cl,
+    logical(1)
+  )))
+  # The middle period has a zero net Hamming diff -> a silent -Inf plateau.
+  expect_identical(rs$count[[2]], 0)
+  intercept <- pin_intercept_only_rate(
+    rs$count,
+    rs$duration,
+    rs$risk_set_size
+  )
+  expect_identical(intercept[[2]], -Inf)
+  expect_true(all(is.finite(intercept[-2])))
+})
+
 # --- Regime and completion scope --------------------------------------------
 
 test_that("a mixed ordered+timed composition aborts at join time", {

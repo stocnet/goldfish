@@ -48,18 +48,18 @@
 
 ## 3. Degenerate no-timed-events layer handling (D4)
 
-- [ ] 3.1 Panel path: when `default_window()` (after the D2 layer filter) finds no
+- [x] 3.1 Panel path: when `default_window()` (after the D2 layer filter) finds no
       timed events for the pinned layer, emit a friendly, layer-naming `cli`
       **warning** (distinct condition class) and let the pin proceed to its
       well-defined zero hazard (`intercept_w = -Inf`, `count_w = 0` over the
       `[0, 1]` fallback). Do NOT warn on a per-period zero-count wave in a
       multi-wave grid — that stays a silent `-Inf`.
-- [ ] 3.2 Relational path: in the `pin_completed_rates()` dispatch, guard the
+- [x] 3.2 Relational path: in the `pin_completed_rates()` dispatch, guard the
       `relational_window_risk_set()` result — when `total_time` and/or
       `avg_active_entity` come back `0` (no finite pin exists), **abort** with a
       friendly, layer-naming `cli` error (distinct condition class) *before*
       `pin_intercept_only_rate()`'s generic `duration`/`risk_set_size` guard fires.
-- [ ] 3.3 Tests (testthat 3e): (a) a panel/flavored-relational layer with only
+- [x] 3.3 Tests (testthat 3e): (a) a panel/flavored-relational layer with only
       `time = NA` history warns (catch the condition class) and completes to a
       `-Inf` pin that fires nothing; (b) an unflavored relational layer with no
       events aborts naming the layer; (c) a multi-wave grid with one empty

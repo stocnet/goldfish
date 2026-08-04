@@ -338,6 +338,9 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
         call = call
       )
     }
+    if (relational) {
+      abort_on_degenerate_relational_layer(row$layer, rs, call = call)
+    }
     intercept <- pin_intercept_only_rate(
       count = rs$count,
       duration = rs$duration,
@@ -448,14 +451,23 @@ flavor_support_kind <- function(spec, flavor) {
   }
 }
 
+# The pinned layer's own timed (non-NA) event times. Scoped to the layer (D2)
+# so the single-window fallback and the degenerate-layer check both read only
+# the layer being pinned, never the whole joint dataset.
+layer_event_times <- function(data, layer) {
+  ties <- as.data.frame(data$ties)
+  times <- ties$time[ties$layer == layer]
+  times[!is.na(times)]
+}
+
 # The single-window fallback boundaries: [min, max] of the pinned layer's own
 # timed events, one plateau. A consumer with a wave grid supplies its own
 # boundaries instead. Coerced to numeric (`coerce_time()`, `R/state_at.R`) so
-# a POSIXct/Date time axis yields a plain numeric range, not a `difftime`.
+# a POSIXct/Date time axis yields a plain numeric range, not a `difftime`. A
+# layer with no timed events at all falls back to `[0, 1]`, one unit-length
+# plateau (its Hamming diff is then 0 and the pin a well-defined zero hazard).
 default_window <- function(data, layer) {
-  ties <- as.data.frame(data$ties)
-  times <- ties$time[ties$layer == layer]
-  times <- times[!is.na(times)]
+  times <- layer_event_times(data, layer)
   if (length(times) == 0L) {
     return(c(0, 1))
   }
@@ -492,7 +504,28 @@ panel_wave_risk_set <- function(
   lm <- build_mode_map(info, nodes, layers)$layers[[layer]]
   one_mode <- !isTRUE(lm$is_two_mode)
 
-  wave_times <- wave_times %||% default_window(data, layer)
+  # A layer with NO timed events at all (every row is `time = NA` history) is a
+  # degenerate but VALID panel contribution: the fallback window is [0, 1] and
+  # the Hamming diff of two identical materialized endpoints is 0, so the pin is
+  # a well-defined zero hazard (`intercept_w = -Inf`, the flavor cannot fire).
+  # Warn (naming the layer) and continue. A per-period empty wave in an explicit
+  # multi-wave grid is NOT this case -- it stays a silent `-Inf` -- so the check
+  # is scoped to the single-window fallback only.
+  if (is.null(wave_times)) {
+    if (length(layer_event_times(data, layer)) == 0L) {
+      cli::cli_warn(
+        c(
+          "!" = "Layer {.val {layer}} has no timed events; its completed rate
+                 pins to a zero hazard ({.field intercept_w} = {.val -Inf}).",
+          "i" = "The completed flavor cannot fire. Supply timed events for
+                 {.val {layer}} to pin a positive hazard."
+        ),
+        class = "goldfish_degenerate_panel_layer_warning",
+        call = call
+      )
+    }
+    wave_times <- default_window(data, layer)
+  }
   if (length(wave_times) < 2L) {
     cli::cli_abort(
       "{.arg wave_times} needs at least two boundaries (one period).",
@@ -606,6 +639,32 @@ relational_window_risk_set <- function(data, layer, model = c("DyNAM", "REM")) {
     risk_set_size = prep$avg_active_entity,
     wave_times = NULL
   )
+}
+
+# Abort when a relational layer's preprocessing scalars admit no finite pin: a
+# layer with no timed events comes back with `total_time` (duration) and/or
+# `avg_active_entity` (risk_set_size) zero, so the per-actor hazard
+# `count / (T * |R|)` has a zero denominator. Unlike the panel path -- where an
+# empty layer is a well-defined zero hazard -- there is no finite intercept
+# here, so this aborts. Raised BEFORE `pin_intercept_only_rate()`'s generic
+# positivity guard so the message names the offending layer, not an anonymous
+# scalar.
+abort_on_degenerate_relational_layer <- function(layer, rs, call) {
+  if (any(rs$duration <= 0) || any(rs$risk_set_size <= 0)) {
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} has no timed events to pin a completed rate.",
+        "x" = "Its relational risk-set scalars ({.field total_time} =
+               {.val {rs$duration}}, {.field avg_active_entity} =
+               {.val {rs$risk_set_size}}) are zero, so no finite pin exists.",
+        "i" = "Supply timed events for {.val {layer}} so its completed rate can
+               be pinned."
+      ),
+      class = "goldfish_degenerate_relational_layer_error",
+      call = call
+    )
+  }
+  invisible(NULL)
 }
 
 # Warn once per filled gap, worded for the applied default and the consumer.
