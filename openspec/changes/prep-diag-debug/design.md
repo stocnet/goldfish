@@ -557,6 +557,19 @@ fit$n_events  =  876          the interval count, under an events name
 truth         =  876 intervals, 439 dependent events, 437 right-censored
 ```
 
+The readers split in two directions, and an earlier draft of this decision saw
+only one of them. **Some readers wanted the interval count and were reading
+`n_events` correctly under its old meaning** — they break on the rename and must
+move to `n_intervals`, which is the opposite repair from the one below. Found by
+the suite (task 7.2): `nrow(event_scores)`, `length(total_rate)` and the
+per-event probability totals are all per *interval*, as is the whole R-backend
+evaluation loop, whose `nEvents` sizes every buffer and drives
+`for (i in seq_len(nEvents))` — changing that one would silently evaluate 439 of
+441 intervals.
+
+So the rename is not "one field, six wrong readers". It is one field carrying
+two meanings, and every reader has to be asked which it wanted.
+
 Six consumers read the field as though it meant events, and every one of them is
 wrong:
 

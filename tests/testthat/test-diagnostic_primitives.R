@@ -315,7 +315,9 @@ test_that("total_rate reproduces the Cox-Snell residuals on exact-time fits", {
   prep_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list, TRUE)
   dt_rate <- prep_rate$intervals
   expect_false(is.null(fit_rate$total_rate))
-  expect_length(fit_rate$total_rate, fit_rate$n_events)
+  # Per interval, not per event: a rate fit carries a total rate for the
+  # right-censored intervals too.
+  expect_length(fit_rate$total_rate, fit_rate$n_intervals)
   expect_true(all(fit_rate$total_rate > 0))
   censored <- prep_rate$is_dependent == 0
   expect_equal(
@@ -833,7 +835,7 @@ test_that("per-event probabilities agree on all three backends", {
     # every family (D16's next-event probability).
     expect_equal(
       vapply(fc$event_probabilities, sum, numeric(1)),
-      rep(1, fc$n_events),
+      rep(1, fc$n_intervals),
       info = nm
     )
   }
