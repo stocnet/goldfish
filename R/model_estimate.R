@@ -1322,6 +1322,43 @@ warn_probabilities_footprint <- function(
 # noticeable memory. Emit a one-time cli message with the estimated footprint and
 # the `diagnostics = FALSE` opt-out. Fires only above `threshold` events so
 # ordinary fits stay quiet; `total_rate` is stored only for exact-time submodels.
+# Say once that a requested primitive is an identity here rather than a gap.
+# On a family whose likelihood is already conditional the score rows carry no
+# exposure term, so the conditional rows and the score rows are the same object
+# and nothing is stored. Staying silent about that does not make the absence
+# read as an identity -- it makes it read as nothing at all, and the user
+# discovers it later looking for a component that was never going to exist.
+#
+# A message rather than a warning: the fit is correct and complete, so there is
+# nothing to warn about, and a warning would additionally become an error under
+# `options(warn = 2)` and surface in R CMD check for any example requesting the
+# full primitive set.
+note_conditional_scores_identity <- function(
+  diagnostics,
+  spec,
+  call = rlang::caller_env()
+) {
+  if (!"conditional_scores" %in% diagnostics) {
+    return(invisible())
+  }
+  if (identical(risk_set_normalizer(spec), "poisson")) {
+    return(invisible())
+  }
+  sub_model <- spec$sub_model
+  cli::cli_inform(
+    c(
+      "i" = "{.val {sub_model}} has an already-conditional likelihood, so
+             {.val conditional_scores} stores nothing: its score rows carry no
+             exposure term and {.emph are} the conditional rows.",
+      "i" = "Read them from {.code residuals(type = \"score\")}, and drop
+             {.val conditional_scores} from
+             {.fn set_algorithm_newton}'s {.arg diagnostics}."
+    ),
+    call = call
+  )
+  invisible()
+}
+
 note_diagnostic_storage_footprint <- function(
   n_events,
   diagnostics,
@@ -2403,6 +2440,7 @@ estimate_wrapper <- function(
     n_params = length(rhs_names) + as.integer(isTRUE(has_intercept)),
     is_exact_time = identical(sub_model, "rate")
   )
+  note_conditional_scores_identity(control_algo$diagnostics, model_spec)
 
   ### 3.4 Assemble the fixed-coefficient (offset) contract----
   # offset() terms fix their coefficient rather than estimate it.
