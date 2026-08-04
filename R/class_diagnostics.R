@@ -382,6 +382,85 @@ diagnose_changepoints.result.goldfish <- function(
   )
 }
 
+#' @export
+#' @rdname diagnose
+diagnose_outliers.flavored_result.goldfish <- function(
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  threshold = 3,
+  window = NULL,
+  effect = NULL,
+  preprocessed = NULL,
+  ...
+) {
+  method <- match.arg(method)
+  args <- list(
+    method = method,
+    threshold = threshold,
+    window = window,
+    effect = effect,
+    preprocessed = preprocessed
+  )
+  labels <- flavored_component_labels(x)
+  blocks <- Map(
+    function(process, label) {
+      flavored_diagnose_block(
+        process,
+        label,
+        diagnose_outliers,
+        "diagnose_outliers",
+        args
+      )
+    },
+    flavored_processes(x),
+    labels
+  )
+  # Each process is flagged against its OWN series rather than a pooled one: a
+  # rate process and a choice process do not share a scale, so a threshold
+  # applied across both would flag whichever has the wider spread.
+  flavored_diagnose_table(x, blocks, "diagnose_outliers")
+}
+
+#' @export
+#' @rdname diagnose
+diagnose_changepoints.flavored_result.goldfish <- function(
+  x,
+  moment = c("mean", "variance"),
+  method = c("PELT", "AMOC", "BinSeg"),
+  window = NULL,
+  effect = NULL,
+  preprocessed = NULL,
+  ...
+) {
+  moment <- match.arg(moment)
+  method <- match.arg(method)
+  args <- list(
+    moment = moment,
+    method = method,
+    window = window,
+    effect = effect,
+    preprocessed = preprocessed
+  )
+  labels <- flavored_component_labels(x)
+  blocks <- Map(
+    function(process, label) {
+      flavored_diagnose_block(
+        process,
+        label,
+        diagnose_changepoints,
+        "diagnose_changepoints",
+        args
+      )
+    },
+    flavored_processes(x),
+    labels
+  )
+  # Segmented per process for the same reason: a changepoint is a break in one
+  # process's series, and concatenating two series would place a break at the
+  # seam between them.
+  flavored_diagnose_table(x, blocks, "diagnose_changepoints")
+}
+
 # Which intervals take part in the statistic. Read off the `NA` pattern
 # `augment()` already carries on `.resid`, which marks exactly the intervals
 # realizing no outcome -- a second definition of "is this a dependent event"
@@ -506,5 +585,73 @@ diagnose_context <- function(x, candidate) {
     backend = x$backend,
     n_intervals = length(candidate),
     n_analyzed = sum(candidate)
+  )
+}
+
+# One process's diagnostic, with the process named if it fails.
+#
+# Each process carries its own formula, so an `effect` selection valid for one
+# may be absent from another; "unknown term" without saying where is not
+# actionable on a fit holding four processes.
+flavored_diagnose_block <- function(
+  process,
+  label,
+  fn,
+  what,
+  args,
+  call = rlang::caller_env()
+) {
+  tryCatch(
+    do.call(fn, c(list(process$fit), args)),
+    error = function(e) {
+      cli::cli_abort(
+        "{.fn {what}} could not diagnose process {.val {label}}.",
+        parent = e,
+        call = call
+      )
+    }
+  )
+}
+
+# The container's own context. A process-level field that differs between
+# processes becomes the set of its values -- `sub_model` is `c("rate",
+# "choice")` on a two-family container -- while the counts total over the
+# processes the table actually holds.
+flavored_diagnose_context <- function(object, blocks) {
+  processes <- flavored_processes(object)
+  contexts <- lapply(blocks, attr, "context")
+  list(
+    model = object$model,
+    layer = object$layer,
+    sub_model = unique(vapply(processes, `[[`, character(1), "family")),
+    flavor = unique(vapply(processes, `[[`, character(1), "flavor")),
+    fid = vapply(processes, `[[`, integer(1), "fid"),
+    backend = processes[[1]]$fit$backend,
+    n_intervals = sum(vapply(contexts, `[[`, numeric(1), "n_intervals")),
+    n_analyzed = sum(vapply(contexts, `[[`, numeric(1), "n_analyzed"))
+  )
+}
+
+# Row-bind the per-process tables of a table-shaped diagnostic.
+#
+# The metadata is rebuilt rather than inherited from the first block: the
+# `defining` columns and the params are the same for every process, but the
+# context is not, and a container carrying one process's counts would misreport
+# the table it is attached to.
+flavored_diagnose_table <- function(object, blocks, class) {
+  processes <- flavored_processes(object)
+  rows <- Map(
+    function(block, process) {
+      append_process_identity(tibble::as_tibble(block), process)
+    },
+    blocks,
+    processes
+  )
+  new_diagnostic_table(
+    do.call(rbind, rows),
+    class,
+    context = flavored_diagnose_context(object, blocks),
+    params = attr(blocks[[1]], "params"),
+    defining = attr(blocks[[1]], "defining")
   )
 }

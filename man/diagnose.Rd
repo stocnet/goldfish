@@ -6,6 +6,8 @@
 \alias{diagnose_outliers.result.goldfish}
 \alias{diagnose_changepoints}
 \alias{diagnose_changepoints.result.goldfish}
+\alias{diagnose_outliers.flavored_result.goldfish}
+\alias{diagnose_changepoints.flavored_result.goldfish}
 \alias{print.diagnose_outliers}
 \alias{print.diagnose_changepoints}
 \title{Diagnostic functions}
@@ -33,6 +35,26 @@ diagnose_changepoints(x, ...)
   window = NULL,
   effect = NULL,
   include_censored = deprecated(),
+  preprocessed = NULL,
+  ...
+)
+
+\method{diagnose_outliers}{flavored_result.goldfish}(
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  threshold = 3,
+  window = NULL,
+  effect = NULL,
+  preprocessed = NULL,
+  ...
+)
+
+\method{diagnose_changepoints}{flavored_result.goldfish}(
+  x,
+  moment = c("mean", "variance"),
+  method = c("PELT", "AMOC", "BinSeg"),
+  window = NULL,
+  effect = NULL,
   preprocessed = NULL,
   ...
 )

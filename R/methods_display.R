@@ -1249,6 +1249,16 @@ print_diagnose_table <- function(x, flagged, noun) {
     "{.strong {n_flagged}} {noun}{cli::qty(n_flagged)}{?s} identified by the
      {.val {params$method}} method."
   )
+  # A container's table is several series stacked, each flagged against its own
+  # scale, so the count above is a total over them rather than one series'. The
+  # same branch `print.test_time` and `print.test_gof` make, told apart by the
+  # column the flavored form appends.
+  if ("flavor" %in% names(x)) {
+    cli::cli_text(
+      "Across {length(context$flavor)} flavor{?s} over {length(context$fid)}
+       process{?es}, each {noun} flagged within its own process."
+    )
+  }
   # Which intervals took part is the one thing a reader cannot recover from
   # the table, since the censored rows are present either way.
   if (!is.null(context$n_analyzed) && !is.null(context$n_intervals)) {
