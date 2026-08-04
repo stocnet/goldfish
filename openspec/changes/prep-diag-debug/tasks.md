@@ -187,12 +187,12 @@
       the current −6.459, on the `social_evolution` rate fixture.
 - [x] 7.4 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
-- [ ] 7.5 Make every per-interval residual type return one value per dependent
+- [x] 7.5 Make every per-interval residual type return one value per dependent
       event by accumulating between events (D17): deviance, score and cox_snell
       accumulated; schoenfeld, scaled_schoenfeld, response and martingale
       unchanged; dfbeta and dfbetas derived from the accumulated rows; cooks
       evaluated on the accumulated row rather than summed.
-- [ ] 7.6 Test the identities the accumulation must preserve: accumulated score
+- [x] 7.6 Test the identities the accumulation must preserve: accumulated score
       column sums equal the all-interval sums and are zero at the maximum (the
       dependent-only sums are not — measured at 372 on a windowed rate fit);
       accumulated cox_snell totals the dependent-event count and is the
