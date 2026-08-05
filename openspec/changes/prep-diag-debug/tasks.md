@@ -330,7 +330,7 @@
 
 ## 12. Reading a large model
 
-- [ ] 12.1 Add `residuals(type = "cox_snell", level = "actor")`: per-actor
+- [x] 12.1 Add `residuals(type = "cox_snell", level = "actor")`: per-actor
       accumulated compensators between that actor's own consecutive events, with
       the final span to the observation window's end marked censored (D21).
       Abort on families defining no waiting time, as the unstratified type does.
