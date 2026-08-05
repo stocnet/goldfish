@@ -1,5 +1,8 @@
-## ADDED Requirements
+# observation-window Specification
 
+## Purpose
+TBD - created by archiving change prep-diag-debug. Update Purpose after archive.
+## Requirements
 ### Requirement: A fit's recorded dependent events are the events it modeled
 A fitted model SHALL record, as its dependent events, exactly the events inside
 the resolved observation window, so that every per-interval quantity the fit
@@ -114,3 +117,4 @@ sender and receiver of an out-of-window event.
 - **WHEN** a right-censored row is written at the window boundary
 - **THEN** it does not report the sender or receiver of an event outside the
   window
+

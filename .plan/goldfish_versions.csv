@@ -31,3 +31,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.17,local,stocnet/goldfish,2109e88,2109e88,archive,FALSE,Archived OpenSpec change 'revise-gather-output' on 2026-07-27 (version 1.9.17); see openspec/changes/archive/.
 1.9.18,local,stocnet/goldfish,a0ec963,a0ec963,archive,FALSE,Archived OpenSpec change 'fixed-parameter-contract' on 2026-07-28 (version 1.9.18); see openspec/changes/archive/.
 1.9.23,local,stocnet/goldfish,fa4f371,fa4f371,archive,FALSE,Archived OpenSpec change 'residuals-gof' on 2026-07-31 (version 1.9.23); see openspec/changes/archive/.
+1.9.28,local,stocnet/goldfish,32d20ed,32d20ed,archive,FALSE,Archived OpenSpec change 'prep-diag-debug' on 2026-08-05 (version 1.9.28); see openspec/changes/archive/.
