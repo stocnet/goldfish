@@ -320,7 +320,7 @@
 - [x] 10.5 Document the flavored surface once, in `?diagnostic-requirements`
       rather than per method: the two return shapes, why they differ, and
       `flavor =`.
-- [ ] 10.6 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 10.6 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 
 ## 11. Phase 4 milestone
