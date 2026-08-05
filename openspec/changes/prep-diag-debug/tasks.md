@@ -347,14 +347,14 @@
       `effects =` selection composes with it.
 - [x] 12.5 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
-- [ ] 12.6 In autograph: page-wise rendering for the per-term plots via
+- [x] 12.6 In autograph: page-wise rendering for the per-term plots via
       `ggforce::facet_wrap_paginate()` — already in Imports — with the page
       count derivable before rendering and a later page aborting by name. Add
       the level-vs-shape scatter to `plot.margin_table()` when `dispersion` is
       present.
-- [ ] 12.7 In autograph: make a rank-and-trim figure report how many terms it
+- [x] 12.7 In autograph: make a rank-and-trim figure report how many terms it
       omitted, rather than drawing a subset that looks like the whole model.
-- [ ] 12.8 Test in autograph that every page renders in a non-interactive
+- [x] 12.8 Test in autograph that every page renders in a non-interactive
       session, that the pages cover each term exactly once, and that nothing
       prompts. Commit in the autograph repo with `git -C`, never a bare `git`
       after a `cd`.
