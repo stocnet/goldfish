@@ -13,6 +13,14 @@ margin_table(x, ...)
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}
+
+\item{dispersion}{whether to add the \code{dispersion} column, which needs one
+evaluation pass over the model's statistics. \code{FALSE} by default, so the
+ordinary call stays a read of what estimation already stored.}
+
+\item{preprocessed}{a \code{preprocessed.goldfish} object, as returned by
+\code{\link[=compute_statistics]{compute_statistics()}}. Read only when \code{dispersion = TRUE}, and defaulting
+to the object attached by \code{estimate_*(return_preprocessed = TRUE)}.}
 }
 \value{
 A \code{\link[tibble:tibble]{tibble::tibble()}} of class \code{margin_table} with columns
@@ -23,6 +31,10 @@ A \code{\link[tibble:tibble]{tibble::tibble()}} of class \code{margin_table} wit
 \item{expected_probability}{the probability-scale expected count.}
 \item{expected_count}{the compensator-scale expected count, \code{NA} on the
 multinomial families.}
+\item{dispersion}{present only when \code{dispersion = TRUE}: the variance of
+the actor's own compensators, \code{NA} on the multinomial families (which
+define no waiting time) and wherever the actor completed fewer than two
+spans. See \emph{Level and shape}.}
 }
 A multi-process (flavored) fit adds \code{flavor} and \code{family} columns from the
 fit's process map. The object carries the diagnostic metadata described in
@@ -75,6 +87,31 @@ A REM fit contributes both a \code{sender} and a \code{receiver} row per actor f
 the same fit: a tie-oriented model implies both the out- and the in-degree
 margin.
 }
+\section{Level and shape}{
+
+\code{observed} and \code{expected_count} are a \strong{first-moment} view: they say whether
+an actor acted as often as the model expected. An actor whose events are
+correctly counted but bunched into a burst is calibrated on both of them, and
+\code{dispersion} is what separates the two readings:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{  well-timed   spans (1.0, 1.0, 1.0, 1.0)      sum 4, n 4   dispersion 0.00
+  bursty       spans (0.01, 0.02, 0.01, 3.96)  sum 4, n 4   dispersion 3.90
+}\if{html}{\out{</div>}}
+
+It is the variance of that actor's own compensators — the same series
+\code{residuals(type = "cox_snell", level = "actor")} returns — over the spans
+between its consecutive events. Each is unit exponential under a correct
+model, so the column reads against \strong{one} the way \code{observed} reads against
+\code{expected_count}.
+
+Two things it is not. It is \strong{not defined below two completed spans}, so an
+actor with fewer than two events is \code{NA}, and on a real event stream that is
+most actors: it is read beside \code{observed} and never on its own. And the final
+span, running to the end of the observation window, is excluded — it closes
+no event, so counting it would drag an actor's variance toward zero in
+proportion to how early it stopped acting.
+}
+
 \examples{
 data("social_evolution")
 choice <- estimate_dynam(

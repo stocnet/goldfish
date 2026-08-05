@@ -165,3 +165,124 @@ test_that("a family with no waiting time refuses the actor level too", {
     "exact-time sub-models only"
   )
 })
+
+# `margin_table(dispersion = TRUE)`: the shape column beside the level columns.
+
+test_that("dispersion separates shape from level", {
+  # The claim the column exists for, on the two series that motivate it. Both
+  # actors are perfectly calibrated on every column the margins carry -- four
+  # events, four expected -- and only the variance tells them apart.
+  well_timed <- c(1, 1, 1, 1)
+  bursty <- c(0.01, 0.02, 0.01, 3.96)
+  attr(well_timed, "right_censored") <- logical(4)
+  attr(bursty, "right_censored") <- logical(4)
+
+  expect_equal(sum(well_timed), sum(bursty))
+  expect_equal(length(well_timed), length(bursty))
+
+  spread <- goldfish:::span_variance(list(a = well_timed, b = bursty))
+  expect_equal(unname(spread[["a"]]), 0)
+  expect_gt(spread[["b"]], 3)
+})
+
+test_that("the column is off by default and costs nothing", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- actor_fit()
+
+  expect_false("dispersion" %in% names(margin_table(fit)))
+  expect_true("dispersion" %in% names(margin_table(fit, dispersion = TRUE)))
+  # Asking for it changes nothing else about the table.
+  plain <- margin_table(fit)
+  with_spread <- margin_table(fit, dispersion = TRUE)
+  expect_equal(
+    with_spread[, setdiff(names(with_spread), "dispersion")],
+    plain,
+    ignore_attr = TRUE
+  )
+})
+
+test_that("dispersion is the variance of that actor's own spans", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- actor_fit()
+
+  table <- margin_table(fit, dispersion = TRUE)
+  spans <- residuals(fit, type = "cox_snell", level = "actor")
+  expected <- vapply(
+    spans,
+    function(s) {
+      closed <- s[!attr(s, "right_censored")]
+      if (length(closed) < 2L) NA_real_ else stats::var(closed)
+    },
+    numeric(1)
+  )
+  expect_equal(table$dispersion, unname(expected))
+  # Undefined below two completed spans, which on a real stream is most actors.
+  expect_true(all(is.na(table$dispersion[table$observed < 2])))
+  expect_false(all(is.na(table$dispersion)))
+})
+
+test_that("dispersion is not a function of the level columns", {
+  # If it were, it would be reporting what the margins already report. Two
+  # actors with near-equal observed AND expected counts should still be able to
+  # differ on it -- that difference is the whole content of the column.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  table <- margin_table(actor_fit(), dispersion = TRUE)
+  usable <- table[!is.na(table$dispersion), ]
+  expect_gt(nrow(usable), 5L)
+
+  # Correlation with either level column is far from perfect: the column adds
+  # information rather than restating theirs.
+  expect_lt(
+    abs(stats::cor(usable$dispersion, usable$observed, method = "spearman")),
+    0.95
+  )
+  expect_lt(
+    abs(
+      stats::cor(usable$dispersion, usable$expected_count, method = "spearman")
+    ),
+    0.95
+  )
+})
+
+test_that("a multinomial family gets the NA column, not an abort", {
+  # The same meaning `expected_count`'s NA has there: the model class defines no
+  # waiting time. Not "it was too expensive to compute".
+  skip_on_cran()
+  fit <- estimate_wrapper(
+    depNetwork ~ inertia,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    return_preprocessed = TRUE,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "margins"))
+  )
+
+  table <- margin_table(fit, dispersion = TRUE)
+  expect_true("dispersion" %in% names(table))
+  expect_true(all(is.na(table$dispersion)))
+  expect_true(all(is.na(table$expected_count)))
+})
+
+test_that("a fit carrying no statistics says so rather than returning NA", {
+  # The distinction the column would otherwise blur: NA means undefined for the
+  # model class, so "not computed" has to be an error instead.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data("social_evolution", package = "goldfish", envir = environment())
+  fit <- estimate_dynam(
+    calls ~ 1 + indeg(calls),
+    sub_model = "rate",
+    data = social_evolution,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "margins"))
+  )
+  expect_null(fit$preprocessed)
+
+  expect_no_error(margin_table(fit))
+  expect_error(
+    margin_table(fit, dispersion = TRUE),
+    "preprocessed statistics"
+  )
+})

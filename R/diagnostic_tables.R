@@ -511,8 +511,38 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #' @param x a fitted model of class `"result.goldfish"` or
 #'   `"flavored_result.goldfish"`, estimated with `"margins"` among the
 #'   [set_algorithm_newton()] `diagnostics` primitives.
+#' @param dispersion whether to add the `dispersion` column, which needs one
+#'   evaluation pass over the model's statistics. `FALSE` by default, so the
+#'   ordinary call stays a read of what estimation already stored.
+#' @param preprocessed a `preprocessed.goldfish` object, as returned by
+#'   [compute_statistics()]. Read only when `dispersion = TRUE`, and defaulting
+#'   to the object attached by `estimate_*(return_preprocessed = TRUE)`.
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
+#'
+#' @section Level and shape:
+#' `observed` and `expected_count` are a **first-moment** view: they say whether
+#' an actor acted as often as the model expected. An actor whose events are
+#' correctly counted but bunched into a burst is calibrated on both of them, and
+#' `dispersion` is what separates the two readings:
+#'
+#' ```
+#'   well-timed   spans (1.0, 1.0, 1.0, 1.0)      sum 4, n 4   dispersion 0.00
+#'   bursty       spans (0.01, 0.02, 0.01, 3.96)  sum 4, n 4   dispersion 3.90
+#' ```
+#'
+#' It is the variance of that actor's own compensators — the same series
+#' `residuals(type = "cox_snell", level = "actor")` returns — over the spans
+#' between its consecutive events. Each is unit exponential under a correct
+#' model, so the column reads against **one** the way `observed` reads against
+#' `expected_count`.
+#'
+#' Two things it is not. It is **not defined below two completed spans**, so an
+#' actor with fewer than two events is `NA`, and on a real event stream that is
+#' most actors: it is read beside `observed` and never on its own. And the final
+#' span, running to the end of the observation window, is excluded — it closes
+#' no event, so counting it would drag an actor's variance toward zero in
+#' proportion to how early it stopped acting.
 #'
 #' @return A [tibble::tibble()] of class `margin_table` with columns
 #'   \describe{
@@ -522,6 +552,10 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #'     \item{expected_probability}{the probability-scale expected count.}
 #'     \item{expected_count}{the compensator-scale expected count, `NA` on the
 #'       multinomial families.}
+#'     \item{dispersion}{present only when `dispersion = TRUE`: the variance of
+#'       the actor's own compensators, `NA` on the multinomial families (which
+#'       define no waiting time) and wherever the actor completed fewer than two
+#'       spans. See \emph{Level and shape}.}
 #'   }
 #'   A multi-process (flavored) fit adds `flavor` and `family` columns from the
 #'   fit's process map. The object carries the diagnostic metadata described in
@@ -557,8 +591,13 @@ margin_table.default <- function(x, ...) {
 }
 
 #' @export
-margin_table.result.goldfish <- function(x, ...) {
-  rows <- margin_rows(x)
+margin_table.result.goldfish <- function(
+  x,
+  dispersion = FALSE,
+  preprocessed = NULL,
+  ...
+) {
+  rows <- margin_rows(x, dispersion = dispersion, preprocessed = preprocessed)
   new_diagnostic_table(
     rows$table,
     class = "margin_table",
@@ -569,14 +608,21 @@ margin_table.result.goldfish <- function(x, ...) {
 }
 
 #' @export
-margin_table.flavored_result.goldfish <- function(x, ...) {
+margin_table.flavored_result.goldfish <- function(
+  x,
+  dispersion = FALSE,
+  preprocessed = NULL,
+  ...
+) {
   map <- x$process_map
   processes <- flavored_processes(x)
   per_fid <- lapply(processes, function(process) {
     rows <- margin_rows(
       process$fit,
       flavor = process$flavor,
-      family = process$family
+      family = process$family,
+      dispersion = dispersion,
+      preprocessed = preprocessed
     )
     rows$table <- append_process_identity(rows$table, process)
     rows
@@ -616,6 +662,8 @@ margin_rows <- function(
   x,
   flavor = NA_character_,
   family = NA_character_,
+  dispersion = FALSE,
+  preprocessed = NULL,
   call = rlang::caller_env()
 ) {
   margins <- x$margins
@@ -630,7 +678,14 @@ margin_rows <- function(
     )
   }
   sides <- margin_sides(margins, risk_set_axis(x), call = call)
-  tables <- lapply(sides, function(side) margin_side_table(margins, side))
+  spread <- if (isTRUE(dispersion)) {
+    actor_dispersion(x, preprocessed, call = call)
+  } else {
+    NULL
+  }
+  tables <- lapply(sides, function(side) {
+    margin_side_table(margins, side, spread)
+  })
   list(
     table = do.call(rbind, lapply(tables, `[[`, "table")),
     defined_scales = unique(unlist(lapply(tables, `[[`, "defined_scales"))),
@@ -666,7 +721,7 @@ margin_sides <- function(margins, axis, call = rlang::caller_env()) {
   list(list(suffix = "", role = role))
 }
 
-margin_side_table <- function(margins, side) {
+margin_side_table <- function(margins, side, spread = NULL) {
   observed <- margins[[paste0("observed", side$suffix)]]
   expected <- margins[[paste0("expected", side$suffix)]]
   probability <- margins[[paste0("expected_probability", side$suffix)]]
@@ -687,7 +742,7 @@ margin_side_table <- function(margins, side) {
     if (!is.null(expected_probability)) "expected_probability",
     if (!is.null(expected_count)) "expected_count"
   )
-  list(
+  out <- list(
     table = tibble::tibble(
       actor = names(observed) %||% as.character(seq_len(n)),
       role = rep(side$role, n),
@@ -697,6 +752,11 @@ margin_side_table <- function(margins, side) {
     ),
     defined_scales = defined
   )
+  if (!is.null(spread)) {
+    values <- spread[[side$role]] %||% spread[["single"]]
+    out$table$dispersion <- margin_column(values, n)
+  }
+  out
 }
 
 # A scale the family does not define is an all-NA column of the right length,
@@ -767,4 +827,47 @@ print.margin_table <- function(x, ...) {
   class(body) <- setdiff(class(body), "margin_table")
   print(body, ...)
   invisible(x)
+}
+
+# Each actor's dispersion: the variance of its own stratified compensators.
+#
+# The margins are a first-moment view -- an actor gets a count and an expected
+# count -- so an actor whose events are correctly counted but clustered in time
+# is calibrated on every column the table otherwise carries. Under a correct
+# model each completed span is unit exponential, whose variance is one, so this
+# column reads as a ratio against one in the way `observed` / `expected_count`
+# reads as a ratio against one.
+#
+# `NULL` for a family defining no waiting time, which the caller turns into the
+# all-NA column the schema requires. That NA means the same thing
+# `expected_count`'s does: not defined for the model class.
+actor_dispersion <- function(x, preprocessed, call = rlang::caller_env()) {
+  if (!is_exact_time_fit(x)) {
+    return(list(single = NULL))
+  }
+  spans <- actor_cox_snell_residuals(x, preprocessed, call = call)
+  if (all(c("sender", "receiver") %in% names(spans))) {
+    return(list(
+      sender = span_variance(spans$sender),
+      receiver = span_variance(spans$receiver)
+    ))
+  }
+  list(single = span_variance(spans))
+}
+
+# The censored final span is excluded rather than counted: it closes no event,
+# so it is a partial waiting time and including it would drag every actor's
+# variance toward zero in proportion to how early it stopped acting. An actor
+# with fewer than two completed spans has no variance to report and gets NA --
+# which is a great many actors on a real event stream, and the reason the
+# column is read beside `observed` rather than on its own.
+span_variance <- function(per_actor) {
+  vapply(
+    per_actor,
+    function(spans) {
+      closed <- spans[!attr(spans, "right_censored")]
+      if (length(closed) < 2L) NA_real_ else stats::var(closed)
+    },
+    numeric(1)
+  )
 }
