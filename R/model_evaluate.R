@@ -672,3 +672,18 @@ evaluate_margins <- function(res, spec, prep, backend) {
     is_exact_time = identical(risk_set_normalizer(spec), "poisson")
   )
 }
+
+#' @export
+#' @method evaluate_model flavored_result.goldfish
+#' @noRd
+evaluate_model.flavored_result.goldfish <- function(x, ..., flavor = NULL) {
+  # `at` defaults to the fit's own coefficients on the single-process method, so
+  # each process evaluates at its own by default rather than at a vector that
+  # would have to be split across them.
+  flavored_component_apply(
+    x,
+    flavor,
+    function(fit) evaluate_model(fit, ...),
+    "evaluate_model"
+  )
+}

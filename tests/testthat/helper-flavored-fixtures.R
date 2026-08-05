@@ -80,11 +80,28 @@ fit_of <- function(res, flavor, family) {
 # the shape every flavored-method test needs. Kept here for the same reason the
 # generator is: the specification is identical in each of them, and a second
 # copy is a second thing to keep in step.
-flavored_container_fit <- function(data = flavored_fixture_data()) {
-  suppressWarnings(estimate_dynam(make_specification(
-    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
-    choice = list(creation ~ trans, dissolution ~ trans),
-    model = "DyNAM",
-    data = data
-  )))
+flavored_container_fit <- function(data = flavored_fixture_data(), ...) {
+  suppressWarnings(estimate_dynam(
+    make_specification(
+      rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+      choice = list(creation ~ trans, dissolution ~ trans),
+      model = "DyNAM",
+      data = data
+    ),
+    ...
+  ))
+}
+
+# One family per flavor, so a `flavor =` selection resolves to exactly one
+# process. That is the shape the Fisheries Treaties fits have, and the only one
+# on which `flavor =` returns the single-fit shape rather than a shorter list.
+flavored_single_family_fit <- function(data = flavored_fixture_data(), ...) {
+  suppressWarnings(estimate_dynam(
+    make_specification(
+      rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+      model = "DyNAM",
+      data = data
+    ),
+    ...
+  ))
 }

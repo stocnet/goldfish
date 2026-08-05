@@ -716,3 +716,18 @@ influence_rows <- function(object, scores, type) {
   }
   influence
 }
+
+#' @export
+#' @method residuals flavored_result.goldfish
+#' @noRd
+residuals.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+  # A residual series is a vector, a matrix or a list of them, so nothing in the
+  # return can say which process it came from -- hence a list keyed by process
+  # label rather than the row-bound table `augment()` gives.
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::residuals(fit, ...),
+    "residuals"
+  )
+}

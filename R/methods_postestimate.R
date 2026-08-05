@@ -192,6 +192,77 @@ append_process_identity <- function(table, process) {
   table
 }
 
+# The processes a `flavor =` selection names, with their rendered labels.
+#
+# `flavor` NARROWS; it does not disambiguate. A flavor spanning several families
+# leaves several processes selected, and the caller gets the list restricted to
+# them rather than an error asking which family was meant. A flavor with one
+# family -- the ordinary shape, and the one the Fisheries Treaties fits have --
+# leaves exactly one, which is what lets the single-fit shape be one argument
+# away.
+flavored_selection <- function(object, flavor, call = rlang::caller_env()) {
+  processes <- flavored_processes(object)
+  labels <- flavored_component_labels(object)
+  if (is.null(flavor)) {
+    return(list(processes = processes, labels = labels))
+  }
+  available <- object$flavors
+  unknown <- setdiff(flavor, available)
+  if (length(unknown) > 0) {
+    cli::cli_abort(
+      c(
+        "{.arg flavor} names {length(unknown)} flavor{?s} this fit does not
+         carry.",
+        "x" = "Unknown: {.val {unknown}}.",
+        "i" = "This fit carries {.val {available}}."
+      ),
+      call = call
+    )
+  }
+  keep <- vapply(processes, function(p) p$flavor %in% flavor, logical(1))
+  list(processes = processes[keep], labels = labels[keep])
+}
+
+# Apply a per-process method across a selection, unwrapping a lone process.
+#
+# The return shape therefore depends on how many processes the selection leaves,
+# which is deliberate and is the whole point of `flavor =`: a container answers
+# with a list because no vector can carry the process identity, and naming one
+# process gets the ordinary single-fit shape back.
+flavored_component_apply <- function(
+  object,
+  flavor,
+  fn,
+  what,
+  call = rlang::caller_env()
+) {
+  selected <- flavored_selection(object, flavor, call = call)
+  # Named on failure, as the `test_*` and `diagnose_*` families are. A process
+  # can refuse for reasons the others do not share -- it carries no preprocessed
+  # statistics, or its formula lacks a requested term -- and a message that does
+  # not say which of four processes refused is not actionable.
+  out <- Map(
+    function(process, label) {
+      tryCatch(
+        fn(process$fit),
+        error = function(e) {
+          cli::cli_abort(
+            "{.fn {what}} could not read process {.val {label}}.",
+            parent = e,
+            call = call
+          )
+        }
+      )
+    },
+    selected$processes,
+    selected$labels
+  )
+  if (length(out) == 1L) {
+    return(out[[1L]])
+  }
+  stats::setNames(out, selected$labels)
+}
+
 # Rendered labels for the container's components, flavor-major.
 flavored_component_labels <- function(object) {
   map <- object$process_map

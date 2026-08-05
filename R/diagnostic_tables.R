@@ -325,6 +325,40 @@ NULL
 #' whole range on its own, from `"cox_snell"` (the interval clock and
 #' `"loglik"`, no pass) to `"dfbeta"` (the statistics and a pass).
 #'
+#' # A fit holding several processes
+#'
+#' A multi-flavor specification fits one process per flavor and sub-model, and
+#' every diagnostic above works on the container as well as on one process. The
+#' return takes one of two shapes, and which one it takes follows from what the
+#' diagnostic returns rather than from any choice made per function:
+#'
+#' \describe{
+#'   \item{**A table** — [augment()], [diagnose_outliers()],
+#'     [diagnose_changepoints()], [model_terms()], [margin_table()], and the
+#'     `test_*` family}{the per-process tables are row-bound, with `flavor` and
+#'     `family` appended after the existing columns. A column can carry the
+#'     identity, so one rectangle still holds the answer.}
+#'   \item{**A list keyed by process label** — [residuals()], [fitted()],
+#'     [predict()], [evaluate_model()]}{these return vectors, matrices and
+#'     lists, and none of which can carry a column saying where it came from.
+#'     The entries are named as the fit prints its components, in the same
+#'     flavor-major order every other view uses.}
+#' }
+#'
+#' The four list-shaped methods take `flavor =`, which narrows the selection.
+#' Where a flavor is fitted with a single sub-model — the ordinary case —
+#' that leaves one process and the return is the plain single-fit shape, so
+#' the familiar object is one argument away rather than an extraction. Where a
+#' flavor spans several sub-models it leaves several, and the return is the list
+#' restricted to them: `flavor =` selects, it does not ask which sub-model was
+#' meant. Naming a flavor the fit does not carry is an error that lists the ones
+#' it does.
+#'
+#' A diagnostic that refuses on one process names that process. Each carries its
+#' own formula and its own stored primitives, so one can lack a term or a
+#' statistic the others have, and a message that does not say which of several
+#' processes refused is not actionable.
+#'
 #' @name diagnostic-requirements
 #' @seealso [set_algorithm_newton()] for requesting a primitive,
 #'   [compute_statistics()] for producing the statistics, [evaluate_model()]
