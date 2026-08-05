@@ -1,3 +1,40 @@
+# goldfish 1.9.28
+
+* **Reading a large model.** Three additions for a fit with many terms or many
+  actors, all of them usable with nobody at a screen --- fits go to a cluster,
+  which is where a one-panel-per-term figure fails worst.
+
+  `residuals(type = "cox_snell", level = "actor")` gives each actor its
+  compensators over **its own** consecutive events, where the default series
+  gives them over the sequence's. It reads shape where `margin_table()` reads
+  level: an actor whose events are correctly counted but clustered in time is
+  calibrated on every column the margins carry. Summing an actor's spans
+  returns its expected margin exactly, and the uncensored spans number its
+  observed one.
+
+  `margin_table(dispersion = TRUE)` adds the variance of those spans as a
+  column. Opt-in, because it needs one evaluation pass and the ordinary call is
+  a read of what estimation already stored; a fit carrying no statistics aborts
+  rather than reporting `NA`, which on that table means the scale is undefined
+  for the model class.
+
+  `test_gof()` and `test_time()` carry a `rank` column, `1` being the term with
+  the most evidence against it, so a script can take the front of the table
+  without rendering anything. It is a column and not a row order: the rows stay
+  in model order, and flavor-major on a multi-process fit, where the ranking is
+  computed within each process.
+
+* **`level` now defaults per residual type.** It was `c("actor", "dyad")` for
+  `"martingale"`, and reusing `"actor"` for the new stratification would have
+  silently changed what `residuals(type = "cox_snell")` returns. The two types
+  disagree about what an unstratified answer is, so each keeps its own default.
+  Supplying `level` to a type with one reading is now an error rather than
+  being ignored.
+
+* **Plotting these needs autograph >= 1.0.5**, which adds the page-wise
+  rendering, the level-versus-shape scatter, and one panel per process on the
+  flavored diagnostic tables.
+
 # goldfish 1.9.27
 
 * **Every diagnostic now works on a multi-flavor fit.** A specification fitting
