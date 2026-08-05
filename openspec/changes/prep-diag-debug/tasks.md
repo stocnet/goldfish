@@ -382,11 +382,11 @@
 - [x] 13.4 Settle the flatness-flag placement sub-question of ADR-0003 as an
       output-shape decision consistent with 7.1's shared helper. Leave the
       simulation arm post-2.0.0, and do not touch ADR-0005.
-- [ ] 13.5 Update `.plan/bug-dependent-events-window.md` to record that it is
+- [x] 13.5 Update `.plan/bug-dependent-events-window.md` to record that it is
       resolved here, and re-run the applied walkthrough
       `.plan/sp/diagnostic_apply.qmd` to confirm its workarounds are no longer
       needed — the describers should now run on the warm fits, and the flavored
       container section should lose its silent-`NULL` finding.
-- [ ] 13.6 Final full `NOT_CRAN=true` run; confirm the frozen baselines report
+- [x] 13.6 Final full `NOT_CRAN=true` run; confirm the frozen baselines report
       PASS not SKIP, and that every regenerated baseline has a commit naming its
       reason.
