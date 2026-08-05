@@ -1,3 +1,43 @@
+# goldfish 1.9.27
+
+* **Every diagnostic now works on a multi-flavor fit.** A specification fitting
+  several processes returned a container that most of the diagnostic surface did
+  not understand. `augment()` and the three `diagnose_*` describers had no
+  method and aborted as an undiagnosable class; `residuals()` and `fitted()`
+  were worse, reaching `stats`' own default and returning **`NULL` silently**.
+
+  The return takes one of two shapes, following from what the diagnostic
+  returns. A diagnostic whose answer is a table --- `augment()`,
+  `diagnose_outliers()`, `diagnose_changepoints()`, the `test_*` family ---
+  row-binds the per-process tables and appends `flavor` and `family` after the
+  existing columns, so the event and term columns stay where a single-process
+  fit puts them. A diagnostic returning a vector, a matrix or a list ---
+  `residuals()`, `fitted()`, `predict()`, `evaluate_model()` --- returns a list
+  keyed by process label, because none of those can carry a column.
+
+  Those four take `flavor =`, which narrows: where a flavor is fitted with one
+  sub-model it leaves one process and the return is the plain single-fit shape,
+  and where it spans several the list is restricted to them. A diagnostic that
+  refuses on one process names that process.
+
+  `flavor` and `family` are identity columns, not defining ones: dropping them
+  leaves the class, the metadata and the plot method intact.
+
+* **A flavored process records only its own events.** Every process of a
+  multi-flavor fit reported the whole layer as its `dependent_events`, so a
+  creation-only fit and a dissolution-only fit disagreed on every coefficient
+  while reporting the same events as theirs. The row counts happened to match
+  throughout, which is why nothing caught it.
+
+* **`test_gof()` standardizes per-event rows.** Its reference distribution is a
+  Brownian bridge, whose increments must be uncorrelated martingale differences
+  --- true of the score at distinct event times, false of the intervals inside
+  one waiting time. **Statistics and p-values move on any fit carrying
+  right-censored intervals**, and the direction depends on the fit: measured
+  both ways, with the standardizing constant rising 3--17% on one windowed rate
+  fit and falling by a factor of four on another. Multinomial fits are
+  unchanged, every span there holding one interval.
+
 # goldfish 1.9.26
 
 * **Information criteria count events, not likelihood intervals.** `n_events` on
