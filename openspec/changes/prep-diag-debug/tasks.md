@@ -361,7 +361,7 @@
 
 ## 12b. Phase 5 milestone
 
-- [ ] 12b.1 Bump `DESCRIPTION` to 1.9.28 and add the `NEWS.md` entry for the
+- [x] 12b.1 Bump `DESCRIPTION` to 1.9.28 and add the `NEWS.md` entry for the
       `dispersion` column, the stratified waiting-time residuals, and the
       batch-usable screening and pagination surface. Record the autograph
       version the plot changes require.
