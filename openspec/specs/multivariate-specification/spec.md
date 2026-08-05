@@ -235,14 +235,30 @@ observed micro-count) is a **per-actor constant hazard** — identical for every
 support-legal actor, **commensurable** on the shared clock with a competing flavor's
 per-actor rate in the superposition `Σ_i exp(·)`, **not** a single aggregate flavor
 scalar — from which a sender is drawn **uniformly among the support-legal actors** as
-a consequence of the equal per-actor hazards. `|R_w|` (the period's average rate-entity
+a consequence of the equal per-actor hazards. `T_w` and `|R_w|` SHALL be **numeric**
+regardless of the underlying event stream's time representation (numeric, `POSIXct`,
+`Date`, or character) — the pin computation SHALL NOT propagate a `difftime` or other
+non-numeric temporal object into `T_w`. `|R_w|` (the period's average rate-entity
 size) SHALL be **supplied by the consumer**, its source keyed on how the flavor is
-observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or a
-**relational** time-weighted `avg_active_entity` (see design D9a) — and the period
-partition SHALL follow the half-open membership convention
-`findInterval(t, wave_times, rightmost.closed = TRUE)` (interior boundaries
-left-closed/right-open, final period right-closed). Its exclusion from the optimizer
-rests on **θ-independence**: `intercept_w` does not depend on the estimated
+observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or, for
+an **unflavored relational** layer (no flavor keying on the process), a
+time-weighted `avg_active_entity` sourced from goldfish's own preprocessing scalars
+(see design D9a, D3) — and the period partition SHALL follow the half-open membership
+convention `findInterval(t, wave_times, rightmost.closed = TRUE)` (interior
+boundaries left-closed/right-open, final period right-closed). A **flavored**
+relational (event-observed, non-panel) layer's missing rate SHALL, until a
+flavor-aware relational risk-set source exists, use the same wave-endpoint/Hamming-diff
+derivation as a panel layer over the layer's own observed time extent — never the
+range of an unrelated layer in the same joint dataset. A completed rate whose pinned
+layer has **no timed events at all** (every row is `time = NA` history) SHALL, on a
+**panel**-observed layer (or the flavored-relational fallback that shares the panel
+derivation), emit a `cli` **warning** naming the layer and pin to a **zero hazard**
+(`intercept_w = -Inf`, the flavor cannot fire); on an **unflavored relational** layer,
+whose risk-set scalars (`total_time`, `avg_active_entity`) would be zero and admit no
+finite pin, it SHALL **abort** with a `cli` error naming the layer. A **per-period**
+empty wave in a multi-wave grid (nothing changed between two boundaries) is NOT this
+case: it pins to the intended silent `intercept_w = log(0) = -Inf` and SHALL NOT warn. Its exclusion from the
+optimizer rests on **θ-independence**: `intercept_w` does not depend on the estimated
 parameters, so its timing likelihood is **additive-constant w.r.t. θ** and is
 **excluded from the score and Hessian** (a constant offset that MAY appear in a
 *reported* log-likelihood). It is also iteration-constant today because `count_w` is
@@ -278,6 +294,39 @@ time on an unfilled gap.
   flavor's rate entity), the warning names the added pinned rate, and **no** free
   parameter enters θ (the pin is θ-independent, so it is excluded from the optimizer's
   score and Hessian).
+
+#### Scenario: a completed rate pins correctly on POSIXct/Date-timed data
+- **WHEN** a missing rate is completed on a joint specification whose underlying
+  event stream carries `POSIXct` or `Date` event times (not plain numeric)
+- **THEN** `T_w` (and, for the single-window fallback, the window boundaries it is
+  derived from) are coerced to a numeric axis before the pin is computed, so
+  `pin_intercept_only_rate()` receives plain numeric `count`, `duration`, and
+  `risk_set_size` and the pin succeeds rather than aborting on a non-numeric
+  `duration`.
+
+#### Scenario: single-window fallback scoped to the pinned layer
+- **WHEN** a completed rate falls back to the single-window boundaries (no explicit
+  wave grid supplied) within a joint dataset whose other layers span a different time
+  extent than the layer being pinned
+- **THEN** the fallback window is derived from the pinned layer's own observed event
+  times only, not the range across every layer in the joint dataset.
+
+#### Scenario: a layer with no timed events warns (panel) or aborts (relational)
+- **WHEN** a completed rate's pinned layer carries no timed events at all (every row
+  is `time = NA` history)
+- **THEN** a **panel**-observed layer (or a flavored relational layer on the panel
+  fallback) emits a `cli` warning naming the layer and completes to a zero-hazard pin
+  (`intercept_w = -Inf`), whereas an **unflavored relational** layer aborts with a
+  `cli` error naming the layer, because its `total_time` / `avg_active_entity` scalars
+  are zero and no finite pin exists; a per-period empty wave in a multi-wave grid does
+  neither and stays a silent `-Inf`.
+
+#### Scenario: an unflavored relational layer's completed rate uses the relational risk-set source
+- **WHEN** a missing rate is completed for an **unflavored** process on a layer that
+  is **not** a modeled panel layer (a fully event-observed relational layer)
+- **THEN** `|R_w|`, `T_w`, and `count_w` are sourced from goldfish's own preprocessing
+  scalars (`n_dep_events`, `total_time`, `avg_active_entity`) for that layer, rather
+  than from a synthesized wave-endpoint Hamming diff.
 
 #### Scenario: ordered–timed composition is rejected
 - **WHEN** a `make_joint_specification()` join pairs a process with a waiting-time
