@@ -334,11 +334,11 @@
       accumulated compensators between that actor's own consecutive events, with
       the final span to the observation window's end marked censored (D21).
       Abort on families defining no waiting time, as the unstratified type does.
-- [ ] 12.2 Add the `dispersion` column to `margin_table()` — the variance of
+- [x] 12.2 Add the `dispersion` column to `margin_table()` — the variance of
       those residuals, `NA` where undefined, following the `expected_count`
       convention. Test that it reconciles with the margins: an actor's residuals
       sum to its expected count and number its observed count.
-- [ ] 12.3 Test the level-vs-shape separation directly: an actor with matching
+- [x] 12.3 Test the level-vs-shape separation directly: an actor with matching
       observed and expected counts but clustered events departs on `dispersion`
       alone. Document that the column is uninformative at low event counts and
       is read beside `observed`.
