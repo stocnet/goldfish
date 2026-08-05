@@ -298,18 +298,26 @@
 
 ## 10. Flavored diagnostics: the non-tidy surface
 
-- [ ] 10.1 Add flavored `residuals()`, `fitted()`, `predict()` and
+- [x] 10.1 Add flavored `residuals()`, `fitted()`, `predict()` and
       `evaluate_model()` methods returning a list named by process label (D10),
       with `flavor =` selecting one process and returning the single-fit shape.
-- [ ] 10.2 Make an unknown `flavor =` abort naming the flavors the fit carries.
+- [x] 10.2 Make an unknown `flavor =` abort naming the flavors the fit carries.
       Follow the r-lib:cli skill.
-- [ ] 10.3 Test that the container list entries equal the per-process calls, that
+- [x] 10.3 Test that the container list entries equal the per-process calls, that
       `flavor =` equals the corresponding entry, and that no method returns
       `NULL` on a container.
-- [ ] 10.4 Confirm against an installed autograph that the plot methods still
+- [x] 10.4 Confirm against an installed autograph that the plot methods still
       facet on the identity columns and that nothing in 9–10 changed their
-      dispatch. No autograph change is expected; record it if one is needed.
-- [ ] 10.5 Document the flavored surface once, in `?diagnostic-requirements`
+      dispatch. **A change WAS needed** — `plot.diagnose_outliers()` and
+      `plot.diagnose_changepoints()` faceted on nothing, so group 9 making those
+      tables flavored left `geom_line()` drawing straight across the boundary
+      between one process's last event and the next process's first, and
+      `geom_vline()` putting every process's breaks on every panel. Both fixed
+      in autograph with the `facet_wrap` pattern `plot.margin_table()` already
+      used, plus a `geom_vline(data = )` so the breaks stay in their own panel;
+      three tests added there. `test_gof`, `test_time` and `margin_table` were
+      already correct.
+- [x] 10.5 Document the flavored surface once, in `?diagnostic-requirements`
       rather than per method: the two return shapes, why they differ, and
       `flavor =`.
 - [ ] 10.6 Run `devtools::document()`, verify with the not-cran-test skill, and
