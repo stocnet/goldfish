@@ -372,14 +372,14 @@
       cite it from this change's `proposal.md`. Written as ADR-0013, ahead of
       task 5.3 rather than after it, so the decision governs the implementation
       instead of being reverse-engineered from it.
-- [ ] 13.2 Settle ADR-0010: the flavored `test_time()` method establishes that
+- [x] 13.2 Settle ADR-0010: the flavored `test_time()` method establishes that
       each process has its own clock and interval count, so a caller-supplied
       time transform must be a function rather than a length-`n` vector. This
       inverts its recorded option preference; the feature stays unplanned.
-- [ ] 13.3 Settle the `diagnose_*` sub-question of ADR-0008 against the generic
+- [x] 13.3 Settle the `diagnose_*` sub-question of ADR-0008 against the generic
       surface this change enlarges, leaving the cross-package ownership question
       open.
-- [ ] 13.4 Settle the flatness-flag placement sub-question of ADR-0003 as an
+- [x] 13.4 Settle the flatness-flag placement sub-question of ADR-0003 as an
       output-shape decision consistent with 7.1's shared helper. Leave the
       simulation arm post-2.0.0, and do not touch ADR-0005.
 - [ ] 13.5 Update `.plan/bug-dependent-events-window.md` to record that it is
