@@ -325,7 +325,7 @@
 
 ## 11. Phase 4 milestone
 
-- [ ] 11.1 Bump `DESCRIPTION` to 1.9.27 and add the `NEWS.md` entry for the
+- [x] 11.1 Bump `DESCRIPTION` to 1.9.27 and add the `NEWS.md` entry for the
       flavored diagnostic surface.
 
 ## 12. Reading a large model
