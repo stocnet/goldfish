@@ -342,10 +342,10 @@
       observed and expected counts but clustered events departs on `dispersion`
       alone. Document that the column is uninformative at low event counts and
       is read beside `observed`.
-- [ ] 12.4 Give the per-term diagnostic tables a defined order by statistic, so
+- [x] 12.4 Give the per-term diagnostic tables a defined order by statistic, so
       a batch script can take the front without rendering (D22). Confirm
       `effects =` selection composes with it.
-- [ ] 12.5 Run `devtools::document()`, verify with the not-cran-test skill, and
+- [x] 12.5 Run `devtools::document()`, verify with the not-cran-test skill, and
       commit.
 - [ ] 12.6 In autograph: page-wise rendering for the per-term plots via
       `ggforce::facet_wrap_paginate()` — already in Imports — with the page
