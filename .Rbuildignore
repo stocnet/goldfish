@@ -21,3 +21,4 @@ vignettes/precompile\.R
 ^\.plan$
 ^CLAUDE\.md$
 ^myeff\.html$
+^vignettes/rebuild-all\.R$

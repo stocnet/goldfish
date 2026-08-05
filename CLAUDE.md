@@ -104,7 +104,10 @@ For OpenSpec change work these are also enforced as hard rules in `openspec/conf
 
 ### Documentation
 - Build documentation: `devtools::document()` (updates man/ files from roxygen2)
-- Build vignettes: `source("vignettes/precompile.R")`, `devtools::build_vignettes()`
+- Build vignettes: `Rscript vignettes/rebuild-all.R` (install first — the
+  vignettes knit against the *installed* goldfish), then
+  `devtools::build_vignettes()`. `vignettes/precompile.R` only defines the
+  helpers; sourcing it renders nothing.
 - Build website: `pkgdown::build_site()` (configuration in `_pkgdown.yml`)
 
 ## Architecture

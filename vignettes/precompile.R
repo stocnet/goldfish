@@ -1,5 +1,17 @@
 # Precompiled vignettes
 # Adapted from bcgov/bcdata/vignettes/precompile.R under Apache License 2.0
+#
+# This file DEFINES the precompilation helpers and runs nothing. Sourcing it is
+# safe: it cannot render a vignette or rewrite README.md as a side effect.
+#
+# To rebuild, run `vignettes/rebuild-all.R`, which is the explicit driver.
+# Rendering one vignette is `precompile("teaching1.Rmd.orig")` after sourcing
+# this file.
+#
+# The vignettes knit against the INSTALLED goldfish, not the working tree, so
+# whoever runs the driver installs first. Rendering against a stale install
+# produces numbers that look right and are not -- an earlier rebuild shipped a
+# BIC computed by a previous version, and nothing about the output said so.
 
 # Precompile vignettes -------------------------------------------------------
 
@@ -58,36 +70,31 @@ precompile <- function(vignette_to_run = NULL) {
   }
 }
 
-## Run all vignettes
-precompile()
-
-
-# check if the RMD files contain errors
-lapply(
-  file.path(
-    tools::list_files_with_exts(
-      dir = "vignettes",
-      exts = "Rmd",
-      full.names = TRUE
-    )
-  ),
-  \(x) {
-    text <- readLines(x)
-    haveErrors <- grepl("Error", text) & !grepl("Std\\. Error", text)
-    if (any(haveErrors)) {
-      paste(
-        "Error in",
-        x,
-        " on line",
-        paste(which(haveErrors), collapse = ", ")
+# Report vignettes whose rendered output contains an error ---------------------
+#
+# A knitted chunk that failed leaves the message in the `.Rmd`, where it is easy
+# to miss: the render itself succeeds. `Std. Error` is excluded because every
+# coefficient table contains it.
+check_rendered_errors <- function() {
+  lapply(
+    file.path(
+      tools::list_files_with_exts(
+        dir = "vignettes",
+        exts = "Rmd",
+        full.names = TRUE
       )
+    ),
+    \(x) {
+      text <- readLines(x)
+      haveErrors <- grepl("Error", text) & !grepl("Std\\. Error", text)
+      if (any(haveErrors)) {
+        paste(
+          "Error in",
+          x,
+          " on line",
+          paste(which(haveErrors), collapse = ", ")
+        )
+      }
     }
-  }
-)
-
-# render README.Rmd
-rmarkdown::render(
-  "README.Rmd",
-  output_format = "md_document",
-  envir = globalenv()
-)
+  )
+}
