@@ -1,5 +1,18 @@
-## ADDED Requirements
+# multivariate-specification Specification
 
+## Purpose
+The multivariate specification surface for co-evolving processes: the exported
+`make_joint_specification(...)` constructor that composes two or more
+`make_specification()` objects over one shared mode-map object into a distinct
+`joint_specification.goldfish` class, the mode-set-identity conformance rule for
+cross-process reads, the process_map fid vocabulary extended across processes,
+direct-reference coupling detection surfaced to consumers, focal-layer
+uniqueness, event-stream estimator rejection of the joint object, and the
+single-transform generative-readiness completion that fills half-specified
+flavors with zero-free-parameter defaults so walk-driven and non-walk-driven
+paths carry identical fid sets. Created by archiving change
+make-multivariate-spec.
+## Requirements
 ### Requirement: make_joint_specification composes process specifications
 
 The package SHALL export `make_joint_specification(...)` accepting two or more

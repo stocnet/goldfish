@@ -1,5 +1,18 @@
-## ADDED Requirements
+# multi-process-walk Specification
 
+## Purpose
+The preprocessing substrate shared by every multivariate consumer: one merged
+single-clock walk that hosts all processes' statistic blocks over one shared
+process state, computing each block's effect statistics once per event and
+routing consumers through a `(layer, flavor) → fid` lookup (dependent for its own
+fids, right-censoring boundary for every other timed rate fid, state-only for
+choice/ordered fids), returning one `preprocessed.goldfish` per fid; and the
+stateful `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject` handle over that
+walk that drives generative evaluation and event injection against the shared
+state. The handle is an internal developer substrate that asserts — never
+performs — generative completeness. Created by archiving change
+make-multivariate-spec.
+## Requirements
 ### Requirement: One merged single-clock walk serves all fids
 
 Preprocessing of a multivariate specification SHALL walk the event sequence
