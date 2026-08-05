@@ -47,8 +47,15 @@ An object of class \code{test_gof}: a list of three
 \link{diagnostic-tables}.
 \describe{
 \item{\code{effects}}{one row per tested effect, with \code{statistic} the
-supremum, \code{p_value} its p-value under the selected reference, and
-\code{scale} the standardizing constant \eqn{\sqrt{n \hat J_d}}.}
+supremum, \code{p_value} its p-value under the selected reference, \code{scale}
+the standardizing constant \eqn{\sqrt{n \hat J_d}}, and \code{rank} the
+term's position by descending statistic, \code{1} being the most extreme.
+The rank is a column rather than the row order, so a script can take
+the front of the table without a screen while the rows stay in model
+order — and, on a multi-process fit, flavor-major and ranked within
+each process, statistics from different processes not being
+comparable. Selecting with \verb{effects =} re-ranks over what is
+returned.}
 \item{\code{process}}{the standardized process paths in long form: one row
 per effect and step, with \code{u} the process-time axis, \code{clock} naming
 which clock produced it, and \code{process} the value of \eqn{W_d(u)}.

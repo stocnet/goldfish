@@ -671,3 +671,59 @@ test_that("the accumulation is not a one-directional smoothing", {
     unname(accumulated$scale)
   )
 })
+
+test_that("the per-term table has a defined order, not a new row order", {
+  # Screening has to survive having no screen: a fit that ran on a cluster
+  # returns a table a script can take the front of. That is a column rather
+  # than a re-sort, because the rows have an order already -- model order here,
+  # and flavor-major on a container -- and a statistic-sorted table would undo
+  # it.
+  fit <- gof_fixture()
+  effects <- test_gof(fit)$effects
+
+  expect_true("rank" %in% names(effects))
+  expect_setequal(effects$rank, seq_len(nrow(effects)))
+  expect_identical(
+    effects$term[effects$rank == 1L],
+    effects$term[which.max(effects$statistic)]
+  )
+  # Rows are still in model order: the rank says where a term stands, it does
+  # not move it.
+  expect_identical(effects$index, seq_len(nrow(fit$names)))
+})
+
+test_that("selecting effects re-ranks over what is returned", {
+  fit <- gof_fixture()
+  selected <- test_gof(fit, effects = "indeg")$effects
+
+  expect_setequal(selected$rank, seq_len(nrow(selected)))
+  expect_identical(
+    selected$term[selected$rank == 1L],
+    selected$term[which.max(selected$statistic)]
+  )
+})
+
+test_that("a container ranks within each process, not across them", {
+  # Statistics from different processes are not comparable -- different risk
+  # sets, different event counts -- so a rank pooled over the stacked table
+  # would be a comparison nobody asked for.
+  skip_on_cran()
+  container <- flavored_container_fit(return_preprocessed = TRUE)
+  effects <- test_gof(container)$effects
+
+  key <- interaction(effects$flavor, effects$family, drop = TRUE)
+  for (level in unique(key)) {
+    rows <- which(key == level)
+    expect_setequal(effects$rank[rows], seq_along(rows))
+  }
+  # And the block order is untouched by the ranking.
+  expect_identical(
+    unique(paste(effects$flavor, effects$family)),
+    c(
+      "creation rate",
+      "creation choice",
+      "dissolution rate",
+      "dissolution choice"
+    )
+  )
+})

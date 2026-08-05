@@ -79,7 +79,13 @@ An object of class \code{test_time}: a list of three
 \link{diagnostic-tables}.
 \describe{
 \item{\code{effects}}{one row per tested effect — \code{statistic}, \code{df} and
-\code{p_value} of its augmentation, under the term's compact string.}
+\code{p_value} of its augmentation, under the term's compact string, plus
+\code{rank}, the term's position by descending statistic with \code{1} the most
+extreme. The rank is a column rather than the row order, so a script
+can take the front of the table without a screen while the rows stay
+in model order — and, on a multi-process fit, ranked within each
+process. \code{df} is constant within a call, which is what makes the
+statistics comparable enough to rank.}
 \item{\code{residuals}}{plot-ready per-interval data: the model's clock, the
 transformed clock, the scaled Schoenfeld residual of each tested
 effect, and the fitted estimate it should scatter around. Under

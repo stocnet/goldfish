@@ -871,3 +871,41 @@ span_variance <- function(per_actor) {
     numeric(1)
   )
 }
+
+# A defined order for a per-term table, as a column rather than as row order.
+#
+# The point is that screening survives having no screen: a fit that ran on a
+# cluster returns an object a script can take the front of, with nobody looking
+# at a grid of panels. `rank == 1` is the largest statistic, which is the term
+# with the most evidence against it.
+#
+# A COLUMN and not a re-sort, for two reasons. Every flavored table is presented
+# flavor-major so two diagnostics of one fit never disagree about row order, and
+# re-sorting by a statistic would interleave the processes and undo that. And a
+# rank is meaningful only among comparable statistics: the degrees of freedom
+# are constant within one call but not across processes, so the ranking is
+# computed WITHIN each process rather than over the stacked table.
+rank_by_statistic <- function(table) {
+  if (is.null(table$statistic) || nrow(table) == 0) {
+    return(table)
+  }
+  groups <- intersect(c("flavor", "family"), names(table))
+  key <- if (length(groups) > 0) {
+    interaction(table[groups], drop = TRUE)
+  } else {
+    rep(1L, nrow(table))
+  }
+  table$rank <- NA_integer_
+  for (level in unique(key)) {
+    rows <- which(key == level)
+    # Ties broken by the p-value where there is one, so a table whose
+    # statistics collide still has a total order rather than an input-order
+    # accident.
+    order_within <- order(
+      -table$statistic[rows],
+      table$p_value[rows] %||% rep(0, length(rows))
+    )
+    table$rank[rows[order_within]] <- seq_along(rows)
+  }
+  table
+}

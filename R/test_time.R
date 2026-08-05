@@ -111,7 +111,13 @@
 #'   [diagnostic-tables].
 #'   \describe{
 #'     \item{`effects`}{one row per tested effect — `statistic`, `df` and
-#'       `p_value` of its augmentation, under the term's compact string.}
+#'       `p_value` of its augmentation, under the term's compact string, plus
+#'       `rank`, the term's position by descending statistic with `1` the most
+#'       extreme. The rank is a column rather than the row order, so a script
+#'       can take the front of the table without a screen while the rows stay
+#'       in model order — and, on a multi-process fit, ranked within each
+#'       process. `df` is constant within a call, which is what makes the
+#'       statistics comparable enough to rank.}
 #'     \item{`residuals`}{plot-ready per-interval data: the model's clock, the
 #'       transformed clock, the scaled Schoenfeld residual of each tested
 #'       effect, and the fitted estimate it should scatter around. Under
@@ -199,7 +205,7 @@ test_time.result.goldfish <- function(
   labels <- gof_term_labels(x, tested)
   new_diagnostic_list(
     list(
-      effects = tibble::tibble(
+      effects = rank_by_statistic(tibble::tibble(
         index = tested,
         term = labels$term,
         coefficient = labels$coefficient,
@@ -210,7 +216,7 @@ test_time.result.goldfish <- function(
           df = augmented$df,
           lower.tail = FALSE
         )
-      ),
+      )),
       residuals = time_residual_table(
         x,
         prep,
@@ -655,6 +661,10 @@ test_time.flavored_result.goldfish <- function(
     ),
     c("effects", "residuals", "periods")
   )
+  # Re-ranked over the stacked table, which regroups by process: a rank carried
+  # up from a single-process block would be right by accident and wrong as soon
+  # as the blocks were built any other way.
+  components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
     "test_time",

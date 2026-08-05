@@ -189,8 +189,15 @@
 #'   [diagnostic-tables].
 #'   \describe{
 #'     \item{`effects`}{one row per tested effect, with `statistic` the
-#'       supremum, `p_value` its p-value under the selected reference, and
-#'       `scale` the standardizing constant \eqn{\sqrt{n \hat J_d}}.}
+#'       supremum, `p_value` its p-value under the selected reference, `scale`
+#'       the standardizing constant \eqn{\sqrt{n \hat J_d}}, and `rank` the
+#'       term's position by descending statistic, `1` being the most extreme.
+#'       The rank is a column rather than the row order, so a script can take
+#'       the front of the table without a screen while the rows stay in model
+#'       order — and, on a multi-process fit, flavor-major and ranked within
+#'       each process, statistics from different processes not being
+#'       comparable. Selecting with `effects =` re-ranks over what is
+#'       returned.}
 #'     \item{`process`}{the standardized process paths in long form: one row
 #'       per effect and step, with `u` the process-time axis, `clock` naming
 #'       which clock produced it, and `process` the value of \eqn{W_d(u)}.
@@ -282,14 +289,14 @@ test_gof.result.goldfish <- function(
   labels <- gof_term_labels(object, tested)
   new_diagnostic_list(
     list(
-      effects = tibble::tibble(
+      effects = rank_by_statistic(tibble::tibble(
         index = tested,
         term = labels$term,
         coefficient = labels$coefficient,
         statistic = unname(statistic),
         p_value = unname(p_value),
         scale = unname(paths$scale)
-      ),
+      )),
       process = gof_process_table(paths, labels, tested, clock),
       omnibus = cauchy_omnibus(p_value)
     ),
@@ -628,6 +635,10 @@ test_gof.flavored_result.goldfish <- function(
     ),
     c("effects", "process", "omnibus")
   )
+  # Re-ranked over the stacked table, which regroups by process: a rank carried
+  # up from a single-process block would be right by accident and wrong as soon
+  # as the blocks were built any other way.
+  components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
     "test_gof",
