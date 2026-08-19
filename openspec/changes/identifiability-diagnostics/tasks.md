@@ -52,7 +52,8 @@
 
 ## 4. Conditioning report and documentation
 
-- [ ] 4.1 `summary.result.goldfish()` reports the information matrix's condition
+- [ ] 4.1 `summary.goldfishFit()` (post class-naming-scheme name)
+  reports the information matrix's condition
       number and warns above a documented threshold; the fit is never refused.
       Settle the design's open question — always shown, or only above threshold —
       against real fits before choosing

@@ -26,6 +26,15 @@ gets its own estimator instead of more `sub_model` tokens.
   of (β, θ, α); there is deliberately **no** `distribution` argument (the
   thinning of unobserved rejected proposals under a parametric clock is an
   unresolved theoretical question, recorded in ADR-0023).
+- `make_specification()` gains `model = "DyNAMu"` with `mechanism =` and
+  `acceptance =` arguments (cli abort outside DyNAMu) — one constructor, one
+  more model; flavored coordination (`choice = list(creation ~ ...,
+  dissolution ~ ...)`) inherits the flavored machinery, and
+  `make_joint_specification()` composes it with no new acceptance path. Any
+  mechanism composes; generative consumers gate to conjunctive initially.
+  `estimate_dynamu()` accepts the spec, keeps simple formulas on its direct
+  surface, and `estimate_dynam()` redirects DyNAMu specs to it (ADR-0029,
+  superseding ADR-0024's dedicated constructor).
 - Full joint estimation for all five mechanisms when `rate =` is supplied
   (additive rate factor for conjunctive/disjunctive/compensatory; mixture
   weights for forcing/confirmation); constant rates otherwise. Two-stage
@@ -59,6 +68,11 @@ gets its own estimator instead of more `sub_model` tokens.
   coordination models are out of `make_specification()`'s scope.
 - `naming-deprecations`: the `sub_model = "choice_coordination"` value
   redirect joins the deprecation surface (single-hop message, NEWS horizon).
+- `multivariate-specification`: coordination processes join
+  `make_joint_specification()` as `make_specification(model = "DyNAMu")`
+  objects (any mechanism; generative consumers gate to conjunctive
+  initially), and the completion default is restated as the uniform
+  conjunctive draw (design D14–D16, ADR-0029/0030).
 
 ## Impact
 
@@ -74,3 +88,17 @@ gets its own estimator instead of more `sub_model` tokens.
   deprecation-path tests.
 - **Sequencing**: after `parametric-rates` (which settles the distribution
   vocabulary this change deliberately does not adopt); both pre-2.0.0.
+- **Merged DyNES substrate (1.9.29)**: resolved (design D14–D16, ADR-0029) —
+  coordination is a model of the one constructor
+  (`make_specification(model = "DyNAMu")`); `estimate_dynamu()` fits it and
+  `make_joint_specification()` composes it with no new acceptance path, while
+  the estimator remains the only fitting surface. Composition accepts any
+  mechanism;
+  the walk/`simulate()`/`estimate_dynes()` consumers gate to conjunctive
+  until the other mechanisms' generative constructions land. The internal
+  `choice_coordination` consumers (`complete_generative_spec()`,
+  `walk_handle`, `make_joint_specification()`) re-key to the dynamu
+  family + mechanism vocabulary. Also coordinates with `process-simulation`
+  (conjunctive-only coordination DGP → per-mechanism),
+  `coordination-tie-consistency`, `review-rem-directed` (symmetric mask),
+  `gather-rem-coordination-format`, and `effect-term-registry`.

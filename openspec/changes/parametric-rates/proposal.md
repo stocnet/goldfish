@@ -68,3 +68,13 @@ an orthogonal axis instead of multiplying `sub_model` tokens.
   survival packages in Suggests, test-only).
 - **Downstream**: `two-sided-coordination` deliberately does NOT get this axis
   (Cox-only there); the vocabulary is settled here first.
+- **Merged multivariate substrate (1.9.29)**: the timed/ordered regime
+  classifiers in `R/make_joint_specification.R`, `R/intercept_only_rate.R`,
+  and `R/complete_generative_spec.R` key on `sub_model` = `"rate"` /
+  `"rate_ordered"` and re-key to the distribution axis (design D13); joint
+  compositions initially reject `"weibull"`/`"gompertz"` (the pinned
+  intercept-only completion is an exponential-clock identity). Coordinates
+  with the active changes `intercept-only-rate-spec` (archive first),
+  `tied-event-times` (owns the general tie resolution; D8's abort is
+  interim), `process-simulation` (parametric-clock DGP), and
+  `effect-term-registry` (variant enumerations drop `rate_ordered`).

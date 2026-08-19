@@ -5,14 +5,14 @@ Preprocessing recipes SHALL emit their output exclusively through a writer objec
 
 #### Scenario: Default output selected implicitly
 - **WHEN** `compute_stats(formula, data, model = "DyNAM", sub_model = "rate")` is called without `output`
-- **THEN** the returned object is a `preprocessed_goldfish` produced by the default flat-buffer writer
+- **THEN** the returned object is a `goldfishPrep` produced by the default flat-buffer writer
 
 #### Scenario: Invalid output value rejected
 - **WHEN** `compute_stats(..., output = "parquet")` is called
 - **THEN** an informative error lists the valid output values
 
 ### Requirement: Default writer produces the flat-buffer preprocessing object
-The default writer SHALL produce the `preprocessed_goldfish` object specified by the flat-preprocess-output capability (`stat_mat_update`, `stat_mat_pointer`, unified event fields, engine-native `initialStats`, intercept scalars, presence C-format). Both estimation engines (R `default`, C++ `default_c`) SHALL consume this output without restructuring.
+The default writer SHALL produce the `goldfishPrep` object specified by the flat-preprocess-output capability (`stat_mat_update`, `stat_mat_pointer`, unified event fields, engine-native `initialStats`, intercept scalars, presence C-format). Both estimation engines (R `default`, C++ `default_c`) SHALL consume this output without restructuring.
 
 #### Scenario: Default writer output is estimation-ready
 - **WHEN** the result of `compute_stats(..., output = "default")` is passed to `estimate_dynam()` as precomputed preprocessing
@@ -27,7 +27,7 @@ what the estimation path does with the same object. It SHALL NOT assume the
 `point` encoding, so any constrained object reaching the expansion carries it.
 
 #### Scenario: a point-encoded object expands correctly
-- **WHEN** a stored `preprocessed_goldfish` whose availability is point-encoded
+- **WHEN** a stored `goldfishPrep` whose availability is point-encoded
   (because a constraint folded into it) is rendered to a gather stack
 - **THEN** the rows enumerate that event's allowed candidates, rather than
   indexing past the statistics matrix

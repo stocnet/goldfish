@@ -13,7 +13,7 @@ as directly-constructed two-mode input.
 
 Throughout this requirement `data.goldfish` names the **legacy environment**
 built by `make_data()` and the DyNAMi path, which retains that class as a
-deprecated-path name. It is not the `data_goldfish` class that `as_goldfish()`
+deprecated-path name. It is not the `goldfishData` class that `as_goldfish()`
 stamps on a validated `stocnet`; the class-naming capability separates the two,
 and nothing here applies to the stamp.
 

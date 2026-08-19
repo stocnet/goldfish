@@ -1,299 +1,286 @@
+# Design — class-naming-scheme
+
+> Revised 2026-08-19 (ADR-0031 supersedes ADR-0020): scheme flipped from
+> the `_goldfish` snake_case suffix to the `goldfish<Thing>` camelCase
+> prefix, scope extended to internal classes, summary idiom flipped to
+> base R's, and the autograph lockstep inverted — autograph@develop
+> moved first.
+
 ## Context
 
-goldfish runs two class-naming conventions at once. Seventeen classes carry the
-package with a dot (`result.goldfish`, `network.goldfish`, `preprocessed.goldfish`,
-…), inherited from the pre-1.7.0 era. Eight classes minted since 1.9.21 carry
-nothing at all (`test_gof`, `diagnose_onset`, `margin_table`, …), following a
-convention the living spec wrote down when `residuals-gof` was archived: *"the
-class is the exported constructor's own snake_case name, with no suffix."*
+goldfish runs two class-naming conventions at once: seventeen dotted
+classes (`result.goldfish`, …) from the pre-1.7.0 era, and eight bare
+constructor-named classes minted since 1.9.21 (`test_gof`,
+`diagnose_onset`, …) under a convention the living spec wrote down when
+`residuals-gof` archived. [stocnet/autograph#60] is the bug report for
+the second convention: nothing in those class vectors names a package.
 
-[stocnet/autograph#60](https://github.com/stocnet/autograph/issues/60) is the
-bug report for the second convention. autograph 1.2.0 registers `plot` methods on
-those bare names and its method bodies read goldfish-specific columns and
-attributes; if another package returns a `test_gof`-classed object, autograph
-dispatches goldfish's plot code onto it and cannot detect the mistake, because
-nothing in the class vector names a package.
+The ecosystem answered upstream. autograph@develop's CONTRIBUTING
+(commit 03ec996, 2026-08-17) states the rule for every stocnet package:
+a class is named **package + noun, in camelCase** (`<pkg><Thing>`),
+following RSiena's `sienaFit`/`sienaGOF`/`sienaAlgorithm`; no dot
+suffix (a dot creates no inheritance — dispatch is on exact strings);
+no shared parent class (autograph standardizes by coercion). The same
+commit renamed autograph's goldfish methods to `goldfishFit`,
+`goldfishGOF`, `goldfishTimeTest`, `goldfishOutliers`,
+`goldfishChangepoints`, `goldfishOnset`, `goldfishMargins`, keeping
+goldfish's current spellings only as defunct aliases to be deleted
+"once the oldest supported goldfish is past the rename". manynet's
+CONTRIBUTING (origin/develop, verified 2026-08-19; local checkout is
+143 behind — read via `git show origin/develop:`) adds no competing
+class rule.
 
 Constraints this design works inside:
 
-- **ADR-0020** settles the scheme: a snake_case `_goldfish` suffix on the
-  constructor's own name, for every class goldfish returns to a user.
-- **ADR-0016** (accepted, expires at 2.0.0) licenses the hard rename: until
-  2.0.0 a user-facing name that misleads is renamed rather than kept, with no
-  deprecation shim. Nothing on this line has shipped to CRAN.
-- The frozen 1e-6 coefficient and C++ golden baselines in
-  `tests/testthat/_baselines/` are not regenerated. Class names do not reach
-  `src/`, so a correct rename cannot move a coefficient; if one moves, the rename
-  was wrong.
-- The package's strict snake_case policy applies to all functions, arguments and
-  objects; classes are the surface that currently escapes it.
+- **ADR-0031** (supersedes ADR-0020) settles the scheme: `goldfish` +
+  short camelCase identifier, decided by Alvaro 2026-08-19.
+- **ADR-0016** (expires at 2.0.0) licenses the hard rename; nothing on
+  this line has shipped to CRAN. This change folds **next**, before
+  `parametric-rates`, so the closing window is used.
+- The frozen 1e-6 and C++ golden baselines are not regenerated; class
+  names never reach `src/`.
+- The strict snake_case policy stays for functions, arguments, and
+  objects; classes become an explicit carve-out, written into the
+  tracked `CLAUDE.md` by this change (D14).
 
 ## Goals / Non-Goals
 
 **Goals**
 
-- Every class a user can hold or dispatch on names goldfish.
-- One convention, package-wide, so a user can spell a class from the constructor
-  name without knowing when it was minted.
-- No goldfish class contains a dot, so `plot.test_gof_goldfish` has exactly one
-  reading.
-- autograph's `feature/goldfish-diag` methods work against the renamed classes on
-  the day the rename lands.
-- The living spec ends the change with one class-naming rule in it, not two.
+- Every class goldfish attaches — user-facing or internal — names
+  goldfish, in one convention.
+- goldfish lands exactly on the seven class strings autograph@develop
+  already dispatches on.
+- Method names have one parsing: snake_case generic, dot, camelCase
+  class.
+- The living spec ends with one class-naming rule; active changes'
+  verbatim delta copies are swept in the same commit so their archives
+  reconcile.
 
 **Non-Goals**
 
-- Renaming classes on the deprecated path. `nodes.goldfish`, `network.goldfish`,
-  `dependent.goldfish` and `global.goldfish` come from constructors that already
-  `deprecate_warn()` toward `manynet::make_stocnet()`.
-- Renaming internal dispatch classes that never leave the package. The effect
-  tags (`inertia`, `recip`, `trans`, … 60+ of them), `writer_*`, `data_source_*`,
-  `model_spec`, `support_constraint_plan`, `fixed_spec`/`initial_spec` stay.
-  `goldfish.formulae` is the one internal exception, taken because it is a
-  single site and its current spelling is the convention backwards.
-- Providing a translation shim for objects saved by earlier goldfish. Recognize,
-  never translate — the rule `format_version.R` already states.
-- Changing any object's *contents*, components, or attributes. This change moves
-  names only.
-- Renaming the exported functions. `test_gof()` stays `test_gof()`; only the
-  class of what it returns moves.
+- Renaming deprecated-path classes (`nodes.goldfish`,
+  `network.goldfish`, `dependent.goldfish`, `global.goldfish`, the
+  legacy `data.goldfish` environment) — lifecycle exemption confirmed
+  2026-08-19.
+- Renaming the ~60 effect dispatch tags — they stop being classes when
+  `effect-term-registry` replaces string-built dispatch; renaming them
+  fights a mechanism scheduled for retirement (confirmed 2026-08-19).
+- Translation shims for stored objects; changing any object's contents;
+  renaming exported functions.
 
 ## Decisions
 
-### D1 — The scheme is a snake_case `_goldfish` suffix on the constructor's name
+### D1 — The scheme is `goldfish` + a short camelCase identifier (ADR-0031)
 
-Per ADR-0020. `test_gof()` returns `test_gof_goldfish`; `estimate_dynam()`
-returns `result_goldfish`.
+`estimate_dynam()` returns `goldfishFit`; `test_gof()` returns
+`goldfishGOF`. The identifier is a short word compressing the object
+(`Fit`, `Prep`, `Spec`, `Eval`), not a transliteration of the
+constructor name. Where autograph@develop fixed a name, that name is
+adopted verbatim (the seven above); where RSiena has a precedent, it is
+followed (`goldfishAlgorithm` ← `sienaAlgorithm`;
+`goldfishTimeTest` ← `sienaTimeTest`).
 
-*Alternatives considered.* Issue #60's `.goldfish` was rejected because it
-reintroduces the `plot.test_gof.goldfish` ambiguity the issue itself names — the
-string parses equally as a `plot()` method on `test_gof.goldfish` and as a
-`goldfish` method of a `plot.test_gof` generic — and because it exempts classes
-from the snake_case policy every other user-facing name obeys. A `goldfish_`
-prefix avoids both problems but severs the visual link between constructor and
-class. The status quo (no suffix) does not answer the bug.
+*Why the flip from ADR-0020's `_goldfish` suffix.* Three reasons, in
+order of force. (1) With snake_case generics **and** snake_case
+classes, a method name has multiple generic/class parses —
+`augment_seq.flavored_result_goldfish` reads at several dot boundaries;
+camelCase classes give the dot exactly one reading, which was the
+collision ADR-0020's scheme merely relocated. (2) The ecosystem rule
+now exists and autograph@develop already ships the concrete strings —
+diverging means goldfish objects don't plot. (3) A class visually
+distinct from the function namespace is a feature, not a policy breach:
+the snake_case policy governs names users *call*; a class string is
+data. *Alternatives considered*: `_goldfish` suffix (ADR-0020 —
+superseded for the reasons above), `.goldfish` dot suffix (issue #60's
+own proposal — rejected then and still: dots create no inheritance and
+maximize ambiguity), bare constructor names (the bug).
 
-### D2 — Scope is drawn by lifecycle, not by class family
+### D2 — Scope is drawn by lifecycle and by mechanism, not by export status
 
-A class is renamed if it is on the live path, and left alone if it is on the
-deprecated path. This is why the four legacy data classes keep their dotted
-names while `preprocessed.goldfish` moves: not because one group is "data" and
-the other "results", but because one group is scheduled for deletion.
+The rename is full (Alvaro, 2026-08-19): internal classes move too —
+`goldfishWriterDefault`/`goldfishWriterGather`/`goldfishWriterDB`,
+`goldfishSourceEnvir`/`goldfishSourceStocnet`, `goldfishModelSpec*`,
+`goldfishSupportPlan`, `goldfishFixedSpec`/`goldfishInitialSpec`,
+`goldfishFormulae`. Two exemptions, each with a mechanism reason, not a
+purity one:
 
-Renaming a name on its way out spends churn in the package, in every user script
-and in every vignette, and buys a tidier spelling for a string that will not
-exist after the stocnet migration completes.
+- **Deprecated path** (four data classes + legacy `data.goldfish`):
+  renaming a name scheduled for deletion spends churn on a string that
+  will not survive the stocnet migration; the dotted spelling now
+  usefully *marks* the legacy path.
+- **Effect dispatch tags**: `effect-term-registry` Layer 1 retires
+  their class role entirely (registry lookup replaces `getS3method`
+  name construction); renaming ~60 tags and their `init_*`/`update_*`
+  method names, then deleting the mechanism, is double churn.
 
-### D3 — `data.goldfish` splits, because it is currently two classes under one name
+### D3 — `data.goldfish` splits; the stamp side is `goldfishData`
 
-The name serves two unrelated objects: the legacy environment built by
-`make_data()` and DyNAMi (deprecated path), and the marker `as_goldfish()` stamps
-on a `stocnet` object (experimental, live). Under D2 the first stays and the
-second moves, so:
+Unchanged in substance from the original design: the legacy
+environment keeps `data.goldfish` (deprecated path), the `as_goldfish()`
+stamp becomes `goldfishData`, print dispatch splits with them. The two
+names are now visually far apart, which removes the earlier
+"confusable in review" cost of the split.
 
-| Producer | Class after |
-|---|---|
-| `make_data()`, DyNAMi | `data.goldfish` (unchanged, deprecated) |
-| `as_goldfish()` | `data_goldfish` |
+### D4 — The retired `result.goldfish` name is the staleness discriminator
 
-Two similar names coexisting is uncomfortable and worth stating plainly as a
-cost. It is nonetheless honest: they are two different objects, and one name for
-both is the defect, not the fix. Print dispatch splits with them, so the legacy
-environment and the stamped stocnet no longer share a print method by accident.
-
-*Alternative considered.* Treating `data.goldfish` wholly as legacy and leaving
-the `as_goldfish()` stamp on the dotted name was rejected: `as_goldfish()` is the
-forward-looking boundary for the stocnet input, and permanently dressing it in a
-legacy-looking name inverts the signal the rename exists to send.
-
-### D4 — The retired `result.goldfish` name becomes the staleness discriminator
-
-`result.goldfish` is not kept as an alias. The live class is `result_goldfish`,
-and the old name survives only so that an object saved by an earlier goldfish
-still dispatches somewhere legible instead of producing R's raw
-`no applicable method` for `print()`.
-
-Exactly two stubs register on the old name:
-
-- `print.result.goldfish` — explains and stops.
-- `summary.result.goldfish` — explains and stops.
-
-No other generic registers on it. `coef()`, `logLik()`, `vcov()`, `predict()`,
-`residuals()`, `augment()`, `tidy()`, `glance()` and the diagnostics on a saved
-object give R's own "no applicable method" error, which is accurate: there is no
-method, and the object cannot be repaired.
-
-*Alternative considered.* Stubbing all ~20 user-facing generics so nobody ever
-meets a bare dispatch error was rejected as ~20 NAMESPACE entries and 20 roxygen
-blocks maintained forever to improve the wording of a dead end. The first thing a
-user does with an unfamiliar object is print it; that is where the diagnosis
-belongs, and `format_version.R` already reasons this way.
+Unchanged: exactly two stubs (`print.result.goldfish`,
+`summary.result.goldfish`) explain and stop; every other generic gives
+R's own "no applicable method". No fallback class on renamed objects.
 
 ### D5 — The stub diagnoses by epoch, not by class alone
 
-The class rename introduces a case the current message set cannot describe
-correctly. `result_format_status()` reads the object's `fit_version` epoch, and
-after the rename there are two distinct populations wearing `result.goldfish`:
+Unchanged: a no-epoch object (CRAN ≤ 1.7.0) is told its components were
+renamed; a current-epoch object (dev line) is told only its class name
+is retired. `FIT_VERSION`/`PREP_VERSION` do not move — no component of
+any object changes.
 
-| Object origin | `fit_version` | Status | What is actually wrong |
-|---|---|---|---|
-| CRAN goldfish ≤ 1.7.0 | absent | `outdated` | components renamed to snake_case; components missing |
-| dev line 1.9.x | `2L` | `current` | **only** the class name is retired |
+### D6 — The summary object is `summary.goldfishFit`, following RSiena and base R
 
-Firing the existing "fitted before goldfish 2.0.0, when the components were
-renamed" bullets at the second population would state something false about the
-object in the user's hand — the defect this whole change exists to remove. So the
-stub keeps consulting the epoch and adds a third diagnosis for a
-current-epoch object on a retired class: the class was renamed, re-fit.
-
-The epoch counters themselves (`FIT_VERSION`, `PREP_VERSION`) do **not** move.
-The rule in `format_version.R` is that an epoch moves once per *release* whose
-layout differs, never once per dev-line change, and this change alters no
-component of any object.
-
-### D6 — The summary object is `summary_result_goldfish`, breaking with base R's idiom
-
-Base R classes a summary as `summary.<class>` (`summary(lm)` → `summary.lm`), so
-the idiomatic result here would be `summary.result_goldfish`. It is rejected: the
-goal is that no goldfish class contains a dot, and a class that does would be an
-exception a reader has to memorize. The method is still `summary.result_goldfish()`;
-only the object it returns is `summary_result_goldfish`, printed by
-`print.summary_result_goldfish()`.
-
-This also removes a live ambiguity — `summary.result.goldfish` is currently both
-a method name and a class name in the same package.
+Flipped from the previous design. RSiena classes its summary as
+`summary.sienaFit` (with `print.summary.sienaFit`), the base-R
+`summary.lm` idiom, and goldfish follows: `summary(fit)` returns
+`summary.goldfishFit`, printed by `print.summary.goldfishFit()`. The
+former "no dots anywhere" goal narrows to **no dot-suffix package
+qualification** (`.goldfish` at the end of a class): the `summary.`
+*prefix* is the entrenched base-R idiom, and with camelCase classes it
+is unambiguous — `print.summary.goldfishFit` has one parse because no
+goldfish generic is named `print.summary`. The previous design rejected
+the idiom to keep a uniform no-dot rule; with the ambiguity dissolved
+by camelCase, breaking with base R would buy uniformity nobody needs at
+the price of surprising every R user. This also still removes the live
+`summary.result.goldfish` method-name/class-name collision: the method
+is `summary.goldfishFit()` and the class it returns is
+`summary.goldfishFit` — the same relationship `stats::summary.lm` has.
 
 ### D7 — Hard rename, no fallback class
 
-The renamed objects carry only the new class. Adding the old name as a trailing
-element (`c("test_gof_goldfish", "test_gof", "list")`) would keep autograph's
-current methods working, but it re-claims the global name the change exists to
-release, so it defeats the purpose rather than easing it. ADR-0016 licenses the
-break; there is no CRAN installed base for this line.
+Unchanged. ADR-0016 licenses the break; autograph's defunct aliases
+(upstream) are the only compatibility layer anywhere, and they are
+autograph's to delete.
 
 ### D8 — Living-spec deltas are targeted; the rename table is authoritative
 
-Forty-four requirements across twenty capabilities mention an old class string.
-Reissuing all forty-four as `## MODIFIED` blocks means copying forty-four
-requirement bodies verbatim, and every copy is an opportunity to drift wording —
-the same objection ADR-0016 raised against renaming by sweep, applied to specs.
+Unchanged in mechanism: deltas where the rule changes or the class
+string is the contract; a closing hand-edited sweep for stale
+spellings; the `diagnostic-plot-classes` "no suffix" SHALL is replaced
+in place.
 
-So: a delta is issued where the requirement's **rule** changes, or where the
-class string **is the subject** of the contract. `class-naming` states the
-rename table and declares it authoritative package-wide. A closing task then
-corrects the remaining stale spellings directly in `openspec/specs/**`,
-hand-edited and diff-reviewed.
+### D8a — Active changes' verbatim delta copies are swept in the same commit
 
-The one delta that is not optional is `diagnostic-plot-classes`. Its "no suffix"
-sentence is an opposing SHALL; a purely additive `class-naming` capability would
-leave both in the living spec, which is precisely the failure
-`.plan/opsx-spec-placement-check.sh` was written to catch.
+New (2026-08-19, from cross-session review). `parametric-rates` and
+`two-sided-coordination` carry `## MODIFIED` blocks that are verbatim
+copies of living-spec requirements naming `specification.goldfish`.
+This change folds *before* them, so the moment its sweep rewrites the
+living text, those copies would drift and their archive sync would
+reconcile badly. Therefore the sweep task covers, in the same commit as
+the living-spec edits: `parametric-rates/specs/model-specification`,
+`two-sided-coordination/specs/model-specification`,
+`two-sided-coordination/specs/multivariate-specification`, and the
+`_goldfish` mention in `parametric-rates` design D11 — updating their
+class strings to the post-rename spelling. (Agreed with the session
+holding those changes; it will not sweep them itself.)
 
 ### D9 — The rename is applied by hand, per class, never by global search-and-replace
 
-The obvious implementation is a `sed` over the repo. It is wrong here, for two
-independent reasons:
+Unchanged, and still load-bearing: the *old* diagnostic class strings
+collide with exported function names (`test_gof` is both), so a
+textual replace renames the API; and scripted edits must not touch
+roxygen or comments. Safe edit surface: quoted class strings,
+`inherits()`/`is()` arguments, `class<-`/`structure(class =)` values,
+roxygen `@method` tags, regenerated NAMESPACE.
 
-1. **The class strings collide with function names.** `test_gof`, `test_time`,
-   `test_parameter`, `diagnose_onset`, `diagnose_outliers`,
-   `diagnose_changepoints`, `margin_table` and `evaluate_model` are all *exported
-   functions* as well as classes. The high occurrence counts are mostly the
-   functions. A textual replace renames the API.
-2. **Scripted edits must not touch comments or roxygen.** A previous scripted
-   rewrap in this package merged an `@noRd` tag into a prose line and broke the
-   block silently, with tests and lint still green. Roxygen `@method` and
-   `@export` tags, and the prose that names classes, are hand-edited one site at
-   a time.
+### D10 — One cluster per commit, tests green at every commit
 
-The safe edit surface is therefore: quoted class strings, `inherits()` /
-`is()` arguments, `class<-` / `structure(class =)` values, roxygen `@method`
-tags, and `NAMESPACE` (regenerated by `devtools::document()`, never hand-edited).
-
-### D10 — One class per commit, tests green at every commit
-
-Work proceeds class by class, or by tightly-coupled cluster (`result_goldfish`
-with `flavored_result_goldfish` and `summary_result_goldfish`, since the methods
-and the stale-guard helpers are shared). Each commit renames one cluster
-end-to-end — code, roxygen, `document()`, tests, snapshots — and leaves the suite
-green. This keeps any individual step revertable, which matters more than usual
-for a change whose failure mode is a silently unregistered S3 method.
-
-Ordering runs cheapest-first so the pattern is established on small surfaces
-before `result_goldfish` (the 131/54/95 one) is attempted:
-internal → algorithm/spec → preprocessing → diagnostics → results → data stamp.
+Unchanged in mechanism; ordering updated for the wider scope,
+cheapest-first: formulae → algorithm/spec → internal
+(writers/sources/plans) → preprocessing → diagnostics → results → data
+stamp.
 
 ### D11 — Snapshot tests are reviewed, not accepted wholesale
 
-Printed output embeds class names, so `testthat::snapshot_accept()` will happily
-absorb both the intended rename and any wording regression introduced alongside
-it. Each snapshot diff is read before acceptance, and a task that accepts
-snapshots states what changed in them.
+Unchanged.
 
-### D12 — autograph moves in the same change, in the working copy
+### D12 — autograph@develop is upstream; goldfish matches, verification only
 
-autograph 1.2.0 breaks against goldfish the moment the rename lands, so the fix
-travels with the break rather than behind it. The six `S3method(plot, …)` entries,
-the roxygen `@method` tags and the `inherits()` guards in
-`R/plot_diagnostics.R` are updated on `feature/goldfish-diag` in
-`/Users/ualvaro/Documents/repos/autograph`, and issue #60 is answered with the
-final table.
+Inverted from the previous design. autograph moved first: its develop
+branch (03ec996) already registers `plot.goldfishFit`,
+`plot.goldfishGOF`, `plot.goldfishTimeTest`, `plot.goldfishOutliers`,
+`plot.goldfishChangepoints`, `plot.goldfishOnset`,
+`plot.goldfishMargins`, with goldfish's current names as defunct
+aliases. So there is no autograph rename task: goldfish adopts those
+seven strings verbatim, the lockstep task becomes *verification*
+(build one object of each class in goldfish, plot through
+autograph@develop, confirm dispatch hits the new methods, not the
+aliases), and the alias deletion is autograph's own cleanup once the
+rename ships. `goldfishParamTest` and `goldfishEval` have no autograph
+method — confirmed, not assumed. Issue #60 is answered with the final
+table.
 
-Note that autograph's method set is *smaller* than goldfish's class set: it plots
-six of the eight diagnostic classes. `test_parameter` and `evaluate_model` are
-renamed in goldfish but have no autograph method to update.
+### D13 — Single version bump at the close, one consolidated NEWS table
 
-### D13 — Single version bump to 1.9.29 at the end, with one consolidated NEWS entry
+Unchanged in mechanism; the bump is the next patch version at fold time
+(the numbers in the earlier draft are stale — the package is already at
+1.9.29), with the full old→new table under **Breaking changes**.
 
-The standing rule bumps at each phase milestone. This change is one coherent
-rename rather than a sequence of features, and a reader wants the whole table in
-one place, so it takes a single 1.9.28 → 1.9.29 bump in the closing task with the
-full old→new table under a **Breaking changes** heading.
+### D14 — The tracked CLAUDE.md carves classes out of the snake_case policy
+
+New. The repo's CLAUDE.md states the 1.7.0 renames "retired camelCase
+from the exported API — never reintroduce it". That sentence stays true
+for functions, arguments, and objects, and this change must not leave
+it contradicting the class scheme. The naming section gains the
+carve-out: S3 *class strings* follow the stocnet ecosystem rule
+`goldfish<Thing>` (camelCase), per ADR-0031 and autograph's
+CONTRIBUTING; everything callable stays snake_case. The edit is a task
+of this change (it lands with the rename, not before it).
+
+### D15 — Lint compatibility is verified in groundwork, not discovered mid-rename
+
+New. S3 method names like `print.goldfishFit` and
+`summary.goldfishFit` must pass `.lintr`'s
+`object_name_linter("snake_case")`. lintr exempts S3 methods for known
+generics, but goldfish defines its own snake_case generics whose
+methods on camelCase classes may still be flagged
+(`diagnose_onset.goldfishFit`). Groundwork runs the linter over a
+one-file spike declaring one method per generic family; if flags
+appear, `.lintr` gains the documented adjustment (an additional
+accepted style or targeted exclusions) in the same groundwork commit —
+never ad-hoc `# nolint` scattered through the rename.
 
 ## Risks / Trade-offs
 
-- **A renamed class silently loses its S3 registration** (roxygen `@method` tag
-  updated but `@export` dropped, or `NAMESPACE` not regenerated) → the method
-  stops dispatching and the object prints as a bare list. Tests generally still
-  pass, because most assert on values rather than on dispatch. → Each cluster's
-  verification task asserts dispatch explicitly (`expect_s3_class()` on the
-  object *and* an assertion that the print method ran), and the NAMESPACE diff is
-  read as part of the commit.
-- **The function/class name collision invites a bad `sed`** → D9 forbids it; the
-  verification for the diagnostic cluster explicitly greps that the exported
-  function names are unchanged (`export(test_gof)` still in NAMESPACE).
-- **A frozen baseline moves** → it cannot, if the rename is correct; class names
-  never reach `src/`. A moved baseline is the signal that something other than a
-  name changed, and the task stops rather than regenerating (design D18 of the
-  baselines rule).
-- **The living-spec sweep (D8) misses a spelling** → the closing task greps
-  `openspec/specs/` for every old class string and requires an empty result,
-  excluding the four intentionally-retained deprecated names and the legacy
-  `data.goldfish`.
-- **`data.goldfish` and `data_goldfish` are confusable in review** (D3) → the
-  split is covered by a scenario in `class-naming` asserting both producers and
-  both print routes, so the distinction is tested rather than remembered.
-- **autograph and goldfish drift out of step** if only one side is committed →
-  the autograph task follows the goldfish diagnostic-cluster task immediately and
-  its verification loads both working copies.
-- **A user's saved fit becomes unusable.** This is the accepted cost of D7, not a
-  risk to mitigate. The stub (D4/D5) makes it legible; nothing makes it
-  recoverable.
+- **A renamed class silently loses its S3 registration** → unchanged
+  mitigation: every cluster asserts dispatch explicitly and the
+  NAMESPACE diff is read.
+- **The function/class collision invites a bad `sed`** → D9 forbids it;
+  the diagnostic-cluster verification greps that `export(test_gof)` and
+  siblings survive.
+- **A frozen baseline moves** → it cannot if the rename is correct; a
+  moved baseline stops the task (baselines rule).
+- **Active-change delta copies drift** (new) → D8a sweeps them in the
+  same commit; the placement pre-flight re-runs for both affected
+  changes afterwards.
+- **Internal-class rename destabilizes dispatch in hot paths** (new
+  scope) → internals are renamed in their own early clusters with the
+  full `NOT_CRAN=true` suite green before the big `goldfishFit`
+  cluster starts; any effect-adjacent string is checked against the
+  effect-tag exemption list first.
+- **lintr flags method names** → D15 front-loads the spike.
+- **A user's saved fit becomes unusable** → accepted cost (D7); the
+  stub makes it legible.
 
 ## Migration Plan
 
-For users on the development line, there is no migration path for stored
-objects — re-fit. `print()` and `summary()` on a stored fit say so. Scripts
-testing `inherits(x, "result.goldfish")` or defining methods on a goldfish class
-update to the new spelling; the NEWS table under 1.9.29 is the reference.
-
-Rollback is per-commit (D10). Because each cluster is self-contained, reverting
-one commit restores that class's old name without disturbing the others.
+Unchanged for users: no migration for stored objects — re-fit; scripts
+update `inherits()` checks per the NEWS table. Rollback is per-cluster
+commit. autograph: no action required at fold; delete the defunct
+aliases in a later autograph release.
 
 ## Open Questions
 
-- Do the internal dispatch classes ever become required rather than recommended?
-  `fixed_spec` / `initial_spec` in particular are very generic names, but they
-  never escape the package. Deferred; `class-naming` records them as recommended.
-- Should the deprecated data classes be renamed at the moment they are removed,
-  if their removal slips past 2.0.0 and they are still present under the old
-  convention?
+- Should autograph's defunct aliases be deleted immediately after this
+  folds (goldfish and autograph are co-developed here) or kept one
+  autograph release for third parties?
+- `goldfishModelSpec` hierarchy: whether the subclass identifiers keep
+  their current suffix words verbatim once inventoried (task 1.1
+  decides against the actual strings).

@@ -127,7 +127,8 @@ Child constructors validate only their own arguments (cli errors naming valid
 options); **all cross-object rules run in `set_algorithm_em()`** — the D4 validity
 matrix and the precedence table, warn-and-ignore for inconsistent-but-ignorable
 combinations, abort for impossible ones. The EM constructor's name is settled:
-`set_algorithm_em()`, joining the `algorithm.goldfish` superclass that
+`set_algorithm_em()`, joining the `goldfishAlgorithm` superclass
+(post class-naming-scheme spelling, ADR-0031) that
 `set_algorithm_newton()` introduces, so `estimate_dynes()` gates on the same
 `inherits()` check as the DyNAM/REM estimators. The three nested component
 constructors keep their working `set_alg_*` names here; naming them is this

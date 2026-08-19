@@ -62,17 +62,41 @@
 - [ ] 4.3 Verify group: cpp-recompile then not-cran-test with frozen
       baselines PASS
 
-## 5. Reporting, methods, and documentation
+## 5. DyNES composition path (D14–D16; depends on group 1 only)
 
-- [ ] 5.1 Result object: block-labeled coefficients (rate / choice /
+- [ ] 5.1 `make_specification(model = "DyNAMu")`: add the model to the enum
+      with `mechanism =` and `acceptance =` arguments (cli abort outside
+      DyNAMu; acceptance gated to confirmation), flavored choice lists
+      supported; `estimate_dynamu()` accepts the spec in place of a formula
+      (equal fits test), refuses flavored lists on its direct surface, and
+      `estimate_dynam()` redirects a DyNAMu spec to it
+- [ ] 5.2 `make_joint_specification()` composes DyNAMu specifications (no
+      new acceptance path — one object type); internal `choice_coordination`
+      vocabulary in `make_joint_specification()`,
+      `complete_generative_spec()`, and `walk_handle` re-keys to the DyNAMu
+      model + mechanism; completion default restated as the uniform
+      conjunctive draw (byte-equivalent behavior test); regime behavior per
+      D16 (ordered composition = Cox-native, timed = opportunity clock or
+      pinned completion, single-regime rule unchanged)
+- [ ] 5.3 Consumer mechanism gates: walk-driven consumers and
+      `estimate_dynes()` abort on non-conjunctive mechanisms with a cli
+      error naming the mechanism; composition itself never rejects a
+      mechanism (tests for both sides of the gate)
+- [ ] 5.4 Verify group: not-cran-test PASS (the merged-walk byte-identity
+      and frozen baselines untouched), `devtools::document()`, bump
+      DESCRIPTION + NEWS (phase milestone)
+
+## 6. Reporting, methods, and documentation
+
+- [ ] 6.1 Result object: block-labeled coefficients (rate / choice /
       acceptance), `coef()`/`vcov()`/`logLik()`; class name per the
       class-naming scheme
-- [ ] 5.2 `summary()`/`print()` with per-block tables and the mechanism in
+- [ ] 6.2 `summary()`/`print()` with per-block tables and the mechanism in
       the header (cli-rendered, pinned-context snapshots)
-- [ ] 5.3 Documentation: mechanism catalogue with the φ table, constant-rate
+- [ ] 6.3 Documentation: mechanism catalogue with the φ table, constant-rate
       vs joint regimes, identifiability requirements, AIC comparison of
       non-nested mechanisms, and the Cox-only rationale (thinning caveat,
       ADR-0023)
-- [ ] 5.4 Final verification: full NOT_CRAN suite green with baselines PASS,
+- [ ] 6.4 Final verification: full NOT_CRAN suite green with baselines PASS,
       `devtools::document()`, air format + lintr on touched files, bump
       DESCRIPTION + NEWS (change complete)

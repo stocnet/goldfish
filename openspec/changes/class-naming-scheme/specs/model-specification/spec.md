@@ -1,16 +1,16 @@
 ## RENAMED Requirements
 
 - FROM: `### Requirement: make_specification constructs a specification.goldfish object`
-- TO: `### Requirement: make_specification constructs a specification_goldfish object`
+- TO: `### Requirement: make_specification constructs a goldfishSpec object`
 
 ## MODIFIED Requirements
 
-### Requirement: make_specification constructs a specification_goldfish object
+### Requirement: make_specification constructs a goldfishSpec object
 
 The package SHALL provide `make_specification()` that accepts `rate` and/or `choice`
 formulas with an **empty left-hand side**, a `model`, the relevant sub-model(s), a `layer`
 naming the dependent process, an optional `support_constraint` formula, and a `data` object,
-and returns an S3 object of class `specification_goldfish`. The object MUST hold the parsed
+and returns an S3 object of class `goldfishSpec`. The object MUST hold the parsed
 rate/choice formula objects that preprocessing consumes (effect descriptors,
 perspective/`type` parameters, interaction structure, intercept flag, and per-effect
 arguments) together with model metadata and validation results. v1 MUST cover DyNAM and REM
@@ -22,7 +22,7 @@ because its v1 surface is expected to evolve.
 #### Scenario: build a DyNAM specification
 - **WHEN** a user calls `make_specification(rate = ~ 1 + indeg, choice = ~ inertia + recip,
   model = "DyNAM", layer = "callsDep", data = d)`
-- **THEN** a `specification_goldfish` object is returned containing the parsed rate and
+- **THEN** a `goldfishSpec` object is returned containing the parsed rate and
   choice components and passing validation for the DyNAM model.
 
 #### Scenario: support_constraint is parsed, validated, and active
@@ -38,7 +38,7 @@ because its v1 surface is expected to evolve.
 
 ### Requirement: specification print is a single-glance overview
 
-`print()` for a `specification_goldfish` SHALL render an overview and there SHALL be no
+`print()` for a `goldfishSpec` SHALL render an overview and there SHALL be no
 `summary` method. The output MUST state the model and which sub-models are present, and a
 Dependent block that names the `layer` and — from the resolved dependent object — the number
 of events, the time span, the sender→receiver nodesets, and the network. The rate and choice
@@ -76,7 +76,7 @@ literal markup.
 ### Requirement: estimate_* accepts a specification object or a formula
 
 `estimate_dynam()` and `estimate_rem()` SHALL accept a
-`specification_goldfish` object in place of a formula (`estimate_dynami()` is deferred to the
+`goldfishSpec` object in place of a formula (`estimate_dynami()` is deferred to the
 DyNAMi preprocessing-path change). When given the object they MUST reuse
 its parsed contents rather than re-parsing, and produce results identical to passing the
 equivalent formula. The existing formula interface MUST continue to work unchanged.

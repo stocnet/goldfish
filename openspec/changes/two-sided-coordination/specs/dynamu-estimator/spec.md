@@ -74,3 +74,30 @@ stated in the printed header.
 - **WHEN** `summary(fit)` prints under a pinned cli context
 - **THEN** the output snapshot shows the mechanism and per-block coefficient
   tables
+
+### Requirement: estimate_dynamu accepts a DyNAMu specification
+`estimate_dynamu()` SHALL accept a `make_specification(model = "DyNAMu")`
+object in place of its formula surface — the direct formula path stays simple
+(single formulas per part), and flavored coordination goes through the
+specification. `estimate_dynam()` SHALL redirect a DyNAMu specification to
+`estimate_dynamu()` with a `cli` error naming it, the same pattern as the
+event-stream estimators rejecting a joint specification by naming
+`estimate_dynes()`.
+
+#### Scenario: estimate from a DyNAMu specification equals estimate from a formula
+- **WHEN** the same coordination model is fitted via
+  `estimate_dynamu(make_specification(choice = ~ inertia, model = "DyNAMu",
+  mechanism = "forcing", layer = "collab", data = d))` and via the direct
+  formula surface
+- **THEN** the two fits agree exactly
+
+#### Scenario: the direct path refuses flavored lists
+- **WHEN** `estimate_dynamu(list(creation ~ inertia), data = d)` is called
+  with a flavor-keyed list on the direct surface
+- **THEN** a `cli` error directs the caller to
+  `make_specification(model = "DyNAMu")` for flavored coordination
+
+#### Scenario: estimate_dynam redirects a DyNAMu specification
+- **WHEN** `estimate_dynam(spec)` is called with a
+  `make_specification(model = "DyNAMu")` object
+- **THEN** a `cli` error names `estimate_dynamu()` as the estimator for it

@@ -19,9 +19,16 @@ perspective/`type` parameters, interaction structure, intercept flag, and per-ef
 arguments) together with model metadata and validation results. The `rate_sub_model`
 vocabulary SHALL NOT include `"rate_ordered"` (the Cox model is
 `distribution = "cox"`), and the `choice_sub_model` vocabulary SHALL NOT include
-`"choice_coordination"`: two-sided coordination models are out of
-`make_specification()`'s scope and live on `estimate_dynamu()`, which the
-rejection error SHALL name. v1 MUST cover DyNAM and REM
+`"choice_coordination"`: two-sided coordination is a **model** of this
+constructor — `model = "DyNAMu"` — carrying a `mechanism` argument
+(`"conjunctive"` default, the five two-sided mechanisms) and an `acceptance`
+formula (legal only with `mechanism = "confirmation"`, in both directions).
+`mechanism` or `acceptance` supplied with any other model SHALL abort with a
+`cli` error (inert arguments are signaled), and the `choice_coordination`
+rejection error SHALL name `model = "DyNAMu"` and `estimate_dynamu()`. A
+DyNAMu specification supports flavor-keyed formula lists like any other
+model and is fitted by `estimate_dynamu()` only — `estimate_dynam()` SHALL
+redirect a DyNAMu specification to it. v1 MUST cover DyNAM and REM
 (DyNAMi is deferred to its separate preprocessing-path change) for the simple rate and choice
 formula case.
 `make_specification()` SHALL be marked **experimental** (`lifecycle::badge("experimental")`)
@@ -55,8 +62,20 @@ because its v1 surface is expected to evolve.
   distribution = "weibull", layer = "callsDep", data = d)` is called
 - **THEN** a `cli` error explains `distribution` applies to the rate part only.
 
-#### Scenario: coordination request is redirected to estimate_dynamu
+#### Scenario: a DyNAMu specification builds, flavored
+- **WHEN** `make_specification(choice = list(creation ~ shared_partners,
+  dissolution ~ inertia), model = "DyNAMu", mechanism = "conjunctive",
+  layer = "collab", data = d)` is called
+- **THEN** a `specification.goldfish` object is returned carrying the
+  mechanism and the flavor-keyed coordination choice formulas.
+
+#### Scenario: mechanism outside DyNAMu aborts
+- **WHEN** `make_specification(choice = ~ inertia, model = "DyNAM",
+  mechanism = "forcing", layer = "callsDep", data = d)` is called
+- **THEN** a `cli` error states `mechanism` applies only to `model = "DyNAMu"`.
+
+#### Scenario: the old coordination token points at the model
 - **WHEN** `make_specification(choice = ~ inertia, model = "DyNAM",
   choice_sub_model = "choice_coordination", layer = "callsDep", data = d)` is called
-- **THEN** a `cli` error states coordination models are estimated with
-  `estimate_dynamu()` and are not part of the specification surface.
+- **THEN** a `cli` error states coordination is `model = "DyNAMu"`, estimated
+  with `estimate_dynamu()`.

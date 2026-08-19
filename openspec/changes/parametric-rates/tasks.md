@@ -16,10 +16,18 @@
 - [ ] 1.4 Roxygen for the new argument (documented once, `@inheritParams`
       elsewhere), `devtools::document()`, NEWS entry with the
       `rate_ordered` → `distribution = "cox"` mapping
-- [ ] 1.5 Surface tests: defaults reproduce exponential fits (1e-6), cox
-      reproduces rate_ordered (1e-6), aborts for choice sub-model and
-      spec-without-rate; verify with not-cran-test (baselines PASS), bump
-      DESCRIPTION + NEWS (phase milestone)
+- [ ] 1.5 Re-key the merged multivariate substrate's regime map to the
+      distribution axis (D13): `is_timed_joint_specification()` reads
+      `distribution == "exponential"`, `assert_compatible_regime()` reads
+      `"cox"` (cli message updated), intercept-only-rate regime guard and
+      `complete_generative_spec()` completion wording follow;
+      `make_joint_specification()` rejects composed weibull/gompertz
+      processes with a cli error
+- [ ] 1.6 Surface tests: defaults reproduce exponential fits (1e-6), cox
+      reproduces rate_ordered (1e-6), aborts for choice sub-model,
+      spec-without-rate, and weibull/gompertz in a joint composition; verify
+      with not-cran-test (baselines PASS), bump DESCRIPTION + NEWS (phase
+      milestone)
 
 ## 2. Fixed-shape machinery (transformed exposures)
 

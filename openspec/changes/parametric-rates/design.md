@@ -17,9 +17,20 @@ Current surface: `estimate_dynam(sub_model = c("choice", "rate",
 "rate"))`, `make_specification(rate_sub_model = c("rate", "rate_ordered"))`.
 `rate_ordered` did not exist at v1.7.0 → dev-line-only, free deletion.
 
-Interview decisions (2026-08-19, recorded as ADR-0021): orthogonal
+Interview decisions (2026-08-19, recorded as ADR-0025): orthogonal
 `distribution` argument; both changes fully pre-2.0.0; full C++ joint scoring;
 axis applies to DyNAM rate, REM, and DyNAMi rate.
+
+Post-merge context (1.9.29, `feature/dynes` merged 2026-08-19): the
+multivariate substrate now keys its **timed vs ordered regime** on the very
+tokens this change reworks — `is_timed_joint_specification()` classifies on
+`sub_model == "rate"`, `assert_compatible_regime()` mirrors it on
+`"rate_ordered"` (`R/make_joint_specification.R`), the intercept-only-rate
+primitive guards its timed regime the same way (`R/intercept_only_rate.R`),
+and `complete_generative_spec()` completes a missing ordered rate to a
+"uniform `rate_ordered`". The living spec `multivariate-specification`
+describes the regimes abstractly ("timed or ordered") without the token, so
+the re-keying is implementation-level (D13), not a spec delta.
 
 ## Goals / Non-Goals
 
@@ -48,7 +59,7 @@ c("exponential", "weibull", "gompertz", "cox")` on `estimate_dynam()`,
 *Alternatives rejected*: flat tokens (`rate_weibull`, …) multiply against the
 coordination mechanisms (4 × 5) and give a joint fit no honest single token;
 spec-only placement would strand the still-useful direct formula path.
-(ADR-0021.)
+(ADR-0025.)
 
 ### D2 — `"rate"` stays the exponential-compatible family label
 `sub_model = "rate"` + `distribution = "exponential"` (the default) is
@@ -127,6 +138,37 @@ cannot fit.
 semantics (common clock, common shape). Its choice sub-model is untouched.
 Testing scope: one recovery test on DyNAMi data; the heavy numerics tests run
 on DyNAM/REM.
+
+### D13 — The joint-specification regime map re-keys to the distribution axis
+The merged multivariate substrate's timed/ordered classifiers become
+distribution reads: **timed ⟺ `distribution == "exponential"`**, **ordered ⟺
+`distribution == "cox"`**, on the rate family. `make_joint_specification()`
+SHALL initially reject a composed process with `distribution = "weibull"` or
+`"gompertz"`: the completion transform's pinned intercept
+`log(count_w / (T_w · |R_w|))` is an exponential-clock identity (counts are
+reproduced in expectation through a constant hazard), and the generative walk
+has no parametric-clock story yet — the same theoretical caution as
+ADR-0023's, applied to the generative consumers. Touched sites:
+`is_timed_joint_specification()`, `assert_compatible_regime()` (and its cli
+message naming the tokens), the intercept-only-rate regime guard, and
+`complete_generative_spec()`'s completion default wording. The single-process
+estimators are unaffected — they accept all four levels.
+
+### Cross-change coordination (active, not-yet-applied changes this touches)
+- `intercept-only-rate-spec` (complete, unarchived): its design keys the
+  regime on the `rate_ordered` distinction; D13 is the re-key. Archive it
+  before or with task 1.2 so the historical wording freezes cleanly.
+- `tied-event-times` (post-release track): owns the general tie resolution.
+  D8's Weibull abort will fire on shipped fixtures (Fisheries: 17% tied
+  dependent events; RFID: 54% tied intervals) — that abort is the documented
+  interim stance, and the docs point at the tie change as the resolution.
+- `process-simulation` (0/10): the Weibull/Gompertz recovery tests (tasks
+  3.4) improvise their DGP; if process-simulation lands first, its simulator
+  should grow the parametric clocks and the tests should use it.
+- `effect-term-registry` (0/54): the registry schema enumerates per-effect
+  `(model, sub_model)` variants — whichever change lands second sweeps
+  `rate_ordered` out of the variant enumerations (effects do not vary by
+  distribution; the statistics are shared).
 
 ## Risks / Trade-offs
 

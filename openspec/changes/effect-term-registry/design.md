@@ -358,8 +358,18 @@ Layer 1 defines (documented, validated, but unused by Layer-1 code):
   `"last"` per-dyad vs `"last_global"` semantics decided in Layer 3),
   `combiner_fn` (closure path weights; `prod` on binarized ≡ current
   count), `normalizer_fn`/`normalizer`, `summarizer_fn`, `levels`.
+- Reserved for the `recency-effects` change (event-index-domain memory
+  family): `kernel` (rank-kernel enum), `k` (rank truncation, default
+  `Inf`), `last_k` (event-count network restriction, the count-driven
+  twin of `window` — rides the D16 build-plan route), `bands`
+  (rank-band boundary vector for the estimable kernel).
 - `after_event_stream` — recipe hook slot for post-walk passes (D22).
-- `cache_spec` reserved fields per D14.
+- `cache_spec` reserved fields per D14, plus the rank-buffer fields for
+  `recency-effects`: the per-scope recency ordering over distinct keys
+  (move-to-front list, or k-slot ring buffer when `k` is finite),
+  activation predicate on the recency effects, reconstructible by
+  replaying the update stream (the `process-state-evaluators`
+  contract — no hidden side state).
 
 ### D19: Naming decisions recorded for Layer 2 (settled now, applied later)
 Direction codes `f`/`b` settled (ERGM precedent). `mix_` (not `mixed_`)
