@@ -13,6 +13,34 @@
 - [ ] 1.2 For each effect, capture its **current** argument set (from `formals()`
       and the formula parser), including which arguments gate runtime `if/else`
       (e.g. `weighted`, `history`, `subType`, `joining`, `type`).
+- [ ] 1.2b **Inventory the argument names the parser silently discards**
+      (added 2026-08-19; ADR-0021). Two independent paths drop an unrecognised
+      named argument without counting or reporting it: `pmatch()` in
+      `parse_multiple_effects()` (`R/formula_parser.R`) returns `NA` for an
+      unknown name and `na.omit()` discards it, and `get_data_objects()`
+      (`R/utils.R`) keeps only unnamed or reserved-named arguments. Capture
+      both so the strict check (3.2) knows what it is newly rejecting.
+      - **Retired names**, from `git diff v1.6.12..HEAD` over the `@param`
+        tags: `transformFun` -> `transformer_fn`, `isTwoMode` ->
+        `is_two_mode`, `aggregateFun` -> `summarizer_fn`, `ignoreRep` ->
+        `ignore_repetitions`, `subType` -> `sub_type`. All five are dropped in
+        silence today; none is named in `NEWS.md`.
+      - **Corpus sweep** of every formula in `tests/`, `R/` and the
+        `.Rmd.orig` vignettes, comparing each term's supplied named arguments
+        against the union of `formals()` for its `update_*` symbols (excluding
+        the parser-level `ignore_repetitions` and `window`). Measured
+        2026-08-19: **21 distinct sites, 72 occurrences, all `subType`** — no
+        `transformFun` and no prefix-matched abbreviation anywhere in the
+        repo. Sites: `vignettes/dynami-example.Rmd.orig` (`ego`, `diff`,
+        `same`, `tie`, `size`, `egopop`, `alter`, `alterpop`, `inertia`),
+        `test-dynami_baselines.R`, `test-dynami_surface.R`,
+        `test-compute_statistics.R`, `test-dynami_bridge.R`,
+        `test-residuals_recompute.R`. This list is the enumeration 4.2's
+        carve-out refers to; keep it in `findings.md`.
+      - Note the sweep also has to consider `pmatch`'s *accepting* half: it
+        matches unambiguous prefixes, so `transformer = sqrt` and
+        `weight = TRUE` bind today and would newly error under exact matching.
+        The corpus contains none, but user code may. Feeds D25.
 - [ ] 1.3 For each effect, capture its **current effective validity** (allowed
       directionality/mode/model/sub_model/interaction) derived from existing
       checks, the test suite, and the baselines — this seeds the initial strict
@@ -50,6 +78,13 @@
       The argument schema's `allowed` field is the choice-set source of truth
       the constructor resolves against (D24) — the `type` / `history` / `joining`
       enumerations currently living as `match.arg` defaults in the recipe bodies.
+      Reserve two further per-argument fields: `aliases` (accepted spellings
+      that resolve to the canonical name) and `deprecated` (a retired spelling
+      that resolves *and* signals). The 1.7.0 camelCase renames left five
+      retired argument names with no home — 1.2b lists them — and Layer 2's
+      `effect-naming-scheme` only plans lifecycle handling for the renames it
+      will itself make. Declared and validated here; whether the retired five
+      are wired to `deprecated` or simply rejected is D25's call.
 - [ ] 2.2 Implement the internal registry store (frozen environment after load)
       and `get_term_def()` resolving canonical name and `aliases`, with a
       "did you mean" error for unknown names.
@@ -88,6 +123,10 @@
       the active cache-field set.
 - [ ] 3.5 Add unit tests for construction output, strict-validation errors,
       endogenous/exogenous object handling, and build-plan/window promises.
+      Cover the argument-name paths specifically (D25): an unknown name, a
+      retired name from 1.2b, a near-miss that should suggest a correction, and
+      an unambiguous prefix (`transformer` for `transformer_fn`) — the last
+      asserting whatever D25 settles. Snapshot the messages.
 - [ ] 3.6 Verification: `NOT_CRAN=true` tests PASS; update `findings.md`; commit.
 
 ## 4. Route the parser through the registry/constructor (D8 phase 1)
@@ -98,7 +137,44 @@
       the existing parser outputs / `build_update_plan()` `effects` registry.
 - [ ] 4.2 Ensure the strict validity declarations (1.3) reproduce current accept/
       reject behaviour: every formula that estimated still constructs, every one
-      that errored still errors.
+      that errored still errors — **except for the one intended break** below.
+      - **Carve-out (added 2026-08-19).** An argument the parser currently
+        discards in silence is *meant* to start erroring; that is the point of
+        D12, and read without this clause the no-newly-broken gate forbids it.
+        The break is bounded, not open-ended: the newly-rejected set is
+        enumerated in advance by 1.2b, and any formula rejected by the
+        constructor that is **not** on that list is a regression, not an
+        intended tightening. Verify the gate that way — diff the reject set
+        against 1.2b's inventory — rather than by asserting nothing new errors.
+      - The same carve-out does **not** extend to values or contexts. A value
+        or context that is accepted today must still be accepted, since those
+        were genuinely bound and genuinely used.
+- [ ] 4.2b **Migrate the corpus and re-freeze the two DyNAM-i intercepts**
+      (ADR-0021). Correct all 21 `subType` sites from 1.2b to `sub_type`, in
+      the same commit as the strict check that forces them, so no commit in
+      history has a baseline whose formula does not produce it.
+      - **20 of the 21 move no number**: eight of the nine affected effects
+        request their own default (`diff` -> `averaged_sum`, `same` ->
+        `proportion`, `tie` -> `proportion`, `egopop` -> `normalized`, …), so
+        binding the argument changes nothing.
+      - **`ego` is the exception.** `test-dynami_baselines.R` asks for
+        `"centered"` against a default of `"identity"`, and both are real
+        branches of `update_DyNAMi_rate_ego()`. The frozen M1 rate baseline was
+        therefore computed on *uncentered* age. Correcting it moves
+        `Intercept` and `intercept` and nothing else: seven slopes stay
+        bit-identical and `logLik` stays `-1306.3199849182` to all fourteen
+        figures.
+      - **The new numbers are derived, not observed.** With `m = mean(age) =
+        322/11`, `d(Intercept) = b_leave * m = 0.81839842` and
+        `d(intercept_join) = (b_join - b_leave) * m = 0.98735328`, matching the
+        measured `0.81839846` / `0.98735312` to the rounding of the
+        eight-decimal coefficients. Commit that derivation beside the diff —
+        ADR-0021 permits the re-freeze *because* the value was computed first,
+        and a baseline diff with no derivation beside it is what it forbids.
+      - Re-knit `vignettes/dynami-example.Rmd.orig`; its printed intercepts
+        move by the same amounts.
+      - Leaves the global/coefficient baselines and the cpp golden untouched;
+        confirm with `git diff --stat` over `_baselines/`.
 - [ ] 4.3 Verification: full `NOT_CRAN=true Rscript -e 'devtools::test()'` —
       coefficient + global baselines and cpp golden report PASS (not SKIP) and
       nothing regressed. Update `findings.md`; commit.

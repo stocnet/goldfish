@@ -509,6 +509,87 @@ only — two sources of truth for one enumeration, the drift D2(f) exists to
 remove. *Rejected:* resolving at the `init` reading a per-effect hard-coded
 choice set — that hard-coded set *is* `allowed`; declare it in the registry once.
 
+### D25: Argument *names* match exactly, and the drop paths are closed (2026-08-19)
+D24 settled how an argument's **value** is validated (`arg_match` against the
+registry's `allowed`). It left the **name** side undecided, and that is where
+`transformFun` survives. Two independent paths discard an unrecognised name
+without counting or reporting it:
+
+```r
+# R/formula_parser.R — signature binding
+.args_replace <- pmatch(names(parms_to_set), .args_names)
+.signature[na.omit(.args_replace)] <- parms_to_set[!is.na(.args_replace)]
+
+# R/utils.R — object resolution
+ids <- isReservedElementName(names(objNames)) | names(objNames) == ""
+objNames <- objNames[ids]
+```
+
+The constructor SHALL match argument names **exactly** against the schema, error
+on an unmatched name, and offer a suggestion when one is within edit distance of
+a declared name (the argument-side twin of 2.2's "did you mean" for term names).
+Both paths above are replaced, not patched: after 4.1 nothing reaches the
+signature except through the schema, so there is no second place for a name to
+vanish.
+
+Three consequences, each of which is a break and none of which is incidental:
+
+- **`pmatch`'s accepting half goes too.** It binds unambiguous prefixes, so
+  `transformer = sqrt` and `weight = TRUE` work today and newly error. This is
+  the honest cost of exact matching and is accepted: a prefix that is
+  unambiguous now becomes ambiguous the moment a sibling argument is added, so
+  the current behaviour is a silent compatibility hazard rather than a feature.
+  The corpus sweep (1.2b) found no prefix use in the repo; user code is not
+  surveyed.
+- **The retired 1.7.0 names are a policy question, not a lookup question.**
+  `transformFun`, `isTwoMode`, `aggregateFun`, `ignoreRep`, `subType` are
+  unmatched names like any other, so exact matching alone rejects them with a
+  generic error. Declaring them as per-argument `deprecated` entries (2.1)
+  buys a message that names the replacement, which is worth more than a
+  suggestion string derived from spelling. *Position:* declare the five; the
+  cost is five schema entries and the benefit is that the one migration the
+  package actually performed is the one it can explain. Whether they warn-and-
+  resolve or error-with-a-pointer is left to `effect-naming-scheme` (Layer 2),
+  which owns lifecycle; this change only reserves the field.
+- **`match.arg`'s value-level partial matching goes with it.** `arg_match` is
+  exact, so `sub_type = "cent"` stops resolving to `"centered"` wherever a
+  length-2+ choice vector made that work. Same reasoning as the name side.
+
+**D24's target set is understated, and the gap is the larger half.**
+`resolve_effect_args()` skips any argument whose closure default is not a
+character vector of length 2 or more:
+
+```r
+if (!is.character(choices) || length(choices) < 2L) next
+```
+
+Measured 2026-08-19 over every `init_*`/`update_*` formal: of **65** (function,
+argument) pairs across the four enumerated arguments, **16 are validated**
+(`type` 8, `history` 8) and **49 are not** — all 31 `sub_type` and all 18
+`joining`, every one a DyNAMi effect declaring a length-1 default such as
+`sub_type = "identity"`. So the argument at the center of this finding is
+unguarded twice over: a misspelled *name* is dropped by `pmatch`, and a correctly
+spelled name with an out-of-set *value* is validated by nothing and fails
+mid-walk with `comparison (!=) is possible only for atomic and list types`
+(reproduced on `update_DyNAMi_rate_ego(sub_type = "bogus")` — `rep` is never
+assigned by any branch and resolves to `base::rep`). That is exactly the
+mid-walk failure D24 describes for `type = "bogus"`, live on three times as many
+sites.
+
+The registry closes this by construction rather than by widening the guard: the
+choice set comes from `allowed`, so the length of a closure default stops being
+load-bearing. The 49 unvalidated pairs are the concrete work item — every
+DyNAMi effect needs its `sub_type` and `joining` choice sets *written down*,
+which today exist only as the `if` branches of the update bodies and must be
+read off them.
+
+*Rejected:* keeping `pmatch` and only reporting the drop. It converts a silent
+bug into a warning while leaving prefix binding in place, so the schema still
+is not the authority on what an argument is called. *Rejected:* exact matching
+with a permissive alias for anything that `pmatch` would have accepted — that is
+the compatibility hazard above, written down and blessed.
+
+
 ## Risks / Trade-offs
 
 - [Large surface; risk of silently changing numerics] → D8 adapter-first phasing
@@ -520,7 +601,20 @@ choice set — that hard-coded set *is* `allowed`; declare it in the registry on
   one (D12)] → the matrix MUST reproduce *current* accept/reject behaviour before
   the parser is routed through it; the inventory derives the declared matrix from
   today's effective behaviour and the full suite + baselines gate that it matches
-  (no newly-broken formulas, no newly-permitted ones).
+  (no newly-permitted formulas, and no newly-broken ones **beyond the enumerated
+  argument-name break**, D25 / task 4.2's carve-out).
+- [The one intended break moves a frozen baseline] → closing the silent
+  argument-name drop (D25) newly rejects 21 sites in the repo's own corpus, all
+  `subType`. Twenty of them request their effect's own default and move no
+  number; the twenty-first is `ego(age, subType = "centered")` in the frozen
+  DyNAM-i rate baseline, which was therefore fit on *uncentered* age. Correcting
+  it leaves all seven slopes bit-identical and `logLik` unchanged to fourteen
+  figures, and moves the two intercepts by exactly `b_leave * mean(age)` and
+  `(b_join - b_leave) * mean(age)`. → ADR-0021 permits the re-freeze on the
+  ground that both values are derivable from the *old* baseline's own numbers
+  without running the estimator; task 4.2b carries it, and the derivation ships
+  with the diff. The danger to manage is scope creep in the precedent, not the
+  edit: this is the only baseline movement the change is allowed to make.
 - [Coupling `compact-term-summary` output to the registry] → seed identical
   strings; reuse that change's tests as a regression gate (D6).
 - [DyNAMi/REM coverage] → the registry must span all three model families;
