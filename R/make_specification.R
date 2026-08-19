@@ -253,6 +253,12 @@ make_specification <- function(
     dependent <- stocnet_dependent_info(data, layer, modeled_flavor = NULL)
     dependent$modeled_flavors <- flavors
     dependent$n_events <- flavor_event_count(data, layer, flavors)
+    completion_gaps <- collect_completion_gaps(
+      processes,
+      fam = fam,
+      rate_sub_model = rate_sub_model,
+      choice_sub_model = choice_sub_model
+    )
     return(structure(
       list(
         model = model,
@@ -266,6 +272,7 @@ make_specification <- function(
         dependent = dependent,
         support_constraint = support_constraint,
         constraint = base_constraint_plan,
+        completion_gaps = completion_gaps,
         valid = TRUE,
         data = data,
         call = match.call()
@@ -495,20 +502,13 @@ resolve_modeled_flavors <- function(
   rate_u <- unwrap_flavor_list(rate, "rate", call = call)
   choice_u <- unwrap_flavor_list(choice, "choice", call = call)
 
-  # When both sub-models are flavor-keyed they must key the same processes.
-  if (!is.null(rate_u$flavors) && !is.null(choice_u$flavors)) {
-    if (!setequal(rate_u$flavors, choice_u$flavors)) {
-      cli::cli_abort(
-        c(
-          "{.arg rate} and {.arg choice} must key the same flavor set.",
-          "x" = "{.arg rate} keys {.val {rate_u$flavors}} but {.arg choice}
-                 keys {.val {choice_u$flavors}}.",
-          "i" = "Each flavor is a parallel process modeled by both sub-models."
-        ),
-        call = call
-      )
-    }
-  }
+  # A flavor keyed in one sub-model list and omitted from the other is a
+  # *half-specified* flavored specification, not an error: construction records
+  # the gap (which flavor lacks which sub-model) and the generative-completion
+  # transform fills it with a zero-free-parameter default at the consumer entry.
+  # The single-process estimators re-impose the same-flavor-set requirement at
+  # estimation time on an unfilled gap, so a spec headed only for estimation
+  # still gets the historical error -- it just relocates from construction.
 
   keyed <- !is.null(rate_u$flavors) || !is.null(choice_u$flavors)
 
@@ -786,14 +786,18 @@ build_flavor_processes <- function(
   names(processes) <- flavors
   for (fl in flavors) {
     sub <- list()
-    if (!is.null(rate)) {
+    # A flavor keyed in only one sub-model list builds only that sub-model's
+    # bundle here; the missing half is a recorded completion gap, filled by the
+    # generative-completion transform at the consumer entry (never fabricated
+    # during construction).
+    if (!is.null(rate) && !is.null(flavored$rate_formulas[[fl]])) {
       sub$rate <- make_bundle(
         flavored$rate_formulas[[fl]],
         "rate",
         rate_sub_model
       )
     }
-    if (!is.null(choice)) {
+    if (!is.null(choice) && !is.null(flavored$choice_formulas[[fl]])) {
       sub$choice <- make_bundle(
         flavored$choice_formulas[[fl]],
         "choice",
@@ -821,6 +825,42 @@ build_flavor_processes <- function(
     )
   }
   processes
+}
+
+# The per-(flavor, sub-model) gaps of a half-specified flavored specification:
+# a flavor keyed in one sub-model list but omitted from the other builds only
+# the keyed sub-model, so the other family in `fam` is a gap for it. Returns a
+# data frame (flavor, family, sub_model) with the *intended* sub-model kind for
+# each gap (so the completion transform knows whether a missing rate defaults to
+# `rate`/`rate_ordered` and a missing choice to `choice`/`choice_coordination`),
+# empty when every flavor carries every supplied family.
+collect_completion_gaps <- function(
+  processes,
+  fam,
+  rate_sub_model,
+  choice_sub_model
+) {
+  rows <- list()
+  for (fl in names(processes)) {
+    present <- names(processes[[fl]]$submodels)
+    for (family in setdiff(fam, present)) {
+      rows[[length(rows) + 1L]] <- data.frame(
+        flavor = fl,
+        family = family,
+        sub_model = if (family == "rate") rate_sub_model else choice_sub_model,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  if (length(rows) == 0L) {
+    return(data.frame(
+      flavor = character(0),
+      family = character(0),
+      sub_model = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+  do.call(rbind, rows)
 }
 
 # The derived support constraint for one flavor on a mutually-exclusive layer:

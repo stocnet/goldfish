@@ -1,3 +1,88 @@
+# goldfish 1.9.29
+
+Merges the `feature/dynes` line — the multivariate specification and
+preprocessing substrate for DyNES. (That line minted 1.9.24–1.9.27 for the
+milestones below; those numbers were used on this line for other work, so its
+story lands here as one section.)
+
+## New features
+
+* **`make_joint_specification()` composes co-evolving process specifications**
+  (experimental). It combines two or more `make_specification()` objects built
+  over one shared data object into a single multivariate specification
+  (`joint_specification.goldfish`) portraying their co-evolution -- the
+  specification surface for DyNES, where panel-observed relational states
+  co-evolve with time-stamped relational events. Each joined process models a
+  distinct focal layer; processes compose over one shared mode-map object,
+  one- or two-mode and over distinct mode-pairs, with every cross-process read
+  required to conform by mode-set identity. The composed object carries a
+  per-formula `process_map` that marks which formulas are *coupled* (read a
+  modeled panel layer's latent state) and which are separable, and the
+  `print()` method sections the composition per layer with its flavors. A join
+  is estimated by `estimate_dynes()` (its surface and augmentation live in
+  separate changes); the event-stream estimators `estimate_dynam()` /
+  `estimate_rem()` reject a joint specification and redirect to it.
+
+## Documentation
+
+* New vignette `vignette("multivariate-specification")`: composing co-evolving
+  processes with `make_joint_specification()`, reading the extended
+  `process_map`, and how coupling and separability are detected. It documents
+  what estimating a joint specification will require once `estimate_dynes()`
+  lands, the zero-free-parameter generative-readiness completion transform,
+  and (in a developer notes section) the internal stepping walk handle
+  (`walk_open()`/`walk_advance()`/`walk_evaluate()`/`walk_inject()`) for
+  authors of the DyNES augmenter and the future `simulate()`.
+
+## Internal
+
+* Cross-process preprocessing runs on a single merged clock: the former
+  separate sender- and dyad-recipe walks are merged into one clock hosting the
+  statistic blocks keyed by mode-pair, with each process's likelihood-producing
+  formula attached as its own consumer and cross-mode-pair events
+  right-censoring the other processes' timed-rate consumers. Focal is resolved
+  *per formula* over the one shared state, and each `(layer, flavor)` support
+  constraint is compiled once into the merged plan with its mask snapshotted
+  per formula (compile-once / snapshot-per-formula). Union planning and
+  consumer routing generalize across processes: effect terms are deduplicated
+  across all formulas sharing a statistic block's dispatch family, so a
+  cross-process shared effect is computed once. The single-process and
+  flavored paths route through the merged walk byte-identically -- the frozen
+  1e-6 coefficient and C++ golden baselines pass unchanged.
+
+* Added the intercept-only rate primitive (`R/intercept_only_rate.R`), an
+  internal building block for the timed generative consumers (the completion
+  transform, a future `simulate()` method, and DyNES augmentation). It
+  represents a rate with no covariate columns and a single intercept that is
+  *pinned* -- a deterministic function of consumer-supplied per-period counts,
+  durations, and average risk-set sizes, `log(count_w / (T_w * |R_w|))` --
+  never estimated. The pinned intercept is theta-independent (occupies no slot
+  in the joint theta layout) and reproduces the supplied counts in expectation
+  through a uniform support-legal-sender hazard. In the generative context a
+  bare `rate = ~ 1` and a completion-supplied rate are the same pinned object;
+  a rate with any effect keeps its estimated baseline, and the single-process
+  `estimate_dynam()` / `estimate_rem()` path is untouched.
+
+* A generative-readiness completion transform fills a half-specified flavor's
+  gaps with zero-free-parameter defaults -- uniform choice over the
+  support-legal alternatives, uniform `choice_coordination` on both sides,
+  uniform ordered rate in the ordered regime, and the pinned intercept-only
+  rate in the timed regime -- so a composed specification is generatively
+  complete without fabricating estimable parameters. It is idempotent, warns
+  per layer/flavor/sub-model at each consumer entry, and aborts when a modeled
+  panel layer omits a flavor entirely.
+
+## Bug fixes
+
+* `complete_generative_spec()`'s timed-rate pinning no longer crashes on a
+  POSIXct- or Date-timed panel layer: the wave-period durations it derives are
+  now coerced to plain numeric before use. A completed rate on a fully
+  event-observed relational layer now sources its risk-set counts from
+  goldfish's own preprocessing scalars instead of the panel wave-endpoint
+  approximation. A completed layer with no timed events at all now warns
+  (panel, pinning a well-defined zero hazard) or aborts (relational, where no
+  finite pin exists), naming the offending layer in both cases.
+
 # goldfish 1.9.28
 
 * **Reading a large model.** Three additions for a fit with many terms or many

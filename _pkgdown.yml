@@ -102,3 +102,7 @@ articles:
     navbar: "DyNAM-i"
     contents:
       - dynami-example
+  - title: "Composing co-evolving processes (DyNES, experimental)"
+    navbar: "multivariate specification"
+    contents:
+      - multivariate-specification

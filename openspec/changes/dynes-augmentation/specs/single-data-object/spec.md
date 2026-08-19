@@ -33,16 +33,15 @@ covariate whose tie rows are updates applied at their wave times per `info$updat
 dissolutions MUST be explicit value-0 rows (documented — not statically detectable).
 Wave updates SHALL emit right-censored statistic updates like other exogenous events. A
 `window` parameter on an effect reading a panel layer SHALL abort before preprocessing.
-When a panel layer is **referenced in a multivariate specification's formulas** under
+When a panel layer is a **modeled process** of a multivariate specification under
 `estimate_dynes()`, its rows are interpreted as **state snapshots** to be augmented
 (consecutive waves diffed into candidate flip events per the `sequence-augmentation`
-capability) rather than change-list updates: a panel layer that is a modeled process is
-always augmented by the model-driven routine; a panel layer referenced only as an
-exogenous covariate is augmented per the user's per-layer choice — a **static
-step-covariate** (the default change-list behavior, not latent) or the **random
-augmenter** (uniform between-wave ordering). A panel layer referenced nowhere keeps the
-plain change-list semantics. No effect on event-stream estimators beyond the
-focal-layer rule.
+capability) rather than change-list updates. A panel layer referenced only as an
+**exogenous covariate** SHALL remain a **static step-covariate** — its state jumps only
+at wave times, it is not latent, and no random sampling of its between-wave path is
+done (there is no per-layer static-vs-random choice). A panel layer referenced nowhere
+likewise keeps the plain change-list semantics. No effect on event-stream estimators
+beyond the focal-layer rule.
 
 #### Scenario: Panel layer updates at waves
 - **WHEN** a friendship panel layer has tie rows at wave timestamps
@@ -54,14 +53,14 @@ focal-layer rule.
   friendship a panel layer
 - **THEN** an informative error is raised before preprocessing.
 
-#### Scenario: Referenced panel layer resolves as snapshots
-- **WHEN** a panel layer is referenced in a multivariate specification's formulas (as a
-  modeled process or an exogenous covariate) under `estimate_dynes()`
+#### Scenario: Modeled panel layer resolves as snapshots
+- **WHEN** a panel layer is a modeled process of a multivariate specification under
+  `estimate_dynes()`
 - **THEN** its rows are read as complete state snapshots at wave times, diffable into
   candidate flip events, not incremental change-list updates.
 
-#### Scenario: Exogenous-only panel reference chooses its augmentation mode
-- **WHEN** a panel layer is referenced only as an exogenous covariate and the user
-  selects the static step-covariate mode
-- **THEN** its state jumps only at wave times and it contributes no Monte-Carlo
-  variation; selecting the random augmenter instead makes its between-wave path latent.
+#### Scenario: Exogenous-only panel reference stays static
+- **WHEN** a panel layer is referenced only as an exogenous covariate under
+  `estimate_dynes()`
+- **THEN** its state jumps only at wave times, it contributes no Monte-Carlo variation,
+  and no random sampling of its between-wave path is done.

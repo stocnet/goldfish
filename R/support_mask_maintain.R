@@ -21,43 +21,41 @@
 # not depend on it. Likewise the atoms are re-derived from their update closures
 # per touched cell — the same locality as the interaction second-hop — rather
 # than a whole-matrix recompute.
+#
+# Atom MAINTENANCE (walking the atom event streams, one dense matrix per atom)
+# is split from mask EVALUATION (projecting the atoms through a constraint's
+# boolean tree). Maintenance is the expensive part and is expressed once, by
+# `build_atom_maintainer()`; evaluation is a cheap per-constraint elementwise
+# pass, `eval_constraint_mask()`. A single constraint runs one maintainer and
+# one expression (`preprocess_support_mask()`); several constraints over the
+# SAME atoms share one maintainer and each keeps its own expression / snapshot
+# times (`preprocess_pooled_support_masks()`), so the atom stream is walked once
+# instead of once per output.
 
-#' Maintain the support-constraint mask across the event sequence
+#' Build the atom-maintenance state for a constraint sub-plan
 #'
-#' Runs a stripped recipe pass over the constraint sub-plan, snapshotting the
-#' support mask (the dyadic constraint before presence conjunction)
-#' at each requested snapshot time. Presence (`active_1`/`active_2`) is joined
-#' later by the gather / rate consumer via [assemble_model_mask()].
-#'
-#' The support changes only at constraint-atom object events, so it is
-#' piecewise-constant in time. The pass advances the atoms over their own event
-#' streams and snapshots the support at every `snapshot_times[e]` using the atom
-#' state STRICTLY before that time (an event's risk set is lagged — its own
-#' change is not yet applied). Passing the preprocessed object's
-#' stored-event times aligns the timeline with its events by construction, even
-#' though the right-censored events come from the main model's streams (not
-#' carried by the constraint sub-plan).
+#' Seeds the atoms' dense per-cell matrices from the objects' pre-event state and
+#' returns a handle that advances them over their own event streams. The handle
+#' exposes `advance(t)` (apply every atom event strictly before `t`, so the risk
+#' set is lagged), `atom_matrix(label)` (an atom's current dense value, addressed
+#' by its deparsed label), `n1`/`n2`, and the ordered `atom_labels`. Evaluation
+#' of the boolean tree is a separate concern (`eval_constraint_mask()`); this
+#' handle knows nothing about any particular constraint's expression, which is
+#' what lets several constraints over the same atoms share one maintainer.
 #'
 #' @param sub_plan the compiled constraint sub-plan from
-#'   `compile_support_constraint()` (its `effect_functions`, registries, links,
-#'   `expr`, `atom_kinds`, `mask_kind`, and `fetch_plan`).
+#'   `compile_support_constraint()`.
 #' @param model the model string (`"DyNAM"` / `"REM"`).
 #' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prep_envir`.
-#' @param symmetric symmetrise the support (coordination / undirected REM).
-#' @param snapshot_times numeric vector of times (the preprocessed object's
-#'   stored-event times, in event order) at which to snapshot the support.
 #' @param prep_envir environment holding the realized data objects.
-#' @return a list with `support` (one n1 x n2 logical per snapshot time, aligned
-#'   with the preprocessed object's events), `initial` (the mask before any
-#'   event), `mask_kind`, `n_stored`, and `symmetric`.
+#' @param src optional data source; built over `prep_envir` when `NULL`.
+#' @return a maintainer handle (list of closures + `n1`, `n2`, `atom_labels`).
 #' @noRd
-preprocess_support_mask <- function(
+build_atom_maintainer <- function(
   sub_plan,
   model,
   nodes,
   nodes2,
-  symmetric = FALSE,
-  snapshot_times = numeric(0),
   prep_envir = new.env(),
   src = NULL
 ) {
@@ -65,7 +63,7 @@ preprocess_support_mask <- function(
   objects_effects_link <- sub_plan$objects_effects_link
   events_objects_link <- sub_plan$events_objects_link
   atom_kinds <- sub_plan$atom_kinds
-  expr <- sub_plan$expr
+  atom_labels <- sub_plan$atom_labels
   n_atoms <- length(effects)
 
   if (is.null(src)) {
@@ -169,21 +167,6 @@ preprocess_support_mask <- function(
       event_args
     )
     do.call(template$fun, args[template$args_by_shape[[shape]]])
-  }
-
-  eval_mask <- function() {
-    atom_values <- stats::setNames(
-      lapply(seq_len(n_atoms), function(a) {
-        get(as.character(a), envir = atom_state)
-      }),
-      paste0(".a", seq_len(n_atoms))
-    )
-    m <- assemble_support_mask(atom_values, expr)
-    m <- matrix(as.logical(m), n1, n2)
-    if (symmetric) {
-      m <- symmetrize_mask(m)
-    }
-    m
   }
 
   # Apply one constraint-atom object event: route the change to every atom
@@ -293,24 +276,127 @@ preprocess_support_mask <- function(
     }
   }
 
-  support_init <- eval_mask()
-  # The support is piecewise-constant, changing only at the atoms' events.
-  # Snapshot it at each requested time using the atoms strictly before that time
-  # (a lagged risk set). Snapshots are taken in time order (mapping
-  # back to the caller's event order) so the atom stream is advanced once.
+  # The support is piecewise-constant, changing only at the atoms' events. The
+  # cursor advances the atom stream monotonically; `advance(t)` applies every
+  # atom event strictly before `t` (a lagged risk set), so calling it at an
+  # ascending series of times walks the stream exactly once.
   atom_ks <- which(!is.na(schedule$target))
   atom_times <- schedule$time[atom_ks]
+  n_atom <- length(atom_ks)
+  cursor <- new.env(parent = emptyenv())
+  cursor$next_atom <- 1L
+  advance <- function(tt) {
+    while (cursor$next_atom <= n_atom && atom_times[cursor$next_atom] < tt) {
+      apply_atom_event(atom_ks[cursor$next_atom])
+      cursor$next_atom <- cursor$next_atom + 1L
+    }
+    invisible(NULL)
+  }
+
+  # Address an atom's current dense value by its deparsed label. Labels are
+  # unique within a sub-plan (the parser deduplicates atoms by deparse), and a
+  # constraint sharing this maintainer's atoms addresses them the same way, so a
+  # by-label lookup decouples evaluation from any one constraint's atom order.
+  atom_matrix <- function(label) {
+    get(as.character(match(label, atom_labels)), envir = atom_state)
+  }
+
+  list(
+    n1 = n1,
+    n2 = n2,
+    atom_labels = atom_labels,
+    advance = advance,
+    atom_matrix = atom_matrix
+  )
+}
+
+#' Evaluate one constraint's boolean tree over a maintainer's current atom state
+#'
+#' Binds each of the constraint's atoms (addressed by label, in the constraint's
+#' own `.a{k}` order) to the maintainer's current dense value and evaluates the
+#' mask expression, symmetrising a coordination / undirected mask.
+#'
+#' @param maintainer a handle from `build_atom_maintainer()` whose atoms are a
+#'   (super)set of `atom_labels`.
+#' @param expr the evaluable mask expression over `.a{k}` placeholders.
+#' @param atom_labels the constraint's atom labels, aligned with `.a{k}`.
+#' @param symmetric symmetrise the dyad grid (coordination / undirected REM).
+#' @return an n1 x n2 logical support mask.
+#' @noRd
+eval_constraint_mask <- function(maintainer, expr, atom_labels, symmetric) {
+  atom_values <- stats::setNames(
+    lapply(atom_labels, maintainer$atom_matrix),
+    paste0(".a", seq_along(atom_labels))
+  )
+  m <- assemble_support_mask(atom_values, expr)
+  m <- matrix(as.logical(m), maintainer$n1, maintainer$n2)
+  if (symmetric) {
+    m <- symmetrize_mask(m)
+  }
+  m
+}
+
+#' Maintain the support-constraint mask across the event sequence
+#'
+#' Runs a stripped recipe pass over the constraint sub-plan, snapshotting the
+#' support mask (the dyadic constraint before presence conjunction)
+#' at each requested snapshot time. Presence (`active_1`/`active_2`) is joined
+#' later by the gather / rate consumer via [assemble_model_mask()].
+#'
+#' The support changes only at constraint-atom object events, so it is
+#' piecewise-constant in time. The pass advances the atoms over their own event
+#' streams and snapshots the support at every `snapshot_times[e]` using the atom
+#' state STRICTLY before that time (an event's risk set is lagged — its own
+#' change is not yet applied). Passing the preprocessed object's
+#' stored-event times aligns the timeline with its events by construction, even
+#' though the right-censored events come from the main model's streams (not
+#' carried by the constraint sub-plan).
+#'
+#' @param sub_plan the compiled constraint sub-plan from
+#'   `compile_support_constraint()` (its `effect_functions`, registries, links,
+#'   `expr`, `atom_kinds`, `mask_kind`, and `fetch_plan`).
+#' @param model the model string (`"DyNAM"` / `"REM"`).
+#' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prep_envir`.
+#' @param symmetric symmetrise the support (coordination / undirected REM).
+#' @param snapshot_times numeric vector of times (the preprocessed object's
+#'   stored-event times, in event order) at which to snapshot the support.
+#' @param prep_envir environment holding the realized data objects.
+#' @return a list with `support` (one n1 x n2 logical per snapshot time, aligned
+#'   with the preprocessed object's events), `initial` (the mask before any
+#'   event), `mask_kind`, `n_stored`, and `symmetric`.
+#' @noRd
+preprocess_support_mask <- function(
+  sub_plan,
+  model,
+  nodes,
+  nodes2,
+  symmetric = FALSE,
+  snapshot_times = numeric(0),
+  prep_envir = new.env(),
+  src = NULL
+) {
+  maintainer <- build_atom_maintainer(
+    sub_plan,
+    model,
+    nodes,
+    nodes2,
+    prep_envir = prep_envir,
+    src = src
+  )
+  expr <- sub_plan$expr
+  atom_labels <- sub_plan$atom_labels
+  eval_here <- function() {
+    eval_constraint_mask(maintainer, expr, atom_labels, symmetric)
+  }
+
+  support_init <- eval_here()
+  # Snapshots are taken in time order (mapping back to the caller's event order)
+  # so the atom stream is advanced once.
   n_snap <- length(snapshot_times)
   support <- vector("list", n_snap)
-  next_atom <- 1L
-  n_atom <- length(atom_ks)
   for (idx in order(snapshot_times)) {
-    tt <- snapshot_times[idx]
-    while (next_atom <= n_atom && atom_times[next_atom] < tt) {
-      apply_atom_event(atom_ks[next_atom])
-      next_atom <- next_atom + 1L
-    }
-    support[[idx]] <- eval_mask()
+    maintainer$advance(snapshot_times[idx])
+    support[[idx]] <- eval_here()
   }
 
   list(
@@ -320,4 +406,132 @@ preprocess_support_mask <- function(
     n_stored = n_snap,
     symmetric = symmetric
   )
+}
+
+#' Maintain a shared atom pool once, project a per-fid mask from it
+#'
+#' Several constraints over the SAME atoms (a `mutually_exclusive` layer's
+#' `!tie(L)` / `tie(L)` derived constraints, or those AND-composed with a shared
+#' user constraint) differ only in their boolean expression, not in the atom
+#' stream they walk. Maintaining that stream once and projecting each
+#' constraint's own expression from it removes the redundant walks the per-output
+#' `preprocess_support_mask()` incurs, while evaluation correctly stays per
+#' constraint — each fid keeps its own mask at its own snapshot times.
+#'
+#' Constraints are grouped by atom signature (their sorted labels): within a
+#' group the maintenance machinery is identical, so one maintainer serves all of
+#' them; across groups (disjoint atoms) separate maintainers run. Each group is
+#' advanced over the UNION of its fids' snapshot times once, every distinct
+#' expression is evaluated at each union time, and each fid slices its own subset
+#' back out — exact because the support is piecewise-constant and the snapshot at
+#' a time depends only on the atoms strictly before it (so a superset walk
+#' sliced to a subset equals the subset walk).
+#'
+#' Partial atom overlap across DISTINCT signatures (the multivariate case, where
+#' processes over different layers share some but not all atoms) is not pooled
+#' here; it belongs to the merged single-clock walk. Within a single flavored
+#' process all of a layer's flavors carry the same atom signature, so this pools
+#' them to one walk.
+#'
+#' @param requests a list of `list(constraint, snapshot_times)`, one per fid, in
+#'   the caller's order; `constraint = NULL` yields a `NULL` result (no mask).
+#' @param model,nodes,nodes2,symmetric,prep_envir,src as in
+#'   [preprocess_support_mask()]; `symmetric` is uniform across the family.
+#' @return a list aligned with `requests`; each element is the `support_mask`
+#'   list `preprocess_support_mask()` returns, or `NULL` for a `NULL` constraint.
+#' @noRd
+preprocess_pooled_support_masks <- function(
+  requests,
+  model,
+  nodes,
+  nodes2,
+  symmetric = FALSE,
+  prep_envir = new.env(),
+  src = NULL
+) {
+  result <- vector("list", length(requests))
+  has_constraint <- vapply(
+    requests,
+    function(r) !is.null(r$constraint),
+    logical(1)
+  )
+  if (!any(has_constraint)) {
+    return(result)
+  }
+
+  con_idx <- which(has_constraint)
+  signature <- vapply(
+    con_idx,
+    function(i) {
+      paste(sort(requests[[i]]$constraint$atom_labels), collapse = "\r")
+    },
+    character(1)
+  )
+
+  for (group in split(con_idx, signature)) {
+    constraints <- lapply(group, function(i) requests[[i]]$constraint)
+    maintainer <- build_atom_maintainer(
+      constraints[[1L]],
+      model,
+      nodes,
+      nodes2,
+      prep_envir = prep_envir,
+      src = src
+    )
+
+    # Distinct constraints (by identity) within the group: creation and
+    # dissolution share atoms but not their expression, so each is evaluated,
+    # while several fids sharing one `constraint_id` map to a single evaluation.
+    distinct <- list()
+    slot <- integer(length(group))
+    for (i in seq_along(group)) {
+      hit <- NA_integer_
+      for (j in seq_along(distinct)) {
+        if (identical(distinct[[j]], constraints[[i]])) {
+          hit <- j
+          break
+        }
+      }
+      if (is.na(hit)) {
+        distinct[[length(distinct) + 1L]] <- constraints[[i]]
+        hit <- length(distinct)
+      }
+      slot[i] <- hit
+    }
+
+    eval_distinct <- function() {
+      lapply(distinct, function(con) {
+        eval_constraint_mask(maintainer, con$expr, con$atom_labels, symmetric)
+      })
+    }
+
+    initial <- eval_distinct()
+    union_times <- sort(unique(unlist(
+      lapply(group, function(i) requests[[i]]$snapshot_times)
+    )))
+    n_union <- length(union_times)
+    masks <- replicate(length(distinct), vector("list", n_union), FALSE)
+    for (ti in seq_len(n_union)) {
+      maintainer$advance(union_times[ti])
+      snap <- eval_distinct()
+      for (di in seq_along(distinct)) {
+        masks[[di]][[ti]] <- snap[[di]]
+      }
+    }
+
+    for (i in seq_along(group)) {
+      ri <- group[i]
+      di <- slot[i]
+      times <- requests[[ri]]$snapshot_times
+      result[[ri]] <- list(
+        support = masks[[di]][match(times, union_times)],
+        initial = initial[[di]],
+        mask_kind = constraints[[i]]$mask_kind,
+        n_stored = length(times),
+        symmetric = symmetric
+      )
+    }
+  }
+
+  result
 }

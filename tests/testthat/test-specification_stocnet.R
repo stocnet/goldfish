@@ -480,18 +480,43 @@ test_that("the multi-flavor print nests a section per flavor", {
   expect_snapshot(print(spec))
 })
 
-test_that("rate and choice must key the same flavor", {
-  local_cli_context()
-
-  expect_snapshot(
-    error = TRUE,
-    make_specification(
-      rate = list(creation ~ 1 + indeg),
-      choice = list(dissolution ~ inertia),
-      model = "DyNAM",
-      data = flavored_fixture()
-    )
+test_that("a half-specified flavor set builds and records the gap", {
+  # A flavor keyed in one sub-model list and omitted from the other is no longer
+  # rejected at construction -- it is a valid generative object whose gap the
+  # completion transform fills at a consumer entry. Construction records which
+  # flavor lacks which sub-model.
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(dissolution ~ inertia),
+    model = "DyNAM",
+    data = flavored_fixture()
   )
+  expect_s3_class(spec, "specification.goldfish")
+  expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
+  # creation lacks a choice, dissolution lacks a rate.
+  gaps <- spec$completion_gaps
+  expect_identical(
+    gaps[order(gaps$flavor), c("flavor", "family")],
+    data.frame(
+      flavor = c("creation", "dissolution"),
+      family = c("choice", "rate"),
+      stringsAsFactors = FALSE
+    ),
+    ignore_attr = "row.names"
+  )
+})
+
+test_that("estimating a half-specified flavor set re-imposes the abort", {
+  # The same-flavor-set requirement relocated from construction to estimation:
+  # the single-process estimators cannot fill a gap, so they abort naming it.
+  local_cli_context()
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(dissolution ~ inertia),
+    model = "DyNAM",
+    data = flavored_fixture()
+  )
+  expect_snapshot(estimate_dynam(spec), error = TRUE)
 })
 
 test_that("rate and choice keying one flavor agree", {

@@ -1,0 +1,720 @@
+---
+title: "Composing co-evolving processes: the multivariate specification"
+subtitle: "The DyNES specification and preprocessing substrate (experimental)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Composing co-evolving processes: the multivariate specification}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+`goldfish` usually models one dependent process at a time: `estimate_dynam()`
+and `estimate_rem()` each take a single [make_specification()] object. Some
+questions need more than one process modeled *together* -- for example, DyNES
+(Dynamic Network Event/State models) asks how a panel-observed relational
+state (survey waves) and a time-stamped relational-event stream co-evolve, with
+the panel process's latent between-wave path *augmented* from the observed
+waves. That joint model needs a specification portraying several co-evolving
+processes at once, evaluated against one shared clock and process state --
+`make_joint_specification()`.
+
+This vignette covers what ships **today**: composing process specifications,
+reading the extended `process_map`, and how coupling and separability are
+detected. The estimator that actually fits a DyNES model, `estimate_dynes()`,
+and the data-augmentation path that lets a panel layer be *modeled* (not just
+read as a covariate), ship in later, still-in-development changes. What is
+here is the substrate they are built on: this package version does not export
+an estimator for the objects this vignette builds.
+
+# Step 0: Load the package and data
+
+
+``` r
+library(goldfish)
+library(manynet)
+data("social_evolution")
+social_evolution
+#> # A tibble: 84 × 4
+#>   label    active floor gradeType
+#>   <chr>    <lgl>  <dbl>     <dbl>
+#> 1 Actor 47 TRUE       4         3
+#> 2 Actor 57 TRUE       2         1
+#> 3 Actor 9  TRUE       9         2
+#> 4 Actor 68 TRUE       8         1
+#> 5 Actor 23 TRUE       5         2
+#> 6 Actor 49 TRUE       7         4
+#> # ℹ 78 more rows
+#> # A tibble: 1,205 × 5
+#>    from    to time                weight layer     
+#>   <int> <int> <dttm>               <dbl> <chr>     
+#> 1     1    64 2008-09-09 00:00:00      1 friendship
+#> 2     2    64 2008-09-09 00:00:00      1 friendship
+#> 3     3    67 2008-09-09 00:00:00      1 friendship
+#> 4     4    62 2008-09-09 00:00:00      1 friendship
+#> 5     5    62 2008-09-09 00:00:00      1 friendship
+#> 6     6    62 2008-09-09 00:00:00      1 friendship
+#> # ℹ 1,199 more rows
+```
+
+`social_evolution` carries two layers over one node set of 84 actors: `calls`
+(time-stamped phone calls, an `"event"` layer) and `friendship` (survey
+nominations, a `"panel"` layer) -- see `vignette("teaching1")` for how it is
+assembled. A multivariate specification needs **at least two** modeled
+processes, so this vignette adds a second, synthetic `"event"` layer,
+`meetings`, over the same actors -- purely illustrative, not a real measure of
+anything in the Social Evolution study.
+
+`friendship`'s 766 rows are two literal survey snapshots (2008-09-09 and
+2008-10-19), every row `weight = 1` -- a nomination present at that wave, not
+an event. Read as an **exogenous covariate** (`tie(friendship)` in Step 1),
+that is exactly what goldfish needs: the tie jumps to `1` when a row appears,
+and the raw data never says otherwise, so a friendship that the second wave
+does not repeat simply keeps its earlier value (goldfish cannot infer a
+dissolution from the *absence* of a row -- see [goldfish_data]). A **DyNES
+model of `friendship` itself** asks a different question: not the two
+snapshots, but the **changes** between them -- a dyad *formed* if absent at
+wave 1 and present at wave 2, *dissolved* if the reverse, dated at wave 1
+since that is the last point either state was actually observed. The
+developer notes below build that diff by hand, since deriving it
+automatically is the future `dynes-augmentation` change's job, not this
+package version's.
+
+
+``` r
+set.seed(1)
+n_actors <- nrow(social_evolution$nodes)
+n_meetings <- 40L
+from_idx <- sample.int(n_actors, n_meetings, replace = TRUE)
+to_idx <- (from_idx + sample.int(n_actors - 1, n_meetings, replace = TRUE) - 1) %%
+  n_actors + 1L
+meetings <- data.frame(
+  from = from_idx,
+  to = to_idx,
+  time = sort(as.POSIXct("2008-09-09") + sort(sample(1:1e6, n_meetings))),
+  weight = 1,
+  layer = "meetings"
+)
+meetings <- manynet::make_stocnet(
+  info = list(
+    name = "meetings",
+    directed = TRUE,
+    update = "increment",
+    observation = "event"
+  ),
+  nodes = social_evolution$nodes,
+  ties = meetings
+)
+joint_data <- manynet::from_ties(
+  social_evolution, meetings,
+  layer_names = c("social_evolution", "meetings")
+)
+```
+
+A layer is added to a `stocnet` object the same way regardless of how many
+processes will model it: build it as its own `stocnet` (`make_stocnet()`
+one call, or `as_stocnet()` + `add_info()` piece by piece) and merge it in
+with `from_ties()` -- exactly the metadata `vignette("teaching1")`'s
+`add_info()` step records, just merged into an existing object here instead
+of built fresh. `directed`, `update`, and `observation` belong on the *new*
+layer's own `info` before merging, not patched onto `joint_data` afterward:
+`from_ties()` unions each input's declared metadata by layer name, so a
+field left undeclared on `meetings` resolves to `NA` for `meetings` in the
+merged object rather than erroring -- a silent gap, not a loud one. (There
+is a similar trap the other way: `manynet::add_info()` *replaces* a field
+outright rather than merging into it, so `add_info(joint_data, directed =
+c(meetings = TRUE))` after the fact would wipe out `friendship`'s and
+`calls`' already-declared `directed` values, not add to them.)
+
+# Step 1: Specifying two co-evolving processes
+
+Build one `specification.goldfish` per process with [make_specification()],
+as for a single-process model, then combine them with
+`make_joint_specification()`. `meetings`' choice formula reads
+`tie(friendship)` -- a relational process reading the panel layer as a
+covariate, which is exactly the kind of cross-process reference that makes
+joining meaningful.
+
+
+``` r
+calls_spec <- make_specification(
+  rate = ~ 1 + indeg,
+  choice = ~ inertia + recip,
+  layer = "calls",
+  model = "DyNAM",
+  data = joint_data
+)
+
+meetings_spec <- make_specification(
+  rate = ~ 1 + outdeg,
+  choice = ~ inertia + tie(friendship),
+  layer = "meetings",
+  model = "DyNAM",
+  data = joint_data
+)
+
+joint_spec <- make_joint_specification(calls_spec, meetings_spec, data = joint_data)
+joint_spec
+#> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+#> 2 processes over one shared data object · 4 formulas · 0 coupled · 4 separable
+#> · 0 auto-supplied
+#> 
+#> Layer "calls" — Model "DyNAM"
+#> • Rate [fid 1, separable]: `~1 + indeg`
+#> • Choice [fid 2, separable]: `~inertia + recip`
+#> 
+#> Layer "meetings" — Model "DyNAM"
+#> • Rate [fid 3, separable]: `~1 + outdeg`
+#> • Choice [fid 4, separable]: `~inertia + tie(friendship)`
+#> 
+#> ℹ Estimate a multivariate specification with
+#> `estimate_dynes()`.
+```
+
+The print sections the composition per layer (flavors nested, when a layer has
+them), names each formula's `fid` -- the integer id every downstream consumer
+indexes by -- and marks whether it is `coupled` or `separable`.
+
+A few construction rules worth knowing before combining processes of your own:
+
+- **One focal layer per specification.** Each joined specification must model
+  a *distinct* focal (dependent) layer; a layer's flavors cannot be split
+  across two joined specifications. Reading a layer as a covariate is
+  unrestricted, and reusing a layer that way across several specifications is
+  exactly the coupling the join exists to portray.
+- **One shared mode-map object.** All composed processes must be built over
+  the same node universe. One- and two-mode processes may be joined, and
+  dependent processes over *distinct* mode-pairs compose as long as every
+  cross-process read conforms by *mode-set identity* -- the shared node space
+  is a whole shared mode (e.g., a `{staff}x{director}` process and a
+  `{director}x{project}` process sharing the whole `director` mode). A read
+  bridging a mode subset to a larger union containing it does not conform and
+  aborts at construction.
+- **No panel layer is required.** Unlike an earlier iteration of this
+  interface, construction does **not** require any process to reference a
+  panel-observed layer. A combination referencing no panel layer at all still
+  composes -- it is estimation-separable (each process's likelihood
+  factorizes) but *generatively* coupled through the shared clock, so it
+  remains a meaningful object once a generative consumer (a future
+  `simulate()`) exists. Whether a composition is *estimable* as DyNES is a
+  question for the estimator, not the constructor -- see Step 3.
+
+## A flavored layer inside a join
+
+A joined process can itself be **flavored**: `meetings`' rows split into two
+competing sub-processes the same way a single-process specification's would
+(see `vignette("teaching2")`). Here `meetings` carries a `weight` of `+1` or
+`-1` -- purely illustrative encoding of a "friendly" versus a "tense"
+encounter -- so `add_flavor()` maps those two update values onto flavor
+names. Repeated same-direction meetings are meaningful (the same pair can
+meet warmly, or tensely, more than once), so `flavor_style = "redundant"`:
+neither flavor gets a derived support constraint.
+
+
+``` r
+meetings_flavored <- meetings
+meetings_flavored$ties$weight[seq(2, n_meetings, by = 2)] <- -1
+joint_data_flavored <- from_ties(
+  social_evolution, meetings_flavored,
+  layer_names = c("social_evolution", "meetings")
+)
+joint_data_flavored <- add_flavor(
+  joint_data_flavored,
+  layer = "meetings",
+  values_equivalence = c(friendly = 1, tense = -1),
+  flavor_style = "redundant"
+)
+```
+
+`rate` / `choice` then take a **flavor-keyed list** whose formula left-hand
+side names the flavor to model -- one process per flavor, each with its own
+formulas:
+
+
+``` r
+meetings_flavored_spec <- make_specification(
+  rate = list(friendly ~ 1 + outdeg, tense ~ 1 + outdeg),
+  choice = list(friendly ~ inertia, tense ~ inertia),
+  layer = "meetings",
+  model = "DyNAM",
+  data = joint_data_flavored
+)
+
+joint_spec_flavored <- make_joint_specification(
+  calls_spec, meetings_flavored_spec,
+  data = joint_data_flavored
+)
+joint_spec_flavored
+#> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+#> 2 processes over one shared data object · 6 formulas · 0 coupled · 6 separable
+#> · 0 auto-supplied
+#> 
+#> Layer "calls" — Model "DyNAM"
+#> • Rate [fid 1, separable]: `~1 + indeg`
+#> • Choice [fid 2, separable]: `~inertia + recip`
+#> 
+#> Layer "meetings" — Model "DyNAM"
+#> Flavor "friendly"
+#> • Rate [fid 3, separable]: `~1 + outdeg`
+#> • Choice [fid 4, separable]: `~inertia`
+#> Flavor "tense"
+#> • Rate [fid 5, separable]: `~1 + outdeg`
+#> • Choice [fid 6, separable]: `~inertia`
+#> 
+#> ℹ Estimate a multivariate specification with
+#> `estimate_dynes()`.
+```
+
+The print nests `meetings`' two flavors under its one layer heading, each
+with its own `fid` -- a flavored process contributes one fid *per*
+`(flavor, sub_model)` pair, not one per layer, so this join has six fids
+where the unflavored version in Step 1 had four.
+
+# Step 2: Reading the `process_map`
+
+The composed object carries an extended `process_map`: one row per
+likelihood-producing formula across every composed process, unchanged in kind
+from a single (possibly flavored) specification's, just with rows from every
+process and one added column.
+
+
+``` r
+joint_spec_flavored$process_map
+#>   fid    layer   flavor family   stat_block has_intercept constraint_id coupled
+#> 1   1    calls     <NA>   rate   DyNAM:rate          TRUE            NA   FALSE
+#> 2   2    calls     <NA> choice DyNAM:choice         FALSE            NA   FALSE
+#> 3   3 meetings friendly   rate   DyNAM:rate          TRUE            NA   FALSE
+#> 4   4 meetings friendly choice DyNAM:choice         FALSE            NA   FALSE
+#> 5   5 meetings    tense   rate   DyNAM:rate          TRUE            NA   FALSE
+#> 6   6 meetings    tense choice DyNAM:choice         FALSE            NA   FALSE
+```
+
+- **`fid`** is the canonical integer identity for every downstream consumer
+  (preprocessing, the walk handle, results) -- `layer`/`flavor` are rendered
+  labels, never parsed back.
+- **`stat_block`** is the dispatch family a formula's effects are deduplicated
+  within (`model:sub_model`); a shared effect (say `tie(friendship)` read by
+  two processes' choice formulas) is computed once per block, never across
+  blocks.
+- **`constraint_id`** is shared by a process's rate and choice when they carry
+  the same support constraint.
+- **`coupled`** is described next.
+
+# Step 3: Coupling and separability
+
+A fid is **coupled** iff its effects or support-constraint atoms *directly*
+reference the state of a **modeled** panel layer -- a panel-observed layer
+that is itself one of the joined processes' focal layers, so its between-wave
+path is latent. Reading a panel layer that appears only as an **exogenous
+covariate** -- modeled by none of the composed processes -- does not couple:
+that covariate is a static step-covariate (its value jumps at wave times, not
+augmented), so a fid reading it touches nothing latent.
+
+
+``` r
+joint_spec_flavored$process_map[, c("fid", "layer", "coupled")]
+#>   fid    layer coupled
+#> 1   1    calls   FALSE
+#> 2   2    calls   FALSE
+#> 3   3 meetings   FALSE
+#> 4   4 meetings   FALSE
+#> 5   5 meetings   FALSE
+#> 6   6 meetings   FALSE
+joint_spec_flavored$modeled_panel
+#> character(0)
+```
+
+Here every fid is `coupled = FALSE`: `meetings`' choice reads `friendship`,
+but `friendship` is panel-observed and modeled by *neither* composed process
+(`joint_spec_flavored$modeled_panel` is empty), so it is a static covariate, not a
+latent one. This is the **exogenous-only-panel** case -- it composes, but has
+nothing latent to jointly estimate.
+
+Making a fid coupled needs a **modeled panel layer** in the join -- a
+specification whose focal layer is itself panel-observed, so its own
+between-wave path is what augmentation would fill in. `make_specification()`
+does not build one directly today: a panel-observed focal layer is rejected as
+"SAOM/RSiena territory," matching goldfish's current event-stream estimators
+(`estimate_dynam()` / `estimate_rem()`), which model event streams, not
+between-wave states.
+
+
+``` r
+tryCatch(
+  make_specification(
+    rate = ~ 1 + outdeg,
+    choice = ~ inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = joint_data
+  ),
+  error = function(e) cat(conditionMessage(e))
+)
+#> A "panel" layer cannot be the focal (dependent) process.
+#> ✖ Layer "friendship" is declared observation = "panel".
+#> ℹ goldfish models event-stream dependents; panel-dependent processes are
+#>   SAOM/RSiena territory.
+```
+
+This fires at `make_specification()`, before a join is ever attempted --
+`friendship` never becomes a process at all, so it cannot reach
+`make_joint_specification()` either as a coupled or a separable fid. The
+change that lifts that restriction and supplies the augmented data path
+(`dynes-augmentation`) is still in development. Once a join *does* carry a
+modeled panel process, every fid reading its state -- directly, through a
+support-constraint atom, or through a windowed effect -- is marked coupled,
+and the print sections separable fids apart so a mixed specification's
+DyNES-estimable core is visible at a glance.
+
+Separability is **not** simply "not coupled": a fid whose own focal layer is a
+modeled panel process is never separable, even when its own formula reads
+nothing -- its likelihood is over that layer's latent path, so it cannot be
+estimated apart from the augmentation that fills it in. Reading (or not
+reading) another modeled panel layer is what `coupled` tracks; a fid's own
+layer being one is a separate, stronger condition.
+
+# Step 4: What estimating a joint specification requires
+
+`goldfish` does not yet export a multivariate estimator -- `estimate_dynes()`
+ships in a later change (`abmcem`, with its data-augmentation path in
+`dynes-augmentation`). What this version *does* enforce is that the
+event-stream estimators refuse to silently mis-fit a joint object:
+
+
+``` r
+tryCatch(
+  estimate_dynam(joint_spec, sub_model = "choice"),
+  error = function(e) cat(conditionMessage(e))
+)
+#> A <joint_specification.goldfish> cannot be estimated with the
+#> event-stream estimators.
+#> ℹ Multivariate specifications are estimated with `estimate_dynes()`.
+```
+
+`estimate_dynam()` and `estimate_rem()` abort on a
+`joint_specification.goldfish` object -- it is a distinct S3 class that
+deliberately does not inherit `specification.goldfish`, so it never reaches
+their single-specification dispatch path -- and point to `estimate_dynes()`.
+The same estimators (plus `estimate_dynami()`) also abort on a *single*
+specification whose focal layer is panel-observed, for the same reason.
+
+When `estimate_dynes()` lands, its viability rule mirrors the separability
+rule above: a mixed specification (some fids coupled, some separable)
+proceeds, informing which fids could equally be estimated on their own; a
+specification where **every** fid is separable -- equivalently, no joined
+process's focal layer is a modeled panel process -- aborts, naming
+`estimate_dynam()` and explaining that its panel layers would only ever be
+static covariates. Construction never makes this call itself: it composes any
+valid join and leaves estimability to the consumer, because a fully-separable
+join is still a meaningful object for a different consumer -- generative
+simulation, next.
+
+# Step 5: Generative-readiness completion
+
+A specification that will *generate* events -- drive the walk handle via a
+future `simulate()` or a DyNES augmenter -- or be estimated *jointly* must be
+**generatively complete**: every modeled DyNAM flavor needs both a rate and a
+choice (REM needs only a rate, already enforced). `make_specification()`
+itself no longer aborts on a half-specified flavor (one keyed in `rate` but
+not `choice`, or vice versa) so such a specification can still be built and
+reach a generative consumer; a *single-process* estimation
+(`estimate_dynam()` / `estimate_rem()`) still refuses to estimate the gap, so
+rate-only and choice-only single-process models are unaffected.
+
+Building on the flavored `meetings` layer from Step 1: suppose `tense`
+meetings are rare enough that only their *choice* -- who, given a tense
+meeting happens, it lands on -- seems worth modeling, leaving `tense` out of
+`rate` entirely (`friendly` still keys both). Construction does not object:
+
+
+``` r
+meetings_half_spec <- make_specification(
+  rate = list(friendly ~ 1 + outdeg),
+  choice = list(friendly ~ inertia, tense ~ inertia),
+  layer = "meetings",
+  model = "DyNAM",
+  data = joint_data_flavored
+)
+meetings_half_spec$completion_gaps
+#>   flavor family sub_model
+#> 1  tense   rate      rate
+```
+
+The gap is recorded, not filled -- fine for a spec headed to a generative
+consumer, but `estimate_dynam()` still refuses it, naming every flavor whose
+`rate` and `choice` don't match:
+
+
+``` r
+tryCatch(
+  estimate_dynam(meetings_half_spec, sub_model = "choice", data = joint_data_flavored),
+  error = function(e) cat(conditionMessage(e))
+)
+#> `rate` and `choice` must key the same flavor set.
+#> ✖ Flavor "tense" is keyed in only one sub-model list.
+#> ℹ Supply the missing sub-model, or use this specification with a generative
+#>   consumer (`simulate()` / `estimate_dynes()`) that completes the gap with a
+#>   zero-parameter default.
+```
+
+Filling the gap is a separate, **zero-free-parameter** completion transform
+run once at each generative consumer's entry (not part of construction, and
+never inside the internal walk handle, which only asserts completeness and
+aborts otherwise):
+
+| missing half | default |
+|---|---|
+| choice | uniform over the support-legal alternatives (no effects) |
+| `choice_coordination` | uniform on both sides |
+| rate, ordered regime | uniform `rate_ordered` (no effects) |
+| rate, timed regime | intercept-only rate, per-actor intercept **pinned** per wave-period from observed counts -- never estimated |
+
+Every default adds *no* parameter to the estimated coefficient vector; the
+transform only ever lets a half-specified process reach a generative consumer
+without fabricating a scientifically meaningful default. As with
+`estimate_dynes()`, no user-facing function calls this transform yet in this
+package version -- it is documented here because its contract shapes what a
+*complete* joint specification is required to look like once those consumers
+land.
+
+One gap the table above has no row for, because it has no default: a
+**modeled panel** layer's data can carry a flavor that neither `rate` nor
+`choice` names *at all*. Completion does not guess there either -- the
+augmenter's job is to place *every* flavor of event the layer's wave-diff
+would produce, so a flavor with nothing modeling it at all is left as a hard
+error rather than silently dropped or defaulted. See the developer notes
+below for what that looks like -- it needs a modeled panel process, which
+`make_specification()` does not build via the public surface yet (Step 3).
+
+# Developer notes: the walk handle
+
+The pieces above build and read a `joint_specification.goldfish`; actually
+*preprocessing* it for estimation, or *driving* it forward for simulation or
+augmentation, are different jobs. This package version supplies both
+substrates internally, for `dynes-augmentation` and `process-simulation` to
+build on:
+
+- **Batch preprocessing** (`preprocess_joint()`, internal) walks the composed
+  event sequence **once**, on a single shared clock hosting every process's
+  statistic blocks, and returns one `preprocessed.goldfish` per fid -- the
+  same object shape a single-process `preprocess()` returns, just one per fid
+  instead of one for the whole call. An event is dependent for its own
+  `(layer, flavor)` fids, a right-censoring boundary for every *other* timed
+  rate fid regardless of layer, and state-only for choice/ordered fids --
+  cross-process right-censoring works exactly like cross-flavor
+  right-censoring in a single flavored specification.
+
+- **Generative completion** (`complete_generative_spec()`, internal, called by
+  each generative consumer at its own entry -- `walk_open()` only asserts, it
+  never completes, see below) fills the Step 5 gap table. Its one abort (the
+  gap the table has no row for) needs a **modeled panel** process, which
+  `make_specification()` will not build through the public surface until
+  `dynes-augmentation` lands (Step 3). Reaching it today needs the same
+  construction trick this package's own tests use: build the spec while the
+  layer is *temporarily* declared an `"event"` observation, clearing
+  `make_specification()`'s panel-focal guard, then join it against a `data`
+  object where that layer is truthfully declared `"panel"` --
+  `make_joint_specification()` reads `modeled_panel` off the `data` it is
+  given, not off whatever the spec's own construction data said. This is an
+  internal test fixture technique, not a real-analysis one -- declaring a
+  panel layer's `observation` as `"event"` to sneak past validation, even
+  temporarily, misdescribes the data.
+
+  It also needs real formation *and* dissolution signal to have anything to
+  abort on. `friendship`'s raw rows (Step 0) are two snapshots, not a diff --
+  every row is `weight = 1`, so flavoring them by raw value directly yields
+  766 `"formation"` rows and zero `"dissolution"` ones, and the guard below
+  has nothing to fire on. Building the actual wave-to-wave diff first (formed
+  = present at wave 2, absent at wave 1; dissolved = the reverse; both dated
+  at wave 1, the last point either state was observed) gives both flavors:
+
+  
+  ``` r
+  friendship_snapshot <- as.data.frame(
+    joint_data$ties[joint_data$ties$layer == "friendship", c("from", "to", "time")]
+  )
+  wave_times <- sort(unique(friendship_snapshot$time))
+  dyad_key <- function(d) paste(d$from, d$to)
+  wave1 <- friendship_snapshot[friendship_snapshot$time == wave_times[1], ]
+  wave2 <- friendship_snapshot[friendship_snapshot$time == wave_times[2], ]
+  formed <- wave2[!dyad_key(wave2) %in% dyad_key(wave1), c("from", "to")]
+  dissolved <- wave1[!dyad_key(wave1) %in% dyad_key(wave2), c("from", "to")]
+  friendship_changes <- rbind(
+    data.frame(from = formed$from, to = formed$to,
+               time = wave_times[1], weight = 1, layer = "friendship"),
+    data.frame(from = dissolved$from, to = dissolved$to,
+               time = wave_times[1], weight = 0, layer = "friendship")
+  )
+  nrow(formed); nrow(dissolved)
+  #> [1] 143
+  #> [1] 129
+  ```
+
+  
+  ``` r
+  joint_data_changes <- joint_data
+  joint_data_changes$ties <- dplyr::bind_rows(
+    joint_data$ties[joint_data$ties$layer != "friendship", ],
+    friendship_changes
+  )
+  friendship_flavored <- add_flavor(
+    joint_data_changes,
+    layer = "friendship",
+    values_equivalence = c(formation = 1, dissolution = 0),
+    flavor_style = "redundant"
+  )
+  event_declared <- friendship_flavored
+  event_declared$info$observation["friendship"] <- "event"
+  friendship_spec <- make_specification(
+    rate = list(formation ~ 1 + outdeg),      # dissolution named nowhere
+    choice = list(formation ~ inertia),       # in EITHER sub-model
+    layer = "friendship",
+    model = "DyNAM",
+    data = event_declared
+  )
+  joint_spec2 <- make_joint_specification(
+    friendship_spec, meetings_spec,
+    data = friendship_flavored                 # friendship is "panel" here
+  )
+  tryCatch(
+    goldfish:::complete_generative_spec(joint_spec2, consumer = "simulate"),
+    error = function(e) cat(conditionMessage(e))
+  )
+  #> A modeled panel layer must model all of its flavors.
+  #> ✖ Layer "friendship" carries flavor "dissolution" modeled in neither `rate` nor
+  #>   `choice`.
+  #> ℹ A modeled panel layer's augmented path must place events of every flavor its
+  #>   wave-diff produces; model "dissolution" or drop it from the panel layer.
+  
+  friendship_spec_no_choice <- make_specification(
+    rate = list(formation ~ 1 + outdeg, dissolution ~ 1 + outdeg),      # dissolution named nowhere
+    choice = list(formation ~ inertia),       # in EITHER sub-model
+    layer = "friendship",
+    model = "DyNAM",
+    data = event_declared
+  )
+  joint_spec3 <- make_joint_specification(
+    friendship_spec_no_choice, meetings_spec,
+    data = friendship_flavored                 # friendship is "panel" here
+  )
+  tryCatch(
+    goldfish:::complete_generative_spec(joint_spec3, consumer = "simulate"),
+    error = function(e) cat(conditionMessage(e))
+  )
+  #> Warning: ! Layer "friendship" flavor "dissolution" has no choice sub-model; completing
+  #>   it with a uniform choice over the support-legal alternatives.
+  #> ℹ The default adds no free parameter; it is auto-supplied for the simulate
+  #>   generative surface.
+  #> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+  #> 2 processes over one shared data object · 6 formulas · 4 coupled · 1 separable
+  #> · 1 auto-supplied
+  #> 
+  #> Layer "friendship" — Model "DyNAM"
+  #> Flavor "formation"
+  #> • Rate [fid 1, coupled]: `~1 + outdeg`
+  #> • Choice [fid 2, coupled]: `~inertia`
+  #> Flavor "dissolution"
+  #> • Rate [fid 3, coupled]: `~1 + outdeg`
+  #> • Choice [fid 4, non-separable, auto-supplied]: `~1`
+  #> 
+  #> Layer "meetings" — Model "DyNAM"
+  #> • Rate [fid 5, separable]: `~1 + outdeg`
+  #> • Choice [fid 6, coupled]: `~inertia + tie(friendship)`
+  #> 
+  #> ℹ Estimate a multivariate specification with
+  #> `estimate_dynes()`.
+  
+    friendship_spec_no_rate <- make_specification(
+    rate = list(formation ~ 1 + outdeg),      # dissolution named nowhere
+    choice = list(formation ~ inertia, dissolution ~ inertia),       # in EITHER sub-model
+    layer = "friendship",
+    model = "DyNAM",
+    data = event_declared
+  )
+  joint_spec4 <- make_joint_specification(
+    friendship_spec_no_rate, meetings_spec,
+    data = friendship_flavored                 # friendship is "panel" here
+  )
+  tryCatch(
+    goldfish:::complete_generative_spec(joint_spec4, consumer = "simulate"),
+    error = function(e) cat(conditionMessage(e))
+  )
+  #> Warning: ! Layer "friendship" flavor "dissolution" has no rate sub-model; completing it
+  #>   with a pinned intercept-only rate (zero free parameters).
+  #> ℹ The default adds no free parameter; it is auto-supplied for the simulate
+  #>   generative surface.
+  #> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+  #> 2 processes over one shared data object · 6 formulas · 4 coupled · 1 separable
+  #> · 1 auto-supplied
+  #> 
+  #> Layer "friendship" — Model "DyNAM"
+  #> Flavor "formation"
+  #> • Rate [fid 1, coupled]: `~1 + outdeg`
+  #> • Choice [fid 2, coupled]: `~inertia`
+  #> Flavor "dissolution"
+  #> • Rate [fid 3, non-separable, auto-supplied]: `~1`
+  #> • Choice [fid 4, coupled]: `~inertia`
+  #> 
+  #> Layer "meetings" — Model "DyNAM"
+  #> • Rate [fid 5, separable]: `~1 + outdeg`
+  #> • Choice [fid 6, coupled]: `~inertia + tie(friendship)`
+  #> 
+  #> ℹ Estimate a multivariate specification with
+  #> `estimate_dynes()`.
+  ```
+
+- **The stepping walk handle** (`walk_open()` / `walk_advance()` /
+  `walk_evaluate()` / `walk_inject()`, internal, not exported) is for a driver
+  that cannot work in one batch pass -- a DyNES augmenter proposing and
+  applying latent events mid-walk, or a future `simulate()` drawing new ones.
+  It owns the same merged clock and shared process state as the batch walk,
+  stepped instead of replayed.
+
+`walk_open(spec, data)` builds the handle. It **asserts** -- never performs --
+generative completeness (Step 5): a half-specified spec aborts, pointing at
+the consumer that would complete it. `walk_advance(handle, t)` moves the
+clock, applying every *exogenous* covariate event (a layer no composed
+process models) up to `t`. `walk_evaluate(handle, fid, theta)` returns that
+fid's rate vector or choice matrix at the live state and parameters, its
+support mask applied -- a thin wrapper over the same process-state evaluators
+single-process estimation uses, not a reimplementation. `walk_inject(handle,
+event)` applies one event -- observed or sampled -- to the shared state, so
+every fid's next evaluation reflects it.
+
+Replaying an observed sequence through advance/evaluate/inject reproduces the
+batch walk's per-fid quantities exactly (batch-vs-replay equality); a driver
+loop over a proposed sequence looks like this (sketch, not runnable as shown
+-- the handle is an internal substrate with no exported entry point):
+
+```r
+handle <- walk_open(joint_spec)                 # asserts completeness
+for (event in proposed_events) {
+  walk_advance(handle, event$time)               # apply exogenous covariates
+  rate <- walk_evaluate(handle, fid = rate_fid, theta = theta_rate)
+  choice <- walk_evaluate(handle, fid = choice_fid, theta = theta_choice)
+  # ... accept/reject or record `rate`/`choice` here ...
+  walk_inject(handle, event)                     # commit the event
+}
+```
+
+Two contracts carry over from the batch walk and matter to anyone driving
+the handle: focal is resolved **per fid**, over the one shared state --
+  each fid's side/mode/dependent-row resolution rides its own process's
+  focal, never a single object-level stamp, so a non-focal process in a
+  multilevel join resolves correctly regardless of which layer the data
+  object's own `info$focal` happens to name. And a fid carrying an
+  auto-supplied, effect-free default (Step 5's uniform choice or pinned rate)
+  is a boundary the handle does not yet step past -- those are the generative
+  consumers' own domain to walk, not this substrate's.
+
+# See also
+
+- `vignette("teaching1")` for how a `stocnet` data object -- the single input
+  every specification here is built over -- is assembled.
+- [make_specification()] for the single-process specification each joined
+  process starts from.
+- [make_joint_specification()] for the full construction contract (mode-map
+  conformance, focal uniqueness, regime compatibility) referenced in Step 1.

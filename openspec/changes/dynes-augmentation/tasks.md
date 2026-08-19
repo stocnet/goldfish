@@ -30,12 +30,14 @@
 
 ## 2. Panel augmentation trigger and wave diffing
 
-- [ ] 2.1 Panel augmentation triggered by formula reference (no separate flag): a
-      panel-observed layer referenced in the multivariate spec is an augmentation
+- [ ] 2.1 Panel augmentation triggered by modeled-process reference (no separate
+      flag): a panel-observed layer that is a modeled process is an augmentation
       target; scope the panel-focal rule per estimator (event-stream estimators
       abort pointing to `estimate_dynes()`; DyNES accepts a modeled panel process);
-      exogenous-only panel references carry a per-layer static-vs-random-augmenter
-      choice on the estimation surface
+      an exogenous-only panel reference stays a static step-covariate (no
+      augmentation, no random sampling); `estimate_dynes()` aborts (naming
+      `estimate_dynam()`, static-exogenous message) when no panel layer is a modeled
+      dependent process
 - [ ] 2.2 Wave diffing into candidate flip sets per between-wave interval
       (standalone-usable on a validated data object) plus the endpoint-hitting
       sequence validator

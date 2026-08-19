@@ -516,6 +516,128 @@ print.specification.goldfish <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
+#' @rdname print-method
+#' @return For objects of class `joint_specification.goldfish` print one section
+#'   per modeled layer (flavors nested), each formula's fid and separable/coupled
+#'   status, and the derived and combined support constraints.
+print.joint_specification.goldfish <- function(x, ...) {
+  map <- x$process_map
+  # A base (uncompleted) joint spec has no `completed` column; treat every fid as
+  # authored so the print works before and after the completion transform runs.
+  if (is.null(map$completed)) {
+    map$completed <- rep(FALSE, nrow(map))
+  }
+  modeled_panel <- x$modeled_panel %||% character(0)
+  cli::cli_rule(left = "{.cls joint_specification.goldfish}")
+
+  n_proc <- length(x$specifications)
+  n_fid <- nrow(map)
+  # Separability is the D4 rule (NOT coupled AND layer NOT a modeled panel
+  # process), not the negation of `coupled`: a modeled-panel fid completed with a
+  # reads-nothing default has `coupled = FALSE` yet stays non-separable, so the
+  # two counts are independent facts rather than complements.
+  n_coupled <- sum(map$coupled)
+  n_sep <- sum(joint_separable(x))
+  n_completed <- sum(map$completed)
+  cli::cli_text(
+    "{n_proc} process{?es} over one shared data object ·
+     {n_fid} formula{?s} · {n_coupled} coupled · {n_sep} separable ·
+     {n_completed} auto-supplied"
+  )
+
+  # Sections are driven by the process_map (labels rendered from it, never
+  # parsed back), and the matching specification supplies each fid's formula and
+  # constraint text.
+  specs_by_focal <- stats::setNames(
+    x$specifications,
+    vapply(x$specifications, `[[`, character(1), "focal")
+  )
+
+  for (lyr in unique(map$layer)) {
+    spec <- specs_by_focal[[lyr]]
+    lyr_rows <- map[map$layer == lyr, , drop = FALSE]
+    cli::cli_text("")
+    cli::cli_text("{.strong Layer} {.val {lyr}} — Model {.val {spec$model}}")
+    for (fl in unique(lyr_rows$flavor)) {
+      keep <- if (is.na(fl)) is.na(lyr_rows$flavor) else lyr_rows$flavor == fl
+      if (!is.na(fl)) {
+        cli::cli_text("{.strong Flavor} {.val {fl}}")
+      }
+      print_joint_flavor(
+        spec,
+        fl,
+        lyr_rows[keep, , drop = FALSE],
+        modeled_panel = modeled_panel
+      )
+    }
+  }
+
+  cli::cli_text("")
+  cli::cli_alert_info(
+    "Estimate a multivariate specification with
+                       {.fn estimate_dynes}."
+  )
+  invisible(x)
+}
+
+# One flavor's formulas and constraints. Each family line carries its fid and
+# whether the fid is separable (reads no modeled panel layer) or coupled; the
+# derived flavor constraint and its AND-composition with any user support
+# constraint are shown so a reader sees the mask each fid estimates under.
+print_joint_flavor <- function(
+  spec,
+  flavor,
+  rows,
+  modeled_panel = character(0)
+) {
+  flavored <- !is.null(spec$processes) && !is.na(flavor)
+  submodels <- if (flavored) {
+    spec$processes[[flavor]]$submodels
+  } else {
+    spec$submodels
+  }
+  completed <- rows$completed %||% rep(FALSE, nrow(rows))
+  for (i in seq_len(nrow(rows))) {
+    bundle <- submodels[[rows$family[i]]]
+    formula_str <- deparse1(bundle$input_formula)
+    family_label <- sub("^(.)", "\\U\\1", rows$family[i], perl = TRUE)
+    # D4: a fid on a modeled panel layer is never separable, even reading
+    # nothing; `coupled` (reads ANOTHER modeled panel layer) is a strict subset.
+    status <- if (rows$coupled[i]) {
+      "coupled"
+    } else if (rows$layer[i] %in% modeled_panel) {
+      "non-separable"
+    } else {
+      "separable"
+    }
+    if (isTRUE(completed[i])) {
+      status <- paste0(status, ", auto-supplied")
+    }
+    cli::cli_bullets(c(
+      "*" = "{.field {family_label}} [fid {rows$fid[i]}, {status}]:
+             {.code {formula_str}}"
+    ))
+  }
+
+  derived <- if (flavored) {
+    spec$processes[[flavor]]$derived_constraint
+  } else {
+    spec$derived_constraint
+  }
+  user <- spec$support_constraint
+  if (!is.null(derived)) {
+    cli::cli_bullets(c(" " = "Derived: {.code {deparse1(derived)}}"))
+    if (!is.null(user)) {
+      combined <- and_compose_constraint(derived, user)
+      cli::cli_bullets(c(" " = "Combined: {.code {deparse1(combined)}}"))
+    }
+  } else if (!is.null(user)) {
+    cli::cli_bullets(c(" " = "Support: {.code {deparse1(user)}}"))
+  }
+  invisible(NULL)
+}
+
 # One section per modeled flavor: its rate/choice formulas and its derived
 # (and, when combined with a user constraint, combined) support constraint.
 print_flavor_processes <- function(x) {

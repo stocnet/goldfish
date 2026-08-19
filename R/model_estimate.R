@@ -398,6 +398,27 @@
 #'
 NULL
 
+# A joint (multivariate) specification is a distinct class that does NOT inherit
+# specification.goldfish, so it slips past the single-specification dispatch
+# branch and would otherwise fall through to estimate_wrapper. The event-stream
+# estimators reject it by class and point at the multivariate estimator; the
+# check runs before the specification.goldfish branch so a joint object never
+# reaches single-process estimation.
+reject_joint_specification <- function(x, call = rlang::caller_env()) {
+  if (inherits(x, "joint_specification.goldfish")) {
+    cli::cli_abort(
+      c(
+        "A {.cls joint_specification.goldfish} cannot be estimated with the \\
+         event-stream estimators.",
+        "i" = "Multivariate specifications are estimated with \\
+               {.fn estimate_dynes}."
+      ),
+      call = call
+    )
+  }
+  invisible(x)
+}
+
 # Reject a legacy `data.goldfish` environment at the public surface. Every model
 # family now assembles to a stocnet (`make_data()` / `make_groups_interaction()`
 # return one, or abort), so no public entrypoint needs an environment; the only
@@ -465,6 +486,7 @@ estimate_dynam <- function(
     "preprocessed"
   )
   sub_model <- match.arg(sub_model)
+  reject_joint_specification(x)
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
@@ -543,6 +565,9 @@ estimate_dynami <- function(
     "preprocessed"
   )
   sub_model <- match.arg(sub_model)
+  # No joint-specification guard here: DyNAM-i is under development and is
+  # rejected at joint composition, so it cannot appear in a joint object. An
+  # explicit rejection is deferred to when DyNAM-i becomes composable.
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
@@ -621,6 +646,7 @@ estimate_rem <- function(
     "preprocessed"
   )
   sub_model <- match.arg(sub_model)
+  reject_joint_specification(x)
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
@@ -653,6 +679,31 @@ estimate_rem <- function(
   )
 }
 
+# Re-impose the same-flavor-set requirement at estimation time. A half-specified
+# flavored specification records its per-(flavor, sub-model) gaps; the
+# single-process estimators cannot fill them (only the generative-completion
+# transform does, at a consumer entry), so estimating one aborts with the
+# historical same-flavor-set message, naming the flavors whose sub-models differ.
+abort_on_completion_gaps <- function(spec, call = rlang::caller_env()) {
+  gaps <- spec$completion_gaps
+  if (is.null(gaps) || nrow(gaps) == 0L) {
+    return(invisible(spec))
+  }
+  flavors <- unique(gaps$flavor)
+  cli::cli_abort(
+    c(
+      "{.arg rate} and {.arg choice} must key the same flavor set.",
+      "x" = "{cli::qty(flavors)}Flavor{?s} {.val {flavors}} {?is/are} keyed in
+             only one sub-model list.",
+      "i" = "{cli::qty(nrow(gaps))}Supply the missing sub-model{?s}, or use this
+             specification with a generative consumer ({.fn simulate} /
+             {.fn estimate_dynes}) that completes the gap with a zero-parameter
+             default."
+    ),
+    call = call
+  )
+}
+
 # Estimate from a specification.goldfish object. Selects the submodel
 # bundle matching the requested sub_model's family (rate vs choice), reuses its
 # parsed formula bundle so estimation does not re-parse, and forwards to the
@@ -682,7 +733,12 @@ estimate_from_specification <- function(
   }
   # A multi-flavor specification is K parallel processes over one layer: it
   # preprocesses in one pass and estimates per process, returning a container
-  # rather than a single fit.
+  # rather than a single fit. A half-specified flavored spec (a flavor keyed in
+  # one sub-model list, omitted from the other) is a valid *generative* object,
+  # but the single-process estimators cannot estimate an unfilled gap, so the
+  # same-flavor-set requirement is re-imposed here -- the abort relocated from
+  # construction to estimation for this excluded path.
+  abort_on_completion_gaps(spec)
   if (!is.null(spec$processes)) {
     return(estimate_flavored(
       spec = spec,

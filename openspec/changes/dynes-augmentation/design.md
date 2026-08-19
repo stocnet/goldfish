@@ -226,22 +226,19 @@ data, limits precision. Fixed-parameter handling follows the prototypes'
 ### D8 — Panel augmentation trigger (formula reference) and wave diffing
 There is **no separate panel-semantics flag**. A panel-observed layer
 (`observation = "panel"` in the living `single-data-object` spec) becomes an
-augmentation target **iff it is referenced in the multivariate specification's
-formulas** — either as a modeled process's focal/dependent layer, or as an
-exogenous covariate read by another process's effects or support-constraint atoms
-(the `make-multivariate-spec` coupling notion, D19). A panel layer referenced
-nowhere is not augmented (it stays an ordinary exogenous change-list covariate, or
-is absent). When a panel layer is referenced **only as an exogenous covariate**
-(it carries no formulas describing its own dynamics), its latent between-wave path
-is still needed, and the user chooses per layer how to supply it (an estimation
-argument, e.g. on `set_alg_augment()`, not a data-object property):
-- **static step-covariate** — state jumps only at wave times (the living
-  `single-data-object` panel behavior); the layer is *not* latent and contributes
-  no Monte-Carlo variation; or
-- **random augmenter** — the flip set is ordered uniformly between waves
-  (`augment_seq_random()`, model-free), making the path latent.
-A modeled panel process (its own focal layer) is always augmented by the chosen
-model-driven routine. Wave diffing is unchanged: a panel layer's rows are
+augmentation target **iff it is a modeled process** (its own focal/dependent layer
+carries rate/choice formulas in the multivariate specification). A modeled panel
+process is always augmented by the chosen model-driven routine, and any fid reading
+its latent state is coupled to it (D19). When a panel layer is referenced **only as
+an exogenous covariate** (it carries no formulas describing its own dynamics), it is
+**not** augmented: it stays a **static step-covariate** — state jumps only at wave
+times (the living `single-data-object` panel behavior), the layer is *not* latent,
+contributes no Monte-Carlo variation, and no random sampling of its between-wave path
+is done. There is no per-layer static-vs-random choice: an exogenous-only panel
+reference is always static. A panel layer referenced nowhere is likewise not
+augmented. `augment_seq_random()` survives as an augmenter routine for *modeled*
+panel processes (and as the MCMC initializer, D16); it is simply never the treatment
+of an exogenous-only reference. Wave diffing is unchanged: a panel layer's rows are
 snapshots; consecutive waves diff into the candidate flip set per interval, with
 wave times as hard boundaries the augmented sequence must hit. Flavors are arbitrary, not just creation/dissolution:
 the diff consumes the layer's transition/support specification and inverts the
@@ -249,6 +246,14 @@ the diff consumes the layer's transition/support specification and inverts the
 never a latent variable. A value change larger than one allowed step decomposes into
 a **per-dyad ordered chain** of events (0→2 under ±1 transitions is two events with
 a forced order); net-zero changes produce no events (excursions are out of v1, D16).
+**A panel (latent) layer MAY be two-mode** — a disjoint mode-pair under
+`multimode-network-support`'s mode map (e.g. an advice layer `{staff}×{director}`).
+Wave-diffing and the per-dyad ordered chains run over its n1×n2 dyad space exactly
+as over a one-mode n×n space; the candidate flip set is the two-mode dyad set.
+A coupled RE reader lives on its own mode-pair block (`make-multivariate-spec` D8)
+and reads the latent layer across a **whole shared mode** (identity-conforming) —
+subset/nested coupling (a mode ⊂ a union containing it) is out of v1 and rejected at
+composition.
 v1 data restrictions: all panel-flagged layers share **one wave grid** (nested grids
 — e.g. yearly surveys plus weekly ones — are a recorded future development); the
 **node set is fixed** over the whole period (composition changes / presence windows
@@ -509,13 +514,19 @@ intervals, so the MCMC augmenter runs one global chain over the whole sequence
 
 **Separability: consume the multivariate spec's coupling detection, don't
 re-derive it.** `make-multivariate-spec` D4 already marks each fid `coupled` iff any
-of its effect arguments or support-constraint atoms reads a panel-observed layer's
-state (direct reference; not transitive). `estimate_dynes()` reads that `coupled`
-column rather than recomputing PE-independence at sub-model granularity. Behavior on
-the resulting cases, aligned with `make-multivariate-spec` D4 (the newer decision):
-- **All fids separable** → abort: nothing is latent, `estimate_dynam()` covers it.
-  (Unreachable through `make_joint_specification()` when a panel process is modeled —
-  its own fids are coupled by construction — but guards recomposed/edited specs.)
+of its effect arguments or support-constraint atoms reads a **modeled** panel layer's
+state (direct reference; not transitive). A fid reading only a static exogenous panel
+covariate is *not* coupled — nothing about it is latent. `estimate_dynes()` reads that
+`coupled` column rather than recomputing PE-independence at sub-model granularity.
+Behavior on the resulting cases, aligned with `make-multivariate-spec` D4 (the newer
+decision):
+- **All fids separable** → abort: no panel layer is a modeled dependent process, so
+  nothing is latent. The error names `estimate_dynam()`, explaining the specification
+  fits DyNAM (not DyNES) and that its panel layers would only be considered as static
+  exogenous covariates. This is **reachable** through `make_joint_specification()`
+  whenever every panel reference is exogenous-only (D2 composes such specs; the
+  DyNES-viability check is estimation-time) — catching a user who reached for
+  `estimate_dynes()` on what is really a DyNAM model.
 - **Mixed** (some coupled, some separable) → **proceed** with a cli message naming
   the separable fids (their likelihood terms touch no latent path, so joint
   estimation equals separate estimation for them). This supersedes this design's
@@ -524,6 +535,16 @@ the resulting cases, aligned with `make-multivariate-spec` D4 (the newer decisio
 *Rejected:* automatic internal partitioning (a separate standard-estimation path and
 block-structured vcov inside `estimate_dynes()`) — the joint fit already handles the
 separable fids correctly; the message is a user-guidance nicety, not a fork.
+
+**Node-space generality** (`make-multivariate-spec` D8): the joined RE and PE
+layers MAY be one- or two-mode over one shared mode-map object, and dependent
+layers MAY be over *distinct* mode-pairs. Every cross-layer coupling read
+(an RE reader reading a modeled PE layer's latent state) conforms by **mode-set
+identity** — the reader and the panel layer share a *whole* mode. A read bridging
+a mode *subset* to a union containing it is rejected at composition (Gap B, future
+development), so `estimate_dynes()` never sees one; the augmenter and the batched
+evaluator therefore evaluate every coupled fid on its own mode-pair block with no
+subset projection required. The two-mode panel case (D8) is the concrete driver.
 
 **History spans**: modeled REs before the first wave are history — they inform the
 process state at the first wave but contribute no likelihood terms; modeled REs
@@ -614,6 +635,28 @@ support-violating proposals via zero target density (never pay a preprocess for 
 proposal a lookup can exclude — and the walk is not guaranteed to return −Inf on an
 illegal transition rather than error); a separate per-dyad pending-queue structure
 in the simulation (the support masks already encode applicability).
+
+### D21 — Generative-readiness completion is consumed, not built here (see `make-multivariate-spec` D9)
+The joint likelihood needs every modeled DyNAM flavor complete (rate **and**
+choice): the augmenters draw waiting times and receivers from rates/choices, and
+the evaluator scores both halves. That completion — filling a half-specified
+flavor's missing sub-model with its zero-information default (uniform choice /
+uniform ordered rate; intercept-only baseline for a missing timed rate) and
+warning once, erroring only when a **modeled panel** layer omits a flavor entirely
+(the "all flavors or not at all" rule, D8/D19) — is owned by `make-multivariate-spec`
+**D9** and consumed here, not re-derived.
+
+The decisive constraint this change imposes on D9: **only `augment_seq_sim()` drives
+`walk_open`**. `augment_seq_mcmc()` evaluates through the injected
+`make_proposal_evaluator()` closure (D20), `augment_seq_random()` draws over the
+flip set, and `evaluate_sequence_pool()` (D2) is a batched pass — none call
+`walk_open`. So completion **cannot** live inside `walk_open`; `estimate_dynes()`
+runs it **once** at entry and hands the single completed spec to all four paths, so
+the augmenters and the evaluator agree fid-for-fid. `make_proposal_evaluator(spec,
+θ_k)` (D20) is built on that completed spec. Completed fids are marked in the
+`process_map` and appear in θ (0 params for a uniform choice, 1 for an added
+baseline hazard), so the result (D7) reports every auto-supplied sub-model. This
+supersedes any reading of D2/D20 in which an augmenter completes its own spec.
 
 ## Risks / Trade-offs
 
