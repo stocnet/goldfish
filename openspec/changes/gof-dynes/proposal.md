@@ -1,3 +1,65 @@
+## Revisions (2026-08-21) — surface names, plot ownership, notation
+
+Four decisions taken after this change was written. They are recorded here in
+full so this change can be implemented without consulting anything outside the
+repository; the maintainer keeps a longer rationale for each in a personal
+decision log, and the `ADR-00NN` ids below are lookup keys for that log only —
+**nothing in them is needed to implement this change.**
+
+1. **`lr_test_dynes(m1, m0)` becomes `test_nested(m1, m0)`, a method on a new
+   S3 generic** (ADR-0037). goldfish already asks three questions of a fit
+   through a `test_*` family — `test_gof()`, `test_parameter()`, `test_time()` —
+   and nested comparison is the fourth. Rationale in brief: a survey of the
+   installed REM ecosystem (relevent, amorem, dream, remstats, remify,
+   remstimate, remverse) found that **none** implements `anova`, so there is no
+   idiom to conform to; and because a DyNES likelihood is a Monte-Carlo
+   estimate, a naive χ² LR test on it is invalid — keeping the exact-likelihood
+   and bootstrap-adjusted tests as separate methods of one generic means neither
+   can ever be reached by inheritance from the other. `anova()` is **not** to be
+   registered for any goldfish fit class. The `nested-model-lr-test` capability
+   keeps its scope; only the function name and its home generic change.
+
+2. **`gof_dynes(fit)` folds into `test_gof()`, gaining a `type` axis** — see the
+   new D14 below for the full contract. `test_gof()` already ships as the
+   Boschi–Wit cumulative-score bridge test; the simulation-based
+   auxiliary-statistic GoF proposed here is a *second discrepancy*, not a
+   replacement, and the two take different parameters. Do not rename anything
+   until D14's control-object shape is settled.
+
+3. **The GoF `plot()` method moves to autograph** (ADR-0039), reversing D10's
+   plan to ship it in goldfish. The stocnet packages are layered by vocabulary —
+   manynet owns data/network generics, goldfish owns model and post-estimation
+   generics, autograph owns plot methods — and goldfish's other diagnostic plots
+   were already externalized to autograph under the archived `residuals-gof`
+   phase 2. goldfish ships the classed result plus a **documented plot-data
+   contract** and its `print()`/`summary()`; autograph dispatches on the class.
+   This makes the GoF half consistent with the half of D10 that already ships no
+   plot. Phase 3 loses a plot deliverable and gains a plot-data-contract
+   deliverable.
+
+4. **Fit classes gain a shared parent governed by a contract table**
+   (ADR-0038), landing with `class-naming-scheme`. Relevant here: the DyNES fit
+   class must have an explicit `inherit` / `override` / `refuse` decision
+   recorded for every generic that dispatches on a fit, **before** this change
+   ships a result object. The cells that matter are the ones assuming an exact
+   likelihood — `logLik()` (and therefore `AIC()`/`BIC()`), `vcov()`, and any
+   nested comparison — since a Monte-Carlo likelihood reached through an
+   inherited method returns a plausible number with nothing marking it invalid.
+
+**Notation.** This change writes `θ̂` for the *whole* DyNES parameter vector (the
+concatenation of all sub-models' parameters, per design Context). That is the
+generic usage and is not the same `θ` as the canonical manuscript lettering used
+elsewhere in the repo, where `θ` is the **rate** parameter, `β` the **choice**
+parameter, and `α` the acceptance parameter. Where this change's prose touches a
+single sub-model rather than the joint vector, use the canonical letters; where
+it means the concatenation, `θ̂` is correct as written. A sweep of the artifacts
+against that rule is owed and has not been done.
+
+**Rename sweep owed.** `lr_test_dynes` appears 25 times and `gof_dynes` 19 times
+across this change's artifacts. They are deliberately **not** swept here — item 2
+is not settled, and a half-applied rename is worse than none. Sweep both in one
+apply-time task once D14 closes.
+
 ## Why
 
 `estimate_dynes()` (`abmcem` / `dynes-augmentation`) fits the flavored

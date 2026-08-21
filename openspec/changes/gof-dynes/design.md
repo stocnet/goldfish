@@ -161,6 +161,37 @@ full EM inside a "test" call and couples the test tightly to the estimation loop
 *Alternative rejected*: free-form (non-nested) model pairs — the deviance LR
 asymptotics do not hold and the bootstrap reference is ill-defined.
 
+**Revised 2026-08-21 — the surface is `test_nested()`, not `lr_test_dynes()`,
+and not `anova()`.** The two-fitted-nested-models contract above is unchanged;
+only the name and its home move. `test_nested()` is a new S3 generic joining the
+`test_gof()` / `test_parameter()` / `test_time()` family, and this change
+supplies its DyNES method. Two reasons, both self-contained (ADR-0037 is a
+lookup key for the maintainer's decision log, not required reading):
+
+- *Why not `anova()`, despite D4 above calling this "a plain model-comparison
+  call like `anova()`":* a survey of the installed REM ecosystem — relevent
+  1.2.1, amorem 1.0.0, dream 2.1.4, remstats 4.0.0, remify 4.0.0, remstimate
+  3.0.0, remverse 0.1.0 — found that **none of them implements `anova`**, as a
+  method, an export, or a generic. Comparison is done instead through
+  information criteria (remstimate defines `AICC` and `WAIC` as generics) or a
+  refit-from-specification function (amorem's `compare_models()`). Registering
+  `anova` buys conformity with a convention that does not exist here, and costs
+  a real hazard: `anova`'s one-test-column table also cannot carry the
+  asymptotic and bootstrap references side by side that D6 requires.
+- *Why a generic rather than a standalone `lr_test_dynes()`:* nested comparison
+  is a question every goldfish fit family will ask, but its **validity is not
+  uniform across them**. DyNAM and REM maximize an exact likelihood and admit
+  the classical χ² LR test; a DyNES fit maximizes a Monte-Carlo estimate, so the
+  naive deviance is biased and its null is not χ² — which is precisely why this
+  change specifies a bootstrap adjustment. Separate methods on one generic means
+  the exact-likelihood and Monte-Carlo tests can never be reached by inheritance
+  from one another, so the invalid combination is a method that was never
+  written rather than a guard someone must remember.
+
+`anova()` is **not** to be registered for any goldfish fit class. A
+`test_nested.default` naming the generic in its error message is the mitigation
+for users who reach for `anova()` first.
+
 ### D5 — RE-permutation sampler mirrors the estimation augmenter (permute-only v1)
 Phase 2's sampler is the estimation MCMC augmenter with the layers' roles swapped:
 **RE times move, PE times are fixed**. It reuses the exact window rule and
@@ -287,6 +318,37 @@ inherently visual; a single deviance statistic is not. *Why one vignette, two
 functions*: the code separation reflects that they answer different questions, but a
 shared narrative is the natural onboarding path.
 
+**Revised 2026-08-21 — the GoF `plot()` goes to autograph, not goldfish.** D10
+above ships a `plot()` for `gof_dynes()` in goldfish. That is reversed: goldfish
+ships the classed result, its cli `print()`/`summary()`, and a **documented
+plot-data contract**; autograph implements the plot method and dispatches on the
+class. Self-contained rationale (ADR-0039 is a lookup key only):
+
+The stocnet packages are layered by vocabulary — manynet owns the data and
+network generics, goldfish owns the model and post-estimation generics, and
+**autograph owns the plot methods**. goldfish's own diagnostic plot methods were
+externalized to autograph under the archived `residuals-gof` phase 2 and nothing
+broke; autograph is Suggests-level in `DESCRIPTION`; and `class-naming-scheme`
+is already aligning goldfish's class strings to the names autograph@develop has
+shipped, so the dispatch target is being settled anyway. Shipping a `plot()` here
+would be the first method to cross back over that boundary, on the newest and
+least settled surface in the package — and "revisit later" for a *released* plot
+method means a deprecation cycle in two packages rather than a move.
+
+This also makes D10 internally consistent. Its two halves now withhold a plot
+for the same reason of ownership, where previously the nested-comparison half
+withheld one only because a scalar deviance is not worth plotting. Both halves
+retain their draws — the bootstrap `D̃_b` values, and the simulated
+auxiliary-statistic distributions — so a user is never blocked from plotting,
+only from getting a method for free.
+
+*Accepted cost*: the plot is gated on autograph, so Phase 3 ships a diagnostic
+whose best rendering arrives separately. Phase 3's task list **loses** the
+`plot()` deliverable and **gains** a plot-data-contract deliverable: the
+contract must be documented in goldfish before autograph can implement against
+it, and an autograph-side issue should track the method. Open: whether autograph
+receives the raw simulated draws or a pre-summarized per-cell frame.
+
 ### D11 — C++ only where the profile demands it; baselines protected
 Phases 2 and 3 (the RE-resampling chain; auxiliary-statistic accumulation over large
 simulated pools) are the likely hot paths. Start in R against the contracts; move a
@@ -369,6 +431,79 @@ CRAN's 2-core limit) or another backend needs no change to the numerics.
 *Alternative rejected*: a second framework (`future`/`parallel`) alongside the
 estimation side's `mirai`; C++/OpenMP threading of the kernels (orthogonal, revisited
 only under D11 if the R-level map is insufficient).
+
+### D14 — `gof_dynes()` is a second discrepancy under `test_gof()`, selected by `type` and parameterized by a control object (added 2026-08-21)
+
+`test_gof()` already ships: the Boschi–Wit cumulative-score bridge test, which
+reads the per-effect standardized cumulative score process from stored
+`event_scores` and refers its sup-statistic to the analytic Kolmogorov
+distribution. `gof_dynes()` as proposed in this change is **not** that test and
+is not a DyNES implementation of it. The two are the two classical families:
+
+| | analytic reference | predictive reference |
+|---|---|---|
+| **score discrepancy** (in-model effects) | `test_gof()` today — Brownian bridge, DyNAM/REM | the DyNES score GoF — **new, see below** |
+| **auxiliary discrepancy** (out-of-model structure) | *structurally empty* — no general asymptotic null, which is why this family is simulation-based | `gof_dynes()` as proposed here; also sienaGOF, ergm's `gof()` |
+
+They are folded under one generic rather than given two names, because after
+`process-simulation` lands the *same* pair of options exists for an ordinary
+`goldfishFit` too — a DyNAM or REM fit will be able to answer either question —
+so two generics would mean the same choice expressed two different ways
+depending on the fit class.
+
+**The surface.** `type` selects the discrepancy. The **reference** distribution
+is *not* a user argument: it is determined by the fit class and what is
+available (analytic where the exact-likelihood bridge holds, predictive where it
+does not), and is reported on the returned object.
+
+```
+test_gof(fit, type = "score")                        # default where available
+test_gof(fit, type = "simulation", control = ...)    # auxiliary statistics
+```
+
+**Why a control object rather than loose arguments.** The two types take
+genuinely disjoint parameters — `type = "simulation"` needs the simulation
+count, the seed, the auxiliary-statistic set and its `C`-truncation; `type =
+"score"` needs the `clock` argument the shipped test already has and none of the
+others. Loose arguments that are inert for half the calls are how a generic
+rots: an argument misspelled or passed to the wrong type is silently ignored
+rather than rejected. A control object makes an invalid combination a
+constructor error at the call site.
+
+This also follows the convention the estimation surface already uses —
+`set_algorithm_newton()` / `set_algorithm_em()` feeding `control_algo`, and
+`set_preprocessing()` feeding `control_prep` — so it introduces no new pattern.
+The constructor name belongs to the `set_*` family per the repo's naming
+guidelines (`set_*` constructs a control or configuration object); the exact
+name is left to the `algorithm-naming` work rather than minted here.
+
+**Where the DyNES score GoF comes from.** The top-right cell above is new work
+that this change does not currently scope. It is worth flagging because it is
+plausibly the *cheapest* of the three surfaces: it reuses the stored per-event
+scores and the pool this change is already retaining under D12, and needs no
+simulator. Under importance-sampled augmentation the score process is no longer
+a bridge — the stationarity condition holds for the weighted score, not for any
+single augmented sequence, so no individual path returns to zero — but the
+statistic remains well defined as a *realized discrepancy* referred to a
+weighted predictive reference. The derivation, its two variants, and the two
+caveats that must be documented alongside any p-value it produces (posterior
+predictive p-values are conservative; the Monte-Carlo precision is governed by
+effective sample size, not pool size) are worked out in
+`.plan/sp/dynes_gof_score.md`. Nothing in this change depends on that surface
+existing; it is recorded here so the `type` axis is designed with all three
+cells in view rather than retrofitted for the third.
+
+**Sequencing.** Do not rename `gof_dynes()` until the control-object shape is
+settled — this decision fixes the *axis*, not the constructor. The rename and
+the `lr_test_dynes` → `test_nested` rename should be swept together in one
+apply-time task.
+
+**Scope note.** The non-DyNES half of this — giving an ordinary `goldfishFit`
+the simulation discrepancy — has **no home change**. The archived
+`residuals-gof` deferred it explicitly ("phase 3 (`simulate()`, simulation-based
+GOF, auxiliary statistics) waits for DyNES to land", and again under *Out of
+scope*), and no successor was ever created. It needs one, sequenced after
+`process-simulation`.
 
 ## Risks / Trade-offs
 
