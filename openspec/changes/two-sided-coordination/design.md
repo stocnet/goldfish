@@ -5,12 +5,19 @@
 The published DyNAM-coordination model (Stadtfeld, Hollway & Block 2017) is
 the conjunctive member of Snijders & Pickup's (2017) five two-sided choice
 mechanisms. `.plan/sp/undirected_coordination_marked_ph.md` derives all five
-as marked point processes λ_kl = h₀(t)·φ_kl with a common baseline: the mark
-kernel q_kl = φ_kl/Σφ_ab is independent of h₀, so the Cox partial likelihood
+as marked point processes ψ_kl = h₀(t)·φ_kl with a common baseline: the mark
+probability P_kl = φ_kl/Σφ_ab is independent of h₀, so the Cox partial likelihood
 over marks estimates every parameter appearing in φ — including the rate
-parameters β when rates vary by actor — from event ordering and risk sets
+parameters θ when rates vary by actor — from event ordering and risk sets
 alone. Constant rates recover the published special cases (conjunctive
 collapses to the current `choice_coordination` likelihood).
+
+Notation (ADR-0035, 2026-08-21): this change's artifacts follow the ASTA
+manuscript convention — θ = rate block (factors τ̃_k = exp(θ′r_k)), β =
+choice block, α = acceptance block, η_kl = log φ_kl, mark probability P_kl —
+as derived in `.plan/sp/two-sided-dynam.md`. Earlier texts of this change
+and ADR-0022/0023 used the reversed lettering (β rate, θ choice); their
+"(β, θ, α)" reads as (θ, β, α) here.
 
 The current surface reaches conjunctive coordination as
 `estimate_dynam(sub_model = "choice_coordination")` (released at v1.7.0) and
@@ -41,7 +48,7 @@ object — one constructor, one more model.
 - One estimator for undirected two-sided relational events: three formula
   parts (choice positional, `rate =`, `acceptance =`), `mechanism =` selector,
   conjunctive default backward-compatible to 1e-6.
-- Mark/partial-likelihood estimation for all five mechanisms; joint (β, θ, α)
+- Mark/partial-likelihood estimation for all five mechanisms; joint (θ, β, α)
   when a rate formula is present.
 - Deprecation redirect from `estimate_dynam(sub_model =
   "choice_coordination")`; `make_specification()` token deleted.
@@ -75,7 +82,7 @@ collides mentally with two-sided tests). (ADR-0022.)
 `estimate_dynamu(x, rate = NULL, acceptance = NULL, mechanism =
 c("conjunctive", "forcing", "confirmation", "disjunctive", "compensatory"),
 data, ...)` where `x` is the choice formula (the part every mechanism needs).
-`rate` absent ⇒ constant rates (rate factor cancels from the mark kernel).
+`rate` absent ⇒ constant rates (rate factor cancels from the mark probability).
 `acceptance` is only legal with `mechanism = "confirmation"` — supplying it
 elsewhere aborts (inert arguments are signaled, ADR-0007); omitting it under
 confirmation aborts too. No `sub_model` argument exists. *Alternative
@@ -95,7 +102,7 @@ survives of the original decision: `estimate_dynamu()` remains the only
 `model = "DyNAMu"` replaces it as the coordination vocabulary.
 
 ### D4 — Cox-only timing; no `distribution` argument (ADR-0023)
-Under Cox the partial likelihood over marks estimates all of (β, θ, α), and
+Under Cox the partial likelihood over marks estimates all of (θ, β, α), and
 compensatory's C(t) normalization is dyad-common so it cancels — no
 convention needs fixing. A parametric waiting-time model would model the
 *observed* inter-event times while the mechanisms thin *unobserved* rejected
@@ -104,25 +111,25 @@ unresolved theoretical question. Until it is resolved we do not open the
 floor: the argument does not exist, rather than existing and aborting.
 
 ### D5 — Joint estimation only; no two-stage route
-With `rate =` present, β enters the mark kernel (additively for
-conjunctive/disjunctive/compensatory via log(ρ̃_k + ρ̃_l); as mixture weights
+With `rate =` present, θ enters the mark probability (additively for
+conjunctive/disjunctive/compensatory via log(τ̃_k + τ̃_l); as mixture weights
 for forcing/confirmation) and everything is maximized jointly. Two-stage
 (rate first, choice after) is inconsistent and is not offered even as an
 option; the derivation's initializer role for it may be used internally.
 
-### D6 — Generic score/Hessian assembly with per-mechanism g-functions
-One assembly (score = ∂g_obs − E_D[∂g]; Hessian = ∂²g_obs − E_D[∂²g] −
-Cov_D(∂g)) consumes per-mechanism implementations of g and its first/second
+### D6 — Generic score/Hessian assembly with per-mechanism η-functions
+One assembly (score = ∂η_obs − E_𝒟[∂η]; Hessian = ∂²η_obs − E_𝒟[∂²η] −
+Cov_𝒟(∂η)) consumes per-mechanism implementations of η and its first/second
 derivatives, built from four primitives (multinomial moments, Bernoulli
 acceptance, rate-sum, log-sum mixture rule). This keeps the five mechanisms
-one file of g-functions rather than five estimators.
+one file of η-functions rather than five estimators.
 
 ### D7 — Estimation safeguards and identifiability monitoring
 Damped Newton with step-halving; outer-product (OPG) information substituted
 when the observed information loses definiteness (only compensatory under
 constant rates is globally concave). The fit monitors the known
-identifiability weaknesses — β needs mixed dyads (x_k ≠ x_l); mixture-variant
-β is identified only through initiator mixing; (β, θ) ridges under homophily
+identifiability weaknesses — θ needs mixed dyads (r_k ≠ r_l); mixture-variant
+θ is identified only through initiator mixing; (θ, β) ridges under homophily
 — and reports non-convergence with the suspected cause rather than looping.
 
 ### D8 — Predictability discipline (t⁻) is inherited, and asserted
@@ -179,7 +186,7 @@ before syncing (the placement check verifies headers, not content).
 
 ## Risks / Trade-offs
 
-- [Likelihood ridges / weak β identification] → D7 monitoring + documented
+- [Likelihood ridges / weak θ identification] → D7 monitoring + documented
   simulation-recovery checks; docs state the mixed-dyad requirement.
 - [Wrong-mechanism misfit reads as time-varying effects] → docs pair residual
   reading with AIC comparison across (non-nested, equal-count) mechanisms.
@@ -235,7 +242,7 @@ vocabulary); the walk/`simulate()`/augmenter engines and `estimate_dynes()`
 initially generate conjunctive only, aborting on the other four mechanisms
 with a cli error naming the mechanism and the limitation. The gate is cheap
 to lift later: `walk_engine_model_type()` shows coordination is a dyad engine
-whose mark kernel is the single mechanism-specific point, and the derivation
+whose mark probability is the single mechanism-specific point, and the derivation
 note's §7 gives each mechanism its generative thinning construction.
 
 ### D16 — Regimes in composition: single-regime for now, ordered is coordination's native home (revised 2026-08-19)
@@ -245,7 +252,7 @@ time). Within that rule a DyNAMu process composes in **either** regime: in an
 **ordered** composition it is Cox-native — no clock, no pinned rate, the
 partial likelihood evaluates on the (augmented) ordering; in a **timed**
 composition an explicit rate formula becomes the pair-opportunity clock
-(ρ̃_k + ρ̃_l) on the shared exponential clock, and a missing rate completes
+(τ̃_k + τ̃_l) on the shared exponential clock, and a missing rate completes
 to the pinned intercept-only rate like any other flavor. Neither reading
 contradicts ADR-0023: the thinning obstacle is an *estimation* problem,
 whereas generation simulates the latent proposal process directly — the
@@ -274,7 +281,7 @@ owned by the substrate (`multivariate-specification` /
   applies unchanged to `estimate_dynamu()` risk sets.
 - `gather-rem-coordination-format` (0/14): the coordination gather-backend
   format this estimator inherits; the mechanism axis widens what that format
-  must carry (per-mechanism g-derivative inputs).
+  must carry (per-mechanism η-derivative inputs).
 - `identifiability-diagnostics` (post-release): D7's non-convergence and
   identifiability warning wording should align with it, as tied-event-times
   already notes for its own warnings.

@@ -5,15 +5,15 @@
 ### Requirement: Five mechanisms define the dyadic relative risk
 The estimator SHALL implement the five Snijders–Pickup mechanisms as dyadic
 relative risks φ_kl in a common-baseline marked point process, with the mark
-kernel q_kl = φ_kl / Σ_{a<b} φ_ab: conjunctive (ρ̃_k + ρ̃_l)·p_kl·p_lk;
-forcing ρ̃_k·p_kl + ρ̃_l·p_lk; confirmation ρ̃_k·p_kl·π_lk + ρ̃_l·p_lk·π_kl;
-disjunctive (ρ̃_k + ρ̃_l)·(p_kl + p_lk − p_kl·p_lk); compensatory
-(ρ̃_k + ρ̃_l)·exp(θ′(s_kl + s_lk)). Under constant rates the rate factor
-SHALL cancel from the mark kernel, recovering the published special cases.
+probability P_kl = φ_kl / Σ_{a<b} φ_ab: conjunctive (τ̃_k + τ̃_l)·p_kl·p_lk;
+forcing τ̃_k·p_kl + τ̃_l·p_lk; confirmation τ̃_k·p_kl·π_lk + τ̃_l·p_lk·π_kl;
+disjunctive (τ̃_k + τ̃_l)·(p_kl + p_lk − p_kl·p_lk); compensatory
+(τ̃_k + τ̃_l)·exp(β′(s_kl + s_lk)). Under constant rates the rate factor
+SHALL cancel from the mark probability, recovering the published special cases.
 
 #### Scenario: constant-rate special cases
 - **WHEN** each mechanism is fitted with no rate formula on data simulated
-  from its own constant-rate mark kernel
+  from its own constant-rate mark probability
 - **THEN** the estimated choice (and acceptance) parameters recover the
   simulation truth within tolerance, and the conjunctive case equals the
   published choice-coordination likelihood
@@ -26,25 +26,25 @@ SHALL cancel from the mark kernel, recovering the published special cases.
 
 ### Requirement: Joint estimation when rates vary by actor
 The estimator SHALL maximize the mark (partial) likelihood jointly over all
-parameter blocks when a rate formula is supplied: β enters additively through
-log(ρ̃_k + ρ̃_l) for conjunctive, disjunctive, and compensatory, and as
+parameter blocks when a rate formula is supplied: θ enters additively through
+log(τ̃_k + τ̃_l) for conjunctive, disjunctive, and compensatory, and as
 mixture weights for forcing and confirmation. A two-stage (rate-then-choice)
 route SHALL NOT be offered.
 
 #### Scenario: joint recovery with additive rates
 - **WHEN** data are simulated from a disjunctive model with actor-varying
   rates and mixed dyads, and the model is refitted with a rate formula
-- **THEN** (β, θ) recover the truth within simulation tolerance from the mark
+- **THEN** (θ, β) recover the truth within simulation tolerance from the mark
   likelihood alone
 
 #### Scenario: mixture-weight rates are estimated jointly
 - **WHEN** a forcing model with actor-varying rates is fitted
-- **THEN** β and θ are updated in one joint optimization (mixture rule), not
+- **THEN** θ and β are updated in one joint optimization (mixture rule), not
   in alternating stages
 
 ### Requirement: Estimation is damped with an information fallback
 The optimizer SHALL use damped Newton–Raphson on the generic assembly
-(score = ∂g_obs − E_D[∂g]; Hessian = ∂²g_obs − E_D[∂²g] − Cov_D(∂g)) with
+(score = ∂η_obs − E_𝒟[∂η]; Hessian = ∂²η_obs − E_𝒟[∂²η] − Cov_𝒟(∂η)) with
 step-halving, substituting the outer-product information when the observed
 information loses negative definiteness, and SHALL report non-convergence
 with the suspected cause (no mixed dyads; mixture identification; likelihood

@@ -10,7 +10,7 @@ events (`.plan/sp/undirected_coordination_marked_ph.md`) all five are marked
 point processes with proportional hazards, estimable by the Cox partial
 likelihood over marks. The additional four (forcing, initiative+confirmation,
 disjunctive, compensatory) do not fit the `sub_model` rate/choice split: with
-actor-varying rates the parameters (β, θ, α) must be estimated **jointly** —
+actor-varying rates the parameters (θ, β, α) must be estimated **jointly** —
 the fit is neither "a rate sub-model" nor "a choice sub-model" — so the model
 gets its own estimator instead of more `sub_model` tokens.
 
@@ -23,7 +23,7 @@ gets its own estimator instead of more `sub_model` tokens.
   No `sub_model` argument; the default (`mechanism = "conjunctive"`, no rate
   formula) reproduces today's `choice_coordination` fit exactly.
 - Timing is **Cox-only**: partial likelihood over marks, which estimates all
-  of (β, θ, α); there is deliberately **no** `distribution` argument (the
+  of (θ, β, α); there is deliberately **no** `distribution` argument (the
   thinning of unobserved rejected proposals under a parametric clock is an
   unresolved theoretical question, recorded in ADR-0023).
 - `make_specification()` gains `model = "DyNAMu"` with `mechanism =` and
@@ -40,7 +40,7 @@ gets its own estimator instead of more `sub_model` tokens.
   weights for forcing/confirmation); constant rates otherwise. Two-stage
   estimation is not offered (inconsistent).
 - Damped Newton–Raphson with the generic score/Hessian assembly
-  (∂g_obs − E_D[∂g]; mixture rule), outer-product information fallback, and
+  (∂η_obs − E_𝒟[∂η]; mixture rule), outer-product information fallback, and
   identifiability/divergence monitoring.
 - **BREAKING (deprecation)**: `estimate_dynam(sub_model =
   "choice_coordination")` (released at v1.7.0) keeps working through a
@@ -80,7 +80,7 @@ gets its own estimator instead of more `sub_model` tokens.
   (redirect), `R/make_specification.R` (token removal), preprocessing reuse of
   the existing undirected/coordination risk-set machinery, summary/print for
   the three parameter blocks (cli).
-- **C++** (`src/`): mechanism-specific g-derivative assembly in the
+- **C++** (`src/`): mechanism-specific η-derivative assembly in the
   coordination engine (`cpp-recompile` after every edit; frozen baselines must
   stay PASS — the conjunctive path's numbers are the bridge).
 - **Tests**: simulation fixtures for the five mechanisms (extending

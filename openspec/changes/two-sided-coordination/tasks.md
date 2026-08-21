@@ -22,14 +22,14 @@
 
 ## 2. Mechanism likelihoods, constant rates (r backend reference)
 
-- [ ] 2.1 Generic score/Hessian assembly (∂g_obs − E_D[∂g]; Hessian with
-      Cov_D term) over per-mechanism g-functions; primitives: multinomial
+- [ ] 2.1 Generic score/Hessian assembly (∂η_obs − E_𝒟[∂η]; Hessian with
+      Cov_𝒟 term) over per-mechanism η-functions; primitives: multinomial
       moments (μ, V), Bernoulli acceptance, rate-sum, log-sum mixture rule
-- [ ] 2.2 g-functions for forcing and disjunctive (constant rates); left-limit
+- [ ] 2.2 η-functions for forcing and disjunctive (constant rates); left-limit
       (t⁻) discipline asserted by a consecutive-same-dyad test
-- [ ] 2.3 g-function for confirmation incl. the acceptance block (α) wired
+- [ ] 2.3 η-function for confirmation incl. the acceptance block (α) wired
       from the `acceptance` formula through preprocessing
-- [ ] 2.4 g-function for compensatory (s_kl + s_lk sum statistic; globally
+- [ ] 2.4 η-function for compensatory (s_kl + s_lk sum statistic; globally
       concave under constant rates)
 - [ ] 2.5 Simulation fixtures for the five constant-rate mechanisms
       (extend the `.plan/datasets/Simulation.R` approach; DGP matches each
@@ -41,10 +41,10 @@
 ## 3. Joint estimation with actor-varying rates
 
 - [ ] 3.1 Additive rate block (conjunctive, disjunctive, compensatory):
-      log(ρ̃_k + ρ̃_l) with ν-weights in score/Hessian; joint (β, θ)
+      log(τ̃_k + τ̃_l) with ν-weights in score/Hessian; joint (θ, β)
       optimization
 - [ ] 3.2 Mixture-weight variants (forcing, confirmation): mixture rule for
-      the (β, θ[, α]) cross-blocks; joint optimization only, no two-stage
+      the (θ, β[, α]) cross-blocks; joint optimization only, no two-stage
       route offered
 - [ ] 3.3 Safeguards: step-halving, OPG-information fallback on
       indefiniteness, non-convergence report with suspected cause (no mixed
@@ -55,7 +55,7 @@
 
 ## 4. C++ port and backend parity
 
-- [ ] 4.1 Port the mechanism g-derivative assembly to the cpp coordination
+- [ ] 4.1 Port the mechanism η-derivative assembly to the cpp coordination
       engine (cpp-recompile skill after every src/ edit)
 - [ ] 4.2 Parity tests r vs cpp per mechanism and regime (per-event
       contributions and final fits, established parity tolerances)
