@@ -48,7 +48,11 @@ each change's `progress.md` (personal session journal), `changes/archive/`
 
 - **Workflow disciplines are authoritative in `openspec/config.yaml`**: commit-per-task,
   run `devtools::document()` inline when roxygen/exports/signatures change, bump
-  `DESCRIPTION` + `NEWS.md` at each phase milestone, `air format` the touched R files
+  `DESCRIPTION` + `NEWS.md` at each phase milestone — **on the integration branch
+  only**: a feature branch writes a `NEWS.d/` fragment instead (protocol in
+  `NEWS.d/README.md`) and never bumps the Version, edits `NEWS.md`, archives a
+  change, or refreezes baselines; the merge performs those folds once (see
+  `rules.merge` in the config) — `air format` the touched R files
   before `lintr` runs on them, and test with `NOT_CRAN=true`
   (the coefficient-baseline and C++ golden tests use `skip_on_cran()`). Read it
   before implementing.

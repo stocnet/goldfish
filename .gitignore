@@ -26,9 +26,11 @@ CLAUDE.local.md
 
 # OpenSpec: share config, the living folded spec, and active proposals so a
 # collaborator has the same standards; keep the personal per-change session
-# journal (progress.md) and archived changes local (delete-on-archive).
+# journal (progress.md), archived changes (delete-on-archive), and the
+# parallel-session ownership claims local.
 openspec/changes/archive/
 openspec/changes/*/progress.md
+openspec/changes/_claims/
 
 # .plan is scratch; track only the cross-version benchmark ledger and the
 # tooling that maintains it.
