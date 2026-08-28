@@ -308,3 +308,58 @@ test_that("the fitted-result layout groups estimates and standard errors", {
   }
   expect_true(all(is.na(layout$se[layout$fixed])))
 })
+
+test_that("the empty layout guides authoring of set_parameters()", {
+  spec <- authored_join()
+  layout <- coef_layout(spec)
+
+  # Author set_parameters() purely from what the layout reveals -- its own
+  # fid grouping, coefficient order, and fixed flag -- rather than from prior
+  # knowledge of the specification. A fixed slot is authored as NA so the
+  # specification's own value (already visible in the layout) prevails.
+  by_fid <- split(layout, layout$fid)
+  args <- lapply(by_fid, function(rows) {
+    values <- rep(NA_real_, nrow(rows))
+    values[!rows$fixed] <- seq_len(sum(!rows$fixed)) / 10
+    values
+  })
+  labels <- vapply(by_fid, function(rows) rows$process[[1L]], "")
+  p <- do.call(
+    set_parameters,
+    c(list(spec), stats::setNames(args, labels))
+  )
+
+  # The authored free values land at the same fid/slot the layout described;
+  # the fixed slots keep the value the layout already showed.
+  for (fid in names(by_fid)) {
+    rows <- by_fid[[fid]]
+    expect_identical(
+      unname(p$full[[rows$process[[1L]]]]),
+      ifelse(rows$fixed, rows$value, args[[fid]])
+    )
+  }
+})
+
+test_that("a stub summary() groups the flat coefficients via coef_layout()", {
+  skip_if_not(exists("flavored_container_fit"))
+  fit <- flavored_container_fit()
+
+  # summary.flavored_result.goldfish() itself is out of scope for this change
+  # (design D6); this stub stands in for it, grouping the result's coef_layout()
+  # rows into the per-process blocks a real summary() would render.
+  summary_stub <- function(result) {
+    layout <- coef_layout(result)
+    split(layout, layout$process)
+  }
+
+  blocks <- summary_stub(fit)
+
+  expect_setequal(names(blocks), coef_layout(fit)$process)
+  for (label in names(blocks)) {
+    fid <- blocks[[label]]$fid[[1L]]
+    expect_equal(
+      blocks[[label]]$value,
+      unname(fit$results[[as.character(fid)]]$parameters)
+    )
+  }
+})

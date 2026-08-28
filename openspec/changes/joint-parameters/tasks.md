@@ -117,10 +117,10 @@
       directly (cross-fid name collision), nor a bare `set_parameters(result)`.
       Test: round-trip fixture (fit → `set_parameters(spec, result)` → complete
       object → `simulate()`); spec/result-mismatch abort
-- [ ] 2.3 Tests: empty-layout authoring fixture, result-layout grouping used by a
+- [x] 2.3 Tests: empty-layout authoring fixture, result-layout grouping used by a
       stub `summary()`, completeness-assertion abort snapshot, partial object
       accepted for estimation
-- [ ] 2.4 Verification: `NOT_CRAN=true` (PASS not SKIP); commit. **No DESCRIPTION
+- [x] 2.4 Verification: `NOT_CRAN=true` (PASS not SKIP); commit. **No DESCRIPTION
       version bump, no root `NEWS.md` edit, no archive on this branch** — record
       the coef_layout milestone as a bullet in the change-local
       `openspec/changes/joint-parameters/NEWS.md`. Version bump, root-NEWS fold,

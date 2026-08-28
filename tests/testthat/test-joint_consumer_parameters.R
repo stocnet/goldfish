@@ -175,6 +175,15 @@ test_that("reconciliation treats an absent autocompleted fid as resolved", {
   expect_silent(reconcile_joint_parameters(p, cc, arg = "coef"))
 })
 
+test_that("simulate's value-gate abort names the unpinned free effect(s)", {
+  local_cli_context <- function(env = parent.frame()) {
+    withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+  }
+  local_cli_context()
+  p <- set_parameters(consumer_join(), `calls › rate` = c(0.1, 0.2))
+  expect_snapshot(joint_simulation_parameters(p, arg = "coef"), error = TRUE)
+})
+
 test_that("reconciliation flags a process the specification lacks", {
   p <- complete_parameters()
   # A completed spec whose process_map omits a process the object still carries
