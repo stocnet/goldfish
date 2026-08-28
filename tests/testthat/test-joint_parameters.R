@@ -1,4 +1,4 @@
-# set_parameters() builds a self-validating parameters.goldfish over a joint
+# set_parameters() builds a self-validating goldfishParams over a joint
 # specification: it resolves each `...` key by membership against the rendered
 # process label (never by parsing the label back into components), validates
 # each per-fid vector against the process's coefficient layout, and classifies
@@ -72,6 +72,12 @@ parameters_join <- function() {
   )
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
+
+test_that("set_parameters() returns a goldfishParams, not the retired parameters.goldfish", {
+  p <- set_parameters(parameters_join())
+  expect_s3_class(p, "goldfishParams")
+  expect_false(inherits(p, "parameters.goldfish"))
+})
 
 test_that("labels elide the flavor segment for a non-flavored process", {
   p <- set_parameters(parameters_join())

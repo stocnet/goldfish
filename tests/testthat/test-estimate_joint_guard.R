@@ -74,7 +74,7 @@ make_joint_fixture <- function() {
 test_that("estimate_dynam rejects a joint specification, pointing to dynes", {
   local_cli_context()
   js <- make_joint_fixture()
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
   # The joint class does not inherit specification.goldfish, so the rejection is
   # the class guard firing before the single-specification dispatch branch --
   # never a fall-through into estimate_wrapper.

@@ -3,7 +3,7 @@
 # one, the effects, the interaction columns), keyed by the rendered process
 # label. The joint_specification method is completion-aware -- a raw (authored)
 # spec spans authored fids only, a completed spec also renders the autocompleted
-# fids' rows as fixed. The parameters.goldfish method spans the authored fids
+# fids' rows as fixed. The goldfishParams method spans the authored fids
 # and carries the supplied values; the fitted-result method carries theta-hat
 # and SE.
 
@@ -174,9 +174,9 @@ test_that("the completed-spec layout renders autocompleted fids as fixed", {
     consumer = "estimate_dynes"
   ))
 
-  # Still a joint_specification.goldfish -- the same method reads its populated
+  # Still a goldfishJointSpec -- the same method reads its populated
   # `completed` column rather than dispatching on a new class.
-  expect_s3_class(cc, "joint_specification.goldfish")
+  expect_s3_class(cc, "goldfishJointSpec")
   layout <- coef_layout(cc)
 
   # The autocompleted uniform choice now appears, as a single fixed placeholder
@@ -271,7 +271,7 @@ test_that("a completed timed rate carries its frozen pinned value", {
   expect_identical(row$value, pinned)
 })
 
-test_that("the parameters.goldfish layout carries supplied values (authored)", {
+test_that("the goldfishParams layout carries supplied values (authored)", {
   p <- set_parameters(authored_join(), `calls › rate` = c(0.1, 0.2))
   layout <- coef_layout(p)
 

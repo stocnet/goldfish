@@ -42,7 +42,7 @@
 #' @param data the shared `stocnet` data object the specifications were built
 #'   over. Defaults to the data carried by the first specification.
 #'
-#' @return an S3 object of class `joint_specification.goldfish`. It carries the
+#' @return an S3 object of class `goldfishJointSpec`. It carries the
 #'   composed `specifications`, the shared `data`, and the extended integer-fid
 #'   `process_map` (one row per likelihood-producing formula across all
 #'   processes, with the shared `constraint_id`s and a `coupled` flag marking
@@ -181,7 +181,7 @@ make_joint_specification <- function(..., data = NULL) {
       modeled_panel = modeled_panel,
       call = match.call()
     ),
-    class = "joint_specification.goldfish"
+    class = "goldfishJointSpec"
   )
 
   # Regime compatibility (D9): a composition is TIMED iff any process carries a

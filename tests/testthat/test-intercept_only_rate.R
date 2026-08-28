@@ -610,7 +610,7 @@ test_that("the loglik offset validates its per-period count", {
 # (`rate = ~ 1`, no other effects, or a completion-supplied rate) is *pinned* --
 # a user-written `~ 1` and a completion-supplied rate reduce to the SAME pinned
 # object -- while a rate carrying any effect keeps its estimated baseline. The
-# reinterpretation is scoped by type to a `joint_specification.goldfish`, so the
+# reinterpretation is scoped by type to a `goldfishJointSpec`, so the
 # single-process estimation path is untouched.
 
 # cli snapshots are pinned to a reproducible width / no-color context.
@@ -852,7 +852,7 @@ test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchan
 # spec routed through a second consumer warns again.
 #
 # Neither estimate_dynes() nor a simulate() method for
-# joint_specification.goldfish exists yet (grep confirms), so the wording/
+# goldfishJointSpec exists yet (grep confirms), so the wording/
 # logic is built and unit-tested directly against warn_pinned_rate(s)() here;
 # the actual consumer-entry snapshots and the "routed through a second
 # consumer" test are deferred behind skip_if_not (see progress.md Session 5).
@@ -875,7 +875,7 @@ test_that("simulate wording: observed-count pin, no SE language", {
 # once-per-pinned-fid / non-joint-input behavior, that re-entry is never
 # suppressed (including across a DIFFERENT consumer), and the deferred
 # consumer-entry / cross-consumer-re-fire markers guarded until estimate_dynes()
-# / a simulate() method for joint_specification.goldfish exist.
+# / a simulate() method for goldfishJointSpec exist.
 
 test_that("warn_pinned_rate rejects an unknown consumer", {
   expect_snapshot(error = TRUE, warn_pinned_rate("3", consumer = "augmenter"))
@@ -984,7 +984,7 @@ test_that("the warning is not suppressed across repeated calls", {
 })
 
 # DEFERRED (soft-blocked, per progress.md): neither estimate_dynes() nor a
-# simulate.joint_specification.goldfish method exists yet, so the actual
+# simulate.goldfishJointSpec method exists yet, so the actual
 # consumer-entry snapshots and the cross-consumer re-fire test cannot exercise
 # the real entry points. warn_pinned_rate(s)() above is the wording/logic those
 # entries will call; these three tests are left in place, guarded, so they
@@ -1001,8 +1001,8 @@ test_that("estimate_dynes() warns at entry with its own wording", {
 
 test_that("simulate() warns at entry with its own wording", {
   skip_if_not(
-    exists("simulate.joint_specification.goldfish", mode = "function"),
-    "simulate() method for joint_specification.goldfish not yet implemented"
+    exists("simulate.goldfishJointSpec", mode = "function"),
+    "simulate() method for goldfishJointSpec not yet implemented"
   )
 
   # When the simulate() method lands: simulate from a joint spec carrying a
@@ -1014,8 +1014,8 @@ test_that("simulate() warns at entry with its own wording", {
 test_that("the same spec re-fires when routed through a second consumer", {
   skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
   skip_if_not(
-    exists("simulate.joint_specification.goldfish", mode = "function"),
-    "simulate() method for joint_specification.goldfish not yet implemented"
+    exists("simulate.goldfishJointSpec", mode = "function"),
+    "simulate() method for goldfishJointSpec not yet implemented"
   )
 
   # When both consumers land: route the SAME pinned joint spec through

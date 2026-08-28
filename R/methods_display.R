@@ -518,10 +518,10 @@ print.specification.goldfish <- function(x, ...) {
 
 #' @export
 #' @rdname print-method
-#' @return For objects of class `joint_specification.goldfish` print one section
+#' @return For objects of class `goldfishJointSpec` print one section
 #'   per modeled layer (flavors nested), each formula's fid and separable/coupled
 #'   status, and the derived and combined support constraints.
-print.joint_specification.goldfish <- function(x, ...) {
+print.goldfishJointSpec <- function(x, ...) {
   map <- x$process_map
   # A base (uncompleted) joint spec has no `completed` column; treat every fid as
   # authored so the print works before and after the completion transform runs.
@@ -529,7 +529,7 @@ print.joint_specification.goldfish <- function(x, ...) {
     map$completed <- rep(FALSE, nrow(map))
   }
   modeled_panel <- x$modeled_panel %||% character(0)
-  cli::cli_rule(left = "{.cls joint_specification.goldfish}")
+  cli::cli_rule(left = "{.cls goldfishJointSpec}")
 
   n_proc <- length(x$specifications)
   n_fid <- nrow(map)

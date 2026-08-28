@@ -14,7 +14,7 @@ make_joint_specification(..., data = NULL)
 over. Defaults to the data carried by the first specification.}
 }
 \value{
-an S3 object of class \code{joint_specification.goldfish}. It carries the
+an S3 object of class \code{goldfishJointSpec}. It carries the
 composed \code{specifications}, the shared \code{data}, and the extended integer-fid
 \code{process_map} (one row per likelihood-producing formula across all
 processes, with the shared \code{constraint_id}s and a \code{coupled} flag marking

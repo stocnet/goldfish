@@ -62,7 +62,7 @@
 #    flavor produce the SAME pinned object -- source-agnostic, read only from
 #    bundle shape. A rate carrying any effect keeps its estimated baseline. The
 #    single-process path (`estimate_dynam()` / `estimate_rem()`) is untouched:
-#    scoped by TYPE to `joint_specification.goldfish`.
+#    scoped by TYPE to `goldfishJointSpec`.
 #    `is_intercept_only_rate_bundle()`, `pinned_rate_descriptor()`,
 #    `mark_pinned_rates()`. Each consumer warns at its own entry, worded for
 #    its count source, never suppressed on re-entry: `warn_pinned_rate()`,
@@ -752,15 +752,15 @@ pinned_rate_descriptor <- function(bundle, model, call = rlang::caller_env()) {
 # one treatment.
 #
 # The reinterpretation is scoped to the generative context by TYPE: it accepts
-# ONLY a `joint_specification.goldfish`. The single-process estimation path
+# ONLY a `goldfishJointSpec`. The single-process estimation path
 # operates on a plain `specification.goldfish` and never reaches this function,
 # so a bare `rate = ~ 1` under `estimate_dynam()` / `estimate_rem()` keeps its
 # existing estimated-intercept meaning untouched.
 mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
-  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+  if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
       c(
-        "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+        "{.arg joint_spec} must be a {.cls goldfishJointSpec}.",
         "i" = "Pinning an intercept-only rate is scoped to the generative
                context; the single-process path ({.fn estimate_dynam} /
                {.fn estimate_rem}) keeps its estimated-intercept meaning."
@@ -841,9 +841,9 @@ assert_timed_joint_specification <- function(
   joint_spec,
   call = rlang::caller_env()
 ) {
-  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+  if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
-      "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+      "{.arg joint_spec} must be a {.cls goldfishJointSpec}.",
       call = call
     )
   }
@@ -931,9 +931,9 @@ warn_pinned_rates <- function(
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)
-  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+  if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
-      "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+      "{.arg joint_spec} must be a {.cls goldfishJointSpec}.",
       call = call
     )
   }

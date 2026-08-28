@@ -7,21 +7,21 @@
 set_parameters(spec, ...)
 }
 \arguments{
-\item{spec}{a \code{joint_specification.goldfish} (from
+\item{spec}{a \code{goldfishJointSpec} (from
 \code{\link[=make_joint_specification]{make_joint_specification()}}).}
 
 \item{...}{one full-length per-fid vector per process, keyed by the process's
 rendered label; or a single fitted joint result (the from-result form).}
 }
 \value{
-a \code{parameters.goldfish} object.
+a \code{goldfishParams} object.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 }
 \details{
-\code{set_parameters()} builds a self-validating \code{parameters.goldfish}
-object over a \code{joint_specification.goldfish}, the parameter surface both
+\code{set_parameters()} builds a self-validating \code{goldfishParams}
+object over a \code{goldfishJointSpec}, the parameter surface both
 \code{estimate_dynes()} (initial parameters) and \code{simulate()} (generative
 coefficients) accept. Each \code{...} argument is a \strong{full-length per-fid
 vector} -- one entry per coefficient of that process, in coefficient order
@@ -43,7 +43,8 @@ coefficients (\code{offset()} terms and operand-only interaction columns) always
 take the specification's value.
 
 Alternatively, \code{set_parameters(spec, result)} accepts a \strong{fitted joint
-result} in place of the per-fid vectors -- the fit -> re-simulate round-trip.
+result} in place of the per-fid vectors -- the fit -> re-simulate
+round-trip.
 The per-fid values are reconstructed from the result's own \code{\link[=coef_layout]{coef_layout()}}
 (which keeps the \code{fid} grouping the flat \code{\link[=coef]{coef()}} vector discards) after
 asserting the result was fit against \strong{that same \code{spec}}; a mismatch aborts.

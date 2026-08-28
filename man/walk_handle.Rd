@@ -21,7 +21,7 @@ walk_inject(handle, event, call = rlang::caller_env())
 walk_evaluate(handle, fid, theta, call = rlang::caller_env())
 }
 \arguments{
-\item{spec}{a \code{joint_specification.goldfish} from
+\item{spec}{a \code{goldfishJointSpec} from
 \code{\link[=make_joint_specification]{make_joint_specification()}} (or a single \code{specification.goldfish}, wrapped
 as a one-process join).}
 

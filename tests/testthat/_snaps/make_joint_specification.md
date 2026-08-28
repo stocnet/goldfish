@@ -43,7 +43,7 @@
     Code
       print(js)
     Message
-      -- <joint_specification.goldfish> ----------------------------------------------
+      -- <goldfishJointSpec> ---------------------------------------------------------
       2 processes over one shared data object · 6 formulas · 0 coupled · 6 separable
       · 0 auto-supplied
       
@@ -69,7 +69,7 @@
     Code
       print(js)
     Message
-      -- <joint_specification.goldfish> ----------------------------------------------
+      -- <goldfishJointSpec> ---------------------------------------------------------
       2 processes over one shared data object · 2 formulas · 2 coupled · 0 separable
       · 0 auto-supplied
       

@@ -1,9 +1,60 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: make_joint_specification composes process specifications`
+- TO: `### Requirement: make_joint_specification composes process specifications into a goldfishJointSpec object`
+
+## MODIFIED Requirements
+
+### Requirement: make_joint_specification composes process specifications into a goldfishJointSpec object
+
+The package SHALL export `make_joint_specification(...)` accepting two or more
+`make_specification()` objects over one shared data object and returning a
+`goldfishJointSpec` object — a multivariate specification that portrays their
+co-evolution (design D17 — renamed from `joint_specification.goldfish` under
+the retired `<noun>.goldfish` house convention). Construction SHALL NOT
+require a panel-observed layer to be referenced — all viability is consumer-owned. A
+combination that references no panel-observed layer SHALL compose: it is
+estimation-separable (the factorized likelihood) yet generatively coupled through the
+shared clock, hence a valid `simulate()` input with no other constructor;
+`estimate_dynes()` (not construction) SHALL abort such an all-separable spec, naming
+`estimate_dynam()`. Construction MAY emit a separability note but SHALL NOT abort on
+it. DyNAM-i processes SHALL be rejected. All processes
+MUST reference one shared mode-map object; one- and two-mode processes MAY be
+composed, and dependent processes over distinct mode-pairs MAY be joined
+provided every cross-process read conforms by mode-set identity (see the
+node-space conformance requirement below). DyNAM (rate, choice,
+choice_coordination) and REM processes, timed or ordered, MAY be freely mixed,
+flavored or plain.
+
+#### Scenario: panel plus relational processes compose
+- **WHEN** `make_joint_specification(friendship_spec, calls_spec, data = x)` runs
+  with friendship panel-observed (flavored creation/dissolution) and calls a
+  fully observed relational-event process
+- **THEN** a `goldfishJointSpec` is returned covering both processes'
+  formulas.
+
+#### Scenario: exogenous-only panel reference composes but is not DyNES-viable
+- **WHEN** no composed process's focal layer is panel-observed, but a
+  relational-event process reads a panel-observed layer as an exogenous covariate
+  (e.g. `calls ~ ... + tie(friendship)` with friendship panel-observed)
+- **THEN** a `goldfishJointSpec` is returned — the panel layer enters as a
+  static exogenous step-covariate — but no fid is coupled, so `estimate_dynes()`
+  will abort on it, naming `estimate_dynam()` (nothing is latent).
+
+#### Scenario: no panel reference composes (estimation-separable, generatively simulable)
+- **WHEN** no composed process references any panel-observed layer (focal or
+  exogenous)
+- **THEN** a `goldfishJointSpec` is returned — the processes are
+  estimation-separable but generatively coupled through the shared clock, so it is a
+  valid `simulate()` input — and `estimate_dynes()` (not construction) aborts it,
+  naming `estimate_dynam()` for per-process estimation.
+
 ## ADDED Requirements
 
 ### Requirement: set_parameters builds a validated parameter object over the joint spec
 
 The package SHALL export `set_parameters(spec, ...)` taking a
-`joint_specification.goldfish` and returning a `parameters.goldfish` object that
+`goldfishJointSpec` and returning a `goldfishParams` object that
 carries parameter values over the specification's fid-indexed parameter vector.
 Each `...` argument SHALL be a **full-length per-fid vector** — one entry per
 coefficient of that fid, in the fid's **coefficient order**: the intercept
@@ -51,7 +102,7 @@ per-parameter names collide across fids.
   "friendship › choice" = c(inertia = 0.5))` is called on a spec whose
   `friendship` rate fid has two effects and whose choice fid has an `inertia`
   effect
-- **THEN** a `parameters.goldfish` is returned with those values placed at the
+- **THEN** a `goldfishParams` is returned with those values placed at the
   resolved fids, the named choice entry validated against the effect label.
 
 #### Scenario: flavor is included only when the process carries one
@@ -125,9 +176,9 @@ message SHALL direct the user to write the value inline
 - **THEN** the join succeeds and each fixed value is available to
   `coef_layout()` and to `set_parameters()`'s offset-prevails handling.
 
-### Requirement: parameters.goldfish carries a complete-vs-partial contract
+### Requirement: goldfishParams carries a complete-vs-partial contract
 
-A `parameters.goldfish` object is defined over the specification's **authored**
+A `goldfishParams` object is defined over the specification's **authored**
 fid set (autocompleted sub-models do not yet exist at authoring time — they are
 synthesized at consumer entry — so they are not part of the object). It SHALL
 expose whether it is **complete** — complete iff every **free** slot of the
@@ -144,7 +195,7 @@ as **trivially resolved**: it requires no user value and SHALL NOT render the
 object incomplete.
 
 #### Scenario: simulate rejects an incomplete parameter object
-- **WHEN** a `parameters.goldfish` with a free (non-offset `NA`) slot is passed
+- **WHEN** a `goldfishParams` with a free (non-offset `NA`) slot is passed
   to `simulate()`
 - **THEN** simulation aborts naming the unfilled free effect(s).
 
@@ -170,34 +221,34 @@ autocompleted-default rows), the **fixed value** for fixed rows (the offset valu
 `0` for an operand-only term, or the frozen value for an autocompleted default;
 `NA` for free rows), and the `index`
 of free effects in the flat parameter vector (`NA` for fixed rows). It SHALL
-dispatch on a `joint_specification.goldfish` (the empty layout, all values `NA`,
-for authoring `set_parameters()`), on a `parameters.goldfish` (layout plus
+dispatch on a `goldfishJointSpec` (the empty layout, all values `NA`,
+for authoring `set_parameters()`), on a `goldfishParams` (layout plus
 supplied values and free/fixed classification), and on a joint/DyNES fitted
 result (layout plus estimates and standard errors). The `joint_specification`
 method SHALL be **completion-aware**: on a **raw** (authored) spec it spans the
 authored fids only; on a **completed** spec (the output of
-`complete_generative_spec()`, still a `joint_specification.goldfish`, distinguished
+`complete_generative_spec()`, still a `goldfishJointSpec`, distinguished
 by its populated `completed` column) it SHALL additionally render each
 **autocompleted-default** fid's rows as `fixed = TRUE` with the `"1"` placeholder
 name and the frozen value — the full pre-fit walked layout. The
-`parameters.goldfish` layout SHALL span the **authored** fids only (it is built
+`goldfishParams` layout SHALL span the **authored** fids only (it is built
 from the raw spec). Autocompleted-default rows therefore appear on the **completed
 joint spec** and **fitted-result** layouts, never on the raw-spec authoring layout
-nor the `parameters.goldfish` layout. `coef()` and `vcov()` on
+nor the `goldfishParams` layout. `coef()` and `vcov()` on
 those results SHALL remain flat — a named vector and matrix over the free
 parameters, named by the composite labels — with the multivariate grouping
 supplied by `coef_layout()` for rendering rather than by changing the generics.
 
 This surface SHALL be scoped to joint specifications. `set_parameters()` SHALL
-require a `joint_specification.goldfish`, and `parameters.goldfish` SHALL be
+require a `goldfishJointSpec`, and `goldfishParams` SHALL be
 required only at the joint consumer surfaces (`estimate_dynes()` always;
-`simulate()` when its input is a `joint_specification.goldfish`). The
+`simulate()` when its input is a `goldfishJointSpec`). The
 single-process estimators and single-specification `simulate()` SHALL be
 unchanged, keeping their numeric `initial_parameters` / `coef` / `offset_coef`;
 this change SHALL NOT force the object on them nor alter their signatures.
 
 #### Scenario: empty layout guides authoring
-- **WHEN** `coef_layout()` is called on a raw `joint_specification.goldfish`
+- **WHEN** `coef_layout()` is called on a raw `goldfishJointSpec`
 - **THEN** it returns one row per authored-fid coefficient slot with labels,
   names, formula order, and the fixed flag, values `NA` for free slots, and no
   autocompleted-default rows, so a user can author `set_parameters()`.
@@ -219,7 +270,7 @@ this change SHALL NOT force the object on them nor alter their signatures.
 - **WHEN** `estimate_dynam()` is called with a numeric `initial_parameters`, or
   `simulate()` is called on a single `specification.goldfish` with a numeric
   `coef`
-- **THEN** both proceed unchanged, requiring no `parameters.goldfish`.
+- **THEN** both proceed unchanged, requiring no `goldfishParams`.
 
 #### Scenario: fit values round-trip back into a parameter object
 - **WHEN** a joint/DyNES fitted result is passed to `set_parameters()` (the
@@ -228,6 +279,6 @@ this change SHALL NOT force the object on them nor alter their signatures.
   (which keeps the `fid` grouping the flat `coef()` vector discards), the values
   land at the same fids and slots they were estimated at — the shared canonical
   order (`process_map` fid order, then coefficient order within each fid) — and a
-  complete `parameters.goldfish` a `simulate()` can drive is returned. A flat,
+  complete `goldfishParams` a `simulate()` can drive is returned. A flat,
   free-only `coef()` vector is **not** accepted directly (its per-parameter names
   collide across fids).

@@ -4,7 +4,7 @@
       estimate_dynam(js)
     Condition
       Error in `estimate_dynam()`:
-      ! A <joint_specification.goldfish> cannot be estimated with the event-stream estimators.
+      ! A <goldfishJointSpec> cannot be estimated with the event-stream estimators.
       i Multivariate specifications are estimated with `estimate_dynes()`.
 
 # estimate_rem rejects a joint specification, pointing to dynes
@@ -13,7 +13,7 @@
       estimate_rem(js)
     Condition
       Error in `estimate_rem()`:
-      ! A <joint_specification.goldfish> cannot be estimated with the event-stream estimators.
+      ! A <goldfishJointSpec> cannot be estimated with the event-stream estimators.
       i Multivariate specifications are estimated with `estimate_dynes()`.
 
 # estimate_dynam rejects a panel-focal single specification

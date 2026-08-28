@@ -2,22 +2,22 @@
 % Please edit documentation in R/joint_parameters.R
 \name{coef_layout}
 \alias{coef_layout}
-\alias{coef_layout.joint_specification.goldfish}
-\alias{coef_layout.parameters.goldfish}
+\alias{coef_layout.goldfishJointSpec}
+\alias{coef_layout.goldfishParams}
 \alias{coef_layout.flavored_result.goldfish}
 \title{Tabulate the coefficient layout of a joint parameter surface}
 \usage{
 coef_layout(x, ...)
 
-\method{coef_layout}{joint_specification.goldfish}(x, ...)
+\method{coef_layout}{goldfishJointSpec}(x, ...)
 
-\method{coef_layout}{parameters.goldfish}(x, ...)
+\method{coef_layout}{goldfishParams}(x, ...)
 
 \method{coef_layout}{flavored_result.goldfish}(x, ...)
 }
 \arguments{
-\item{x}{a \code{joint_specification.goldfish} (from
-\code{\link[=make_joint_specification]{make_joint_specification()}}), a \code{parameters.goldfish} (from
+\item{x}{a \code{goldfishJointSpec} (from
+\code{\link[=make_joint_specification]{make_joint_specification()}}), a \code{goldfishParams} (from
 \code{\link[=set_parameters]{set_parameters()}}), or a multi-process fitted result.}
 
 \item{...}{currently unused.}
@@ -39,9 +39,9 @@ in the \code{process} column. The fitted-result method adds a \code{se} column.
 surface as a tidy data frame -- \strong{one row per coefficient slot} (an
 intercept when the sub-model carries one, then the effects in formula order,
 then the interaction columns; not one row per effect). It serves three
-surfaces off one label vocabulary: a \code{joint_specification.goldfish} (the
+surfaces off one label vocabulary: a \code{goldfishJointSpec} (the
 empty authoring layout, so a user can discover the labels, names, and order
-to author \code{\link[=set_parameters]{set_parameters()}}), a \link[=set_parameters]{parameters.goldfish} object
+to author \code{\link[=set_parameters]{set_parameters()}}), a \link[=set_parameters]{goldfishParams} object
 (the supplied values with the free/fixed classification), and a multi-process
 fitted result (the estimates and standard errors grouped back into the
 per-process blocks the flat \code{\link[=coef]{coef()}} vector discards).
@@ -49,10 +49,10 @@ per-process blocks the flat \code{\link[=coef]{coef()}} vector discards).
 The \code{joint_specification} method is \strong{completion-aware}. On a \strong{raw}
 (authored) specification it spans the authored fids only. On a \strong{completed}
 specification -- the output of \code{complete_generative_spec()}, still a
-\code{joint_specification.goldfish}, distinguished by its populated \code{completed}
+\code{goldfishJointSpec}, distinguished by its populated \code{completed}
 column -- it additionally renders each autocompleted-default fid's rows as
 \code{fixed = TRUE} with the \code{"1"} placeholder name and the frozen value, giving
-the full pre-fit walked layout. The \code{parameters.goldfish} method spans the
+the full pre-fit walked layout. The \code{goldfishParams} method spans the
 \strong{authored} fids only, so autocompleted-default rows appear on the completed
 spec and fitted-result layouts, never on the authoring or parameter-object
 layouts.

@@ -464,6 +464,62 @@ and the `completed` column is the honest discriminant); auto-completing inside
 `coef_layout()` (the raw-spec authoring layout is the intended default — a caller
 who wants the full layout completes explicitly).
 
+### D17 — Both classes this change ships/consumes rename to the goldfish\<Thing\> camelCase scheme before archive
+
+New (2026-08-28). All twelve tasks are checked and `openspec list` reports
+this change `complete`, but it has not archived. Since task 1.1 was written,
+the ecosystem naming rule changed: `class-naming-scheme` (proposed
+2026-08-19, not yet folded — 0 of its tasks are checked) retires the
+`<noun>.goldfish` house convention task 1.1 explicitly invoked
+("`parameters.goldfish` S3 class (house `<noun>.goldfish` convention)")
+in favor of `goldfish<Thing>` camelCase, following the stocnet ecosystem
+rule (autograph CONTRIBUTING; RSiena's `sienaFit`/`sienaGOF` precedent).
+Two classes are affected:
+
+- **`parameters.goldfish`** (`R/joint_parameters.R:83`) — this change's own
+  class, built by `set_parameters()`. Renames to **`goldfishParams`**.
+- **`joint_specification.goldfish`** (`R/make_joint_specification.R:184`) —
+  *not* this change's class; it belongs to the already-archived
+  `make-multivariate-spec` change and is folded into the living spec
+  (`openspec/specs/multivariate-specification/spec.md:7`). This change
+  does not own the file that defines it, but is the last active change
+  holding it before it archives — `abmcem`, `dynes-augmentation`, and
+  `process-simulation` all reference it read-only via `parameters.goldfish`
+  or `coef_layout()`. Renames to **`goldfishJointSpec`**.
+
+Both names are recorded in `class-naming-scheme`'s rename table (design D16
+there) as the authoritative spelling. Coordination with that change is
+recorded there too (design D8b): `class-naming-scheme`'s own docs-only sweep
+task (9.3) covers this change's **delta spec text** only if this change is
+still unarchived when that task runs; it explicitly does **not** duplicate
+the R-code rename, because this change is the one actively holding those
+files. **Decision:** this change executes both renames itself, as new
+tasks (§3) before archiving, rather than waiting on `class-naming-scheme`
+to fold first — `class-naming-scheme` hasn't started (0 of its own tasks
+checked), there is no reason to leave shipped code on a
+retired convention in the interim, and archiving with the current
+spelling would let it harden into `openspec/specs/` under the old name,
+creating exactly the kind of stale living-spec text `class-naming-scheme`
+design D8/D8a exists to avoid.
+
+**Scope of the `joint_specification.goldfish` half:** since that class's
+producer (`make_joint_specification()`) is not part of this change's own
+delta, the rename is recorded as a `## RENAMED` block against the
+`multivariate-specification` capability in this change's own
+`specs/multivariate-specification/spec.md` (the same file this change
+already deltas), not as a new capability — mirroring how
+`class-naming-scheme`'s own spec uses `## RENAMED Requirements` blocks for
+this exact pattern (e.g. `make_specification constructs a
+specification.goldfish object` → `... a goldfishSpec object`). *Rejected:*
+leaving `joint_specification.goldfish` for `class-naming-scheme` to sweep
+later (it would sit under the retired name in `R/` for an unbounded
+number of intervening commits, and any of `abmcem`/`dynes-augmentation`/
+`process-simulation` landing in the meantime would need updating twice);
+renaming only `parameters.goldfish` and leaving `joint_specification.goldfish`
+alone (the whole point of the ecosystem rule is that every live class
+carries it — a half-renamed pair sitting next to each other in the same
+file is a worse inconsistency than the one being fixed).
+
 ## Open Questions
 
 _All resolved._ OQ1 → **D8**, OQ2 → **D9** (with correction), OQ3 → **D10** — all
@@ -479,3 +535,7 @@ autocompleted fids resolve trivially at consumer entry; scopes D9/D11/D12/D13's
 autocompleted-default rows to the completed-spec/result `coef_layout()` methods),
 plus **D3** (partial/mixed naming rejected — all-or-nothing) and **D14**'s
 signature fix (`set_parameters(spec, result)`, not a bare `as_parameters(result)`).
+The same pass added **D17** (post-completion class-naming migration —
+`parameters.goldfish` → `goldfishParams`, `joint_specification.goldfish` →
+`goldfishJointSpec`, per `class-naming-scheme` design D16/D8b), tracked as
+new tasks in §3.

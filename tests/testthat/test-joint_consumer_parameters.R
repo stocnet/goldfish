@@ -4,7 +4,7 @@
 # `simulate()` walks, gated on completeness), and `reconcile_joint_parameters()`
 # (the design-D16 check that every completed-spec fid absent from the object is a
 # trivially resolved autocompleted default). v1 accepts ONLY a
-# `parameters.goldfish`.
+# `goldfishParams`.
 
 # A two-process DyNAM join (calls, emails); the calls choice carries an
 # inline-coef offset, so its `tie(friendship)` slot is the one fixed coefficient
@@ -75,7 +75,7 @@ complete_parameters <- function(join = consumer_join()) {
   )
 }
 
-test_that("the consumer surface accepts only a parameters.goldfish", {
+test_that("the consumer surface accepts only a goldfishParams", {
   expect_error(
     joint_initial_parameters(list(0.1, 0.2), arg = "initial_parameters"),
     "must be a"

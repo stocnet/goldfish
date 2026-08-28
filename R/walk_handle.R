@@ -271,7 +271,7 @@ walk_fold_engine <- function(engine) {
 #' choice) and aborts pointing to [simulate()] / `estimate_dynes()` otherwise;
 #' it never performs completion itself.
 #'
-#' @param spec a `joint_specification.goldfish` from
+#' @param spec a `goldfishJointSpec` from
 #'   [make_joint_specification()] (or a single `specification.goldfish`, wrapped
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
@@ -288,14 +288,14 @@ walk_open <- function(
 ) {
   lifecycle::signal_stage("experimental", "walk_open()")
 
-  joint_spec <- if (inherits(spec, "joint_specification.goldfish")) {
+  joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
   } else if (inherits(spec, "specification.goldfish")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
       "{.fn walk_open} requires a {.cls specification.goldfish} or
-       {.cls joint_specification.goldfish}.",
+       {.cls goldfishJointSpec}.",
       call = call
     )
   }

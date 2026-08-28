@@ -374,11 +374,33 @@ test_that("a whole-shared-mode multilevel join composes", {
     nominations_spec,
     data = multilevel_data(advice = "panel")
   )
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
   expect_identical(
     sort(unique(js$process_map$layer)),
     c("advice", "nominations")
   )
+})
+
+test_that("make_joint_specification() returns a goldfishJointSpec, not the retired joint_specification.goldfish", {
+  event_data <- multilevel_data(advice = "event")
+  js <- make_joint_specification(
+    make_specification(
+      choice = ~inertia,
+      layer = "advice",
+      model = "DyNAM",
+      data = event_data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(advice),
+      choice = ~inertia,
+      layer = "nominations",
+      model = "DyNAM",
+      data = event_data
+    ),
+    data = multilevel_data(advice = "panel")
+  )
+  expect_s3_class(js, "goldfishJointSpec")
+  expect_false(inherits(js, "joint_specification.goldfish"))
 })
 
 test_that("a two-mode multiplex join composes", {
@@ -401,7 +423,7 @@ test_that("a two-mode multiplex join composes", {
       attendance_spec,
       data = multiplex_data(membership = "panel")
     ),
-    "joint_specification.goldfish"
+    "goldfishJointSpec"
   )
 })
 
@@ -425,7 +447,7 @@ test_that("a mixed one/two-mode join composes", {
     nominations_spec,
     data = mixed_mode_data(advice = "panel")
   )
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
   # The one-mode advice process and the two-mode nominations process land on
   # their own mode-pair rows.
   expect_true(all(c("advice", "nominations") %in% js$process_map$layer))
@@ -495,7 +517,7 @@ test_that("each process resolves sides from its own layer, not info$focal", {
   expect_identical(panel_data$info$focal, "nominations")
   expect_s3_class(
     make_joint_specification(advice_spec, nominations_spec, data = panel_data),
-    "joint_specification.goldfish"
+    "goldfishJointSpec"
   )
 })
 
@@ -503,7 +525,7 @@ test_that("each process resolves sides from its own layer, not info$focal", {
 
 test_that("an exogenous-only panel reference composes and stays separable", {
   js <- exogenous_only_join()
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
   # The joint class deliberately does NOT inherit the single-process class.
   expect_false(inherits(js, "specification.goldfish"))
   # friendship is panel-observed but modeled by no process, so reading it is a
@@ -530,7 +552,7 @@ test_that("a join referencing no panel layer composes (simulate() input)", {
     data = data
   )
   js <- make_joint_specification(calls_spec, emails_spec, data = data)
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
   # A simulable object: the composed process_map is assembled for both fids.
   expect_setequal(js$process_map$layer, c("calls", "emails"))
   # No panel layer is a modeled process, so every fid is separable -- the exact
@@ -628,7 +650,7 @@ test_that("reusing one layer as a covariate across specs is allowed", {
   )
   expect_s3_class(
     make_joint_specification(calls_spec, emails_spec, data = data),
-    "joint_specification.goldfish"
+    "goldfishJointSpec"
   )
 })
 
@@ -833,5 +855,5 @@ test_that("a joined process with an inline-coef offset builds", {
     data = data
   )
   js <- make_joint_specification(calls_spec, emails_spec, data = data)
-  expect_s3_class(js, "joint_specification.goldfish")
+  expect_s3_class(js, "goldfishJointSpec")
 })

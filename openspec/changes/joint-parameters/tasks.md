@@ -126,3 +126,62 @@
       `openspec/changes/joint-parameters/NEWS.md`. Version bump, root-NEWS fold,
       and `/opsx:archive` are deferred to branch merge (see progress.md
       "Version / NEWS / archival")
+
+## 3. Class-naming migration to `goldfish<Thing>` camelCase (design D17)
+
+> Added 2026-08-28 (explore pass). `class-naming-scheme` retires the
+> `<noun>.goldfish` house convention task 1.1 built `parameters.goldfish`
+> under; this section renames it, and the `joint_specification.goldfish`
+> class this change consumes throughout, to the new scheme before archive
+> — see design D17 for why this change executes both renames itself rather
+> than waiting on `class-naming-scheme` (unstarted) to fold. Target
+> spellings are recorded in `class-naming-scheme`'s rename table (design
+> D16 there): `parameters.goldfish` → `goldfishParams`,
+> `joint_specification.goldfish` → `goldfishJointSpec`.
+
+- [x] 3.1 Rename inventory (design D9's hand-edit-only discipline, borrowed
+      from `class-naming-scheme`): grep every class-string site for both
+      names across `R/` (`make_joint_specification.R`, `joint_parameters.R`,
+      `intercept_only_rate.R`, `model_estimate.R`, `preprocess_joint.R`,
+      `complete_generative_spec.R`, `walk_handle.R`, `methods_display.R`),
+      roxygen `@method`/`@export` tags, NAMESPACE, and
+      `tests/testthat/{test-estimate_joint_guard,test-joint_consumer_parameters,
+      test-joint_parameters,test-coef_layout,test-intercept_only_rate,
+      test-make_joint_specification}.R` plus their `_snaps/*.md`; record
+      exact sites in `progress.md`. Confirm no site is a substring collision
+      (`joint_specification.goldfish` contains `specification.goldfish`,
+      so rename the longer string first).
+- [x] 3.2 Rename `parameters.goldfish` → `goldfishParams`: class strings,
+      `inherits()`/`is()` checks, `class<-`/`structure(class =)` values,
+      the `print()`/`coef_layout()` S3 methods (`print.goldfishParams`,
+      `coef_layout.goldfishParams`), roxygen `@method` tags;
+      `devtools::document()`.
+- [x] 3.3 Rename `joint_specification.goldfish` → `goldfishJointSpec`:
+      same edit surface in `R/make_joint_specification.R` and
+      `R/complete_generative_spec.R` (`rebuild_completed_joint()`'s
+      reassigned class, design D16a); `coef_layout.joint_specification` →
+      `coef_layout.goldfishJointSpec`; `devtools::document()`. Record the
+      rename as a `## RENAMED Requirements` block in this change's own
+      `specs/multivariate-specification/spec.md` (design D17 — the class's
+      producer is the archived `make-multivariate-spec` capability, folded
+      into the living spec this change already deltas).
+- [x] 3.4 Update snapshots (`tests/testthat/_snaps/{intercept_only_rate,
+      complete_generative_spec,make_joint_specification,estimate_joint_guard,
+      joint_from_result}.md`) for the new class strings; review each diff,
+      never accept wholesale (mirrors `class-naming-scheme` design D11).
+- [x] 3.5 Cross-change grep: confirm `abmcem`, `dynes-augmentation`, and
+      `process-simulation` already spell `goldfishParams`/`goldfishJointSpec`
+      in their specs (updated 2026-08-28, same session) — no further sweep
+      needed there. If any of the three has since drifted back to the old
+      spelling, fix it here too.
+- [x] 3.6 Tests (testthat 3e): assert both renamed objects inherit their
+      new class and not the retired one; extend or add alongside the
+      existing `test-make_joint_specification.R` / `test-joint_parameters.R`
+      suites (a dedicated package-wide guard test is `class-naming-scheme`'s
+      own task 1.3, not duplicated here).
+- [x] 3.7 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
+      C++ goldens PASS, not SKIP); `openspec validate joint-parameters
+      --strict`; commit. Record the rename as a bullet in the change-local
+      `openspec/changes/joint-parameters/NEWS.md` (breaking: two renamed
+      classes) — version bump and root `NEWS.md` fold stay deferred to
+      branch merge per §1/§2 above.

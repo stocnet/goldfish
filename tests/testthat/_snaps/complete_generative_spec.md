@@ -26,7 +26,7 @@
       complete_generative_spec(spec)
     Condition
       Error:
-      ! `joint_spec` must be a <joint_specification.goldfish>.
+      ! `joint_spec` must be a <goldfishJointSpec>.
       i Generative completion is scoped to the joint (generative) surface; the single-process path keeps rate-only / choice-only specifications unchanged.
 
 # a modeled panel layer missing a whole flavor aborts

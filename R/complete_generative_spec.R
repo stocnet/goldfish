@@ -25,7 +25,7 @@
 # auto-supplied default is never silent. Completion NEVER touches the
 # single-process / flavored estimation path (that keeps rate-only / choice-only
 # specifications byte-identical under the frozen baselines); it is scoped by type
-# to a `joint_specification.goldfish`.
+# to a `goldfishJointSpec`.
 #
 # Per D9a the transform stays data-source-agnostic: it installs the pinned-rate
 # STRUCTURE, and the (count_w, T_w, |R_w|) a timed pin needs come from ONE shared
@@ -55,10 +55,10 @@ complete_generative_spec <- function(
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)
-  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+  if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
       c(
-        "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+        "{.arg joint_spec} must be a {.cls goldfishJointSpec}.",
         "i" = "Generative completion is scoped to the joint (generative) surface;
                the single-process path keeps rate-only / choice-only
                specifications unchanged."
@@ -290,7 +290,7 @@ rebuild_completed_joint <- function(joint_spec, specs) {
       modeled_panel = modeled_panel,
       call = joint_spec$call
     ),
-    class = "joint_specification.goldfish"
+    class = "goldfishJointSpec"
   )
 }
 

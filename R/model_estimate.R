@@ -405,10 +405,10 @@ NULL
 # check runs before the specification.goldfish branch so a joint object never
 # reaches single-process estimation.
 reject_joint_specification <- function(x, call = rlang::caller_env()) {
-  if (inherits(x, "joint_specification.goldfish")) {
+  if (inherits(x, "goldfishJointSpec")) {
     cli::cli_abort(
       c(
-        "A {.cls joint_specification.goldfish} cannot be estimated with the \\
+        "A {.cls goldfishJointSpec} cannot be estimated with the \\
          event-stream estimators.",
         "i" = "Multivariate specifications are estimated with \\
                {.fn estimate_dynes}."

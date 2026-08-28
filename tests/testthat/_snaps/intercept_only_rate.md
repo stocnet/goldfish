@@ -199,7 +199,7 @@
       mark_pinned_rates(single)
     Condition
       Error:
-      ! `joint_spec` must be a <joint_specification.goldfish>.
+      ! `joint_spec` must be a <goldfishJointSpec>.
       i Pinning an intercept-only rate is scoped to the generative context; the single-process path (`estimate_dynam()` / `estimate_rem()`) keeps its estimated-intercept meaning.
 
 # estimate_dynes wording: Hamming-diff pin, no SE, excluded
@@ -245,7 +245,7 @@
       warn_pinned_rates(single, consumer = "estimate_dynes")
     Condition
       Error:
-      ! `joint_spec` must be a <joint_specification.goldfish>.
+      ! `joint_spec` must be a <goldfishJointSpec>.
 
 # mark_pinned_rates rejects an ordered-regime joint specification
 

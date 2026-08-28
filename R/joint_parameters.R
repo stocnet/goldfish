@@ -1,5 +1,5 @@
 # =========================================================================== #
-# parameters.goldfish: a self-validating parameter object over a joint spec's
+# goldfishParams: a self-validating parameter object over a joint spec's
 # fid-indexed coefficient vectors.
 #
 # `set_parameters()` resolves the user-facing composite labels and the
@@ -17,7 +17,7 @@
 # each fid (the intercept when present, then effects, then interactions).
 # =========================================================================== #
 
-# Build a `parameters.goldfish` from an already-resolved per-fid layout.
+# Build a `goldfishParams` from an already-resolved per-fid layout.
 #
 # `fids` is a named list keyed by `as.character(process_map$fid)`; each entry
 # is `list(values, fixed, names)`, one coefficient-space slot per position
@@ -80,11 +80,11 @@ new_parameters_goldfish <- function(process_map, fids) {
       free = free,
       complete = !anyNA(free)
     ),
-    class = "parameters.goldfish"
+    class = "goldfishParams"
   )
 }
 
-is_parameters_goldfish <- function(x) inherits(x, "parameters.goldfish")
+is_parameters_goldfish <- function(x) inherits(x, "goldfishParams")
 
 # The coefficient-space layout of one fid: the `coef()` names, the fixed mask,
 # and the fixed values, all length `n_params` and in coefficient order
@@ -189,8 +189,8 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #'
 #' `r lifecycle::badge("experimental")`
 #'
-#' `set_parameters()` builds a self-validating `parameters.goldfish`
-#' object over a `joint_specification.goldfish`, the parameter surface both
+#' `set_parameters()` builds a self-validating `goldfishParams`
+#' object over a `goldfishJointSpec`, the parameter surface both
 #' `estimate_dynes()` (initial parameters) and `simulate()` (generative
 #' coefficients) accept. Each `...` argument is a **full-length per-fid
 #' vector** -- one entry per coefficient of that process, in coefficient order
@@ -221,19 +221,19 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #' A flat, free-only [coef()] vector is **not** accepted directly, because its
 #' per-parameter names collide across fids.
 #'
-#' @param spec a `joint_specification.goldfish` (from
+#' @param spec a `goldfishJointSpec` (from
 #'   [make_joint_specification()]).
 #' @param ... one full-length per-fid vector per process, keyed by the process's
 #'   rendered label; or a single fitted joint result (the from-result form).
 #'
-#' @return a `parameters.goldfish` object.
+#' @return a `goldfishParams` object.
 #'
 #' @seealso [make_joint_specification()]
 #' @export
 set_parameters <- function(spec, ...) {
-  if (!inherits(spec, "joint_specification.goldfish")) {
+  if (!inherits(spec, "goldfishJointSpec")) {
     cli::cli_abort(c(
-      "{.fn set_parameters} requires a {.cls joint_specification.goldfish}.",
+      "{.fn set_parameters} requires a {.cls goldfishJointSpec}.",
       "i" = "Compose processes with {.fn make_joint_specification}."
     ))
   }
@@ -352,7 +352,7 @@ set_parameters_from_result <- function(
       c(
         "The result was not fit against this specification.",
         "x" = "Its coefficient layout does not match the specification's.",
-        "i" = "Pass the same {.cls joint_specification.goldfish} the result was
+        "i" = "Pass the same {.cls goldfishJointSpec} the result was
                estimated from."
       ),
       call = call
@@ -375,11 +375,11 @@ set_parameters_from_result <- function(
 
 #' @export
 #' @rdname print-method
-#' @return For objects of class `parameters.goldfish` print a per-process
+#' @return For objects of class `goldfishParams` print a per-process
 #'   breakdown of pinned, free, and fixed coefficients, and whether the object
 #'   is complete.
-print.parameters.goldfish <- function(x, ...) {
-  cli::cli_rule(left = "{.cls parameters.goldfish}")
+print.goldfishParams <- function(x, ...) {
+  cli::cli_rule(left = "{.cls goldfishParams}")
   n_proc <- nrow(x$process_map)
   n_free <- length(x$free)
   n_pinned <- sum(!is.na(x$free))
@@ -418,19 +418,19 @@ print.parameters.goldfish <- function(x, ...) {
 # process-simulation) -- route the user's parameter argument through these
 # helpers, which live with the specification that owns the fid vocabulary rather
 # than being reinvented in each consuming change. v1 accepts ONLY a
-# `parameters.goldfish` (a bare list or flat numeric vector is a recorded
+# `goldfishParams` (a bare list or flat numeric vector is a recorded
 # non-goal), so the object's single construction-time validation is the one both
 # consumers trust without re-validating.
 # =========================================================================== #
 
-# Accept only a `parameters.goldfish`, naming the consumer's own argument in the
+# Accept only a `goldfishParams`, naming the consumer's own argument in the
 # abort so the message reads as `initial_parameters` / `coef` rather than an
 # internal name.
 accept_joint_parameters <- function(x, arg, call = rlang::caller_env()) {
   if (!is_parameters_goldfish(x)) {
     cli::cli_abort(
       c(
-        "{.arg {arg}} must be a {.cls parameters.goldfish}.",
+        "{.arg {arg}} must be a {.cls goldfishParams}.",
         "x" = "A {.cls {class(x)[1]}} was supplied.",
         "i" = "Build one with {.fn set_parameters} over the joint
                specification."
@@ -551,7 +551,7 @@ reconcile_joint_parameters <- function(
 # sub-model carries one, the effects, the interaction columns), not one per
 # effect. It serves three surfaces off one vocabulary: a `joint_specification`
 # (the authoring layout, or -- on a completed spec -- the full pre-fit walked
-# layout), a `parameters.goldfish` (the supplied values with the free/fixed
+# layout), a `goldfishParams` (the supplied values with the free/fixed
 # classification), and a multi-process fitted result (the estimates and
 # standard errors grouped back into the per-process blocks the flat `coef()`
 # vector discards).
@@ -658,9 +658,9 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #' surface as a tidy data frame -- **one row per coefficient slot** (an
 #' intercept when the sub-model carries one, then the effects in formula order,
 #' then the interaction columns; not one row per effect). It serves three
-#' surfaces off one label vocabulary: a `joint_specification.goldfish` (the
+#' surfaces off one label vocabulary: a `goldfishJointSpec` (the
 #' empty authoring layout, so a user can discover the labels, names, and order
-#' to author [set_parameters()]), a [parameters.goldfish][set_parameters] object
+#' to author [set_parameters()]), a [goldfishParams][set_parameters] object
 #' (the supplied values with the free/fixed classification), and a multi-process
 #' fitted result (the estimates and standard errors grouped back into the
 #' per-process blocks the flat [coef()] vector discards).
@@ -669,10 +669,10 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #' The `joint_specification` method is **completion-aware**. On a **raw**
 #' (authored) specification it spans the authored fids only. On a **completed**
 #' specification -- the output of `complete_generative_spec()`, still a
-#' `joint_specification.goldfish`, distinguished by its populated `completed`
+#' `goldfishJointSpec`, distinguished by its populated `completed`
 #' column -- it additionally renders each autocompleted-default fid's rows as
 #' `fixed = TRUE` with the `"1"` placeholder name and the frozen value, giving
-#' the full pre-fit walked layout. The `parameters.goldfish` method spans the
+#' the full pre-fit walked layout. The `goldfishParams` method spans the
 #' **authored** fids only, so autocompleted-default rows appear on the completed
 #' spec and fitted-result layouts, never on the authoring or parameter-object
 #' layouts.
@@ -681,8 +681,8 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #' order within each fid), so `index` is the slot's position in the flat
 #' free-parameter vector.
 #'
-#' @param x a `joint_specification.goldfish` (from
-#'   [make_joint_specification()]), a `parameters.goldfish` (from
+#' @param x a `goldfishJointSpec` (from
+#'   [make_joint_specification()]), a `goldfishParams` (from
 #'   [set_parameters()]), or a multi-process fitted result.
 #' @param ... currently unused.
 #'
@@ -701,9 +701,9 @@ coef_layout <- function(x, ...) {
 }
 
 #' @export
-#' @method coef_layout joint_specification.goldfish
+#' @method coef_layout goldfishJointSpec
 #' @rdname coef_layout
-coef_layout.joint_specification.goldfish <- function(x, ...) {
+coef_layout.goldfishJointSpec <- function(x, ...) {
   process_map <- x$process_map
   bundles <- joint_fid_bundles(x)
   sub_models <- process_sub_models(process_map)
@@ -737,9 +737,9 @@ coef_layout.joint_specification.goldfish <- function(x, ...) {
 }
 
 #' @export
-#' @method coef_layout parameters.goldfish
+#' @method coef_layout goldfishParams
 #' @rdname coef_layout
-coef_layout.parameters.goldfish <- function(x, ...) {
+coef_layout.goldfishParams <- function(x, ...) {
   process_map <- x$process_map
   sub_models <- process_sub_models(process_map)
   blocks <- vector("list", nrow(process_map))

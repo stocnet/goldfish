@@ -565,12 +565,12 @@ build_joint_schedule <- function(units, shared_objects) {
 
 #' Assemble the merged-walk substrate for a joint specification
 #'
-#' Compiles every process of a `joint_specification.goldfish` into a walk-ready
+#' Compiles every process of a `goldfishJointSpec` into a walk-ready
 #' `spec_map`, groups the maps into statistic blocks, and builds the single
 #' shared process-state container and event schedule the merged single-clock walk
 #' steps through. Additive substrate: it runs no event loop.
 #'
-#' @param joint_spec a `joint_specification.goldfish` from
+#' @param joint_spec a `goldfishJointSpec` from
 #'   [make_joint_specification()].
 #' @param control_preprocessing preprocessing options (for the imputation policy
 #'   carried onto each compiled `spec_map`).
@@ -588,9 +588,9 @@ build_merged_blocks <- function(
   joint_spec,
   control_preprocessing = set_preprocessing_opt()
 ) {
-  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+  if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
-      "{.fn build_merged_blocks} requires a {.cls joint_specification.goldfish}.",
+      "{.fn build_merged_blocks} requires a {.cls goldfishJointSpec}.",
       .internal = TRUE
     )
   }
@@ -721,7 +721,7 @@ single_process_joint <- function(spec) {
       data = spec$data,
       modeled_panel = character(0)
     ),
-    class = "joint_specification.goldfish"
+    class = "goldfishJointSpec"
   )
 }
 
@@ -1593,7 +1593,7 @@ run_merged_walk <- function(
 }
 
 # Preprocess a joint (or single) specification through the merged single-clock
-# walk. Accepts a `joint_specification.goldfish` directly, or a single
+# walk. Accepts a `goldfishJointSpec` directly, or a single
 # `specification.goldfish` (wrapped as a one-process join) so the same driver
 # serves the frozen-baseline gate.
 preprocess_joint <- function(
@@ -1602,14 +1602,14 @@ preprocess_joint <- function(
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
-  joint_spec <- if (inherits(spec, "joint_specification.goldfish")) {
+  joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
   } else if (inherits(spec, "specification.goldfish")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
       "{.fn preprocess_joint} requires a {.cls specification.goldfish} or
-       {.cls joint_specification.goldfish}.",
+       {.cls goldfishJointSpec}.",
       .internal = TRUE
     )
   }
