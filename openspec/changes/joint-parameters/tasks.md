@@ -46,7 +46,7 @@
       `set_parameters()` keys and `coef()`/`vcov()`/`print()` names are one
       vocabulary. Snapshot the shifted non-flavored name (`friendship › rate`, was
       `friendship › NA › rate`)
-- [ ] 1.3 NA disambiguation (design D4, D9, D11): classify each slot from the
+- [x] 1.3 NA disambiguation (design D4, D9, D11): classify each slot from the
       offset mask **projected into coefficient space** (reuse the `intercept_shift`
       projection `assemble_fixed_parameters()` computes — do **not** read the raw
       rhs-aligned `offset_coef_parameter` directly). Fixed prevails: at an offset
@@ -58,11 +58,11 @@
       `set_parameters()` sees; they resolve at consumer entry, task 2.2). Set the
       complete flag over the authored fids (design D5, complete iff every free slot
       is filled)
-- [ ] 1.4 Tests (testthat 3e): membership resolution (rendered-label match) +
+- [x] 1.4 Tests (testthat 3e): membership resolution (rendered-label match) +
       flavor elision + separator/collision abort, wrong-length
       abort snapshot, optional-name validation, offset-prevails warn snapshot,
       free/fixed classification and complete-flag fixtures
-- [ ] 1.5 Verification: `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
+- [x] 1.5 Verification: `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       commit. **No DESCRIPTION version bump and no root `NEWS.md` edit on this
       branch** — record the parameters-surface milestone as a bullet in the
       change-local `openspec/changes/joint-parameters/NEWS.md`. The version bump,
