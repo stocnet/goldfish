@@ -272,6 +272,11 @@ set_parameters <- function(spec, ...) {
   }
 
   entries <- vector("list", length(fids))
+  # A fixed slot (an `offset()` term or an operand-only interaction) is resolved
+  # by the specification, never by the user: a value supplied there is dropped
+  # and the specification's value prevails. `NA` there is silent; a non-`NA`
+  # value is collected so one warning can name every ignored coefficient.
+  ignored <- character(0)
   for (i in seq_along(fids)) {
     layout <- fid_coefficient_layout(bundles[[as.character(fids[i])]])
     hit <- which(resolved == i)
@@ -280,7 +285,10 @@ set_parameters <- function(spec, ...) {
     } else {
       values <- resolve_fid_vector(dots[[hit]], layout, labels[i])
     }
-    # The specification's fixed value always prevails at a fixed slot.
+    overridden <- layout$fixed & !is.na(values)
+    if (any(overridden)) {
+      ignored <- c(ignored, paste0(labels[i], ": ", layout$names[overridden]))
+    }
     values[layout$fixed] <- layout$fixed_values[layout$fixed]
     entries[[i]] <- list(
       values = values,
@@ -289,6 +297,15 @@ set_parameters <- function(spec, ...) {
     )
   }
   names(entries) <- as.character(fids)
+
+  if (length(ignored) > 0) {
+    cli::cli_warn(c(
+      "!" = "Value{?s} supplied for fixed coefficient{?s} {.val {ignored}}
+             {?was/were} ignored.",
+      "i" = "A fixed coefficient (an {.fn offset} term or an operand-only
+             interaction) keeps the specification's value."
+    ))
+  }
 
   new_parameters_goldfish(process_map, entries)
 }
