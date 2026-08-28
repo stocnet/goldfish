@@ -20,7 +20,7 @@
       `test-complete_generative_spec.R`, `test-walk_handle.R`,
       `test-make_joint_specification.R`) and `vignettes/multivariate-specification.R`
       — and migrate any to inline `coef=` so the vignette build does not break
-- [ ] 1.1 `parameters.goldfish` S3 class (house `<noun>.goldfish` convention):
+- [x] 1.1 `parameters.goldfish` S3 class (house `<noun>.goldfish` convention):
       carries validated per-fid values, **two projections** (design D11 — the flat
       **free-parameter** vector for `estimate_dynes()`, and the **full per-fid
       coefficient vectors** for `simulate()`), both in the **canonical order**
@@ -39,7 +39,7 @@
       per-effect names optional but **all-or-nothing** (design D3 — fully named
       validated against effect labels, or fully positional; a **partially named**
       vector is rejected)
-- [ ] 1.2b **Single canonical label renderer** (design D10): teach
+- [x] 1.2b **Single canonical label renderer** (design D10): teach
       `render_process_label()` `NA`-flavor elision (drop the flavor segment when
       `NA`, keeping the `›`-segment form) and route `walk_handle.R`'s completeness
       message through it, retiring its parenthesized ad-hoc format — so
