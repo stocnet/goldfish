@@ -10,8 +10,8 @@ resampling schemes, and `get_se_from_list()`) and fully decided
 `dynes-augmentation` change it sits behind the spikes, the augmenters, and the
 batched C++ evaluator. The prototypes prove the loop needs none of that to run:
 they evaluate pools through the **existing zero-iteration estimation path**
-(`estimate_wrapper()` with `max_iterations = 0L` returning logLikelihood /
-finalScore / finalInformationMatrix). Carving the algorithm core into its own
+(`estimate_wrapper()` with `max_iterations = 0L` returning log_likelihood /
+final_score / final_information_matrix). Carving the algorithm core into its own
 change lets it land, be tested, and stabilize its contracts now — and gives the
 later augmenter/evaluator work a running loop to plug into.
 
@@ -24,7 +24,7 @@ implemented here):
 
 - **`set_algorithm_em()` plus nested component constructors**: `set_algorithm_em()` (EM loop,
   stop-rule quantiles, single seed, `n_cores`, `em_trace_se`) nesting
-  `set_alg_augment()`, `set_alg_weights()`, and `set_alg_sgd()`; child-local
+  `set_augmenter_options()`, `set_weights_options()`, and `set_sgd_options()`; child-local
   cli validation, all cross-object rules (augmenter × weighting validity
   matrix, precedence warn-and-ignore) enforced in `set_algorithm_em()`.
 - **E-step weighting machinery**: importance/uniform weighting, likelihood-ratio
@@ -38,8 +38,11 @@ implemented here):
   cyclic batches with importance-weighted gradients; constant default step size
   plus AdaGrad/Adam/momentum at literature defaults; state reset per M-step;
   score-only evaluation requests.
-- **EM ascent control flow**: θ₀ via `set_algorithm_newton()` (which gains a
-  warm-start initializer option), bounded within-iteration pool growth
+- **EM ascent control flow**: θ₀ from `set_algorithm_em()`'s own
+  `initial_parameters` (default zero); an optional `warm_start` on
+  `set_augmenter_options()` that draws one augmentation and runs an internal
+  default `set_algorithm_newton()` fit (inheriting the EM control's initial and
+  fixed parameters) to seed a closer θ₀; bounded within-iteration pool growth
   (`max_retries`), hard `cli_abort()` failure semantics, and the always-on
   `em_trace` per-iteration diagnostics.
 - **`estimate_dynes()` surface** running the ABEM loop purely through the
@@ -81,12 +84,16 @@ evaluator.
   `summary()` diagnostics). *Shared capability*: `dynes-augmentation` also adds
   to `dynes-estimation` (specification validation, parameter recovery); the
   loop/constructor/result requirements move from its delta into this change's.
-
-### Modified Capabilities
-
-- `optimizer-selection`: `set_algorithm_newton()` gains a warm-start
-  initial-parameters option (draw one random augmentation, estimate on it, use
-  those estimates as θ₀; default remains the zero vector).
+  `set_algorithm_em()` owns `initial_parameters` only — a `parameters.goldfish`
+  (`joint-parameters`) whose free (non-offset `NA`) slots are θ₀, default
+  `NULL` → zero over the free set. **There is no `fixed_parameters` argument**:
+  the fixed set is the specification's per-effect formula offsets
+  (`joint-parameters` D4), read directly by the evaluator and the warm-start.
+  A `warm_start` toggle on `set_augmenter_options()` enables per-fid internal
+  default-`set_algorithm_newton()` fits on a single augmentation to seed a
+  closer θ₀ (warn-and-ignored when `initial_parameters` is also supplied). No
+  new arguments on `set_algorithm_newton()` — the internal fits use its
+  defaults.
 
 ## Impact
 
@@ -109,7 +116,9 @@ evaluator.
 - **Sequencing**: this change is implementable now against the current engine
   (loop + contracts tested behind a minimal spec fixture and stub steps).
   `estimate_dynes()`'s public signature takes a `make_joint_specification()` object
-  (`make-multivariate-spec`), so that change lands before the surface ships;
+  (`make-multivariate-spec`, archived) and its `initial_parameters` a
+  `parameters.goldfish` (`joint-parameters`), so `joint-parameters` lands before
+  the surface ships;
   `dynes-augmentation`'s augmenters and batched evaluator plug into the contracts
   this change ships. Full panel-data estimation end to end still requires
   `dynes-augmentation` (panel diffing + real augmenters).

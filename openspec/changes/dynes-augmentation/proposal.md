@@ -21,9 +21,12 @@ package's estimation core.
 - **Panel augmentation by formula reference**: a panel-observed layer that is a
   **modeled process** (its focal/dependent layer) is interpreted as state
   observations; consecutive waves are diffed into candidate flip events (Hamming
-  set) whose latent between-wave path is augmented. A modeled panel focal layer MAY
-  be `focal` — but only under `estimate_dynes()` (event-stream estimators keep
-  aborting). A panel layer referenced only as an **exogenous covariate** (no
+  set) whose latent between-wave path is augmented. A modeled panel layer is a
+  **dependent (focal) process of its composed specification** — resolved through
+  `make_joint_specification()` and the `process_map` (`make-multivariate-spec`), not
+  through the data object's `info$focal`, which selects the single dependent stream
+  only on the event-stream path. Such a panel-dependent process is estimable only
+  under `estimate_dynes()` (event-stream estimators keep aborting). A panel layer referenced only as an **exogenous covariate** (no
   formulas of its own) is **not** augmented: it stays a **static step-covariate**
   (state jumps only at wave times, the living `single-data-object` behavior — not
   latent, no random sampling). A panel layer referenced nowhere is not augmented.
@@ -76,9 +79,13 @@ package's estimation core.
   and proposal-density bookkeeping plain simulation has no reason to carry).
 - **Phase-1 spikes are tasks, not prerequisites**: the B1 likelihood-evaluation
   benchmark (K ∈ {10, 100, 1000, 10000}), the B3 memory/pool-format profiling
-  (acceptance: Social-Evolution-scale pools of 100–1000 sequences under ~5 GB), the
-  RSiena ML-estimator study (proposal moves, excursions, identifiability, MC-error
-  diagnostics), and an end-to-end toy prototype that shakes the three contracts.
+  (acceptance set **empirically** from the measured pool footprint on the broadcast
+  representation over Social-Evolution-scale pools of 100–1000 sequences — no fixed
+  byte threshold; design D4), the move-set justification note (the fixed-cardinality
+  ergodicity argument that permute + shift span v1's endpoint-conditioned space, so
+  RSiena's increment/reduce excursion moves stay out of scope; identifiability handled
+  by the recovery study, RSiena code-reading an optional cross-check — design D6), and
+  an end-to-end toy prototype that shakes the three contracts.
   Spike-gated design decisions are marked and revised from the measured results.
 
 ## Capabilities

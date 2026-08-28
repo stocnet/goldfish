@@ -52,7 +52,17 @@ coordination (D7), and FIFO self-scheduled window expiry (D8).
 
 `simulate()` is the base-generic S3 (`simulate(object, nsim = 1, seed = NULL,
 ...)`), with methods dispatching on a fitted model result (its θ̂ used as `coef`)
-and on a specification carrying an explicit `coef`. The body opens the
+and on a specification carrying an explicit `coef`. The `coef` shape is
+**two-method by spec kind**: for a single `specification.goldfish` (or a fitted
+single-process result's θ̂) it is a plain **numeric** vector, unchanged from the
+single-process convention; for a `joint_specification.goldfish` it is a
+**`parameters.goldfish`** object built by `set_parameters(spec, ...)`
+(`joint-parameters`) — the same shared surface `estimate_dynes(initial_parameters=)`
+consumes — on which `simulate()` **asserts completeness** (aborts on any free,
+non-offset `NA`, naming the effects), the parameter-level parallel to
+`walk_open()` asserting generative completeness (D5). The object is required only
+on the joint path: a one-fid spec is unambiguous, so the numeric `coef` stays and
+no existing single-process signature changes. The body opens the
 `multi-process-walk` handle on the spec + data and loops
 advance → evaluate → draw → inject; observed exogenous streams (covariate and
 composition changes) merge into the walk unchanged via `walk_advance()`. Nothing

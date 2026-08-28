@@ -1,15 +1,18 @@
 ## MODIFIED Requirements
 
 ### Requirement: Focal layer designates the dependent events
-The dependent event stream SHALL be the layer named by `info$focal`, overridable by an
-explicit argument. A panel layer SHALL NOT be focal for event-stream estimators
-(`estimate_dynam()`, `estimate_rem()`, `estimate_dynami()`) — that error SHALL point to
-`estimate_dynes()` as the estimator for panel-dependent processes. Under
-`estimate_dynes()`, a panel-observed layer that is a **modeled process** of the
-multivariate specification (its focal/dependent layer) SHALL be accepted: its
-snapshots are the observed data of the augmented estimation. No separate
-panel-semantics flag is required — the `observation = "panel"` metadata plus the
-layer's presence as a modeled process is the trigger.
+On the **single-specification event-stream path** (`estimate_dynam()`,
+`estimate_rem()`, `estimate_dynami()`) the dependent event stream SHALL be the layer
+named by `info$focal`, overridable by an explicit argument; a panel layer SHALL NOT be
+focal there — that error SHALL point to `estimate_dynes()` as the estimator for
+panel-dependent processes. Under `estimate_dynes()`, dependent-process designation is
+**not** read from `info$focal`: it is resolved by `make_joint_specification()` and the
+`process_map` (`make-multivariate-spec`), each composed specification contributing its
+own focal/dependent layer. A panel-observed layer that a composed specification models
+as its dependent process SHALL be accepted: its snapshots are the observed data of the
+augmented estimation. No separate panel-semantics flag is required — the
+`observation = "panel"` metadata plus the layer's presence as a modeled process in the
+multivariate specification is the trigger.
 
 #### Scenario: Focal layer drives dependent events
 - **WHEN** `info$focal = "calls"`

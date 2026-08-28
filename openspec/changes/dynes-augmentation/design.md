@@ -19,10 +19,20 @@ lean on workarounds the current pipeline has since solved (opportunity lists for
 support constraints, manual state/label bookkeeping, per-chain data reloading).
 RSiena's ML estimator (`~/Documents/repos/rsiena`) implements MCMC sequence sampling
 between waves — its proposal moves, endpoint handling, and diagnostics answer the
-statistics questions (OQ B5). The change-local `augmentation_background.md` records
+statistics questions (OQ B5). `.plan/dynes/augmentation_background.md` records
 the mathematical background for the three augmentation routines (notation, the
-constrained simulation, the MCMC move); D19–D20 refine it and supersede its simple
-acceptance ratio and window formulas where they differ.
+constrained simulation, the MCMC move); D19–D20 refine it and **supersede its MCMC
+section** where they differ. Specifically superseded: the simple acceptance ratio
+`α = f(Ω′)/f(Ω)` (correct only for uniform time draws — D20 uses
+`α = [f(Ω′)/f(Ω)]·[q_rev/q_fwd]` with rate-based, non-cancelling proposal densities),
+the uniform time proposals (D20: truncated-exponential at the walk handle's `Λ`), and
+the branchy `±1`-index window formulas (D20: unified `pred/succ`-over-unmoved-PE,
+wave-bounded). Absent from the note and added by D20: the `shift` move, the three
+time-domain invariants (the `−Δt·Λ` trailing-censor compensator chief among them), and
+the `q ⊊ f` normalization gap. The note's notation, the `random` concept, and the `sim`
+core (two-step sender-flavour → receiver draw over the observed-constrained risk set)
+remain current. The note itself carries inline **[SUPERSEDED …]** / **[ADDED …]**
+markers pointing at these decisions.
 
 Decisions below marked **[spike-gated]** are written from the prototypes and the OQ
 answers but are revised from the Phase-1 spike measurements before their implementing
@@ -73,11 +83,11 @@ concern, nested under the EM constructor** so every cross-object rule has one ho
 
 - `set_algorithm_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
   stop_quantile, tolerance, max_retries, seed, em_trace_se = FALSE,
-  augmenter = set_alg_augment(), weights = set_alg_weights(),
-  optimizer = set_alg_sgd())` — the ascent-based MCEM loop (D18) plus the **only
+  augmenter = set_augmenter_options(), weights = set_weights_options(),
+  optimizer = set_sgd_options())` — the ascent-based MCEM loop (D18) plus the **only
   `seed`**: one RNG stream governs augmentation draws, batch selection, and
   resampling (per-block seeds rejected as an irreproducibility trap).
-- `set_alg_augment(routine = c("mcmc", "random", "sim"), burn_in, thinning,
+- `set_augmenter_options(routine = c("mcmc", "random", "sim"), burn_in, thinning,
   initialize = c("random", "sim"), initial_sequence = NULL,
   move_probs = c(permute = 0.5, shift = 0.5))` — sequence generation (chain
   lifecycle in D16; moves, windows, and densities in D20). Routine strings match
@@ -88,13 +98,13 @@ concern, nested under the EM constructor** so every cross-object rule has one ho
   first chain's start; `initial_sequence` overrides it. `move_probs` (MCMC only)
   is the user-facing move-type mix, normalized internally — a named vector so
   future move types extend it without deprecating a scalar.
-- `set_alg_weights(weighting = c("importance", "uniform"), use = c("importance",
+- `set_weights_options(weighting = c("importance", "uniform"), use = c("importance",
   "resampling"), resampling_scheme = c("stratified", "residual", "random"),
   transformation = identity, refresh = FALSE, ess_threshold = 0.5)` — how the
   E-step expectations are weighted (D13, D14). A user-supplied custom weight
   function is dropped: the ABMCEM accept/stop machinery requires a variance
   estimator per scheme (D15), which an arbitrary function cannot supply.
-- `set_alg_sgd(variant = c("minibatch", "full"), batch_size, batch_scheme =
+- `set_sgd_options(variant = c("minibatch", "full"), batch_size, batch_scheme =
   c("weighted", "cyclic"), step_size, step_schedule = c("constant", "adagrad",
   "adam", "momentum"), max_iterations, tolerance)` — the M-step (D17).
 
@@ -104,12 +114,21 @@ the correspondence documented in roxygen. The parent constructor's name is
 settled as `set_algorithm_em()` (algorithm-naming: `set_algorithm_<family>()`,
 returning an object with the shared `goldfishAlgorithm` superclass —
 post class-naming-scheme spelling, ADR-0031); the three
-nested component constructors keep their working `set_alg_*` names until abmcem
-decides them. Each child constructor validates only its own
+nested component constructors take the `set_<component>_options()` sub-control
+names — `set_augmenter_options()`, `set_weights_options()`, `set_sgd_options()` —
+deliberately *not* the `set_algorithm_<family>()` pattern, because they are option
+bundles nested under the algorithm object, not algorithm objects themselves (they
+carry no `goldfishAlgorithm` superclass). abmcem ships the surface and owns any
+final adjustment. Each child constructor validates only its own
 arguments; **all cross-object rules (the D13 validity matrix and precedence
 table) execute in `set_algorithm_em()`'s constructor**, since siblings cannot see each
 other — inconsistent-but-ignorable combinations warn and are ignored, impossible
-ones abort.
+ones abort. One such construction-time warning is the **cold-start guard**:
+`routine = "random"` combined with a non-zero warm-start or user-supplied θ₀ (via
+`set_algorithm_newton()`'s `initial_parameters`) warns that uniform draws will sit far
+from the target at iteration 1 and the E-step weights may collapse, recommending
+`routine = "sim"`/`"mcmc"` or θ₀ = 0 — the settle-at-construction complement to D14's
+runtime cold-start diagnostic (see the cold-start resolution in Open Questions).
 
 The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
 layers, per layer × flavor rate and choice formulas, θ the concatenation across all
@@ -138,11 +157,13 @@ Three constructor families, each returning an object with `init(spec, waves, con
   RSiena-studied insert/delete excursion moves remain future extensions, D16;
   prototype `permuteChainSample()`). Contract:
   `augment(data_window, theta, control) → sequence(s)`, where `data_window`
-  carries the full wave span — snapshots at every wave, per-interval flip sets,
-  and the observed (modeled and exogenous) event streams — since the MCMC chain
-  is global over the whole sequence (D19). Every returned sequence MUST hit every
-  wave snapshot exactly and reports its **log proposal density over the full
-  generative path** (D20), stored permanently with the sequence (D14). The MCMC
+  carries the full wave span — snapshots at every wave, the compiled shared
+  `augmentation_recipe` (D22), and the observed (modeled and exogenous) event
+  streams — since the MCMC chain is global over the whole sequence (D19). Each
+  augmenter reads the shared static recipe and keeps only a light **mutable
+  per-draw cursor** over it (D22). Every returned sequence MUST hit every wave
+  snapshot exactly and reports its **log proposal density over the full generative
+  path** (D20), stored permanently with the sequence (D14). The MCMC
   augmenter additionally receives an injected proposal-evaluator closure at
   `init()` (D20) — it never touches the evaluator's pool API.
 - **Evaluators** — `evaluate_sequence_pool(pool, theta, what = c("loglik", "score",
@@ -175,44 +196,249 @@ encoding — the memory-efficient representation), so a multivariate spec's pool
 evaluates through the same contract without a separate assembly path. Rate/probability
 computation at a given process state reuses the estimation kernels (the same
 `process-state-evaluators` the walk handle's `walk_evaluate()` wraps), replacing the
-prototypes' hand-rolled `getDyNAMRates()`/`getDyNAMChoices()`. This is the
-`evaluate_model()` `make-multivariate-spec` D6 assigns to this change (E-step
-evaluation), built on that change's walk substrate. The B1 spike (K ∈ {10, 100, 1000, 10000}
+prototypes' hand-rolled `getDyNAMRates()`/`getDyNAMChoices()`. This is
+`evaluate_sequence_pool()` (D2), built on the `walk_evaluate()` substrate
+`make-multivariate-spec` D6 landed. The B1 spike (K ∈ {10, 100, 1000, 10000}
 sequences on the packaged `social_evolution` dataset, wall time + peak RSS,
 R-loop-per-sequence vs batched C++) confirms or revises this before the evaluator
 phase. *Rejected:* per-spec R calls as the engine
 (sugar only — K×event-loop overhead in R); gather-format pools (the stacked event rows
 duplicate what broadcasting avoids; no collective-estimation gain, OQ A1/B1 answers).
 
-### D4 — Pool storage: in-memory flat objects; ~5 GB acceptance; DBI spill fallback **[spike-gated]**
-The pool is an in-memory list of flat preprocessed objects. Acceptance threshold
-(updated from the OQ B3 answer's original ~2 GB): pools of 100–1000 sequences at the
-scale of the packaged `social_evolution` dataset stay under ~5 GB (a per-machine
-bound, divided across any parallel workers). Pool growth is bounded per EM iteration
-by D18's retry rule but unbounded across iterations — deliberately no cap argument
-and no warning; the spill fallback is the whole memory story. The B3 spike profiles a grid (n × events × K); if exceeded, the fallback order
-is (1) a broadcast-exploiting on-disk variant of the default format, (2) the existing
-DBI writer — noting its caveat that the gather event stack is itself the memory/disk
-heavy part. No new storage format is invented before the measurements.
+**Two evaluation substrates, not one — do not conflate them.** The phrase "reuses the
+estimation kernels (the same `process-state-evaluators` … `walk_evaluate()` wraps)"
+above collapses two distinct code paths that must stay distinct in the implementation:
 
-### D5 — Full re-preprocess per drawn sequence (OQ B4)
-Each accepted sequence is preprocessed from scratch through the existing recipe path.
-A mutated sequence invalidates statistics from its first perturbed event onward, so
-suffix recomputation approaches full reprocessing in expectation; incrementality is
-premature until the B1/B3 spikes show re-preprocessing dominating the E-step (> ~20%
-rule from the OQ). The initial-state materializer (single-data-object D16) makes each
-wave's starting state cheap to construct.
+- The **augmenter** draws the latent path one event at a time. It reaches
+  rate/probability through `walk_evaluate()` → `evaluate_process_state()`, which is a
+  **pure-R reimplementation** of the per-event math (`stat_mat %*% theta`,
+  `stable_softmax()`, the exact-time hazard) — it makes **no call into `src/`**. It
+  reads the live statistics `walk_fold_engine()` maintains incrementally, so advancing
+  the cursor is O(1) per event. This is the path that replaces the prototypes'
+  `getDyNAMRates()`/`getDyNAMChoices()`.
+- The **evaluator** scores a finished sequence (logLik/score/Fisher over the whole
+  event stream at theta). It reaches the **compiled** `compute_*_selection()` kernels
+  and the `event_reductions.{cpp,h}` primitives — one C++ pass over all events, not a
+  per-event call.
 
-### D6 — RSiena's ML estimator answers the sequence-sampling statistics (OQ B5)
-The proposal-space questions — endpoint-hitting paths (Hamming-length orderings and
-permutations), whether excursion moves (create-then-dissolve inside an interval) enter
-the proposal space, acceptance ratios, identifiability of separate
-creation/dissolution parameters from waves, and MC-error / convergence diagnostics —
-are settled by studying RSiena's MLE sampling code and re-implementing the applicable
-moves under the augmenter contract. The Phase-1 study task produces a written note
-(`.plan/DyNES/rsiena_mle_notes.md`) mapping RSiena's moves onto the augmenter/evaluator
-contracts; ideas are re-implemented, no code is copied (both packages are GPL-3, but a
-clean re-implementation against our contracts is required regardless).
+The two implementations of the same per-event math are pinned together at 1e-10 by the
+consistency test (`test-process_state_evaluators.R`, extended to the multi-event walk
+by `test-walk_handle.R`). That pin is a **reused correctness contract**, not merely a
+regression guard: the augmenter's proposal density `q` (R mirror) and the evaluator's
+target density `f` (C++ kernel) must agree fid-for-fid or the D14 importance weights are
+silently wrong, and that agreement is exactly what the pin already guarantees. DyNES's
+batch-vs-replay test (task 3.5) extends the same pin; it does not re-establish it.
+
+Corollary — the evaluator's only genuinely new C++ is the **K-loop batching wrapper**
+over the pool; the per-event math is 100% reuse of code that already clears the 1e-6
+baselines. The **decode-one-event-and-reduce-without-materializing-the-dense-stat-matrix
+fusion** (`apply_broadcast_updates` + `event_score_row`/`accumulate_event_information`)
+is a *conditional* second piece, built only if the B1 spike shows the dense-gather pool
+losing on memory; until then the batching wrapper over the existing dense path is the
+baseline (this is the Option A/B/C fork task 1.1 measures).
+
+**The gather stack `stat_all_events` IS the dense expansion, and it is θ-free.** The
+kernels do not consume the compact flat/broadcast form: `gather_()`
+(`gather_sender_model_r` and siblings) replays the flat updates into a live dense
+`stat_mat` incrementally (cheap, O(1)/event) but then `.gather_reduce`s and `rbind`s the
+risk-set rows into `stat_all_events` — the `Σ_e |risk_set_e| × p` stack D3 lists as the
+*rejected* pool format. So "the pooled unit is the merged walk's per-fid flat output …
+without a separate assembly path" describes only **storage**: the kernel still eats the
+expanded stack, and the expansion runs per sequence. Crucially `stat_all_events` never
+touches θ (`parameters` enters only as the kernel's `stat_all_events %*% theta`), so the
+pool can store the **compact flat** and expand-and-discard one sequence at a time — peak
+memory `K × compact + 1 × transient dense stack`, not `K × dense stack`. D4's
+memory blow-up therefore comes **only from caching the expanded stacks**, never from the
+pool itself.
+
+Because reweighting re-evaluates every pooled sequence at each new θ, the θ-free property
+turns D3/D4/B1/B3 into one **cache-vs-recompute triangle**:
+
+| variant | memory (K seqs) | per-EM-iteration cost |
+| --- | --- | --- |
+| A. cache dense stacks | K × heavy stack | GEMV only (fast reweight) — the D4 blow-up |
+| B. cache compact flats, re-expand in R | K × compact + 1 transient | re-expand in R every iteration |
+| C. cache compact flats, fuse decode-reduce in C++ | K × compact | decode-reduce in C++, no dense stack ever |
+
+Option C is the decode-reduce fusion above — the only path both light **and** free of
+re-paying R expansion each iteration. B1 is really measuring A vs B vs C, with the
+EM-iteration reweighting (not the one-shot score) as the tiebreaker: that is where a
+cached stack's GEMV beats a recomputed one, and where C's C++ decode beats B's R `rbind`.
+See D14 — its "θ-free broadcast statistics object (the expensive part … re-reduced at
+each new θ)" is concretely this `stat_all_events` expansion; the caching decision there
+and the engine decision here are the same object seen from two rooms.
+
+**But the triangle collapses to Option A for the DyNES estimand — the fusion is
+deferred, not merely conditional.** The A/B/C tradeoff turns on the gather stack being
+heavy, and that is **family-dependent** (`.gather_reduce` + the three gather assemblers):
+
+| family | per-event expand | rows stored / event | stack footprint |
+| --- | --- | --- | --- |
+| choice (receiver\|sender) | none (slice n2 rows) | ~n | O(events · n · p) — thin |
+| rate (sender) | `.gather_reduce`, O(n²·p) | ~n | O(events · n · p) — light |
+| dyad (REM / DyNAM-MM) | all present dyads | up to n² | O(events · n² · p) — **heavy** |
+
+Only the **dyad-indexed** family stores O(n²) rows/event — the sole memory blow-up
+Option C exists to avoid. DyNES estimates each flavor as a DyNAM **rate × choice**
+competing process (`dynes-estimation` spec: "each modeled layer × flavor carrying rate
+and choice formulas"), i.e. the two **light** families; the heavy dyad family (REM /
+coordination) is **not on the panel-state critical path**. So the pool footprint is
+**O(K · events · n · p) — linear in n, not quadratic**, and:
+
+- **choice**: thin stack → caching (A) is trivially cheap;
+- **rate**: stored output is only ~n rows but `.gather_reduce` is O(n²·p), so caching the
+  *reduced* n×p stack (A) is both light in memory **and** skips the reduce — A dominates
+  B (re-pays the reduce) and C outright.
+
+Therefore for DyNES v1 the engine is **Option A**: loop `compute_multinomial_selection`
+(choice) and `compute_poisson_selection` (rate) over cached, θ-free, reduced gather
+stacks, θ reweight as their internal GEMV — zero new kernels, one batching wrapper. The
+**decode-reduce fusion (Option C) is deferred**: it has no rate/choice justification and
+becomes relevant only if a REM-flavored panel layer is ever in scope. B1's dyad-indexed
+large-n cell is a bandwidth-ceiling / future-proofing probe, **not** a gate on the v1
+engine decision — the actor-oriented rate+choice cells are the load-bearing measurement.
+
+### D4 — Pool storage: in-memory flat objects; budget set by measurement; DBI spill fallback **[spike-gated]**
+The pool is an in-memory list of flat preprocessed objects. There is **no fixed byte
+threshold in this decision**: the OQ B3 answer's original ~2 GB and this design's
+later ~5 GB both anchored to the pre-`make-multivariate-spec` heavy preprocessed
+representation, which no longer exists on this path — D3 evaluates over the broadcast
+(`stat_mat_update` + pointers) representation, whose footprint is far lighter and
+scales along too many axes (n × events × K × #modeled fids × effect count) for a
+single per-machine scalar to bound honestly. Acceptance is therefore **empirical**:
+the pool fits the available (or a configured) memory budget as measured by the B3
+spike on the broadcast representation, divided across any parallel workers. Pool
+growth is bounded per EM iteration by D18's retry rule but unbounded across iterations
+— deliberately no cap argument and no warning; the spill fallback is the whole memory
+story. The B3 spike profiles a grid (n × events × K) and sets the practical target; if
+the budget is exceeded, the fallback order is (1) a broadcast-exploiting on-disk
+variant of the default format, (2) the existing DBI writer — noting its caveat that
+the gather event stack is itself the memory/disk heavy part. No new storage format is
+invented, and no threshold is fixed, before the measurements.
+
+### D5 — Full re-preprocess per sequence entering the pool (OQ B4)
+Each sequence entering the pool is preprocessed from scratch through the existing
+recipe path. A mutated sequence invalidates statistics from its first perturbed event
+onward, so suffix recomputation approaches full reprocessing in expectation;
+incrementality is premature until the B1/B3 spikes show re-preprocessing dominating
+the E-step (> ~20% rule from the OQ). The initial-state materializer
+(single-data-object D16) makes each wave's starting state cheap to construct.
+
+**Per-wave start states are materialized once, not per draw.** Because every augmented
+sequence hits every wave snapshot exactly (endpoint-hitting, D8/D20), the full process
+state *at* each wave is identical across all sequences and all EM iterations, and is
+θ-free — only the between-wave paths differ. The per-wave start states are therefore
+materialized once (via the D16 materializer) and cached in the static
+`augmentation_recipe` (D22), shared by every sequence's re-preprocess rather than
+reconstructed per draw; only the θ-dependent re-preprocess of each drawn between-wave
+path is per sequence.
+
+**Per-wave-window preprocessing is also a correctness mechanism, not only a
+performance one — it makes the trailing compensator automatic.** The rate kernel scores
+`−Δt·Λ` on every interval including the event-free trailing stretch `[t_last, t_{m+1}]`
+(D20 invariant 3), but the merged-walk right-censoring contract inserts RC boundaries
+only at **modeled events** (cross-process) and **covariate events** — a panel wave time
+is neither, so no existing rule emits an interval there. If each between-wave path is
+preprocessed as its own observation **window** anchored at the D5 per-wave start state,
+then `t_{m+1}` *is* that window's end and the ordinary end-of-observation right-censoring
+preprocessing already performs emits the trailing `−Δt·Λ` with **no new RC logic**.
+Endpoint-hitting makes the RC row's statistics consistent (the augmented state at
+`t_{m+1}⁻` equals the observed snapshot); only `Δt` is augmentation-specific, and the
+window-end rule owns `Δt`. The alternative — preprocessing the whole multi-wave sequence
+as one stream with waves as interior points — would require **explicitly injecting an
+interior-wave RC boundary for every timed rate fid at every wave time** (new behavior,
+its own test), and is easy to get wrong precisely because the merged-walk RC contract
+*looks* complete. So the per-wave-window choice is load-bearing for D20 invariant 3, not
+just for cheap start states / θ-free caching.
+
+**MCMC caveat (interacts with D20).** For `augment_seq_mcmc()` this "from scratch"
+pass is a *second* preprocess of a sequence the D20 proposal evaluator already
+preprocessed once inside the accept/reject step (to get `f(Ω′)` for the MH ratio). So
+for MCMC draws the pool-entry re-preprocess is redundant with a pass already paid; for
+`random`/`sim` draws — which never evaluate a likelihood to generate — it is literal
+and unavoidable. This redundancy is exactly the D20 cache open question (whether the
+proposal evaluator's return value becomes a pool-entry cache), and the MCMC path is
+the case that tips it toward **reuse**: the preprocessed object and log-likelihood of
+a retained draw are already in hand.
+
+**Why the reuse is retain-vs-discard, not a recompute gamble.** The pool entry splits
+into a **θ-free broadcast statistics** object (sequence-specific, the expensive part —
+the same object cross-iteration reweighting re-reduces at each new θ under D14) and a
+**θ-dependent loglik at θ_ref** (a cheap reduction on top, one field of D14's permanent
+triple). The target `f(Ω′)` is `statistics · θ` reduced over the whole path, so
+evaluating it **necessarily materializes the full statistics** — there is no
+likelihood-only shortcut that skips them (the D20 frozen-rate simplification touches
+only the *proposal* density `q`, never the target `f`). Hence caching is purely a
+memory decision (retain the object vs discard it), never extra computation: reuse
+**cannot** be CPU-worse than D5, it strictly deletes the second preprocess. And for an
+MCMC retained draw θ_ref = θ_k, the iteration it was drawn in, so the accept/reject
+step produces **both** fields of the permanent record at exactly the θ that becomes
+θ_ref — D5's "from scratch" recomputes a record already in hand.
+
+Resolution stays gated on the D20 note; D5's baseline "from scratch" is the worst case,
+not a mandate to recompute what MCMC already holds. What gates it is not cost but the
+two conditions in D20's note: widening the `eval_fn` return contract (which crosses the
+abmcem carve-out seam) and asserting the evaluator's statistics layout is identical to
+D4's pool/gradient representation.
+
+### D6 — RSiena's ML estimator informs the sequence-sampling statistics (OQ B5) — **v1: de-scoped to a written justification + optional cross-check**
+The proposal-space questions this decision opened — endpoint-hitting paths
+(Hamming-length orderings and permutations), whether excursion moves
+(create-then-dissolve inside an interval) enter the proposal space, acceptance ratios,
+and MC-error / convergence diagnostics — **are already settled in this design**: the v1
+move set (permute + shift), its windows, proposal densities, and the
+`α = [f(Ω′)/f(Ω)]·[q_rev/q_fwd]` acceptance ratio are fully specified in D20; the
+diagnostics feed D15/D18's `em_trace`. Reading RSiena's code is therefore **not a v1
+prerequisite** — it is downgraded from a gating study to (a) a short **written
+justification** that the v1 move set is complete for DyNES's estimand (below) and (b) an
+**optional** acceptance-ratio cross-check against a known-correct implementation. The
+identifiability question moves entirely to the simulation recovery study (**task 6.2**),
+which answers it on DyNES's own estimand rather than by analogy to RSiena's.
+
+**Why the v1 move set needs no increment/reduce (insert/delete) moves.** RSiena's
+insert/delete (excursion) moves change the *number* of ministeps because a tie may
+flicker on-and-off invisibly between its waves. DyNES v1 **excludes that latent path by
+a modeling assumption**: the number of PE events per interval is fixed by the wave diff
+(the Hamming flip set plus same-dyad ordered chains), and net-zero excursions produce no
+events (D8). So the sequence-length-changing moves are not a deferred *implementation* —
+they draw paths outside v1's estimand entirely. Over the resulting **fixed-cardinality**
+space, permute + shift are **ergodic** at the desk: permute swaps any same-wave pair
+`(h,k)` so transpositions generate the full ordering space (modulo chain order), and
+shift covers the time-continuous dimension and single-PE intervals permute cannot reach.
+Insert/delete would only connect *different* event counts — which v1 has none of. This
+is the justification a reviewer will ask for; it is derived here, not extracted from
+RSiena. **Accepted limitation:** the no-excursion assumption cannot represent a genuine
+between-wave flicker; it is the minimal-flip interpretation, recorded as a D16 future
+extension. Skipping the RSiena study forgoes RSiena's *quantification* of that cost, not
+the assumption itself.
+
+RSiena's ML estimator (Snijders, Koskinen &
+Schweinberger 2010, *AoAS*) samples the latent micro-sequence between two observed
+waves by Metropolis–Hastings over **chains of ministeps** (single tie toggles), the
+chain from wave `m` to `m+1` conditioned to carry `x(t_m)` exactly into `x(t_{m+1})` —
+structurally the DyNES "augmented sequence hits every wave snapshot." What is taken:
+
+| RSiena ML move                                | changes #ministeps?          | DyNES v1 fate                                                                                       |
+|-----------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------|
+| permute (reorder a segment)                   | no                           | re-implemented → D20 `permute`                                                                      |
+| moveMiniStep (retime one step)                | no                           | re-implemented → D20 `shift`                                                                        |
+| insertPermute / deletePermute, insertDiagonal | **yes** (± a canceling pair) | deferred — these are the excursion moves (net-zero within an interval, D8/D16 future extension)     |
+| insert/deleteMissing                          | yes                          | out of scope (no missing waves, non-goal)                                                           |
+
+So the order/retime moves are re-implemented and the insert/delete (excursion) moves
+are deliberately deferred. Also re-implemented as *concepts*: endpoint-conditioned MH,
+the acceptance ratio's proposal-probability structure, and the diagnostics (per-move
+acceptance rates, statistic autocorrelation, thinning) that feed D15/D18's `em_trace`.
+**Not** taken: RSiena's actor-oriented rate/ministep probability model (DyNES uses its
+own rate/choice kernels), its chain data structures, and the proposal *distributions*
+(D20 uses rate-based truncated-exponential time draws, which the joint likelihood's
+waiting-time densities force anyway). The Phase-1 task now produces the **written
+justification note** (`.plan/DyNES/rsiena_mle_notes.md`) recording the fixed-cardinality
+ergodicity argument above and the deferral of excursion moves; the RSiena code-reading /
+move-mapping cross-check is **optional de-risking** folded into it if the `rsiena` repo
+is on hand, not a blocker. Should the cross-check ever be done, ideas are re-implemented,
+no code is copied (both packages are GPL-3, but a clean re-implementation against our
+contracts is required regardless).
 
 ### D7 — Result contract: Fisher approximation + MC standard errors (OQ B6) **[→ abmcem]**
 ABEM returns the parameter estimates and the Fisher-information approximation
@@ -256,16 +482,36 @@ A coupled RE reader lives on its own mode-pair block (`make-multivariate-spec` D
 and reads the latent layer across a **whole shared mode** (identity-conforming) —
 subset/nested coupling (a mode ⊂ a union containing it) is out of v1 and rejected at
 composition.
-v1 data restrictions: all panel-flagged layers share **one wave grid** (nested grids
-— e.g. yearly surveys plus weekly ones — are a recorded future development); the
-**node set is fixed** over the whole period (composition changes / presence windows
-are a future development); an observed RE falling exactly on a wave time belongs to
-the **earlier** interval (it precedes the snapshot). A modeled panel layer is
-modeled for **all its flavors or not at all** — partially specified layers abort
-(D19); a fully unmodeled panel layer keeps the existing exogenous change-list
-semantics (state jumps at wave times), untouched. Diffing is a conversion-module
-function also usable standalone (the upstream snapshot-diff-verb proposal to manynet
-remains open and non-blocking).
+v1 data restrictions: all panel-flagged layers share **one wave grid** (nested/
+misaligned grids — e.g. yearly surveys plus weekly ones — are a recorded future
+development, see the V2 note below); the **node set is fixed** over the whole period
+(composition changes / presence windows are a future development); an observed RE
+falling exactly on a wave time belongs to the **earlier** interval (it precedes the
+snapshot). A *modeled panel* layer is modeled for **all its flavors or not at all** —
+partially specified panel layers abort (D19). **By contrast, an RE layer MAY be
+partially modeled**: unmodeled flavors are not an error — they update network state as
+exogenous events while only the keyed flavors are modeled processes (D19; living
+`multivariate-specification` "RE subset modeling stays legal"). A fully unmodeled
+panel layer keeps the existing exogenous change-list semantics (state jumps at wave
+times), untouched. Diffing is a conversion-module function also usable standalone (the
+upstream snapshot-diff-verb proposal to manynet remains open and non-blocking). The
+diff output — flip sets, per-dyad ordered chains, and the injective (from,to)→flavor
+map — is compiled **once at `estimate_dynes()` entry** into the shared
+`augmentation_recipe` that every augmenter reads; that plan, its membership-only
+risk-set boundary, and its cached per-wave start states are specified in **D22**.
+
+**V2 note — multiple panel grids (future development).** When two panel layers are
+observed on *different* grids, sequences remain generable but more constrained. Every
+panel layer's wave times are hard boundaries the one shared global walk must cross, so
+the **union** of the grids partitions the timeline while each layer is pinned only at
+its **own** snapshots. The finer-gridded layer therefore carries *more* restriction on
+its sampling times (its own snapshots chop its free windows short), while the coarser
+layer floats its flips across many fine sub-intervals. Coupling (one layer reading the
+other's latent state) only **sharpens the rates** through the shared state at each
+crossed snapshot — it adds no endpoint constraints: a layer's sampling-time freedom is
+set by the tightness of its *own* grid, independent of the other's. This makes the
+nested-grid extension a matter of unioning boundaries into the wave-diff and
+per-interval windowing, not new estimand machinery.
 
 ### D9 — Augmenters are external drivers of the `multi-process-walk` handle
 The stepping substrate is `make-multivariate-spec`'s walk handle, not a callback
@@ -285,6 +531,8 @@ The augmenter-side risk-set restriction (observed pairs with remaining
 support-applicable events, D20) happens **in R**: the driver reads the
 `walk_evaluate()` rate/choice vectors and subsets + renormalizes — no risk-set mask
 argument is added to the C++ kernels in v1 (worth revisiting only at large n, D11).
+The static `augmentation_recipe` (D22) supplies only the flip *membership* universe;
+this R-side `walk_evaluate()` read is the live support applicability.
 Consequently this change **no longer implements a per-event hook in the recipe
 loop** and no longer modifies `preprocess-output-writers` — that capability's
 extension points (sampling writer, parallel chunking) stay documentation-only,
@@ -362,7 +610,7 @@ conditional distribution `p(sequence | endpoints, θ_k)`:
 |----------------|--------------------------------------------|------------------------------------|--------------------------------------------|
 | `"mcmc"`       | ≈ target at θ_k                            | valid within the drawing iteration | likelihood ratio for cross-iteration reuse |
 | `"random"`     | uniform over orderings/times               | **invalid** (mis-weighted E-step)  | required: target / uniform density         |
-| `"simulation"` | sequential model draws, endpoint-distorted | invalid (conditioning bias)        | required: target / product of draw probs   |
+| `"sim"`        | sequential model draws, endpoint-distorted | invalid (conditioning bias)        | required: target / product of draw probs   |
 
 `weighting = "uniform"` is therefore accepted only with `routine = "mcmc"` and only
 while no stale (previous-iteration) sequences remain in the pool (i.e. with
@@ -375,6 +623,13 @@ prototypes' random-draw + equal-weight combination is deliberately not carried i
 the API: it estimates an expectation under the uniform law, not under the model.
 
 ### D14 — Weight state model: per-sequence reference records, refresh, ESS guard **[→ abmcem]**
+The "θ-free broadcast statistics object (the expensive part, re-reduced at each new θ)"
+this decision refers to is concretely the gather-stack expansion `stat_all_events` that
+`gather_()` builds (see the D3 note): pure statistics, no θ, `Σ_e |risk_set_e| × p`.
+"Re-reduced at each new θ" is the kernel's `stat_all_events %*% theta` GEMV. So D14's
+retain-vs-discard caching decision and D3's cache/re-expand/fuse engine decision are the
+**same object seen from two rooms** — resolve them together, not separately.
+
 Every pooled sequence permanently stores the triple **(θ_ref, log-likelihood at
 θ_ref, log proposal density)** — for MCMC draws the last two coincide (the only
 tractable "proposal" is the target the chain converged to). Weights are kept on the
@@ -401,6 +656,19 @@ Two staleness defenses, one code path:
   Warnings: when the guard is disabled but the condition is met anyway, and when
   the guard fires (informing that new draws are generated); never at startup.
 
+**Cold-start diagnostic — distinct from the guard [→ abmcem].** The "never at
+startup" rule above silences the *recurring* ESS-guard warning at iteration 1, where
+low ESS is expected and a redraw is pointless (see the cold-start resolution in Open
+Questions). It must **not** silence a genuinely pathological cold start: a **one-shot**
+diagnostic — a different message from the guard warning — fires when the startup ESS
+falls below a hard **pathology floor** (well under the 0.5 guard, e.g. ESS/K in the
+"a handful of sequences carry all the weight" range), naming the proposal/target
+mismatch and the levers (`routine = "sim"`/`"mcmc"` with `initialize = "sim"`, or
+θ₀ = 0). It is a diagnostic only — it never redraws (a uniform redraw is statistically
+identical) and never grows the pool. At the default θ₀ = 0 the `random` proposal is
+near the target, so this diagnostic stays quiet on the default path; it earns its keep
+on the `random` + non-zero-θ₀ corner D1 also guards at construction.
+
 Refresh and ESS-triggered redraws share one implementation — warm-started chains
 (D16). **Resample-then-mutate** (particle-filter resample-move: O(K) weighted
 resampling, then a few mutation moves to break duplicates) is recorded as a future
@@ -423,6 +691,16 @@ Under MCMC draws the ASE treats sequences as **independent given the thinning**;
 the augmenter records an autocorrelation index and basic chain statistics into the
 `em_trace`, with a user-facing suggestion to increase `thinning` when the index is
 high — no autocorrelation-corrected ASE method in v1.
+
+**Carve-out seam (who builds the classed object).** The classed E-step object itself —
+its class tag (`estep_is` / `estep_resampling` / `estep_uniform`) and the per-sequence
+quantities + weights it carries — is **constructed by this change's evaluator**
+(`evaluate_sequence_pool()`, task 4); it is the evaluator's return type, not a wrapper
+abmcem adds. `compute_q()` and `compute_ase()` — the generics that dispatch **on** that
+class — are `abmcem`'s (the accept/grow/stop machinery consumes them). So this change
+owns the object and its class contract; abmcem owns the methods that read it. The
+`sequence-augmentation` spec states the classed return; abmcem's spec states the
+generics.
 
 ### D16 — MCMC chain lifecycle: warm starts, burn-in at every restart
 The first chain initializes per `initialize`: a random endpoint-consistent draw
@@ -559,7 +837,14 @@ Shared rules: augmented sequences span [first wave, last wave]; sampled times li
 **open** intervals strictly between their anchors (with a numerical guard against
 equaling an anchor after rounding); every wave snapshot is hit by construction; log
 proposal densities are accumulated over the **full generative path**, on the log
-scale, and stored with the sequence (D14).
+scale, and stored with the sequence (D14). Endpoint-hitting being guaranteed by
+construction, production **trusts** it — the endpoint validator runs in tests and an
+opt-in debug path, never as a per-draw state-replay on the hot path. Each augmenter
+draw is a **pure function of an injected substream state**: the augmenter is keying-
+agnostic (it neither knows nor chooses the RNG substream it consumes), which keeps
+draws reproducible across worker counts and unit-testable in isolation (inject a known
+state → deterministic sequence). The map seam owns the keying = `(iteration,
+draw_index)` and the index-ordered reduction (resolved open question; abmcem D10).
 
 - **`augment_seq_random()`** — per interval of length L with n flips: draw n iid
   uniform times, then within each same-dyad ordered chain (length c_j, D8)
@@ -580,6 +865,20 @@ scale, and stored with the sequence (D14).
   time from a **truncated exponential** — the selected pair's rate, support
   (0, next anchor − t) with anchor = min(next unplaced RE time, wave end) — by
   inverse CDF (never rejects). Repeat until every flip is placed.
+
+  **Tied observed REs.** "Globally-next unplaced modeled RE" is well-defined even when
+  two observed REs share a timestamp: they are the **only** tie an augmented sequence can
+  carry (a sampled PE never equals an anchor by the open-interval guard above; PE–PE
+  draws tie with probability zero), and they are forced **adjacent** — once the first is
+  placed at `t`, the next anchor is the second (also `t`) and any remaining PE's support
+  (0, next anchor − t) collapses to `∅`. Their mutual state-fold order is **fixed input,
+  not sampled**: DyNES neither invents a tie-break rule nor draws the order — it consumes
+  the observed event stream's order, the quantity the `tied-event-times` change makes
+  explicit and user-controllable. The one local requirement is that the augmenter (`q`)
+  and the evaluator (`f`) fold state over tied observed events in **identical** order, or
+  the importance weight `f/q` is silently wrong though either order alone is a defensible
+  fit — a special case of the `q`/`f` agreement the D3 note already pins at 1e-10, not
+  new machinery.
 - **`augment_seq_mcmc()`** — one global chain over the whole sequence; moves
   restricted within one wave; retained draws thinned in sweeps (D1); generation
   serial in v1 (D10). Two move types, mixed by `move_probs` (state-independent,
@@ -625,10 +924,100 @@ scale, and stored with the sequence (D14).
   θ_k is baked in (no stale-θ hazard), and tests stub `eval_fn` with an analytic
   toy likelihood to verify the chain's acceptance logic and detailed balance with
   no preprocessing at all. *Note for further discussion (not contract)*: a
-  retained draw's preprocessed object and log-likelihood were just computed inside
-  the accept/reject step and could enter the pool without re-preprocessing;
-  whether the closure's return value becomes a pool-entry cache is deliberately
-  left open.
+  retained draw's preprocessed statistics and log-likelihood could enter the pool
+  without re-preprocessing, feeding directly into that member's D14 permanent record
+  (the `loglik@θ_ref` field and the θ-free broadcast statistics, with θ_ref = θ_k).
+  The reused pair is **not** "the last proposal's return value" — the retained state
+  after thinning is the chain's *current accepted* state, which may have been accepted
+  several rejects before the thinning point. The invariant is a chain-loop one:
+  `(current_stats, current_loglik)` are adopted together on accept and held together
+  across rejects (the proposal's freshly computed pair is discarded on a reject), then
+  frozen into the pool at the thinning point. `current_loglik` is already a required
+  cache — the MH ratio needs `f(Ω)` in its denominator every step — so only the
+  statistics object is newly retained, at O(1) live chain memory (the pool already
+  holds K such objects). Two conditions gate turning this into contract: (1) the
+  `eval_fn` return must widen from `(loglik, rates)` to also surface the statistics
+  handle, which crosses the abmcem carve-out seam below; (2) that statistics layout
+  must be asserted identical to D4's pool/gradient representation (else a cheap layout
+  adapter, still far below a full re-preprocess). Whether the closure's return value
+  becomes a pool-entry cache is deliberately left open for v1 — gated on coordination, not
+  on cost (see D5's MCMC caveat: reuse is retain-vs-discard, never CPU-worse than D5).
+  **D23 enumerates the alternatives (A0–A3) and sets the direction:** v1 ships the A0
+  from-scratch baseline; the source-agnostic optional-attachment shape (A3) is the
+  recommended fast-follow, and the accepted-not-last-proposal invariant above is its
+  correctness guard.
+
+  **Carve-out seam (who builds `make_proposal_evaluator()`).** The closure wraps a
+  single-sequence preprocess + one likelihood pass with the named-pair rate-at-position
+  query — i.e. **this change's** evaluator primitive (the `compute_lik_seq()` / batched
+  `evaluate_sequence_pool()` machinery of D2/D3, task 4). But it is *built* — θ_k baked
+  in, one per EM iteration — and *injected into the augmenter's `init()*` by **abmcem's**
+  EM loop (D18). Division: this change ships the single-sequence evaluation + rate-query
+  primitive; `abmcem` constructs the θ_k-closed `make_proposal_evaluator()` over it and
+  owns the injection wiring. Tests here stub `eval_fn` with an analytic toy likelihood
+  (no preprocessing) to verify the chain's acceptance logic and detailed balance
+  independently of either side of the seam.
+
+**Three time-domain invariants (rate family) — the compensator couples the augmenter to
+the kernel.** The rate kernel scores each interval as
+`ℓ_e = log λ_obs − Δt_e · Λ_e` (`compute_poisson_selection`: `intervalLogL = −timespan·Σλ
++ [dependent]·lin_pred_obs`), so the augmented **times**, not merely their order, enter
+the target `f`. That imposes three invariants every augmenter and the evaluator MUST
+jointly satisfy, or the importance weights `f/q` are silently wrong:
+
+1. **`q` is a density over event times, not a probability over orderings.** The weight is
+   a ratio of time-densities. `augment_seq_random`'s uniform draws still count: its
+   reported `Σ_j log(c_j!) − n·log L` is the uniform order-statistic density (jacobian
+   included), a valid `q` even though the times are model-inconsistent — reweighting
+   corrects them, at higher variance.
+2. **The waiting-time rate is the walk handle's `Λ` — the time-domain fid-for-fid pin.**
+   `sim`/`mcmc` draw truncated exponentials at the *same* `Λ` the compensator uses
+   (`walk_evaluate()` → `.pse_eval_rate`, pinned R↔C++ at 1e-10). Draw times from any
+   other rate and `q` diverges from `f` exactly where it is least visible (weights still
+   normalize; they are just biased).
+3. **The trailing censored interval `[t_last, t_{m+1}]` is a non-cancelling term in both
+   `f` and `q`.** `intervalLogL = −Δt·Λ` fires on **every** interval including
+   `is_dependent = 0`, so the elapsed event-free stretch to the wave endpoint contributes
+   `−Δt·Λ` to `f` and a survival term to `q`. Both the merged walk/evaluator (must *emit*
+   that interval) and the augmenter (must *account* for it) carry it; dropping it removes
+   a term that does **not** cancel in the ratio (different `Λ` under target vs proposal).
+   This is the likelihood-side load on the merged single-clock walk's right-censoring
+   contract.
+
+**Choice is compensator-free.** `compute_multinomial_selection` takes no `timespan`; the
+choice fid is pure softmax. In the rate×choice decomposition one augmented tie flip feeds
+**both** fids — its (time, sender) score through the rate compensator, its receiver
+through the choice softmax — so the augmenter draws one `(time, sender, receiver)` tuple
+and `q` is the **joint** over it. Building `q` per-fid and multiplying risks omitting the
+time factor from the joint or double-counting the shared draw.
+
+**Proposal and target normalize over DIFFERENT sets — deliberately; that gap is what
+`f/q` corrects.** The proposal `q` and target `f` do **not** share a risk set, and it is a
+mistake to try to make them equal. The proposal (`sim`/`random`) normalizes over the
+**endpoint-restricted observed-flip set** — the remaining flips in the wave's Hamming
+diff, "restricted and renormalized in R" (the `augment_seq_sim` bullet above) — because
+drawing anything else would break endpoint-hitting. The target `f` (the evaluator's gather
+risk set) normalizes over the **full structural support**: every structurally-possible
+flip at that state, including flips no wave ever observes.
+
+Example: sender `s`, between waves, with `s→j3` observed `0→1` and `s→j2` unchanged at `0`.
+At the step placing `s→j3`, the choice **likelihood** denominator is `{j2, j3, …}` — every
+currently-absent tie is a counterfactual creation the model weighs — but the **proposal**
+denominator is `{j3}` alone (`j2` never changes across the wave, so it is not an
+augmentation candidate). The rate fid restricts the same way: `q`'s sender set is senders
+with a remaining observed flip, while `f`'s compensator `Δt·Λ` integrates the hazard of
+**every** structurally-at-risk sender, endpoint-inconsistent "wrong-way" flips included.
+
+So the relationship is a strict restriction `q`-set ⊊ `f`-set, and the only quantity
+**shared** across the seam is the placed flip's **numerator** rate/prob (the density pin —
+`rate(j3)` computed identically on both sides). The denominators differ by construction:
+`q` divides by `Σ_{observed} rate`, `f` by `Σ_{full support} rate`, and the importance
+weight is exactly that accumulated ratio — which is why even the model-driven `sim`
+augmenter has `f/q ≠ 1`. Hard requirements: (a) every observed flip is in the full support
+(trivially true — an observed `0→1` is a legal creation, so `q`-set ⊆ `f`-set always
+holds); (b) each side computes **its own** normalizer over **its own** set; (c) the
+recorded `q` is the restricted-set density, so the weight is `f_full / q_restricted`.
+There is **no** "sets must be equal" invariant.
 
 *Rejected:* uniform time draws in the MCMC windows (the background note's simple
 acceptance ratio f′/f is exact only for uniform non-adjacent swaps; rate-based
@@ -645,7 +1034,8 @@ the evaluator scores both halves. That completion — filling a half-specified
 flavor's missing sub-model with its zero-information default (uniform choice /
 uniform ordered rate; intercept-only baseline for a missing timed rate) and
 warning once, erroring only when a **modeled panel** layer omits a flavor entirely
-(the "all flavors or not at all" rule, D8/D19) — is owned by `make-multivariate-spec`
+(the "all flavors or not at all" rule — panel layers only; RE layers may be partially
+modeled, D8/D19) — is owned by `make-multivariate-spec`
 **D9** and consumed here, not re-derived.
 
 The decisive constraint this change imposes on D9: **only `augment_seq_sim()` drives
@@ -660,6 +1050,119 @@ the augmenters and the evaluator agree fid-for-fid. `make_proposal_evaluator(spe
 baseline hazard), so the result (D7) reports every auto-supplied sub-model. This
 supersedes any reading of D2/D20 in which an augmenter completes its own spec.
 
+The landed `complete_generative_spec(joint_spec, consumer, wave_times, call)` takes
+`wave_times` as the K+1 period boundaries a timed rate's pin buckets on. `estimate_dynes()`
+MUST supply the panel wave grid this change's wave diffing (D8) already holds — the same
+boundaries used to diff waves into flip sets — as that argument when calling
+`complete_generative_spec(spec, consumer = "estimate_dynes", wave_times = <wave grid>)`;
+omitting it silently falls back to a single window spanning the data's event times, which
+degrades a multi-wave pin to one flat plateau. This is the `abmcem`-shipped surface's
+responsibility to wire (task 6.1), sourced from this change's panel data path.
+
+### D22 — The `augmentation_recipe`: one static plan shared by every augmenter
+The wave diff (D8), the per-dyad chains, the flavor map, and the per-wave start states
+are all **θ-free and sequence-free** — they depend only on the observed wave snapshots,
+so they are constant across every EM iteration and every drawn sequence. This change
+compiles them **once, at `estimate_dynes()` entry**, into a single shared
+`augmentation_recipe` and gives every augmenter a read-only handle on it plus a light
+**mutable per-draw cursor** — the same static-plan / mutable-state-container split the
+recipe loop already uses for preprocessing (D9; `preprocess_builders.R`). The plan
+holds:
+
+- **flip sets** per between-wave interval and the **per-dyad ordered chains** (a >1-step
+  change decomposed, D8);
+- the **injective (from,to)→flavor map**, validated **exactly once** here — D8 requires
+  injectivity, and validating on the shared plan gives that check one home instead of
+  one per augmenter;
+- the **risk-set membership universe** — *which* dyads flip and in what chain order,
+  **membership only**: live support applicability (a 1→2 flip is legal only once its
+  dyad sits at 1) is **not** encoded here; it comes from `walk_evaluate()`'s masks at
+  the current state (D9), so the recipe and the walk never carry two support views that
+  can disagree;
+- the **same-wave pair/constraint graph** the MCMC moves enumerate over (D20);
+- the **per-wave start states**, materialized once (D5/D16): because every augmented
+  sequence hits every wave snapshot exactly (D20), the process state *at* each wave is
+  identical across all sequences, so it is materialized once and shared by every
+  sequence's re-preprocess rather than reconstructed per draw.
+
+Each augmenter's mutable cursor is small — `augment_seq_sim()`'s remaining
+support-applicable counts, `augment_seq_mcmc()`'s live pred/succ windows over the
+current order, `augment_seq_random()`'s per-interval draw scratch — and no augmenter
+mutates the shared plan. The single shared wave grid is a v1 bound; multiple/nested
+panel grids (D8's V2 note) extend the plan by unioning boundaries, not by changing this
+contract. *Rejected:* each augmenter reading raw snapshots and re-deriving the diff per
+sequence (the prototype shape — repeats θ-free work every iteration and gives the
+injective-map validation no single home); baking support applicability into the recipe
+(two support views to keep consistent, D9).
+
+### D23 — MCMC retained-draw pool reuse: alternatives and the v1 default **[deferred; seam-gated → abmcem]**
+The D5 MCMC caveat and the D20 evaluator-injection note leave one question open: how a
+retained `augment_seq_mcmc()` draw enters the pool, given that computing its acceptance
+ratio *already* materialized its θ-free statistics stack and its `loglik @ θ_k`
+(evaluating `f(Ω) = stat_all_events · θ_k` cannot skip the statistics — D5). Reuse is
+therefore **retain-vs-discard, never CPU-worse than D5** (it strictly deletes the second
+preprocess) and **memory-neutral** (the pool holds one copy of the stack either way; the
+live cost is one accepted-state stack held to the thinning point, O(1) against the pool's
+K). The question is not cost but contract shape. The alternatives:
+
+- **A0 — from-scratch re-preprocess (the D5 baseline).** Discard the chain's stack;
+  preprocess the retained sequence fresh at pool entry. One code path shared with
+  `random`/`sim`, no seam crossing, no layout coupling — but a redundant full preprocess
+  per retained MCMC draw per EM iteration. **This is the v1 default** (and the only option
+  for `random`/`sim`, which never compute a target `f`).
+- **A1 — reuse via a widened return contract.** `eval_fn` widens from `(loglik, rates)` to
+  `(loglik, rates, stats_handle)`; the augmenter freezes the *accepted* state's
+  `(stats, loglik)` into the D14 record at the thinning point with θ_ref = θ_k. Gated on
+  (a) widening the return across the abmcem seam and (b) asserting the handle's layout
+  equals D4's pool/gradient representation. Condition (b) is nearly free: the chain's `f`
+  routes through `compute_lik_seq()`, the per-sequence sugar over the **same** batched
+  kernel the pool uses (D2/D3), so both emit the D3 Option-A reduced gather stack by
+  construction — a test pin, not a converter.
+- **A2 — reuse with a layout adapter.** A1 without requiring byte-identical layout: a
+  cheap adapter maps the evaluator's internal statistics layout to D4's pool
+  representation (still ≪ a full preprocess). The hedge if the spikes reveal incidental
+  layout drift (ordering/padding) between the two paths; it drops gating condition (b).
+- **A3 — source-agnostic optional cache-attachment (recommended shape).** Rather than a
+  `routine == "mcmc"` fork in the pool-write path, the pool-entry contract accepts a
+  sequence *with or without* a precomputed `(stats, loglik@θ_ref)` attachment: adopt it
+  iff present **and** `θ_ref == θ_k` **and** the layout tag matches, else preprocess from
+  scratch (A0). `random`/`sim` carry no attachment and fall through to A0 exactly as they
+  must; MCMC carries one and takes the fast path. One code path, no fork, and it degrades
+  safely — a stale θ_ref or a layout mismatch recomputes rather than corrupts. A3 is
+  A1/A2's mechanism wrapped so the pool is agnostic to which augmenter produced the
+  sequence.
+
+*Rejected:* **cache the loglik only, recompute the statistics** — the loglik is the
+*cheap* reduction (and is already held free as the MH denominator `f(Ω)`); the θ-free
+statistics stack is the expensive object the SGD score (D17) and cross-iteration
+reweighting (D14) both need, so this saves nothing and adds a consistency surface (a
+cached loglik paired with a separately recomputed stack that must correspond to the same
+Ω). Dominated by A1 on every axis. *Also rejected for v1:* **resolving it in the storage
+representation** (the pool stores the compact form and expands on eval — D3 Option B/C) so
+there is no heavy handoff — D3 already fixed the DyNES engine to Option A for the light
+rate+choice families, where re-expansion per θ loses; this only reopens if a REM-flavored
+(dyad-indexed) panel layer ever enters scope.
+
+**The correctness guard, loud (from D20).** Any reuse path (A1/A2/A3) MUST retain the
+chain's **current accepted** state at the thinning point — NOT the last `eval_fn` return,
+which may be a *rejected* proposal. The invariant is chain-loop-local:
+`(current_stats, current_loglik)` are adopted together on accept, held together across
+rejects (the proposal's freshly computed pair discarded on reject), and frozen into the
+pool at the thinning point. `current_loglik` is already required every step (the MH
+denominator), so only `current_stats` is newly retained. Caching "the last proposal's
+stats" is silent corruption, not a missed optimization.
+
+**Carve-out seam (who owns what).** This change owns the statistics-emitting primitive
+(`compute_lik_seq()` / `evaluate_sequence_pool()`, task 4), the pool-entry record
+construction (tasks 4.2/4.3 — where the optional attachment would be adopted), and the
+chain-loop invariant inside `augment_seq_mcmc()` (task 3.4). `abmcem` owns
+`make_proposal_evaluator()` — the θ_k-closed closure whose return would widen to surface
+the stats handle — and its injection into the augmenter's `init()`. So A1/A2/A3 straddle
+the seam at exactly one point (the closure's return contract); everything else is this
+change's. That single seam-crossing is why v1 ships A0 and the reuse is a coordinated
+fast-follow, and why the v1 pool-entry path (task 4.2) is built **attachment-optional** so
+the abmcem-side widening is the only remaining work when A3 lands.
+
 ## Risks / Trade-offs
 
 - **Spike results overturn a gated decision** (batched C++ not worth it; pools blow
@@ -667,9 +1170,10 @@ supersedes any reading of D2/D20 in which an augmenter completes its own spec.
   design-revision task that amends them and the affected specs before later phases
   start.
 - **Identifiability of separate creation/dissolution parameters from sparse waves** →
-  the RSiena study + a simulation-study task quantify it; `summary()` exposes MC error
-  so weak identification is visible, and the simulation study defines guidance for the
-  vignette.
+  the simulation recovery study (task 6.2) quantifies it on DyNES's own estimand, with
+  the optional RSiena cross-check (D6) as supporting prior art only; `summary()` exposes
+  MC error so weak identification is visible, and the simulation study defines guidance
+  for the vignette.
 - **MCMC mixing / augmenter validity bugs produce silently wrong estimates** → the
   toy end-to-end prototype (small n, 2 waves, random augmenter, existing likelihood)
   is kept as a test fixture with known-parameter recovery bounds; endpoint-hitting is
@@ -705,12 +1209,22 @@ package.
 - **[resolved]** How `estimate_dynes()` receives the multi-layer specification
   (D19): it consumes a `make_joint_specification()` object (`make-multivariate-spec`);
   the interim named-list surface is dropped. This change hard-depends on that one.
-- **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
-  evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately
-  not in the v1 contract yet.
-- **[naming]** Component names for the three nested constructors under the
-  settled `set_algorithm_em()` parent — owned by abmcem; the working
-  `set_alg_*` names in D1 rename cheaply before the surface ships.
+- **[direction set — see D23]** Whether MCMC retained draws enter the pool through the
+  proposal evaluator's cache (statistics + loglik reuse into the D14 record, D20 note /
+  D5 MCMC caveat). D23 enumerates the alternatives (A0 from-scratch baseline; A1 widened
+  return; A2 + layout adapter; A3 source-agnostic optional attachment) and sets the
+  direction: **v1 ships A0**, with **A3 the recommended fast-follow** once the abmcem seam
+  is coordinated. Still gated — not on cost (reuse is retain-vs-discard, never CPU-worse
+  than D5) but on the one contract condition that crosses the seam: widening the `eval_fn`
+  return to surface the stats handle (the statistics-layout pin to D4's pool
+  representation is nearly free — the chain's `f` already routes through the pool's
+  kernel). The v1 pool-entry path is shaped attachment-optional so A3 is a drop-in.
+- **[resolved]** Component names for the three nested constructors under the
+  settled `set_algorithm_em()` parent — `set_augmenter_options()`,
+  `set_weights_options()`, `set_sgd_options()` (the `set_<component>_options()`
+  sub-control pattern, distinct from `set_algorithm_<family>()` since these are
+  option bundles, not algorithm objects). abmcem ships the surface and holds final
+  say, but the names are settled here to keep both changes in sync.
 - **[gated by Phase 1]** The D10 thread-budget crossover (when, if ever, BLAS threads
   beat sequence sharding on the large-n cell) — resolved by the B1 spike's
   BLAS × sharding crossing.
@@ -718,3 +1232,83 @@ package.
   default mode, legal writer sinks, exogenous horizon, `max_events` default,
   coordination bookkeeping, θ-uncertainty bands) now live in the `process-simulation`
   change's design; `augment_seq_sim()` consumes whatever that change settles.
+- **[resolved]** Reproducibility across worker counts — **Option B: substreams keyed
+  to the sequence/draw index, not the worker.** The single `seed` (D1) seeds an
+  `L'Ecuyer-CMRG` root (`RNGkind()` set at estimation entry, `withr`-restored on exit)
+  that fans out into three substream families, all derived from the one seed — the
+  mechanical meaning of D1's "one stream governs augmentation, batch selection,
+  resampling":
+  - **augmentation substreams** (`random`/`sim`, K independent draws) — the *only*
+    branch that crosses the map seam. Keyed by a **structured `(iteration, draw_index)`**
+    (not a flat monotone counter): the structure survives D18's dynamic within-iteration
+    pool growth (draw_index simply keeps climbing, substreams spawned lazily) and lets a
+    single pathological draw be regenerated in isolation ("iteration 3, draw 47") without
+    replaying history. Worker identity **never** enters the key, so the drawn pool is
+    identical at any `n_cores`, serial included.
+  - **MCMC chain substream** — one long serial stream on the coordinator, advanced
+    continuously across warm-started iterations (D16). MCMC generation is serial by
+    construction (D10, D16), never crosses the seam, and is therefore worker-count-
+    invariant for free.
+  - **control substream** — coordinator-side, for batch selection and resampling (global
+    pool ops, D14/D17), also seam-independent.
+
+  Cross-`n_cores` bit-for-bit needs **two** guarantees, not one: worker-independent RNG
+  (above) **and** a worker-independent floating-point reduction order — the map seam
+  MUST collect per-sequence results and reduce them in **sequence-index order**, never
+  arrival order, or the M-step sums re-round under a different worker count. The
+  documented promise is therefore **two-part**: (1) the **drawn sequences** are identical
+  across any `n_cores` (pure-R augmenter draws, no BLAS — holds even across machines);
+  (2) the **numeric estimates** are identical across any `n_cores` **on the same
+  machine / BLAS build** (compiled kernels + multithreaded BLAS round per build, so
+  cross-machine bit-for-bit is never promised).
+
+  **Carve-out split (dissolves the "shared with abmcem" awkwardness).** The seam lives in
+  abmcem (D10 → abmcem) but the augmenters live here, so the decision splits cleanly along
+  the seam with no cross-reach:
+  - **This change (D2/D20):** each augmenter draw is a **pure function of an injected
+    substream state**. The augmenter neither knows nor chooses how its substream was
+    keyed — which also makes it unit-testable in isolation (inject a known state → assert
+    a deterministic sequence, the endpoint/density fixtures of task 3.x).
+  - **abmcem (map seam, D10):** owns the keying = `(iteration, draw_index)`, the
+    index-ordered reduction, and the two-part documented promise. Mirrored into abmcem's
+    D10.
+- **[resolved — cold-start weight degeneracy]** The premise is narrower than it
+  looks. At the default θ₀ = **0** the model is (near-)uniform — equal rates ⇒ event
+  times are uniform order statistics, `softmax(0)` ⇒ uniform ordering — which is
+  exactly what `augment_seq_random()` draws (D20). So at the **default** cold start
+  `random` ≈ the target and the weights do **not** collapse. Degeneracy is a property
+  of one specific corner: `routine = "random"` paired with a θ₀ **far from 0** (the
+  D18 warm-start option, or a user-supplied non-zero `initial_parameters`), where
+  uniform draws sit systematically far from `p(sequence | endpoints, θ₀)`. A redraw
+  cannot fix it — resampling uniform gives statistically identical draws — which is
+  precisely why the D14 ESS *guard* (a redraw trigger) is silent at startup; growing
+  the pool (D18) only adds more low-weight draws. The resolution is therefore
+  **diagnose-and-guide, not resample**, on levers already in the design:
+  - a **one-shot cold-start diagnostic**, distinct from the recurring ESS-guard
+    warning, firing only below a hard **pathology floor** (well under the 0.5 guard),
+    naming the proposal/target mismatch and the levers — folded into **D14**
+    (implemented in abmcem);
+  - a **construction-time warning** in `set_algorithm_em()` when `routine = "random"`
+    meets a non-zero warm-start / user θ₀ — folded into **D1**'s cross-object rules
+    (implemented in abmcem);
+  - `initialize = "sim"` (a nearer-target constrained draw, D16) as the sanctioned
+    mitigation **for MCMC**, scoped honestly: `initialize` is the MCMC chain start and
+    has no effect on a standalone `random` run, whose sanctioned cold start is θ₀ = 0.
+- **[resolved]** Tied observed event times during augmentation. The only tie an
+  augmented sequence can carry is **observed-RE ↔ observed-RE**: sampled PE times lie in
+  *open* intervals strictly between anchors (D20 numeric guard), so a PE can never tie an
+  RE anchor, and continuous PE–PE draws tie with probability zero (same-dyad chains are
+  order-assigned regardless). A tied RE pair is forced **adjacent** by construction —
+  once the first is placed at `t`, the next anchor is the second (also `t`), collapsing
+  any intervening PE's truncated-exponential support to `∅`. So the only residual freedom
+  is the tied pair's **mutual state-fold order**, which is **fixed input, not a latent
+  quantity** — DyNES neither breaks ties with its own rule nor samples the order.
+  Resolution: **defer the tie *policy* to the `tied-event-times` change** (it makes the
+  observed order explicit and user-controllable; multiple-imputation-over-orderings is
+  the researcher's job, the shared stance of both changes), and enforce **locally** the
+  agreement invariant that the augmenter (`q`) and evaluator (`f`) fold state over tied
+  observed events in *identical* order — a special case of the D3 `q`/`f` 1e-10 pin, not
+  new machinery. Folded into D20 next to the "globally-next unplaced modeled RE" clause.
+  *Rejected:* sampling the tie order inside augmentation — it conflates two distinct
+  missing-data mechanisms (latent PE path vs. unknown observed order) and corrupts `f/q`
+  for zero statistical gain.

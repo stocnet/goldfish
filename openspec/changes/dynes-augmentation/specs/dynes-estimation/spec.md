@@ -7,10 +7,15 @@ panel-observed data: any number of relational-event and panel-observed layers,
 each modeled layer × flavor carrying rate and choice formulas (per the
 `flavored-processes` capability), the parameter vector concatenating all
 modeled sub-models. `estimate_dynes()` SHALL take a `make_joint_specification()`
-object (`make-multivariate-spec`) as its specification. A panel-observed layer
-modeled as a process MAY be focal under `estimate_dynes()`; event-stream
-estimators SHALL continue to abort on panel focal layers, pointing to
-`estimate_dynes()`. Estimation runs by ascent-based Monte Carlo EM over pools
+object (`make-multivariate-spec`) as its specification. Each composed specification
+carries its own focal/dependent layer, resolved through `make_joint_specification()`
+and the `process_map`, so the joint estimand has one dependent process per composed
+specification — dependent-process designation is **not** read from the data object's
+`info$focal` (that field selects the single dependent stream only on the event-stream
+path). A panel-observed layer that a composed specification models as its
+dependent (focal) process is accepted under `estimate_dynes()`; event-stream
+estimators SHALL continue to abort when their focal layer is panel-observed, pointing
+to `estimate_dynes()`. Estimation runs by ascent-based Monte Carlo EM over pools
 of augmented endpoint-hitting sequences — the ABEM loop, its control
 constructors, and its result contract are specified by the `abmcem` change;
 this change supplies the panel data path (wave diffing, augmenters, batched
@@ -18,7 +23,7 @@ evaluation) those contracts consume.
 
 #### Scenario: two-wave friendship model estimates
 - **WHEN** `estimate_dynes(spec, control_algo = set_algorithm_em(n_sequences = 100,
-  augmenter = set_alg_augment(routine = "random")))` runs on a two-wave panel
+  augmenter = set_augmenter_options(routine = "random")))` runs on a two-wave panel
   friendship layer with creation/dissolution formulas
 - **THEN** estimation returns per-flavor parameter estimates with convergence
   diagnostics, without requiring observed event times.
@@ -71,6 +76,13 @@ last wave SHALL be discarded.
 - **WHEN** a panel layer has two flavors and the specification models only one
 - **THEN** validation aborts: panel layers are modeled for all flavors or not at
   all.
+
+#### Scenario: partially modeled relational-event layer accepted
+- **WHEN** a relational-event layer has two flavors and the specification models only
+  one (the other keyed in neither rate nor choice)
+- **THEN** validation accepts it: the modeled flavor is a dependent process and the
+  unmodeled flavor's events update state as exogenous input, contributing no likelihood
+  terms — no abort. This is the deliberate contrast with the panel all-or-nothing rule.
 
 ### Requirement: Parameter recovery on simulated panels
 

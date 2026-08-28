@@ -42,6 +42,16 @@ cross-iteration reweighting, the ESS guard, and staleness transformations
 become inapplicable — non-default settings of those arguments SHALL warn and
 be ignored. No guard warning SHALL be emitted at startup.
 
+Distinct from the recurring guard warning, a **one-shot cold-start diagnostic**
+SHALL be emitted when the startup (first-iteration) ESS falls below a hard
+pathology floor strictly lower than `ess_threshold` × pool size. The diagnostic
+SHALL name the proposal/target mismatch and the mitigations (a model-driven
+`routine`, or θ₀ = 0) and SHALL NOT redraw or grow the pool. As a
+settle-at-construction complement, `set_algorithm_em()` SHALL warn when
+`routine = "random"` is combined with a non-zero initial parameter vector; the
+combination remains valid (no abort) and no such warning is emitted for
+`routine = "random"` at θ₀ = 0.
+
 #### Scenario: ESS guard fires
 - **WHEN** importance weights degenerate below the enabled threshold on a
   persistent pool
@@ -51,6 +61,19 @@ be ignored. No guard warning SHALL be emitted at startup.
 #### Scenario: disabled guard still informs
 - **WHEN** the guard is disabled and the ESS condition is met during a run
 - **THEN** a cli warning reports the degeneracy without redrawing.
+
+#### Scenario: pathological cold start is diagnosed, not silently absorbed
+- **WHEN** the first-iteration ESS falls below the cold-start pathology floor
+  (e.g. `routine = "random"` under a non-zero θ₀)
+- **THEN** a one-shot cli diagnostic reports the proposal/target mismatch and its
+  mitigations, without redrawing or growing the pool, and distinct from the ESS
+  guard warning.
+
+#### Scenario: cold-start construction guard on random + non-zero θ₀
+- **WHEN** `set_algorithm_em()` is constructed with `routine = "random"` and a
+  non-zero initial parameter vector
+- **THEN** a cli warning recommends a model-driven routine or θ₀ = 0, and
+  construction still succeeds (no warning at θ₀ = 0).
 
 ### Requirement: Q and its standard error dispatch on the weighting scheme
 
@@ -103,7 +126,9 @@ which the tolerance is unused and supplying it warns. Exiting on the
 iteration cap with the gradient criterion in force but unmet SHALL warn.
 Optimizer accumulators SHALL reset at every M-step. The SGD loop SHALL
 request score-only evaluation; Fisher SHALL be computed only where consumed.
-Step components at fixed-parameter positions SHALL be zero.
+The optimized vector SHALL contain only free parameters — fixed effects are the
+specification's formula offsets, excluded from θ before the M-step, so there are
+no in-vector fixed positions to mask.
 
 #### Scenario: cyclic batches stay unbiased
 - **WHEN** a pool with non-uniform weights is optimized under
@@ -111,9 +136,10 @@ Step components at fixed-parameter positions SHALL be zero.
 - **THEN** each batch gradient is importance-weighted and the ascent direction
   matches the weighted full-pool gradient in expectation.
 
-#### Scenario: fixed parameters do not move
-- **WHEN** a parameter is fixed via `fixed_parameters`
-- **THEN** every SGD step leaves it at its fixed value.
+#### Scenario: fixed effects are absent from the optimized vector
+- **WHEN** an effect is fixed via an `offset()` term in its formula
+- **THEN** it never appears in the optimized parameter vector, and its fixed
+  value enters only through the sub-specification's preprocessed statistics.
 
 #### Scenario: fresh optimizer state per M-step
 - **WHEN** a second EM iteration starts under an adaptive schedule
@@ -141,9 +167,12 @@ max(current, ⌈σ̂²·(z(`accept_quantile`) + z(`growth_quantile`))²/Q²⌉);
 otherwise the proposal is discarded, ⌈m/k⌉ sequences are appended (m the
 pool size at iteration start; k = 2, 3, … per consecutive rejection, reset
 each iteration) and the pass retries, at most `max_retries` times (default
-20). Exhausting `max_retries` or `max_iterations` without convergence SHALL
-abort with a cli error carrying the trace-derived diagnosis (never a
-silently flagged result). A trace SHALL record one row per pass, indexed by
+20). Exhausting `max_retries` within one iteration SHALL abort with a cli
+error carrying the trace-derived diagnosis (no meaningful partial fit at a
+stalled iteration). Exhausting the outer `max_iterations` while still
+accepting SHALL instead **return the last accepted parameters** with a
+non-convergence warning and a `converged = FALSE` flag — never a silent
+result, never discarded work. A trace SHALL record one row per pass, indexed by
 iteration and retry: the parameters, Q and its standard error, the decision
 (accept/grow/stop-hit/stop), the streak, pool size and new draws, effective
 sample size, the weighting scheme in force, and MCMC chain diagnostics when
@@ -167,6 +196,11 @@ when opted in.
 - **THEN** estimation aborts with a cli error summarizing the trace evidence
   (Q trajectory, ESS, pool growth).
 
+#### Scenario: iteration-budget exhaustion returns the last accepted fit
+- **WHEN** the loop reaches `max_iterations` while still accepting ascent steps
+- **THEN** it returns the last accepted parameters with a non-convergence
+  warning and `converged = FALSE`, rather than aborting.
+
 ### Requirement: Pool evaluation through the zero-iteration engine path
 
 The package SHALL provide an evaluator-contract implementation that computes
@@ -178,6 +212,11 @@ preprocessed statistics without re-preprocessing. Callers SHALL request only
 the quantities they consume via a `what` flag. Each pooled sequence SHALL
 permanently carry its reference record — the parameters it was drawn under,
 its log-likelihood there, and its log proposal density — on the log scale.
+A pooled sequence whose information matrix is singular at the requested
+parameters SHALL yield a non-finite per-sequence result rather than aborting
+the whole pool evaluation (the engine path inverts the information matrix
+unconditionally); its normalized weight then vanishes and the ESS guard
+absorbs the loss.
 The ABMCEM loop SHALL depend only on the evaluator contract, so a batched
 evaluator implementation can replace this path with no loop changes.
 
@@ -190,6 +229,13 @@ evaluator implementation can replace this path with no loop changes.
 - **WHEN** the same pool is evaluated at two parameter vectors in succession
 - **THEN** preprocessing runs once per sequence (on entry), not per
   evaluation.
+
+#### Scenario: degenerate sequence does not abort the pool
+- **WHEN** a pooled sequence has a singular information matrix at the requested
+  parameters (e.g. a collinear augmentation)
+- **THEN** that sequence's result is non-finite and the pool evaluation
+  completes for the remaining sequences, without raising the engine's
+  matrix-inversion error.
 
 ### Requirement: Per-sequence work runs through one map seam
 
