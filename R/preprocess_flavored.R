@@ -716,12 +716,29 @@ assign_constraint_ids <- function(processes) {
   list(ids = ids, plans = distinct)
 }
 
-# Render a human-readable label for a process, e.g. "friendship > creation >
-# rate". For cli messages and coefficient names only -- labels are rendered
-# from the map, never parsed back into identity.
+# Render a human-readable label for a process, e.g. "friendship › creation ›
+# rate", eliding the flavor segment for a non-flavored process ("friendship ›
+# rate") rather than showing a literal "NA". For cli messages and coefficient
+# names only -- labels are rendered from the map, never parsed back into
+# identity. This is the single canonical renderer: every other place in the
+# tree that formats a process label (coef()/vcov()/print(), the walk handle's
+# completeness message) routes through it, so one vocabulary names one fid.
 render_process_label <- function(process_map, fid) {
   row <- process_map[match(fid, process_map$fid), , drop = FALSE]
-  paste(row$layer, row$flavor, row$family, sep = " › ")
+  vapply(
+    seq_len(nrow(row)),
+    function(i) {
+      paste(
+        c(
+          row$layer[i],
+          if (!is.na(row$flavor[i])) row$flavor[i],
+          row$family[i]
+        ),
+        collapse = " › "
+      )
+    },
+    character(1)
+  )
 }
 
 # Preprocess a multi-flavor specification in one call.

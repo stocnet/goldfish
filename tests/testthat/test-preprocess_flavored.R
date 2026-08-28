@@ -262,3 +262,22 @@ test_that("an empty risk set aborts naming the offending process", {
     fixed = FALSE
   )
 })
+
+test_that("render_process_label elides a NA flavor instead of printing it", {
+  map <- data.frame(
+    fid = c(1L, 2L),
+    layer = c("friendship", "calls"),
+    flavor = c(NA_character_, "creation"),
+    family = c("rate", "rate"),
+    stringsAsFactors = FALSE
+  )
+  # Non-flavored process: the flavor segment drops out, was "friendship › NA ›
+  # rate" before this fix -- the shift task 1.2b records.
+  expect_snapshot(render_process_label(map, 1L))
+  # Flavored process: unaffected, keeps the chevron-segment form.
+  expect_snapshot(render_process_label(map, 2L))
+  expect_equal(
+    render_process_label(map, c(1L, 2L)),
+    c("friendship › rate", "calls › creation › rate")
+  )
+})

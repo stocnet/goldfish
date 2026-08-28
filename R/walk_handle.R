@@ -83,14 +83,10 @@ assert_generatively_complete <- function(
     return(invisible(NULL))
   }
   g <- do.call(rbind, gaps)
-  labels <- vapply(
-    seq_len(nrow(g)),
-    function(i) {
-      flavor <- if (is.na(g$flavor[i])) NULL else paste0(" (", g$flavor[i], ")")
-      paste0(g$layer[i], flavor, " › ", g$family[i])
-    },
-    character(1)
-  )
+  # No fid exists for a missing sub-model, so render off a throwaway
+  # row-indexed map rather than the joint spec's real process_map.
+  g$fid <- seq_len(nrow(g))
+  labels <- render_process_label(g, g$fid)
   cli::cli_abort(
     c(
       "{.fn walk_open} needs a generatively complete specification.",
