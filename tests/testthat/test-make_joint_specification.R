@@ -792,3 +792,46 @@ test_that("the print marks coupled fids against a modeled panel layer", {
   )
   expect_snapshot(print(js))
 })
+
+# Joining closes the `set_algorithm_newton(offset_coef=)` route, so an offset's
+# fixed value can live only in the inline `offset(term, coef = value)`. A bare
+# `offset(term)` -- legal in a standalone make_specification() -- is rejected at
+# join time, pointing only to the inline form.
+test_that("a joined process with a bare offset is rejected at build", {
+  local_cli_context()
+  data <- joint_data(friendship = "panel")
+  calls_spec <- make_specification(
+    choice = ~ inertia + offset(tie(friendship)),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  expect_snapshot(
+    make_joint_specification(calls_spec, emails_spec, data = data),
+    error = TRUE
+  )
+})
+
+test_that("a joined process with an inline-coef offset builds", {
+  data <- joint_data(friendship = "panel")
+  calls_spec <- make_specification(
+    choice = ~ inertia + offset(tie(friendship), coef = -0.5),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  js <- make_joint_specification(calls_spec, emails_spec, data = data)
+  expect_s3_class(js, "joint_specification.goldfish")
+})

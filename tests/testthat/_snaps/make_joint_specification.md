@@ -83,3 +83,13 @@
       i Estimate a multivariate specification with
       `estimate_dynes()`.
 
+# a joined process with a bare offset is rejected at build
+
+    Code
+      make_joint_specification(calls_spec, emails_spec, data = data)
+    Condition
+      Error in `make_joint_specification()`:
+      ! Every `offset()` term in a joint specification needs an inline coefficient value.
+      x No `coef` value for "calls › choice: tie(friendship)".
+      i Write the value in the process formula it belongs to: `offset(term, coef = value)`.
+

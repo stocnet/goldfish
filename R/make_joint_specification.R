@@ -152,6 +152,15 @@ make_joint_specification <- function(..., data = NULL) {
   # provides, so it aborts here as future development.
   check_cross_process_conformance(specs, focals, shared_map)
 
+  # Joining closes the deferred-offset route: `estimate_flavored.R` rejects
+  # `set_algorithm_newton(offset_coef=)` for a multi-process specification, so
+  # an offset's fixed value can live in only one place -- the inline
+  # `offset(term, coef = value)`. A bare `offset(term)` is legal in a standalone
+  # `make_specification()` (defer to `offset_coef`), but the instant it is joined
+  # that escape hatch is gone, leaving the parameter surface with no value to
+  # carry. Reject it here, at the moment the deferral closes.
+  assert_joint_offsets_valued(specs)
+
   # Modeled panel layers: panel-observed layers that are themselves a focal
   # process of the join. Reading one of these couples a fid; reading a panel
   # layer that only appears as an exogenous covariate does not (D4).
@@ -383,6 +392,54 @@ constraint_object_names <- function(plan) {
   }
   tbl <- get_data_objects(get_rhs_names(atoms_to_formula(plan$atoms)))
   unique(tbl$object[!is.na(tbl$object)])
+}
+
+# Abort unless every `offset()` term across the joined processes carries an
+# inline `coef=` value. The check reads the parser's per-effect offset mask
+# (`offset_parameter`) and inline-value slot (`offset_coef_parameter`), which are
+# aligned per rhs effect, and flags every offset position whose value is `NA`.
+# The message points ONLY to the inline form: the algorithm-control route
+# (`set_algorithm_newton(offset_coef=)`) is closed for a joint spec, so offering
+# it here would contradict the estimator.
+assert_joint_offsets_valued <- function(specs, call = rlang::caller_env()) {
+  offenders <- character(0)
+  for (proc in flatten_joint_processes(specs)) {
+    for (family in names(proc$submodels)) {
+      parsed <- proc$submodels[[family]]$parsed
+      is_offset <- as.logical(unlist(parsed$offset_parameter))
+      if (length(is_offset) == 0 || !any(is_offset)) {
+        next
+      }
+      coef_values <- as.numeric(unlist(parsed$offset_coef_parameter))
+      unvalued <- which(is_offset & is.na(coef_values))
+      if (length(unvalued) == 0) {
+        next
+      }
+      proc_label <- paste(
+        c(proc$layer, if (!is.na(proc$flavor)) proc$flavor, family),
+        collapse = " › "
+      )
+      terms <- vapply(
+        parsed$rhs_names[unvalued],
+        deparse_rhs_term,
+        character(1)
+      )
+      offenders <- c(offenders, paste0(proc_label, ": ", terms))
+    }
+  }
+  if (length(offenders) == 0) {
+    return(invisible(specs))
+  }
+  cli::cli_abort(
+    c(
+      "Every {.fn offset} term in a joint specification needs an inline
+       coefficient value.",
+      "x" = "No {.code coef} value for {.val {offenders}}.",
+      "i" = "Write the value in the process formula it belongs to:
+             {.code offset(term, coef = value)}."
+    ),
+    call = call
+  )
 }
 
 # Flatten the composed specifications into one ordered list of dependent
