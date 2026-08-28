@@ -348,3 +348,250 @@ print.parameters.goldfish <- function(x, ...) {
   }
   invisible(x)
 }
+
+# =========================================================================== #
+# coef_layout(): the coefficient-space layout of a joint parameter surface as a
+# tidy table -- one row per coefficient slot (`n_params`: an intercept when the
+# sub-model carries one, the effects, the interaction columns), not one per
+# effect. It serves three surfaces off one vocabulary: a `joint_specification`
+# (the authoring layout, or -- on a completed spec -- the full pre-fit walked
+# layout), a `parameters.goldfish` (the supplied values with the free/fixed
+# classification), and a multi-process fitted result (the estimates and
+# standard errors grouped back into the per-process blocks the flat `coef()`
+# vector discards).
+# Rows run in the canonical order -- `process_map` fid order, then coefficient
+# order within each fid -- so the `index` column is the slot's position in the
+# flat free-parameter vector.
+# =========================================================================== #
+
+# The descriptive `sub_model` per process_map row, recovered from the internal
+# `stat_block` (`model:sub_model`). This is structured metadata, not a rendered
+# label, so splitting it is safe -- unlike a process label, which is rendered
+# for reading and never parsed back.
+process_sub_models <- function(process_map) {
+  sub("^[^:]+:", "", process_map$stat_block)
+}
+
+# Assemble a coef_layout table from per-fid blocks (a list in canonical fid
+# order). Each block carries `fid`, the rendered `label`, `sub_model`, `flavor`,
+# and per-slot `names` / `fixed` / `value` (and, for a fitted result, `se`). The
+# flat-theta `index` is filled last, numbering every free slot in canonical
+# order; fixed slots are not in theta and stay `NA`.
+coef_layout_frame <- function(blocks) {
+  parts <- lapply(blocks, function(b) {
+    n <- length(b$names)
+    df <- data.frame(
+      fid = rep(b$fid, n),
+      process = rep(b$label, n),
+      sub_model = rep(b$sub_model, n),
+      flavor = rep(b$flavor, n),
+      name = b$names,
+      fixed = b$fixed,
+      value = b$value,
+      stringsAsFactors = FALSE
+    )
+    if (!is.null(b$se)) {
+      df$se <- b$se
+    }
+    df
+  })
+  out <- do.call(rbind, parts)
+  if (is.null(out) || nrow(out) == 0L) {
+    return(data.frame(
+      fid = integer(0),
+      process = character(0),
+      sub_model = character(0),
+      flavor = character(0),
+      name = character(0),
+      fixed = logical(0),
+      value = numeric(0),
+      index = integer(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+  out$index <- NA_integer_
+  free <- !out$fixed
+  if (any(free)) {
+    out$index[free] <- seq_len(sum(free))
+  }
+  cols <- c(
+    "fid",
+    "process",
+    "sub_model",
+    "flavor",
+    "name",
+    "fixed",
+    "value",
+    if ("se" %in% names(out)) "se",
+    "index"
+  )
+  out <- out[, cols]
+  rownames(out) <- NULL
+  out
+}
+
+# The layout block for one autocompleted-default fid: a zero-free-parameter
+# sub-model `complete_generative_spec()` synthesized at consumer entry (a pinned
+# intercept-only rate, or a uniform choice / coordination / ordered draw). It
+# contributes no `coef()`-surfaced name, so it renders as a single fixed `"1"`
+# placeholder row carrying the frozen value -- a completed timed rate's pinned
+# log-hazard (from `$completed_rates`), or `NA` for a uniform draw that has no
+# numeric coefficient.
+autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
+  frozen <- NA_real_
+  rate <- spec$completed_rates[[as.character(fid)]]
+  if (!is.null(rate)) {
+    frozen <- as.numeric(rate$intercept)[[1L]]
+  }
+  list(
+    fid = fid,
+    label = label,
+    sub_model = sub_model,
+    flavor = flavor,
+    names = "1",
+    fixed = TRUE,
+    value = frozen
+  )
+}
+
+#' Tabulate the coefficient layout of a joint parameter surface
+#'
+#' `r lifecycle::badge("experimental")`
+#'
+#' `coef_layout()` returns the coefficient-space layout of a joint parameter
+#' surface as a tidy data frame -- **one row per coefficient slot** (an
+#' intercept when the sub-model carries one, then the effects in formula order,
+#' then the interaction columns; not one row per effect). It serves three
+#' surfaces off one label vocabulary: a `joint_specification.goldfish` (the
+#' empty authoring layout, so a user can discover the labels, names, and order
+#' to author [set_parameters()]), a [parameters.goldfish][set_parameters] object
+#' (the supplied values with the free/fixed classification), and a multi-process
+#' fitted result (the estimates and standard errors grouped back into the
+#' per-process blocks the flat [coef()] vector discards).
+#'
+#' @details
+#' The `joint_specification` method is **completion-aware**. On a **raw**
+#' (authored) specification it spans the authored fids only. On a **completed**
+#' specification -- the output of `complete_generative_spec()`, still a
+#' `joint_specification.goldfish`, distinguished by its populated `completed`
+#' column -- it additionally renders each autocompleted-default fid's rows as
+#' `fixed = TRUE` with the `"1"` placeholder name and the frozen value, giving
+#' the full pre-fit walked layout. The `parameters.goldfish` method spans the
+#' **authored** fids only, so autocompleted-default rows appear on the completed
+#' spec and fitted-result layouts, never on the authoring or parameter-object
+#' layouts.
+#'
+#' Rows run in the canonical order (`process_map` fid order, then coefficient
+#' order within each fid), so `index` is the slot's position in the flat
+#' free-parameter vector.
+#'
+#' @param x a `joint_specification.goldfish` (from
+#'   [make_joint_specification()]), a `parameters.goldfish` (from
+#'   [set_parameters()]), or a multi-process fitted result.
+#' @param ... currently unused.
+#'
+#' @return a data frame with one row per coefficient slot and columns `fid`, the
+#'   process `sub_model`, `flavor`, the effect `name`, a `fixed` logical, the
+#'   fixed `value` (the offset value, `0` for an operand-only term, or the
+#'   frozen value for an autocompleted default; `NA` for a free slot -- or, on a
+#'   parameter object, the pinned value), and `index` (the slot's position in
+#'   the flat free-parameter vector, `NA` for fixed rows); the process label is
+#'   in the `process` column. The fitted-result method adds a `se` column.
+#'
+#' @seealso [set_parameters()], [make_joint_specification()]
+#' @export
+coef_layout <- function(x, ...) {
+  UseMethod("coef_layout")
+}
+
+#' @export
+#' @method coef_layout joint_specification.goldfish
+#' @rdname coef_layout
+coef_layout.joint_specification.goldfish <- function(x, ...) {
+  process_map <- x$process_map
+  bundles <- joint_fid_bundles(x)
+  sub_models <- process_sub_models(process_map)
+  completed <- process_map$completed %||% rep(FALSE, nrow(process_map))
+  blocks <- vector("list", nrow(process_map))
+  for (i in seq_len(nrow(process_map))) {
+    fid <- process_map$fid[i]
+    label <- render_process_label(process_map, fid)
+    if (isTRUE(completed[i])) {
+      blocks[[i]] <- autocompleted_layout_block(
+        x,
+        fid,
+        label,
+        sub_models[i],
+        process_map$flavor[i]
+      )
+    } else {
+      layout <- fid_coefficient_layout(bundles[[as.character(fid)]])
+      blocks[[i]] <- list(
+        fid = fid,
+        label = label,
+        sub_model = sub_models[i],
+        flavor = process_map$flavor[i],
+        names = layout$names,
+        fixed = layout$fixed,
+        value = layout$fixed_values
+      )
+    }
+  }
+  coef_layout_frame(blocks)
+}
+
+#' @export
+#' @method coef_layout parameters.goldfish
+#' @rdname coef_layout
+coef_layout.parameters.goldfish <- function(x, ...) {
+  process_map <- x$process_map
+  sub_models <- process_sub_models(process_map)
+  blocks <- vector("list", nrow(process_map))
+  for (i in seq_len(nrow(process_map))) {
+    fid <- process_map$fid[i]
+    entry <- x$fids[[as.character(fid)]]
+    blocks[[i]] <- list(
+      fid = fid,
+      label = render_process_label(process_map, fid),
+      sub_model = sub_models[i],
+      flavor = process_map$flavor[i],
+      names = entry$names,
+      fixed = entry$fixed,
+      value = entry$values
+    )
+  }
+  coef_layout_frame(blocks)
+}
+
+#' @export
+#' @method coef_layout flavored_result.goldfish
+#' @rdname coef_layout
+coef_layout.flavored_result.goldfish <- function(x, ...) {
+  process_map <- x$process_map
+  sub_models <- process_sub_models(process_map)
+  blocks <- vector("list", nrow(process_map))
+  for (i in seq_len(nrow(process_map))) {
+    fid <- process_map$fid[i]
+    sub <- x$results[[as.character(fid)]]
+    est <- sub$parameters
+    fixed <- unname(GetFixed(sub))
+    se <- rep(NA_real_, length(est))
+    sev <- sub$standard_errors
+    if (length(sev) == length(est)) {
+      se <- sev
+    } else if (length(sev) == sum(!fixed)) {
+      se[!fixed] <- sev
+    }
+    blocks[[i]] <- list(
+      fid = fid,
+      label = render_process_label(process_map, fid),
+      sub_model = sub_models[i],
+      flavor = process_map$flavor[i],
+      names = term_label(sub$names, ".coef_name", "coef"),
+      fixed = fixed,
+      value = est,
+      se = se
+    )
+  }
+  coef_layout_frame(blocks)
+}

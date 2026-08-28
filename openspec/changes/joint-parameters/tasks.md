@@ -71,7 +71,7 @@
 
 ## 2. `coef_layout()` generic and consumer wiring
 
-- [ ] 2.1 `coef_layout()` generic + methods (design D6, D12): one row per
+- [x] 2.1 `coef_layout()` generic + methods (design D6, D12): one row per
       **coefficient-space slot** (`n_params`: intercept, effects, interactions —
       not one per effect); `joint_specification` (empty layout for authoring),
       `parameters.goldfish` (values + free/fixed), fitted result (θ̂/SE); columns
