@@ -27,7 +27,7 @@
       (`process_map` fid order, then coefficient order within each fid), the
       complete flag, and layout metadata; `print()` via cli semantic elements
       (grouped by process, fixed/free marked); `devtools::document()`
-- [ ] 1.2 `set_parameters(spec, ...)` (design D1–D3, D7, D9, D10): key resolution
+- [x] 1.2 `set_parameters(spec, ...)` (design D1–D3, D7, D9, D10): key resolution
       by **membership** against the rendered process label (`render_process_label()`,
       the `layer › flavor › family` form `coef()`/`print()` use — keyed on
       `family`, flavor elided when the process carries none; never split the key
