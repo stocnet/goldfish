@@ -91,7 +91,7 @@
       fids only (built from the raw spec). Test: raw-spec layout omits
       autocompleted rows; completed-spec layout includes them as fixed
       (design D16 boundary)
-- [ ] 2.2 Consumer acceptance surface: a shared coercion/validation entry that
+- [x] 2.2 Consumer acceptance surface: a shared coercion/validation entry that
       `set_algorithm_em(initial_parameters=)` and `simulate(coef=)` call to
       accept **only** a `parameters.goldfish` (v1). `estimate_dynes()` reads the
       **free-θ** projection (fixed values from the spec); `simulate()` reads the

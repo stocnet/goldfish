@@ -350,6 +350,139 @@ print.parameters.goldfish <- function(x, ...) {
 }
 
 # =========================================================================== #
+# Consumer acceptance surface. Both joint consumers -- `estimate_dynes()`
+# (`initial_parameters=`, in abmcem) and `simulate()` (`coef=`, in
+# process-simulation) -- route the user's parameter argument through these
+# helpers, which live with the specification that owns the fid vocabulary rather
+# than being reinvented in each consuming change. v1 accepts ONLY a
+# `parameters.goldfish` (a bare list or flat numeric vector is a recorded
+# non-goal), so the object's single construction-time validation is the one both
+# consumers trust without re-validating.
+# =========================================================================== #
+
+# Accept only a `parameters.goldfish`, naming the consumer's own argument in the
+# abort so the message reads as `initial_parameters` / `coef` rather than an
+# internal name.
+accept_joint_parameters <- function(x, arg, call = rlang::caller_env()) {
+  if (!is_parameters_goldfish(x)) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} must be a {.cls parameters.goldfish}.",
+        "x" = "A {.cls {class(x)[1]}} was supplied.",
+        "i" = "Build one with {.fn set_parameters} over the joint
+               specification."
+      ),
+      call = call
+    )
+  }
+  x
+}
+
+# The free-parameter projection `estimate_dynes()` estimates (or warm-starts
+# from). A partial object -- free `NA` slots -- is the normal warm-start case,
+# so this asserts nothing about completeness; the fixed values live in the joint
+# spec, not this vector.
+joint_initial_parameters <- function(
+  x,
+  arg = "initial_parameters",
+  call = rlang::caller_env()
+) {
+  accept_joint_parameters(x, arg = arg, call = call)
+  x$free
+}
+
+# The full per-fid coefficient projection `simulate()` walks, gated on
+# completeness: a free slot the user never pinned is a value-gate abort naming
+# the effect. This gate is complementary to `walk_open()`'s structural gates
+# (spec shape, not parameter values) and never overlaps them. Autocompleted
+# defaults are absent from the object and resolved trivially at the consumer, so
+# they never enter this gate.
+joint_simulation_parameters <- function(
+  x,
+  arg = "coef",
+  call = rlang::caller_env()
+) {
+  accept_joint_parameters(x, arg = arg, call = call)
+  assert_joint_parameters_complete(x, arg = arg, call = call)
+  x$full
+}
+
+# The value gate: abort unless every free coefficient of the authored fids is
+# pinned, naming the unpinned effects. Autocompleted defaults never reach here
+# (they are not in the object), so an object over authored fids with every free
+# slot pinned is complete even when the completed spec carries more fids.
+assert_joint_parameters_complete <- function(
+  x,
+  arg = "coef",
+  call = rlang::caller_env()
+) {
+  unpinned <- names(x$free)[is.na(x$free)]
+  if (length(unpinned) > 0) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} leaves {length(unpinned)} free coefficient{?s}
+         unpinned.",
+        "x" = "Unpinned: {.val {unpinned}}.",
+        "i" = "Pin every free coefficient with {.fn set_parameters} before
+               simulating."
+      ),
+      call = call
+    )
+  }
+  invisible(x)
+}
+
+# Consumer-entry reconciliation (design D16). The object is built over the
+# *authored* fid set; the consumer completes the spec, synthesizing extra
+# autocompleted (zero-free-parameter) fids. Every fid of the *completed* spec
+# absent from the object must be one of those autocompleted defaults --
+# trivially resolved, needing no user value, not rendering the object
+# incomplete. An object process the completed spec does not carry, or an absent
+# process that is not autocompleted, means the object was built for a different
+# specification.
+reconcile_joint_parameters <- function(
+  x,
+  completed_spec,
+  arg,
+  call = rlang::caller_env()
+) {
+  accept_joint_parameters(x, arg = arg, call = call)
+  # Completion reassigns fids (it rebuilds the process_map), so the object's raw
+  # fid integers do not line up with the completed spec's. The rendered process
+  # label is the stable identity across the raw/completed boundary, so
+  # reconciliation is keyed on it.
+  object_labels <- render_process_label(x$process_map, x$process_map$fid)
+  map <- completed_spec$process_map
+  spec_labels <- render_process_label(map, map$fid)
+  completed <- map$completed %||% rep(FALSE, nrow(map))
+
+  stray <- setdiff(object_labels, spec_labels)
+  if (length(stray) > 0) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} was built for a different specification.",
+        "x" = "It carries process{?es} {.val {stray}} the specification does
+               not have."
+      ),
+      call = call
+    )
+  }
+  absent <- setdiff(spec_labels, object_labels)
+  not_autocompleted <- absent[!completed[match(absent, spec_labels)]]
+  if (length(not_autocompleted) > 0) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} is missing an authored process.",
+        "x" = "No values for {.val {not_autocompleted}}, which {?is/are} not an
+               autocompleted default."
+      ),
+      call = call
+    )
+  }
+  invisible(x)
+}
+
+# =========================================================================== #
 # coef_layout(): the coefficient-space layout of a joint parameter surface as a
 # tidy table -- one row per coefficient slot (`n_params`: an intercept when the
 # sub-model carries one, the effects, the interaction columns), not one per
