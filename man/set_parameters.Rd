@@ -11,7 +11,7 @@ set_parameters(spec, ...)
 \code{\link[=make_joint_specification]{make_joint_specification()}}).}
 
 \item{...}{one full-length per-fid vector per process, keyed by the process's
-rendered label.}
+rendered label; or a single fitted joint result (the from-result form).}
 }
 \value{
 a \code{parameters.goldfish} object.
@@ -41,6 +41,14 @@ whose key is \strong{omitted} is read as all-free (\code{NA} at every non-fixed 
 Fixed
 coefficients (\code{offset()} terms and operand-only interaction columns) always
 take the specification's value.
+
+Alternatively, \code{set_parameters(spec, result)} accepts a \strong{fitted joint
+result} in place of the per-fid vectors -- the fit -> re-simulate round-trip.
+The per-fid values are reconstructed from the result's own \code{\link[=coef_layout]{coef_layout()}}
+(which keeps the \code{fid} grouping the flat \code{\link[=coef]{coef()}} vector discards) after
+asserting the result was fit against \strong{that same \code{spec}}; a mismatch aborts.
+A flat, free-only \code{\link[=coef]{coef()}} vector is \strong{not} accepted directly, because its
+per-parameter names collide across fids.
 }
 \seealso{
 \code{\link[=make_joint_specification]{make_joint_specification()}}

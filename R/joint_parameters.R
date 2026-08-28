@@ -212,10 +212,19 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #' coefficients (`offset()` terms and operand-only interaction columns) always
 #' take the specification's value.
 #'
+#' Alternatively, `set_parameters(spec, result)` accepts a **fitted joint
+#' result** in place of the per-fid vectors -- the fit -> re-simulate
+#' round-trip.
+#' The per-fid values are reconstructed from the result's own [coef_layout()]
+#' (which keeps the `fid` grouping the flat [coef()] vector discards) after
+#' asserting the result was fit against **that same `spec`**; a mismatch aborts.
+#' A flat, free-only [coef()] vector is **not** accepted directly, because its
+#' per-parameter names collide across fids.
+#'
 #' @param spec a `joint_specification.goldfish` (from
 #'   [make_joint_specification()]).
 #' @param ... one full-length per-fid vector per process, keyed by the process's
-#'   rendered label.
+#'   rendered label; or a single fitted joint result (the from-result form).
 #'
 #' @return a `parameters.goldfish` object.
 #'
@@ -228,12 +237,21 @@ set_parameters <- function(spec, ...) {
       "i" = "Compose processes with {.fn make_joint_specification}."
     ))
   }
+  dots <- list(...)
+  # From-result form: `set_parameters(spec, result)` reconstructs the per-fid
+  # vectors from a fitted joint result's own `coef_layout()` (the fit ->
+  # re-simulate round-trip), which keeps the fid grouping the flat `coef()`
+  # vector discards. A flat, free-only `coef()` vector is not accepted directly
+  # because its per-parameter names collide across fids.
+  if (length(dots) == 1L && inherits(dots[[1]], "flavored_result.goldfish")) {
+    return(set_parameters_from_result(spec, dots[[1]]))
+  }
+
   process_map <- spec$process_map
   bundles <- joint_fid_bundles(spec)
   fids <- process_map$fid
   labels <- render_process_label(process_map, fids)
 
-  dots <- list(...)
   keys <- names(dots)
   if (length(dots) > 0 && (is.null(keys) || !all(nzchar(keys)))) {
     cli::cli_abort(c(
@@ -308,6 +326,51 @@ set_parameters <- function(spec, ...) {
   }
 
   new_parameters_goldfish(process_map, entries)
+}
+
+# The from-result reconstruction. A fitted joint result and the `spec` it was
+# fit against speak one coefficient vocabulary -- the same `coef_layout()`
+# skeleton (fid grouping, process labels, coefficient names, fixed mask). This
+# first asserts that skeleton matches so a result cannot be spliced onto a
+# mismatched spec, then rebuilds one positional per-fid vector per process from
+# the result's layout: the estimate at each free slot, `NA` at each fixed slot
+# (the spec resolves the fixed value, so re-supplying it here would trip the
+# offset-prevails warning). Feeding those back through `set_parameters()` yields
+# a complete object a `simulate()` can drive.
+set_parameters_from_result <- function(
+  spec,
+  result,
+  call = rlang::caller_env()
+) {
+  spec_layout <- coef_layout(spec)
+  result_layout <- coef_layout(result)
+  skeleton <- c("fid", "process", "name", "fixed")
+  mismatch <- nrow(spec_layout) != nrow(result_layout) ||
+    !identical(spec_layout[skeleton], result_layout[skeleton])
+  if (mismatch) {
+    cli::cli_abort(
+      c(
+        "The result was not fit against this specification.",
+        "x" = "Its coefficient layout does not match the specification's.",
+        "i" = "Pass the same {.cls joint_specification.goldfish} the result was
+               estimated from."
+      ),
+      call = call
+    )
+  }
+
+  # One positional per-fid vector, keyed by the rendered label, in coefficient
+  # order (the layout's own order). A fixed slot is left `NA` so the spec's
+  # value prevails without a warning.
+  by_fid <- split(seq_len(nrow(result_layout)), result_layout$fid)
+  by_fid <- by_fid[as.character(unique(result_layout$fid))] # canonical order
+  vectors <- lapply(by_fid, function(idx) {
+    v <- result_layout$value[idx]
+    v[result_layout$fixed[idx]] <- NA_real_
+    v
+  })
+  labels <- vapply(by_fid, function(idx) result_layout$process[idx][1L], "")
+  do.call(set_parameters, c(list(spec), stats::setNames(vectors, labels)))
 }
 
 #' @export

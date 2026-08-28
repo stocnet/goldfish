@@ -107,7 +107,7 @@
       `walk_open()`'s structural gates are **complementary** (design D15 — values
       vs. spec shape); `simulate()` runs the value gate first, `walk_open()`'s
       asserts are a spec-layer backstop this change does not duplicate.
-- [ ] 2.2b `set_parameters()` **from-result** form (design D14):
+- [x] 2.2b `set_parameters()` **from-result** form (design D14):
       `set_parameters(spec, result)` — spec supplied explicitly, fitted
       joint/DyNES result in place of the per-fid vectors; **assert the result was
       fit against that same `spec`** (matching fid vocabulary / `coef_layout()`)
