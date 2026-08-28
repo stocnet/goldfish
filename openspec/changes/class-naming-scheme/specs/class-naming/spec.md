@@ -1,0 +1,213 @@
+## ADDED Requirements
+
+### Requirement: Every class goldfish attaches names the package in camelCase
+
+Every S3 class that goldfish attaches to an object SHALL be the package
+name plus a short camelCase identifier that compresses the object —
+`goldfish<Thing>` — following the stocnet ecosystem rule (autograph
+CONTRIBUTING; RSiena's `sienaFit`/`sienaGOF`/`sienaAlgorithm`
+precedent). This replaces both prior conventions (bare constructor
+names and the dotted `.goldfish` suffix). The rename table below is
+authoritative package-wide: where any other capability in the living
+spec still spells a class in a retired form, this table governs.
+
+| Producer | Retired class | Class |
+| --- | --- | --- |
+| `test_gof()` | `test_gof` | `goldfishGOF` |
+| `test_time()` | `test_time` | `goldfishTimeTest` |
+| `test_parameter()` | `test_parameter` | `goldfishParamTest` |
+| `diagnose_onset()` | `diagnose_onset` | `goldfishOnset` |
+| `diagnose_outliers()` | `diagnose_outliers` | `goldfishOutliers` |
+| `diagnose_changepoints()` | `diagnose_changepoints` | `goldfishChangepoints` |
+| `margin_table()` | `margin_table` | `goldfishMargins` |
+| `evaluate_model()` | `evaluate_model` | `goldfishEval` |
+| `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` | `result.goldfish` | `goldfishFit` |
+| a flavored specification fit | `flavored_result.goldfish` | `goldfishFlavoredFit` |
+| `summary()` on a fit | `summary.result.goldfish` | `summary.goldfishFit` |
+| `compute_statistics(output = "preprocessed")` | `preprocessed.goldfish` | `goldfishPrep` |
+| `compute_statistics(output = "db")` | `preprocessed_db.goldfish` | `goldfishPrepDB` |
+| flavored preprocessing | `flavored_preprocessed.goldfish` | `goldfishFlavoredPrep` |
+| flavored statistics | `flavored_statistics.goldfish` | `goldfishFlavoredStats` |
+| `set_preprocessing()` | `preprocessing.goldfish` | `goldfishPrepControl` |
+| `make_specification()` | `specification.goldfish` | `goldfishSpec` |
+| the specification process map | `spec_map.goldfish` | `goldfishSpecMap` |
+| `set_algorithm_newton()` | `algorithm_newton.goldfish` | `goldfishAlgorithmNewton` |
+| the algorithm superclass | `algorithm.goldfish` | `goldfishAlgorithm` |
+| `as_goldfish()` | `data.goldfish` | `goldfishData` |
+| formula parsing | `goldfish.formulae` | `goldfishFormulae` |
+| preprocess writers (internal) | `writer_*` | `goldfishWriter*` |
+| data-source seam (internal) | `data_source_envir`, `data_source_stocnet` | `goldfishSourceEnvir`, `goldfishSourceStocnet` |
+| model-spec hierarchy (internal) | `model_spec*` | `goldfishModelSpec*` |
+| support-constraint plan (internal) | `support_constraint_plan` | `goldfishSupportPlan` |
+| fixing/seeding specs (internal) | `fixed_spec`, `initial_spec` | `goldfishFixedSpec`, `goldfishInitialSpec` |
+
+The seven classes autograph@develop already dispatches on
+(`goldfishFit`, `goldfishGOF`, `goldfishTimeTest`, `goldfishOutliers`,
+`goldfishChangepoints`, `goldfishOnset`, `goldfishMargins`) SHALL be
+adopted with exactly those spellings. The exported function names SHALL
+NOT change: `test_gof()` remains `test_gof()`; only the class of what it
+returns moves.
+
+#### Scenario: a diagnostic object names the package
+
+- **WHEN** `test_gof(fit)` is called
+- **THEN** the returned object inherits `goldfishGOF` and does not
+  inherit `test_gof`
+
+#### Scenario: a fitted model names the package
+
+- **WHEN** any `estimate_*()` returns a fit
+- **THEN** the object inherits `goldfishFit` and does not inherit
+  `result.goldfish`
+
+#### Scenario: autograph dispatch lands on the new methods
+
+- **WHEN** an object built by goldfish is plotted with
+  autograph@develop attached
+- **THEN** dispatch reaches autograph's `plot.goldfish<Thing>` method
+  directly, not a defunct alias
+
+#### Scenario: the constructors keep their names
+
+- **WHEN** the package namespace is inspected after the rename
+- **THEN** `test_gof`, `test_time`, `test_parameter`, `diagnose_onset`,
+  `diagnose_outliers`, `diagnose_changepoints`, `margin_table` and
+  `evaluate_model` are still exported functions under those exact names
+
+### Requirement: No goldfish class carries a dot-suffix package qualifier
+
+No class that goldfish attaches on the live path SHALL qualify the
+package with a dot suffix (`<thing>.goldfish`): a dot creates no S3
+inheritance — dispatch is on exact strings — so a dotted suffix is
+convention masquerading as structure, and it produces method-name
+ambiguity (`plot.test_gof.goldfish` parses two ways). The base-R
+summary idiom is the sanctioned dotted form: the object `summary()`
+returns SHALL be classed `summary.goldfishFit`, printed by
+`print.summary.goldfishFit()`, following `summary.lm` and RSiena's
+`summary.sienaFit`. With camelCase classes this is unambiguous, because
+goldfish generics are snake_case and none is named `print.summary`.
+
+#### Scenario: the summary object follows the base idiom
+
+- **WHEN** `summary()` is called on a fitted model
+- **THEN** the returned object inherits `summary.goldfishFit`, and
+  `print()` on it dispatches to `print.summary.goldfishFit`
+
+#### Scenario: no live class carries a dotted package suffix
+
+- **WHEN** the class strings goldfish attaches on the live path are
+  enumerated
+- **THEN** none ends in `.goldfish`, the deprecated-path classes named
+  in the exemption requirement excepted
+
+### Requirement: Method names parse uniquely — snake_case generic, camelCase class
+
+Every S3 method goldfish registers on its own classes SHALL be the
+snake_case generic, a dot, and the camelCase class
+(`print.goldfishFit`, `diagnose_onset.goldfishFit`), so the
+generic/class boundary is the unique case transition and no method name
+has more than one parse. The lint configuration SHALL accept these
+method names without per-line suppressions.
+
+#### Scenario: method names are unambiguous
+
+- **WHEN** the NAMESPACE `S3method()` entries for goldfish classes are
+  enumerated
+- **THEN** each names a snake_case generic and a camelCase class, and
+  no entry's string admits a second generic/class split at a snake_case
+  boundary
+
+### Requirement: Exemptions are the deprecated path and the effect dispatch tags
+
+Classes on the deprecated path SHALL keep their existing names:
+`nodes.goldfish`, `network.goldfish`, `dependent.goldfish`,
+`global.goldfish` (constructors already `deprecate_warn()` toward
+`manynet::make_stocnet()`), and the legacy `data.goldfish` environment
+built by `make_data()` and DyNAMi. The effect dispatch tags (`inertia`,
+`recip`, `trans`, and their siblings) SHALL also keep their names:
+their class role is retired wholesale by the effect registry, so
+renaming them would churn a mechanism scheduled for deletion. Every
+other internal class SHALL follow the `goldfish<Thing>` rule — the
+rename is otherwise full, exported or not.
+
+#### Scenario: a deprecated constructor keeps its class
+
+- **WHEN** `make_network()` is called
+- **THEN** it warns as deprecated and returns an object classed
+  `network.goldfish`, unchanged by this rule
+
+#### Scenario: an effect tag is unaffected
+
+- **WHEN** an effect term is dispatched through `init_DyNAM_choice()`
+- **THEN** the dispatch tag is the bare effect name, with no prefix
+
+#### Scenario: an internal class follows the rule
+
+- **WHEN** the default preprocess writer builds its output object
+- **THEN** the writer's own dispatch class is a `goldfishWriter*` name,
+  not a bare `writer_*` name
+
+### Requirement: The as_goldfish stamp and the legacy environment are distinct classes
+
+The class `as_goldfish()` stamps on a validated `stocnet` object SHALL
+be `goldfishData`, distinct from the `data.goldfish` class carried by
+the legacy environment that `make_data()` and the DyNAMi path build.
+Print dispatch SHALL split with the classes, so the two objects no
+longer share a print method.
+
+#### Scenario: the stamp and the environment are distinguishable
+
+- **WHEN** `as_goldfish()` stamps a `stocnet` and `make_data()` builds
+  a legacy environment in the same session
+- **THEN** the first inherits `goldfishData`, the second inherits
+  `data.goldfish`, and neither inherits the other's class
+
+#### Scenario: each prints under its own method
+
+- **WHEN** each of the two objects is printed
+- **THEN** each dispatches to the print method written for its own
+  class
+
+### Requirement: A retired class name carries only a diagnostic stub
+
+A class name retired by this rule SHALL NOT be attached to any newly
+built object, and SHALL carry no method other than a stub that explains
+and stops. There is no fallback class: a renamed object carries the new
+class only. Because objects fitted by an earlier goldfish still carry
+`result.goldfish`, `print.result.goldfish` and
+`summary.result.goldfish` SHALL be retained as stubs; no other generic
+SHALL register on the retired name — `coef()`, `logLik()`, `vcov()`,
+`predict()`, `residuals()`, `augment()`, `tidy()`, `glance()` and the
+diagnostics give R's own dispatch error.
+
+The stub SHALL diagnose by the object's recorded format epoch rather
+than by its class alone: an object with no epoch predates the
+snake_case component rename and is reported as such; an object whose
+epoch is current has only a retired class name and SHALL be told
+exactly that, not that its components were renamed. The epoch counters
+SHALL NOT move, because no component of any object changes.
+
+#### Scenario: a stored fit from a released goldfish
+
+- **WHEN** `print()` is called on a fit saved by goldfish 1.7.0
+  (carries `result.goldfish`, records no format epoch)
+- **THEN** the stub reports that the components were renamed and the
+  object must be re-fitted
+
+#### Scenario: a stored fit from the development line
+
+- **WHEN** `print()` is called on a fit saved by goldfish 1.9.x
+  (carries `result.goldfish`, records the current epoch)
+- **THEN** the stub reports that the class was renamed and the object
+  must be re-fitted, and does not claim its components were renamed
+
+#### Scenario: no other generic answers on the retired name
+
+- **WHEN** `coef()` is called on an object classed `result.goldfish`
+- **THEN** R raises its own "no applicable method" error
+
+#### Scenario: a renamed object carries no fallback class
+
+- **WHEN** any renamed object's class vector is inspected
+- **THEN** it contains the `goldfish<Thing>` class and not the retired
+  name

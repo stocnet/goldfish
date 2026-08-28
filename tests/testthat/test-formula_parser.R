@@ -905,7 +905,7 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
 })
 
 test_that("two-modeness resolves per network argument, not from the focal", {
-  # D4's per-argument rule: each network argument answers from its OWN layer.
+  # The per-argument rule: each network argument answers from its OWN layer.
   # On a multipartite object the focal `attend` is two-mode, yet the one-mode
   # covariate `coauthor` must still read FALSE. Both terms read the sender
   # side, the only side of the focal `attend` these covariates share.

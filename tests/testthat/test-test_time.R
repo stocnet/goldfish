@@ -346,3 +346,28 @@ test_that("the blocked print names the processes and reports no joint test", {
   withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
   expect_snapshot(print(test_time(time_container())))
 })
+
+test_that("the per-term table carries the same defined order", {
+  # The same screening contract `test_gof()` has, on the other per-term table.
+  # `df` is constant within a call here, which is what makes the statistics
+  # comparable enough for a rank to mean anything.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data("social_evolution", package = "goldfish", envir = environment())
+  fit <- estimate_dynam(
+    calls ~ 1 + indeg(calls) + outdeg(calls) + indeg(friendship),
+    sub_model = "rate",
+    data = social_evolution,
+    return_preprocessed = TRUE,
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+  )
+
+  effects <- test_time(fit)$effects
+  expect_true("rank" %in% names(effects))
+  expect_setequal(effects$rank, seq_len(nrow(effects)))
+  expect_identical(
+    effects$term[effects$rank == 1L],
+    effects$term[which.max(effects$statistic)]
+  )
+  expect_length(unique(effects$df), 1L)
+})

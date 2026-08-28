@@ -70,7 +70,9 @@ test_that("column sums of event_scores equal the aggregate score (cpp)", {
     # something.
     fit <- event_scores_eval(spec, "cpp", data_list, rep(0, length(beta)))
     expect_false(is.null(fit$event_scores), info = nm)
-    expect_equal(nrow(fit$event_scores), fit$n_events, info = nm)
+    # One row per likelihood interval, which on a censoring sub-model is not
+    # the dependent-event count.
+    expect_equal(nrow(fit$event_scores), fit$n_intervals, info = nm)
     expect_equal(
       unname(colSums(fit$event_scores)),
       unname(fit$final_score),

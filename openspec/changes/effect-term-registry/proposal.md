@@ -44,7 +44,15 @@ arguments at runtime.
   `parse_formula()`/`parse_multiple_effects()` changes from string-built
   `get`/`getS3method` lookups to registry lookups; existing exported
   `init_*`/`update_*` functions are wrapped/registered rather than discovered by
-  name. No change to estimation numerics or user formula syntax.
+  name.
+- **BREAKING (user-facing, bounded)**: an argument name the parser currently
+  discards in silence becomes an error (D25). `pmatch()` in the signature binder
+  returns `NA` for an unrecognized name and `na.omit()` drops it, so
+  `inertia(calls, transformFun = sqrt)` estimates today as though the argument
+  were never written; exact matching also retires prefix binding
+  (`transformer = sqrt`). The newly rejected set is enumerated in advance
+  (task 1.2b), and a rejection outside it is a regression. Everything else about
+  formula syntax is unchanged.
 
 ## Capabilities
 
@@ -80,8 +88,21 @@ arguments at runtime.
   exactly; they are no longer display-only. The registry's own
   `search_effects()` stays package-scoped (which effects exist) and does not
   subsume `model_terms()` (which terms this fit has).
-- No user-facing change to formula syntax, estimation results, or coefficient
-  baselines (the 1e-6 regression floor must still pass).
+- No user-facing change to formula syntax or estimation results, and the 1e-6
+  regression floor must still pass — with **one enumerated exception**. Closing
+  the silent argument-name drop newly rejects 21 sites in the repo's own corpus,
+  all `subType` (the retired spelling of `sub_type`). Twenty request their
+  effect's own default and move no number. The twenty-first,
+  `ego(age, subType = "centered")` in the frozen DyNAM-i rate baseline, means
+  that baseline was fit on *uncentered* age: correcting it leaves all seven
+  slopes bit-identical and `logLik` unchanged to fourteen figures, and moves the
+  two intercepts by exactly `b_leave * mean(age)` and
+  `(b_join - b_leave) * mean(age)`. Both values are derivable from the old
+  baseline without running the estimator, which is the ground on which ADR-0021
+  permits the re-freeze. Task 4.2b carries it; it is the only baseline movement
+  this change may make.
+- Tests and vignettes: the 21 sites above, including nine terms in
+  `vignettes/dynami-example.Rmd.orig`, which is re-knit.
 - Related changes: complements `refactor-preprocess-estimate` and
   `model-recipe-dispatch`; supersedes the hard-coded abbreviation map introduced
   in `compact-term-summary`.

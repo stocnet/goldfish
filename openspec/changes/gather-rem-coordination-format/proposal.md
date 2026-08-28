@@ -31,6 +31,12 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
   score, Fisher) are sums over the *multiset* of candidate rows, so unique rows
   + counts are sufficient statistics — per-iteration cost drops from
   O(total_rows × p) to O(unique_rows × p) with per-event O(u_e) accumulation.
+  Note (2026-08-19, from `recency-effects`): kernel choice there decides how
+  compressible its rows are — last-k indicator and rank-band kernels give few
+  distinct values with huge multiplicities (near-ideal dictionary input),
+  while the inverse-rank `1/r` kernel makes every contacted partner's row
+  distinct and degrades the dictionary; the format decision should not assume
+  all future statistics are indicator-like.
 - **Coordination is the storage win**: the pairwise weights p(i→j)·p(j→i) need
   per-dyad identity, so computation stays per-dyad (that redesign lives in
   `refactor-likelihood-compute` D9, which also lands the index-based ragged

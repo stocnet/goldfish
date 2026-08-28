@@ -15,82 +15,85 @@ fit_censored <- function() {
   )
 }
 
-test_that("censored intervals are present but never flagged", {
+test_that("rows are dependent events, and only a remainder is uncandidated", {
   fit <- fit_censored()
   outliers <- diagnose_outliers(fit, method = "Top", threshold = 3)
 
-  expect_equal(nrow(outliers), length(fit$interval_log_lik))
+  # One row per dependent event. The censored intervals are not rows of their
+  # own -- each was accumulated into the waiting time of the event it precedes.
   expect_gt(sum(fit$right_censored_events), 0)
-  expect_false(any(outliers$outlier[outliers$right_censored_event]))
-  # The threshold came from the dependent intervals alone, so the flagged set
-  # is the worst of those rather than the worst of the pooled series.
-  dependent <- which(!fit$right_censored_events)
-  expect_equal(
-    which(outliers$outlier),
-    sort(dependent[order(fit$interval_log_lik[dependent])[1:3]])
-  )
+  expect_equal(nrow(outliers), fit$n_events)
+  expect_lt(nrow(outliers), length(fit$interval_log_lik))
+
+  # A censored row survives only where the window outlives the last event, and
+  # is never flagged: it realizes no outcome to be surprising about.
+  expect_lte(sum(outliers$censored), 1L)
+  expect_false(any(outliers$outlier[outliers$censored]))
+  expect_equal(sum(outliers$outlier), 3L)
 })
 
-test_that("the setting changes candidacy, never the row count", {
+test_that("include_censored is deprecated and changes nothing", {
+  # It selected between a per-event series and a pooled per-interval one.
+  # There is no pooled alternative now: every row already carries the censored
+  # intervals of its own span, so the argument has nothing left to select.
   fit <- fit_censored()
   default <- diagnose_outliers(fit, method = "Top", threshold = 3)
+
+  expect_snapshot(
+    pooled <- diagnose_outliers(
+      fit,
+      method = "Top",
+      threshold = 3,
+      include_censored = TRUE
+    )
+  )
+  withr::local_options(lifecycle_verbosity = "quiet")
   pooled <- diagnose_outliers(
     fit,
     method = "Top",
     threshold = 3,
     include_censored = TRUE
   )
-
+  expect_equal(pooled$outlier, default$outlier)
+  expect_equal(pooled$.series, default$.series)
   expect_equal(nrow(pooled), nrow(default))
-  expect_equal(pooled$interval_log_lik, default$interval_log_lik)
-  expect_equal(
-    attr(default, "context")$n_analyzed,
-    sum(!fit$right_censored_events)
+
+  expect_snapshot(
+    cpt <- diagnose_changepoints(fit, include_censored = TRUE)
   )
-  expect_equal(attr(pooled, "context")$n_analyzed, nrow(pooled))
 })
 
-test_that("pooling shifts the threshold the statistic is read against", {
+test_that("the accumulated series has no censoring square wave to segment", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   data <- baselines_social_evolution_data()
   fit <- estimate_dynam(
     calls_dependent ~ 1 + indeg(call_network, window = "15 minutes"),
     sub_model = "rate",
     data = data
   )
-  dependent <- !fit$right_censored_events
 
-  # This is the mechanism, and it is visible before any flag is set: a
-  # censored interval contributes only its timing term, so the pooled series
-  # has a different center and a much wider spread than the events do.
+  # The mechanism that made a pooled series misleading: a censored interval
+  # contributes only its timing term, so the per-interval series alternates
+  # between two regimes and its spread is far wider than the events' own.
+  dependent <- !fit$right_censored_events
   expect_gt(
     stats::IQR(fit$interval_log_lik),
     2 * stats::IQR(fit$interval_log_lik[dependent])
   )
-  expect_false(identical(
-    which(diagnose_outliers(fit, method = "IQR")$outlier),
-    which(
-      diagnose_outliers(fit, method = "IQR", include_censored = TRUE)$outlier
-    )
-  ))
-  # `method = "Top"` is the one that does not move on an exact-time fit: the
-  # censored intervals sit at the HIGH end of the log-likelihood, so they
-  # never enter the bottom k however the series is pooled.
-  expect_equal(
-    which(diagnose_outliers(fit, method = "Top", threshold = 5)$outlier),
-    which(
-      diagnose_outliers(
-        fit,
-        method = "Top",
-        threshold = 5,
-        include_censored = TRUE
-      )$outlier
-    )
-  )
+
+  # Accumulation removes the alternation rather than filtering it out: each
+  # event's row carries its own censored intervals, so there is no second
+  # regime left in the series the describers read.
+  series <- diagnose_outliers(fit, method = "IQR")$.series
+  expect_equal(length(series), fit$n_events)
+  expect_false(anyNA(series))
 })
+
 
 test_that("a windowed fit does not report one changepoint per closure", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   data <- baselines_social_evolution_data()
   fit <- estimate_dynam(
     calls_dependent ~ 1 + indeg(call_network, window = "15 minutes"),
@@ -99,24 +102,22 @@ test_that("a windowed fit does not report one changepoint per closure", {
   )
   closures <- sum(fit$right_censored_events)
 
-  default <- diagnose_changepoints(fit, moment = "mean", method = "PELT")
-  pooled <- diagnose_changepoints(
-    fit,
-    moment = "mean",
-    method = "PELT",
-    include_censored = TRUE
-  )
+  changepoints <- diagnose_changepoints(fit, moment = "mean", method = "PELT")
 
-  # The window opens at each event and closes 15 minutes later, so the two
-  # kinds of interval alternate almost one for one: segmenting the pooled
-  # series reports a changepoint at nearly every closure.
-  expect_gt(closures, 0.4 * nrow(default))
-  expect_gt(sum(pooled$cpt), 0.9 * closures)
-  expect_lt(sum(default$cpt), 0.25 * sum(pooled$cpt))
-  expect_false(any(default$cpt[default$right_censored_event]))
+  # The window opens at each event and closes 15 minutes later, so closures are
+  # about as numerous as events. Segmenting a series that alternated between
+  # them reported a changepoint at nearly every closure; the accumulated series
+  # cannot, there being one row per event and no alternation in it.
+  expect_gt(closures, 0.4 * fit$n_events)
+  expect_equal(nrow(changepoints), fit$n_events)
+  expect_lt(sum(changepoints$cpt), 0.25 * closures)
 })
 
-test_that("the two settings agree on a multinomial sub-model", {
+
+test_that("a multinomial sub-model is untouched", {
+  # No censored intervals there, so each span is one interval and the
+  # accumulation is the identity.
+  withr::local_options(lifecycle_verbosity = "quiet")
   fit <- estimate_wrapper(
     depNetwork ~ inertia + recip,
     model = "DyNAM",
@@ -125,8 +126,11 @@ test_that("the two settings agree on a multinomial sub-model", {
   )
 
   expect_false(any(fit$right_censored_events))
+  outliers <- diagnose_outliers(fit, method = "Top", threshold = 2)
+  expect_equal(nrow(outliers), length(fit$interval_log_lik))
+  expect_equal(outliers$.series, fit$interval_log_lik)
   expect_equal(
-    diagnose_outliers(fit, method = "Top", threshold = 2)$outlier,
+    outliers$outlier,
     diagnose_outliers(
       fit,
       method = "Top",
@@ -134,11 +138,8 @@ test_that("the two settings agree on a multinomial sub-model", {
       include_censored = TRUE
     )$outlier
   )
-  expect_equal(
-    diagnose_changepoints(fit)$cpt,
-    diagnose_changepoints(fit, include_censored = TRUE)$cpt
-  )
 })
+
 
 test_that("the tables carry the diagnostic metadata contract", {
   fit <- fit_censored()
@@ -153,7 +154,10 @@ test_that("the tables carry the diagnostic metadata contract", {
   # The parameters that produced the table, so a saved object explains itself.
   expect_equal(attr(outliers, "params")$method, "Hampel")
   expect_equal(attr(outliers, "params")$threshold, 3)
-  expect_false(attr(outliers, "params")$include_censored)
+  # `include_censored` is gone from the recorded parameters, not recorded as
+  # FALSE: it no longer selects anything, so preserving it would say a choice
+  # was made where none exists.
+  expect_null(attr(outliers, "params")$include_censored)
   expect_equal(attr(changepoints, "params")$moment, "variance")
   expect_equal(attr(outliers, "context")$sub_model, "rate")
   expect_equal(
@@ -214,14 +218,6 @@ test_that("the print methods report scope, not just counts", {
   expect_snapshot(
     header(diagnose_changepoints(fit, moment = "mean", method = "PELT"))
   )
-  expect_snapshot(
-    header(diagnose_outliers(
-      fit,
-      method = "Top",
-      threshold = 1,
-      include_censored = TRUE
-    ))
-  )
 })
 
 test_that("the print lists the flagged rows, and only those", {
@@ -236,28 +232,28 @@ test_that("the print lists the flagged rows, and only those", {
   expect_snapshot(cat(head(capture.output(print(outliers)), 3), sep = "\n"))
 
   # Nothing flagged prints the header alone. The schema does not move with the
-  # result: the full series is still in the object, one row per interval.
+  # result: the full series is still in the object, one row per event.
   clean <- diagnose_outliers(fit, method = "IQR", threshold = 1000)
   expect_snapshot(print(clean))
   expect_false(any(clean$outlier))
   expect_equal(dim(clean), dim(outliers))
 })
 
-test_that("the series is NA on the intervals that took no part", {
+test_that("the series is NA only on a row that took no part", {
+  # Under the per-event contract the only row that can be NA is a censored
+  # remainder -- a span closing no waiting time. Every event row is in the
+  # series, so the NA pattern no longer describes the censoring structure.
   fit <- fit_censored()
   outliers <- diagnose_outliers(fit, method = "Top", threshold = 3)
-  dependent <- !fit$right_censored_events
+  censored <- outliers$censored
 
-  expect_true(all(is.na(outliers$.series[!dependent])))
-  expect_equal(outliers$.series[dependent], fit$interval_log_lik[dependent])
-  # Admitting the censored intervals is exactly what makes their rows part of
-  # the series, so the NA pattern moves with the setting.
-  pooled <- diagnose_outliers(
-    fit,
-    method = "Top",
-    threshold = 3,
-    include_censored = TRUE
+  expect_lte(sum(censored), 1L)
+  expect_true(all(is.na(outliers$.series[censored])))
+  expect_false(anyNA(outliers$.series[!censored]))
+  # And the series is the accumulated log-likelihood the augmented table
+  # carries, so the two describe one thing.
+  expect_equal(
+    outliers$.series[!censored],
+    augment(fit)$event_log_lik[!censored]
   )
-  expect_false(anyNA(pooled$.series))
-  expect_equal(pooled$.series, fit$interval_log_lik)
 })

@@ -131,9 +131,26 @@ RESIDUAL_TYPES_SCORES <- c(
 #' @param type the residual type, one of `"deviance"` (default), `"score"`,
 #'   `"schoenfeld"`, `"scaled_schoenfeld"`, `"cox_snell"`, `"response"`,
 #'   `"martingale"`, `"dfbeta"`, `"dfbetas"` and `"cooks"`.
-#' @param level for `"martingale"`, whether to aggregate per `"actor"`
-#'   (default, the margins' own difference) or per `"dyad"`. The dyad level is
-#'   never stored and always costs one evaluation pass.
+#' @param level which stratification to return, for the two types that have
+#'   more than one. Defaults per type rather than globally, since they disagree
+#'   about what an unstratified answer is.
+#'
+#'   For `"martingale"`: `"actor"` (the default, the margins' own difference) or
+#'   `"dyad"`. The dyad level is never stored and always costs one evaluation
+#'   pass.
+#'
+#'   For `"cox_snell"`: `"event"` (the default, one compensator per dependent
+#'   event) or `"actor"`, each actor's compensators over **its own** consecutive
+#'   events. The actor level answers whether one actor's spacing is what the
+#'   model expected, where the event level answers that of the sequence as a
+#'   whole, so it reads shape where [margin_table()] reads level. It returns a
+#'   list per actor — for a tie-oriented fit, a `sender` and a `receiver`
+#'   list, as `"martingale"` does — each carrying a `right_censored` attribute
+#'   marking the final span, which runs to the end of the observation window
+#'   and closes no event. Summing an actor's spans returns its expected margin,
+#'   and the uncensored spans number its observed one.
+#'
+#'   Supplying `level` for any other type is an error: they have one reading.
 #' @param preprocessed a `preprocessed.goldfish` object to recompute from, as
 #'   returned by [compute_statistics()]. Only the recomputing types read it, and
 #'   only when the fit did not store what they need; it defaults to the object
@@ -196,28 +213,139 @@ residuals.result.goldfish <- function(
     "dfbetas",
     "cooks"
   ),
-  level = c("actor", "dyad"),
+  level = NULL,
   preprocessed = NULL,
   ...
 ) {
   abort_if_stale_result(object, "residuals")
   type <- match.arg(type)
-  level <- match.arg(level)
+  level <- resolve_residual_level(level, type)
   switch(
     type,
-    deviance = -2 * residual_stored(object, "interval_log_lik", "loglik", type),
-    cox_snell = cox_snell_residuals(object),
-    schoenfeld = schoenfeld_rows(object, preprocessed),
-    scaled_schoenfeld = scaled_schoenfeld_rows(object, preprocessed),
+    deviance = accumulate_over_events(
+      -2 * residual_stored(object, "interval_log_lik", "loglik", type),
+      object
+    ),
+    cox_snell = if (identical(level, "actor")) {
+      actor_cox_snell_residuals(object, preprocessed)
+    } else {
+      accumulate_over_events(cox_snell_residuals(object), object)
+    },
+    schoenfeld = event_aligned_rows(
+      schoenfeld_rows(object, preprocessed),
+      object
+    ),
+    scaled_schoenfeld = event_aligned_rows(
+      scaled_schoenfeld_rows(object, preprocessed),
+      object
+    ),
     response = response_residuals(object, preprocessed),
     martingale = martingale_residuals(object, level, preprocessed),
-    score = residual_stored(object, "event_scores", "scores", type),
+    score = accumulate_over_events(
+      residual_stored(object, "event_scores", "scores", type),
+      object
+    ),
+    # dfbeta and dfbetas are linear in the score row, so accumulating first
+    # commutes with the transform. cooks is a quadratic form and does not: it is
+    # the influence of the whole event, so it is evaluated ON the accumulated
+    # row rather than summed over the intervals inside it.
     influence_rows(
       object,
-      residual_stored(object, "event_scores", "scores", type),
+      accumulate_over_events(
+        residual_stored(object, "event_scores", "scores", type),
+        object
+      ),
       type
     )
   )
+}
+
+# Realign a per-interval matrix whose censored rows are NA onto the per-event
+# axis every other residual type now uses.
+#
+# The Schoenfeld forms are not accumulated -- they are already one meaningful
+# row per event, with `NA` where a right-censored interval realized no
+# alternative to compare against. Dropping those rows is what makes them per
+# event; a censored remainder, closing no waiting time, is then padded back as
+# the final NA row so the series still lines up with the accumulating types and
+# with `augment()`.
+event_aligned_rows <- function(rows, object) {
+  censored <- object$right_censored_events
+  if (is.null(censored) || !any(censored) || is.null(rows)) {
+    return(rows)
+  }
+  kept <- rows[!censored, , drop = FALSE]
+  n_returned <- length(accumulate_over_events(object$interval_log_lik, object))
+  if (n_returned > nrow(kept)) {
+    kept <- rbind(kept, rows[NA_integer_, , drop = FALSE])
+  }
+  rownames(kept) <- NULL
+  kept
+}
+
+# Which dependent event's waiting time each interval belongs to.
+#
+# A Cox-Snell residual is the compensator over the span from one event to the
+# next, so an interval closes the waiting time of the event that FOLLOWS it and
+# accumulates there. That direction is forced by what the quantity means, not
+# chosen: grouping an interval with the preceding event would make its residual
+# the exposure *after* that event.
+#
+# Intervals following the last dependent event close no waiting time. They form
+# a censored remainder, reported as a final observation rather than folded into
+# the last event -- which would inflate it with exposure that came after it --
+# or dropped, which would lose it from totals the compensator identity depends
+# on. Windowed effects never produce such a tail, their dissolve pseudo-events
+# being bounded by the observation window; only exogenous streams and an
+# `end_time` past the last event do.
+accumulation_index <- function(object) {
+  censored <- object$right_censored_events
+  if (is.null(censored)) {
+    return(NULL)
+  }
+  dependent <- !censored
+  cumsum(c(0L, dependent[-length(dependent)])) + 1L
+}
+
+# Sum a per-interval vector or matrix over each event's span. On a family with
+# no censored intervals every group holds exactly one interval, so this is the
+# identity and those fits are untouched.
+accumulate_over_events <- function(x, object) {
+  index <- accumulation_index(object)
+  if (is.null(index)) {
+    return(x)
+  }
+  if (is.matrix(x)) {
+    accumulated <- rowsum(x, index, reorder = TRUE)
+    rownames(accumulated) <- NULL
+    return(flag_censored_tail(accumulated, object))
+  }
+  flag_censored_tail(
+    as.numeric(rowsum(as.numeric(x), index, reorder = TRUE)),
+    object
+  )
+}
+
+# Mark the censored remainder, and only where there is one. A caller reading the
+# series as one value per event has to be able to tell that a final entry closed
+# no waiting time; without the flag it reads as an ordinary, and unusually large,
+# last observation.
+#
+# The attribute is absent rather than all-FALSE on the fits that have no tail --
+# which is every multinomial fit and every windowed-only one. A flag that is
+# always present but almost never informative is noise: it would break every
+# comparison against the stored components while saying nothing. Absent means
+# "every value closes a waiting time", and `any(attr(x, "right_censored"))`
+# reads FALSE on NULL, so the idiom is the same either way.
+flag_censored_tail <- function(accumulated, object) {
+  n <- if (is.matrix(accumulated)) nrow(accumulated) else length(accumulated)
+  if (n <= object$n_events) {
+    return(accumulated)
+  }
+  censored <- logical(n)
+  censored[n] <- TRUE
+  attr(accumulated, "right_censored") <- censored
+  accumulated
 }
 
 # The stored primitive a type reads, or the error that names how to store it.
@@ -343,7 +471,7 @@ scaled_schoenfeld_rows <- function(
 ) {
   rows <- schoenfeld_rows(object, preprocessed, call = call)
   is_fixed <- GetFixed(object)
-  n_events <- sum(!object$right_censored_events)
+  n_events <- object$n_events
   inverse <- invert_free_information(object)
   estimate <- stats::coef(object, complete = TRUE)
   scaled <- matrix(
@@ -366,12 +494,23 @@ scaled_schoenfeld_rows <- function(
 # vector goes through `evaluate_model()`.
 cox_snell_residuals <- function(object, call = rlang::caller_env()) {
   if (!is_exact_time_fit(object)) {
+    # Every family without a compensator gets refused here, but they are not
+    # the same family and the reason has to name the one being asked. A
+    # coordination likelihood is a softmax over unordered dyads, not over a
+    # sender's alternatives, so calling it multinomial is simply wrong.
+    normalizer <- risk_set_normalizer(object$model_spec)
+    sub_model <- object$model_spec$sub_model
+    models <- switch(
+      normalizer,
+      coordination = "which unordered dyad formed",
+      multinomial = "which alternative was realized",
+      "which outcome was realized"
+    )
     cli::cli_abort(
       c(
         "Cox-Snell residuals are defined for the exact-time sub-models only.",
-        "x" = "They are the compensator of an interval, and a multinomial
-               likelihood has none: it models which alternative was realized,
-               not when.",
+        "x" = "{.val {sub_model}} has a {normalizer} likelihood, which carries
+               no compensator: it models {models}, not when.",
         "i" = "Use {.code type = \"deviance\"} for a per-interval
                goodness-of-fit measure on this sub-model."
       ),
@@ -597,4 +736,176 @@ influence_rows <- function(object, scores, type) {
     )
   }
   influence
+}
+
+#' @export
+#' @method residuals flavored_result.goldfish
+#' @noRd
+residuals.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+  # A residual series is a vector, a matrix or a list of them, so nothing in the
+  # return can say which process it came from -- hence a list keyed by process
+  # label rather than the row-bound table `augment()` gives.
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::residuals(fit, ...),
+    "residuals"
+  )
+}
+
+# Which stratification a residual type is being asked for.
+#
+# `level` cannot take one default across types, because the types disagree about
+# what an unstratified answer is: a martingale residual is a per-actor map and
+# has been since it existed, while a Cox-Snell residual is a per-event series
+# and stratifying it is the new reading. Resolving per type keeps both defaults
+# where they were rather than moving one to give the other a shorter call.
+resolve_residual_level <- function(level, type, call = rlang::caller_env()) {
+  defaults <- c(martingale = "actor", cox_snell = "event")
+  allowed <- list(
+    martingale = c("actor", "dyad"),
+    cox_snell = c("event", "actor")
+  )
+  if (is.null(level)) {
+    return(if (type %in% names(defaults)) unname(defaults[[type]]) else "event")
+  }
+  level <- rlang::arg_match0(
+    level,
+    c("event", "actor", "dyad"),
+    arg_nm = "level"
+  )
+  if (!type %in% names(allowed)) {
+    cli::cli_abort(
+      c(
+        "{.arg level} does not apply to {.code type = {.val {type}}}.",
+        "x" = "That type has one reading, and it is per event.",
+        "i" = "Only {.val cox_snell} and {.val martingale} stratify."
+      ),
+      call = call
+    )
+  }
+  if (!level %in% allowed[[type]]) {
+    cli::cli_abort(
+      c(
+        "{.code type = {.val {type}}} has no {.val {level}} level.",
+        "i" = "Available: {.val {allowed[[type]]}}."
+      ),
+      call = call
+    )
+  }
+  level
+}
+
+# Each actor's compensators over ITS OWN consecutive events.
+#
+# The unstratified series answers "was the waiting time to the next event, by
+# anyone, what the model expected"; this answers the same question of one
+# actor's own spacing, which is what makes it a shape diagnostic rather than a
+# second level reading. An actor's rate is the total rate times that actor's
+# share of it, so the per-interval contribution is the same compensator the
+# unstratified type accumulates, split across the risk set -- and summing an
+# actor's over the whole sequence returns its stored expected margin exactly.
+#
+# The trailing span carries no event of that actor and is marked censored, as
+# the unstratified series marks its own remainder: an actor that stopped early
+# has been waiting since, and dropping that exposure would lose it from the
+# totals.
+actor_cox_snell_residuals <- function(
+  object,
+  preprocessed,
+  call = rlang::caller_env()
+) {
+  cox_snell_residuals(object, call = call)
+  prep <- resolve_preprocessed(preprocessed, object, call = call)
+  compensator <- object$intervals * object$total_rate
+  probabilities <- evaluate_model(
+    object,
+    return = "probabilities",
+    preprocessed = prep
+  )$probabilities
+  dependent <- !object$right_censored_events
+  labels <- prep$node_lookup
+
+  if (identical(risk_set_axis(object), "dyad")) {
+    # A tie-oriented fit gives each interval a dyad matrix, and an actor's own
+    # rate is that matrix marginalized over the side it is not on. Both sides
+    # are reported, under the names the margins already use.
+    return(list(
+      sender = stratified_compensators(
+        compensator,
+        t(vapply(probabilities, rowSums, numeric(nrow(probabilities[[1]])))),
+        prep$event_sender,
+        dependent,
+        side_labels(labels, 1L)
+      ),
+      receiver = stratified_compensators(
+        compensator,
+        t(vapply(probabilities, colSums, numeric(ncol(probabilities[[1]])))),
+        prep$event_receiver,
+        dependent,
+        side_labels(labels, max(labels$side %||% 1L))
+      )
+    ))
+  }
+  axis <- risk_set_axis(object)
+  actor <- if (identical(axis, "receiver_given_sender")) {
+    prep$event_receiver
+  } else {
+    prep$event_sender
+  }
+  side <- if (identical(axis, "receiver_given_sender")) {
+    max(labels$side %||% 1L)
+  } else {
+    1L
+  }
+  stratified_compensators(
+    compensator,
+    do.call(rbind, probabilities),
+    actor,
+    dependent,
+    side_labels(labels, side)
+  )
+}
+
+side_labels <- function(node_lookup, side) {
+  if (is.null(node_lookup)) {
+    return(NULL)
+  }
+  node_lookup$label[node_lookup$side == side]
+}
+
+# One actor's spans, for every actor. `rates` is intervals-by-actors, holding
+# each actor's share of the risk set at each interval.
+stratified_compensators <- function(
+  compensator,
+  rates,
+  actor,
+  dependent,
+  labels
+) {
+  out <- lapply(seq_len(ncol(rates)), function(a) {
+    contribution <- compensator * rates[, a]
+    closes <- dependent & !is.na(actor) & actor == a
+    # The same grouping the unstratified accumulation uses, on this actor's own
+    # events: an interval closes the waiting time of the event that FOLLOWS it,
+    # so the group index advances AFTER an event rather than at it.
+    group <- cumsum(c(0L, closes[-length(closes)])) + 1L
+    spans <- as.numeric(rowsum(contribution, group, reorder = TRUE))
+    n_events <- sum(closes)
+    # Always attached here, unlike the unstratified series where the
+    # attribute's presence IS the signal that a remainder exists. There is one
+    # series; here there are as many as there are actors, and a caller reading
+    # all of them should not have to branch on whether this particular actor
+    # happened to send the final event.
+    censored <- logical(length(spans))
+    if (length(spans) > n_events) {
+      censored[length(spans)] <- TRUE
+    }
+    attr(spans, "right_censored") <- censored
+    spans
+  })
+  if (!is.null(labels) && length(labels) == length(out)) {
+    names(out) <- labels
+  }
+  out
 }

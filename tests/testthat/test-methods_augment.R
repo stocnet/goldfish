@@ -34,7 +34,7 @@ test_that("augment carries the broom columns", {
   expect_equal(augmented$.fitted, exp(fit$interval_log_lik))
   expect_equal(augmented$.resid, -2 * fit$interval_log_lik)
   # The columns that were there before are unchanged.
-  expect_equal(augmented$interval_log_lik, fit$interval_log_lik)
+  expect_equal(augmented$event_log_lik, fit$interval_log_lik)
   expect_contains(names(augmented), c("time", "sender", "receiver"))
 })
 
@@ -48,42 +48,58 @@ test_that("augment dispatches like the other broom generics", {
   expect_true("augment" %in% getNamespaceExports("goldfish"))
 })
 
-test_that("rows are in interval order, so the columns line up", {
+test_that("rows are dependent events, and the span count carries the rest", {
   fit <- augment_fixture_censored()
   augmented <- augment(fit)
 
-  expect_equal(nrow(augmented), length(fit$interval_log_lik))
-  # The censored intervals are interleaved in time, not appended: the table's
-  # own time column IS the fit's, row for row.
-  expect_equal(augmented$time, fit$event_time)
-  expect_equal(augmented$right_censored_event, fit$right_censored_events)
-  expect_equal(augmented$interval_log_lik, fit$interval_log_lik)
+  # One row per dependent event, not per likelihood interval. The censored
+  # intervals are not rows of their own: each belongs to the waiting time of
+  # the event that follows it and is accumulated into that event's span.
   expect_gt(sum(fit$right_censored_events), 0)
-  expect_false(identical(
-    which(augmented$right_censored_event),
-    seq.int(
-      nrow(augmented) - sum(fit$right_censored_events) + 1L,
-      nrow(augmented)
-    )
-  ))
+  expect_equal(nrow(augmented), fit$n_events)
+  expect_lt(nrow(augmented), length(fit$interval_log_lik))
+
+  # `n_intervals` is the only place the interval structure stays visible once
+  # every other surface is per event, and it reconstructs the fit's own count.
+  expect_equal(sum(augmented$n_intervals), fit$n_intervals)
+  expect_true(all(augmented$n_intervals >= 1L))
+
+  # The reported log-likelihood is the span's, so it totals the fit's.
+  expect_equal(
+    sum(augmented$event_log_lik),
+    sum(fit$interval_log_lik)
+  )
+  # And the table aligns row-for-row with the per-event residual series, which
+  # is the pairing this whole change exists to make true.
+  expect_equal(nrow(augmented), length(residuals(fit, type = "deviance")))
 })
 
-test_that("a right-censored interval has no fitted outcome", {
+test_that("a censored remainder has no fitted outcome", {
+  # A span that closes no waiting time realizes nothing, so it has no fitted
+  # probability and no deviance for one. It is the only such row, and it
+  # appears only where the observation window outlives the last event.
   fit <- augment_fixture_censored()
   augmented <- augment(fit)
-  censored <- augmented$right_censored_event
+  censored <- augmented$censored
 
-  # It realizes nothing, so a fitted outcome probability and its deviance are
-  # undefined -- while the log-likelihood contribution it does make is kept.
-  expect_true(all(is.na(augmented$.fitted[censored])))
-  expect_true(all(is.na(augmented$.resid[censored])))
-  expect_false(anyNA(augmented$interval_log_lik))
+  expect_lte(sum(censored), 1L)
+  if (any(censored)) {
+    expect_identical(which(censored), nrow(augmented))
+    expect_true(all(is.na(augmented$.fitted[censored])))
+    expect_true(all(is.na(augmented$.resid[censored])))
+    expect_true(all(is.na(augmented$sender[censored])))
+  }
+  # Every other row realizes an outcome, so `.fitted` is the span's density
+  # contribution and `.resid` its deviance.
+  expect_false(anyNA(augmented$.fitted[!censored]))
   expect_equal(
     augmented$.fitted[!censored],
-    exp(fit$interval_log_lik[!censored])
+    exp(augmented$event_log_lik[!censored])
   )
-  # And no event identity, which the fit does not have for it either.
-  expect_true(all(is.na(augmented$sender[censored])))
+  expect_equal(
+    augmented$.resid[!censored],
+    -2 * augmented$event_log_lik[!censored]
+  )
 })
 
 test_that("the diagnose_* surfaces read the augmented table", {

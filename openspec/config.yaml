@@ -14,7 +14,13 @@ context: |
   - At each major milestone (a completed task group or phase), bump the
     package version in DESCRIPTION and add a NEWS.md entry describing
     what landed (branch precedent: 1.7.2 and 1.7.3 were bumped per
-    completed chunk with their NEWS sections).
+    completed chunk with their NEWS sections). This applies ON THE
+    INTEGRATION BRANCH ONLY (currently refactor/rate_prep). On a feature
+    branch a milestone instead writes one fragment file to NEWS.d/
+    (protocol in NEWS.d/README.md) and touches neither the DESCRIPTION
+    Version nor NEWS.md — branches produce facts, the trunk performs
+    folds (vault ADR-0040; the DyNES merge is the precedent this
+    prevents).
   - Run tests with NOT_CRAN=true (e.g. NOT_CRAN=true Rscript -e
     'devtools::test()'): the coefficient baseline and C++ golden tests
     are computationally expensive and use skip_on_cran(), so a bare
@@ -68,3 +74,13 @@ rules:
     - Before doing anything else in the /opsx:archive flow — FIRST, while the change dir still exists at openspec/changes/<name>/ — run `bash .plan/opsx-archive-track.sh <name>`. It snapshots that change's progress.md to .plan/ (local-only) and appends a version row to the tracked .plan/goldfish_versions.csv ledger (idempotent on the change name).
     - This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
     - Then, still BEFORE the delta-spec sync, run `bash .plan/opsx-spec-placement-check.sh <name>`. `openspec validate` does not check `##` section placement, so a `## MODIFIED`/`## REMOVED` block naming a requirement absent from openspec/specs/** validates cleanly and then silently lands as an ADD at archive, leaving the old wording in place. Unlike the tracker above, this one CAN block: a non-zero exit means fix the delta's section placement (or declare the rename in `## RENAMED`) before syncing. It is rename-aware and safe to re-run post-archive as `archive/<date>-<name>`.
+    - /opsx:archive runs ONLY on the integration branch (ADR-0040). A change developed on a feature branch stays active — deltas unfolded — until the branch merges; the fold then happens on the trunk, where the living spec's current wording is known. Archiving on a branch is how make-multivariate-spec dissolved in the DyNES merge.
+  merge:
+    # Landing a feature branch on the integration branch (ADR-0040). The
+    # merge IS the milestone: every fold the branch deferred happens here,
+    # once, in this order.
+    - Fold NEWS.d/ fragments into NEWS.md under the new version heading (filename order), delete the consumed fragments, and bump DESCRIPTION Version — the single milestone bump for everything the branch landed.
+    - Archive the branch's completed changes on the trunk: for each, the normal rules.archive sequence (tracker first, placement pre-flight, delta sync). Then run `openspec validate` across ALL active changes — the merge may have moved living-spec wording under other changes' deltas.
+    - Regenerate, never hand-merge, generated files: Rcpp bindings via the cpp-recompile skill and man/NAMESPACE via devtools::document() on the merge result.
+    - Full NOT_CRAN=true suite with the frozen 1e-6 baselines reporting PASS, not SKIP. Any intentional baseline move happens here on the trunk under the ADR-0021 bar, never on the branch.
+    - Merge review (vault): capture decisions that arrived embedded in the branch as ADRs, re-ground affected active proposals, append the version row context to .plan/goldfish_versions.csv if the archive tracker did not, and drop a dashboard fragment in the vault _dashboard-inbox/.

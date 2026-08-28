@@ -66,7 +66,8 @@ move. That is the central scoping constraint, not an afterthought.
   into an explanation if they try it anyway.
 - **R**: the two inversion sites (`R/estimation_core.R`, `R/cpp_interface.R`)
   gain a shared diagnostic helper rather than duplicating one; a new
-  `R/diagnostics_identifiability.R`; `summary.result.goldfish()` gains the
+  `R/diagnostics_identifiability.R`; `summary.goldfishFit()` (the method
+  name after `class-naming-scheme`'s camelCase rename, ADR-0031) gains the
   conditioning report.
 - **Frozen baselines**: untouched by construction — every addition is on a path
   that currently ends in an error or runs after estimation completes. A

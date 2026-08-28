@@ -49,7 +49,7 @@ parity_trio <- function(formula, data, model, sub_model, diagnostics) {
 }
 
 # Assert the trio agrees on every primitive it was asked for. `tolerance` is
-# 1e-10 throughout (D5): the reductions are algebraically identical, so the only
+# 1e-10 throughout: the reductions are algebraically identical, so the only
 # admissible difference is accumulation order.
 expect_parity <- function(fits, label) {
   ref <- fits$cpp

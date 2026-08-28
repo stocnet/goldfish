@@ -232,3 +232,27 @@ subset_intervals <- function(
   }
   x[events]
 }
+
+#' @export
+#' @method fitted flavored_result.goldfish
+#' @noRd
+fitted.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::fitted(fit, ...),
+    "fitted"
+  )
+}
+
+#' @export
+#' @method predict flavored_result.goldfish
+#' @noRd
+predict.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::predict(fit, ...),
+    "predict"
+  )
+}

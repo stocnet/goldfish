@@ -111,7 +111,13 @@
 #'   [diagnostic-tables].
 #'   \describe{
 #'     \item{`effects`}{one row per tested effect — `statistic`, `df` and
-#'       `p_value` of its augmentation, under the term's compact string.}
+#'       `p_value` of its augmentation, under the term's compact string, plus
+#'       `rank`, the term's position by descending statistic with `1` the most
+#'       extreme. The rank is a column rather than the row order, so a script
+#'       can take the front of the table without a screen while the rows stay
+#'       in model order — and, on a multi-process fit, ranked within each
+#'       process. `df` is constant within a call, which is what makes the
+#'       statistics comparable enough to rank.}
 #'     \item{`residuals`}{plot-ready per-interval data: the model's clock, the
 #'       transformed clock, the scaled Schoenfeld residual of each tested
 #'       effect, and the fitted estimate it should scatter around. Under
@@ -199,7 +205,7 @@ test_time.result.goldfish <- function(
   labels <- gof_term_labels(x, tested)
   new_diagnostic_list(
     list(
-      effects = tibble::tibble(
+      effects = rank_by_statistic(tibble::tibble(
         index = tested,
         term = labels$term,
         coefficient = labels$coefficient,
@@ -210,7 +216,7 @@ test_time.result.goldfish <- function(
           df = augmented$df,
           lower.tail = FALSE
         )
-      ),
+      )),
       residuals = time_residual_table(
         x,
         prep,
@@ -230,7 +236,7 @@ test_time.result.goldfish <- function(
       sub_model = x$sub_model,
       backend = x$backend,
       n_intervals = nrow(scores),
-      n_events = sum(!x$right_censored_events),
+      n_events = x$n_events,
       global = augmented$global
     ),
     params = list(
@@ -549,13 +555,30 @@ time_residual_table <- function(
     preprocessed = prep
   )
   estimate <- stats::coef(x, complete = TRUE)
+  # The reported table is a per-event view: the scaled Schoenfeld rows carry no
+  # realized alternative on a right-censored interval, so those rows were
+  # dropped when the residual moved onto the event axis. The clock follows them
+  # rather than the other way round -- the test kernel keeps its own
+  # per-interval basis, which is where the censored intervals do contribute.
+  censored <- x$right_censored_events
+  if (!is.null(censored) && any(censored)) {
+    keep <- which(!censored)
+    if (nrow(scaled) > length(keep)) {
+      keep <- c(keep, utils::tail(keep, 1))
+    }
+    clock <- clock[keep]
+    weights <- weights[keep, , drop = FALSE]
+    if (!is.null(grouping)) {
+      grouping <- grouping[keep]
+    }
+  }
   n <- length(clock)
   out <- lapply(seq_along(tested), function(i) {
     d <- tested[i]
     tibble::tibble(
       index = d,
       term = labels$term[i],
-      interval = seq_len(n),
+      event = seq_len(n),
       clock = clock,
       transformed = if (identical(method, "trend")) {
         weights[, "g"]
@@ -638,6 +661,10 @@ test_time.flavored_result.goldfish <- function(
     ),
     c("effects", "residuals", "periods")
   )
+  # Re-ranked over the stacked table, which regroups by process: a rank carried
+  # up from a single-process block would be right by accident and wrong as soon
+  # as the blocks were built any other way.
+  components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
     "test_time",

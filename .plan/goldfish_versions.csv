@@ -33,3 +33,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.23,local,stocnet/goldfish,fa4f371,fa4f371,archive,FALSE,Archived OpenSpec change 'residuals-gof' on 2026-07-31 (version 1.9.23); see openspec/changes/archive/.
 1.9.27,local,stocnet/goldfish,262cbd8,262cbd8,archive,FALSE,Archived OpenSpec change 'fix-panel-rate-time-coercion' on 2026-08-04 (version 1.9.27); see openspec/changes/archive/.
 1.9.27,local,stocnet/goldfish,adc6446,adc6446,archive,FALSE,Archived OpenSpec change 'make-multivariate-spec' on 2026-08-05 (version 1.9.27); see openspec/changes/archive/.
+1.9.28,local,stocnet/goldfish,32d20ed,32d20ed,archive,FALSE,Archived OpenSpec change 'prep-diag-debug' on 2026-08-05 (version 1.9.28); see openspec/changes/archive/.

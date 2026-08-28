@@ -38,7 +38,16 @@ subset of \code{"loglik"}, \code{"score"}, \code{"information"},
 \code{"exposure"}, \code{"n_opportunities"} and \code{"probabilities"}. The returned
 list carries exactly these, in that order.
 The components mean what the same-named components of a fitted object
-mean; see \code{\link[=estimate_dynam]{estimate_dynam()}}.}
+mean; see \code{\link[=estimate_dynam]{estimate_dynam()}}.
+
+\code{"exposure"} and \code{"conditional_scores"} are undefined on the families
+whose likelihood is already conditional — the multinomial and coordination
+sub-models — and requesting either there aborts. That is deliberately
+stricter than the estimation-time primitive request: asking
+\code{set_algorithm_newton(diagnostics = "conditional_scores")} to \emph{store} the
+primitive is a preference, met with a message saying the score rows already
+are those rows, while asking this function \emph{for} the value is a demand, and
+returning nothing under a name the caller supplied would be a lie.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the object attached by

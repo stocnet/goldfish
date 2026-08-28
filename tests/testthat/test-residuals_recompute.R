@@ -32,12 +32,29 @@ fit_choice <- function(...) {
   )
 }
 
+fit_coordination <- function(...) {
+  estimate_wrapper(
+    depNetwork ~ inertia,
+    model = "DyNAM",
+    sub_model = "choice_coordination",
+    data = dataTest,
+    control_algo = residual_control(),
+    ...
+  )
+}
+
 test_that("cox_snell is the compensator, from stored components only", {
   fit <- fit_rate()
 
   residual <- residuals(fit, type = "cox_snell")
   expect_null(fit$preprocessed)
-  expect_equal(residual, fit$intervals * fit$total_rate)
+  # Still the interval clock times the stored total rate, now accumulated over
+  # each event's waiting time -- the arithmetic is unchanged, the grouping is
+  # what moved.
+  expect_equal(
+    residual,
+    goldfish:::accumulate_over_events(fit$intervals * fit$total_rate, fit)
+  )
   # At the maximum the compensators total the dependent-event count: the time
   # intercept's own score equation.
   expect_equal(
@@ -46,13 +63,61 @@ test_that("cox_snell is the compensator, from stored components only", {
     tolerance = 1e-4
   )
   # On a right-censored interval the compensator IS the whole log-likelihood
-  # contribution, so there the identity is exact rather than asymptotic.
+  # contribution, so there the identity is exact rather than asymptotic. That is
+  # a fact about an interval, so it is asserted on the per-interval compensator:
+  # the returned series has accumulated those intervals into their events and no
+  # longer exposes them one by one.
   censored <- fit$right_censored_events
-  expect_equal(residual[censored], -fit$interval_log_lik[censored])
+  per_interval <- fit$intervals * fit$total_rate
+  expect_equal(per_interval[censored], -fit$interval_log_lik[censored])
 })
 
 test_that("cox_snell says so where there is no compensator", {
+  # Each refusal names the family being asked, because they are not the same
+  # family: a coordination likelihood is a softmax over unordered dyads, not
+  # over one sender's alternatives, so describing it as multinomial is wrong.
   expect_snapshot(error = TRUE, residuals(fit_choice(), type = "cox_snell"))
+  expect_snapshot(
+    error = TRUE,
+    residuals(fit_coordination(), type = "cox_snell")
+  )
+})
+
+test_that("cox_snell computes on a DyNAM-i rate fit", {
+  # The guard admits it on the risk-set descriptor, with nothing behind that
+  # until now. DyNAM-i rate shares the DyNAM rate event contribution, so the
+  # arithmetic is the same family and the compensator identity is the check.
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  env <- new.env()
+  data("RFID_Validity_Study", package = "goldfish", envir = env)
+  participants <- env$participants
+  participants$label <- as.character(participants$label)
+  groups <- make_groups_interaction(
+    env$video,
+    participants,
+    seed_randomization = 1
+  )
+  fit <- suppressWarnings(estimate_dynami(
+    interactions ~
+      1 +
+      intercept(interactions, joining = 1) +
+      ego(age, joining = 1, subType = "centered"),
+    sub_model = "rate",
+    data = groups,
+    control_algo = set_algorithm_newton(backend = "r", diagnostics = "loglik")
+  ))
+
+  residual <- residuals(fit, type = "cox_snell")
+  expect_equal(residual, fit$intervals * fit$total_rate)
+  expect_true(all(is.finite(residual)))
+  expect_true(all(residual >= 0))
+  # The time intercept's own score equation, as on a DyNAM rate fit.
+  expect_equal(
+    sum(residual),
+    sum(!fit$right_censored_events),
+    tolerance = 1e-4
+  )
 })
 
 test_that("cox_snell residuals are unit exponential under the model", {
@@ -105,16 +170,24 @@ test_that("cox_snell residuals are unit exponential under the model", {
 test_that("schoenfeld reads the conditional rows an exact-time fit stored", {
   fit <- fit_rate()
 
-  expect_equal(residuals(fit, type = "schoenfeld"), fit$conditional_scores)
+  # The stored conditional rows, realigned onto the per-event axis: the
+  # censored intervals carry no realized alternative to compare against, so
+  # dropping them is what makes these one row per event rather than per
+  # interval.
+  expect_equal(
+    residuals(fit, type = "schoenfeld"),
+    goldfish:::event_aligned_rows(fit$conditional_scores, fit)
+  )
+  expect_equal(nrow(residuals(fit, type = "schoenfeld")), fit$n_events)
   # They are NOT the score rows: those carry the exposure term, and dropping it
   # is why these do not sum to zero at the maximum even for free parameters.
   expect_false(identical(
     residuals(fit, type = "schoenfeld"),
     residuals(fit, type = "score")
   ))
-  expect_true(all(is.na(
-    residuals(fit, type = "schoenfeld")[fit$right_censored_events, ]
-  )))
+  # The NA rows the censored intervals used to contribute are gone rather than
+  # retained: they were dropped, not filled.
+  expect_false(anyNA(residuals(fit, type = "schoenfeld")))
 })
 
 test_that("schoenfeld is the score row on a multinomial sub-model", {
@@ -144,7 +217,7 @@ test_that("schoenfeld recomputes when the fit stored no conditional rows", {
   expect_null(plain$conditional_scores)
   expect_equal(
     unname(residuals(plain, type = "schoenfeld")),
-    unname(stored$conditional_scores)
+    unname(goldfish:::event_aligned_rows(stored$conditional_scores, stored))
   )
 })
 

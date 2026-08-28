@@ -37,12 +37,33 @@ argument outside its `term_def` argument schema, an argument value outside the
 declared allowed set/type, or is used in a context (model, sub_model,
 directionality, mode, or interaction) the `term_def` does not declare valid.
 Errors SHALL use a consistent shape stating what was given, what is allowed, and
-how to fix it. There SHALL be no permissive grace period.
+how to fix it. There SHALL be no permissive grace period. Argument names
+SHALL be matched exactly against the schema: an unrecognized name SHALL NOT be
+discarded, and SHALL NOT be resolved by prefix matching.
 
 #### Scenario: Unknown argument rejected
 - **WHEN** a formula term passes an argument not in the term's schema
 - **THEN** construction fails with an error naming the argument and listing the
-  accepted arguments
+  accepted arguments, and suggesting the closest accepted name when one is
+  close enough to be a plausible misspelling
+
+#### Scenario: Retired argument name rejected with its replacement
+- **WHEN** a formula term passes an argument name retired by an earlier rename
+  (for example `subType`, whose current spelling is `sub_type`)
+- **THEN** construction fails with an error naming the current spelling, rather
+  than the generic unknown-argument error
+
+#### Scenario: Abbreviated argument name rejected
+- **WHEN** a formula term passes an unambiguous prefix of an accepted argument
+  name (for example `transformer` for `transformer_fn`)
+- **THEN** construction fails rather than resolving the prefix
+
+#### Scenario: Out-of-set value rejected for every declared choice-set argument
+- **WHEN** a formula term supplies a value outside an argument's declared
+  `allowed` set
+- **THEN** construction fails naming the argument and the allowed set,
+  whether or not the underlying function's default declares more than one
+  choice
 
 #### Scenario: Invalid context rejected
 - **WHEN** a term is used with a model/sub_model/mode/direction or inside an
@@ -52,9 +73,16 @@ how to fix it. There SHALL be no permissive grace period.
 #### Scenario: Strict matrix reproduces current accept/reject behaviour
 - **WHEN** the existing test suite of valid and invalid formulas is run through
   the constructor
-- **THEN** every formula that estimated before still constructs, and every
-  formula that errored before still errors (no newly broken or newly permitted
-  formulas)
+- **THEN** every formula that estimated before still constructs, except those
+  supplying an argument name the parser previously discarded, and every formula
+  that errored before still errors (no newly permitted formulas, and no newly
+  broken ones outside that set)
+
+#### Scenario: The newly rejected set is bounded by the inventory
+- **WHEN** the constructor rejects a formula that estimated before
+- **THEN** the rejected argument name appears in the inventory of names the
+  parser previously discarded, and a rejection outside that inventory is a
+  regression
 
 ### Requirement: Endogenous object defaulting and authoritative context
 For an endogenous term the constructor SHALL inject the dependent network layer
@@ -78,10 +106,21 @@ object's attributes.
 
 ### Requirement: Construction preserves estimation numerics
 Routing effect resolution through the registry and constructor SHALL NOT change
-estimation results. Coefficients and log-likelihoods SHALL reproduce the frozen
-baselines to 1e-6 on both estimation engines.
+estimation results for any formula whose arguments the parser already bound.
+Coefficients and log-likelihoods SHALL reproduce the frozen baselines to 1e-6 on
+both estimation engines, except where a baseline formula supplied an argument
+name the parser discarded, in which case the corrected formula's values SHALL be
+derived before the baseline is re-frozen.
 
 #### Scenario: Baselines reproduce through the constructed-term path
 - **WHEN** the baseline models are estimated after the parser routes through the
   registry/constructor
 - **THEN** `coef()` and `logLik()` match the frozen baselines within 1e-6
+
+#### Scenario: A re-frozen baseline value is derived before it is written
+- **WHEN** correcting an argument name the parser previously discarded changes a
+  frozen baseline value, because the discarded argument selected a different
+  statistic
+- **THEN** the new value is derived in closed form and recorded with the change
+  before the baseline is re-frozen, and the invariants that survive it are
+  stated

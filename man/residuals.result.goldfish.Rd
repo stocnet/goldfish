@@ -8,7 +8,7 @@
   object,
   type = c("deviance", "score", "schoenfeld", "scaled_schoenfeld", "cox_snell",
     "response", "martingale", "dfbeta", "dfbetas", "cooks"),
-  level = c("actor", "dyad"),
+  level = NULL,
   preprocessed = NULL,
   ...
 )
@@ -20,9 +20,26 @@
 \code{"schoenfeld"}, \code{"scaled_schoenfeld"}, \code{"cox_snell"}, \code{"response"},
 \code{"martingale"}, \code{"dfbeta"}, \code{"dfbetas"} and \code{"cooks"}.}
 
-\item{level}{for \code{"martingale"}, whether to aggregate per \code{"actor"}
-(default, the margins' own difference) or per \code{"dyad"}. The dyad level is
-never stored and always costs one evaluation pass.}
+\item{level}{which stratification to return, for the two types that have
+more than one. Defaults per type rather than globally, since they disagree
+about what an unstratified answer is.
+
+For \code{"martingale"}: \code{"actor"} (the default, the margins' own difference) or
+\code{"dyad"}. The dyad level is never stored and always costs one evaluation
+pass.
+
+For \code{"cox_snell"}: \code{"event"} (the default, one compensator per dependent
+event) or \code{"actor"}, each actor's compensators over \strong{its own} consecutive
+events. The actor level answers whether one actor's spacing is what the
+model expected, where the event level answers that of the sequence as a
+whole, so it reads shape where \code{\link[=margin_table]{margin_table()}} reads level. It returns a
+list per actor — for a tie-oriented fit, a \code{sender} and a \code{receiver}
+list, as \code{"martingale"} does — each carrying a \code{right_censored} attribute
+marking the final span, which runs to the end of the observation window
+and closes no event. Summing an actor's spans returns its expected margin,
+and the uncensored spans number its observed one.
+
+Supplying \code{level} for any other type is an error: they have one reading.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to recompute from, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Only the recomputing types read it, and

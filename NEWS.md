@@ -1,4 +1,76 @@
-# goldfish 1.9.27
+# goldfish 1.9.29
+
+Merges the `feature/dynes` line — the multivariate specification and
+preprocessing substrate for DyNES. (That line minted 1.9.24–1.9.27 for the
+milestones below; those numbers were used on this line for other work, so its
+story lands here as one section.)
+
+## New features
+
+* **`make_joint_specification()` composes co-evolving process specifications**
+  (experimental). It combines two or more `make_specification()` objects built
+  over one shared data object into a single multivariate specification
+  (`joint_specification.goldfish`) portraying their co-evolution -- the
+  specification surface for DyNES, where panel-observed relational states
+  co-evolve with time-stamped relational events. Each joined process models a
+  distinct focal layer; processes compose over one shared mode-map object,
+  one- or two-mode and over distinct mode-pairs, with every cross-process read
+  required to conform by mode-set identity. The composed object carries a
+  per-formula `process_map` that marks which formulas are *coupled* (read a
+  modeled panel layer's latent state) and which are separable, and the
+  `print()` method sections the composition per layer with its flavors. A join
+  is estimated by `estimate_dynes()` (its surface and augmentation live in
+  separate changes); the event-stream estimators `estimate_dynam()` /
+  `estimate_rem()` reject a joint specification and redirect to it.
+
+## Documentation
+
+* New vignette `vignette("multivariate-specification")`: composing co-evolving
+  processes with `make_joint_specification()`, reading the extended
+  `process_map`, and how coupling and separability are detected. It documents
+  what estimating a joint specification will require once `estimate_dynes()`
+  lands, the zero-free-parameter generative-readiness completion transform,
+  and (in a developer notes section) the internal stepping walk handle
+  (`walk_open()`/`walk_advance()`/`walk_evaluate()`/`walk_inject()`) for
+  authors of the DyNES augmenter and the future `simulate()`.
+
+## Internal
+
+* Cross-process preprocessing runs on a single merged clock: the former
+  separate sender- and dyad-recipe walks are merged into one clock hosting the
+  statistic blocks keyed by mode-pair, with each process's likelihood-producing
+  formula attached as its own consumer and cross-mode-pair events
+  right-censoring the other processes' timed-rate consumers. Focal is resolved
+  *per formula* over the one shared state, and each `(layer, flavor)` support
+  constraint is compiled once into the merged plan with its mask snapshotted
+  per formula (compile-once / snapshot-per-formula). Union planning and
+  consumer routing generalize across processes: effect terms are deduplicated
+  across all formulas sharing a statistic block's dispatch family, so a
+  cross-process shared effect is computed once. The single-process and
+  flavored paths route through the merged walk byte-identically -- the frozen
+  1e-6 coefficient and C++ golden baselines pass unchanged.
+
+* Added the intercept-only rate primitive (`R/intercept_only_rate.R`), an
+  internal building block for the timed generative consumers (the completion
+  transform, a future `simulate()` method, and DyNES augmentation). It
+  represents a rate with no covariate columns and a single intercept that is
+  *pinned* -- a deterministic function of consumer-supplied per-period counts,
+  durations, and average risk-set sizes, `log(count_w / (T_w * |R_w|))` --
+  never estimated. The pinned intercept is theta-independent (occupies no slot
+  in the joint theta layout) and reproduces the supplied counts in expectation
+  through a uniform support-legal-sender hazard. In the generative context a
+  bare `rate = ~ 1` and a completion-supplied rate are the same pinned object;
+  a rate with any effect keeps its estimated baseline, and the single-process
+  `estimate_dynam()` / `estimate_rem()` path is untouched.
+
+* A generative-readiness completion transform fills a half-specified flavor's
+  gaps with zero-free-parameter defaults -- uniform choice over the
+  support-legal alternatives, uniform `choice_coordination` on both sides,
+  uniform ordered rate in the ordered regime, and the pinned intercept-only
+  rate in the timed regime -- so a composed specification is generatively
+  complete without fabricating estimable parameters. It is idempotent, warns
+  per layer/flavor/sub-model at each consumer entry, and aborts when a modeled
+  panel layer omits a flavor entirely.
 
 ## Bug fixes
 
@@ -11,103 +83,233 @@
   (panel, pinning a well-defined zero hazard) or aborts (relational, where no
   finite pin exists), naming the offending layer in both cases.
 
+# goldfish 1.9.28
+
+* **Reading a large model.** Three additions for a fit with many terms or many
+  actors, all of them usable with nobody at a screen --- fits go to a cluster,
+  which is where a one-panel-per-term figure fails worst.
+
+  `residuals(type = "cox_snell", level = "actor")` gives each actor its
+  compensators over **its own** consecutive events, where the default series
+  gives them over the sequence's. It reads shape where `margin_table()` reads
+  level: an actor whose events are correctly counted but clustered in time is
+  calibrated on every column the margins carry. Summing an actor's spans
+  returns its expected margin exactly, and the uncensored spans number its
+  observed one.
+
+  `margin_table(dispersion = TRUE)` adds the variance of those spans as a
+  column. Opt-in, because it needs one evaluation pass and the ordinary call is
+  a read of what estimation already stored; a fit carrying no statistics aborts
+  rather than reporting `NA`, which on that table means the scale is undefined
+  for the model class.
+
+  `test_gof()` and `test_time()` carry a `rank` column, `1` being the term with
+  the most evidence against it, so a script can take the front of the table
+  without rendering anything. It is a column and not a row order: the rows stay
+  in model order, and flavor-major on a multi-process fit, where the ranking is
+  computed within each process.
+
+* **`level` now defaults per residual type.** It was `c("actor", "dyad")` for
+  `"martingale"`, and reusing `"actor"` for the new stratification would have
+  silently changed what `residuals(type = "cox_snell")` returns. The two types
+  disagree about what an unstratified answer is, so each keeps its own default.
+  Supplying `level` to a type with one reading is now an error rather than
+  being ignored.
+
+* **Plotting these needs autograph >= 1.0.5**, which adds the page-wise
+  rendering, the level-versus-shape scatter, and one panel per process on the
+  flavored diagnostic tables.
+
+# goldfish 1.9.27
+
+* **Every diagnostic now works on a multi-flavor fit.** A specification fitting
+  several processes returned a container that most of the diagnostic surface did
+  not understand. `augment()` and the three `diagnose_*` describers had no
+  method and aborted as an undiagnosable class; `residuals()` and `fitted()`
+  were worse, reaching `stats`' own default and returning **`NULL` silently**.
+
+  The return takes one of two shapes, following from what the diagnostic
+  returns. A diagnostic whose answer is a table --- `augment()`,
+  `diagnose_outliers()`, `diagnose_changepoints()`, the `test_*` family ---
+  row-binds the per-process tables and appends `flavor` and `family` after the
+  existing columns, so the event and term columns stay where a single-process
+  fit puts them. A diagnostic returning a vector, a matrix or a list ---
+  `residuals()`, `fitted()`, `predict()`, `evaluate_model()` --- returns a list
+  keyed by process label, because none of those can carry a column.
+
+  Those four take `flavor =`, which narrows: where a flavor is fitted with one
+  sub-model it leaves one process and the return is the plain single-fit shape,
+  and where it spans several the list is restricted to them. A diagnostic that
+  refuses on one process names that process.
+
+  `flavor` and `family` are identity columns, not defining ones: dropping them
+  leaves the class, the metadata and the plot method intact.
+
+* **A flavored process records only its own events.** Every process of a
+  multi-flavor fit reported the whole layer as its `dependent_events`, so a
+  creation-only fit and a dissolution-only fit disagreed on every coefficient
+  while reporting the same events as theirs. The row counts happened to match
+  throughout, which is why nothing caught it.
+
+* **`test_gof()` standardizes per-event rows.** Its reference distribution is a
+  Brownian bridge, whose increments must be uncorrelated martingale differences
+  --- true of the score at distinct event times, false of the intervals inside
+  one waiting time. **Statistics and p-values move on any fit carrying
+  right-censored intervals**, and the direction depends on the fit: measured
+  both ways, with the standardizing constant rising 3--17% on one windowed rate
+  fit and falling by a factor of four on another. Multinomial fits are
+  unchanged, every span there holding one interval.
+
 # goldfish 1.9.26
 
-## Documentation
+* **Information criteria count events, not likelihood intervals.** `n_events` on
+  a fitted object was set to the number of likelihood **intervals**, under a name
+  that says events. On the multinomial families the two coincide; on a censoring
+  sub-model they diverge, because a right-censored interval is opened by every
+  non-dependent event inside the observation window --- a windowed effect's
+  dissolve, an exogenous stream's change, the window's own boundary. **BIC and
+  AICc therefore penalized a fit for its own censoring**, and `glance()`'s `nobs`
+  and `logLik(avgPerEvent = TRUE)` reported the same wrong number.
 
-* New vignette `vignette("multivariate-specification")`: composing co-evolving
-  processes with `make_joint_specification()`, reading the extended
-  `process_map`, and how coupling and separability are detected (a fid couples
-  only by reading a *modeled* panel layer's latent state; an exogenous-only
-  panel reference stays separable). It documents what estimating a joint
-  specification will require once `estimate_dynes()` lands -- the event-stream
-  estimators' rejection of a joint object is demonstrated live -- and the
-  zero-free-parameter generative-readiness completion transform. A developer
-  notes section documents the internal stepping walk handle
-  (`walk_open()`/`walk_advance()`/`walk_evaluate()`/`walk_inject()`) for
-  authors of the DyNES augmenter and the future `simulate()`. This closes out
-  the multivariate specification and preprocessing substrate
-  (`make_joint_specification()`, the extended `process_map`, the merged
-  single-clock walk, and the walk handle).
+  A fit now carries both: `n_events`, the dependent events, and `n_intervals`,
+  the likelihood intervals. **Reported values move on any rate or REM fit that
+  carries censored intervals** --- and one such fit is in the package's own
+  teaching vignette, where `AIC(mod03Rate, mod04Rate)` had been printing a
+  warning that the two models were "not all fitted to the same number of
+  observations". They now are.
+
+* **A residual is one value per dependent event.** `deviance`, `score` and
+  `cox_snell` accumulate over the intervals of each event's waiting time;
+  `dfbeta` and `dfbetas` follow from the accumulated score rows, and `cooks` is
+  evaluated *on* the accumulated row rather than summed over its parts, being
+  the influence of the whole event. The Schoenfeld forms drop the rows that
+  realized no alternative.
+
+  This is a correction, not a smoothing. A Cox-Snell residual is the compensator
+  over a waiting time and is unit exponential only as that whole integral: on a
+  windowed rate fit the accumulated values have mean 1 exactly, where the
+  per-interval pieces sit near 0.7. The totals agree under both readings, which
+  is why nothing caught it before.
+
+  Where the observation window outlives the last event, the trailing span closes
+  no waiting time and is returned as a **censored final observation**, flagged.
+
+* **`augment()` returns one row per dependent event**, with `n_intervals` giving
+  how many likelihood intervals were accumulated into that event's span, and
+  aligns row-for-row with `residuals()`.
+
+* **`include_censored` is deprecated** on `diagnose_outliers()` and
+  `diagnose_changepoints()`. It selected between a per-event series and a pooled
+  per-interval one; every row now already carries the censored intervals of its
+  own span, so there is no pooled alternative to select.
+
+* **Renamed, there being no naming contract before 2.0.0:** `augment()`'s
+  `interval_log_lik` is `event_log_lik` and its `right_censored_event` is
+  `censored`; `test_time()`'s `interval` column is `event`. The per-interval
+  names are kept where they remain accurate --- the stored `interval_log_lik`
+  primitive, the `intervals` clock, and `n_intervals`.
 
 # goldfish 1.9.25
 
-## New features
+* **A formula with no effect term aborts, naming the reason it has none.**
+  `~ 1`, `~ offset(x)`, `~ 1 + offset(x)` and multi-offset formulas failed on an
+  internal `invalid 'length' argument`, because `terms()` drops the shape of its
+  `factors` attribute along with the columns when there is no non-offset term.
+  They now parse, and a formula carrying no effect is refused by a stated rule
+  before preprocessing rather than by a dimension error inside it.
 
-* **`make_joint_specification()` composes co-evolving process specifications**
-  (experimental). It combines two or more `make_specification()` objects built
-  over one shared data object into a single multivariate specification
-  (`joint_specification.goldfish`) portraying their co-evolution -- the
-  specification surface for DyNES, where panel-observed relational states
-  co-evolve with time-stamped relational events. Each joined process models a
-  distinct focal layer (reading another process's layer as a covariate is
-  unrestricted -- it is exactly the coupling that makes joining meaningful);
-  processes compose over one shared mode-map object, one- or two-mode and over
-  distinct mode-pairs, with every cross-process read required to conform by
-  mode-set identity. The composed object carries a per-formula `process_map` that
-  marks which formulas are *coupled* (read a modeled panel layer's latent state)
-  and which are separable, and the `print()` method sections the composition per
-  layer with its flavors. A join is estimated by `estimate_dynes()` (its surface
-  and augmentation live in separate changes); the event-stream estimators
-  `estimate_dynam()` / `estimate_rem()` reject a joint specification and redirect
-  to it.
+  The two refusals differ, because the reasons differ. On the multinomial and
+  coordination sub-models a constant statistic cancels in the risk-set
+  normalization, so an intercept identifies nothing --- a property of the
+  likelihood. On the exact-time `rate` families an intercept alone is a
+  well-defined baseline rate, and goldfish is declining a model it could fit ---
+  a property of goldfish. **`rate_ordered` belongs with the first group, not
+  with the `rate` family whose name it shares**, its likelihood normalizing over
+  the risk set.
 
-## Internal
+  A model whose coefficients are all *fixed* is unaffected: it estimates nothing
+  and evaluates its likelihood, which is a supported use --- `test_parameter()`
+  is the diagnostic that shape exists for. An `offset()`-only formula is that
+  case, not a degenerate one.
 
-* Cross-process preprocessing now runs on a single merged clock. The former
-  separate sender- and dyad-recipe walks are merged into one clock hosting the
-  statistic blocks keyed by mode-pair, with each process's likelihood-producing
-  formula attached as its own consumer and cross-mode-pair events right-censoring
-  the other processes' timed-rate consumers. Focal is resolved *per formula* over
-  the one shared state (each views the shared state through its own modeled
-  layer, never a single stamped focal), and each `(layer, flavor)` support
-  constraint is compiled once into the merged plan with its mask snapshotted per
-  formula against that formula's own event timeline (compile-once /
-  snapshot-per-formula). The single-process and flavored paths route through the
-  merged walk byte-identically -- the frozen 1e-6 coefficient and C++ golden
-  baselines pass unchanged.
+* **`cox_snell` refusals name the family being asked.** The message asserted
+  that "a multinomial likelihood has none" for every sub-model without a
+  compensator, which is false for `choice_coordination` --- that likelihood is a
+  softmax over unordered dyads, not over one sender's alternatives.
 
-* Union planning and consumer routing generalize across processes: effect terms
-  are deduplicated across all formulas sharing a statistic block's dispatch
-  family (never across families), so a cross-process shared effect is computed
-  once, and the schedule routes each dependent stream by `(layer, flavor)`. The
-  support-constraint mask pass maintains the union of all constraints' atoms once
-  and projects each formula's own expression through that shared atom state,
-  replacing the per-output atom re-walk.
+* **Requesting `"conditional_scores"` where it is an identity now says so.** On
+  a family whose likelihood is already conditional the primitive stores nothing,
+  because the score rows carry no exposure term and *are* the conditional rows.
+  That was silent, so the argument appeared to take effect and the absence was
+  discovered later, indistinguishable from a typo or a bug. It is a message, not
+  a warning: the fit is correct and complete, and a warning would become an
+  error under `options(warn = 2)`.
 
-* A generative-readiness completion transform fills a half-specified flavor's
-  gaps with zero-free-parameter defaults -- uniform choice over the support-legal
-  alternatives, uniform `choice_coordination` on both sides, uniform
-  `rate_ordered` in the ordered regime, and the pinned intercept-only rate in the
-  timed regime -- so a composed specification is generatively complete without
-  fabricating estimable parameters. It is idempotent, warns per
-  layer/flavor/sub-model at each consumer entry, and aborts when a modeled panel
-  layer omits a flavor entirely. The single-process estimation path is
-  unaffected: a rate-only specification is not completed and stays byte-identical
-  to the baselines.
+  `evaluate_model(return = "conditional_scores")` on the same families now
+  aborts instead of returning `NULL`, as `"exposure"` already did. The asymmetry
+  is deliberate: asking to *store* a primitive is a preference, asking the
+  evaluator *for* a value is a demand.
+
+* **`vcov()` on a fit with no estimated coefficient** aborts naming that, rather
+  than failing inside `solve()` with `'a' is 0-diml`. The summary of such a fit
+  also prints its empty coefficient table without internal warnings.
+
+* **`risk_set_axis()` on a flavored fit** aborts naming the `$results` route,
+  rather than returning `NULL` as though the model had no axis. A container
+  holds one fit per process, each with its own.
 
 # goldfish 1.9.24
 
-## Internal
+* **A fit records the events it modeled.** A model fitted with a `start_time`
+  or an `end_time` stored every timed event of its focal layer as its dependent
+  events, including the ones the observation window excluded, so the recorded
+  table and the fit's own per-interval vectors described different likelihoods.
+  Every consumer pairing the two was mis-paired; the mismatch happened to be
+  loud in `augment()`, which aborted rather than interleaving and took
+  `diagnose_outliers()` and `diagnose_changepoints()` with it --- on exactly the
+  warm-started fit `diagnose_onset()` recommends building. The filter is applied
+  where the table is built, so no surface can be reached with the unfiltered
+  one.
 
-* Added the intercept-only rate primitive (`R/intercept_only_rate.R`), an
-  internal, unexported building block for the timed generative consumers
-  (the multivariate-specification completion transform, a future
-  `simulate()` method, and DyNES augmentation). It represents a rate with no
-  covariate columns and a single intercept that is *pinned* -- a deterministic
-  function of consumer-supplied per-period counts, durations, and average
-  risk-set sizes, `log(count_w / (T_w * |R_w|))` -- never estimated. The
-  pinned intercept is theta-independent (occupies no slot in the joint theta
-  layout, so a joint fit's dimensions and score/Hessian are unchanged by
-  adding one) and reproduces the supplied counts in expectation through a
-  uniform support-legal-sender hazard. In the generative context, a bare
-  `rate = ~ 1` and a completion-supplied rate are treated as the same pinned
-  object, source-agnostically; a rate with any effect keeps its estimated
-  baseline, and the single-process `estimate_dynam()` / `estimate_rem()` path
-  is untouched (byte-identical to the frozen 1e-6 baselines). Each consumer
-  warns at its own entry point, worded for its count source, and the
-  primitive aborts if invoked outside the timed regime. Purely additive: no
-  change to fitted coefficients on any existing path.
+* **`end_time` past the last event is no longer a silent no-op, and baseline
+  rates fall accordingly.** Preprocessing opened the closing interval only on
+  meeting an event beyond the boundary. When the schedule ran out first that
+  branch never ran, so the exposure between the last event and the end of the
+  window left the likelihood entirely: on the package's own fixture an
+  `end_time` of 40 and one of 60, against events ending at 36, both produced
+  byte-identical results to setting none at all. That biases the baseline rate
+  upward, the model being told its events happened in a shorter window than the
+  one observed.
+
+  The window now closes when the schedule runs out, not only when the walk
+  steps past the boundary. **Any exact-time `rate` or REM fit with an
+  `end_time` beyond its last event changes: its baseline rate falls**, by the
+  ratio of the two exposures where the covariates are time-constant. Which
+  sub-models store the trailing row remains a property of the likelihood --- the
+  multinomial families have no compensator, so they store nothing and are
+  unchanged.
+
+* **An order-dependent effect means the same thing with and without a
+  `start_time`.** The per-event order counter advanced only for events the
+  observation window admitted, so a pre-`start_time` event left a gap and every
+  pair of events straddling it looked non-adjacent. The closure effects that
+  read adjacency in the event stream --- `trans()` and `cycle()` under
+  `history = "consecutive"` --- therefore counted nothing at all during the
+  burn-in and folded a matrix of zeros into their initial statistics. **A fit
+  combining `history = "consecutive"` with a `start_time` changes**, and anyone
+  who ran one was estimating a coefficient from a degenerate statistic.
+
+* **The window's closing row reports no sender or receiver.** It used to borrow
+  them from the out-of-window event that triggered the stop --- stale rather
+  than wrong for the likelihood, which reads none of it, but visible in
+  `augment()` and in the dependent-events table, where nothing distinguished it
+  from a real observation.
+
+* **Preprocessing stops at `end_time` on both paths**, the legacy monolith
+  having drained its remaining pointers instead. The `end_time` documentation
+  said the opposite of the code and is corrected to it; it now also states what
+  happens when the schedule ends first, and names `estimate_dynami()`, which
+  does not support an observation window and ignores both time arguments.
 
 # goldfish 1.9.23
 

@@ -715,8 +715,16 @@ run_sender_recipe_loop <- function(
       utils::setTxtProgressBar(pb, i_total_events)
     }
 
-    if (isValidEvent && isDependent) {
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
       i_dependent_events <- 1L + i_dependent_events
+    }
+
+    if (isValidEvent && isDependent) {
       if (schedule$shape[k] == "node") {
         ev_sender <- schedule$node[k]
         ev_receiver <- schedule$node[k]
@@ -738,7 +746,14 @@ run_sender_recipe_loop <- function(
       )
     } else if (!isDependent) {
       if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (schedule$shape[k] == "global") {
+        if (final_step) {
+          # The closing row is the window ending, not an event. The event that
+          # triggered the stop lies outside the window, and its sender and
+          # receiver would read as a real observation everywhere the row
+          # surfaces.
+          ev_sender <- NA_integer_
+          ev_receiver <- NA_integer_
+        } else if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
@@ -980,6 +995,32 @@ run_sender_recipe_loop <- function(
     }
 
     if (final_step) break
+  }
+
+  # The window closes at the end time even when the schedule runs out before
+  # reaching it. Only the branch that meets an out-of-window event used to
+  # write the closing row, so the exposure after the last event left the
+  # likelihood entirely, biasing the baseline rate upward. Whether the row is
+  # stored is a property of the likelihood: a family with no compensator keeps
+  # no right-censoring consumer, and a row there would contribute exactly zero
+  # while changing the interval count.
+  trailing_interval <- endTime - time
+  if (
+    isValidEvent &&
+      !final_step &&
+      length(rc_consumers) > 0L &&
+      trailing_interval > 0
+  ) {
+    route_right_censored_event(
+      rc_consumers,
+      list(
+        is_dependent = 0L,
+        interval = trailing_interval,
+        time = endTime,
+        sender = NA_integer_,
+        receiver = NA_integer_
+      )
+    )
   }
 
   if (progress) {
@@ -1577,8 +1618,16 @@ run_dyad_recipe_loop <- function(
       utils::setTxtProgressBar(pb, i_total_events)
     }
 
-    if (isValidEvent && isDependent) {
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
       i_dependent_events <- 1L + i_dependent_events
+    }
+
+    if (isValidEvent && isDependent) {
       if (schedule$shape[k] == "node") {
         ev_sender <- schedule$node[k]
         ev_receiver <- schedule$node[k]
@@ -1600,7 +1649,14 @@ run_dyad_recipe_loop <- function(
       )
     } else if (!isDependent) {
       if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (schedule$shape[k] == "global") {
+        if (final_step) {
+          # The closing row is the window ending, not an event. The event that
+          # triggered the stop lies outside the window, and its sender and
+          # receiver would read as a real observation everywhere the row
+          # surfaces.
+          ev_sender <- NA_integer_
+          ev_receiver <- NA_integer_
+        } else if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
@@ -1841,6 +1897,32 @@ run_dyad_recipe_loop <- function(
     }
 
     if (final_step) break
+  }
+
+  # The window closes at the end time even when the schedule runs out before
+  # reaching it. Only the branch that meets an out-of-window event used to
+  # write the closing row, so the exposure after the last event left the
+  # likelihood entirely, biasing the baseline rate upward. Whether the row is
+  # stored is a property of the likelihood: a family with no compensator keeps
+  # no right-censoring consumer, and a row there would contribute exactly zero
+  # while changing the interval count.
+  trailing_interval <- endTime - time
+  if (
+    isValidEvent &&
+      !final_step &&
+      length(rc_consumers) > 0L &&
+      trailing_interval > 0
+  ) {
+    route_right_censored_event(
+      rc_consumers,
+      list(
+        is_dependent = 0L,
+        interval = trailing_interval,
+        time = endTime,
+        sender = NA_integer_,
+        receiver = NA_integer_
+      )
+    )
   }
 
   if (progress) {
@@ -2275,9 +2357,17 @@ preprocess_monolith <- function(
     #      calculate statistics updates
     #      update objects
 
+    # `event_order` is derived as the difference of these two counters, so a
+    # dependent event must advance both whether or not the observation window
+    # has opened. Advancing only the total would leave a gap across the
+    # burn-in fold, and an effect that reads adjacency in the event stream --
+    # trans(history = "consecutive") -- would find none.
+    if (isDependent) {
+      i_dependent_events <- 1L + i_dependent_events
+    }
+
     # 1. store statistic updates for DEPENDENT events
     if (isValidEvent && isDependent) {
-      i_dependent_events <- 1L + i_dependent_events
       stats_change[[event_pos]] <- updates_dependent
       intervals[[event_pos]] <- interval
       is_dependent[[event_pos]] <- 1L
@@ -2592,6 +2682,13 @@ preprocess_monolith <- function(
     pointers[next_event] <- 1 + pointers[next_event]
     valid_pointers <- pointers <= vapply(events, nrow, integer(1)) &
       times <= endTime
+
+    # Stop at the end of the window rather than draining the remaining
+    # pointers. Nothing past it is stored, so visiting those events only costs
+    # time -- and the recipe loops already stop here, which is the disagreement
+    # that mattered: two preprocessing paths cannot mean different things by
+    # the end of the observation window.
+    if (final_step) break
   }
 
   if (progress && utils::getTxtProgressBar(pb) < n_total_events) {

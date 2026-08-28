@@ -49,6 +49,27 @@ a \code{grouped_df} demotes when its groups are gone. Without that, a column
 subset would keep the class while the print method counted a flag column
 that is no longer there, reporting no findings on a table that has them.
 }
+\section{A multi-process fit}{
+A fit holding several processes returns the same object, with its
+per-process tables stacked and two columns appended: \code{flavor} and \code{family},
+saying which process each row came from. Appended rather than prepended, so
+the diagnostic's own columns stay where a single-process table puts them.
+The blocks come flavor-major, the order the fit prints its components in, so
+two diagnostics of one fit never need reordering against each other.
+
+\code{flavor} and \code{family} are \strong{identity} columns and not defining ones.
+Dropping them leaves a table that is still the diagnostic — one that has
+merely stopped saying which process each row is from — so the class, the
+metadata and the plot method survive it. A defining column is one the object
+cannot be read without; knowing the provenance of a row is not that.
+
+A diagnostic that does not fit in one rectangle returns a classed list of
+tibbles instead, and there each component carries the two columns. The
+metadata is the container's own rather than any one process's: a field
+differing between processes, such as \code{sub_model}, holds the set of its
+values, and the counts total over the processes the object holds.
+}
+
 \seealso{
 \code{\link[=margin_table]{margin_table()}}, the producer of the first diagnostic table, and
 \link{diagnostic-requirements} for what each diagnostic needs from a fit.

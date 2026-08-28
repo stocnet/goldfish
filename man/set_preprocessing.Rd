@@ -23,13 +23,23 @@ It's useful to set this parameter when the model has windowed effects or
 effects that depends of previous order of events (e.g., \code{trans()} and
 \code{cycle()} when \code{history} argument is set to sequential or consecutive,
 as they are initialized with empty values.
+\code{estimate_dynami()} does not support an observation window and currently
+ignores this argument.
 Default is \code{NULL} (start from the first event).}
 
 \item{end_time}{A numerical value or a date-time character string
 (parsable by \code{as.POSIXct}) indicating the end time when the events
 are not to be considered for likelihood computation.
-The preprocessing stage won't stop at this time and will continue
-processing events after this time.
+The preprocessing stage stops traversing the event schedule at this time,
+so events after it are neither stored nor visited.
+When the schedule ends before this time, the elapsed time in between is
+exposure during which no event occurred. The sub-models whose likelihood
+defines a compensator, the exact-time \code{rate} and REM families, record it
+as a right-censored interval, so the accumulated intervals reach
+\code{end_time}; the multinomial families record nothing, a censored interval
+there contributing exactly zero.
+\code{estimate_dynami()} does not support an observation window and currently
+ignores this argument.
 Default is \code{NULL} (end with the last event).}
 
 \item{opportunities_list}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} A list object.

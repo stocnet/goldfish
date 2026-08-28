@@ -20,4 +20,6 @@ vignettes/precompile\.R
 ^openspec$
 ^\.plan$
 ^CLAUDE\.md$
+^NEWS\.d$
 ^myeff\.html$
+^vignettes/rebuild-all\.R$

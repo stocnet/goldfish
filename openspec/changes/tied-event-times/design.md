@@ -101,6 +101,14 @@ all candidates and they differ in how much of the stocnet contract they touch.
 Task 0.2 settles it against the actual event-stream code before anything is
 built.
 
+**Consumer note (2026-08-19):** the `recency-effects` change binds its
+freeze-then-update tie-block contract (statistics read the ordering as of
+the block's start; buffer pushes happen once at block end) to whatever
+mechanism D3 settles — it consumes the block-boundary definition rather
+than deriving its own. Task 0.2's choice therefore has a second consumer
+beyond the likelihood warning: per-effect state whose update order is
+tie-sensitive.
+
 ### D4 — the documentation carries the recipe, the package carries the mechanism
 
 The imputation workflow (generate orderings, refit each, combine) is documented

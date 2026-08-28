@@ -11,6 +11,14 @@ The package SHALL export `set_preprocessing()` (the renamed
 `c("preprocessing.goldfish", "list")`. The `print` method SHALL dispatch on
 the new class. Argument validation SHALL be unchanged.
 
+The documentation of `start_time` and `end_time` SHALL describe the behavior
+the preprocessing implements, and SHALL point to the observation-window
+semantics for what the bounds do: that events before `start_time` are replayed
+to build the initial statistics rather than discarded, that traversal stops at
+`end_time`, and that the closing exposure interval is stored by the sub-models
+whose likelihood defines a compensator. It SHALL NOT state that preprocessing
+continues past `end_time`.
+
 #### Scenario: constructor returns the new class
 - **WHEN** `set_preprocessing(start_time = 10)` is called
 - **THEN** the returned object inherits `preprocessing.goldfish`, carries
@@ -20,6 +28,11 @@ the new class. Argument validation SHALL be unchanged.
 - **WHEN** the same options are supplied to `set_preprocessing()` as were
   supplied to `set_preprocessing_opt()` before the rename
 - **THEN** preprocessing behaves identically.
+
+#### Scenario: the documented window behavior matches the implementation
+- **WHEN** the `start_time` and `end_time` documentation is read
+- **THEN** it states that traversal stops at `end_time`, and does not claim
+  that processing continues past it
 
 ### Requirement: control_prep is the preprocessing-control argument everywhere
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept

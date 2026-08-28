@@ -485,12 +485,12 @@ make_stocnet_fixture_missing_nodal <- function() {
   list(info = info, nodes = nodes, ties = ties)
 }
 
-# A global attribute carrying a missing value, for the D2 schedule-construction
-# abort. `when = "init"` leaves the sole (history) value missing, so the global
-# has no defined initial value; `when = "event"` gives an observed initial value
-# and a later timed `replace` that is missing. Built on make_stocnet_fixture()'s
-# one-mode `calls` process; a test reads the global through an effect to bring
-# it into the effects link.
+# A global attribute carrying a missing value, for the abort raised while the
+# schedule is constructed. `when = "init"` leaves the sole (history) value
+# missing, so the global has no defined initial value; `when = "event"` gives an
+# observed initial value and a later timed `replace` that is missing. Built on
+# make_stocnet_fixture()'s one-mode `calls` process; a test reads the global
+# through an effect to bring it into the effects link.
 make_stocnet_fixture_missing_global <- function(when = c("init", "event")) {
   when <- match.arg(when)
   fixture <- make_stocnet_fixture()

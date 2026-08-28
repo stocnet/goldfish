@@ -187,14 +187,17 @@ test_that("in/out/deg startTime endTime preprocessing", {
       Filter(\(x) x >= 10 & x <= 30, x = _),
     label = "events times"
   )
+  # The last row closes the window at 30; it is not an event, so it reports no
+  # sender or receiver. It used to borrow them from the event at time 32 that
+  # triggered the stop, which lies outside the window.
   expect_equal(
     preproData$event_sender,
-    c(2, 2, 5, 1, 4, 3, 3, 1, 4, 2, 5),
+    c(2, 2, 5, 1, 4, 3, 3, 1, 4, 2, NA),
     label = "sender events"
   )
   expect_equal(
     preproData$event_receiver,
-    c(3, 3, 1, 5, 5, 4, 4, 3, 2, 3, 2),
+    c(3, 3, 1, 5, 5, 4, 4, 3, 2, 3, NA),
     label = "receiver events"
   )
   expect_equal(
@@ -292,14 +295,17 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
       Filter(\(x) x >= 6 & x <= 24, x = _),
     label = "events times"
   )
+  # The last row closes the window at 24; it is not an event, so it reports no
+  # sender or receiver. It used to borrow them from the event at time 28 that
+  # triggered the stop, which lies outside the window.
   expect_equal(
     preproData$event_sender,
-    c(3, 4, 2, 2, 2, 5, 1, 4, 3, 3, 1),
+    c(3, 4, 2, 2, 2, 5, 1, 4, 3, 3, NA),
     label = "sender events"
   )
   expect_equal(
     preproData$event_receiver,
-    c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 3),
+    c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, NA),
     label = "receiver events"
   )
   expect_equal(

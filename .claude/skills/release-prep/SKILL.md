@@ -31,7 +31,7 @@ notes). Confirm before continuing:
 artifacts are reviewed before they land:
 
 ```bash
-Rscript ./vignettes/precompile.R
+Rscript ./vignettes/rebuild-all.R
 ```
 
 ## 2. Spell check
@@ -83,7 +83,7 @@ anything it surfaces before finalizing `cran-comments.md`.
 ## Sequence summary
 
 1. `/open-source:create-release-checklist` → checklist + issue; confirm version/NEWS.
-2. `vignettes/precompile.R` → rendered vignettes/README.
+2. `vignettes/rebuild-all.R` → rendered vignettes/README.
 3. `devtools::spell_check()`.
 4. `covr::report(covr::package_coverage(type = "tests"))`.
 5. `pkgdown::build_site()`.

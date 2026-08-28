@@ -177,12 +177,15 @@ print.summary.result.goldfish <- function(
     termsFull <- compact_term_strings(names, "console", width = 10000L)
     tmp <- coefMat
     rownames(tmp) <- termsFull
+    # An all-fixed fit renders a coefficient table with no rows, so there is no
+    # term to measure; `max()` of nothing warns its way to -Inf.
+    fullWidth <- if (length(termsFull) > 0) max(nchar(termsFull)) else 0L
     numericWidth <- max(nchar(utils::capture.output(
       stats::printCoefmat(tmp, digits = digits, ...)
     ))) -
-      max(nchar(termsFull))
+      fullWidth
     avail <- max(12L, width - numericWidth)
-    terms <- if (max(nchar(termsFull)) <= avail) {
+    terms <- if (fullWidth <= avail) {
       termsFull
     } else {
       compact_term_strings(names, "console", width = avail)
@@ -1243,9 +1246,12 @@ generics::augment
 #'   (currently unused).
 #'
 #' @return A [tibble::tibble()] with the modeled event columns plus
-#'   `right_censored_event`, `interval_log_lik`, and the broom-convention
-#'   `.fitted` (the fitted outcome probability, `exp(interval_log_lik)`) and
-#'   `.resid` (its deviance residual, `-2 * interval_log_lik`).
+#'   `censored`, `n_intervals` (how many likelihood intervals were accumulated
+#'   into that event's waiting time), `event_log_lik`, and the broom-convention
+#'   `.fitted` (the fitted outcome probability, `exp(event_log_lik)`) and
+#'   `.resid` (its deviance residual, `-2 * event_log_lik`). A row is
+#'   `censored` only where the observation window outlives the last event: it
+#'   closes no waiting time, so it has neither a fitted outcome nor a deviance.
 #'
 #' @examples
 #' data("social_evolution")
@@ -1270,28 +1276,70 @@ augment.result.goldfish <- function(x, ...) {
   data <- x$dependent_events %||% get(as.character(x$formula[2]))
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
-  censored <- x$right_censored_events
-  if (isTRUE(x$right_censored) && any(censored)) {
-    # Interleave rather than append. The censored intervals are interleaved
-    # among the dependent events in time, and every per-interval column below
-    # is in that order -- appending them at the end would pair each column
-    # with the wrong row from the first censored interval onwards.
-    censored_rows <- tib[rep(NA_integer_, sum(censored)), , drop = FALSE]
-    censored_rows$time <- x$event_time[censored]
-    tib <- rbind(tib, censored_rows)
-    tib[c(which(!censored), which(censored)), ] <- tib
+
+  # One row per dependent event, not per likelihood interval. The censored
+  # intervals are not rows of their own: each belongs to the waiting time of
+  # the event that follows it, and is accumulated into that event's span. The
+  # interleaving this replaces existed because the table carried one row per
+  # interval and had to keep them in time order.
+  index <- accumulation_index(x)
+  span <- if (is.null(index)) {
+    rep(1L, nrow(tib))
+  } else {
+    unname(tabulate(index))
   }
-  tib$right_censored_event <- censored
+
+  # Intervals after the last dependent event close no waiting time. They are a
+  # censored remainder, and the table carries it as one final row so it stays
+  # aligned with `residuals()`, which returns the same shape. Letting the two
+  # disagree would reproduce the mis-pairing this change exists to remove.
+  remainder <- length(span) > nrow(tib)
+  if (remainder) {
+    tail_row <- tib[NA_integer_, , drop = FALSE]
+    tail_row$time <- utils::tail(x$event_time, 1)
+    tib <- rbind(tib, tail_row)
+  }
+  # `censored`, not `right_censored_event`: it marks the one row that closes no
+  # waiting time, which is precisely the row that is NOT an event.
+  tib$censored <- c(rep(FALSE, nrow(tib) - remainder), rep(TRUE, remainder))
+
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
-  tib$interval_log_lik <- x$interval_log_lik
-  # broom's conventions, on the intervals where the model made a call: a
-  # right-censored interval realizes no outcome, so it has no fitted
-  # probability and no deviance for one.
-  tib$.fitted <- ifelse(censored, NA_real_, exp(x$interval_log_lik))
-  tib$.resid <- ifelse(censored, NA_real_, -2 * x$interval_log_lik)
+  # How many likelihood intervals were accumulated into this event's span. It
+  # is the only place the interval structure stays visible once every other
+  # surface is per event, and it is what lets the two counts a fit reports be
+  # reconstructed from this table alone.
+  tib$n_intervals <- span
+  tib$event_log_lik <- accumulate_over_events(x$interval_log_lik, x)
+  # broom's conventions. `.fitted` is the span's density contribution and
+  # `.resid` its deviance -- exactly the literature's `f_k` and `D_k`, which
+  # are defined over the waiting time rather than over one stored interval. The
+  # censored remainder realizes no outcome, so it has neither.
+  fitted <- exp(tib$event_log_lik)
+  resid <- -2 * tib$event_log_lik
+  tib$.fitted <- ifelse(tib$censored, NA_real_, fitted)
+  tib$.resid <- ifelse(tib$censored, NA_real_, resid)
   tib
+}
+
+#' @export
+#' @method augment flavored_result.goldfish
+#' @noRd
+augment.flavored_result.goldfish <- function(x, ...) {
+  # A tidy return, so the identity travels as columns rather than as a list:
+  # the per-process tables row-bind and gain `flavor` and `family` appended
+  # after the existing columns. That keeps the event columns positionally
+  # stable between a single-process fit and a multi-process one, and it is what
+  # lets a plot facet on the identity instead of needing a flavored method of
+  # its own.
+  #
+  # The non-tidy methods take the other route -- a list named by process label
+  # -- because a vector cannot carry a column. See `?diagnostic-requirements`.
+  tables <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(augment(process$fit, ...), process)
+  })
+  do.call(rbind, tables)
 }
 
 #' @return The object, invisibly.
@@ -1309,9 +1357,9 @@ print.diagnose_changepoints <- function(x, ...) {
   print_diagnose_table(x, x$cpt, "changepoint")
 }
 
-# The header both diagnostic tables share. It reads its counts from the D18
-# metadata rather than sniffing which columns are present, which is what let
-# one print method serve two different objects by guessing.
+# The header both diagnostic tables share. It reads its counts from the
+# `context` metadata rather than sniffing which columns are present, which is
+# what let one print method serve two different objects by guessing.
 print_diagnose_table <- function(x, flagged, noun) {
   context <- attr(x, "context")
   params <- attr(x, "params")
@@ -1323,6 +1371,16 @@ print_diagnose_table <- function(x, flagged, noun) {
     "{.strong {n_flagged}} {noun}{cli::qty(n_flagged)}{?s} identified by the
      {.val {params$method}} method."
   )
+  # A container's table is several series stacked, each flagged against its own
+  # scale, so the count above is a total over them rather than one series'. The
+  # same branch `print.test_time` and `print.test_gof` make, told apart by the
+  # column the flavored form appends.
+  if ("flavor" %in% names(x)) {
+    cli::cli_text(
+      "Across {length(context$flavor)} flavor{?s} over {length(context$fid)}
+       process{?es}, each {noun} flagged within its own process."
+    )
+  }
   # Which intervals took part is the one thing a reader cannot recover from
   # the table, since the censored rows are present either way.
   if (!is.null(context$n_analyzed) && !is.null(context$n_intervals)) {

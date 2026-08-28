@@ -183,6 +183,18 @@ risk_set_axis <- function(x) {
   # match its `risk_set_axis` component and return the axis string, which then
   # fails on `$axis`. Testing membership first also keeps a pre-2.0.0 fit
   # carrying none of the three on the NULL path rather than a subscript error.
+  # A flavored container carries no specification of its own: it is K fits, one
+  # per process, each with its own risk set. Returning NULL here would let a
+  # caller read "no axis" as an answer about the model rather than as the
+  # container being the wrong object to ask.
+  if (inherits(x, "flavored_result.goldfish")) {
+    cli::cli_abort(c(
+      "A flavored fit carries no single risk-set axis.",
+      "x" = "It holds one fit per process, and each has its own.",
+      "i" = "Ask a process: {.code x$results[[1]]}, or index by the flavor
+             label the fit reports."
+    ))
+  }
   nms <- names(x)
   if ("risk_set" %in% nms) {
     return(x[["risk_set"]][["axis"]])

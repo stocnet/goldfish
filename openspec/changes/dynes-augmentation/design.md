@@ -102,7 +102,8 @@ Argument names are **descriptive, never Greek**: `accept_quantile` /
 `growth_quantile` / `stop_quantile` for the ascent-based MCEM paper's α/β/γ, with
 the correspondence documented in roxygen. The parent constructor's name is
 settled as `set_algorithm_em()` (algorithm-naming: `set_algorithm_<family>()`,
-returning an object with the shared `algorithm.goldfish` superclass); the three
+returning an object with the shared `goldfishAlgorithm` superclass —
+post class-naming-scheme spelling, ADR-0031); the three
 nested component constructors keep their working `set_alg_*` names until abmcem
 decides them. Each child constructor validates only its own
 arguments; **all cross-object rules (the D13 validity matrix and precedence
@@ -168,7 +169,8 @@ separable; the writer contract demonstrated the modular alternative in this code
 The evaluator's engine is one C++ call over a list/pool of preprocessed objects,
 returning per-sequence logLik/score/Fisher at theta with zero optimizer iterations.
 The pooled unit is the **`multi-process-walk` merged walk's per-fid output** (one
-flat `preprocessed.goldfish` per fid, `stat_mat_update` + pointers + broadcast
+flat `goldfishPrep` (post class-naming-scheme spelling) per fid,
+`stat_mat_update` + pointers + broadcast
 encoding — the memory-efficient representation), so a multivariate spec's pool
 evaluates through the same contract without a separate assembly path. Rate/probability
 computation at a given process state reuses the estimation kernels (the same

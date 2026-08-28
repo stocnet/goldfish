@@ -3,12 +3,15 @@
 \name{diagnose_onset}
 \alias{diagnose_onset}
 \alias{diagnose_onset.result.goldfish}
+\alias{diagnose_onset.flavored_result.goldfish}
 \alias{print.diagnose_onset}
 \title{Diagnose the onset of the observed sequence}
 \usage{
 diagnose_onset(x, ...)
 
 \method{diagnose_onset}{result.goldfish}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
+
+\method{diagnose_onset}{flavored_result.goldfish}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
 
 \method{print}{diagnose_onset}(x, ...)
 }

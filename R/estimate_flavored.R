@@ -130,6 +130,7 @@ estimate_flavored <- function(
       preprocessed = prep,
       return_preprocessed = return_preprocessed,
       support_constraint = spec$processes[[flavor]]$constraint,
+      recorded_flavor = flavor,
       progress = progress,
       verbose = verbose
     )

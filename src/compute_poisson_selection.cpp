@@ -87,8 +87,8 @@ List compute_poisson_selection(
     arma::vec conditional_logl(n_events, fill::zeros);
 
     // Opt-in per-event primitives, allocated only when requested. Exact-time
-    // sub-models carry margins on BOTH scales from the one probability vector
-    // (D12/D20): the probability scale totals the event count at any parameter
+    // sub-models carry margins on BOTH scales from the one probability vector:
+    // the probability scale totals the event count at any parameter
     // vector, the compensator scale `Dt * T` totals it only at the MLE and its
     // observed-minus-expected is the martingale residual. `observed` is
     // scale-free, so one vector serves both.
@@ -182,7 +182,7 @@ List compute_poisson_selection(
         // right-censored interval realizes no mover, so `id_selected` is a
         // placeholder (the exogenous event's actor), not an observed
         // alternative, and there is nothing to condition on: the component is
-        // NA there by design, matching the `r` backend (D21).
+        // NA there by design, matching the `r` backend.
         if (is_dependent_current_event) {
           conditional_logl(id_event) =
             lin_pred_current_event(id_selected) - log_normalizer;

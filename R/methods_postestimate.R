@@ -74,16 +74,16 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' and with the following attributes:
 #'   \item{df}{degrees of freedom with the number of estimated parameters in
 #'     the model}
-#'   \item{nobs}{the number of observations used in estimation.
-#'     In general, it corresponds to the number of dependent events used in
-#'     estimation. For a `sub_model = "rate"` or `model = "REM"` with intercept,
-#'     it corresponds to the number of dependent events plus right-censored
-#'     events due to exogenous or endogenous changes.}
+#'   \item{nobs}{the number of dependent events the model was estimated on,
+#'     which is what the information criteria built on it should use. On a
+#'     censoring sub-model (`sub_model = "rate"`, or `model = "REM"` with an
+#'     intercept) the number of likelihood *intervals* is larger, since a
+#'     right-censored interval is opened by every non-dependent event inside
+#'     the observation window; that count is `n_intervals` on the fit and is
+#'     deliberately not what `nobs` reports.}
 #'
-#' When `avgPerEvent = TRUE`, the function returns a number with the average
-#' log-likelihood per event. The total number of events depends on the presence
-#' of right-censored events in a similar way that the attribute `nobs`
-#' is computed when `avgPerEvent = FALSE`.
+#' When `avgPerEvent = TRUE`, the function returns the average log-likelihood
+#' per dependent event, dividing by the same count `nobs` reports.
 #' @export
 #' @method logLik result.goldfish
 logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
@@ -108,6 +108,20 @@ vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   abort_if_stale_result(object, "a variance-covariance matrix")
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
+
+  # A covariance is a statement about estimated coefficients, and a fit whose
+  # coefficients are all held has none. The information over the free
+  # parameters is then zero-dimensional and `solve()` reports that in its own
+  # vocabulary ("'a' is 0-diml"), which says nothing about the model.
+  if (!any(!isFixed)) {
+    cli::cli_abort(c(
+      "A variance-covariance matrix needs at least one estimated coefficient.",
+      "x" = "All {length(isFixed)} coefficient{?s} of this fit
+             {?is/are} held at a fixed value.",
+      "i" = "The log-likelihood and the information criteria are defined here;
+             the covariance is not."
+    ))
+  }
 
   vc <- solve(object$final_information_matrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)
@@ -146,6 +160,107 @@ flavored_row_order <- function(object) {
     lapply(object$flavors, function(fl) which(map$flavor == fl)),
     use.names = FALSE
   )
+}
+
+# The container's processes, flavor-major, each with the identity its rows are
+# tagged by. Every flavored method walks this rather than the map's own fid
+# order, which is what stops two diagnostics of one fit disagreeing about row
+# order -- `model_terms()` and `margin_table()` used to iterate the map
+# directly and so ordered their rows differently from the `test_*` family.
+flavored_processes <- function(object) {
+  map <- object$process_map
+  lapply(flavored_row_order(object), function(i) {
+    list(
+      fit = object$results[[as.character(map$fid[i])]],
+      fid = map$fid[i],
+      flavor = map$flavor[i],
+      family = map$family[i]
+    )
+  })
+}
+
+# Tag a per-process table with the process it came from.
+#
+# Appended, never prepended: the term columns stay positionally stable between
+# a single-process fit and a multi-process one, so a consumer indexing by
+# position does not break when a second flavor appears. These are identity
+# columns and NOT defining ones -- dropping them leaves the table's class, and
+# therefore its plot dispatch, intact.
+append_process_identity <- function(table, process) {
+  table$flavor <- process$flavor
+  table$family <- process$family
+  table
+}
+
+# The processes a `flavor =` selection names, with their rendered labels.
+#
+# `flavor` NARROWS; it does not disambiguate. A flavor spanning several families
+# leaves several processes selected, and the caller gets the list restricted to
+# them rather than an error asking which family was meant. A flavor with one
+# family -- the ordinary shape, and the one the Fisheries Treaties fits have --
+# leaves exactly one, which is what lets the single-fit shape be one argument
+# away.
+flavored_selection <- function(object, flavor, call = rlang::caller_env()) {
+  processes <- flavored_processes(object)
+  labels <- flavored_component_labels(object)
+  if (is.null(flavor)) {
+    return(list(processes = processes, labels = labels))
+  }
+  available <- object$flavors
+  unknown <- setdiff(flavor, available)
+  if (length(unknown) > 0) {
+    cli::cli_abort(
+      c(
+        "{.arg flavor} names {length(unknown)} flavor{?s} this fit does not
+         carry.",
+        "x" = "Unknown: {.val {unknown}}.",
+        "i" = "This fit carries {.val {available}}."
+      ),
+      call = call
+    )
+  }
+  keep <- vapply(processes, function(p) p$flavor %in% flavor, logical(1))
+  list(processes = processes[keep], labels = labels[keep])
+}
+
+# Apply a per-process method across a selection, unwrapping a lone process.
+#
+# The return shape therefore depends on how many processes the selection leaves,
+# which is deliberate and is the whole point of `flavor =`: a container answers
+# with a list because no vector can carry the process identity, and naming one
+# process gets the ordinary single-fit shape back.
+flavored_component_apply <- function(
+  object,
+  flavor,
+  fn,
+  what,
+  call = rlang::caller_env()
+) {
+  selected <- flavored_selection(object, flavor, call = call)
+  # Named on failure, as the `test_*` and `diagnose_*` families are. A process
+  # can refuse for reasons the others do not share -- it carries no preprocessed
+  # statistics, or its formula lacks a requested term -- and a message that does
+  # not say which of four processes refused is not actionable.
+  out <- Map(
+    function(process, label) {
+      tryCatch(
+        fn(process$fit),
+        error = function(e) {
+          cli::cli_abort(
+            "{.fn {what}} could not read process {.val {label}}.",
+            parent = e,
+            call = call
+          )
+        }
+      )
+    },
+    selected$processes,
+    selected$labels
+  )
+  if (length(out) == 1L) {
+    return(out[[1L]])
+  }
+  stats::setNames(out, selected$labels)
 }
 
 # Rendered labels for the container's components, flavor-major.

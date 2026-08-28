@@ -11,12 +11,11 @@
 #' \code{diagnose_changepoints} passes them on to the \pkg{changepoint}
 #' function its \code{moment} selects; the other methods have none of their
 #' own.
-#' @param include_censored logical, whether the right-censored intervals take
-#'   part in the statistic. Defaults to `FALSE` — see the
-#'   \emph{Which intervals are analyzed} section, which explains why the
-#'   pooled series misleads. Either way the returned table keeps one row per
-#'   interval; the setting decides which rows can be flagged, not which rows
-#'   exist.
+#' @param include_censored `r lifecycle::badge("deprecated")` It selected
+#'   whether the right-censored intervals joined the statistic. Each row is now
+#'   one dependent event whose span already accumulates the censored intervals
+#'   of its own waiting time, so there is no pooled alternative left to choose
+#'   and the argument is ignored.
 #' @param effect an optional single model term, naming the series to diagnose
 #'   instead of the per-interval log-likelihood — see the \emph{Diagnosing one
 #'   term} section. Accepts any name the term answers to (the compact string
@@ -68,27 +67,28 @@
 #'     term, with no observed alternative.}
 #' }
 #'
-#' Pooling them makes the median, the interquartile range, the Hampel window
-#' and the changepoint segmentation describe the *censoring pattern* rather
-#' than the fit. The effect is largest exactly where windowed effects are
-#' used: a window opens at each event and closes a fixed time later, so the
-#' two kinds of interval alternate almost one for one, and the series becomes
-#' a square wave whose transitions a changepoint detector dutifully reports.
-#' On a windowed rate model of the `social_evolution` calls, segmenting the
-#' pooled series finds a changepoint at nearly every window closure, while
-#' the dependent intervals alone yield an order of magnitude fewer.
+#' A series mixing the two described the *censoring pattern* rather than the
+#' fit. The effect was largest exactly where windowed effects are used: a window
+#' opens at each event and closes a fixed time later, so the two kinds of
+#' interval alternated almost one for one and the series became a square wave
+#' whose transitions a changepoint detector dutifully reported.
 #'
-#' The default therefore analyzes the dependent intervals only. Set
-#' `include_censored = TRUE` to pool them, knowing what the pooled series
-#' mixes. On the multinomial sub-models — choice, the ordinal rate and REM
-#' sub-models, coordination — there are no right-censored intervals and the
-#' two settings agree.
+#' **That alternation no longer exists.** These functions read one row per
+#' **dependent event**, and each row's span has already accumulated the
+#' right-censored intervals of its own waiting time — so the censored
+#' contribution is present, attributed to the event it belongs to, rather than
+#' interleaved as rows of its own. The `include_censored` argument that used to
+#' choose between the two readings is deprecated and ignored: there is no longer
+#' a second reading to select.
 #'
-#' This restriction is deliberately *not* applied to the score-based
-#' diagnostics ([diagnose_onset()]): a right-censored interval's score row is
-#' a genuine contribution to the gradient, which sums to zero over all
-#' intervals, so a score series restricted to a subset has no null to be read
-#' against.
+#' A fit whose observation window outlives its last event carries one final span
+#' that closes no waiting time. It appears as a censored row, is not a
+#' candidate for flagging, and is the only row for which `.resid` is `NA`.
+#'
+#' [diagnose_onset()] never had this problem and still does not: a
+#' right-censored interval's score row is a genuine contribution to the
+#' gradient, which sums to zero over all intervals, so a score series
+#' restricted to a subset has no null to be read against.
 #'
 #' @name diagnose
 #' @examples
@@ -149,7 +149,7 @@ diagnose_outliers.result.goldfish <- function(
   threshold = 3,
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   parameter = deprecated(),
   ...
@@ -162,13 +162,14 @@ diagnose_outliers.result.goldfish <- function(
     "parameter",
     "threshold"
   )
+  warn_include_censored(include_censored, "diagnose_outliers")
   abort_if_not_diagnosable(x, "Outlier identification")
   method <- match.arg(method)
 
   # Through the generic, like the other broom surfaces: the method is no longer
   # an exported name of its own.
   data <- augment(x)
-  candidate <- diagnosable_intervals(data, include_censored)
+  candidate <- diagnosable_intervals(data)
   positions <- which(candidate)
   # Without `effect` the series is the per-interval log-likelihood: how
   # surprising each interval was. With it, the term's own influence series --
@@ -176,7 +177,7 @@ diagnose_outliers.result.goldfish <- function(
   # different question and localizes rather than ranks.
   selected <- selected_term(x, effect, "diagnose_outliers")
   reported <- if (is.null(selected)) {
-    data$interval_log_lik[candidate]
+    data$event_log_lik[candidate]
   } else {
     abs(residuals(
       x,
@@ -243,8 +244,7 @@ diagnose_outliers.result.goldfish <- function(
         "Interval log likelihood"
       } else {
         "Absolute dfbeta"
-      },
-      include_censored = include_censored
+      }
     ),
     defining = c("outlier", ".series")
   )
@@ -290,10 +290,11 @@ diagnose_changepoints.result.goldfish <- function(
   method = c("PELT", "AMOC", "BinSeg"),
   window = NULL,
   effect = NULL,
-  include_censored = FALSE,
+  include_censored = deprecated(),
   preprocessed = NULL,
   ...
 ) {
+  warn_include_censored(include_censored, "diagnose_changepoints")
   abort_if_not_diagnosable(x, "Changepoint identification")
 
   moment <- match.arg(moment)
@@ -302,7 +303,7 @@ diagnose_changepoints.result.goldfish <- function(
   # Through the generic, like the other broom surfaces: the method is no longer
   # an exported name of its own.
   data <- augment(x)
-  candidate <- diagnosable_intervals(data, include_censored)
+  candidate <- diagnosable_intervals(data)
   positions <- which(candidate)
   # Without `effect` the series is the per-interval log-likelihood, and a
   # changepoint is a shift in how well the model fits. With it, the term's
@@ -310,7 +311,7 @@ diagnose_changepoints.result.goldfish <- function(
   # changepoint there is a regime shift in the effect itself.
   selected <- selected_term(x, effect, "diagnose_changepoints")
   series <- if (is.null(selected)) {
-    data$interval_log_lik[candidate]
+    data$event_log_lik[candidate]
   } else {
     residuals(
       x,
@@ -375,22 +376,129 @@ diagnose_changepoints.result.goldfish <- function(
         "Interval log likelihood"
       } else {
         "Scaled Schoenfeld residual"
-      },
-      include_censored = include_censored
+      }
     ),
     defining = c("cpt", ".series")
   )
+}
+
+#' @export
+#' @rdname diagnose
+diagnose_outliers.flavored_result.goldfish <- function(
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  threshold = 3,
+  window = NULL,
+  effect = NULL,
+  preprocessed = NULL,
+  ...
+) {
+  method <- match.arg(method)
+  args <- list(
+    method = method,
+    threshold = threshold,
+    window = window,
+    effect = effect,
+    preprocessed = preprocessed
+  )
+  labels <- flavored_component_labels(x)
+  blocks <- Map(
+    function(process, label) {
+      flavored_diagnose_block(
+        process,
+        label,
+        diagnose_outliers,
+        "diagnose_outliers",
+        args
+      )
+    },
+    flavored_processes(x),
+    labels
+  )
+  # Each process is flagged against its OWN series rather than a pooled one: a
+  # rate process and a choice process do not share a scale, so a threshold
+  # applied across both would flag whichever has the wider spread.
+  flavored_diagnose_table(x, blocks, "diagnose_outliers")
+}
+
+#' @export
+#' @rdname diagnose
+diagnose_changepoints.flavored_result.goldfish <- function(
+  x,
+  moment = c("mean", "variance"),
+  method = c("PELT", "AMOC", "BinSeg"),
+  window = NULL,
+  effect = NULL,
+  preprocessed = NULL,
+  ...
+) {
+  moment <- match.arg(moment)
+  method <- match.arg(method)
+  args <- list(
+    moment = moment,
+    method = method,
+    window = window,
+    effect = effect,
+    preprocessed = preprocessed
+  )
+  labels <- flavored_component_labels(x)
+  blocks <- Map(
+    function(process, label) {
+      flavored_diagnose_block(
+        process,
+        label,
+        diagnose_changepoints,
+        "diagnose_changepoints",
+        args
+      )
+    },
+    flavored_processes(x),
+    labels
+  )
+  # Segmented per process for the same reason: a changepoint is a break in one
+  # process's series, and concatenating two series would place a break at the
+  # seam between them.
+  flavored_diagnose_table(x, blocks, "diagnose_changepoints")
 }
 
 # Which intervals take part in the statistic. Read off the `NA` pattern
 # `augment()` already carries on `.resid`, which marks exactly the intervals
 # realizing no outcome -- a second definition of "is this a dependent event"
 # is what would let the two drift apart.
-diagnosable_intervals <- function(data, include_censored) {
-  if (isTRUE(include_censored)) {
-    return(rep(TRUE, nrow(data)))
-  }
+diagnosable_intervals <- function(data) {
   !is.na(data$.resid)
+}
+
+# `include_censored` existed to suppress the alternation of dependent and
+# right-censored intervals, which made a segmented series describe the
+# censoring pattern rather than the fit. Under the per-event contract there is
+# no alternation left to suppress: `augment()` returns one row per dependent
+# event, each already carrying the censored intervals of its own waiting time.
+#
+# The argument is therefore inert rather than merely discouraged, and it is
+# deprecated rather than removed because it ships in 1.9.23. Ignoring it
+# silently would be the failure mode this change spent its guard work removing.
+warn_include_censored <- function(
+  include_censored,
+  fn,
+  user_env = rlang::caller_env(2)
+) {
+  if (!lifecycle::is_present(include_censored)) {
+    return(invisible())
+  }
+  lifecycle::deprecate_warn(
+    when = "2.0.0",
+    what = paste0(fn, "(include_censored)"),
+    details = c(
+      "i" = cli::format_inline(
+        "Each row is now one dependent event, whose span already accumulates
+         the right-censored intervals of its own waiting time, so there is no
+         pooled alternative to select."
+      )
+    ),
+    user_env = user_env
+  )
+  invisible()
 }
 
 # Which term `effect =` selected, or NULL for the default log-likelihood
@@ -467,9 +575,10 @@ abort_if_not_diagnosable <- function(
   invisible(NULL)
 }
 
-# The D18 context: what the table was computed from, and how much of the
-# sequence took part. `n_analyzed` is what separates the two settings of
-# `include_censored`, so a reader of a saved object can tell which it was.
+# The `context` metadata every diagnostic table carries: what the table was
+# computed from, and how much of the sequence took part. `n_analyzed` is what
+# separates the two settings of `include_censored`, so a reader of a saved
+# object can tell which it was.
 diagnose_context <- function(x, candidate) {
   list(
     model = x$model,
@@ -477,5 +586,73 @@ diagnose_context <- function(x, candidate) {
     backend = x$backend,
     n_intervals = length(candidate),
     n_analyzed = sum(candidate)
+  )
+}
+
+# One process's diagnostic, with the process named if it fails.
+#
+# Each process carries its own formula, so an `effect` selection valid for one
+# may be absent from another; "unknown term" without saying where is not
+# actionable on a fit holding four processes.
+flavored_diagnose_block <- function(
+  process,
+  label,
+  fn,
+  what,
+  args,
+  call = rlang::caller_env()
+) {
+  tryCatch(
+    do.call(fn, c(list(process$fit), args)),
+    error = function(e) {
+      cli::cli_abort(
+        "{.fn {what}} could not diagnose process {.val {label}}.",
+        parent = e,
+        call = call
+      )
+    }
+  )
+}
+
+# The container's own context. A process-level field that differs between
+# processes becomes the set of its values -- `sub_model` is `c("rate",
+# "choice")` on a two-family container -- while the counts total over the
+# processes the table actually holds.
+flavored_diagnose_context <- function(object, blocks) {
+  processes <- flavored_processes(object)
+  contexts <- lapply(blocks, attr, "context")
+  list(
+    model = object$model,
+    layer = object$layer,
+    sub_model = unique(vapply(processes, `[[`, character(1), "family")),
+    flavor = unique(vapply(processes, `[[`, character(1), "flavor")),
+    fid = vapply(processes, `[[`, integer(1), "fid"),
+    backend = processes[[1]]$fit$backend,
+    n_intervals = sum(vapply(contexts, `[[`, numeric(1), "n_intervals")),
+    n_analyzed = sum(vapply(contexts, `[[`, numeric(1), "n_analyzed"))
+  )
+}
+
+# Row-bind the per-process tables of a table-shaped diagnostic.
+#
+# The metadata is rebuilt rather than inherited from the first block: the
+# `defining` columns and the params are the same for every process, but the
+# context is not, and a container carrying one process's counts would misreport
+# the table it is attached to.
+flavored_diagnose_table <- function(object, blocks, class) {
+  processes <- flavored_processes(object)
+  rows <- Map(
+    function(block, process) {
+      append_process_identity(tibble::as_tibble(block), process)
+    },
+    blocks,
+    processes
+  )
+  new_diagnostic_table(
+    do.call(rbind, rows),
+    class,
+    context = flavored_diagnose_context(object, blocks),
+    params = attr(blocks[[1]], "params"),
+    defining = attr(blocks[[1]], "defining")
   )
 }

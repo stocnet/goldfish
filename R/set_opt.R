@@ -696,12 +696,22 @@ reconcile_legacy_diagnostics <- function(
 #'   effects that depends of previous order of events (e.g., `trans()` and
 #'   `cycle()` when `history` argument is set to sequential or consecutive,
 #'   as they are initialized with empty values.
+#'   `estimate_dynami()` does not support an observation window and currently
+#'   ignores this argument.
 #'   Default is `NULL` (start from the first event).
 #' @param end_time A numerical value or a date-time character string
 #'   (parsable by `as.POSIXct`) indicating the end time when the events
 #'   are not to be considered for likelihood computation.
-#'   The preprocessing stage won't stop at this time and will continue
-#'   processing events after this time.
+#'   The preprocessing stage stops traversing the event schedule at this time,
+#'   so events after it are neither stored nor visited.
+#'   When the schedule ends before this time, the elapsed time in between is
+#'   exposure during which no event occurred. The sub-models whose likelihood
+#'   defines a compensator, the exact-time `rate` and REM families, record it
+#'   as a right-censored interval, so the accumulated intervals reach
+#'   `end_time`; the multinomial families record nothing, a censored interval
+#'   there contributing exactly zero.
+#'   `estimate_dynami()` does not support an observation window and currently
+#'   ignores this argument.
 #'   Default is `NULL` (end with the last event).
 #' @param opportunities_list `r lifecycle::badge("deprecated")` A list object.
 #'   For choice models, this list specifies, for each dependent event,

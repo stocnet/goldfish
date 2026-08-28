@@ -7,10 +7,10 @@
 # the boundary this bridge reverses the assembled DyNAM-i stocnet back into that
 # environment shape and hands it to the untouched front-end. It is created
 # inside the estimation call and never accepted from or shown to the user.
-# `refactor-dynami-engine` retires both this bridge and the monolith when the
-# DyNAM-i engine moves onto the recipe loop.
+# Both this bridge and the monolith go away once the DyNAM-i engine moves onto
+# the recipe loop the other models use.
 #
-# Correctness (design D3): the bridge extracts the raw components from the
+# Why it is faithful: the bridge extracts the raw components from the
 # stocnet and rebuilds the environment objects through the SAME legacy
 # constructors (`make_nodes()` / `make_network()` / `link_events()` /
 # `make_dependent_events()`) the DyNAM-i data path always used, so the objects
@@ -181,8 +181,8 @@ split_rate_terms <- function(expr) {
 }
 
 # Desugar the DyNAM-i flavor-keyed rate list into the single legacy formula the
-# monolith consumes (design D9). The two rate models -- joining (for isolated
-# actors) and leaving (for grouped ones) -- ride the flavored grammar as
+# monolith consumes. The two rate models -- joining (for isolated actors) and
+# leaving (for grouped ones) -- ride the flavored grammar as
 # `rate = list(join ~ ..., leave ~ ...)`, but the monolith reads one formula
 # whose effects carry a per-effect `joining` flag: every `join`-keyed term gains
 # `joining = 1`, every `leave`-keyed term `joining = -1` (an effect under both

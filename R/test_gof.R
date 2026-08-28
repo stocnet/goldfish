@@ -189,8 +189,15 @@
 #'   [diagnostic-tables].
 #'   \describe{
 #'     \item{`effects`}{one row per tested effect, with `statistic` the
-#'       supremum, `p_value` its p-value under the selected reference, and
-#'       `scale` the standardizing constant \eqn{\sqrt{n \hat J_d}}.}
+#'       supremum, `p_value` its p-value under the selected reference, `scale`
+#'       the standardizing constant \eqn{\sqrt{n \hat J_d}}, and `rank` the
+#'       term's position by descending statistic, `1` being the most extreme.
+#'       The rank is a column rather than the row order, so a script can take
+#'       the front of the table without a screen while the rows stay in model
+#'       order — and, on a multi-process fit, flavor-major and ranked within
+#'       each process, statistics from different processes not being
+#'       comparable. Selecting with `effects =` re-ranks over what is
+#'       returned.}
 #'     \item{`process`}{the standardized process paths in long form: one row
 #'       per effect and step, with `u` the process-time axis, `clock` naming
 #'       which clock produced it, and `process` the value of \eqn{W_d(u)}.
@@ -255,7 +262,22 @@ test_gof.result.goldfish <- function(
   n_sim <- check_replication_count(n_sim)
 
   tested <- gof_tested_effects(object, effects)
-  columns <- object$event_scores[, tested, drop = FALSE]
+  # Accumulated to one row per dependent event before anything is standardized.
+  # The reference distribution is a Brownian bridge, which needs increments that
+  # are uncorrelated martingale differences: the score at distinct event times
+  # is one, the intervals inside a single waiting time are not.
+  #
+  # Which way that moves the statistic is not fixed, and it is worth not
+  # assuming. Where the within-span contributions correlate positively the
+  # per-interval constant is too small and the test was anti-conservative;
+  # where they correlate negatively it is too large and the test was
+  # conservative. The latter is the ordinary case for an exact-time rate model,
+  # whose intercept contributes `1 - c1` on the dependent interval and `-c2` on
+  # a censored one with `c1 + c2` near 1, so the accumulated row is near zero
+  # while its parts are not. The basis is chosen because it is the one the null
+  # distribution is defined on, not to move the answer in a direction.
+  accumulated <- accumulate_over_events(object$event_scores, object)
+  columns <- accumulated[, tested, drop = FALSE]
   paths <- gof_processes(columns, clock, tested = tested)
   statistic <- apply(abs(paths$standardized), 2, max)
   p_value <- if (identical(clock, "event")) {
@@ -267,14 +289,14 @@ test_gof.result.goldfish <- function(
   labels <- gof_term_labels(object, tested)
   new_diagnostic_list(
     list(
-      effects = tibble::tibble(
+      effects = rank_by_statistic(tibble::tibble(
         index = tested,
         term = labels$term,
         coefficient = labels$coefficient,
         statistic = unname(statistic),
         p_value = unname(p_value),
         scale = unname(paths$scale)
-      ),
+      )),
       process = gof_process_table(paths, labels, tested, clock),
       omnibus = cauchy_omnibus(p_value)
     ),
@@ -284,7 +306,7 @@ test_gof.result.goldfish <- function(
       sub_model = object$sub_model,
       backend = object$backend,
       n_intervals = nrow(object$event_scores),
-      n_events = sum(!object$right_censored_events)
+      n_events = object$n_events
     ),
     params = list(clock = clock, n_sim = n_sim)
   )
@@ -339,10 +361,17 @@ gof_tested_effects <- function(object, effects, call = rlang::caller_env()) {
 }
 
 # The standardized processes, their axis, and the constant that standardized
-# them. `scale` is `sqrt(n * J_d)` with `J_d` the empirical per-event variance
-# of the centered contributions, which is the same as the root of their
-# summed squares -- so the `n` of the normalization cancels and the statistic
-# does not depend on whether intervals or events are counted.
+# them. `scale` is `sqrt(n * J_d)` with `J_d` the empirical per-row variance of
+# the centered contributions, which is the same as the root of their summed
+# squares -- so the `n` of the normalization cancels algebraically.
+#
+# That cancellation is about the FORM of the constant, not about which rows are
+# handed in. It says `sqrt(n * J_d)` and `sqrt(sum(centered^2))` are the same
+# number for one set of rows; it does not say two different sets give the same
+# number. Summing an event's intervals into one row leaves the total score
+# unchanged but raises the summed squares, because the contributions within a
+# span are positively correlated -- so the caller's choice of basis moves the
+# statistic even though the `n` cancels. The caller accumulates first.
 #
 # The origin is carried as step 0 rather than left implicit: a path that starts
 # at zero and ends at zero is the whole reading, and a plot method should not
@@ -606,6 +635,10 @@ test_gof.flavored_result.goldfish <- function(
     ),
     c("effects", "process", "omnibus")
   )
+  # Re-ranked over the stacked table, which regroups by process: a rank carried
+  # up from a single-process block would be right by accident and wrong as soon
+  # as the blocks were built any other way.
+  components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
     "test_gof",
@@ -655,7 +688,7 @@ gof_flavored_context <- function(object, map, rows, effects) {
     n_intervals = vapply(fits, function(f) nrow(f$event_scores), integer(1)),
     n_events = vapply(
       fits,
-      function(f) sum(!f$right_censored_events),
+      function(f) f$n_events,
       integer(1)
     ),
     joint = cauchy_omnibus(effects$p_value, n_blocks = length(rows))

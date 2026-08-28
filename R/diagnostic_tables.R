@@ -226,6 +226,27 @@ node_labels <- function(nodes) {
 #' subset would keep the class while the print method counted a flag column
 #' that is no longer there, reporting no findings on a table that has them.
 #'
+#' # A multi-process fit
+#'
+#' A fit holding several processes returns the same object, with its
+#' per-process tables stacked and two columns appended: `flavor` and `family`,
+#' saying which process each row came from. Appended rather than prepended, so
+#' the diagnostic's own columns stay where a single-process table puts them.
+#' The blocks come flavor-major, the order the fit prints its components in, so
+#' two diagnostics of one fit never need reordering against each other.
+#'
+#' `flavor` and `family` are **identity** columns and not defining ones.
+#' Dropping them leaves a table that is still the diagnostic — one that has
+#' merely stopped saying which process each row is from — so the class, the
+#' metadata and the plot method survive it. A defining column is one the object
+#' cannot be read without; knowing the provenance of a row is not that.
+#'
+#' A diagnostic that does not fit in one rectangle returns a classed list of
+#' tibbles instead, and there each component carries the two columns. The
+#' metadata is the container's own rather than any one process's: a field
+#' differing between processes, such as `sub_model`, holds the set of its
+#' values, and the counts total over the processes the object holds.
+#'
 #' @name diagnostic-tables
 #' @seealso [margin_table()], the producer of the first diagnostic table, and
 #'   [diagnostic-requirements] for what each diagnostic needs from a fit.
@@ -303,6 +324,40 @@ NULL
 #' information that is stored nowhere. And a `residuals()` `type` spans the
 #' whole range on its own, from `"cox_snell"` (the interval clock and
 #' `"loglik"`, no pass) to `"dfbeta"` (the statistics and a pass).
+#'
+#' # A fit holding several processes
+#'
+#' A multi-flavor specification fits one process per flavor and sub-model, and
+#' every diagnostic above works on the container as well as on one process. The
+#' return takes one of two shapes, and which one it takes follows from what the
+#' diagnostic returns rather than from any choice made per function:
+#'
+#' \describe{
+#'   \item{**A table** — [augment()], [diagnose_outliers()],
+#'     [diagnose_changepoints()], [model_terms()], [margin_table()], and the
+#'     `test_*` family}{the per-process tables are row-bound, with `flavor` and
+#'     `family` appended after the existing columns. A column can carry the
+#'     identity, so one rectangle still holds the answer.}
+#'   \item{**A list keyed by process label** — [residuals()], [fitted()],
+#'     [predict()], [evaluate_model()]}{these return vectors, matrices and
+#'     lists, and none of which can carry a column saying where it came from.
+#'     The entries are named as the fit prints its components, in the same
+#'     flavor-major order every other view uses.}
+#' }
+#'
+#' The four list-shaped methods take `flavor =`, which narrows the selection.
+#' Where a flavor is fitted with a single sub-model — the ordinary case —
+#' that leaves one process and the return is the plain single-fit shape, so
+#' the familiar object is one argument away rather than an extraction. Where a
+#' flavor spans several sub-models it leaves several, and the return is the list
+#' restricted to them: `flavor =` selects, it does not ask which sub-model was
+#' meant. Naming a flavor the fit does not carry is an error that lists the ones
+#' it does.
+#'
+#' A diagnostic that refuses on one process names that process. Each carries its
+#' own formula and its own stored primitives, so one can lack a term or a
+#' statistic the others have, and a message that does not say which of several
+#' processes refused is not actionable.
 #'
 #' @name diagnostic-requirements
 #' @seealso [set_algorithm_newton()] for requesting a primitive,
@@ -456,8 +511,38 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #' @param x a fitted model of class `"result.goldfish"` or
 #'   `"flavored_result.goldfish"`, estimated with `"margins"` among the
 #'   [set_algorithm_newton()] `diagnostics` primitives.
+#' @param dispersion whether to add the `dispersion` column, which needs one
+#'   evaluation pass over the model's statistics. `FALSE` by default, so the
+#'   ordinary call stays a read of what estimation already stored.
+#' @param preprocessed a `preprocessed.goldfish` object, as returned by
+#'   [compute_statistics()]. Read only when `dispersion = TRUE`, and defaulting
+#'   to the object attached by `estimate_*(return_preprocessed = TRUE)`.
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
+#'
+#' @section Level and shape:
+#' `observed` and `expected_count` are a **first-moment** view: they say whether
+#' an actor acted as often as the model expected. An actor whose events are
+#' correctly counted but bunched into a burst is calibrated on both of them, and
+#' `dispersion` is what separates the two readings:
+#'
+#' ```
+#'   well-timed   spans (1.0, 1.0, 1.0, 1.0)      sum 4, n 4   dispersion 0.00
+#'   bursty       spans (0.01, 0.02, 0.01, 3.96)  sum 4, n 4   dispersion 3.90
+#' ```
+#'
+#' It is the variance of that actor's own compensators — the same series
+#' `residuals(type = "cox_snell", level = "actor")` returns — over the spans
+#' between its consecutive events. Each is unit exponential under a correct
+#' model, so the column reads against **one** the way `observed` reads against
+#' `expected_count`.
+#'
+#' Two things it is not. It is **not defined below two completed spans**, so an
+#' actor with fewer than two events is `NA`, and on a real event stream that is
+#' most actors: it is read beside `observed` and never on its own. And the final
+#' span, running to the end of the observation window, is excluded — it closes
+#' no event, so counting it would drag an actor's variance toward zero in
+#' proportion to how early it stopped acting.
 #'
 #' @return A [tibble::tibble()] of class `margin_table` with columns
 #'   \describe{
@@ -467,6 +552,10 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #'     \item{expected_probability}{the probability-scale expected count.}
 #'     \item{expected_count}{the compensator-scale expected count, `NA` on the
 #'       multinomial families.}
+#'     \item{dispersion}{present only when `dispersion = TRUE`: the variance of
+#'       the actor's own compensators, `NA` on the multinomial families (which
+#'       define no waiting time) and wherever the actor completed fewer than two
+#'       spans. See \emph{Level and shape}.}
 #'   }
 #'   A multi-process (flavored) fit adds `flavor` and `family` columns from the
 #'   fit's process map. The object carries the diagnostic metadata described in
@@ -502,8 +591,13 @@ margin_table.default <- function(x, ...) {
 }
 
 #' @export
-margin_table.result.goldfish <- function(x, ...) {
-  rows <- margin_rows(x)
+margin_table.result.goldfish <- function(
+  x,
+  dispersion = FALSE,
+  preprocessed = NULL,
+  ...
+) {
+  rows <- margin_rows(x, dispersion = dispersion, preprocessed = preprocessed)
   new_diagnostic_table(
     rows$table,
     class = "margin_table",
@@ -514,29 +608,41 @@ margin_table.result.goldfish <- function(x, ...) {
 }
 
 #' @export
-margin_table.flavored_result.goldfish <- function(x, ...) {
+margin_table.flavored_result.goldfish <- function(
+  x,
+  dispersion = FALSE,
+  preprocessed = NULL,
+  ...
+) {
   map <- x$process_map
-  per_fid <- lapply(seq_len(nrow(map)), function(i) {
-    fit <- x$results[[as.character(map$fid[i])]]
-    rows <- margin_rows(fit, flavor = map$flavor[i], family = map$family[i])
-    rows$table$flavor <- map$flavor[i]
-    rows$table$family <- map$family[i]
+  processes <- flavored_processes(x)
+  per_fid <- lapply(processes, function(process) {
+    rows <- margin_rows(
+      process$fit,
+      flavor = process$flavor,
+      family = process$family,
+      dispersion = dispersion,
+      preprocessed = preprocessed
+    )
+    rows$table <- append_process_identity(rows$table, process)
     rows
   })
   tables <- lapply(per_fid, `[[`, "table")
-  context <- margin_context(x$results[[as.character(map$fid[1])]], per_fid[[1]])
+  context <- margin_context(processes[[1]]$fit, per_fid[[1]])
   # The combined table describes the whole multi-process fit, so the per-fid
   # identity is what varies: the context keeps the map columns rather than one
   # fid's own flavor, and the defined scales are the union over the processes.
+  # Flavor-major throughout, matching the rows: a context listing the processes
+  # in a different order from the table it describes is the same disagreement
+  # this method was fixed for, one level down.
   context$model <- x$model
-  context$sub_model <- unique(map$family)
-  context$flavor <- unique(map$flavor)
-  context$fid <- map$fid
+  context$sub_model <- unique(vapply(processes, `[[`, character(1), "family"))
+  context$flavor <- unique(vapply(processes, `[[`, character(1), "flavor"))
+  context$fid <- vapply(processes, `[[`, map$fid[1], "fid")
   context$n_events <- vapply(
-    as.character(map$fid),
-    function(key) as.integer(x$results[[key]]$n_events),
-    integer(1),
-    USE.NAMES = FALSE
+    processes,
+    function(process) as.integer(process$fit$n_events),
+    integer(1)
   )
   defined <- unique(unlist(lapply(per_fid, `[[`, "defined_scales")))
   context$defined_scales <- defined
@@ -556,6 +662,8 @@ margin_rows <- function(
   x,
   flavor = NA_character_,
   family = NA_character_,
+  dispersion = FALSE,
+  preprocessed = NULL,
   call = rlang::caller_env()
 ) {
   margins <- x$margins
@@ -570,7 +678,14 @@ margin_rows <- function(
     )
   }
   sides <- margin_sides(margins, risk_set_axis(x), call = call)
-  tables <- lapply(sides, function(side) margin_side_table(margins, side))
+  spread <- if (isTRUE(dispersion)) {
+    actor_dispersion(x, preprocessed, call = call)
+  } else {
+    NULL
+  }
+  tables <- lapply(sides, function(side) {
+    margin_side_table(margins, side, spread)
+  })
   list(
     table = do.call(rbind, lapply(tables, `[[`, "table")),
     defined_scales = unique(unlist(lapply(tables, `[[`, "defined_scales"))),
@@ -606,7 +721,7 @@ margin_sides <- function(margins, axis, call = rlang::caller_env()) {
   list(list(suffix = "", role = role))
 }
 
-margin_side_table <- function(margins, side) {
+margin_side_table <- function(margins, side, spread = NULL) {
   observed <- margins[[paste0("observed", side$suffix)]]
   expected <- margins[[paste0("expected", side$suffix)]]
   probability <- margins[[paste0("expected_probability", side$suffix)]]
@@ -627,7 +742,7 @@ margin_side_table <- function(margins, side) {
     if (!is.null(expected_probability)) "expected_probability",
     if (!is.null(expected_count)) "expected_count"
   )
-  list(
+  out <- list(
     table = tibble::tibble(
       actor = names(observed) %||% as.character(seq_len(n)),
       role = rep(side$role, n),
@@ -637,6 +752,11 @@ margin_side_table <- function(margins, side) {
     ),
     defined_scales = defined
   )
+  if (!is.null(spread)) {
+    values <- spread[[side$role]] %||% spread[["single"]]
+    out$table$dispersion <- margin_column(values, n)
+  }
+  out
 }
 
 # A scale the family does not define is an all-NA column of the right length,
@@ -707,4 +827,85 @@ print.margin_table <- function(x, ...) {
   class(body) <- setdiff(class(body), "margin_table")
   print(body, ...)
   invisible(x)
+}
+
+# Each actor's dispersion: the variance of its own stratified compensators.
+#
+# The margins are a first-moment view -- an actor gets a count and an expected
+# count -- so an actor whose events are correctly counted but clustered in time
+# is calibrated on every column the table otherwise carries. Under a correct
+# model each completed span is unit exponential, whose variance is one, so this
+# column reads as a ratio against one in the way `observed` / `expected_count`
+# reads as a ratio against one.
+#
+# `NULL` for a family defining no waiting time, which the caller turns into the
+# all-NA column the schema requires. That NA means the same thing
+# `expected_count`'s does: not defined for the model class.
+actor_dispersion <- function(x, preprocessed, call = rlang::caller_env()) {
+  if (!is_exact_time_fit(x)) {
+    return(list(single = NULL))
+  }
+  spans <- actor_cox_snell_residuals(x, preprocessed, call = call)
+  if (all(c("sender", "receiver") %in% names(spans))) {
+    return(list(
+      sender = span_variance(spans$sender),
+      receiver = span_variance(spans$receiver)
+    ))
+  }
+  list(single = span_variance(spans))
+}
+
+# The censored final span is excluded rather than counted: it closes no event,
+# so it is a partial waiting time and including it would drag every actor's
+# variance toward zero in proportion to how early it stopped acting. An actor
+# with fewer than two completed spans has no variance to report and gets NA --
+# which is a great many actors on a real event stream, and the reason the
+# column is read beside `observed` rather than on its own.
+span_variance <- function(per_actor) {
+  vapply(
+    per_actor,
+    function(spans) {
+      closed <- spans[!attr(spans, "right_censored")]
+      if (length(closed) < 2L) NA_real_ else stats::var(closed)
+    },
+    numeric(1)
+  )
+}
+
+# A defined order for a per-term table, as a column rather than as row order.
+#
+# The point is that screening survives having no screen: a fit that ran on a
+# cluster returns an object a script can take the front of, with nobody looking
+# at a grid of panels. `rank == 1` is the largest statistic, which is the term
+# with the most evidence against it.
+#
+# A COLUMN and not a re-sort, for two reasons. Every flavored table is presented
+# flavor-major so two diagnostics of one fit never disagree about row order, and
+# re-sorting by a statistic would interleave the processes and undo that. And a
+# rank is meaningful only among comparable statistics: the degrees of freedom
+# are constant within one call but not across processes, so the ranking is
+# computed WITHIN each process rather than over the stacked table.
+rank_by_statistic <- function(table) {
+  if (is.null(table$statistic) || nrow(table) == 0) {
+    return(table)
+  }
+  groups <- intersect(c("flavor", "family"), names(table))
+  key <- if (length(groups) > 0) {
+    interaction(table[groups], drop = TRUE)
+  } else {
+    rep(1L, nrow(table))
+  }
+  table$rank <- NA_integer_
+  for (level in unique(key)) {
+    rows <- which(key == level)
+    # Ties broken by the p-value where there is one, so a table whose
+    # statistics collide still has a total order rather than an input-order
+    # accident.
+    order_within <- order(
+      -table$statistic[rows],
+      table$p_value[rows] %||% rep(0, length(rows))
+    )
+    table$rank[rows[order_within]] <- seq_along(rows)
+  }
+  table
 }

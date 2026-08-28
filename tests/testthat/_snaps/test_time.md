@@ -65,11 +65,11 @@
       439 intervals, 439 dependent events; 2 effects tested.
       Score test of a "identity" time trend in each coefficient.
     Output
-      # A tibble: 2 x 6
-        index term          coefficient statistic    df p_value
-        <int> <chr>         <chr>           <dbl> <int>   <dbl>
-      1     1 inertia/calls inrt             6.28     1 0.0122 
-      2     2 recip/calls   rec              7.43     1 0.00641
+      # A tibble: 2 x 7
+        index term          coefficient statistic    df p_value  rank
+        <int> <chr>         <chr>           <dbl> <int>   <dbl> <int>
+      1     1 inertia/calls inrt             6.28     1 0.0122      2
+      2     2 recip/calls   rec              7.43     1 0.00641     1
     Message
       
       Joint test: chi-squared 10.66 on 2 df, p 0.004834.
@@ -84,11 +84,11 @@
       439 intervals, 439 dependent events; 2 effects tested.
       Score test of a coefficient difference across 2 periods.
     Output
-      # A tibble: 2 x 6
-        index term          coefficient statistic    df p_value
-        <int> <chr>         <chr>           <dbl> <int>   <dbl>
-      1     1 inertia/calls inrt             3.09     1  0.0787
-      2     2 recip/calls   rec              1.29     1  0.255 
+      # A tibble: 2 x 7
+        index term          coefficient statistic    df p_value  rank
+        <int> <chr>         <chr>           <dbl> <int>   <dbl> <int>
+      1     1 inertia/calls inrt             3.09     1  0.0787     1
+      2     2 recip/calls   rec              1.29     1  0.255      2
     Message
       
       Joint test: chi-squared 3.259 on 2 df, p 0.196.
@@ -106,13 +106,13 @@
       Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
       Score test of a "identity" time trend in each coefficient.
     Output
-      # A tibble: 6 x 8
-        index term        coefficient statistic    df p_value flavor      family
-        <int> <chr>       <chr>           <dbl> <int>   <dbl> <chr>       <chr> 
-      1     1 Intercept   Intercept     0.0731      1  0.787  creation    rate  
-      2     2 indeg/calls ideg          0.912       1  0.340  creation    rate  
-      3     1 trans/calls trans         0.00374     1  0.951  creation    choice
-      4     1 Intercept   Intercept     0.380       1  0.538  dissolution rate  
-      5     2 indeg/calls ideg          1.70        1  0.192  dissolution rate  
-      6     1 trans/calls trans         4.75        1  0.0292 dissolution choice
+      # A tibble: 6 x 9
+        index term        coefficient statistic    df p_value  rank flavor      family
+        <int> <chr>       <chr>           <dbl> <int>   <dbl> <int> <chr>       <chr> 
+      1     1 Intercept   Intercept     0.0731      1  0.787      2 creation    rate  
+      2     2 indeg/calls ideg          0.912       1  0.340      1 creation    rate  
+      3     1 trans/calls trans         0.00374     1  0.951      1 creation    choice
+      4     1 Intercept   Intercept     0.380       1  0.538      2 dissolution rate  
+      5     2 indeg/calls ideg          1.70        1  0.192      1 dissolution rate  
+      6     1 trans/calls trans         4.75        1  0.0292     1 dissolution choice
 

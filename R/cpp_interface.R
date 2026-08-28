@@ -92,7 +92,14 @@ make_engine_evaluator <- function(
     stats_list$active_dyad_encoding
   }
 
-  n_events <- length(stats_list$is_dependent)
+  # Two counts, because they are two different things and only one of them is
+  # what "events" means. A right-censored interval is opened by any
+  # non-dependent event inside the window -- a windowed effect's dissolve
+  # pseudo-event, an exogenous stream's change, the window's own boundary row --
+  # so on the censoring sub-models the interval count exceeds the event count,
+  # while on the multinomial families the two coincide.
+  n_intervals <- length(stats_list$is_dependent)
+  n_events <- sum(stats_list$is_dependent == 1L)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -291,6 +298,7 @@ make_engine_evaluator <- function(
     evaluate = evaluate,
     parameters = parameters,
     n_events = n_events,
+    n_intervals = n_intervals,
     n_parameters = n_parameters,
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
@@ -411,6 +419,7 @@ estimate_c_int <- function(
   )
   parameters <- engine$parameters
   nEvents <- engine$n_events
+  nIntervals <- engine$n_intervals
   n_actors1 <- engine$n_actors1
   n_actors2 <- engine$n_actors2
   if (backend == "gather") {
@@ -450,6 +459,7 @@ estimate_c_int <- function(
       id_fixed = id_fixed,
       n_params = nParams,
       n_events = nEvents,
+      n_intervals = nIntervals,
       return_interval_loglik = returnIntervalLogL,
       return_event_scores = return_event_scores,
       verbose = verbose
@@ -665,7 +675,8 @@ estimate_c_int <- function(
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
     n_iterations = iIteration,
-    n_events = nEvents
+    n_events = nEvents,
+    n_intervals = nIntervals
   )
   if (backend == "gather") {
     estimationResult$size_intermediate <- size_gathered_data
@@ -780,7 +791,9 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #' @param start full-length initial parameter vector (fixed components already
 #'   set to their values).
 #' @param id_fixed integer indices of parameters held fixed (may be empty/NULL).
-#' @param n_params,n_events problem dimensions.
+#' @param n_params,n_events,n_intervals problem dimensions. `n_events` counts
+#'   dependent events; `n_intervals` counts likelihood intervals, which on a
+#'   censoring sub-model is the larger of the two.
 #' @param return_interval_loglik,return_event_scores whether to attach the
 #'   per-event outputs, evaluated at the optimum.
 #' @param verbose passed through as the maxLik print level.
@@ -793,6 +806,7 @@ estimate_via_maxlik <- function(
   id_fixed,
   n_params,
   n_events,
+  n_intervals,
   return_interval_loglik,
   return_event_scores,
   verbose
@@ -879,7 +893,8 @@ estimate_via_maxlik <- function(
       score_rel_norm = max(abs(score)) / max(1, abs(log_likelihood))
     ),
     n_iterations = n_iter,
-    n_events = n_events
+    n_events = n_events,
+    n_intervals = n_intervals
   )
   if (return_interval_loglik) {
     estimation_result$interval_log_lik <- as.numeric(final$intervalLogL)

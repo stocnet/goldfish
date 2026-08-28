@@ -204,9 +204,72 @@ diagnose_onset.result.goldfish <- function(
       sub_model = x$sub_model,
       backend = x$backend,
       n_intervals = nrow(scores),
-      n_events = sum(!x$right_censored_events)
+      n_events = x$n_events
     ),
     params = list(information = information, tolerance = tolerance)
+  )
+}
+
+#' @rdname diagnose_onset
+#' @method diagnose_onset flavored_result.goldfish
+#' @export
+diagnose_onset.flavored_result.goldfish <- function(
+  x,
+  information = c("opg", "expected"),
+  tolerance = 0.1,
+  ...
+) {
+  information <- match.arg(information)
+  args <- list(information = information, tolerance = tolerance)
+  labels <- flavored_component_labels(x)
+  processes <- flavored_processes(x)
+  blocks <- Map(
+    function(process, label) {
+      flavored_diagnose_block(
+        process,
+        label,
+        diagnose_onset,
+        "diagnose_onset",
+        args
+      )
+    },
+    processes,
+    labels
+  )
+  # Three tables rather than one, so the identity is appended to each of them:
+  # the onset diagnostic does not fit in a single rectangle, and a consumer
+  # reading `$summary` should find the process columns there too rather than
+  # only on the component that happens to be first.
+  components <- stats::setNames(
+    lapply(c("path", "accrual", "summary"), function(name) {
+      do.call(
+        rbind,
+        Map(
+          function(block, process) {
+            append_process_identity(block[[name]], process)
+          },
+          blocks,
+          processes
+        )
+      )
+    }),
+    c("path", "accrual", "summary")
+  )
+  contexts <- lapply(blocks, attr, "context")
+  new_diagnostic_list(
+    components,
+    "diagnose_onset",
+    context = list(
+      model = x$model,
+      layer = x$layer,
+      sub_model = unique(vapply(processes, `[[`, character(1), "family")),
+      flavor = unique(vapply(processes, `[[`, character(1), "flavor")),
+      fid = vapply(processes, `[[`, integer(1), "fid"),
+      backend = processes[[1]]$fit$backend,
+      n_intervals = sum(vapply(contexts, `[[`, numeric(1), "n_intervals")),
+      n_events = sum(vapply(contexts, `[[`, numeric(1), "n_events"))
+    ),
+    params = args
   )
 }
 
@@ -351,11 +414,22 @@ print.diagnose_onset <- function(x, ...) {
   context <- attr(x, "context")
   params <- attr(x, "params")
   cli::cli_rule(left = "{.cls diagnose_onset}")
-  cli::cli_text(
-    "Model {.val {context$model}} ·
-     sub-model {.val {context$sub_model}} ·
-     backend {.val {context$backend}}"
-  )
+  # A container reports its processes where a single fit reports its sub-model:
+  # the paths below belong to several of them, and one sub-model name would
+  # describe only whichever came first.
+  if ("flavor" %in% names(x$summary)) {
+    cli::cli_text(
+      "Model {.val {context$model}} · layer {.val {context$layer}} ·
+       {length(context$flavor)} flavor{?s} over {length(context$fid)}
+       process{?es}"
+    )
+  } else {
+    cli::cli_text(
+      "Model {.val {context$model}} ·
+       sub-model {.val {context$sub_model}} ·
+       backend {.val {context$backend}}"
+    )
+  }
   cli::cli_text(
     "{context$n_intervals} interval{?s}, {context$n_events} dependent
      event{?s}; {.val {params$information}} information accrual."

@@ -23,18 +23,34 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   Because the handle evaluates whatever fids the composed spec carries, one
   implementation covers DyNAM, REM, and multivariate/flavored specifications;
   DyNAM-i joins once `dynami-stocnet-boundary` settles its shape.
-- **Per-family timing strategies**: timed sub-models (DyNAM-rate, REM) draw
-  exponential waiting times from the total rate (intercept included);
-  ordered/Cox-like sub-models (rate-ordered, REM-ordered, choice-only) — whose
-  baseline is unidentified — support (a) fixed-template-times-redraw-marks and
-  (b) crude-rate pseudo-time (the intercept scalar already carried per flavor);
-  choice_coordination simulates by mutual-choice rejection (uniform sender,
-  crude-rate waiting time, accept iff reciprocated), reporting the acceptance
-  rate.
-- **Stopping rules and explosion guard**: stop at a time horizon OR a fixed event
-  count; the fixed count doubles as the guard against process explosion under
-  super-linear feedback, and horizon runs carry a hard `max_events` cap that
-  aborts with a total-rate diagnostic.
+- **The `times =` axis** (revised 2026-08-19, ADR-0033): every family gets both
+  simulation variants — **free-running** (`times = "generated"`, default: draw
+  clock and marks) and **time-anchored** (`times = "observed"`: hold the
+  observed times, redraw the marks) — the anchored variant being the honest
+  mode for Cox-family fits and the cheap GOF workhorse everywhere.
+- **Distribution-keyed timing strategies**: exponential draws exact
+  competing-exponential waiting times (intercept included); Weibull/Gompertz
+  (common shape) draw exactly by analytic inversion per constant-rate segment
+  — also the DGP for `parametric-rates`' recovery tests; Cox/choice-only has
+  no estimated clock — anchored is the clean variant, free-running uses
+  crude-rate pseudo-time (labeled up-to-scale); coordination simulates
+  per mechanism (all five): anchored from the mechanism's mark multinomial (no
+  rejection loop), free-running via each mechanism's generative thinning
+  construction (the mutual-choice rejection loop is the conjunctive instance),
+  acceptance rate reported.
+- **Windowed effects free-run correctly**: simulated events self-schedule their
+  window expiries in a per-window FIFO (constant window ⇒ insertion-order
+  expiry) treated as breakpoints, keeping the exponential draw exact with
+  `window =` terms in the model.
+- **Stopping targets vs the explosion guard** (revised 2026-08-19, ADR-0034):
+  `horizon =` / `n_events =` are statistical targets (whichever binds first); a
+  separate `max_events` guard (default `10 * n_dep`) trips early on the
+  total-rate trajectory with a diagnosis, capped replicates are flagged and
+  excluded from GOF pools by default.
+- **Per-component regime record**: every result records modeled / completed /
+  anchored-replay per component; replayed events whose precondition fails in
+  the simulated state are skipped and counted, with an incoherence flag past a
+  documented threshold — never force-applied as state clamps.
 - **Flavored/multivariate simulation**: the next event is drawn across all
   modeled flavors' total rates with each flavor's derived support mask
   maintained — the competing-process draw the walk handle already routes.
@@ -70,7 +86,10 @@ extension); the ABEM loop and augmenters (`abmcem` / `dynes-augmentation`).
 - **Sequencing**: after `make-multivariate-spec` (owns the walk handle); before
   (and consumed by) `dynes-augmentation` — `augment_seq_sim()` shares this
   change's per-step drawing core — and `gof-dynes`, whose simulation-based
-  diagnostics drive the same surface.
+  diagnostics drive the same surface. Cross-consumers: `parametric-rates`
+  (recovery-test DGP), `two-sided-coordination` (per-mechanism DGPs; lifts its
+  D15 conjunctive-only simulation gate), `window-profiling` (its bootstrap leg
+  is gated on `simulate()`).
 - **`dynes-augmentation` trimmed**: its D12 and the `process-simulation` spec
   delta move here; its section-5 tasks become a consumes-pointer, with
   `augment_seq_sim()` retained as the conditioned consumer.

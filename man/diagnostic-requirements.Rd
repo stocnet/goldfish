@@ -72,6 +72,40 @@ whole range on its own, from \code{"cox_snell"} (the interval clock and
 \code{"loglik"}, no pass) to \code{"dfbeta"} (the statistics and a pass).
 }
 
+\section{A fit holding several processes}{
+A multi-flavor specification fits one process per flavor and sub-model, and
+every diagnostic above works on the container as well as on one process. The
+return takes one of two shapes, and which one it takes follows from what the
+diagnostic returns rather than from any choice made per function:
+
+\describe{
+\item{\strong{A table} — \code{\link[=augment]{augment()}}, \code{\link[=diagnose_outliers]{diagnose_outliers()}},
+\code{\link[=diagnose_changepoints]{diagnose_changepoints()}}, \code{\link[=model_terms]{model_terms()}}, \code{\link[=margin_table]{margin_table()}}, and the
+\verb{test_*} family}{the per-process tables are row-bound, with \code{flavor} and
+\code{family} appended after the existing columns. A column can carry the
+identity, so one rectangle still holds the answer.}
+\item{\strong{A list keyed by process label} — \code{\link[=residuals]{residuals()}}, \code{\link[=fitted]{fitted()}},
+\code{\link[=predict]{predict()}}, \code{\link[=evaluate_model]{evaluate_model()}}}{these return vectors, matrices and
+lists, and none of which can carry a column saying where it came from.
+The entries are named as the fit prints its components, in the same
+flavor-major order every other view uses.}
+}
+
+The four list-shaped methods take \verb{flavor =}, which narrows the selection.
+Where a flavor is fitted with a single sub-model — the ordinary case —
+that leaves one process and the return is the plain single-fit shape, so
+the familiar object is one argument away rather than an extraction. Where a
+flavor spans several sub-models it leaves several, and the return is the list
+restricted to them: \verb{flavor =} selects, it does not ask which sub-model was
+meant. Naming a flavor the fit does not carry is an error that lists the ones
+it does.
+
+A diagnostic that refuses on one process names that process. Each carries its
+own formula and its own stored primitives, so one can lack a term or a
+statistic the others have, and a message that does not say which of several
+processes refused is not actionable.
+}
+
 \seealso{
 \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} for requesting a primitive,
 \code{\link[=compute_statistics]{compute_statistics()}} for producing the statistics, \code{\link[=evaluate_model]{evaluate_model()}}

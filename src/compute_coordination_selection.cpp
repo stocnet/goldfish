@@ -148,7 +148,7 @@ List compute_coordination_selection(
     // Opt-in per-event primitives. The event's realized risk set is the DYAD
     // list, not the row list and not the per-sender CSR groups -- the score,
     // the likelihood and the softmax below all range over dyads -- so the
-    // reductions run on the dyad-level probability vector (D14).
+    // reductions run on the dyad-level probability vector.
     arma::mat event_scores;
     if (return_event_scores) event_scores.set_size(n_events, n_parameters);
     IntegerVector observed_rank;

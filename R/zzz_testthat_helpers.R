@@ -838,6 +838,9 @@ resModObject <- structure(
     convergence = list(is_converged = TRUE, max_abs_score = 0.000200291),
     n_iterations = 7L,
     n_events = 439L,
+    # A choice fit: every interval carries a dependent event, so the two
+    # counts coincide here. A censoring sub-model's would not.
+    n_intervals = 439L,
     # The effect description is a typed table: `fixed` holds a logical, which
     # is what the fit records and what the methods read.
     names = data.frame(
