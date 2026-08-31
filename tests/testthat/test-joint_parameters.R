@@ -79,6 +79,12 @@ test_that("set_init_param() returns a goldfishParams, not the retired parameters
   expect_false(inherits(p, "parameters.goldfish"))
 })
 
+test_that("set_init_param is exported and the retired set_parameters is not", {
+  expect_true(exists("set_init_param", where = asNamespace("goldfish")))
+  expect_true("set_init_param" %in% getNamespaceExports("goldfish"))
+  expect_false("set_parameters" %in% getNamespaceExports("goldfish"))
+})
+
 test_that("labels elide the flavor segment for a non-flavored process", {
   p <- set_init_param(parameters_join())
   expect_identical(

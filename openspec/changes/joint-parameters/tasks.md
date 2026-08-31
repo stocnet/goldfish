@@ -237,7 +237,7 @@
       complete-vs-partial, and `coef_layout()` requirements) to the new name.
       `.plan/opsx-spec-placement-check.sh joint-parameters` and
       `openspec validate joint-parameters --strict` both pass.
-- [ ] 4.7 Tests: a `test_that()` asserting `set_init_param` is exported and
+- [x] 4.7 Tests: a `test_that()` asserting `set_init_param` is exported and
       `set_parameters` is not (`expect_true(exists("set_init_param", where =
       asNamespace("goldfish")))` / the retired name absent from
       `getNamespaceExports("goldfish")`), alongside the existing suites.
