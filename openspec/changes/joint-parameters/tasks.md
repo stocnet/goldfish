@@ -387,7 +387,7 @@
       6.4 gains an `[args]` block (`inertia [1h,W]`). A wholesale accept would
       hide a naming regression on the intercept/interaction rows that must not
       move.
-- [ ] 6.7 Living-spec delta: sweep this change's
+- [x] 6.7 Living-spec delta: sweep this change's
       `specs/multivariate-specification/spec.md` for any requirement body that
       pins the coefficient `name` to `coefficient_term_labels()` / the deparse
       form (the `coef_layout()` and NA-disambiguation requirements) and retitle

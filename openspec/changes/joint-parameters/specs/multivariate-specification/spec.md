@@ -212,11 +212,15 @@ effects, and the interaction columns; not merely one row per effect) with the
 `fid`, the process **label** (the rendered `layer › flavor › family`
 form, keyed on `family`), the `sub_model` (the finer estimation variant, e.g.
 `choice_coordination` / `rate_ordered`, as a descriptive column), the `flavor`,
-the effect **name** (mirroring what `coef()` surfaces via
-`coefficient_term_labels()`: `"Intercept"` for a rate intercept, the interaction's
-label for an interaction row; `"1"` as the placeholder for an autocompleted-default
-slot with no `coef()` name; and no intercept row where `estimate_dynam()` surfaces
-none), a `fixed` logical (true for `offset()`, operand-only, and
+the effect **name** (the self-describing **console form**
+`summary()` renders — every attribute (window, weight, transformer) appears
+inline, e.g. `inertia [1h,W]` — so a name authored via `set_init_param()` and a
+name read off a fit are the same string; `"Intercept"` for a rate intercept and
+an interaction row's `label` render identically whether read as the console
+form or the deparse form, so neither is affected by the vocabulary; `"1"` as
+the placeholder for an autocompleted-default slot with no such name; and no
+intercept row where `estimate_dynam()` surfaces none), a `fixed` logical (true
+for `offset()`, operand-only, and
 autocompleted-default rows), the **fixed value** for fixed rows (the offset value,
 `0` for an operand-only term, or the frozen value for an autocompleted default;
 `NA` for free rows), and the `index`
