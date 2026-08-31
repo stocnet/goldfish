@@ -132,8 +132,9 @@ during the same pass (the reverse-density byproduct the MCMC augmenter's proposa
 evaluator consumes) — in a batched C++ call
 over the sequences' flat preprocessed objects (default format; zero optimizer
 iterations), plus importance weights formed from model density over proposal density.
-The evaluator SHALL return a **classed E-step object** (`estep_is`, `estep_resampling`,
-or `estep_uniform`, sharing a `dynes_estep` parent) carrying those per-sequence
+The evaluator SHALL return a **classed E-step object** (`goldfishEstepIS`,
+`goldfishEstepResampling`, or `goldfishEstepUniform`, sharing a
+`goldfishDynesEstep` parent) carrying those per-sequence
 quantities and weights, so that the scheme-specific `compute_q()` / `compute_ase()`
 generics (specified by the `abmcem` change) dispatch on it without the EM loop
 re-branching per weighting scheme; constructing this object is the evaluator's
@@ -163,7 +164,8 @@ outcome recorded in the change's design.
 
 #### Scenario: evaluator returns a scheme-classed E-step object
 - **WHEN** a pool weighted under importance sampling is evaluated
-- **THEN** the returned object carries class `estep_is` (a `dynes_estep`), holding the
+- **THEN** the returned object carries class `goldfishEstepIS` (a
+  `goldfishDynesEstep`), holding the
   per-sequence quantities and weights, ready for the `compute_q()` / `compute_ase()`
   generics to dispatch on without the caller inspecting the weighting scheme.
 

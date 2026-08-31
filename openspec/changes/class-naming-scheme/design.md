@@ -181,6 +181,29 @@ the living-spec edits: `parametric-rates/specs/model-specification`,
 class strings to the post-rename spelling. (Agreed with the session
 holding those changes; it will not sweep them itself.)
 
+### D8b — joint-parameters is added to the D8a sweep list; it owns its own R-code rename
+
+New (2026-08-28). `joint-parameters` is `complete` (all tasks checked)
+but not yet archived, and — unlike `parametric-rates` /
+`two-sided-coordination` — it is not a docs-only proposal: it shipped
+real classes, `parameters.goldfish` (its own) and, pervasively,
+`joint_specification.goldfish` (the already-archived
+`make-multivariate-spec` capability's class, folded into
+`openspec/specs/multivariate-specification/spec.md`). Its own delta
+(`joint-parameters/specs/multivariate-specification`) is therefore
+added to D8a's active-change sweep list for the **doc-text** pass: once
+this change's own rename lands in the living spec, that delta's prose
+must match. The **code-level** rename of `R/joint_parameters.R` and
+`R/make_joint_specification.R` (plus their tests and snapshots) is
+*not* duplicated here — `joint-parameters` tracks it as its own task
+(see that change's design D17 / tasks.md §3), since it is the change
+actively holding those files, and a second change rewriting code
+another change's task is mid-editing would race. If `joint-parameters`
+archives before this change folds, its rename task runs standalone
+against the rename table above (D16); if this change folds first, its
+own clusters cover both classes and `joint-parameters`'s task 3 becomes
+a verification-only no-op.
+
 ### D9 — The rename is applied by hand, per class, never by global search-and-replace
 
 Unchanged, and still load-bearing: the *old* diagnostic class strings
@@ -246,6 +269,34 @@ one-file spike declaring one method per generic family; if flags
 appear, `.lintr` gains the documented adjustment (an additional
 accepted style or targeted exclusions) in the same groundwork commit —
 never ad-hoc `# nolint` scattered through the rename.
+
+### D16 — The rename table grows after the initial draft; two more live classes, one prospective family
+
+New (2026-08-28, cross-session audit). Two classes surfaced after this
+change's proposal/table were drafted (2026-08-19): `joint-parameters`
+landed on a concurrent branch and shipped `parameters.goldfish` and
+(pervasively) `joint_specification.goldfish` under the retired
+`<noun>.goldfish` house convention its own task 1.1 named explicitly —
+this change's table did not yet exist to steer it. Separately,
+`abmcem`/`dynes-augmentation` (both unimplemented) had drafted a
+shared internal E-step class family — `estep_is`, `estep_resampling`,
+`estep_uniform`, parent `dynes_estep` — in snake_case, which the D2
+internal-scope rule (no exemption beyond the deprecated path and
+effect tags) already forbids.
+
+**Decision:** both are added to the authoritative table (`goldfishJointSpec`,
+`goldfishParams`, `goldfishEstepIS`/`goldfishEstepResampling`/
+`goldfishEstepUniform`/`goldfishDynesEstep`). The two live classes are
+real renames (D8b covers the coordination with `joint-parameters`, the
+change that will execute them). The four prospective classes need no
+rename at all — `abmcem` and `dynes-augmentation`'s own specs are
+edited directly to the `goldfish<Thing>` spelling (2026-08-28), so
+those changes are simply implemented under the final names from the
+start, per this proposal's original intent ("every class the
+parametric/coordination changes create is born under the new rule").
+*Rejected:* leaving the table as a closed, one-time snapshot — a table
+that cannot absorb classes discovered after its own drafting stops
+being authoritative the first time a concurrent branch lands.
 
 ## Risks / Trade-offs
 

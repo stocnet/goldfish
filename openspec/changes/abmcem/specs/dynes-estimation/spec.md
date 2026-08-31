@@ -11,7 +11,7 @@ at the current parameters via the evaluator contract, take an M-step via the
 optimizer contract, and decide accept/grow/stop from Q and its standard error
 — with no branching on algorithm variants inside the loop beyond contract
 dispatch. The initial parameter vector SHALL come from `set_algorithm_em()`'s
-`initial_parameters` — a `parameters.goldfish` (`joint-parameters`) whose free
+`initial_parameters` — a `goldfishParams` (`joint-parameters`) whose free
 (non-offset `NA`) slots are the estimand, default `NULL` → zero over the free
 set; fixed effects are the specification's formula offsets and are not
 estimated. When `set_augmenter_options(warm_start = TRUE)` is set and
@@ -50,7 +50,7 @@ concern: `set_algorithm_em()` (the EM loop: `n_sequences` — the initial pool
 size, `max_iterations`, the
 `accept_quantile`/`growth_quantile`/`stop_quantile` stop-rule quantiles,
 `tolerance`, `stop_count`, `max_retries`, the single `seed` governing all draws,
-`initial_parameters` — θ₀ as a `parameters.goldfish` (`joint-parameters`) whose
+`initial_parameters` — θ₀ as a `goldfishParams` (`joint-parameters`) whose
 free (non-offset `NA`) slots are the estimand, default `NULL` → zero over the
 free set, flowing to both the evaluator and the warm-start; there SHALL be no
 `fixed_parameters` argument, the fixed set being the specification's formula

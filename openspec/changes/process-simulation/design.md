@@ -53,10 +53,10 @@ coordination (D7), and FIFO self-scheduled window expiry (D8).
 `simulate()` is the base-generic S3 (`simulate(object, nsim = 1, seed = NULL,
 ...)`), with methods dispatching on a fitted model result (its θ̂ used as `coef`)
 and on a specification carrying an explicit `coef`. The `coef` shape is
-**two-method by spec kind**: for a single `specification.goldfish` (or a fitted
+**two-method by spec kind**: for a single `goldfishSpec` (or a fitted
 single-process result's θ̂) it is a plain **numeric** vector, unchanged from the
-single-process convention; for a `joint_specification.goldfish` it is a
-**`parameters.goldfish`** object built by `set_parameters(spec, ...)`
+single-process convention; for a `goldfishJointSpec` it is a
+**`goldfishParams`** object built by `set_parameters(spec, ...)`
 (`joint-parameters`) — the same shared surface `estimate_dynes(initial_parameters=)`
 consumes — on which `simulate()` **asserts completeness** (aborts on any free,
 non-offset `NA`, naming the effects), the parameter-level parallel to

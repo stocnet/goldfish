@@ -11,13 +11,13 @@
 > Keep this order in sync with the mirror note in `abmcem/tasks.md`.
 >
 > **Prerequisite (cross-change).** The joint/multivariate parameter surface —
-> `set_parameters()` → `parameters.goldfish` and `coef_layout()` — lives in the
+> `set_parameters()` → `goldfishParams` and `coef_layout()` — lives in the
 > `joint-parameters` change (extending the `multivariate-specification`
 > capability). `estimate_dynes()` (`abmcem`) takes it as `initial_parameters` and
 > `simulate()` (`process-simulation`) as `coef`, so `joint-parameters` lands
 > **before** the abmcem surface. It is a pure projection over
 > `make_joint_specification()`'s `process_map` + the parsed offset mask and has no
-> dependency on this change. This change does not consume `parameters.goldfish`
+> dependency on this change. This change does not consume `goldfishParams`
 > directly (its augmenters receive θ from the loop as a flat vector), so the note
 > is a landing-order reminder only.
 
@@ -209,7 +209,8 @@
       (θ_ref, log-likelihood at θ_ref, log proposal density) records kept on the log
       scale, model/proposal ratio normalized, effective sample size — and
       `compute_lik_seq()` per-sequence sugar; the evaluator returns the **classed
-      E-step object** (`estep_is`/`estep_resampling`/`estep_uniform`, a `dynes_estep`)
+      E-step object** (`goldfishEstepIS`/`goldfishEstepResampling`/
+      `goldfishEstepUniform`, a `goldfishDynesEstep`)
       that abmcem's `compute_q()`/`compute_ase()` generics dispatch on (design D15
       seam: this change constructs the object, abmcem owns the generics); swap the
       batched evaluator in behind the evaluator contract shipped by the `abmcem` change

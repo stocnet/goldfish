@@ -188,19 +188,22 @@ pre-2.0.0, before `parametric-rates`.
   with `Rscript vignettes/rebuild-all.R` against the installed
   goldfish.
 - [ ] 9.3 Sweep the living spec (design D8) **and, in the same
-  commit, the active-change verbatim delta copies (design D8a)**:
+  commit, the active-change verbatim delta copies (design D8a, D8b)**:
   `parametric-rates/specs/model-specification`,
   `two-sided-coordination/specs/model-specification`,
-  `two-sided-coordination/specs/multivariate-specification`, and
-  `parametric-rates` design D11's `_goldfish` mention. Then grep
-  `openspec/specs/` and both changes' `specs/` for every retired class
+  `two-sided-coordination/specs/multivariate-specification`,
+  `parametric-rates` design D11's `_goldfish` mention, and — if still
+  unarchived at this point — `joint-parameters/specs/multivariate-specification`
+  (design D8b; skip if `joint-parameters` has already archived with its
+  own rename done, task 3 there). Then grep
+  `openspec/specs/` and all three changes' `specs/` for every retired class
   string and require an empty result — excluding the deprecated-path
   names, which are intentionally retained. Hand-edited, diff-reviewed.
 - [ ] 9.4 Verification: `devtools::check()`;
   `bash .plan/opsx-spec-placement-check.sh class-naming-scheme`;
   `openspec validate class-naming-scheme --strict`; re-run the
   placement check for `parametric-rates` and `two-sided-coordination`
-  after the D8a sweep.
+  (and `joint-parameters` if swept in 9.3) after the D8a/D8b sweep.
 
 ## 10. Close
 

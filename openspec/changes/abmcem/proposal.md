@@ -84,7 +84,7 @@ evaluator.
   `summary()` diagnostics). *Shared capability*: `dynes-augmentation` also adds
   to `dynes-estimation` (specification validation, parameter recovery); the
   loop/constructor/result requirements move from its delta into this change's.
-  `set_algorithm_em()` owns `initial_parameters` only — a `parameters.goldfish`
+  `set_algorithm_em()` owns `initial_parameters` only — a `goldfishParams`
   (`joint-parameters`) whose free (non-offset `NA`) slots are θ₀, default
   `NULL` → zero over the free set. **There is no `fixed_parameters` argument**:
   the fixed set is the specification's per-effect formula offsets
@@ -117,7 +117,7 @@ evaluator.
   (loop + contracts tested behind a minimal spec fixture and stub steps).
   `estimate_dynes()`'s public signature takes a `make_joint_specification()` object
   (`make-multivariate-spec`, archived) and its `initial_parameters` a
-  `parameters.goldfish` (`joint-parameters`), so `joint-parameters` lands before
+  `goldfishParams` (`joint-parameters`), so `joint-parameters` lands before
   the surface ships;
   `dynes-augmentation`'s augmenters and batched evaluator plug into the contracts
   this change ships. Full panel-data estimation end to end still requires

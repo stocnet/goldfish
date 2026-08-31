@@ -11,7 +11,7 @@
 > `dynes-augmentation/tasks.md`.
 >
 > **Prerequisite (cross-change).** `set_algorithm_em(initial_parameters=)` accepts
-> a `parameters.goldfish` and results group/pad via `coef_layout()` — both from
+> a `goldfishParams` and results group/pad via `coef_layout()` — both from
 > the `joint-parameters` change, which therefore lands **before** this change's
 > surface (tasks 1.2, 5.3). `joint-parameters` has no dependency on this change.
 
@@ -24,7 +24,7 @@
       design D2)
 - [ ] 1.2 `set_algorithm_em()` nesting the three: single `seed`, `n_cores` (CRAN
       2-core default), stop-rule quantiles, `stop_count`, `max_retries`,
-      `em_trace_se`, and **`initial_parameters`** — a `parameters.goldfish`
+      `em_trace_se`, and **`initial_parameters`** — a `goldfishParams`
       (`joint-parameters`) whose free (non-offset NA) slots are θ₀, default
       `NULL` → zero over the free set; **no `fixed_parameters` argument** (fixed
       = the spec's formula offsets, design D2/D4); the cross-object validity
@@ -55,8 +55,9 @@
       (with the resampling warning); stratified/residual/random resampling;
       `refresh` mode and the ESS guard with its two warnings (never at
       startup)
-- [ ] 2.2 Classed E-step object (`estep_is`/`estep_resampling`/`estep_uniform`
-      inheriting `dynes_estep`) and internal `compute_q()`/`compute_ase()`
+- [ ] 2.2 Classed E-step object (`goldfishEstepIS`/`goldfishEstepResampling`/
+      `goldfishEstepUniform` inheriting `goldfishDynesEstep`) and internal
+      `compute_q()`/`compute_ase()`
       generics with scheme-correct estimators (design D8); MCMC
       autocorrelation index recorded for the trace
 - [ ] 2.2a Cold-start ESS diagnostic (design D5, dynes-augmentation D14): a

@@ -40,6 +40,21 @@ spec still spells a class in a retired form, this table governs.
 | model-spec hierarchy (internal) | `model_spec*` | `goldfishModelSpec*` |
 | support-constraint plan (internal) | `support_constraint_plan` | `goldfishSupportPlan` |
 | fixing/seeding specs (internal) | `fixed_spec`, `initial_spec` | `goldfishFixedSpec`, `goldfishInitialSpec` |
+| `make_joint_specification()` (`make-multivariate-spec`, archived) | `joint_specification.goldfish` | `goldfishJointSpec` |
+| `set_parameters()` (`joint-parameters`) | `parameters.goldfish` | `goldfishParams` |
+| `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_is` | `goldfishEstepIS` |
+| `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_resampling` | `goldfishEstepResampling` |
+| `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_uniform` | `goldfishEstepUniform` |
+| `evaluate_sequence_pool()`'s shared parent (internal; `dynes-augmentation`, not yet landed) | `dynes_estep` | `goldfishDynesEstep` |
+
+The last six rows were added after this table's initial draft (design
+D16): the first two name classes that were already live in `R/` under
+the retired convention by the time this change's rename inventory
+(task 1.1) runs, so they get the same hand-edited rename as every other
+row above; the last four name a class family proposed by an
+unimplemented change (`dynes-augmentation`, shared with `abmcem`) whose
+own spec text already spells the `goldfish<Thing>` form directly — no
+rename is needed there, only a matching implementation.
 
 The seven classes autograph@develop already dispatches on
 (`goldfishFit`, `goldfishGOF`, `goldfishTimeTest`, `goldfishOutliers`,

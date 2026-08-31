@@ -683,8 +683,9 @@ The accept/grow/stop rules all test `Q ± z·ASE`, but the correct ASE estimator
 scheme-specific (weighted-mean variance under IS; resampling noise included under
 resampling; plain mean under uniform) — the estimator formally belongs to the
 weighting scheme, not the EM loop. `evaluate_sequence_pool()` returns a classed
-E-step object (`c("estep_is", "dynes_estep")`; likewise `estep_resampling`,
-`estep_uniform`) and two generics dispatch on it: `compute_q()` and
+E-step object (`c("goldfishEstepIS", "goldfishDynesEstep")`; likewise
+`goldfishEstepResampling`, `goldfishEstepUniform`) and two generics dispatch
+on it: `compute_q()` and
 `compute_ase()`. The EM loop is thus written once, scheme-agnostically. **Internal
 only** for now; exporting them for user extensibility is a recorded follow-up.
 Under MCMC draws the ASE treats sequences as **independent given the thinning**;
@@ -693,7 +694,8 @@ the augmenter records an autocorrelation index and basic chain statistics into t
 high — no autocorrelation-corrected ASE method in v1.
 
 **Carve-out seam (who builds the classed object).** The classed E-step object itself —
-its class tag (`estep_is` / `estep_resampling` / `estep_uniform`) and the per-sequence
+its class tag (`goldfishEstepIS` / `goldfishEstepResampling` / `goldfishEstepUniform`)
+and the per-sequence
 quantities + weights it carries — is **constructed by this change's evaluator**
 (`evaluate_sequence_pool()`, task 4); it is the evaluator's return type, not a wrapper
 abmcem adds. `compute_q()` and `compute_ase()` — the generics that dispatch **on** that

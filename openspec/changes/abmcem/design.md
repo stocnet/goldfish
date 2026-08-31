@@ -97,7 +97,7 @@ sub-model parameters, the pools and the coupling/`coupled` separability column
 are per fid, and mode-pair keying lives entirely in the walk beneath the
 evaluator contract. So node-space generality is transparent to this change's
 machinery; nothing here keys on mode. The user authors θ₀ against this fid
-concatenation through the shared **`parameters.goldfish`** surface
+concatenation through the shared **`goldfishParams`** surface
 (`joint-parameters`): `set_parameters(spec, ...)` keyed by readable
 `layer[:flavor]:sub_model` labels, `coef_layout(spec)` to discover names/order,
 with the flat free-parameter projection consumed here; fixed effects are the
@@ -113,7 +113,7 @@ constructors, one per concern, nested under the EM constructor:
   selection, and resampling). `stop_count`: the number of **consecutive**
   stopping-rule satisfactions required to terminate (checked once per
   decision pass, D7; any miss resets the streak). **`initial_parameters` lives
-  here** and accepts **only a `parameters.goldfish`** (`joint-parameters`
+  here** and accepts **only a `goldfishParams`** (`joint-parameters`
   D1): it is θ₀, whose free (non-offset `NA`) slots are the parameters
   estimated, default `NULL` → zero over the free set. **There is no
   `fixed_parameters` argument** (D-GAP-1 resolution, superseded by
@@ -160,7 +160,7 @@ combinations, abort for impossible ones. The EM constructor's name is settled:
 constructors take the `set_<component>_options()` sub-control names —
 `set_augmenter_options()`, `set_weights_options()`, `set_sgd_options()` — distinct
 from the `set_algorithm_<family>()` pattern because they are option bundles nested
-under the algorithm object, not algorithm objects (no `algorithm.goldfish`
+under the algorithm object, not algorithm objects (no `goldfishAlgorithm`
 superclass). This change ships the surface and owns the names; they are settled.
 `estimate_dynes()` carries the lifecycle experimental badge. *Rejected:* one flat constructor (hides the cross-object rules);
 overloading `estimate_dynam()` with an `algorithm` switch (different estimand,
@@ -345,7 +345,7 @@ recorded future development.
 ### D7 — EM control flow: the per-pass decision loop (from dynes-augmentation D18, refined)
 
 - **θ₀** from `set_algorithm_em()`'s `initial_parameters` — a
-  `parameters.goldfish` whose free (non-offset `NA`) slots are the estimand,
+  `goldfishParams` whose free (non-offset `NA`) slots are the estimand,
   default `NULL` → zero over the free set (`joint-parameters` D1/D4). The
   **`warm_start` option** on `set_augmenter_options()` (D2) replaces θ₀ with the
   concatenation of **per-fid independent default-`set_algorithm_newton()` fits**
@@ -411,8 +411,8 @@ recorded future development.
 ### D8 — Q and ASE as internal S3 generics, with pinned estimators (from dynes-augmentation D15, refined)
 
 `evaluate_sequence_pool()` returns a classed E-step object
-(`c("estep_is", "dynes_estep")`; likewise `estep_resampling`,
-`estep_uniform`); `compute_q()` and `compute_ase()` dispatch on it. The EM
+(`c("goldfishEstepIS", "goldfishDynesEstep")`; likewise `goldfishEstepResampling`,
+`goldfishEstepUniform`); `compute_q()` and `compute_ase()` dispatch on it. The EM
 loop is written once, scheme-agnostically. Internal only; exporting for user
 extensibility is a recorded follow-up.
 
@@ -558,7 +558,7 @@ changes never double-claim.
   `set_weights_options()`, `set_sgd_options()`, the `set_<component>_options()`
   sub-control pattern (distinct from the algorithm-naming `set_algorithm_<family>()`
   since these are option bundles, not algorithm objects carrying
-  `algorithm.goldfish`). The house convention stays fixed for the parent; the
+  `goldfishAlgorithm`). The house convention stays fixed for the parent; the
   components take the options pattern.
 - **[resolved]** What `estimate_dynes()` accepts as its specification: a
   `make_joint_specification()` object (`make-multivariate-spec`). The interim
