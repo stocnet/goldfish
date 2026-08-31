@@ -53,6 +53,15 @@ this branch (see `progress.md`, "Version / NEWS / archival").
   builder `estimate_dynes(initial_parameters =)` consumes. No code has shipped
   a release under the old name, so this is a rename of unreleased surface, not
   a user-facing deprecation.
+* **Breaking (pre-release):** the coefficient `name` `set_init_param()` keys and
+  `coef_layout()`'s `name` column speak the **console** form `summary()` prints
+  (e.g. `inertia [1h,W]`), not the raw formula deparse
+  (`inertia(calls, window = "1 hour", weighted = TRUE)`) they used before. A pin
+  authored against a fit's printed name and a name read off `coef_layout(spec)`
+  are now the same string. The rate `"Intercept"` and interaction-label rows are
+  unaffected — the two schemes coincide there. No code has shipped a release
+  under the old vocabulary, so this is unreleased-surface, not a user-facing
+  deprecation.
 
 ## Internal
 

@@ -395,7 +395,7 @@
       joint-parameters` and `openspec validate joint-parameters --strict` pass.
       (If no requirement pins the exact form, note that in `progress.md` and skip
       — do not invent a `## MODIFIED` block for text that does not exist.)
-- [ ] 6.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and C++
+- [x] 6.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and C++
       goldens PASS, not SKIP); `openspec validate joint-parameters --strict`;
       commit. Record the vocabulary switch as a bullet in the change-local
       `openspec/changes/joint-parameters/NEWS.md` (user-visible: pins and
