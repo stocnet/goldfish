@@ -51,9 +51,9 @@ flavored or plain.
 
 ## ADDED Requirements
 
-### Requirement: set_parameters builds a validated parameter object over the joint spec
+### Requirement: set_init_param builds a validated parameter object over the joint spec
 
-The package SHALL export `set_parameters(spec, ...)` taking a
+The package SHALL export `set_init_param(spec, ...)` taking a
 `goldfishJointSpec` and returning a `goldfishParams` object that
 carries parameter values over the specification's fid-indexed parameter vector.
 Each `...` argument SHALL be a **full-length per-fid vector** — one entry per
@@ -88,7 +88,7 @@ on a fitted result SHALL concatenate in one **canonical order**: `process_map` f
 order, then coefficient order within each fid (the intercept when present, then
 effects in formula order, then interactions).
 
-`set_parameters()` SHALL also accept, as `set_parameters(spec, result)`, a
+`set_init_param()` SHALL also accept, as `set_init_param(spec, result)`, a
 **fitted joint/DyNES result** in place of the per-fid vectors (the fit →
 re-simulate round-trip), reconstructing the per-fid values from the result's
 `coef_layout()` — which retains the `fid` grouping the flat `coef()` vector
@@ -98,7 +98,7 @@ free-only `coef()` vector SHALL NOT be accepted directly, because its
 per-parameter names collide across fids.
 
 #### Scenario: per-fid vectors keyed by the rendered label
-- **WHEN** `set_parameters(spec, "friendship › rate" = c(0.2, -0.1),
+- **WHEN** `set_init_param(spec, "friendship › rate" = c(0.2, -0.1),
   "friendship › choice" = c(inertia = 0.5))` is called on a spec whose
   `friendship` rate fid has two effects and whose choice fid has an `inertia`
   effect
@@ -115,10 +115,10 @@ per-parameter names collide across fids.
 #### Scenario: wrong-length per-fid vector aborts
 - **WHEN** a fid whose coefficient count (`n_params`) is three receives a
   length-two vector
-- **THEN** `set_parameters()` aborts naming the fid and the expected length.
+- **THEN** `set_init_param()` aborts naming the fid and the expected length.
 
 #### Scenario: an omitted process key is all-free
-- **WHEN** `set_parameters()` is called without a key for one of the spec's
+- **WHEN** `set_init_param()` is called without a key for one of the spec's
   processes
 - **THEN** every non-fixed slot of that fid is read as free (`NA`); the object is
   partial (usable by `estimate_dynes()`, rejected by `simulate()` unless that
@@ -126,12 +126,12 @@ per-parameter names collide across fids.
 
 ### Requirement: NA disambiguation resolves from the fixed mask with the fixed value prevailing
 
-`set_parameters()` SHALL classify each slot from the **authored** specification's
+`set_init_param()` SHALL classify each slot from the **authored** specification's
 per-effect **fixed mask** in coefficient order, where a coefficient is fixed if it
 is an `offset()` term or an operand-only interaction term (the latter held out of
 estimation at `0`). (Autocompleted sub-models — the zero-free-parameter defaults
 `complete_generative_spec()` synthesizes at **consumer entry** — are **not present**
-in the authored spec `set_parameters()` sees, so they never reach this
+in the authored spec `set_init_param()` sees, so they never reach this
 classification; they are resolved trivially at the consumer, and surface as fixed
 rows only on `coef_layout()`'s completed-spec / fitted-result methods.) For both
 fixed kinds the **fixed value SHALL always prevail**: a fixed slot SHALL take the
@@ -146,7 +146,7 @@ from the specification.
 #### Scenario: value at a fixed slot warns and is ignored
 - **WHEN** a per-fid vector supplies a non-`NA` value at a slot the formula marks
   `offset(effect, coef = 2)`
-- **THEN** `set_parameters()` warns that the fixed value prevails and the object
+- **THEN** `set_init_param()` warns that the fixed value prevails and the object
   carries the offset value, not the supplied one.
 
 #### Scenario: NA at a free slot is a free parameter
@@ -174,7 +174,7 @@ message SHALL direct the user to write the value inline
 - **WHEN** every `offset()` term of every joined process carries an inline
   `coef = value`
 - **THEN** the join succeeds and each fixed value is available to
-  `coef_layout()` and to `set_parameters()`'s offset-prevails handling.
+  `coef_layout()` and to `set_init_param()`'s offset-prevails handling.
 
 ### Requirement: goldfishParams carries a complete-vs-partial contract
 
@@ -222,7 +222,7 @@ autocompleted-default rows), the **fixed value** for fixed rows (the offset valu
 `NA` for free rows), and the `index`
 of free effects in the flat parameter vector (`NA` for fixed rows). It SHALL
 dispatch on a `goldfishJointSpec` (the empty layout, all values `NA`,
-for authoring `set_parameters()`), on a `goldfishParams` (layout plus
+for authoring `set_init_param()`), on a `goldfishParams` (layout plus
 supplied values and free/fixed classification), and on a joint/DyNES fitted
 result (layout plus estimates and standard errors). The `joint_specification`
 method SHALL be **completion-aware**: on a **raw** (authored) spec it spans the
@@ -239,7 +239,7 @@ those results SHALL remain flat — a named vector and matrix over the free
 parameters, named by the composite labels — with the multivariate grouping
 supplied by `coef_layout()` for rendering rather than by changing the generics.
 
-This surface SHALL be scoped to joint specifications. `set_parameters()` SHALL
+This surface SHALL be scoped to joint specifications. `set_init_param()` SHALL
 require a `goldfishJointSpec`, and `goldfishParams` SHALL be
 required only at the joint consumer surfaces (`estimate_dynes()` always;
 `simulate()` when its input is a `goldfishJointSpec`). The
@@ -251,7 +251,7 @@ this change SHALL NOT force the object on them nor alter their signatures.
 - **WHEN** `coef_layout()` is called on a raw `goldfishJointSpec`
 - **THEN** it returns one row per authored-fid coefficient slot with labels,
   names, formula order, and the fixed flag, values `NA` for free slots, and no
-  autocompleted-default rows, so a user can author `set_parameters()`.
+  autocompleted-default rows, so a user can author `set_init_param()`.
 
 #### Scenario: completed-spec layout previews the full walked layout
 - **WHEN** `coef_layout()` is called on a **completed** spec (e.g.
@@ -273,7 +273,7 @@ this change SHALL NOT force the object on them nor alter their signatures.
 - **THEN** both proceed unchanged, requiring no `goldfishParams`.
 
 #### Scenario: fit values round-trip back into a parameter object
-- **WHEN** a joint/DyNES fitted result is passed to `set_parameters()` (the
+- **WHEN** a joint/DyNES fitted result is passed to `set_init_param()` (the
   from-result form)
 - **THEN** the per-fid vectors are reconstructed from the result's `coef_layout()`
   (which keeps the `fid` grouping the flat `coef()` vector discards), the values

@@ -228,7 +228,7 @@
       mentions in `abmcem/design.md`, `dynes-augmentation/tasks.md`, and
       `process-simulation/design.md` to `set_init_param()`. Confirm no other
       in-progress change's artifacts reference the old name.
-- [ ] 4.6 Living-spec delta (mirrors 3.3): add a `## RENAMED Requirements`
+- [x] 4.6 Living-spec delta (mirrors 3.3): add a `## RENAMED Requirements`
       FROM/TO block in this change's own
       `specs/multivariate-specification/spec.md` retitling
       `### Requirement: set_parameters builds a validated parameter object
