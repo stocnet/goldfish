@@ -119,7 +119,13 @@ names — `set_augmenter_options()`, `set_weights_options()`, `set_sgd_options()
 deliberately *not* the `set_algorithm_<family>()` pattern, because they are option
 bundles nested under the algorithm object, not algorithm objects themselves (they
 carry no `goldfishAlgorithm` superclass). abmcem ships the surface and owns any
-final adjustment. Each child constructor validates only its own
+final adjustment. **Export handoff (abmcem D2/Q1):** abmcem ships
+`estimate_dynes()` **unexported** (stub-augmenter-tested only; its four control
+constructors export, the driver does not), so no user reaches a surface that
+would only abort for lack of a real augmenter. **This change adds the `@export`**
+(task 6.1) once the real augmenters (Phase 3) and batched evaluator (Phase 4)
+exist — that is the point the experimental surface becomes user-reachable with a
+working augmenter behind it. Each child constructor validates only its own
 arguments; **all cross-object rules (the D13 validity matrix and precedence
 table) execute in `set_algorithm_em()`'s constructor**, since siblings cannot see each
 other — inconsistent-but-ignorable combinations warn and are ignored, impossible
@@ -440,16 +446,49 @@ is on hand, not a blocker. Should the cross-check ever be done, ideas are re-imp
 no code is copied (both packages are GPL-3, but a clean re-implementation against our
 contracts is required regardless).
 
-### D7 — Result contract: Fisher approximation + MC standard errors (OQ B6) **[→ abmcem]**
-ABEM returns the parameter estimates and the Fisher-information approximation
-accumulated by the evaluator at convergence; `vcov()` inverts it, and the result
+### D7 — Result contract: covariance (abmcem D9 sandwich) + MC standard errors (OQ B6) **[→ abmcem]**
+ABEM returns the parameter estimates and an **observed-data** covariance — deliberately
+**not** the naive complete-data Fisher inverse, which is anti-conservative (it ignores that
+the between-wave path is imputed, so SEs would be too small exactly where waves are sparse,
+the regime DyNES exists for). The estimator is **abmcem D9's Ruth (2024) §3.3 sandwich**:
+the ABEM M-step solves an **importance-weighted estimating equation**
+`Σ_i w̄_i S_i(θ) = 0` rather than maximizing the true observed-data likelihood, and for a
+weighted estimating equation the sandwich `A⁻¹ B A⁻¹` is the correct asymptotic covariance
+(Louis's `I_obs⁻¹` is exact only for ideal EM, which this is not). With importance weights
+`w̄_i`, per-sequence complete-data score `S_i = ∇ℓ_{c,i}` and information `J_i = −∇²ℓ_{c,i}`:
+
+```
+  vcov(θ̂) = I_c⁻¹ ( Σ_i w̄_i S_i S_iᵀ ) I_c⁻¹,     I_c = Σ_i w̄_i J_i
+            └ bread ┘└──── meat ────┘└ bread ┘
+```
+
+reported beside the **MC standard error** `I_c⁻¹ (Σ_i w̄_i² (S_i − S̄)(S_i − S̄)ᵀ) I_c⁻¹`
+(finite-pool noise in θ̂, weight-squared scaled). `summary()` shows both side by side so
+users see when the pool, not the data, limits precision. Full detail — the rejected
+aggregate-then-outer-product `S̄S̄ᵀ` bug, the `use = "resampling"` warning, and
+fixed-parameter padding via `GetFixed()` + `stats::.vcov.aliased()` — lives in **abmcem
+D9**; this decision fixes the *interface* that feeds it.
+
+**Carve-out seam (who emits what).** The sandwich is assembled by **abmcem** (D7 is
+`[→ abmcem]`), but its ingredients are **this change's** evaluator:
+`evaluate_sequence_pool()` MUST return, per sequence, both the score `S_i` **and** the
+complete-data information `J_i` — the meat `Σ w̄_i S_i S_iᵀ` needs the per-sequence scores,
+the bread `I_c` needs the per-sequence information, and neither reconstructs from the other.
+The `what = "fisher"` path already computes `J_i`; the per-sequence scores are a required
+co-output, not an abmcem-side recomputation. If the evaluator returned only `J_i`, the
+sandwich meat would be physically unavailable and `vcov()` would silently fall back to the
+anti-conservative complete-data inverse `I_c⁻¹` — the failure mode this seam exists to
+prevent.
+
+The result
 additionally carries MC standard errors and the **`em_trace`** per-iteration
 diagnostics object (D18) — the ascent trajectory, ESS, pool bookkeeping, and MCMC
 chain statistics — as a documented part of this contract, so convergence problems
 are diagnosable from the result alone. `summary()`
 displays asymptotic and MC error side by side so users see when the pool, not the
-data, limits precision. Fixed-parameter handling follows the prototypes'
-`unfixed_params()`/`std_error_fixed_params()` (NA rows/cols for fixed positions).
+data, limits precision. Fixed-parameter padding is abmcem D9's (`GetFixed()` +
+`stats::.vcov.aliased()`; the prototypes' `unfixed_params()`/`std_error_fixed_params()`
+are retired there).
 
 ### D8 — Panel augmentation trigger (formula reference) and wave diffing
 There is **no separate panel-semantics flag**. A panel-observed layer
@@ -474,6 +513,14 @@ the diff consumes the layer's transition/support specification and inverts the
 never a latent variable. A value change larger than one allowed step decomposes into
 a **per-dyad ordered chain** of events (0→2 under ±1 transitions is two events with
 a forced order); net-zero changes produce no events (excursions are out of v1, D16).
+**v1 assumes the decomposition is unique** — the transition/support spec provides a single
+finest step, so an observed multi-step change has exactly one chain length. This is what
+makes the event count per interval **fixed by the wave diff**, the premise D6's
+fixed-cardinality ergodicity argument (permute + shift suffice, no insert/delete moves)
+rests on. A spec offering *overlapping* step sizes (e.g. both a direct 0→2 flavor and a
+0→1/1→2 path) would make the chain length ambiguous and reopen D6; such specs are **out of
+v1 scope** (kept as-is for v1), recorded here so the fixed-cardinality premise is stated,
+not silent.
 **A panel (latent) layer MAY be two-mode** — a disjoint mode-pair under
 `multimode-network-support`'s mode map (e.g. an advice layer `{staff}×{director}`).
 Wave-diffing and the per-dyad ordered chains run over its n1×n2 dyad space exactly
@@ -769,6 +816,17 @@ decision stays joint either way). Semantics:
   (default 20 — the compounding growth caps the pool at (1+1/20)²⁰ ≈ 2.65× per EM
   iteration). The argument name deliberately avoids "augmentation" (that word
   belongs to the sequence-generation routines); `max_retries` is the working name.
+- **Convergence criterion (outer loop)**: the EM loop converges on **Q and its
+  tolerance** — the outer-loop test is the change in the (ascent lower-bounded) Q
+  objective between accepted iterations against `set_algorithm_em()`'s `tolerance`, not a
+  parameter-norm test. This is deliberately **distinct from `set_sgd_options()`'s inner
+  `tolerance`**, which governs a single M-step's SGD stopping; the two tolerances live at
+  different loop levels and are not interchangeable. `tolerance` here is Q-based so the
+  criterion is on the quantity the accept/grow/stop machinery already estimates (`Q ± z·ASE`,
+  D15), keeping convergence and the ascent test on one currency. (Owned by `abmcem` with the
+  rest of the EM loop; pinned here so the recovery study's pre-registered bounds and the
+  `em_trace` columns reference a defined criterion rather than each assuming the other set
+  it.)
 - **Failure semantics**: exhausting `max_retries` or `max_iterations` without
   convergence **aborts with an error** explaining the non-convergence (a
   `cli_abort()` carrying the trace-derived diagnosis) — not a flagged result.
@@ -867,6 +925,44 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   time from a **truncated exponential** — the selected pair's rate, support
   (0, next anchor − t) with anchor = min(next unplaced RE time, wave end) — by
   inverse CDF (never rejects). Repeat until every flip is placed.
+
+  **Completion is not guaranteed by construction — reject-and-restart (v1).** The
+  greedy forward draw hits every wave snapshot only if the risk set never empties with
+  flips still unplaced. Within a single per-dyad chain the earliest unplaced event is
+  always support-applicable, so a chain never strands itself; the stranding case is
+  **cross-dyad support coupling** — a flip whose support depends on *another latent flip*
+  in the same interval, where a locally-legal greedy step can dissolve the enabling state
+  before the dependent flip is placed and never reopen it before the wave end. v1 does not
+  prove this away: it **rejects the partial draw and restarts** the whole interval's `sim`
+  when the risk set empties before all flips are placed, so the delivered draw is from the
+  **success-conditioned** distribution. Consequently the recorded proposal density `q` is
+  the **restart-normalized** density (the accumulated per-step density divided by the draw's
+  success probability, i.e. conditioned on completion) — the importance weight `f/q` must
+  use that success-conditioned `q`, or it is biased. A restart-count ceiling guards against a
+  spec whose coupling makes completion vanishingly likely; exhausting it aborts with a
+  diagnostic naming the coupled support constraint rather than looping. `random` and `mcmc`
+  are unaffected (they never draw forward-greedily under live support): `random` places the
+  fixed flip set directly, and `mcmc` proposes only order/time moves on an
+  already-endpoint-hitting sequence.
+
+  **Known bias (v1 correctness hazard → v2 removal).** The restart makes `q` a
+  *success-conditioned* density, so the recorded proposal density MUST be **restart-
+  normalized** (accumulated per-step density ÷ completion probability). If an implementation
+  records the raw accumulated density instead, `f/q` is **biased** — and biased precisely in
+  the cross-dyad-coupled cases the restart exists to handle, where it is least visible
+  (weights still normalize; they are just wrong). v1 carries this as a guarded sharp edge
+  (the restart-normalization is a hard requirement, tested on a coupled fixture); it is not
+  fully *removed* until v2's cycle-aware risk sets eliminate the restart regime altogether
+  (below), at which point there is no success-conditioning left to get wrong.
+
+  **V2 note — cycle-structured latent processes (future development).** Reject-and-restart
+  is the minimal-assumption v1 mechanism; it degrades badly when completion is rare because
+  the latent process has genuine *cycle* structure — e.g. project life-cycles
+  (join → produce → close) where the "produce" flip is support-gated by a "join" that a
+  greedy order may not have placed. For those estimands the risk set and the simulation
+  should be **determined differently** (cycle-aware ordering / staged risk sets that respect
+  the life-cycle DAG), not rescued by restarts — which also dissolves the restart-
+  normalization bias above. Recorded as a v2 direction, out of v1 scope.
 
   **Tied observed REs.** "Globally-next unplaced modeled RE" is well-defined even when
   two observed REs share a timestamp: they are the **only** tie an augmented sequence can
@@ -1176,6 +1272,13 @@ the abmcem-side widening is the only remaining work when A3 lands.
   the optional RSiena cross-check (D6) as supporting prior art only; `summary()` exposes
   MC error so weak identification is visible, and the simulation study defines guidance
   for the vignette.
+- **Importance-weighted augmentation degenerates as flips-per-interval grows** (the
+  sequence space dimension is ~#flips; IS weight variance grows roughly exponentially in
+  it, and the ESS guard/pool-growth *detect* collapse but do not *recover* it in high
+  dimensions) → the recovery study (task 6.2) adds a flips-per-interval stress sweep
+  (~2 → 5 → 15 → 40) to locate the ESS cliff empirically, and the vignette (task 6.3)
+  states the resulting operating envelope so sparse-wave / many-change regimes are a
+  documented limit rather than a silent one.
 - **MCMC mixing / augmenter validity bugs produce silently wrong estimates** → the
   toy end-to-end prototype (small n, 2 waves, random augmenter, existing likelihood)
   is kept as a test fixture with known-parameter recovery bounds; endpoint-hitting is

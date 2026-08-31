@@ -49,6 +49,11 @@ implemented here):
   augmenter / evaluator / optimizer contracts (no branching on variants inside
   the loop), marked experimental; the sequence-map seam (serial default,
   optional mirai daemons under the non-nested thread budget); mirai to Suggests.
+  **Implemented and tested here through the stub augmenter but not exported**
+  (no `@export`) — the `@export` lands with `dynes-augmentation` once a real
+  augmenter exists, so no exported surface can be called with real data that
+  would only abort for lack of an augmenter. The four control constructors do
+  export here.
 - **Prototype-path pool evaluation**: an internal evaluator-contract
   implementation that computes per-sequence logLik / score / Fisher through the
   existing zero-iteration `estimate_wrapper()` path (as the prototypes do), so

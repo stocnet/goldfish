@@ -104,11 +104,22 @@ with the flat free-parameter projection consumed here; fixed effects are the
 spec's formula offsets and never enter θ (`joint-parameters` D4). Four
 constructors, one per concern, nested under the EM constructor:
 
-- `set_algorithm_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
-  stop_quantile, tolerance, stop_count = 1L, max_retries, seed,
-  initial_parameters = NULL,
+- `set_algorithm_em(n_sequences = 100L, max_iterations = 50L, accept_quantile = 0.2,
+  growth_quantile = 0.2, stop_quantile = 0.1, tolerance = 1e-3, stop_count = 1L,
+  max_retries = 20L, max_pool = 5000L, seed, initial_parameters = NULL,
   em_trace_se = FALSE, n_cores, augmenter = set_augmenter_options(),
-  weights = set_weights_options(), optimizer = set_sgd_options())` — the EM loop plus
+  weights = set_weights_options(), optimizer = set_sgd_options())` — the EM loop plus.
+  Defaults `max_iterations`/`accept_quantile`/`growth_quantile`/`stop_quantile`/
+  `tolerance`/`stop_count` are the prototype driver's `nSteps`/`alpha`/`beta`/
+  `gamma`/`epsEnd`/`stopIteration` (Open Questions `[defaults]`, resolved).
+  `n_sequences` (the initial pool size) has no prototype default — the prototype
+  parameterizes `nChains` from the run — and takes a shipped default of **`100L`**
+  for the exported constructor (`set_algorithm_em()` exports here, so its signature
+  is user-visible before `estimate_dynes()` does; a required argument with no
+  default is not a usable exported surface). **`max_pool`** (default `5000L`) is the
+  hard ceiling on the post-acceptance pool-sizing rule (D7): the `Q²`-denominator
+  formula is clamped to it and hitting the cap warns once — the cap binding *is*
+  the near-optimum `Q → 0` diagnostic.
   the **only** `seed` (one RNG stream governs augmentation draws, batch
   selection, and resampling). `stop_count`: the number of **consecutive**
   stopping-rule satisfactions required to terminate (checked once per
@@ -139,13 +150,29 @@ constructors, one per concern, nested under the EM constructor:
   precedence convention).
 - `set_weights_options(weighting = c("importance", "uniform"), use = c("importance",
   "resampling"), resampling_scheme = c("stratified", "residual", "random"),
-  transformation = identity, refresh = FALSE, ess_threshold = 0.5)`.
-- `set_sgd_options(variant = c("minibatch", "full"), batch_size, batch_scheme =
-  c("weighted", "cyclic"), step_size, step_schedule = c("constant", "decay",
-  "adagrad", "adam", "momentum"), max_iterations, tolerance,
-  convergence = c("gradient", "iterations"))` — `"decay"` is the prototypes'
+  transformation = c("identity", "clipping", "smoothing"), refresh = FALSE,
+  ess_threshold = 0.5)` — `transformation` is a **named enum** in v1 (the
+  prototypes' `clipping()`/`smoothing()` plus the `identity` default), not a
+  user-supplied function: a named choice is validatable at construction
+  (monotone, non-negative by construction), snapshot-testable, and lets the
+  non-identity-transform-with-resampling warning (D5) fire at construction. A
+  user-supplied transformation closure is recorded future work.
+- `set_sgd_options(variant = c("minibatch", "full"), batch_size = NULL, batch_scheme =
+  c("weighted", "cyclic"), step_size = 0.001, step_schedule = c("constant", "decay",
+  "adagrad", "adam", "momentum"), max_iterations, sgd_tolerance = 1e-3,
+  convergence = c("gradient", "iterations"))` — the M-step convergence tolerance
+  is named **`sgd_tolerance`** (not `tolerance`) to keep it visibly distinct from
+  `set_algorithm_em()`'s EM-stop `tolerance`, which lives on a different scale
+  (Q-scale vs gradient-norm) — a user setting one must not silently set the
+  other. `step_size` default `0.001` is the prototype's `eps_sgd`. `"decay"` is
+  the prototypes'
   Bottou schedule, now its own named option; `convergence` selects the
   M-step stopping mode, `"gradient"` the default for both variants (D6).
+  `batch_size` is a **fixed absolute count** exposed here alongside the other
+  SGD settings; its default `NULL` is resolved **once** by `set_algorithm_em()`
+  (which alone knows `n_sequences`) to `min(n_sequences, 10)` and then frozen for
+  the whole run (D6). At the `n_sequences = 100L` default this is a batch of 10;
+  it floors at `n_sequences` for tiny pools so the batch never exceeds the pool.
 
 Argument names descriptive, never Greek (`accept_quantile`/`growth_quantile`/
 `stop_quantile` for the paper's α/β/γ, correspondence documented in roxygen).
@@ -162,7 +189,24 @@ constructors take the `set_<component>_options()` sub-control names —
 from the `set_algorithm_<family>()` pattern because they are option bundles nested
 under the algorithm object, not algorithm objects (no `goldfishAlgorithm`
 superclass). This change ships the surface and owns the names; they are settled.
-`estimate_dynes()` carries the lifecycle experimental badge. *Rejected:* one flat constructor (hides the cross-object rules);
+`estimate_dynes()` carries the lifecycle experimental badge.
+
+**Export deferred to `dynes-augmentation` (Q1 resolution).** The real
+augmenters (`mcmc`/`random`/`sim`) land in `dynes-augmentation`; here the only
+augmenter is the test-fixture stub (D11). So `estimate_dynes()` is **implemented
+and fully tested in this change but NOT exported** (no `@export`, absent from
+`NAMESPACE`) — it is exercised through the stub augmenter via
+`goldfish:::estimate_dynes()` in tests. The `@export` (and thus the
+user-reachable experimental surface) is added by `dynes-augmentation` once a real
+augmenter exists, so no user can call an exported function that would only abort
+for lack of an augmenter. The control constructors (`set_algorithm_em()` and the
+three nested option bundles) still export here — downstream code and docs bind to
+the settled signatures now; only the driver waits. *Rejected:* exporting
+`estimate_dynes()` here with an informative "augmenters not yet available" abort
+on every real call — an exported experimental function that never does real work
+is a worse surface than one that is not yet visible.
+
+*Rejected:* one flat constructor (hides the cross-object rules);
 overloading `estimate_dynam()` with an `algorithm` switch (different estimand,
 different uncertainty semantics).
 
@@ -244,6 +288,23 @@ weighting (the default). This matrix, the batch-scheme coupling (D6), and the
 refresh-inapplicability rules (D5) form the precedence table `set_algorithm_em()`
 enforces.
 
+**MCMC + persistent pool (`routine = "mcmc"`, `refresh = FALSE`).** This is the
+Casella & Levine (2001) sample-reuse regime — the sequences drawn at the start
+are dragged through the run and reweighted every iteration by the likelihood
+ratio against each sequence's own θ_ref (the D5 importance-weight update). Its
+default and only valid weighting is therefore `weighting = "importance"`;
+`weighting = "uniform"` here **warns and switches to importance** (uniform is
+exact only *within* the iteration a pool is drawn, which a persistent pool
+leaves immediately — it stays valid only under `refresh = TRUE`, where every
+iteration redraws). On this path **both `use = "importance"` and
+`use = "resampling"` are valid** — resampling (D8) is the E-step multiset device
+layered *on top of* the importance weights, not a substitute for them, so
+`mcmc + refresh = FALSE + importance + {importance | resampling}` is an accepted
+combination, not warned. (The inert complementary corner —
+`use = "resampling"` under `weighting = "uniform"`, i.e. `mcmc + refresh = TRUE`
+— resamples a near-uniform multiset: allowed, no effect, neither warned nor
+aborted.)
+
 **Cold-start construction guard (dynes-augmentation D1/D14 resolution).** Also enforced
 here at construction: `routine = "random"` combined with a non-zero user θ₀
 (via `set_algorithm_em()`'s `initial_parameters`) or `warm_start = TRUE` warns that
@@ -258,21 +319,46 @@ default θ₀ = 0, where the proposal is near the model.
 Every pooled sequence permanently stores (θ_ref, log-likelihood at θ_ref, log
 proposal density); for MCMC draws the last two coincide. Weights stay on the
 log scale; cross-iteration reweighting is the likelihood ratio against each
-sequence's own θ_ref (mixed-θ_ref pools = standard multiple importance
-sampling; balance heuristic recorded as future refinement). The
-`transformation` (e.g. the prototypes' `clipping()`/`smoothing()`) applies to
-raw log-weights before normalization and feeds both IS estimates and resampling
-probabilities; non-identity transformation + resampling warns
-(truncated-IS caveat). Two staleness defenses, one code path:
+sequence's own θ_ref — the Monte-Carlo-EM sample-reuse importance-weight update
+of Casella & Levine (2001), added to `inst/REFERENCES.bib` and cited from the
+`set_weights_options()`/`estimate_dynes()` roxygen. **Mixed-θ_ref pools in v1
+(the D8 estimator as written): self-normalized importance sampling with
+heterogeneous proposals** — each sequence's weight is the likelihood ratio
+against *its own* θ_ref, `w̄ᵢ ∝ L(θ)/L_ref,ᵢ · 1/q_ref,ᵢ`, self-normalized
+across the pool. This is exact IS, not a mixture-denominator estimator: growth
+appends sequences at the current θ (D7), so every persistent pool is mixed-ref
+after the first acceptance, and v1 handles that by the per-sequence own-ratio
+form. **True multiple importance sampling** (a shared mixture denominator
+`Σₖ (mₖ/M)·qₖ` with the balance heuristic) is a **recorded future refinement**,
+not v1 — it would redefine `w̄ᵢ` in D8 and propagate into the D9 SE denominators.
+The
+`transformation` — a **named enum** `c("identity", "clipping", "smoothing")`
+(the prototypes' `clipping()`/`smoothing()`), not a user-supplied closure in v1
+(D2, Q4 resolution) — applies to raw log-weights before normalization and feeds
+both IS estimates and resampling probabilities; a non-identity transformation
+with resampling warns (truncated-IS caveat), and because the choice is a
+construction-time enum the warning fires in `set_algorithm_em()`, not at
+runtime. Two staleness defenses, one code path:
 
 - `refresh = TRUE`: redraw the whole pool every EM iteration at its grown
   size; cross-iteration reweighting, the ESS guard, and staleness
   transformations become inapplicable — non-default settings warn and are
-  ignored.
-- `refresh = FALSE`: ESS = 1/Σw̄² monitored per iteration; full redraw at
-  current θ when ESS < `ess_threshold` × K (default 0.5). Warn when the guard
-  fires (new draws generated) and when it is disabled but the condition is met;
-  never at startup.
+  ignored. **Refresh is the between-iteration rule; within-iteration growth
+  still appends.** A grow-retry (D7) inside one iteration **appends** `⌈m/k⌉`
+  fresh sequences to the current pool as usual — it does not re-trigger a
+  whole-pool redraw. The whole-pool redraw happens once per iteration, at the
+  *start* of the next iteration, at the size growth has accumulated to. So the
+  two loops compose cleanly: growth sets the target size within an iteration;
+  refresh regenerates the whole pool at that size when the next iteration opens.
+- `refresh = FALSE`: ESS = 1/Σw̄² is computed in the weighting machinery from
+  the normalized weights once per EM pass, before the M-step. A **full redraw**
+  fires when ESS < `ess_threshold` × K (default 0.5): the augmenter regenerates
+  all K sequences at the current θ, so their θ_ref ← θ and the weights are
+  ~uniform again — the stale dragged pool is discarded, not reweighted. A redraw
+  also **resets** the harmonic-growth counter k to 2 (D7), since the fresh pool
+  restarts the grow schedule, and it consumes a fresh `draw_index` range (D10).
+  Warn when the guard fires (new draws generated) and when it is disabled but the
+  condition is met; never at startup.
 
 **Cold-start diagnostic (dynes-augmentation D14 resolution).** The "never at
 startup" rule silences the recurring guard warning at iteration 1, where a redraw is
@@ -312,6 +398,18 @@ the moving inner θ. Tests stub the closure with an analytic gradient.
   resampled multiset with unweighted gradients. Recorded v1 note: the M-step
   might later be given access to the full weighted pool alongside a
   resampled E-step — not in v1.
+- **Batch size**: `batch_size` (a `set_sgd_options()` argument, alongside the
+  other SGD settings) is a **fixed absolute count held constant across EM
+  iterations** — as the pool K grows (harmonic on rejection, the power rule on
+  acceptance, D7) the batch/pool ratio shrinks by design; the batch count never
+  tracks K. Its default `NULL` is resolved **once**, at construction, by
+  `set_algorithm_em()` (the only object that knows `n_sequences`) to
+  `min(n_sequences, 10)` and then frozen for the run; an explicit `batch_size` is
+  used verbatim. This compute-once default replaces the prototype's per-iteration
+  `⌈K/25⌉` recomputation, which would have made the batch pool-relative; the
+  `min(·, n_sequences)` floor keeps the batch from exceeding a tiny initial pool.
+  At a single-digit `batch_size` the minibatch gradient-norm test runs on the EMA
+  of batch gradients (not one noisy batch), noted in the `set_sgd_options()` roxygen.
 - **Step-size schedules**: `"constant"` (default), `"decay"` (the prototypes'
   Bottou `η₀ / (1 + η₀·t)` with `step_size` = η₀), and AdaGrad / Adam /
   momentum at fixed literature defaults, hyperparameters not exposed. (The
@@ -319,7 +417,7 @@ the moving inner θ. Tests stub the closure with an analytic gradient.
   implementation" was a contradiction — decay is its own schedule.)
 - **Convergence**: `convergence = c("gradient", "iterations")`. The default,
   `"gradient"` (both variants), tests the **gradient norm** against
-  `tolerance` — never the step norm (a step-norm test fires from step-size
+  `sgd_tolerance` (D2, Q5) — never the step norm (a step-norm test fires from step-size
   decay alone, regardless of the gradient; relative parameter change is a
   recorded future alternative). Under `variant = "full"` the tested gradient
   is exact; under `"minibatch"` a single batch gradient is too noisy to test
@@ -327,7 +425,7 @@ the moving inner θ. Tests stub the closure with an analytic gradient.
   test statistic is an exponential moving average of batch gradients, with
   the smoothing constant fixed internally (consistent with the
   no-exposed-hyperparameters rule). `"iterations"` is the opt-out fixed
-  budget: run to `max_iterations` with `tolerance` unused (supplying it
+  budget: run to `max_iterations` with `sgd_tolerance` unused (supplying it
   warns, D4 convention). Exiting on `max_iterations` under `"gradient"` with
   the criterion unmet **warns** (a diagnostic, not an error — the D7 accept
   test still protects correctness).
@@ -353,6 +451,22 @@ recorded future development.
   automatically); it need not fully converge. When `initial_parameters` is
   supplied and `warm_start = TRUE`, the warm start is **warn-and-ignored**
   (explicit start wins).
+  - **Warm-start draw RNG key (D10 interaction).** The single warm-start
+    augmentation is drawn **at `iteration = 0`** in the D10 `(iteration,
+    draw_index)` augmentation keying — a distinct iteration index from the
+    iteration-1 pool, so the warm-start draw owns its own substream range and can
+    never collide with (or reorder against) the first pool draw. `draw_index`
+    starts fresh at iteration 1 for the initial pool. This keeps the two-part
+    reproducibility promise (D10) intact for the warm-start path: the warm-start
+    sequence, like every drawn sequence, is identical across any `n_cores`.
+  - **Warm-start fit failure (Q2 resolution).** A single drawn sequence is
+    exactly where a per-fid Newton fit is likely to hit a singular information
+    matrix (the engine's unconditional inversion `stop()`s, as in D3). A per-fid
+    fit that errors therefore **falls back to θ₀ = 0 over that fid's free set**
+    with a cli **warning** naming the fid — never aborting the run — consistent
+    with the "warm start supplies only a closer θ₀, need not converge" framing;
+    the other fids keep their fitted starts. The per-fid engine call is wrapped
+    in `tryCatch` for this, mirroring the evaluator's D-ROBUST guard.
 - The loop runs in **passes** — an EM iteration is one initial pass plus up
   to `max_retries` grow-retries:
 
@@ -361,13 +475,15 @@ recorded future development.
     M-step from θ_k (last accepted) on the current pool → θ′
     full-pool log-likelihood pass at θ′ (the θ_k values are cached from the
       previous iteration, never recomputed)
-    Λ_i = Σ_submodels [L_i(θ′) − L_i(θ_k)];  Q, ASE per D8
+    Λ_i = Σ_submodels [L_i(θ′) − L_i(θ_k)];  Q, ASE per D8 (ASE floored at 0)
     1. STOP:   |Q + z(stop_quantile)·ASE| < tolerance ?
          hit  → streak++ ; if streak == stop_count → terminate, return θ_k
-         miss → streak ← 0
+                else FALL THROUGH to ACCEPT on the same θ′ (θ keeps moving)
+         miss → streak ← 0 ; FALL THROUGH to ACCEPT
     2. ACCEPT: Q − z(accept_quantile)·ASE > 0 ?
          yes → θ_{k+1} = θ′; cache L(θ′) as the next reference; size the
-               next pool m ← max(m, ⌈σ̂²·(z(accept) + z(growth))²/Q²⌉)
+               next pool m ← min(max_pool,
+                                  max(m, ⌈σ̂²·(z(accept) + z(growth))²/Q²⌉))
          no  → GROW: append ⌈m/k⌉ sequences (m = pool size at iteration
                start, k = 2, 3, … per consecutive rejection), discard θ′,
                retry from the M-step
@@ -378,6 +494,22 @@ recorded future development.
   time regardless of pool size; a stop rule reachable only after an
   acceptance would deadlock into growth until `max_retries` aborts — at the
   exact moment of convergence.
+- **A non-terminal stop-hit falls through to ACCEPT on the same θ′ — θ keeps
+  moving.** When `stop_count > 1`, a pass can satisfy the stopping bound
+  (`streak++`) without terminating; it then still evaluates the accept test on
+  that same θ′, so an accepted stop-hit pass advances θ_{k+1} = θ′ and re-caches
+  the reference. The consecutive-hit streak is therefore measured across passes
+  whose θ is *moving*, not frozen at the first hit — the loop keeps taking ascent
+  steps while it accumulates the confirmations `stop_count` requires. (At the
+  default `stop_count = 1L` the first hit terminates and this is moot.)
+- **`max_pool` clamp (near-optimum `Q → 0` guard).** The post-acceptance sizing
+  rule has `Q²` in the denominator, so a small-but-positive Q that clears the
+  accept bound without clearing the stop bound can request an astronomical pool.
+  The result is clamped to `max_pool` (default `5000L`, D2); the **first** pass
+  that binds the cap emits a one-time cli warning — the cap binding is itself the
+  diagnostic that the loop is sitting near the optimum with a tiny Q (typically a
+  sign `tolerance` wants relaxing, or `stop_count` lowering). The clamp never
+  *shrinks* the pool; it only bounds the requested growth.
 - **`stop_count`** (D2, default 1L): the streak counts consecutive
   satisfactions **per pass**; any miss — including on a grow pass — resets
   it (growth may legitimately reveal real ascent). The returned estimate is
@@ -393,8 +525,12 @@ recorded future development.
   prototype reproduction.
 - **Failure semantics** — the two caps differ:
   - **`max_retries`** (growth cannot find ascent *within* one iteration):
-    `cli_abort()` with the trace-derived diagnosis — there is no meaningful
-    partial result at a stalled iteration.
+    `cli_abort()` with the trace-derived diagnosis, **carrying the accumulated
+    `em_trace` as structured condition data** (retrievable via
+    `rlang::last_error()$em_trace`) so the accepted-iteration history and the
+    stalled retries stay inspectable. There is no *returnable fit* at a stalled
+    iteration — hence the abort, not a `converged = FALSE` return — but the trace
+    is not thrown away.
   - **`max_iterations`** (the *outer* budget is exhausted mid-ascent):
     **return the last accepted θ** carrying a **non-convergence warning** and a
     `converged = FALSE` flag on the result — never silent — mirroring how the
@@ -403,8 +539,10 @@ recorded future development.
     (D9). Throwing away many accepted ascent steps at a budget boundary is the
     behavior this deliberately avoids.
 - **`em_trace`**: **one row per pass**, indexed (iteration, retry) — θ, Q,
-  ASE, decision (accept / grow / stop-hit / stop), streak, pool size, new
-  draws, ESS, weighting scheme in force, MCMC chain diagnostics when supplied
+  ASE, `ase_floored` (whether the variance estimate was floored at 0, D8),
+  decision (accept / grow / stop-hit / stop), streak, pool size, new
+  draws, `pool_capped` (whether the sizing rule bound `max_pool`), ESS,
+  weighting scheme in force, MCMC chain diagnostics when supplied
   by the augmenter; per-iteration parameter SEs opt-in (`em_trace_se = TRUE`,
   one extra Fisher pass per accepted iteration).
 
@@ -429,6 +567,18 @@ The estimators, with Λᵢ the per-sequence log-likelihood differences
   resample ever happens.
 - **Uniform** (MCMC + refresh only): Q̂ = mean(Λ); ASE² = s²(Λ)/K.
 
+**Non-negative-variance floor.** The resampling σ̂² above is a sample estimate
+whose bracket `[ΣcᵢΛᵢ²/(ΣcᵢΛᵢ)² − 1/K]` can go **negative** — precisely when the
+Λᵢ are near-constant across the multiset, i.e. the low-variance, near-convergence
+regime. `compute_ase()` therefore **floors σ̂² at 0** (so `ASE = 0`) rather than
+returning `NaN` from `sqrt(negative)`: a negative estimate there means the variance
+is below the resolution floor, not a pathology. `ASE = 0` degrades both decision
+bounds to the honest limit — STOP becomes `|Q| < tolerance`, ACCEPT becomes
+`Q > 0` — instead of poisoning every comparison with `NaN` and silently forcing
+growth to `max_retries`. The importance ASE² (a sum of squares) cannot go
+negative, so only the resampling form needs the floor. Each pass that floors
+records an `ase_floored = TRUE` flag in `em_trace` for auditability.
+
 The prototype's "not enough unique samples" patch (forcing distinct indices
 into a collapsed resample) is dropped — weight degeneracy is the ESS guard's
 job (D5). Under MCMC draws the ASE treats sequences as independent given the
@@ -440,7 +590,14 @@ suggestion to raise `thinning` when high.
 After termination, **one dedicated full-pool evaluation at the returned θ̂**
 supplies per-sequence scores sᵢ and information matrices Iᵢ — SEs are never
 harvested from the last minibatch (the prototype's `sgd_refactor()` did
-exactly that). With I = Σ w̄ᵢIᵢ and S̄ = Σ w̄ᵢsᵢ, two estimators ship:
+exactly that). **This SE pass runs on every *returning* termination regardless
+of the `converged` flag (Q3 resolution)** — including the `max_iterations`
+exhaustion path (D7), which returns the last-accepted θ̂ with `converged =
+FALSE`. So a returned fit always carries a populated `vcov()`/MC error; a
+non-converged result has SEs (which `summary()` caveats alongside the
+`converged = FALSE` status), never a `NULL` covariance. Only the `max_retries`
+abort path (D7) produces no return and thus no SE pass — there is no θ̂ to
+evaluate at. With I = Σ w̄ᵢIᵢ and S̄ = Σ w̄ᵢsᵢ, two estimators ship:
 
 - **Standard error** — `vcov()` returns this — the sandwich
   `I⁻¹ (Σ w̄ᵢ sᵢsᵢᵀ) I⁻¹`.
@@ -474,7 +631,13 @@ rendering via cli semantic elements under a pinned context for snapshots.
 One internal map seam for every per-sequence loop (pool preprocessing on
 entry, pool evaluation): default serial `lapply()`; when mirai (Suggests) is
 installed and `n_cores > 1`, persistent daemons hold the data once and receive
-only θ and draws per iteration. Governing invariant: workers × BLAS threads ≤
+only θ and draws per iteration. **mirai-absent fallback (Q6 resolution):** an
+**explicit** `n_cores > 1` with mirai not installed emits a **one-time** cli
+warning (the requested parallelism is unavailable; install mirai) and runs
+serial — the run still succeeds and is bit-identical to the parallel path (D10
+RNG). The **default** `n_cores` path stays silent with no reference to the
+missing package (the serial-works-without-mirai scenario); only a user's
+explicit request is warned. Governing invariant: workers × BLAS threads ≤
 cores (`blas_threads = max(1, floor(n_cores / n_workers))`). `n_cores` lives
 on `set_algorithm_em()` (default within CRAN's 2-core cap) with parallel RNG
 streams. FORK/`mclapply` excluded; PSOCK rejected (the prototype's
@@ -486,7 +649,16 @@ draws and evaluation, not the chain.
 `seed` seeds an `L'Ecuyer-CMRG` root (`RNGkind()` set at estimation entry,
 `withr`-restored on exit) fanning into three substream families: **augmentation**
 substreams keyed by a structured `(iteration, draw_index)` — worker identity never
-enters the key, so the drawn pool is identical at any `n_cores`, serial included;
+enters the key, so the drawn pool is identical at any `n_cores`, serial included.
+`draw_index` is a **strictly monotonic per-iteration counter**, incremented once
+for every sequence the iteration draws — the initial pool, each growth append
+(D7), and each full redraw (ESS guard or `refresh`, D5) alike — never rewinding
+within an iteration and resetting only when `iteration` advances; a redraw
+therefore consumes a **fresh** `draw_index` range rather than reusing the
+discarded pool's, so it cannot reproduce the collapsed sequences it replaces.
+Because every logical draw thus owns one immutable substream key regardless of
+how retries chunk it or which worker runs it, the **grown and redrawn** pool is
+bit-identical across `n_cores`, not only the no-growth pool.
 the **MCMC chain** substream, one long serial stream advanced continuously across
 warm starts on the coordinator (never crosses the seam); and a coordinator-side
 **control** substream for batch selection and resampling. The seam injects each
@@ -579,8 +751,38 @@ changes never double-claim.
   pool-entry path so the later attachment is a drop-in; the correctness guard
   (retain the chain's *accepted* state, never the last — possibly rejected —
   `eval_fn` return) lives on the `dynes-augmentation` side of the seam.
-- **[defaults]** Package default values for `step_size`, `batch_size`,
-  `n_sequences`, and the stop-rule quantiles — set from the toy fixtures'
-  behavior during implementation, documented in roxygen. Prototype-derived
-  starting points: `batch_size = ⌈K/25⌉`, `step_size = 0.001`,
-  `tolerance = 1e-3` (the driver's `epsEnd`).
+- **[resolved]** Package default values — **pinned from the prototype driver**
+  (Q7): `step_size = 0.001` (`eps_sgd`), `sgd_tolerance = 1e-3` and EM
+  `tolerance = 1e-3` (`epsEnd`), `accept_quantile = 0.2` / `growth_quantile =
+  0.2` (`alpha` / `beta`), `stop_quantile = 0.1` (`gamma`), `max_iterations =
+  50` (`nSteps`), `stop_count = 1L` (`stopIteration`), `max_retries = 20L`. Only
+  `n_sequences` has **no** prototype default — the prototype parameterizes
+  `nChains` from the run — so it takes a shipped default of **`100L`** for the
+  exported `set_algorithm_em()` (an exported constructor cannot require it), the
+  toy fixtures overriding it as needed.
+- **[resolved]** Near-optimum `Q -> 0` blow-up of the post-acceptance pool-sizing
+  rule → a **`max_pool` argument on `set_algorithm_em()` (default `5000L`)** clamps
+  the requested size (D7); the first pass to bind the cap warns once. The corrected
+  sizing rule never ran in the prototype (sign flip), so both rule and clamp are
+  validated by the toy fixtures.
+- **[resolved]** Negative resampling variance estimate → `NaN` ASE poisoning the
+  decision bounds. `compute_ase()` **floors the variance at 0** (D8): a negative
+  estimate is the low-variance regime, and `ASE = 0` degrades the bounds to
+  `|Q| < tolerance` / `Q > 0` rather than forcing spurious growth. Recorded per
+  pass as `ase_floored` in `em_trace`.
+- **[resolved]** `stop_count > 1` control flow — a **non-terminal stop-hit falls
+  through to ACCEPT on the same proposal, so θ keeps moving** (D7); the
+  consecutive-hit streak is measured across passes whose θ advances, not frozen at
+  the first hit.
+- **[resolved]** Warm-start single draw vs. the D10 `(iteration, draw_index)`
+  keying — the warm-start augmentation is drawn at **`iteration = 0`** (D7), a
+  distinct substream range from the iteration-1 pool, so it cannot collide with or
+  reorder against the first pool draw.
+- **[resolved]** `refresh = TRUE` vs. within-iteration growth — **growth appends,
+  refresh redraws between iterations** (D5): a grow-retry appends within the
+  iteration; the whole-pool redraw fires once at the next iteration's start.
+- **[resolved]** `batch_size` — a **fixed absolute count** exposed on
+  `set_sgd_options()`, held constant across iterations (D6); its default `NULL`
+  is filled once by `set_algorithm_em()` to **`min(n_sequences, 10)`** and frozen
+  (a batch of 10 at the `n_sequences = 100L` default, floored at `n_sequences` for
+  tiny pools; the prototype's per-iteration `⌈K/25⌉` is not carried forward).

@@ -91,9 +91,20 @@ creation/dissolution parameters, observed only at wave snapshots, re-estimated b
 `estimate_dynes()`, with recovery within pre-registered tolerance bounds. A reduced
 deterministic-seed variant SHALL run in the test suite (skip_on_cran), and the full
 study — including the identifiability assessment of separate creation/dissolution
-parameters from waves — SHALL be recorded with the change.
+parameters from waves — SHALL be recorded with the change. The full study SHALL also
+include a **flips-per-interval stress sweep** (e.g. ~2 → 5 → 15 → 40 changes per
+between-wave interval) that locates the effective-sample-size cliff where importance-
+weighted augmentation degenerates, so the vignette can state an honest operating envelope
+(how sparse a wave / how many changes per interval is where DyNES stops being trustworthy)
+rather than leaving users to discover it as silently wide MC error.
 
 #### Scenario: known parameters recovered
 - **WHEN** the seeded recovery test runs on a small simulated two-wave panel
 - **THEN** estimates fall within the pre-registered bounds of the generating
   parameters.
+
+#### Scenario: degeneracy envelope characterized
+- **WHEN** the full study sweeps flips-per-interval upward at a fixed pool size
+- **THEN** it records where effective sample size collapses (weights degenerate faster
+  than pool growth recovers), and that boundary is reported as the vignette's operating
+  envelope.

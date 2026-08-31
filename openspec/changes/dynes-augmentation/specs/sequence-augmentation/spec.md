@@ -67,7 +67,14 @@ per-step drawing core under wave-endpoint conditioning: sender–flavor risk set
 restricted in R to support-applicable remaining events plus the single globally-next
 unplaced modeled relational event; receivers among remaining observed receivers;
 waiting times from truncated exponentials at the selected pair's rate, bounded by the
-next anchor — min(next relational event, wave end)), and `augment_seq_mcmc()` (one serial global
+next anchor — min(next relational event, wave end); if the risk set empties with flips
+still unplaced — possible only under cross-dyad support coupling, where a greedy step
+disables another latent flip's support before it is placed — the interval draw SHALL
+**reject-and-restart**, so the delivered sequence is success-conditioned and its recorded
+proposal density is **restart-normalized** (the accumulated per-step density divided by the
+draw's completion probability); a restart-count ceiling SHALL abort with a diagnostic
+naming the coupling rather than loop when completion is vanishingly likely), and
+`augment_seq_mcmc()` (one serial global
 chain over the whole sequence; within-wave permute and shift moves mixed by the
 user-facing `move_probs`; rate-based truncated-exponential time proposals frozen at
 the state after the preceding panel event; burn-in and thinning counted in sweeps;
@@ -101,6 +108,14 @@ regardless of which order the input carries.
   recorded log proposal density includes every selection step — relational-event
   selections included.
 
+#### Scenario: simulation augmenter restarts a stranded draw
+- **WHEN** `augment_seq_sim()`'s greedy forward draw empties the risk set with flips still
+  unplaced (cross-dyad support coupling)
+- **THEN** the interval draw is rejected and restarted, the delivered sequence is
+  endpoint-hitting, and its recorded proposal density is restart-normalized (divided by the
+  completion probability) so the importance weight uses the success-conditioned proposal;
+  exceeding the restart ceiling aborts with a diagnostic naming the coupling.
+
 #### Scenario: mutation preserves validity
 - **WHEN** `augment_seq_mcmc()` proposes a move on a valid sequence
 - **THEN** the proposed sequence is endpoint-hitting (moves stay within one wave and
@@ -132,6 +147,14 @@ during the same pass (the reverse-density byproduct the MCMC augmenter's proposa
 evaluator consumes) — in a batched C++ call
 over the sequences' flat preprocessed objects (default format; zero optimizer
 iterations), plus importance weights formed from model density over proposal density.
+For the result contract's asymptotic uncertainty the evaluator SHALL expose, per
+sequence, **both** the complete-data score and the complete-data information (not Fisher
+alone), since those are the ingredients the `abmcem` change combines into the
+**sandwich** covariance it specifies (abmcem D9, Ruth 2024 §3.3:
+`vcov = I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` with `I_c = Σ w̄ᵢ Jᵢ` — the meat needs the per-sequence
+scores, the bread the per-sequence information); exposing only the complete-data
+information would make the sandwich meat unformable and force an anti-conservative
+complete-data inverse `vcov()`.
 The evaluator SHALL return a **classed E-step object** (`goldfishEstepIS`,
 `goldfishEstepResampling`, or `goldfishEstepUniform`, sharing a
 `goldfishDynesEstep` parent) carrying those per-sequence
@@ -168,6 +191,13 @@ outcome recorded in the change's design.
   `goldfishDynesEstep`), holding the
   per-sequence quantities and weights, ready for the `compute_q()` / `compute_ase()`
   generics to dispatch on without the caller inspecting the weighting scheme.
+
+#### Scenario: evaluator exposes both score and information for the sandwich covariance
+- **WHEN** Fisher is requested at convergence for a weighted pool
+- **THEN** the evaluator returns, per sequence, the complete-data score **and** the
+  complete-data information (not information alone), so `abmcem` can form the sandwich
+  covariance `I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` (D9) and `vcov()` is not the anti-conservative
+  complete-data inverse.
 
 ### Requirement: Pool storage stays memory-bounded
 

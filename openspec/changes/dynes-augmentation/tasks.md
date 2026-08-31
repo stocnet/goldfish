@@ -10,6 +10,15 @@
 > evaluator. `process-simulation` must land before task 3.3 (`augment_seq_sim()`).
 > Keep this order in sync with the mirror note in `abmcem/tasks.md`.
 >
+> **Export handoff (cross-change, `abmcem` D2/Q1).** `abmcem` implements and tests
+> `estimate_dynes()` through a stub augmenter but ships it **unexported** (no
+> `@export`, absent from `NAMESPACE`) — its four control constructors export, the
+> driver does not — so no user can reach an exported surface that would only abort
+> for lack of a real augmenter. **This change owns adding the `@export`**: once the
+> real augmenters (Phase 3) and batched evaluator (Phase 4) exist, task 6.1 adds
+> `@export` to `estimate_dynes()` and re-runs `devtools::document()`. Keep this in
+> sync with `abmcem`'s task 5.2 and its `dynes-estimation` spec note.
+>
 > **Prerequisite (cross-change).** The joint/multivariate parameter surface —
 > `set_init_param()` → `goldfishParams` and `coef_layout()` — lives in the
 > `joint-parameters` change (extending the `multivariate-specification`
@@ -97,7 +106,11 @@
       `augmentation_recipe` compiled-once + injective-map-validated-once assertions,
       cli message snapshots); `devtools::document()`
 - [ ] 2.5 Verification: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
-      version bump in DESCRIPTION + NEWS.md entry (panel seam milestone); commit
+      commit. **No DESCRIPTION version bump and no root `NEWS.md` edit on this
+      branch** — record the panel seam milestone as a bullet in the change-local
+      `openspec/changes/dynes-augmentation/NEWS.md`. The version bump, root-NEWS
+      fold, and archival are deferred to branch merge (see progress.md "Version /
+      NEWS / archival")
 
 ## 3. Augmenters (walk-handle drivers)
 
@@ -118,6 +131,14 @@
       handle's `Λ` (the same rate the rate kernel's `Δt·Λ` compensator uses — the
       time-domain fid-for-fid pin), record `q` as a density over times, and carry the
       trailing censored interval `[t_last, t_{m+1}]` in the proposal density.
+      **Completion / reject-and-restart (design D20):** the greedy forward draw can strand
+      under cross-dyad support coupling (a step disables another latent flip's support); v1
+      **rejects and restarts** the interval draw when the risk set empties with flips
+      unplaced, so the delivered sequence is success-conditioned and the recorded `q` is
+      restart-normalized (divided by the completion probability) — the importance weight must
+      use that success-conditioned `q`. A restart-count ceiling aborts with a diagnostic
+      naming the coupling. Cycle-structured latent processes (join → produce → close) are a
+      v2 direction needing differently-determined risk sets, out of v1 scope.
 - [ ] 3.4 `augment_seq_mcmc()`: permute + shift move set with rate-based
       truncated-exponential time redraws, unified pred/succ windows, upfront
       exclusion of chain-order-violating swaps, and the injected
@@ -140,13 +161,21 @@
       path (trust-by-construction in production, no per-draw hot-path check),
       proposal-density correctness on hand-computed fixtures, walk-handle
       batch-vs-replay consistency; verification run `NOT_CRAN=true` (PASS not SKIP);
-      version bump + NEWS (augmentation milestone); commit.
+      commit. **No DESCRIPTION version bump and no root `NEWS.md` edit on this
+      branch** — record the augmentation milestone as a bullet in the
+      change-local `openspec/changes/dynes-augmentation/NEWS.md` (see
+      progress.md "Version / NEWS / archival").
       **Restriction-relationship fixture (design D20):** on a hand-built two-wave case,
       assert the proposal normalizer runs over the endpoint-restricted **observed-flip**
       set while the evaluator's likelihood normalizer runs over the **full structural
       support** (they differ by the unobserved-but-creatable alternatives), that the
       placed flip's numerator rate matches on both sides (the density pin), and that the
       resulting `f/q ≠ 1` equals the hand-computed `Σ_observed rate / Σ_full rate` ratio.
+      **Restart-normalization (design D20, v2 bias note):** on a hand-built two-wave case
+      with cross-dyad support coupling that forces `augment_seq_sim()` to strand-and-restart,
+      assert the recorded proposal density is the **success-conditioned** (restart-
+      normalized) density, not the raw accumulated one — the guard against a silent `f/q`
+      bias in exactly the coupled case.
       **Injected-substream determinism (design D20, resolved RNG open question):** assert
       each augmenter draw is a pure function of its injected `L'Ecuyer-CMRG` substream
       state — the same injected state reproduces the same sequence and proposal density
@@ -214,10 +243,19 @@
       that abmcem's `compute_q()`/`compute_ase()` generics dispatch on (design D15
       seam: this change constructs the object, abmcem owns the generics); swap the
       batched evaluator in behind the evaluator contract shipped by the `abmcem` change
-      (its prototype-path adapter retires here); `devtools::document()`
+      (its prototype-path adapter retires here); `devtools::document()`.
+      **Sandwich ingredients (design D7 / abmcem D9):** the Fisher path emits the
+      per-sequence **complete-data information** `Jᵢ`, and the E-step object MUST also carry
+      the per-sequence **score** `Sᵢ` (not information alone), because `abmcem` forms the
+      Ruth-2024 sandwich `vcov = I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` (`I_c = Σ w̄ᵢ Jᵢ`) — the meat
+      needs the per-sequence scores. Omitting the score forces the anti-conservative
+      complete-data inverse in `vcov()`.
 - [ ] 4.4 Tests: batched vs zero-iteration-engine equivalence within 1e-10, weight
       fixtures, pool memory within the accepted bound; verification `NOT_CRAN=true`
-      (PASS not SKIP); version bump + NEWS (evaluator milestone); commit
+      (PASS not SKIP); commit. **No DESCRIPTION version bump and no root
+      `NEWS.md` edit on this branch** — record the evaluator milestone as a
+      bullet in the change-local `openspec/changes/dynes-augmentation/NEWS.md`
+      (see progress.md "Version / NEWS / archival")
 
 ## 5. Process simulation — moved out
 
@@ -240,11 +278,26 @@
       (three augmenters + evaluator) so they agree fid-for-fid. Seam: the
       `complete_generative_spec()` primitive is `make-multivariate-spec`'s and the
       `estimate_dynes()` surface is `abmcem`'s; the wave grid it must be called with is
-      this change's. cli message snapshots; `devtools::document()`
+      this change's. cli message snapshots; `devtools::document()`.
+      **Export handoff (`abmcem` D2/Q1):** `abmcem` ships `estimate_dynes()`
+      unexported (stub-tested only); now that the real augmenters (Phase 3) and
+      batched evaluator (Phase 4) exist, **add `@export` to `estimate_dynes()`**
+      (keeping the `lifecycle::badge("experimental")`) and re-run
+      `devtools::document()` so the surface becomes user-reachable with a working
+      augmenter behind it. The four control constructors are already exported by
+      `abmcem`; only the driver's `@export` is this change's to add.
 - [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture;
       full simulation study incl. creation/dissolution identifiability from waves,
-      recorded with the change (progress.md + `.plan/`)
+      recorded with the change (progress.md + `.plan/`).
+      **Degeneracy envelope (spec `dynes-estimation`):** the full study sweeps
+      flips-per-interval (~2 → 5 → 15 → 40) at fixed pool size to locate the ESS cliff where
+      importance-weighted augmentation degenerates, and reports that boundary as the
+      vignette's operating envelope (task 6.3).
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, algorithm variants,
       reading MC vs asymptotic error); dataset example; `devtools::document()`
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
-      SKIP); version bump in DESCRIPTION + NEWS.md entry (DyNES milestone); commit
+      SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and
+      no `/opsx:archive` on this branch** — record the DyNES milestone as a
+      bullet in the change-local `openspec/changes/dynes-augmentation/NEWS.md`.
+      The version bump, root-NEWS fold, and archival happen once at branch merge
+      (see progress.md "Version / NEWS / archival")

@@ -18,13 +18,26 @@
 ## 1. Control constructors and the warm-start option
 
 - [ ] 1.1 Child constructors `set_augmenter_options()` (incl. `warm_start`),
-      `set_weights_options()`, `set_sgd_options()` (`step_schedule` incl.
-      `decay`; `convergence` gradient/iterations) with child-local cli
+      `set_weights_options()` (`transformation` a **named enum**
+      `c("identity", "clipping", "smoothing")`, not a user function, design
+      D2/D5), `set_sgd_options()` (`step_schedule` incl.
+      `decay`; `convergence` gradient/iterations; the M-step tolerance named
+      **`sgd_tolerance`** — distinct from the EM `tolerance`, design D2/D6,
+      default `1e-3`; `step_size` default `0.001`; **`batch_size` a fixed
+      absolute count defaulting to `NULL`**, resolved at the parent in task 1.2,
+      design D6) with child-local cli
       validation (errors naming valid options; descriptive argument names per
       design D2)
 - [ ] 1.2 `set_algorithm_em()` nesting the three: single `seed`, `n_cores` (CRAN
       2-core default), stop-rule quantiles, `stop_count`, `max_retries`,
-      `em_trace_se`, and **`initial_parameters`** — a `goldfishParams`
+      **`max_pool = 5000L`** (clamps the post-acceptance pool-sizing rule; first
+      pass to bind the cap warns once — design D2/D7),
+      `em_trace_se`, and **`initial_parameters`** — **defaults pinned from the
+      prototype driver** (design D2/Open-Q `[defaults]`): `max_iterations = 50L`,
+      `accept_quantile = 0.2`, `growth_quantile = 0.2`, `stop_quantile = 0.1`,
+      `tolerance = 1e-3`, `stop_count = 1L`, `max_retries = 20L`, and
+      **`n_sequences = 100L`** (no prototype default; a shipped default since the
+      constructor exports — the toy fixtures override it) — a `goldfishParams`
       (`joint-parameters`) whose free (non-offset NA) slots are θ₀, default
       `NULL` → zero over the free set; **no `fixed_parameters` argument** (fixed
       = the spec's formula offsets, design D2/D4); the cross-object validity
@@ -32,26 +45,43 @@
       `warm_start` (on `set_augmenter_options()`) wiring the **per-fid** internal
       default-`set_algorithm_newton()` fits, warn-and-ignored when
       `initial_parameters` is supplied — `set_algorithm_newton()` itself gains no
-      argument; `devtools::document()`
+      argument; a per-fid fit that fails (singular information on the single
+      drawn sequence) falls back to zero over that fid's free set with a cli
+      warning naming the fid, never aborting (design D7, `tryCatch` mirroring
+      D-ROBUST); **resolve the nested `set_sgd_options()` `batch_size = NULL`
+      default to `min(n_sequences, 10)` once here and freeze it** (design D6);
+      `devtools::document()`
 - [ ] 1.2a Cold-start construction guard (design D4, dynes-augmentation
       D1/D14): `set_algorithm_em()` warns when `routine = "random"` meets a
       non-zero initial parameter vector or `warm_start = TRUE` (recommend a
       model-driven routine or θ₀ = 0); no abort, and silent for `random` at
       θ₀ = 0
-- [ ] 1.3 Tests (testthat 3e): constructor validation snapshots, validity
+- [ ] 1.3 Tests (testthat 3e): constructor validation snapshots (incl.
+      `transformation` enum rejects a non-member and `sgd_tolerance` is the
+      M-step tolerance name), validity
       matrix warn-and-ignore cases, precedence fixtures, `warm_start`
-      passthrough, cold-start construction-guard warning snapshot
+      passthrough and **warm-start-fit-failure fallback** (a fid whose fit is
+      singular falls back to zero with a fid-naming warning, others keep their
+      starts), cold-start construction-guard warning snapshot
       (`random` + non-zero θ₀ warns; `random` + θ₀ = 0 silent)
 - [ ] 1.4 Verification: full `NOT_CRAN=true` run (frozen baselines PASS not
-      SKIP); version bump in DESCRIPTION + NEWS.md entry (controls milestone);
-      commit
+      SKIP); commit. **No DESCRIPTION version bump and no root `NEWS.md` edit
+      on this branch** — record the controls milestone as a bullet in the
+      change-local `openspec/changes/abmcem/NEWS.md`. The version bump,
+      root-NEWS fold, and archival are deferred to branch merge (see
+      progress.md "Version / NEWS / archival")
 
 ## 2. Weighting machinery and Q/ASE dispatch
 
 - [ ] 2.1 Weight state per design D5: permanent per-sequence reference records
       (θ_ref, log-likelihood at θ_ref, log proposal density) on the log
-      scale; likelihood-ratio reweighting with multiple-importance-sampling
-      combination for mixed-θ_ref pools; pre-normalization `transformation`
+      scale; likelihood-ratio reweighting (the Casella & Levine 2001
+      sample-reuse update — add the cite to `inst/REFERENCES.bib`) with
+      multiple-importance-sampling combination for mixed-θ_ref pools;
+      **MCMC + `refresh = FALSE` defaults to `weighting = "importance"` and
+      warns→importance on `weighting = "uniform"`, with both
+      `use = "importance"` and `use = "resampling"` valid** (design D4);
+      pre-normalization `transformation`
       (with the resampling warning); stratified/residual/random resampling;
       `refresh` mode and the ESS guard with its two warnings (never at
       startup)
@@ -70,9 +100,14 @@
       fixtures, scheme-dispatch equivalences against closed forms from an
       analytic stub evaluator (design D11), guard-warning snapshots, cold-start
       diagnostic snapshot (fires below the pathology floor, distinct from the
-      guard warning, silent at θ₀ = 0)
-- [ ] 2.4 Verification `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS
-      (weighting milestone); commit
+      guard warning, silent at θ₀ = 0), **negative-variance ASE floor** (a
+      near-constant-Λ resampling fixture yields ASE = 0 not `NaN`, records the
+      `ase_floored` flag; design D8)
+- [ ] 2.4 Verification `NOT_CRAN=true` (PASS not SKIP); commit. **No
+      DESCRIPTION version bump and no root `NEWS.md` edit on this branch** —
+      record the weighting milestone as a bullet in the change-local
+      `openspec/changes/abmcem/NEWS.md` (see progress.md "Version / NEWS /
+      archival")
 
 ## 3. SGD M-step optimizer
 
@@ -86,8 +121,11 @@
 - [ ] 3.2 Tests: known-optimum convergence on the analytic stub evaluator,
       cyclic-vs-weighted expected-gradient equivalence fixture, fixed
       parameters immobile, fresh-state-per-M-step check
-- [ ] 3.3 Verification `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS
-      (optimizer milestone); commit
+- [ ] 3.3 Verification `NOT_CRAN=true` (PASS not SKIP); commit. **No
+      DESCRIPTION version bump and no root `NEWS.md` edit on this branch** —
+      record the optimizer milestone as a bullet in the change-local
+      `openspec/changes/abmcem/NEWS.md` (see progress.md "Version / NEWS /
+      archival")
 
 ## 4. Prototype-path pool evaluator
 
@@ -123,15 +161,22 @@
       pinned by name, not positionally); **degenerate-sequence guard (4.2)** — a
       deliberately collinear sequence in the pool yields a non-finite result and
       the pool evaluation completes for the rest, with no matrix-inversion abort
-- [ ] 4.4 Verification `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS
-      (evaluator-adapter milestone); commit
+- [ ] 4.4 Verification `NOT_CRAN=true` (PASS not SKIP); commit. **No
+      DESCRIPTION version bump and no root `NEWS.md` edit on this branch** —
+      record the evaluator-adapter milestone as a bullet in the change-local
+      `openspec/changes/abmcem/NEWS.md` (see progress.md "Version / NEWS /
+      archival")
 
 ## 5. ABEM loop, estimation surface, and results
 
 - [ ] 5.1 The ABEM loop per design D7, written purely against the three
       contracts: accept/grow/stop from `compute_q()`/`compute_ase()`, bounded
-      ⌈pool/`max_retries`⌉ within-iteration growth, **`cli_abort()` on
-      within-iteration retry exhaustion** but **`max_iterations` exhaustion
+      ⌈pool/`max_retries`⌉ within-iteration growth, **post-acceptance sizing
+      clamped to `max_pool` with a one-time cap-bound warning** (design D7), a
+      **non-terminal stop-hit falling through to the accept test on the same
+      proposal** (θ keeps moving; design D7), **`cli_abort()` on
+      within-iteration retry exhaustion, carrying the accumulated `em_trace` as
+      structured condition data** (design D7) but **`max_iterations` exhaustion
       returns the last accepted θ with a non-convergence warning and
       `converged = FALSE`** (design D7, like the Newton estimators), always-on
       `em_trace` with opt-in per-iteration SEs; contract-conformant stub
@@ -148,12 +193,18 @@
       pool-entry path are `dynes-augmentation`'s (its tasks 4.2/4.3, built A0 now so the
       widened return is a drop-in later); the accepted-not-last-proposal correctness
       guard is its task 3.4. Keep this deferral in sync with `dynes-augmentation` D23.
-- [ ] 5.2 `estimate_dynes()` surface: lifecycle experimental badge, θ₀ from
+- [ ] 5.2 `estimate_dynes()` surface — **implemented and tested via the stub
+      augmenter but NOT exported here** (no `@export`, absent from `NAMESPACE`;
+      exercised through `goldfish:::estimate_dynes()`); the `@export` lands with
+      `dynes-augmentation` once a real augmenter exists (design D2/Q1). The four
+      control constructors do export here. lifecycle experimental badge, θ₀ from
       `set_algorithm_em()`'s `initial_parameters` (zero default) or the
       `warm_start` augmenter option (one internal default-`set_algorithm_newton()`
       fit), the mirai-backed
       parallel seam behind the serial default (Suggests dependency, non-nested
-      `workers × BLAS threads ≤ cores` budget); the seam seeds one
+      `workers × BLAS threads ≤ cores` budget; an **explicit** `n_cores > 1`
+      with mirai not installed warns **once** and runs serial, the default path
+      silent — design D10/Q6); the seam seeds one
       `L'Ecuyer-CMRG` root from the single `seed`, keys augmentation substreams by
       `(iteration, draw_index)` (worker-independent, spawned lazily), keeps the MCMC
       chain and control (batch/resample) substreams coordinator-side, injects each
@@ -178,13 +229,26 @@
       pinned-context snapshots
 - [ ] 5.4 Tests: end-to-end toy ascent (stub augmenter + real adapter + real
       SGD, seeded recovery within bounds, skip_on_cran), grow-then-accept,
-      retry-abort, and **`max_iterations`-returns-last-accepted-with-warning**
-      (`converged = FALSE`) fixtures, `em_trace` content fixture,
+      **retry-abort (asserting the accumulated `em_trace` is attached to the
+      error condition)**, and **`max_iterations`-returns-last-accepted-with-warning**
+      (`converged = FALSE`, and **`vcov()` populated** from the final full-pool
+      pass — not `NULL` — design D9/Q3) fixtures,
+      **explicit-`n_cores`-without-mirai warns-once-then-serial** fixture
+      (design D10/Q6), `em_trace` content fixture,
+      **`max_pool` cap fixture** (a near-zero-Q acceptance clamps the next pool to
+      `max_pool` and warns once; design D7), **`stop_count > 1` fall-through
+      fixture** (a non-terminal stop-hit still accepts and advances θ; design D7),
       control-dispatch test
-      (no variant branching in the loop), **cross-worker-count reproducibility**
-      (identical drawn pool and estimates across `n_cores ∈ {1, 2, ...}` at fixed
-      `seed` — Option B keying plus index-ordered reduction, design D10),
+      (no variant branching in the loop), **cross-worker-count reproducibility
+      exercising a growth retry (and an ESS-guard redraw)** — identical drawn
+      pool (appended + redrawn sequences included) and estimates across
+      `n_cores ∈ {1, 2, ...}` at fixed `seed` — Option B keying plus
+      index-ordered reduction, monotonic per-iteration `draw_index` (design D10),
       §2.2-vs-§3.3 SE cross-check fixture
 - [ ] 5.5 Final verification: full `NOT_CRAN=true` suite (frozen baselines
-      PASS not SKIP); version bump in DESCRIPTION + NEWS.md entry (ABMCEM
-      milestone); commit
+      PASS not SKIP); commit. **No DESCRIPTION version bump, no root
+      `NEWS.md` edit, and no `/opsx:archive` on this branch** — record the
+      ABMCEM milestone as a bullet in the change-local
+      `openspec/changes/abmcem/NEWS.md`. The version bump, root-NEWS fold, and
+      archival happen once at branch merge (see progress.md "Version / NEWS /
+      archival")

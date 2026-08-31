@@ -19,12 +19,22 @@ estimated. When `set_augmenter_options(warm_start = TRUE)` is set and
 per-fid independent internal `set_algorithm_newton()` fits (their default
 arguments) on a single augmentation, each fit reading its sub-specification's
 offsets; when `initial_parameters` is also supplied the warm start SHALL be
-warned and ignored. Exhausting `max_retries` within one iteration SHALL abort
+warned and ignored. A per-fid warm-start fit that fails (e.g. a singular
+information matrix on the single drawn sequence) SHALL fall back to zero over
+that fid's free set with a cli warning naming the fid, without aborting the run
+or affecting the other fids' fitted starts. Exhausting `max_retries` within one iteration SHALL abort
 with a cli error explaining the non-convergence from the trace-derived
 diagnostics; exhausting the outer `max_iterations` SHALL instead return the last
 accepted parameters with a non-convergence **warning** and a `converged = FALSE`
 flag on the result (never silent, never discarded). `estimate_dynes()` SHALL be
-marked experimental (`lifecycle::badge("experimental")`).
+marked experimental (`lifecycle::badge("experimental")`). `estimate_dynes()`
+SHALL be implemented and tested in this change through a contract-conformant
+stub augmenter, but SHALL NOT be exported here (no `@export`, absent from
+`NAMESPACE`); the export is added by `dynes-augmentation` once a real augmenter
+exists, so no exported surface can be called with real data that only aborts for
+lack of an augmenter. The control constructors
+(`set_algorithm_em()`/`set_augmenter_options()`/`set_weights_options()`/
+`set_sgd_options()`) SHALL export here.
 
 #### Scenario: toy ascent converges through the contracts
 - **WHEN** `estimate_dynes()` runs on a toy fixture with a
@@ -47,9 +57,10 @@ marked experimental (`lifecycle::badge("experimental")`).
 
 The package SHALL provide four control constructors, one per algorithm
 concern: `set_algorithm_em()` (the EM loop: `n_sequences` — the initial pool
-size, `max_iterations`, the
+size, default 100, `max_iterations`, the
 `accept_quantile`/`growth_quantile`/`stop_quantile` stop-rule quantiles,
-`tolerance`, `stop_count`, `max_retries`, the single `seed` governing all draws,
+`tolerance`, `stop_count`, `max_retries`, `max_pool` (default 5000, the ceiling
+clamping the post-acceptance pool-sizing rule), the single `seed` governing all draws,
 `initial_parameters` — θ₀ as a `goldfishParams` (`joint-parameters`) whose
 free (non-offset `NA`) slots are the estimand, default `NULL` → zero over the
 free set, flowing to both the evaluator and the warm-start; there SHALL be no
@@ -64,8 +75,11 @@ mix), `set_weights_options()` (`weighting` importance/uniform, `use`
 importance/resampling, `resampling_scheme` stratified/residual/random,
 `transformation`, `refresh`, `ess_threshold`), and `set_sgd_options()` (`variant`,
 `batch_size`, `batch_scheme` weighted/cyclic, `step_size`, `step_schedule`
-constant/decay/adagrad/adam/momentum, `max_iterations`, `tolerance`,
-`convergence` gradient/iterations). Argument
+constant/decay/adagrad/adam/momentum, `max_iterations`, `sgd_tolerance` — named
+distinctly from `set_algorithm_em()`'s EM-stop `tolerance`, a different scale,
+`convergence` gradient/iterations). The `set_weights_options()` `transformation`
+SHALL be a named enum (`identity`/`clipping`/`smoothing`), not a user-supplied
+function. Argument
 names SHALL be descriptive, never Greek. Each child constructor SHALL
 validate its own arguments with cli errors naming the valid options;
 `set_algorithm_em()` SHALL enforce the cross-object rules — the
@@ -109,8 +123,8 @@ without modifying `estimate_dynes()`.
 ### Requirement: ABEM results carry Fisher-based vcov and Monte-Carlo error
 
 The `estimate_dynes()` result SHALL contain the parameter estimates, a
-`converged` flag, the Fisher-information approximation accumulated at
-convergence, Monte-Carlo standard errors, and the `em_trace` per-iteration
+`converged` flag, the Fisher-information approximation, Monte-Carlo standard
+errors, and the `em_trace` per-iteration
 diagnostics: parameters, Q and its standard error, the accept/grow/stop
 decision, pool size and new draws, effective sample size, the weighting scheme
 in force, MCMC chain diagnostics (acceptance rate, autocorrelation index), and
@@ -124,6 +138,15 @@ Monte-Carlo error side by side, grouping the flat coefficients into per-process
 blocks via `coef_layout()` and surfacing the `converged` flag; `print()` /
 `summary()` SHALL render via cli semantic elements, stable under a pinned cli
 context for snapshot tests.
+
+The Fisher approximation and both error estimates SHALL come from a single
+dedicated full-pool evaluation at the returned parameters, run on **every
+returning termination regardless of the `converged` flag** — including the
+`max_iterations`-exhaustion path that returns `converged = FALSE`. A returned
+fit SHALL therefore always carry a populated `vcov()` and Monte-Carlo error; a
+non-converged result SHALL have standard errors (which `summary()` caveats
+beside the `converged = FALSE` status), never a `NULL` covariance. Only the
+`max_retries`-abort path produces no return and thus no such pass.
 
 #### Scenario: em_trace records the ascent
 - **WHEN** a converged result is inspected
@@ -141,3 +164,16 @@ context for snapshot tests.
 - **WHEN** `summary()` renders a DyNES result estimated with a small pool
 - **THEN** the Monte-Carlo standard errors appear alongside the asymptotic
   standard errors, making pool-limited precision visible.
+
+#### Scenario: non-converged fit still carries standard errors
+- **WHEN** `vcov()` is called on a result returned after `max_iterations`
+  exhaustion (`converged = FALSE`)
+- **THEN** it returns the covariance from the final full-pool pass at the
+  last-accepted parameters, not `NULL`, and `summary()` shows the standard
+  errors beside the non-convergence status.
+
+#### Scenario: warm-start fit failure falls back to zero for that fid
+- **WHEN** `warm_start = TRUE` and one fid's internal `set_algorithm_newton()`
+  fit fails on the single drawn sequence
+- **THEN** that fid's θ₀ block falls back to zero with a cli warning naming the
+  fid, the other fids keep their fitted starts, and estimation proceeds.
