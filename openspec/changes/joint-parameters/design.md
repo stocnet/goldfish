@@ -337,6 +337,118 @@ intercept for a sub-model, `coef_layout()` does not invent one. Where an
 autocompleted-default slot has no `coef()`-surfaced name, the placeholder
 **`"1"`** is used for now.
 
+**Correction (2026-08-31) — the coefficient `name` column follows `summary()`'s
+console form, not `coefficient_term_labels()`.** D12's premise above is wrong:
+it claims the `name` column "mirrors exactly what `estimate_dynam()`'s `coef()`
+already surfaces via `coefficient_term_labels()`". `coef()` does **not** use
+`coefficient_term_labels()` — `coef.result.goldfish` (`methods_postestimate.R:40`)
+and `vcov()` (`:110`) name coefficients with
+`term_label(object$names, ".coef_name", "coef")`, the compact **coef** form.
+The two forms coincide only for argument-free effects (`inertia`), which is
+why the premise passed unnoticed — every fixture in this change uses bare
+effects (the same coincidence D19 flags). They diverge the moment an effect
+carries a window, a weight, a transformer, or an argument.
+
+There are in fact **three** coefficient-naming schemes in the package, not two:
+
+| scheme | producer | `inertia` windowed+weighted | consumers |
+| --- | --- | --- | --- |
+| **deparse** | `coefficient_term_labels()` (`formula_validate.R:444`) | `inertia(calls, window = "1 hour", weighted = TRUE)` | `set_init_param()` **today** (via `fid_coefficient_layout()`) |
+| **coef** | `compact_term_strings(names, "coef")` → `.coefTerms` (`utils.R:1161`) | `inertia`, or `inertia_call_1h` **only on collision** | `coef()`, `print(result)`, `vcov()`, `tidy()` |
+| **console** | `compact_term_strings(names, "console")` → `.assembleTerms` (`utils.R:1078`) | `inertia [1h,W]` | **`summary(result)`** (`methods_display.R:177,191`) |
+
+The **coef** form suppresses window/weight/transformer tokens unless a same-fid
+name collision forces them — self-*non*-describing and unstable. The **console**
+form always emits the `[args]` block when a row carries attributes (`.rowTokens`
+is appended unconditionally, `utils.R:1101,1106`), so it is self-describing:
+`effect/obj·obj2 [args]`, tokens `W` (weighted), `1h`/`30m`/`7d`/…/`wdw`
+(window), transformer fn-name or `t:`/`s:`, `IR`, `Fx` (grammar documented at
+`methods_display.R:27`).
+
+**Decision — the joint coefficient vocabulary is the console form.**
+`set_init_param()` keys (per-coefficient names inside each per-fid vector),
+`print.goldfishParams`, and the `name` column of **all three** `coef_layout()`
+methods speak one vocabulary: `compact_term_strings(names, "console",
+width = Inf)`. This is the form the user reads out of `summary()` and out of
+`coef_layout(spec)`, so authoring a pin and reading a fit share exactly one
+string — the whole point of pinning by the summary name rather than by the raw
+formula term. Its fid-scoped sibling-dependence (object abbreviation via
+`.shortestUniquePrefix`, width-driven config escalation) is **intended**: adding
+an effect re-renders the block, and the user re-reads the keys — the object is
+the single source of truth for its own names, which is why a spec-level renderer
+(`coef_layout(spec)`) is the supported way to discover them, never guesswork.
+*Rejected:* the **coef** form — it hides the very window/weight/transformer
+attributes that distinguish two otherwise-identical effects until they collide,
+so a lone windowed effect would be pinned as bare `inertia` with the window
+invisible.
+
+**Scope of the switch.** `fid_coefficient_layout()` (`joint_parameters.R:105`)
+and `coef_layout.goldfishJointSpec` (`:730`) move off `coefficient_term_labels()`;
+`coef_layout.flavored_result.goldfish` (`:786`) moves off
+`term_label(sub$names, ".coef_name", "coef")` — **both** onto the console form,
+so the from-result round-trip skeleton comparison, which includes the `name`
+column (`set_parameters_from_result()`, `:347`), still matches. The enabling
+build: the console renderer needs the effect-description matrix (rownames +
+`Object`/`window`/`weighted`/… columns), which the spec bundle does **not**
+carry today (`make_specification.R:1000` stores only `parsed` + `has_intercept`).
+It is reconstructed pre-fit, from data the spec already holds, by
+`GetDetailPrint(get_objects_effects_link(parsed$rhs_names, …), parsed)` — the
+same call estimation makes at `model_estimate.R:2515`, which depends only on the
+formula and the referenced objects, not on any fitted value.
+
+**Single-process stays terse (deliberate divergence, kept for now).**
+Single-process `estimate_dynam(initial_parameters = …)` resolves by-name against
+`coef_labels = term_label(base_description, ".coef_name", "coef")` — the **coef**
+form (`model_estimate.R:2517`). We do **not** align it to the console form:
+single-process estimation does not go through `set_init_param()` at all, so there
+is no shared surface forcing one convention. **joint = console (self-describing),
+single = terse coef**, on purpose. Revisit only if a single-process `set_init_param()`
+path is ever introduced.
+
+**Intercept and interaction slots need no special handling — they already agree
+under both schemes.** This is worth spelling out because the coefficient-space
+layout is `[Intercept?, effects, interactions]` (length `n_params`), and only the
+*effect* rows are where deparse and console diverge:
+
+- The effect-description matrix `GetDetailPrint` builds already spans the full
+  coefficient space. Interactions are appended as **empty-detail rows keyed by
+  the interaction's `$label`** (`utils.R:783–795`) — they own no object or
+  attribute, so their `Object`/`window`/… columns are blank. The intercept, when
+  present, is **prepended as one empty row labeled `"Intercept"`**
+  (`utils.R:797–803`). The row order is exactly `[Intercept?, effects,
+  interactions]` — identical to `coefficient_term_labels()`'s own ordering
+  (`formula_validate.R:451`).
+- Because those rows carry **blank** object/argument columns, the console
+  renderer `.assembleTerms` (which composes `rownames` + object columns +
+  `[args]`, `utils.R:1094–1109`) emits, for each, *just the rowname*: the
+  intercept renders as **`"Intercept"`**, an interaction renders as its raw
+  **`$label`**. And `coefficient_term_labels()` uses **those same two strings**
+  for those slots — literal `"Intercept"` and `parsed$interactions[[i]]$label`
+  (`formula_validate.R:446–451`). So intercept and interaction keys are
+  **byte-identical** under the old deparse scheme and the new console scheme; the
+  switch touches effect rows only.
+- One subtlety to be aware of, not to fix: the **coef** form does something
+  different for interactions — `.coefTerms` overwrites the interaction's stored
+  `.coef_name` with the `:`-join of its operands' *short* forms
+  (`inertia_call:trans_call`, `utils.R:820–835`). That operand-join is a decoder
+  column only; the console renderer never consults it, so under the console
+  vocabulary an interaction is keyed by its formula label — self-consistent with
+  what `summary()` prints, and with no operand-short-form join to reconcile. The
+  practical consequence: switching the effect rows to console is safe and local
+  precisely because the two "hard" slots (intercept, interactions) render the
+  same either way.
+- Feasibility of the spec-side build for these rows: intercept and interaction
+  rows derive purely from `parsed$has_intercept` and `parsed$interactions` — both
+  in the spec bundle's `parsed` — so a spec-built `GetDetailPrint` reproduces them
+  identically to a fitted result's. The only fit-vs-spec difference in the whole
+  matrix is the `fixed` column, which the layout already computes on its own
+  (`fid_coefficient_layout()` via `assemble_fixed_parameters()`), so nothing about
+  intercept/interaction naming depends on having fit the model.
+
+The autocompleted-default placeholder **`"1"`** (last paragraph of the original
+D12) is unaffected: an autocompleted slot has no effect-description row to render,
+so it keeps its placeholder until a real name source exists.
+
 ### D13 — An omitted process key means all-free
 
 `set_parameters(spec, ...)` does not require a vector for every fid. A process
@@ -520,6 +632,234 @@ alone (the whole point of the ecosystem rule is that every live class
 carries it — a half-renamed pair sitting next to each other in the same
 file is a worse inconsistency than the one being fixed).
 
+### D18 — `set_parameters()` renames to `set_init_param()` before archive
+
+New (2026-08-31). Same situation as D17: all 19 tasks are checked and
+`openspec list` reports this change `complete`, but it has not archived, and a
+naming review surfaced a second rename before it should. Unlike D17 this one
+is not forced by a sibling change's retitled convention — it is a direct user
+request to rename the exported entry point `set_parameters(spec, ...)` to
+**`set_init_param(spec, ...)`**.
+
+**The name is an imperfect fit for one of the two consumers, by design choice,
+not oversight.** `set_init_param()`'s θ reaches two call sites with different
+semantics (D11): `estimate_dynes(initial_parameters =)` reads it as a
+**starting point** to optimize from — "init" is exact there — while a joint
+`simulate(coef =)` reads it as the **actual** generative coefficients that
+drive the walk, not a value anything iterates from. `set_coef()` or
+`set_param()` would fit the `simulate()` half better and the `estimate_dynes()`
+half worse; no name fits both call sites equally, because the object's dual
+purpose (D11's two projections) is inherent to what it carries. Decided to
+keep the estimation-first framing rather than search for a compromise name,
+since `estimate_dynes()` is the primary/canonical consumer (D1's scope note:
+the object exists to solve initial-value ambiguity first) and `simulate()`'s
+usage reads as "supply the parameters via the same builder used to seed
+estimation" — an acceptable secondary reading, not a wrong one.
+
+**Same no-deprecation reasoning as D17.** No release has shipped under
+`set_parameters()` (this change is unarchived, and the function carries the
+experimental lifecycle badge), so this is a rename of unreleased surface: a
+plain rename, not an `r-lib:lifecycle` `deprecate_soft()`/`deprecate_warn()`
+path.
+
+**Scope of the rename — wider than the exported symbol.** Renaming the
+function renames every **message that names it**, because `cli_abort()` calls
+inside `set_parameters()`/`set_parameters_from_result()` reference the
+function by name for user guidance (`{.fn set_parameters} requires a
+{.cls goldfishJointSpec}`, `Build one with {.fn set_parameters}`, `Pin every
+free coefficient with {.fn set_parameters}`, and more). Every one of those
+strings is pinned in a `_snaps/*.md` file. So the rename is not a single
+`sed` of the definition and call sites — it invalidates every snapshot that
+captured one of these messages, which must be **regenerated and reviewed
+per-diff** (mirroring D17/task 3.4's discipline: confirm each diff is exactly
+the name swap, never accept wholesale). Full edit surface:
+
+- **Definition and internals** (`R/joint_parameters.R`): `set_parameters()` →
+  `set_init_param()`; its unexported from-result dispatch helper
+  `set_parameters_from_result()` → `set_init_param_from_result()` (renamed for
+  the same reason D17 renamed both halves of a pair rather than leaving one on
+  the old spelling — an internal/external name mismatch is exactly the "worse
+  inconsistency" D17 rejected leaving); every `{.fn set_parameters}` token
+  inside `cli_abort()`/`cli_warn()` calls; the roxygen block (`@title` prose,
+  `@param`, `@return`, `@seealso`, the `#'` narrative referencing the old name
+  by backtick).
+- **Cross-references elsewhere in `R/`**: roxygen `@seealso [set_parameters()]`
+  / inline backtick mentions in `intercept_only_rate.R`, `walk_handle.R`,
+  `model_estimate.R`, and any other file whose docs point a reader at this
+  builder (grep-confirm the full list at task time, mirroring D17/task 3.1's
+  inventory-before-edit discipline).
+- **Generated docs**: `devtools::document()` regenerates `NAMESPACE`
+  (`export(set_parameters)` → `export(set_init_param)`) and writes
+  `man/set_init_param.Rd`; roxygen does **not** delete an orphaned `.Rd`, so
+  the stale `man/set_parameters.Rd` needs an explicit `git rm`.
+- **Tests** (`test-joint_parameters.R`, `test-coef_layout.R`,
+  `test-joint_consumer_parameters.R`, `test-joint_from_result.R`): every call
+  site, `test_that()` description string that names the function in prose, and
+  file-header comment.
+- **Snapshots** (`_snaps/joint_parameters.md`, `_snaps/joint_consumer_parameters.md`,
+  `_snaps/joint_from_result.md`): regenerate and review per-file, per D17/3.4's
+  precedent — the abort/warning text changes wherever it names the function.
+- **Cross-change references**: `abmcem/design.md`, `dynes-augmentation/tasks.md`,
+  and `process-simulation/design.md` all name `set_parameters()` in their own
+  artifacts (confirmed by grep, 2026-08-31) — the identical cross-change
+  coordination problem D17/task 3.5 solved for the class rename. This change
+  executes the sweep itself (it is the change actively holding
+  `R/joint_parameters.R`), following D17's own reasoning for why the holder of
+  the file — not a later consumer or `class-naming-scheme`'s docs-only sweep —
+  is the right place for the fix.
+- **Living-spec delta** (`specs/multivariate-specification/spec.md`, this
+  change's own delta file): the requirement titled
+  `### Requirement: set_parameters builds a validated parameter object over the
+  joint spec` needs a `## RENAMED Requirements` FROM/TO block (mirroring
+  task 3.3's precedent for the `make_joint_specification` requirement), plus a
+  prose sweep of every other requirement body that names `set_parameters()`
+  inline (the NA-disambiguation, complete-vs-partial, and `coef_layout()`
+  requirements all reference it by name).
+- **`NEWS.md`** (change-local staging file): existing bullets naming
+  `set_parameters()` get the name updated in place (unreleased staging text,
+  same as D17/3.7's handling of the class-name bullets), plus a new
+  "Breaking (pre-release)" bullet recording the rename itself, added at the
+  verification task per §1/§2/§3's deferred-NEWS discipline (no root
+  `NEWS.md` edit, no DESCRIPTION bump, on this branch).
+
+*Rejected:* a dual-purpose name search (`set_coef()`, `set_param()`) — no
+candidate reads correctly for both consumers, and the user's instruction was
+specific; documenting the asymmetry here is preferred over relitigating the
+name. *Rejected:* leaving `set_parameters_from_result()` on its old spelling
+— the same half-renamed-pair inconsistency D17 already rejected once for the
+class names.
+
+### D19 — Flavoured-specification test coverage for `set_init_param()`
+
+New (2026-08-31). A naming review of the test suite surfaced a coverage gap:
+**no test in this change exercises `set_init_param()` against a
+`goldfishJointSpec` where a joined layer actually carries a flavor.**
+
+**Code-confirmed premise.** Every fixture across the three test files this
+change owns (`parameters_join()` in `test-joint_parameters.R`,
+`authored_join()` in `test-coef_layout.R`, `result_join()` in
+`test-joint_from_result.R` — three near-identical copies of the same
+generator) joins plain, unflavored layers (`friendship`/`calls`/`emails`) via
+`make_joint_specification()`; each file's own header comment says so
+explicitly ("Non-flavored, so the rendered labels elide the flavor
+segment"). The only flavored fixture in the suite,
+`flavored_container_fit()` (`helper-flavored-fixtures.R`), builds a flavor-keyed
+`specification.goldfish` via `make_specification(rate = list(creation ~ ...,
+dissolution ~ ...))` directly — it is **not** joined through
+`make_joint_specification()`, so it is not a `goldfishJointSpec` and
+`set_init_param()`'s class guard (`inherits(spec, "goldfishJointSpec")`)
+rejects it outright. It is used in `test-coef_layout.R` only **post-fit**,
+gated behind `skip_if_not(exists("flavored_container_fit"))`, to test the
+fitted-result `coef_layout()` method — never authoring.
+
+So the flavor segment of the rendered-label grammar (D2, superseded by D7/D10
+— `layer › flavor › family`, flavor present only when the process carries
+one) has exactly one direct test, and it is the **elision** half only
+(`test-joint_parameters.R`, "labels elide the flavor segment for a
+non-flavored process"). The **inclusion** half, and — more importantly — the
+proposal's own motivating scenario ("the same effect name recurs across fids
+(`inertia` in three processes)", `proposal.md` "Why") is asserted nowhere:
+no fixture gives two *flavors of the same layer* an effect with the same
+name and then proves `set_init_param()` resolves each flavor's slot
+independently rather than conflating them.
+
+**Decision: add a flavored joint fixture, built the way `make_joint_specification`'s
+own docs describe** ("All of a layer's flavors are carried by a single
+specification" — a flavor-keyed `specification.goldfish` composes as one of
+`make_joint_specification()`'s `...` arguments like any other). The new
+fixture joins a flavored `calls` layer (`creation`/`dissolution`, built via
+`add_flavor()` + `make_specification(rate = list(...), choice = list(...))`,
+matching `helper-flavored-fixtures.R`'s own construction) with a plain
+`emails` layer. The **choice** formula of all three fids carries `inertia`
+(deliberately reproducing the proposal's motivating collision — one name,
+three fids — inside an actual test fixture for the first time), and,
+critically, `calls`'s two flavors each carry their **own** inline-`coef`
+offset on the same effect and term (`offset(tie(friendship), coef = ...)`)
+at **two different values** — e.g. `-0.3` for `creation`, `0.4` for
+`dissolution` — while `emails`'s choice carries no offset (stays fully
+free). This is not incidental: it is the fixture's second purpose, not an
+optional extra (see the fixed-parameter assertions below), because every
+existing fixture in this change has **at most one** offset across the whole
+join, so nothing today proves fixed-value resolution is keyed per-*fid*
+rather than accidentally shared or cached across the join. Two distinct
+offset values on the same effect name, on two fids of the *same* layer, is
+the minimum fixture that can catch a per-fid resolution bug the single-offset
+fixtures structurally cannot. This is new fixture code local to the
+`joint-parameters` test files (not a reuse of `helper-flavored-fixtures.R`,
+whose fixtures are documented there as shared by the *estimation*-side
+flavored tests (`test-estimate_flavored.R`, `test-test_gof.R`) and are not
+`goldfishJointSpec` shaped) — consistent with the existing pattern where each
+of this change's three test files defines its own local `*_join()` generator
+rather than importing one.
+
+**New assertions this fixture unlocks, none currently covered:**
+
+1. **Flavor-inclusion labels, in the same object as an elided one** — the
+   mirror of the existing elision test: `calls › creation › rate`,
+   `calls › dissolution › choice`, and `emails › rate` (no flavor segment) are
+   all valid labels on one spec.
+2. **Same-name resolution across flavors** — a per-fid vector keyed
+   `calls › creation › choice` and another keyed `calls › dissolution › choice`,
+   both containing an `inertia` slot, land at their own fid without leaking
+   into the sibling flavor's slot (D7's membership resolution, under the
+   exact ambiguity D9's "Why" cites as the reason the change exists).
+3. **Omitted-key coverage across flavors** (extends D13) — omitting one
+   flavor's key leaves only that flavor's slots free; the sibling flavor and
+   the plain layer are unaffected.
+4. **Per-flavor fixed-value classification** (extends D4) — `creation`'s and
+   `dissolution`'s `tie(friendship)` offsets resolve to their own distinct
+   values (`-0.3` / `0.4`) on the **same** object; a non-`NA` value supplied
+   at one flavor's fixed slot warns naming only that flavor's slot and does
+   not affect the sibling flavor's classification, warning count, or resolved
+   value. This is the first test in the change where two fixed values on the
+   same effect name coexist, so it is the first test that can catch a fixed
+   value resolved from the wrong fid.
+5. **`coef_layout()` on the flavored authored spec** (extends D6/D12) — the
+   `flavor` column is non-`NA` for the flavored fids' rows and `NA` (or
+   equivalently absent from the label) for the plain layer's rows, on the
+   **same** layout call; the `fixed` value column reads `-0.3` for
+   `creation`'s row and `0.4` for `dissolution`'s, not a value from the
+   sibling flavor or `NA` for either.
+6. **From-result round-trip over a flavored join, fixed values included**
+   (extends D14) — a fabricated fitted result over the flavored fixture
+   round-trips through `set_init_param(spec, result)` correctly: the free
+   `inertia` slots land per-fid despite the shared name, **and** each
+   flavor's fixed slot keeps the *specification's* offset value (`-0.3` /
+   `0.4` respectively), not a value read off the result, silently and with no
+   warning (mirrors the existing non-flavored round-trip test but now
+   proving it holds when two fixed values must stay distinct).
+7. **A colon-grammar key still aborts against a flavored spec** (extends the
+   existing ambiguous-key negative test) — `calls:creation:rate` (the retired
+   D2 `:`-grammar) matches no rendered label and aborts naming the valid
+   ones, now proven against a spec where a naive string-split would have
+   actually resolved something (D7's reason for membership-only resolution,
+   exercised where it matters instead of vacuously).
+
+*Rejected:* reusing `flavored_container_fit()`/`flavored_fixture_data()`
+directly — they build a single-layer flavored `specification.goldfish`, never
+joined, so they cannot reach `set_init_param()`'s `goldfishJointSpec` guard
+without first being wrapped in a second, joined layer, which is most of the
+new fixture's work anyway; better to own a small joint-specific fixture than
+to bend a fixture documented as belonging to the estimation-side flavored
+tests. *Rejected:* asserting the collision scenario with two **different**
+layers that happen to share an effect name instead of two flavors of the
+**same** layer — already covered in spirit by the existing `parameters_join()`
+fixture (`inertia` appears in both `calls › choice` and `emails › choice`
+today) and does not exercise the flavor segment of the label grammar at all,
+so it would not close this gap.
+
+**Related gap (ties to the D12 correction).** Every fixture here uses
+**argument-free** effects (bare `inertia`), where the deparse, coef, and console
+naming schemes all coincide — which is precisely why D12's wrong premise (that
+the `name` column follows `coefficient_term_labels()`) went unnoticed. Until at
+least one fid carries a window/weight/transformer effect (e.g.
+`inertia(calls, window = "1 hour")`), no test can distinguish the console form
+`set_init_param()` should use (`inertia [1h,W]`) from the deparse form it uses
+today, and the `coef_layout(spec)` ↔ `coef_layout(result)` `name`-column
+agreement the round-trip depends on stays vacuously true. The flavored fixture
+above, or a small companion, should add one argument-bearing effect so the
+console-vocabulary switch (D12 correction) is actually exercised.
+
 ## Open Questions
 
 _All resolved._ OQ1 → **D8**, OQ2 → **D9** (with correction), OQ3 → **D10** — all
@@ -538,4 +878,9 @@ signature fix (`set_parameters(spec, result)`, not a bare `as_parameters(result)
 The same pass added **D17** (post-completion class-naming migration —
 `parameters.goldfish` → `goldfishParams`, `joint_specification.goldfish` →
 `goldfishJointSpec`, per `class-naming-scheme` design D16/D8b), tracked as
-new tasks in §3.
+new tasks in §3. A 2026-08-31 naming-review pass added **D18** (function
+rename `set_parameters()` → `set_init_param()`, with the estimation-vs-simulation
+naming-fit tradeoff documented rather than resolved by a compromise name) and
+**D19** (a new flavored joint fixture closing the test-coverage gap around the
+label grammar's flavor-inclusion case and the proposal's own motivating
+same-name-across-fids scenario), tracked as new tasks in §4 and §5.

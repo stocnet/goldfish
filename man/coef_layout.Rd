@@ -18,7 +18,7 @@ coef_layout(x, ...)
 \arguments{
 \item{x}{a \code{goldfishJointSpec} (from
 \code{\link[=make_joint_specification]{make_joint_specification()}}), a \code{goldfishParams} (from
-\code{\link[=set_parameters]{set_parameters()}}), or a multi-process fitted result.}
+\code{\link[=set_init_param]{set_init_param()}}), or a multi-process fitted result.}
 
 \item{...}{currently unused.}
 }
@@ -41,7 +41,7 @@ intercept when the sub-model carries one, then the effects in formula order,
 then the interaction columns; not one row per effect). It serves three
 surfaces off one label vocabulary: a \code{goldfishJointSpec} (the
 empty authoring layout, so a user can discover the labels, names, and order
-to author \code{\link[=set_parameters]{set_parameters()}}), a \link[=set_parameters]{goldfishParams} object
+to author \code{\link[=set_init_param]{set_init_param()}}), a \link[=set_init_param]{goldfishParams} object
 (the supplied values with the free/fixed classification), and a multi-process
 fitted result (the estimates and standard errors grouped back into the
 per-process blocks the flat \code{\link[=coef]{coef()}} vector discards).
@@ -62,5 +62,5 @@ order within each fid), so \code{index} is the slot's position in the flat
 free-parameter vector.
 }
 \seealso{
-\code{\link[=set_parameters]{set_parameters()}}, \code{\link[=make_joint_specification]{make_joint_specification()}}
+\code{\link[=set_init_param]{set_init_param()}}, \code{\link[=make_joint_specification]{make_joint_specification()}}
 }

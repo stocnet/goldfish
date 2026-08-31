@@ -2,7 +2,7 @@
 # goldfishParams: a self-validating parameter object over a joint spec's
 # fid-indexed coefficient vectors.
 #
-# `set_parameters()` resolves the user-facing composite labels and the
+# `set_init_param()` resolves the user-facing composite labels and the
 # offset-prevails NA disambiguation, then calls the constructor here with the
 # per-fid layout already fully resolved: every fixed slot (an `offset()` term
 # or an operand-only interaction) carries the specification's value, and every
@@ -25,7 +25,7 @@
 # the specification's value; free slots are the user's pin or `NA`), `fixed`
 # the logical fixed mask, `names` the coefficient's `coef()` name. This
 # constructor does no label resolution or NA classification -- that is
-# `set_parameters()`'s job; it only assembles the two projections, the
+# `set_init_param()`'s job; it only assembles the two projections, the
 # complete flag, and the print layout from a layout its caller has already
 # validated.
 new_parameters_goldfish <- function(process_map, fids) {
@@ -189,7 +189,7 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #'
 #' `r lifecycle::badge("experimental")`
 #'
-#' `set_parameters()` builds a self-validating `goldfishParams`
+#' `set_init_param()` builds a self-validating `goldfishParams`
 #' object over a `goldfishJointSpec`, the parameter surface both
 #' `estimate_dynes()` (initial parameters) and `simulate()` (generative
 #' coefficients) accept. Each `...` argument is a **full-length per-fid
@@ -212,7 +212,7 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #' coefficients (`offset()` terms and operand-only interaction columns) always
 #' take the specification's value.
 #'
-#' Alternatively, `set_parameters(spec, result)` accepts a **fitted joint
+#' Alternatively, `set_init_param(spec, result)` accepts a **fitted joint
 #' result** in place of the per-fid vectors -- the fit -> re-simulate
 #' round-trip.
 #' The per-fid values are reconstructed from the result's own [coef_layout()]
@@ -230,21 +230,21 @@ resolve_fid_vector <- function(supplied, layout, label) {
 #'
 #' @seealso [make_joint_specification()]
 #' @export
-set_parameters <- function(spec, ...) {
+set_init_param <- function(spec, ...) {
   if (!inherits(spec, "goldfishJointSpec")) {
     cli::cli_abort(c(
-      "{.fn set_parameters} requires a {.cls goldfishJointSpec}.",
+      "{.fn set_init_param} requires a {.cls goldfishJointSpec}.",
       "i" = "Compose processes with {.fn make_joint_specification}."
     ))
   }
   dots <- list(...)
-  # From-result form: `set_parameters(spec, result)` reconstructs the per-fid
+  # From-result form: `set_init_param(spec, result)` reconstructs the per-fid
   # vectors from a fitted joint result's own `coef_layout()` (the fit ->
   # re-simulate round-trip), which keeps the fid grouping the flat `coef()`
   # vector discards. A flat, free-only `coef()` vector is not accepted directly
   # because its per-parameter names collide across fids.
   if (length(dots) == 1L && inherits(dots[[1]], "flavored_result.goldfish")) {
-    return(set_parameters_from_result(spec, dots[[1]]))
+    return(set_init_param_from_result(spec, dots[[1]]))
   }
 
   process_map <- spec$process_map
@@ -255,7 +255,7 @@ set_parameters <- function(spec, ...) {
   keys <- names(dots)
   if (length(dots) > 0 && (is.null(keys) || !all(nzchar(keys)))) {
     cli::cli_abort(c(
-      "Every value passed to {.fn set_parameters} must be named by its
+      "Every value passed to {.fn set_init_param} must be named by its
        process label.",
       "i" = "Valid labels: {.val {labels}}."
     ))
@@ -335,9 +335,9 @@ set_parameters <- function(spec, ...) {
 # mismatched spec, then rebuilds one positional per-fid vector per process from
 # the result's layout: the estimate at each free slot, `NA` at each fixed slot
 # (the spec resolves the fixed value, so re-supplying it here would trip the
-# offset-prevails warning). Feeding those back through `set_parameters()` yields
+# offset-prevails warning). Feeding those back through `set_init_param()` yields
 # a complete object a `simulate()` can drive.
-set_parameters_from_result <- function(
+set_init_param_from_result <- function(
   spec,
   result,
   call = rlang::caller_env()
@@ -370,7 +370,7 @@ set_parameters_from_result <- function(
     v
   })
   labels <- vapply(by_fid, function(idx) result_layout$process[idx][1L], "")
-  do.call(set_parameters, c(list(spec), stats::setNames(vectors, labels)))
+  do.call(set_init_param, c(list(spec), stats::setNames(vectors, labels)))
 }
 
 #' @export
@@ -432,7 +432,7 @@ accept_joint_parameters <- function(x, arg, call = rlang::caller_env()) {
       c(
         "{.arg {arg}} must be a {.cls goldfishParams}.",
         "x" = "A {.cls {class(x)[1]}} was supplied.",
-        "i" = "Build one with {.fn set_parameters} over the joint
+        "i" = "Build one with {.fn set_init_param} over the joint
                specification."
       ),
       call = call
@@ -486,7 +486,7 @@ assert_joint_parameters_complete <- function(
         "{.arg {arg}} leaves {length(unpinned)} free coefficient{?s}
          unpinned.",
         "x" = "Unpinned: {.val {unpinned}}.",
-        "i" = "Pin every free coefficient with {.fn set_parameters} before
+        "i" = "Pin every free coefficient with {.fn set_init_param} before
                simulating."
       ),
       call = call
@@ -660,7 +660,7 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #' then the interaction columns; not one row per effect). It serves three
 #' surfaces off one label vocabulary: a `goldfishJointSpec` (the
 #' empty authoring layout, so a user can discover the labels, names, and order
-#' to author [set_parameters()]), a [goldfishParams][set_parameters] object
+#' to author [set_init_param()]), a [goldfishParams][set_init_param] object
 #' (the supplied values with the free/fixed classification), and a multi-process
 #' fitted result (the estimates and standard errors grouped back into the
 #' per-process blocks the flat [coef()] vector discards).
@@ -683,7 +683,7 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #'
 #' @param x a `goldfishJointSpec` (from
 #'   [make_joint_specification()]), a `goldfishParams` (from
-#'   [set_parameters()]), or a multi-process fitted result.
+#'   [set_init_param()]), or a multi-process fitted result.
 #' @param ... currently unused.
 #'
 #' @return a data frame with one row per coefficient slot and columns `fid`, the
@@ -694,7 +694,7 @@ autocompleted_layout_block <- function(spec, fid, label, sub_model, flavor) {
 #'   the flat free-parameter vector, `NA` for fixed rows); the process label is
 #'   in the `process` column. The fitted-result method adds a `se` column.
 #'
-#' @seealso [set_parameters()], [make_joint_specification()]
+#' @seealso [set_init_param()], [make_joint_specification()]
 #' @export
 coef_layout <- function(x, ...) {
   UseMethod("coef_layout")

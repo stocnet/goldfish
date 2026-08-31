@@ -185,3 +185,215 @@
       `openspec/changes/joint-parameters/NEWS.md` (breaking: two renamed
       classes) — version bump and root `NEWS.md` fold stay deferred to
       branch merge per §1/§2 above.
+
+## 4. Rename `set_parameters()` to `set_init_param()` (design D18)
+
+> Added 2026-08-31 (naming review). A direct rename request, not a sibling
+> change's retitled convention like §3 — see design D18 for the naming-fit
+> tradeoff (the name serves `estimate_dynes()`'s starting-point framing better
+> than `simulate()`'s generative-coefficient one, documented rather than
+> resolved) and the full edit-surface inventory (messages, snapshots,
+> cross-change docs, living-spec delta) this rename touches beyond the
+> function definition itself.
+
+- [x] 4.1 Rename inventory (mirrors 3.1's discipline): grep every
+      `set_parameters` site — the definition and its unexported
+      `set_parameters_from_result()` helper (`R/joint_parameters.R`), every
+      `{.fn set_parameters}` token inside a `cli_abort()`/`cli_warn()` call
+      (message text, not just call sites), roxygen `@seealso`/backtick
+      mentions in `intercept_only_rate.R` and `walk_handle.R` (and any other
+      file a grep turns up), the four owning test files' call sites and
+      `test_that()` description strings, and the three `_snaps/*.md` files.
+      Record exact sites in `progress.md`.
+- [x] 4.2 Rename `set_parameters()` → `set_init_param()` and
+      `set_parameters_from_result()` → `set_init_param_from_result()`:
+      function definitions, internal call sites (the from-result dispatch in
+      the renamed main function), every `{.fn set_parameters}` message token,
+      the roxygen block (`@title`/prose/`@param`/`@return`/`@seealso`,
+      including the `[set_parameters()]` cross-links this file and
+      `intercept_only_rate.R`/`walk_handle.R` carry); `devtools::document()`.
+      `git rm man/set_parameters.Rd` (roxygen does not delete an orphaned
+      `.Rd`) once `man/set_init_param.Rd` is generated.
+- [ ] 4.3 Update the four owning test files (`test-joint_parameters.R`,
+      `test-coef_layout.R`, `test-joint_consumer_parameters.R`,
+      `test-joint_from_result.R`): every call site, `test_that()` description
+      string naming the old function, and file-header comments.
+- [ ] 4.4 Regenerate and review the three affected `_snaps/*.md` files
+      (`joint_parameters.md`, `joint_consumer_parameters.md`,
+      `joint_from_result.md`) via `testthat::test_file()` +
+      `snapshot_accept()`; review each diff individually — it should be
+      exactly the `set_parameters` → `set_init_param` text swap in the
+      abort/warning message, never accepted wholesale (mirrors 3.4).
+- [ ] 4.5 Cross-change sweep (mirrors 3.5): update `set_parameters()`
+      mentions in `abmcem/design.md`, `dynes-augmentation/tasks.md`, and
+      `process-simulation/design.md` to `set_init_param()`. Confirm no other
+      in-progress change's artifacts reference the old name.
+- [ ] 4.6 Living-spec delta (mirrors 3.3): add a `## RENAMED Requirements`
+      FROM/TO block in this change's own
+      `specs/multivariate-specification/spec.md` retitling
+      `### Requirement: set_parameters builds a validated parameter object
+      over the joint spec`; sweep every other requirement body in that file
+      naming `set_parameters()` inline (the NA-disambiguation,
+      complete-vs-partial, and `coef_layout()` requirements) to the new name.
+      `.plan/opsx-spec-placement-check.sh joint-parameters` and
+      `openspec validate joint-parameters --strict` both pass.
+- [ ] 4.7 Tests: a `test_that()` asserting `set_init_param` is exported and
+      `set_parameters` is not (`expect_true(exists("set_init_param", where =
+      asNamespace("goldfish")))` / the retired name absent from
+      `getNamespaceExports("goldfish")`), alongside the existing suites.
+- [ ] 4.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
+      C++ goldens PASS, not SKIP); `openspec validate joint-parameters
+      --strict`; commit. Record the rename as a "Breaking (pre-release)"
+      bullet in the change-local `openspec/changes/joint-parameters/NEWS.md`
+      and update the existing bullets' `set_parameters()` mentions to the new
+      name — version bump and root `NEWS.md` fold stay deferred to branch
+      merge per §1/§2/§3 above.
+
+## 5. Flavoured-specification test coverage for `set_init_param()` (design D19)
+
+> Added 2026-08-31 (naming review). Closes a coverage gap found while
+> reviewing the test suite: every fixture the three owning test files define
+> joins plain, unflavored layers, so nothing exercises the label grammar's
+> flavor-inclusion case or the proposal's own motivating scenario (the same
+> effect name recurring across fids). See design D19 for the full fixture
+> rationale and why `helper-flavored-fixtures.R`'s fixtures cannot be reused
+> directly (not a `goldfishJointSpec`).
+
+- [ ] 5.1 New flavored joint fixture (design D19): a `calls` layer built with
+      `add_flavor()` (`creation`/`dissolution`) and
+      `make_specification(rate = list(...), choice = list(...))`, joined via
+      `make_joint_specification()` with a plain `emails` layer. All three
+      fids' choice formulas carry `inertia` (reproducing the proposal's
+      motivating collision — one name, three fids — for the first time in a
+      test fixture). **Fixed-parameter coverage is load-bearing, not
+      optional**: `calls`'s two flavors each carry their own inline-`coef`
+      offset on the *same* term, at two distinct values —
+      `offset(tie(friendship), coef = -0.3)` for `creation`,
+      `offset(tie(friendship), coef = 0.4)` for `dissolution` — while
+      `emails`'s choice carries no offset (stays fully free). No existing
+      fixture in this change has more than one offset in the whole join, so
+      this is the first fixture that can catch a fixed value resolved from
+      the wrong fid. Local to `test-joint_parameters.R` (own generator,
+      matching the file's existing `parameters_join()` pattern), reused by
+      5.5/5.6 below rather than re-defined.
+- [ ] 5.2 Test: flavor-inclusion labels alongside an elided one on the same
+      object — `calls › creation › rate`, `calls › dissolution › choice`, and
+      `emails › rate` (no flavor segment) are all valid `set_init_param()`
+      labels on the fixture from 5.1 (the mirror of the existing
+      "labels elide the flavor segment for a non-flavored process" test).
+- [ ] 5.3 Test: same-name (`inertia`) **free**-slot resolution across
+      flavors — per-fid vectors keyed `calls › creation › choice` and
+      `calls › dissolution › choice` each pin their own `inertia` slot
+      without leaking into the sibling flavor's slot or `emails › choice`'s.
+- [ ] 5.4 Test: per-flavor **fixed**-slot classification (extends D4) — on
+      the fixture from 5.1, `creation`'s and `dissolution`'s
+      `tie(friendship)` offsets resolve to their own distinct values (`-0.3`
+      / `0.4`) on one `set_init_param()` call; a non-`NA` value supplied at
+      *one* flavor's fixed slot warns naming only that flavor's slot and
+      leaves the sibling flavor's resolved value, classification, and
+      warning count unaffected. Test: omitted-key coverage across flavors
+      (extends D13) — omitting one flavor's key leaves only that flavor's
+      non-fixed slots free; the sibling flavor and `emails` are unaffected.
+- [ ] 5.5 Test (`test-coef_layout.R`): `coef_layout()` on the flavored
+      authored spec from 5.1 (or a locally adapted copy) carries a non-`NA`
+      `flavor` column for the `calls` fids' rows and elides it for `emails`'s,
+      on the same layout call; the fixed-value column reads `-0.3` for
+      `creation`'s offset row and `0.4` for `dissolution`'s — not each
+      other's value or `NA` (extends D6/D12).
+- [ ] 5.6 Test (`test-joint_from_result.R`): a fabricated fitted result over
+      the flavored fixture (following the existing
+      `fabricate_joint_result()` pattern) round-trips through
+      `set_init_param(spec, result)` correctly — the free `inertia` slots
+      land at the right flavor's fid despite the shared name, **and** each
+      flavor's fixed slot keeps the specification's own offset value (`-0.3`
+      / `0.4`), not a value read off the result, silently and with no
+      warning (extends D14).
+- [ ] 5.7 Test: a colon-grammar key (`calls:creation:rate`, the retired D2
+      `:`-grammar) still aborts naming the valid labels against the flavored
+      fixture, now proven where a naive string-split would have actually
+      resolved something (extends the existing ambiguous-key negative test,
+      exercised non-vacuously per D7).
+- [ ] 5.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
+      C++ goldens PASS, not SKIP); commit. Record the new flavored coverage
+      as a bullet in the change-local `openspec/changes/joint-parameters/NEWS.md`
+      — version bump and root `NEWS.md` fold stay deferred to branch merge
+      per §1/§2/§3/§4 above.
+
+## 6. Switch the joint coefficient vocabulary to the console form (design D12 correction)
+
+> Added 2026-08-31 (naming review). The coefficient `name` column and the
+> per-fid vector keys `set_init_param()` accepts currently use
+> `coefficient_term_labels()` (the raw deparse `inertia(calls, window = "1 hour")`),
+> but that is **not** what a fit surfaces to the user: `summary()` renders the
+> self-describing console form `inertia [1h,W]`. See the D12 correction for the
+> three-scheme analysis, the decision (joint = console via
+> `compact_term_strings(names, "console")`; single-process stays terse coef,
+> deliberately), and why intercept/interaction slots render identically under
+> both schemes so the switch touches effect rows only. Sequence after §4 so the
+> function is already `set_init_param()`; independent of §5 but shares its
+> fixtures.
+
+- [ ] 6.1 Build the effect-description matrix from a spec, pre-fit. Add a small
+      helper (in `R/joint_parameters.R` or alongside `fid_coefficient_layout()`)
+      that produces, per fid, the same `names` matrix estimation builds —
+      `GetDetailPrint(get_objects_effects_link(parsed$rhs_names, …), parsed)`
+      (`model_estimate.R:2515` is the estimation-side reference call) — from the
+      bundle's `parsed` and the spec's referenced objects, with the `fixed`
+      column supplied from the layout's own `assemble_fixed_parameters()` result
+      rather than a fitted `is_fixed`. Confirm the spec-built matrix reproduces
+      the intercept row (`"Intercept"`) and interaction rows (keyed by
+      `$label`) identically to a fitted result's (design D12 correction,
+      intercept/interaction paragraph). Record the exact call shape in
+      `progress.md`.
+- [ ] 6.2 Point `fid_coefficient_layout()` (`R/joint_parameters.R:105`) and
+      `coef_layout.goldfishJointSpec` (`:730`) at
+      `compact_term_strings(names, "console", width = Inf)` over the 6.1 matrix,
+      replacing the `coefficient_term_labels()` call for the `names`/`coef_names`
+      slot. Keep the coefficient **order** (`[Intercept?, effects, interactions]`,
+      length `n_params`) and the fixed mask/values exactly as today — only the
+      name strings change.
+- [ ] 6.3 Point `coef_layout.flavored_result.goldfish` (`:786`) off
+      `term_label(sub$names, ".coef_name", "coef")` onto the **same** console
+      form (`compact_term_strings(sub$names, "console", width = Inf)`), so the
+      from-result round-trip skeleton comparison — which includes the `name`
+      column (`set_parameters_from_result()`, `:347`) — matches spec-side and
+      result-side name-for-name. This is the tie that makes the round-trip
+      correct rather than coincidentally-passing on bare effects.
+- [ ] 6.4 Fixture: extend the §5.1 flavored fixture (or a local companion) so at
+      least one fid carries an **argument-bearing** effect —
+      `inertia(calls, window = "1 hour")` or equivalent with a weight/transformer
+      — the minimum that makes the deparse and console forms differ. Without it
+      no test distinguishes `inertia [1h,W]` from the old deparse string and the
+      round-trip `name`-column agreement stays vacuously true (design D19,
+      "Related gap"). Reuse across 6.5/6.6.
+- [ ] 6.5 Tests: on the 6.4 fixture, (a) `coef_layout(spec)$name` for the
+      windowed slot reads the console form (`inertia [1h,W]`, not
+      `inertia(calls, window = "1 hour")`); (b) a `set_init_param()` call keyed
+      by that console name resolves the slot, and the old deparse string is
+      **rejected** (unknown-name abort), pinning the vocabulary; (c)
+      `coef_layout(spec)$name` and `coef_layout(result)$name` agree on the
+      windowed slot (the round-trip precondition 6.3 restores); (d) the intercept
+      and an interaction slot render identically to the pre-switch strings
+      (`"Intercept"` and the interaction `$label`) — the no-regression guard for
+      the two slots the D12 correction says are unaffected.
+- [ ] 6.6 Regenerate the affected `_snaps/*.md` files (`print.goldfishParams`
+      output in `joint_parameters.md`, and any `coef_layout` snapshot carrying a
+      `name` column) via `testthat::test_file()` + `snapshot_accept()`; review
+      each diff individually — for bare-effect fixtures it must be a **no-op**
+      (deparse == console there), and a change should appear **only** where an
+      argument-bearing effect was added in 6.4. A wholesale accept would hide a
+      naming regression on the unchanged rows.
+- [ ] 6.7 Living-spec delta: sweep this change's
+      `specs/multivariate-specification/spec.md` for any requirement body that
+      pins the coefficient `name` to `coefficient_term_labels()` / the deparse
+      form (the `coef_layout()` and NA-disambiguation requirements) and retitle
+      the source to the console form; `.plan/opsx-spec-placement-check.sh
+      joint-parameters` and `openspec validate joint-parameters --strict` pass.
+      (If no requirement pins the exact form, note that in `progress.md` and skip
+      — do not invent a `## MODIFIED` block for text that does not exist.)
+- [ ] 6.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and C++
+      goldens PASS, not SKIP); `openspec validate joint-parameters --strict`;
+      commit. Record the vocabulary switch as a bullet in the change-local
+      `openspec/changes/joint-parameters/NEWS.md` (user-visible: pins and
+      `coef_layout()` now name coefficients as `summary()` does) — version bump
+      and root `NEWS.md` fold stay deferred to branch merge per §1–§5 above.
