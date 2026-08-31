@@ -333,7 +333,7 @@
 > function is already `set_init_param()`; independent of §5 but shares its
 > fixtures.
 
-- [ ] 6.1 Build the effect-description matrix from a spec, pre-fit. Add a small
+- [x] 6.1 Build the effect-description matrix from a spec, pre-fit. Add a small
       helper (in `R/joint_parameters.R` or alongside `fid_coefficient_layout()`)
       that produces, per fid, the same `names` matrix estimation builds —
       `GetDetailPrint(get_objects_effects_link(parsed$rhs_names, …), parsed)`
@@ -379,10 +379,14 @@
 - [ ] 6.6 Regenerate the affected `_snaps/*.md` files (`print.goldfishParams`
       output in `joint_parameters.md`, and any `coef_layout` snapshot carrying a
       `name` column) via `testthat::test_file()` + `snapshot_accept()`; review
-      each diff individually — for bare-effect fixtures it must be a **no-op**
-      (deparse == console there), and a change should appear **only** where an
-      argument-bearing effect was added in 6.4. A wholesale accept would hide a
-      naming regression on the unchanged rows.
+      each diff individually. The **intercept and interaction rows** must be a
+      **no-op** (deparse == console byte-identically there, per the D12
+      correction); the effect rows change everywhere (`inertia(calls)` →
+      `inertia/calls`, `tie(friendship)` → `tie/friendship [Fx]`) — the plain
+      effect rows migrate in 6.2/6.3, and the argument-bearing effect added in
+      6.4 gains an `[args]` block (`inertia [1h,W]`). A wholesale accept would
+      hide a naming regression on the intercept/interaction rows that must not
+      move.
 - [ ] 6.7 Living-spec delta: sweep this change's
       `specs/multivariate-specification/spec.md` for any requirement body that
       pins the coefficient `name` to `coefficient_term_labels()` / the deparse

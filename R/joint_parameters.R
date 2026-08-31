@@ -86,6 +86,24 @@ new_parameters_goldfish <- function(process_map, fids) {
 
 is_parameters_goldfish <- function(x) inherits(x, "goldfishParams")
 
+# The effect-description matrix a fit carries, rebuilt from the spec bundle
+# pre-fit. `GetDetailPrint(get_objects_effects_link(rhs_names), parsed)` is the
+# same construction estimation makes -- it reads only the formula and the
+# referenced objects, never a fitted value -- so the console renderer names a
+# slot identically whether it reads a spec or a fit. The one fit-vs-spec
+# difference, the `fixed` column (which drives the renderer's `Fx` token), is
+# supplied here from the layout's own coefficient-space fixed mask
+# (`assemble_fixed_parameters()`), not a fitted `is_fixed`. Rows land in
+# coefficient order (`[intercept?, effects, interactions]`): the intercept is
+# prepended as an empty row labeled "Intercept", each interaction appended as an
+# empty row keyed by its `$label` -- both byte-identical to the strings
+# `coefficient_term_labels()` uses, so the console switch touches effect rows
+# only.
+fid_effect_description <- function(parsed, fixed = NULL) {
+  objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
+  GetDetailPrint(objects_effects_link, parsed, is_fixed = fixed)
+}
+
 # The coefficient-space layout of one fid: the `coef()` names, the fixed mask,
 # and the fixed values, all length `n_params` and in coefficient order
 # (`[intercept?, effects, interactions]`). The fixed mask and values reuse the
