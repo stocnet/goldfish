@@ -298,3 +298,38 @@ test_that("a per-fid vector naming an unknown coefficient aborts", {
     error = TRUE
   )
 })
+
+# ---- Flavored join: label grammar and same-name resolution ------------------
+
+test_that("flavor-inclusion labels sit alongside an elided one on one object", {
+  p <- set_init_param(flavored_parameters_join())
+  # The calls flavors carry a flavor segment; emails elides it -- all on one
+  # object, the mirror of the non-flavored elision test above.
+  expect_identical(
+    names(p$full),
+    c(
+      "calls › creation › rate",
+      "calls › creation › choice",
+      "calls › dissolution › rate",
+      "calls › dissolution › choice",
+      "emails › rate",
+      "emails › choice"
+    )
+  )
+
+  # Each is a valid key: a flavor-inclusion label and an elided label both
+  # resolve on the same call.
+  p2 <- set_init_param(
+    flavored_parameters_join(),
+    `calls › creation › rate` = c(0.1, 0.2),
+    `emails › rate` = c(0.3, 0.4)
+  )
+  expect_identical(
+    p2$full[["calls › creation › rate"]],
+    c(Intercept = 0.1, `indeg(calls)` = 0.2)
+  )
+  expect_identical(
+    p2$full[["emails › rate"]],
+    c(Intercept = 0.3, `indeg(emails)` = 0.4)
+  )
+})

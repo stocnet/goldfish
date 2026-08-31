@@ -276,7 +276,7 @@
       the wrong fid. Local to `test-joint_parameters.R` (own generator,
       matching the file's existing `parameters_join()` pattern), reused by
       5.5/5.6 below rather than re-defined.
-- [ ] 5.2 Test: flavor-inclusion labels alongside an elided one on the same
+- [x] 5.2 Test: flavor-inclusion labels alongside an elided one on the same
       object — `calls › creation › rate`, `calls › dissolution › choice`, and
       `emails › rate` (no flavor segment) are all valid `set_init_param()`
       labels on the fixture from 5.1 (the mirror of the existing
