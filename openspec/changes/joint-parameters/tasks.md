@@ -366,7 +366,7 @@
       no test distinguishes `inertia [1h,W]` from the old deparse string and the
       round-trip `name`-column agreement stays vacuously true (design D19,
       "Related gap"). Reuse across 6.5/6.6.
-- [ ] 6.5 Tests: on the 6.4 fixture, (a) `coef_layout(spec)$name` for the
+- [x] 6.5 Tests: on the 6.4 fixture, (a) `coef_layout(spec)$name` for the
       windowed slot reads the console form (`inertia [1h,W]`, not
       `inertia(calls, window = "1 hour")`); (b) a `set_init_param()` call keyed
       by that console name resolves the slot, and the old deparse string is
@@ -376,7 +376,7 @@
       and an interaction slot render identically to the pre-switch strings
       (`"Intercept"` and the interaction `$label`) — the no-regression guard for
       the two slots the D12 correction says are unaffected.
-- [ ] 6.6 Regenerate the affected `_snaps/*.md` files (`print.goldfishParams`
+- [x] 6.6 Regenerate the affected `_snaps/*.md` files (`print.goldfishParams`
       output in `joint_parameters.md`, and any `coef_layout` snapshot carrying a
       `name` column) via `testthat::test_file()` + `snapshot_accept()`; review
       each diff individually. The **intercept and interaction rows** must be a

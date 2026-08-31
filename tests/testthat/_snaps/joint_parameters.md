@@ -74,3 +74,14 @@
       ! The label "calls:creation:rate" matches no process.
       i Valid labels: "calls › creation › rate", "calls › creation › choice", "calls › dissolution › rate", "calls › dissolution › choice", "emails › rate", and "emails › choice".
 
+# set_init_param() resolves the console name and rejects the old deparse string
+
+    Code
+      set_init_param(join, `calls › creation › choice` = c(
+        `inertia(calls, window = "1 hour")` = 0.6, `tie/friendship [Fx]` = NA))
+    Condition
+      Error in `resolve_fid_vector()`:
+      ! The values for "calls › creation › choice" name coefficients the process does not have.
+      x Unknown name: "inertia(calls, window = \"1 hour\")".
+      i The coefficients are `inertia/calls [1h]` and `tie/friendship [Fx]`.
+

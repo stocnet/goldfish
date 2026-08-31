@@ -523,3 +523,163 @@ test_that("a colon-grammar key aborts against a flavored spec", {
     error = TRUE
   )
 })
+
+# ---- Console vocabulary (design D12 correction) ------------------------------
+
+# A joint spec whose calls choice carries an inertia:indeg interaction, so the
+# effect-description matrix's interaction row and rate intercept can be checked
+# against the pre-switch deparse strings -- the no-regression guard for the two
+# slot kinds the D12 correction says the console switch does not touch (inertia
+# and indeg surface as operand-only, fixed-at-0 main effects alongside the
+# interaction column, per D9).
+interaction_join <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 3L, 4L),
+      to = c(1L, 2L, 3L),
+      time = c(1, 2, 3),
+      layer = "emails"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  data <- list(info = info, nodes = nodes, ties = ties)
+  calls_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia:indeg + offset(tie(friendship), coef = -0.5),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
+# A faithful `flavored_result.goldfish`, mirroring `fabricate_joint_result()` in
+# test-joint_from_result.R: each fid's coefficient names come from the spec's
+# own effect-description matrix, so the console re-render on the result side
+# reproduces the spec side exactly -- what the name-column agreement test below
+# needs.
+fabricate_windowed_result <- function(
+  spec,
+  estimate = seq(0.11, by = 0.11, length.out = 9L)
+) {
+  layout <- coef_layout(spec)
+  bundles <- joint_fid_bundles(spec)
+  free_seen <- 0L
+  results <- list()
+  for (fid in unique(layout$fid)) {
+    rows <- layout[layout$fid == fid, ]
+    values <- rows$value
+    free <- !rows$fixed
+    n_free <- sum(free)
+    values[free] <- estimate[free_seen + seq_len(n_free)]
+    free_seen <- free_seen + n_free
+    parsed <- bundles[[as.character(fid)]]$bundle$parsed
+    description <- fid_effect_description(parsed, rows$fixed)
+    results[[as.character(fid)]] <- list(
+      parameters = stats::setNames(values, rows$name),
+      standard_errors = rep(0.05, n_free),
+      names = description
+    )
+  }
+  structure(
+    list(results = results, process_map = spec$process_map, model = "DyNAM"),
+    class = "flavored_result.goldfish"
+  )
+}
+
+test_that("the windowed slot's coef_layout name is the console form, not the deparse string", {
+  lay <- coef_layout(windowed_flavored_join())
+  windowed <- lay$name[lay$process == "calls › creation › choice" & !lay$fixed]
+  expect_identical(windowed, "inertia/calls [1h]")
+  expect_false(any(grepl('window = "1 hour"', lay$name, fixed = TRUE)))
+})
+
+test_that("set_init_param() resolves the console name and rejects the old deparse string", {
+  local_cli_context()
+  join <- windowed_flavored_join()
+  p <- set_init_param(
+    join,
+    `calls › creation › choice` = c(
+      `inertia/calls [1h]` = 0.6,
+      `tie/friendship [Fx]` = NA
+    )
+  )
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["inertia/calls [1h]"]),
+    0.6
+  )
+  # The retired deparse string is not a valid key -- it names no coefficient of
+  # the resolved fid, so it aborts as an unknown name, pinning the vocabulary.
+  expect_snapshot(
+    set_init_param(
+      join,
+      `calls › creation › choice` = c(
+        `inertia(calls, window = "1 hour")` = 0.6,
+        `tie/friendship [Fx]` = NA
+      )
+    ),
+    error = TRUE
+  )
+})
+
+test_that("coef_layout(spec) and coef_layout(result) agree on the windowed slot's name", {
+  join <- windowed_flavored_join()
+  fit <- fabricate_windowed_result(join)
+  expect_identical(coef_layout(join)$name, coef_layout(fit)$name)
+})
+
+test_that("Intercept and interaction rows render identically to the pre-switch strings", {
+  lay <- coef_layout(windowed_flavored_join())
+  # Three rate fids (calls-creation, calls-dissolution, emails), each with an
+  # Intercept row unaffected by the console switch.
+  expect_identical(
+    lay$name[lay$sub_model == "rate" & lay$name == "Intercept"],
+    rep("Intercept", 3)
+  )
+
+  interaction_lay <- coef_layout(interaction_join())
+  expect_identical(
+    interaction_lay$name[interaction_lay$process == "calls › rate"][1],
+    "Intercept"
+  )
+  expect_identical(
+    interaction_lay$name[
+      interaction_lay$process == "calls › choice" & !interaction_lay$fixed
+    ],
+    "inertia:indeg"
+  )
+})
