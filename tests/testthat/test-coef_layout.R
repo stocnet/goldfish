@@ -272,7 +272,7 @@ test_that("a completed timed rate carries its frozen pinned value", {
 })
 
 test_that("the goldfishParams layout carries supplied values (authored)", {
-  p <- set_parameters(authored_join(), `calls › rate` = c(0.1, 0.2))
+  p <- set_init_param(authored_join(), `calls › rate` = c(0.1, 0.2))
   layout <- coef_layout(p)
 
   # Authored fids only -- no autocompleted rows on a parameter object.
@@ -309,11 +309,11 @@ test_that("the fitted-result layout groups estimates and standard errors", {
   expect_true(all(is.na(layout$se[layout$fixed])))
 })
 
-test_that("the empty layout guides authoring of set_parameters()", {
+test_that("the empty layout guides authoring of set_init_param()", {
   spec <- authored_join()
   layout <- coef_layout(spec)
 
-  # Author set_parameters() purely from what the layout reveals -- its own
+  # Author set_init_param() purely from what the layout reveals -- its own
   # fid grouping, coefficient order, and fixed flag -- rather than from prior
   # knowledge of the specification. A fixed slot is authored as NA so the
   # specification's own value (already visible in the layout) prevails.
@@ -325,7 +325,7 @@ test_that("the empty layout guides authoring of set_parameters()", {
   })
   labels <- vapply(by_fid, function(rows) rows$process[[1L]], "")
   p <- do.call(
-    set_parameters,
+    set_init_param,
     c(list(spec), stats::setNames(args, labels))
   )
 

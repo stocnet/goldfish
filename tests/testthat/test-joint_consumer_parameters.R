@@ -66,7 +66,7 @@ consumer_join <- function() {
 
 # Every free slot pinned -- a complete object a `simulate()` can drive.
 complete_parameters <- function(join = consumer_join()) {
-  set_parameters(
+  set_init_param(
     join,
     `calls › rate` = c(0.1, 0.2),
     `calls › choice` = c(0.3, NA),
@@ -87,7 +87,7 @@ test_that("the consumer surface accepts only a goldfishParams", {
 })
 
 test_that("estimate reads the free-theta projection of a partial object", {
-  p <- set_parameters(consumer_join()) # nothing pinned
+  p <- set_init_param(consumer_join()) # nothing pinned
   theta <- joint_initial_parameters(p)
 
   # The free vector is returned verbatim -- partial (NA) slots and all, the
@@ -107,7 +107,7 @@ test_that("simulate reads the full projection of a complete object", {
 })
 
 test_that("simulate's value gate rejects an unpinned free slot", {
-  p <- set_parameters(consumer_join(), `calls › rate` = c(0.1, 0.2))
+  p <- set_init_param(consumer_join(), `calls › rate` = c(0.1, 0.2))
   expect_error(
     joint_simulation_parameters(p, arg = "coef"),
     "unpinned"
@@ -158,7 +158,7 @@ test_that("reconciliation treats an absent autocompleted fid as resolved", {
     data = data
   )
   join <- make_joint_specification(calls_spec, emails_spec, data = data)
-  p <- set_parameters(
+  p <- set_init_param(
     join,
     `calls › rate` = c(0.1, 0.2),
     `emails › rate` = c(0.4, 0.5),
@@ -180,7 +180,7 @@ test_that("simulate's value-gate abort names the unpinned free effect(s)", {
     withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
   }
   local_cli_context()
-  p <- set_parameters(consumer_join(), `calls › rate` = c(0.1, 0.2))
+  p <- set_init_param(consumer_join(), `calls › rate` = c(0.1, 0.2))
   expect_snapshot(joint_simulation_parameters(p, arg = "coef"), error = TRUE)
 })
 
