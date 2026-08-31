@@ -241,7 +241,7 @@
       `set_parameters` is not (`expect_true(exists("set_init_param", where =
       asNamespace("goldfish")))` / the retired name absent from
       `getNamespaceExports("goldfish")`), alongside the existing suites.
-- [ ] 4.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
+- [x] 4.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
       C++ goldens PASS, not SKIP); `openspec validate joint-parameters
       --strict`; commit. Record the rename as a "Breaking (pre-release)"
       bullet in the change-local `openspec/changes/joint-parameters/NEWS.md`

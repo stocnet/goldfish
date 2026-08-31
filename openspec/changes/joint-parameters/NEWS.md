@@ -13,7 +13,7 @@ this branch (see `progress.md`, "Version / NEWS / archival").
   live only in the formula itself; the abort names the offending term and points
   to `offset(term, coef = value)`. A bare `offset(term)` remains legal in a
   standalone `make_specification()`.
-* `set_parameters()` builds a self-validating `goldfishParams` over a
+* `set_init_param()` builds a self-validating `goldfishParams` over a
   `goldfishJointSpec` — the shared parameter surface both
   `estimate_dynes()` and a joint `simulate()` accept. Each process takes one
   full-length coefficient vector keyed by its rendered `layer › flavor › family`
@@ -36,14 +36,20 @@ this branch (see `progress.md`, "Version / NEWS / archival").
   coefficient projection, naming any unpinned free effect. At consumer entry, a
   fid absent from the object because it was autocompleted (a zero-free-parameter
   default) is treated as trivially resolved.
-* `set_parameters(spec, result)` accepts a fitted joint/DyNES result in place of
+* `set_init_param(spec, result)` accepts a fitted joint/DyNES result in place of
   the per-fid vectors — the fit → re-simulate round-trip — reconstructing values
   from the result's own `coef_layout()` after asserting the result was fit
   against that same specification.
 * **Breaking (pre-release):** the two S3 classes this change ships/consumes are
   spelled under the `goldfish<Thing>` camelCase scheme, not the `<noun>.goldfish`
-  house convention `class-naming-scheme` retires: `set_parameters()` returns
+  house convention `class-naming-scheme` retires: `set_init_param()` returns
   `goldfishParams` (was `parameters.goldfish`), and `make_joint_specification()`
   returns `goldfishJointSpec` (was `joint_specification.goldfish`). No code has
   shipped a release under the old spellings, so this is a rename of unreleased
   surface, not a user-facing deprecation.
+* **Breaking (pre-release):** `set_parameters()` is renamed to `set_init_param()`
+  (and its unexported from-result helper `set_parameters_from_result()` to
+  `set_init_param_from_result()`), to read correctly as the starting-point
+  builder `estimate_dynes(initial_parameters =)` consumes. No code has shipped
+  a release under the old name, so this is a rename of unreleased surface, not
+  a user-facing deprecation.
