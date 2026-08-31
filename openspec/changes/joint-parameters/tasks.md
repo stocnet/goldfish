@@ -294,13 +294,13 @@
       warning count unaffected. Test: omitted-key coverage across flavors
       (extends D13) — omitting one flavor's key leaves only that flavor's
       non-fixed slots free; the sibling flavor and `emails` are unaffected.
-- [ ] 5.5 Test (`test-coef_layout.R`): `coef_layout()` on the flavored
+- [x] 5.5 Test (`test-coef_layout.R`): `coef_layout()` on the flavored
       authored spec from 5.1 (or a locally adapted copy) carries a non-`NA`
       `flavor` column for the `calls` fids' rows and elides it for `emails`'s,
       on the same layout call; the fixed-value column reads `-0.3` for
       `creation`'s offset row and `0.4` for `dissolution`'s — not each
       other's value or `NA` (extends D6/D12).
-- [ ] 5.6 Test (`test-joint_from_result.R`): a fabricated fitted result over
+- [x] 5.6 Test (`test-joint_from_result.R`): a fabricated fitted result over
       the flavored fixture (following the existing
       `fabricate_joint_result()` pattern) round-trips through
       `set_init_param(spec, result)` correctly — the free `inertia` slots
@@ -308,7 +308,7 @@
       flavor's fixed slot keeps the specification's own offset value (`-0.3`
       / `0.4`), not a value read off the result, silently and with no
       warning (extends D14).
-- [ ] 5.7 Test: a colon-grammar key (`calls:creation:rate`, the retired D2
+- [x] 5.7 Test: a colon-grammar key (`calls:creation:rate`, the retired D2
       `:`-grammar) still aborts naming the valid labels against the flavored
       fixture, now proven where a naive string-split would have actually
       resolved something (extends the existing ambiguous-key negative test,

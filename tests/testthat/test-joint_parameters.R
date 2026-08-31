@@ -431,3 +431,16 @@ test_that("omitting one flavor's key leaves only that flavor's slots free", {
     0.2
   )
 })
+
+test_that("a colon-grammar key aborts against a flavored spec", {
+  local_cli_context()
+  join <- flavored_parameters_join()
+  # `calls:creation:rate` is the retired colon grammar. A naive string-split
+  # would resolve it against this flavored spec (creation is a real flavor here),
+  # but membership resolution against the rendered ` › ` labels rejects it --
+  # proving the abort non-vacuously, where a split would have matched.
+  expect_snapshot(
+    set_init_param(join, `calls:creation:rate` = c(0.1, 0.2)),
+    error = TRUE
+  )
+})

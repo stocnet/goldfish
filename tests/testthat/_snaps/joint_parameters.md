@@ -65,3 +65,12 @@
       ! Value supplied for fixed coefficient "calls › creation › choice: tie(friendship)" was ignored.
       i A fixed coefficient (an `offset()` term or an operand-only interaction) keeps the specification's value.
 
+# a colon-grammar key aborts against a flavored spec
+
+    Code
+      set_init_param(join, `calls:creation:rate` = c(0.1, 0.2))
+    Condition
+      Error in `set_init_param()`:
+      ! The label "calls:creation:rate" matches no process.
+      i Valid labels: "calls › creation › rate", "calls › creation › choice", "calls › dissolution › rate", "calls › dissolution › choice", "emails › rate", and "emails › choice".
+

@@ -62,6 +62,80 @@ result_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
+# A flavored join: a mutually-exclusive `calls` layer (creation/dissolution)
+# joined with a plain `emails` layer. Every choice sub-model carries `inertia`
+# (the same coefficient name on all three fids -- the proposal's motivating
+# collision), and each calls flavor carries its own inline-coef offset on the
+# SAME term at two distinct values (`-0.3` creation, `0.4` dissolution). So the
+# round-trip must land each flavor's free `inertia` at its own fid despite the
+# shared name, and keep each flavor's fixed offset at the specification's value.
+flavored_result_join <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  calls <- data.frame(
+    from = c(1L, 3L, 2L, 1L, 4L, 3L),
+    to = c(2L, 4L, 3L, 2L, 5L, 4L),
+    time = c(NA, NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, 1, -1, 1, -1),
+    stringsAsFactors = FALSE
+  )
+  friendship <- data.frame(
+    from = c(1L, 2L, 3L),
+    to = c(2L, 3L, 4L),
+    time = c(1, 2, 3),
+    layer = "friendship",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  emails <- data.frame(
+    from = c(2L, 3L, 4L),
+    to = c(1L, 2L, 3L),
+    time = c(1, 2, 3),
+    layer = "emails",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  data <- add_flavor(
+    list(info = info, nodes = nodes, ties = rbind(calls, friendship, emails)),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  calls_spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(
+      creation ~ inertia + offset(tie(friendship), coef = -0.3),
+      dissolution ~ inertia + offset(tie(friendship), coef = 0.4)
+    ),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
 # There is no live joint-estimate path on this branch (estimate_dynes() lands in
 # abmcem), so a faithful flavored_result.goldfish is fabricated from the spec's
 # own coef_layout(): each fid carries the spec's coefficient names, its fixed
@@ -181,4 +255,53 @@ test_that("a result fit against another specification aborts", {
     data = data
   )
   expect_snapshot(set_init_param(other, fit), error = TRUE)
+})
+
+# ---- Flavored round-trip: same-name free slots and per-flavor fixed values ---
+
+test_that("a flavored result round-trips per fid, keeping each flavor's fixed value", {
+  spec <- flavored_result_join()
+  # Nine free slots across the six fids (rate: Intercept + indeg; choice: the
+  # free inertia), each fabricated at a distinct estimate.
+  fit <- fabricate_joint_result(
+    spec,
+    estimate = seq(0.11, by = 0.11, length.out = 9L)
+  )
+
+  p <- expect_no_warning(set_init_param(spec, fit))
+
+  # Every free slot pinned from the fit, in the canonical order.
+  expect_true(p$complete)
+  expect_equal(unname(p$free), seq(0.11, by = 0.11, length.out = 9L))
+
+  # The free `inertia(calls)` slots land at their own flavor's fid despite the
+  # shared coefficient name -- each matches that fid's fabricated estimate, and
+  # the two differ.
+  lay <- coef_layout(fit)
+  fid_of <- function(label) unique(lay$fid[lay$process == label])
+  for (label in c(
+    "calls › creation › choice",
+    "calls › dissolution › choice"
+  )) {
+    fid <- fid_of(label)
+    expect_identical(
+      unname(p$full[[label]]["inertia(calls)"]),
+      unname(fit$results[[as.character(fid)]]$parameters["inertia(calls)"])
+    )
+  }
+  expect_false(identical(
+    unname(p$full[["calls › creation › choice"]]["inertia(calls)"]),
+    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"])
+  ))
+
+  # Each flavor's fixed slot keeps the specification's own offset value, not a
+  # value read off the result -- and the two stay distinct.
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    -0.3
+  )
+  expect_identical(
+    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    0.4
+  )
 })

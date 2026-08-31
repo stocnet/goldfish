@@ -53,3 +53,13 @@ this branch (see `progress.md`, "Version / NEWS / archival").
   builder `estimate_dynes(initial_parameters =)` consumes. No code has shipped
   a release under the old name, so this is a rename of unreleased surface, not
   a user-facing deprecation.
+
+## Internal
+
+* Added flavored-specification test coverage for `set_init_param()` and
+  `coef_layout()`: a joint fixture whose flavored `calls` layer carries the same
+  effect name (`inertia`) across both flavors and its own `offset()` at two
+  distinct values per flavor. The new tests prove same-name free slots resolve
+  per fid without leaking, each flavor's fixed offset resolves to its own value
+  (`coef_layout()` and the fit → re-simulate round-trip), and the retired
+  colon-grammar key still aborts where a naive string-split would have matched.

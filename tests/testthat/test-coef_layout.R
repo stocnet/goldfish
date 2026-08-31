@@ -124,6 +124,79 @@ rate_only_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
+# A flavored join: a mutually-exclusive `calls` layer (creation/dissolution)
+# built with add_flavor(), joined with a plain `emails` layer. Each calls flavor
+# carries its own inline-coef offset on the SAME term (`tie(friendship)`) at two
+# distinct values (`-0.3` creation, `0.4` dissolution), while emails is
+# offset-free. So the layout must carry a non-NA `flavor` column for the calls
+# fids (elided for emails) and resolve each flavor's fixed value to its own fid.
+flavored_authored_join <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  calls <- data.frame(
+    from = c(1L, 3L, 2L, 1L, 4L, 3L),
+    to = c(2L, 4L, 3L, 2L, 5L, 4L),
+    time = c(NA, NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, 1, -1, 1, -1),
+    stringsAsFactors = FALSE
+  )
+  friendship <- data.frame(
+    from = c(1L, 2L, 3L),
+    to = c(2L, 3L, 4L),
+    time = c(1, 2, 3),
+    layer = "friendship",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  emails <- data.frame(
+    from = c(2L, 3L, 4L),
+    to = c(1L, 2L, 3L),
+    time = c(1, 2, 3),
+    layer = "emails",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  data <- add_flavor(
+    list(info = info, nodes = nodes, ties = rbind(calls, friendship, emails)),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  calls_spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(
+      creation ~ inertia + offset(tie(friendship), coef = -0.3),
+      dissolution ~ inertia + offset(tie(friendship), coef = 0.4)
+    ),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
 test_that("the raw-spec layout has one row per authored coefficient slot", {
   layout <- coef_layout(authored_join())
 
@@ -362,4 +435,34 @@ test_that("a stub summary() groups the flat coefficients via coef_layout()", {
       unname(fit$results[[as.character(fid)]]$parameters)
     )
   }
+})
+
+# ---- Flavored join: flavor column and per-flavor fixed values ----------------
+
+test_that("the flavored layout carries a flavor column and per-flavor fixed values", {
+  layout <- coef_layout(flavored_authored_join())
+
+  # The flavor column is non-NA for the calls fids' rows and elided (NA) for
+  # emails's -- on the same layout call.
+  calls_rows <- layout[startsWith(layout$process, "calls"), ]
+  expect_false(anyNA(calls_rows$flavor))
+  expect_setequal(unique(calls_rows$flavor), c("creation", "dissolution"))
+  emails_rows <- layout[startsWith(layout$process, "emails"), ]
+  expect_true(all(is.na(emails_rows$flavor)))
+
+  # Two offsets on the SAME term, one per flavor, at distinct values: the fixed
+  # value must be keyed per fid, reading -0.3 for creation and 0.4 for
+  # dissolution, never each other's value or NA.
+  creation_offset <- layout[
+    layout$process == "calls › creation › choice" &
+      layout$name == "tie(friendship)",
+  ]
+  dissolution_offset <- layout[
+    layout$process == "calls › dissolution › choice" &
+      layout$name == "tie(friendship)",
+  ]
+  expect_true(creation_offset$fixed)
+  expect_identical(creation_offset$value, -0.3)
+  expect_true(dissolution_offset$fixed)
+  expect_identical(dissolution_offset$value, 0.4)
 })
