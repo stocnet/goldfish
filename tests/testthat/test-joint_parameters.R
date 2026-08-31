@@ -333,3 +333,29 @@ test_that("flavor-inclusion labels sit alongside an elided one on one object", {
     c(Intercept = 0.3, `indeg(emails)` = 0.4)
   )
 })
+
+test_that("same-name free slots resolve per flavor without leaking", {
+  # `inertia(calls)` is the same coefficient name on both calls flavors -- the
+  # proposal's motivating collision. Each flavor's key pins its own slot.
+  p <- set_init_param(
+    flavored_parameters_join(),
+    `calls › creation › choice` = c(
+      `inertia(calls)` = 0.5,
+      `tie(friendship)` = NA
+    ),
+    `calls › dissolution › choice` = c(
+      `inertia(calls)` = 0.7,
+      `tie(friendship)` = NA
+    )
+  )
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["inertia(calls)"]),
+    0.5
+  )
+  expect_identical(
+    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"]),
+    0.7
+  )
+  # The sibling name in the plain layer is untouched by either flavor's key.
+  expect_true(is.na(p$full[["emails › choice"]]["inertia(emails)"]))
+})

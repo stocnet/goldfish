@@ -281,7 +281,7 @@
       `emails › rate` (no flavor segment) are all valid `set_init_param()`
       labels on the fixture from 5.1 (the mirror of the existing
       "labels elide the flavor segment for a non-flavored process" test).
-- [ ] 5.3 Test: same-name (`inertia`) **free**-slot resolution across
+- [x] 5.3 Test: same-name (`inertia`) **free**-slot resolution across
       flavors — per-fid vectors keyed `calls › creation › choice` and
       `calls › dissolution › choice` each pin their own `inertia` slot
       without leaking into the sibling flavor's slot or `emails › choice`'s.
