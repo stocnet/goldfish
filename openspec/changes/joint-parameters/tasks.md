@@ -313,7 +313,7 @@
       fixture, now proven where a naive string-split would have actually
       resolved something (extends the existing ambiguous-key negative test,
       exercised non-vacuously per D7).
-- [ ] 5.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
+- [x] 5.8 Verification: **not-cran-test** (`NOT_CRAN=true`; frozen 1e-6 and
       C++ goldens PASS, not SKIP); commit. Record the new flavored coverage
       as a bullet in the change-local `openspec/changes/joint-parameters/NEWS.md`
       — version bump and root `NEWS.md` fold stay deferred to branch merge
