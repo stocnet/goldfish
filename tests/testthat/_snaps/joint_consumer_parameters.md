@@ -6,5 +6,5 @@
       Error:
       ! `coef` leaves 4 free coefficients unpinned.
       x Unpinned: "calls › choice: inertia(calls)", "emails › rate: Intercept", "emails › rate: indeg(emails)", and "emails › choice: inertia(emails)".
-      i Pin every free coefficient with `set_parameters()` before simulating.
+      i Pin every free coefficient with `set_init_param()` before simulating.
 

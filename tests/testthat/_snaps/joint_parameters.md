@@ -1,7 +1,7 @@
 # a value supplied for a fixed coefficient warns and is ignored
 
     Code
-      p <- set_parameters(join, `calls › choice` = c(`inertia(calls)` = 0.3,
+      p <- set_init_param(join, `calls › choice` = c(`inertia(calls)` = 0.3,
         `tie(friendship)` = 9))
     Condition
       Warning:
@@ -11,25 +11,25 @@
 # a key matching no process aborts naming the valid labels
 
     Code
-      set_parameters(join, `calls:rate` = c(0.1, 0.2))
+      set_init_param(join, `calls:rate` = c(0.1, 0.2))
     Condition
-      Error in `set_parameters()`:
+      Error in `set_init_param()`:
       ! The label "calls:rate" matches no process.
       i Valid labels: "calls › rate", "calls › choice", "emails › rate", and "emails › choice".
 
 # the same process given twice aborts
 
     Code
-      set_parameters(join, `calls › rate` = c(0.1, 0.2), `calls › rate` = c(0.3, 0.4))
+      set_init_param(join, `calls › rate` = c(0.1, 0.2), `calls › rate` = c(0.3, 0.4))
     Condition
-      Error in `set_parameters()`:
+      Error in `set_init_param()`:
       ! Each process takes at most one value vector.
       x Process "calls › rate" was given more than once.
 
 # a wrong-length per-fid vector aborts naming the fid
 
     Code
-      set_parameters(join, `calls › rate` = c(0.1, 0.2, 0.3))
+      set_init_param(join, `calls › rate` = c(0.1, 0.2, 0.3))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" must have one entry per coefficient.
@@ -38,7 +38,7 @@
 # a partly named per-fid vector is rejected
 
     Code
-      set_parameters(join, `calls › rate` = c(Intercept = 0.1, 0.2))
+      set_init_param(join, `calls › rate` = c(Intercept = 0.1, 0.2))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" are only partly named.
@@ -48,7 +48,7 @@
 # a per-fid vector naming an unknown coefficient aborts
 
     Code
-      set_parameters(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2))
+      set_init_param(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" name coefficients the process does not have.
