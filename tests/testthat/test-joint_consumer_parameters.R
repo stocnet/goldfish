@@ -7,7 +7,7 @@
 # `goldfishParams`.
 
 # A two-process DyNAM join (calls, emails); the calls choice carries an
-# inline-coef offset, so its `tie(friendship)` slot is the one fixed coefficient
+# inline-coef offset, so its `tie/friendship [Fx]` slot is the one fixed coefficient
 # and every other slot is free.
 consumer_join <- function() {
   nodes <- data.frame(
@@ -103,7 +103,7 @@ test_that("simulate reads the full projection of a complete object", {
 
   expect_identical(full, complete_parameters()$full)
   # The offset slot carries the specification's value, not a free NA.
-  expect_identical(unname(full[["calls › choice"]]["tie(friendship)"]), -0.5)
+  expect_identical(unname(full[["calls › choice"]]["tie/friendship [Fx]"]), -0.5)
 })
 
 test_that("simulate's value gate rejects an unpinned free slot", {

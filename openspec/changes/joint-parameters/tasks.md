@@ -345,14 +345,14 @@
       `$label`) identically to a fitted result's (design D12 correction,
       intercept/interaction paragraph). Record the exact call shape in
       `progress.md`.
-- [ ] 6.2 Point `fid_coefficient_layout()` (`R/joint_parameters.R:105`) and
+- [x] 6.2 Point `fid_coefficient_layout()` (`R/joint_parameters.R:105`) and
       `coef_layout.goldfishJointSpec` (`:730`) at
       `compact_term_strings(names, "console", width = Inf)` over the 6.1 matrix,
       replacing the `coefficient_term_labels()` call for the `names`/`coef_names`
       slot. Keep the coefficient **order** (`[Intercept?, effects, interactions]`,
       length `n_params`) and the fixed mask/values exactly as today — only the
       name strings change.
-- [ ] 6.3 Point `coef_layout.flavored_result.goldfish` (`:786`) off
+- [x] 6.3 Point `coef_layout.flavored_result.goldfish` (`:786`) off
       `term_label(sub$names, ".coef_name", "coef")` onto the **same** console
       form (`compact_term_strings(sub$names, "console", width = Inf)`), so the
       from-result round-trip skeleton comparison — which includes the `name`

@@ -6,7 +6,7 @@
 # fids).
 
 # A two-process DyNAM join (calls, emails); the calls choice carries an
-# inline-coef offset, so `tie(friendship)` is the one fixed coefficient.
+# inline-coef offset, so `tie/friendship [Fx]` is the one fixed coefficient.
 result_join <- function() {
   nodes <- data.frame(
     label = paste0("N", 1:6),
@@ -147,6 +147,7 @@ fabricate_joint_result <- function(
   estimate = seq(0.11, by = 0.11, length.out = 6L)
 ) {
   layout <- coef_layout(spec)
+  bundles <- joint_fid_bundles(spec)
   free_seen <- 0L
   results <- list()
   for (fid in unique(layout$fid)) {
@@ -156,13 +157,12 @@ fabricate_joint_result <- function(
     n_free <- sum(free)
     values[free] <- estimate[free_seen + seq_len(n_free)]
     free_seen <- free_seen + n_free
-    description <- data.frame(
-      .coef_name = rows$name,
-      fixed = rows$fixed,
-      row.names = rows$name,
-      stringsAsFactors = FALSE,
-      check.names = FALSE
-    )
+    # The real effect-description matrix a fit carries -- object/flag columns and
+    # all -- so `compact_term_strings(names, "console")` re-renders it to the same
+    # console names the spec side produces. A degenerate frame with the rendered
+    # name as its own rowname would double-append the `[Fx]` token at fixed slots.
+    parsed <- bundles[[as.character(fid)]]$bundle$parsed
+    description <- fid_effect_description(parsed, rows$fixed)
     results[[as.character(fid)]] <- list(
       parameters = stats::setNames(values, rows$name),
       standard_errors = rep(0.05, n_free),
@@ -193,7 +193,7 @@ test_that("a fitted result round-trips into a complete parameter object", {
   # The offset slot keeps the specification's fixed value, not a re-supplied one,
   # and does not warn on the way through.
   expect_identical(
-    unname(p$full[["calls › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › choice"]]["tie/friendship [Fx]"]),
     -0.5
   )
 })
@@ -274,7 +274,7 @@ test_that("a flavored result round-trips per fid, keeping each flavor's fixed va
   expect_true(p$complete)
   expect_equal(unname(p$free), seq(0.11, by = 0.11, length.out = 9L))
 
-  # The free `inertia(calls)` slots land at their own flavor's fid despite the
+  # The free `inertia/calls` slots land at their own flavor's fid despite the
   # shared coefficient name -- each matches that fid's fabricated estimate, and
   # the two differ.
   lay <- coef_layout(fit)
@@ -285,23 +285,23 @@ test_that("a flavored result round-trips per fid, keeping each flavor's fixed va
   )) {
     fid <- fid_of(label)
     expect_identical(
-      unname(p$full[[label]]["inertia(calls)"]),
-      unname(fit$results[[as.character(fid)]]$parameters["inertia(calls)"])
+      unname(p$full[[label]]["inertia/calls"]),
+      unname(fit$results[[as.character(fid)]]$parameters["inertia/calls"])
     )
   }
   expect_false(identical(
-    unname(p$full[["calls › creation › choice"]]["inertia(calls)"]),
-    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"])
+    unname(p$full[["calls › creation › choice"]]["inertia/calls"]),
+    unname(p$full[["calls › dissolution › choice"]]["inertia/calls"])
   ))
 
   # Each flavor's fixed slot keeps the specification's own offset value, not a
   # value read off the result -- and the two stay distinct.
   expect_identical(
-    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › creation › choice"]]["tie/friendship [Fx]"]),
     -0.3
   )
   expect_identical(
-    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › dissolution › choice"]]["tie/friendship [Fx]"]),
     0.4
   )
 })

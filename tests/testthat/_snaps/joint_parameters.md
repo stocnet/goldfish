@@ -1,11 +1,11 @@
 # a value supplied for a fixed coefficient warns and is ignored
 
     Code
-      p <- set_init_param(join, `calls › choice` = c(`inertia(calls)` = 0.3,
-        `tie(friendship)` = 9))
+      p <- set_init_param(join, `calls › choice` = c(`inertia/calls` = 0.3,
+        `tie/friendship [Fx]` = 9))
     Condition
       Warning:
-      ! Value supplied for fixed coefficient "calls › choice: tie(friendship)" was ignored.
+      ! Value supplied for fixed coefficient "calls › choice: tie/friendship [Fx]" was ignored.
       i A fixed coefficient (an `offset()` term or an operand-only interaction) keeps the specification's value.
 
 # a key matching no process aborts naming the valid labels
@@ -33,7 +33,7 @@
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" must have one entry per coefficient.
-      x It has 3 entries but the process has 2 coefficients (`Intercept` and `indeg(calls)`).
+      x It has 3 entries but the process has 2 coefficients (`Intercept` and `indeg/calls`).
 
 # a partly named per-fid vector is rejected
 
@@ -53,16 +53,16 @@
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" name coefficients the process does not have.
       x Unknown name: "wrong".
-      i The coefficients are `Intercept` and `indeg(calls)`.
+      i The coefficients are `Intercept` and `indeg/calls`.
 
 # a value at one flavor's fixed slot warns only that flavor
 
     Code
-      p <- set_init_param(join, `calls › creation › choice` = c(`inertia(calls)` = 0.5,
-        `tie(friendship)` = 9))
+      p <- set_init_param(join, `calls › creation › choice` = c(`inertia/calls` = 0.5,
+        `tie/friendship [Fx]` = 9))
     Condition
       Warning:
-      ! Value supplied for fixed coefficient "calls › creation › choice: tie(friendship)" was ignored.
+      ! Value supplied for fixed coefficient "calls › creation › choice: tie/friendship [Fx]" was ignored.
       i A fixed coefficient (an `offset()` term or an operand-only interaction) keeps the specification's value.
 
 # a colon-grammar key aborts against a flavored spec

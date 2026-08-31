@@ -14,7 +14,7 @@ local_cli_context <- function(env = parent.frame()) {
 
 # A two-process DyNAM join (calls, emails), each with a rate (intercept + indeg)
 # and a choice sub-model. The calls choice carries an inline-coef offset, so its
-# `tie(friendship)` slot is the fixed coefficient the classifier must resolve
+# `tie/friendship [Fx]` slot is the fixed coefficient the classifier must resolve
 # from the specification; every other slot is free. Non-flavored, so the
 # rendered labels elide the flavor segment (`calls > rate`, not
 # `calls > NA > rate`).
@@ -76,7 +76,7 @@ parameters_join <- function() {
 # A flavored join: a mutually-exclusive `calls` layer (creation/dissolution)
 # built with add_flavor(), joined with a plain `emails` layer. Every choice
 # sub-model carries `inertia` -- the two `calls` flavors both surface
-# `inertia(calls)`, reproducing the proposal's motivating collision (one name,
+# `inertia/calls`, reproducing the proposal's motivating collision (one name,
 # two fids of the same layer) that the plain fixtures above cannot. Each
 # flavor's choice also carries its own inline-coef offset on the SAME term at
 # two distinct values (`-0.3` for creation, `0.4` for dissolution), while emails
@@ -181,11 +181,11 @@ test_that("an omitted process key leaves every non-fixed slot free", {
     names(p$free),
     c(
       "calls › rate: Intercept",
-      "calls › rate: indeg(calls)",
-      "calls › choice: inertia(calls)",
+      "calls › rate: indeg/calls",
+      "calls › choice: inertia/calls",
       "emails › rate: Intercept",
-      "emails › rate: indeg(emails)",
-      "emails › choice: inertia(emails)"
+      "emails › rate: indeg/emails",
+      "emails › choice: inertia/emails"
     )
   )
 
@@ -199,14 +199,14 @@ test_that("a per-fid vector resolves by rendered-label membership", {
   p <- set_init_param(
     parameters_join(),
     `calls › rate` = c(0.1, 0.2),
-    `emails › choice` = c(`inertia(emails)` = 0.7)
+    `emails › choice` = c(`inertia/emails` = 0.7)
   )
 
   expect_identical(
     p$full[["calls › rate"]],
-    c(Intercept = 0.1, `indeg(calls)` = 0.2)
+    c(Intercept = 0.1, `indeg/calls` = 0.2)
   )
-  expect_identical(unname(p$full[["emails › choice"]]["inertia(emails)"]), 0.7)
+  expect_identical(unname(p$full[["emails › choice"]]["inertia/emails"]), 0.7)
   # A process whose key is omitted stays all-free.
   expect_true(anyNA(p$full[["emails › rate"]]))
 })
@@ -217,7 +217,7 @@ test_that("named and positional per-fid vectors agree", {
   # Fully named, supplied out of coefficient order -- the names fix the slots.
   named <- set_init_param(
     join,
-    `calls › rate` = c(`indeg(calls)` = 0.2, Intercept = 0.1)
+    `calls › rate` = c(`indeg/calls` = 0.2, Intercept = 0.1)
   )
   expect_identical(
     named$full[["calls › rate"]],
@@ -243,11 +243,14 @@ test_that("a value supplied for a fixed coefficient warns and is ignored", {
   expect_snapshot(
     p <- set_init_param(
       join,
-      `calls › choice` = c(`inertia(calls)` = 0.3, `tie(friendship)` = 9)
+      `calls › choice` = c(`inertia/calls` = 0.3, `tie/friendship [Fx]` = 9)
     )
   )
   # Offset prevails: the supplied 9 is dropped, the spec's -0.5 stands.
-  expect_identical(unname(p$full[["calls › choice"]]["tie(friendship)"]), -0.5)
+  expect_identical(
+    unname(p$full[["calls › choice"]]["tie/friendship [Fx]"]),
+    -0.5
+  )
 })
 
 test_that("a key matching no process aborts naming the valid labels", {
@@ -326,38 +329,38 @@ test_that("flavor-inclusion labels sit alongside an elided one on one object", {
   )
   expect_identical(
     p2$full[["calls › creation › rate"]],
-    c(Intercept = 0.1, `indeg(calls)` = 0.2)
+    c(Intercept = 0.1, `indeg/calls` = 0.2)
   )
   expect_identical(
     p2$full[["emails › rate"]],
-    c(Intercept = 0.3, `indeg(emails)` = 0.4)
+    c(Intercept = 0.3, `indeg/emails` = 0.4)
   )
 })
 
 test_that("same-name free slots resolve per flavor without leaking", {
-  # `inertia(calls)` is the same coefficient name on both calls flavors -- the
+  # `inertia/calls` is the same coefficient name on both calls flavors -- the
   # proposal's motivating collision. Each flavor's key pins its own slot.
   p <- set_init_param(
     flavored_parameters_join(),
     `calls › creation › choice` = c(
-      `inertia(calls)` = 0.5,
-      `tie(friendship)` = NA
+      `inertia/calls` = 0.5,
+      `tie/friendship [Fx]` = NA
     ),
     `calls › dissolution › choice` = c(
-      `inertia(calls)` = 0.7,
-      `tie(friendship)` = NA
+      `inertia/calls` = 0.7,
+      `tie/friendship [Fx]` = NA
     )
   )
   expect_identical(
-    unname(p$full[["calls › creation › choice"]]["inertia(calls)"]),
+    unname(p$full[["calls › creation › choice"]]["inertia/calls"]),
     0.5
   )
   expect_identical(
-    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"]),
+    unname(p$full[["calls › dissolution › choice"]]["inertia/calls"]),
     0.7
   )
   # The sibling name in the plain layer is untouched by either flavor's key.
-  expect_true(is.na(p$full[["emails › choice"]]["inertia(emails)"]))
+  expect_true(is.na(p$full[["emails › choice"]]["inertia/emails"]))
 })
 
 # ---- Flavored join: per-flavor fixed classification (extends D4) -------------
@@ -367,11 +370,11 @@ test_that("each flavor's fixed offset resolves to its own value on one call", {
   # Two offsets on the SAME term (tie(friendship)), one per flavor, at distinct
   # values -- the fixed value must be keyed per fid, never shared across a join.
   expect_identical(
-    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › creation › choice"]]["tie/friendship [Fx]"]),
     -0.3
   )
   expect_identical(
-    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › dissolution › choice"]]["tie/friendship [Fx]"]),
     0.4
   )
   # And each choice fid's fixed mask marks only the offset slot fixed.
@@ -388,18 +391,18 @@ test_that("a value at one flavor's fixed slot warns only that flavor", {
     p <- set_init_param(
       join,
       `calls › creation › choice` = c(
-        `inertia(calls)` = 0.5,
-        `tie(friendship)` = 9
+        `inertia/calls` = 0.5,
+        `tie/friendship [Fx]` = 9
       )
     )
   )
   # Offset prevails on creation; dissolution's own offset value is untouched.
   expect_identical(
-    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › creation › choice"]]["tie/friendship [Fx]"]),
     -0.3
   )
   expect_identical(
-    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › dissolution › choice"]]["tie/friendship [Fx]"]),
     0.4
   )
   expect_identical(unname(p$fids[["4"]]$fixed), c(FALSE, TRUE))
@@ -409,25 +412,25 @@ test_that("omitting one flavor's key leaves only that flavor's slots free", {
   p <- set_init_param(
     flavored_parameters_join(),
     `calls › dissolution › choice` = c(
-      `inertia(calls)` = 0.7,
-      `tie(friendship)` = NA
+      `inertia/calls` = 0.7,
+      `tie/friendship [Fx]` = NA
     ),
-    `emails › choice` = c(`inertia(emails)` = 0.2)
+    `emails › choice` = c(`inertia/emails` = 0.2)
   )
   # creation's choice was omitted: its free slot stays NA, its fixed slot still
   # carries the spec's value.
-  expect_true(is.na(p$full[["calls › creation › choice"]]["inertia(calls)"]))
+  expect_true(is.na(p$full[["calls › creation › choice"]]["inertia/calls"]))
   expect_identical(
-    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    unname(p$full[["calls › creation › choice"]]["tie/friendship [Fx]"]),
     -0.3
   )
   # The sibling flavor and the plain layer are unaffected by the omission.
   expect_identical(
-    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"]),
+    unname(p$full[["calls › dissolution › choice"]]["inertia/calls"]),
     0.7
   )
   expect_identical(
-    unname(p$full[["emails › choice"]]["inertia(emails)"]),
+    unname(p$full[["emails › choice"]]["inertia/emails"]),
     0.2
   )
 })

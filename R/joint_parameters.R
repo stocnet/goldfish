@@ -120,8 +120,8 @@ fid_coefficient_layout <- function(bundle_entry) {
   parsed <- bundle$parsed
   rhs_names <- parsed$rhs_names
   has_intercept <- isTRUE(bundle$has_intercept)
-  coef_names <- coefficient_term_labels(parsed, rhs_names, has_intercept)
-  n_params <- length(coef_names)
+  term_labels <- coefficient_term_labels(parsed, rhs_names, has_intercept)
+  n_params <- length(term_labels)
   fixed_spec <- suppressWarnings(assemble_fixed_parameters(
     parsed_formula = parsed,
     rhs_names = rhs_names,
@@ -136,6 +136,25 @@ fid_coefficient_layout <- function(bundle_entry) {
   if (!is.null(fixed_spec)) {
     fixed[fixed_spec$idx] <- TRUE
     values[fixed_spec$idx] <- fixed_spec$values
+  }
+  # Coefficient names are the self-describing console form -- the same string
+  # `summary()` prints for a fit -- so authoring a pin and reading a fit share
+  # exactly one vocabulary. The fixed mask is fed in so a fixed slot carries the
+  # `Fx` token here just as it does on the result side, keeping the from-result
+  # round-trip's name-column comparison exact. Intercept and interaction rows
+  # render byte-identically to the deparse form; only effect rows change. A
+  # zero-effect formula (an intercept-only rate) has no effect row for the
+  # console renderer to touch -- and `GetDetailPrint()` cannot build a matrix
+  # with no effects -- so its intercept/interaction labels come straight from
+  # `coefficient_term_labels()`, which spells them identically.
+  coef_names <- if (length(rhs_names) == 0L) {
+    term_labels
+  } else {
+    unname(compact_term_strings(
+      fid_effect_description(parsed, fixed),
+      "console",
+      width = Inf
+    ))
   }
   list(
     names = coef_names,
@@ -801,7 +820,11 @@ coef_layout.flavored_result.goldfish <- function(x, ...) {
       label = render_process_label(process_map, fid),
       sub_model = sub_models[i],
       flavor = process_map$flavor[i],
-      names = term_label(sub$names, ".coef_name", "coef"),
+      # Console form, matching the spec side (`fid_coefficient_layout()`): the
+      # from-result round-trip compares this `name` column against the spec's,
+      # so both must speak one vocabulary -- the terse `.coef_name` here would
+      # mismatch a spec's console name on every argument-bearing effect.
+      names = unname(compact_term_strings(sub$names, "console", width = Inf)),
       fixed = fixed,
       value = est,
       se = se

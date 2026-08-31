@@ -9,7 +9,7 @@
 
 # A two-process DyNAM join (calls, emails), each with a rate (Intercept + indeg)
 # and a choice; the calls choice carries an inline-coef offset, so its
-# `tie(friendship)` slot is the one fixed coefficient. Non-flavored, so the
+# `tie/friendship [Fx]` slot is the one fixed coefficient. Non-flavored, so the
 # rendered labels elide the flavor segment.
 authored_join <- function() {
   nodes <- data.frame(
@@ -126,7 +126,7 @@ rate_only_join <- function() {
 
 # A flavored join: a mutually-exclusive `calls` layer (creation/dissolution)
 # built with add_flavor(), joined with a plain `emails` layer. Each calls flavor
-# carries its own inline-coef offset on the SAME term (`tie(friendship)`) at two
+# carries its own inline-coef offset on the SAME term (`tie/friendship [Fx]`) at two
 # distinct values (`-0.3` creation, `0.4` dissolution), while emails is
 # offset-free. So the layout must carry a non-NA `flavor` column for the calls
 # fids (elided for emails) and resolve each flavor's fixed value to its own fid.
@@ -222,7 +222,7 @@ test_that("the raw-spec layout has one row per authored coefficient slot", {
 
   # The offset is the one fixed slot, carrying the specification's value; every
   # free slot gets a running index into the flat theta and no value.
-  offset_row <- layout[layout$name == "tie(friendship)", ]
+  offset_row <- layout[layout$name == "tie/friendship [Fx]", ]
   expect_true(offset_row$fixed)
   expect_identical(offset_row$value, -0.5)
   expect_identical(offset_row$index, NA_integer_)
@@ -355,9 +355,9 @@ test_that("the goldfishParams layout carries supplied values (authored)", {
   expect_true(all(!rate$fixed))
 
   # A free slot the user left unpinned stays NA; the offset keeps its value.
-  free_unpinned <- layout[layout$name == "inertia(calls)", ]
+  free_unpinned <- layout[layout$name == "inertia/calls", ]
   expect_identical(free_unpinned$value, NA_real_)
-  offset <- layout[layout$name == "tie(friendship)", ]
+  offset <- layout[layout$name == "tie/friendship [Fx]", ]
   expect_true(offset$fixed)
   expect_identical(offset$value, -0.5)
 })
@@ -455,11 +455,11 @@ test_that("the flavored layout carries a flavor column and per-flavor fixed valu
   # dissolution, never each other's value or NA.
   creation_offset <- layout[
     layout$process == "calls › creation › choice" &
-      layout$name == "tie(friendship)",
+      layout$name == "tie/friendship [Fx]",
   ]
   dissolution_offset <- layout[
     layout$process == "calls › dissolution › choice" &
-      layout$name == "tie(friendship)",
+      layout$name == "tie/friendship [Fx]",
   ]
   expect_true(creation_offset$fixed)
   expect_identical(creation_offset$value, -0.3)
