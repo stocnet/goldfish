@@ -259,7 +259,7 @@
 > rationale and why `helper-flavored-fixtures.R`'s fixtures cannot be reused
 > directly (not a `goldfishJointSpec`).
 
-- [ ] 5.1 New flavored joint fixture (design D19): a `calls` layer built with
+- [x] 5.1 New flavored joint fixture (design D19): a `calls` layer built with
       `add_flavor()` (`creation`/`dissolution`) and
       `make_specification(rate = list(...), choice = list(...))`, joined via
       `make_joint_specification()` with a plain `emails` layer. All three
