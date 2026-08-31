@@ -285,7 +285,7 @@
       flavors — per-fid vectors keyed `calls › creation › choice` and
       `calls › dissolution › choice` each pin their own `inertia` slot
       without leaking into the sibling flavor's slot or `emails › choice`'s.
-- [ ] 5.4 Test: per-flavor **fixed**-slot classification (extends D4) — on
+- [x] 5.4 Test: per-flavor **fixed**-slot classification (extends D4) — on
       the fixture from 5.1, `creation`'s and `dissolution`'s
       `tie(friendship)` offsets resolve to their own distinct values (`-0.3`
       / `0.4`) on one `set_init_param()` call; a non-`NA` value supplied at

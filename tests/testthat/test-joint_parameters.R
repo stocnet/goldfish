@@ -359,3 +359,75 @@ test_that("same-name free slots resolve per flavor without leaking", {
   # The sibling name in the plain layer is untouched by either flavor's key.
   expect_true(is.na(p$full[["emails › choice"]]["inertia(emails)"]))
 })
+
+# ---- Flavored join: per-flavor fixed classification (extends D4) -------------
+
+test_that("each flavor's fixed offset resolves to its own value on one call", {
+  p <- set_init_param(flavored_parameters_join())
+  # Two offsets on the SAME term (tie(friendship)), one per flavor, at distinct
+  # values -- the fixed value must be keyed per fid, never shared across a join.
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    -0.3
+  )
+  expect_identical(
+    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    0.4
+  )
+  # And each choice fid's fixed mask marks only the offset slot fixed.
+  expect_identical(unname(p$fids[["2"]]$fixed), c(FALSE, TRUE))
+  expect_identical(unname(p$fids[["4"]]$fixed), c(FALSE, TRUE))
+})
+
+test_that("a value at one flavor's fixed slot warns only that flavor", {
+  local_cli_context()
+  join <- flavored_parameters_join()
+  # A single value supplied at creation's fixed slot: the warning names only
+  # creation's slot (never dissolution's), and fires once.
+  expect_snapshot(
+    p <- set_init_param(
+      join,
+      `calls › creation › choice` = c(
+        `inertia(calls)` = 0.5,
+        `tie(friendship)` = 9
+      )
+    )
+  )
+  # Offset prevails on creation; dissolution's own offset value is untouched.
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    -0.3
+  )
+  expect_identical(
+    unname(p$full[["calls › dissolution › choice"]]["tie(friendship)"]),
+    0.4
+  )
+  expect_identical(unname(p$fids[["4"]]$fixed), c(FALSE, TRUE))
+})
+
+test_that("omitting one flavor's key leaves only that flavor's slots free", {
+  p <- set_init_param(
+    flavored_parameters_join(),
+    `calls › dissolution › choice` = c(
+      `inertia(calls)` = 0.7,
+      `tie(friendship)` = NA
+    ),
+    `emails › choice` = c(`inertia(emails)` = 0.2)
+  )
+  # creation's choice was omitted: its free slot stays NA, its fixed slot still
+  # carries the spec's value.
+  expect_true(is.na(p$full[["calls › creation › choice"]]["inertia(calls)"]))
+  expect_identical(
+    unname(p$full[["calls › creation › choice"]]["tie(friendship)"]),
+    -0.3
+  )
+  # The sibling flavor and the plain layer are unaffected by the omission.
+  expect_identical(
+    unname(p$full[["calls › dissolution › choice"]]["inertia(calls)"]),
+    0.7
+  )
+  expect_identical(
+    unname(p$full[["emails › choice"]]["inertia(emails)"]),
+    0.2
+  )
+})

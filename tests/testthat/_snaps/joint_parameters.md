@@ -55,3 +55,13 @@
       x Unknown name: "wrong".
       i The coefficients are `Intercept` and `indeg(calls)`.
 
+# a value at one flavor's fixed slot warns only that flavor
+
+    Code
+      p <- set_init_param(join, `calls › creation › choice` = c(`inertia(calls)` = 0.5,
+        `tie(friendship)` = 9))
+    Condition
+      Warning:
+      ! Value supplied for fixed coefficient "calls › creation › choice: tie(friendship)" was ignored.
+      i A fixed coefficient (an `offset()` term or an operand-only interaction) keeps the specification's value.
+
