@@ -224,7 +224,7 @@
       `snapshot_accept()`; review each diff individually — it should be
       exactly the `set_parameters` → `set_init_param` text swap in the
       abort/warning message, never accepted wholesale (mirrors 3.4).
-- [ ] 4.5 Cross-change sweep (mirrors 3.5): update `set_parameters()`
+- [x] 4.5 Cross-change sweep (mirrors 3.5): update `set_parameters()`
       mentions in `abmcem/design.md`, `dynes-augmentation/tasks.md`, and
       `process-simulation/design.md` to `set_init_param()`. Confirm no other
       in-progress change's artifacts reference the old name.

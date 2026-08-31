@@ -56,7 +56,7 @@ and on a specification carrying an explicit `coef`. The `coef` shape is
 **two-method by spec kind**: for a single `goldfishSpec` (or a fitted
 single-process result's θ̂) it is a plain **numeric** vector, unchanged from the
 single-process convention; for a `goldfishJointSpec` it is a
-**`goldfishParams`** object built by `set_parameters(spec, ...)`
+**`goldfishParams`** object built by `set_init_param(spec, ...)`
 (`joint-parameters`) — the same shared surface `estimate_dynes(initial_parameters=)`
 consumes — on which `simulate()` **asserts completeness** (aborts on any free,
 non-offset `NA`, naming the effects), the parameter-level parallel to

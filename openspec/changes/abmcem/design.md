@@ -98,7 +98,7 @@ are per fid, and mode-pair keying lives entirely in the walk beneath the
 evaluator contract. So node-space generality is transparent to this change's
 machinery; nothing here keys on mode. The user authors θ₀ against this fid
 concatenation through the shared **`goldfishParams`** surface
-(`joint-parameters`): `set_parameters(spec, ...)` keyed by readable
+(`joint-parameters`): `set_init_param(spec, ...)` keyed by readable
 `layer[:flavor]:sub_model` labels, `coef_layout(spec)` to discover names/order,
 with the flat free-parameter projection consumed here; fixed effects are the
 spec's formula offsets and never enter θ (`joint-parameters` D4). Four

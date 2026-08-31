@@ -41,7 +41,7 @@ spec still spells a class in a retired form, this table governs.
 | support-constraint plan (internal) | `support_constraint_plan` | `goldfishSupportPlan` |
 | fixing/seeding specs (internal) | `fixed_spec`, `initial_spec` | `goldfishFixedSpec`, `goldfishInitialSpec` |
 | `make_joint_specification()` (`make-multivariate-spec`, archived) | `joint_specification.goldfish` | `goldfishJointSpec` |
-| `set_parameters()` (`joint-parameters`) | `parameters.goldfish` | `goldfishParams` |
+| `set_init_param()` (`joint-parameters`) | `parameters.goldfish` | `goldfishParams` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_is` | `goldfishEstepIS` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_resampling` | `goldfishEstepResampling` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_uniform` | `goldfishEstepUniform` |

@@ -11,7 +11,7 @@
 > Keep this order in sync with the mirror note in `abmcem/tasks.md`.
 >
 > **Prerequisite (cross-change).** The joint/multivariate parameter surface —
-> `set_parameters()` → `goldfishParams` and `coef_layout()` — lives in the
+> `set_init_param()` → `goldfishParams` and `coef_layout()` — lives in the
 > `joint-parameters` change (extending the `multivariate-specification`
 > capability). `estimate_dynes()` (`abmcem`) takes it as `initial_parameters` and
 > `simulate()` (`process-simulation`) as `coef`, so `joint-parameters` lands
