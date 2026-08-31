@@ -214,11 +214,11 @@
       `intercept_only_rate.R`/`walk_handle.R` carry); `devtools::document()`.
       `git rm man/set_parameters.Rd` (roxygen does not delete an orphaned
       `.Rd`) once `man/set_init_param.Rd` is generated.
-- [ ] 4.3 Update the four owning test files (`test-joint_parameters.R`,
+- [x] 4.3 Update the four owning test files (`test-joint_parameters.R`,
       `test-coef_layout.R`, `test-joint_consumer_parameters.R`,
       `test-joint_from_result.R`): every call site, `test_that()` description
       string naming the old function, and file-header comments.
-- [ ] 4.4 Regenerate and review the three affected `_snaps/*.md` files
+- [x] 4.4 Regenerate and review the three affected `_snaps/*.md` files
       (`joint_parameters.md`, `joint_consumer_parameters.md`,
       `joint_from_result.md`) via `testthat::test_file()` +
       `snapshot_accept()`; review each diff individually — it should be
