@@ -150,6 +150,82 @@ flavored_parameters_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
+# The flavored join with an argument-bearing effect: each `calls` flavor's
+# choice carries `inertia(calls, window = "1 hour")` rather than a bare
+# `inertia`. This is the minimum that makes the deparse and console naming
+# schemes differ -- the deparse form is `inertia(calls, window = "1 hour")`, the
+# console form `inertia/calls [1h]` -- so a test can tell the joint vocabulary
+# (console) apart from the raw formula term. Every other slot matches
+# `flavored_parameters_join()`.
+windowed_flavored_join <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  calls <- data.frame(
+    from = c(1L, 3L, 2L, 1L, 4L, 3L),
+    to = c(2L, 4L, 3L, 2L, 5L, 4L),
+    time = c(NA, NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, 1, -1, 1, -1),
+    stringsAsFactors = FALSE
+  )
+  friendship <- data.frame(
+    from = c(1L, 2L, 3L),
+    to = c(2L, 3L, 4L),
+    time = c(1, 2, 3),
+    layer = "friendship",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  emails <- data.frame(
+    from = c(2L, 3L, 4L),
+    to = c(1L, 2L, 3L),
+    time = c(1, 2, 3),
+    layer = "emails",
+    weight = 1,
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  data <- add_flavor(
+    list(info = info, nodes = nodes, ties = rbind(calls, friendship, emails)),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  calls_spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(
+      creation ~ inertia(calls, window = "1 hour") +
+        offset(tie(friendship), coef = -0.3),
+      dissolution ~ inertia(calls, window = "1 hour") +
+        offset(tie(friendship), coef = 0.4)
+    ),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
 test_that("set_init_param() returns a goldfishParams, not the retired parameters.goldfish", {
   p <- set_init_param(parameters_join())
   expect_s3_class(p, "goldfishParams")

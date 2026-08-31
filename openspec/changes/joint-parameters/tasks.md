@@ -359,7 +359,7 @@
       column (`set_parameters_from_result()`, `:347`) — matches spec-side and
       result-side name-for-name. This is the tie that makes the round-trip
       correct rather than coincidentally-passing on bare effects.
-- [ ] 6.4 Fixture: extend the §5.1 flavored fixture (or a local companion) so at
+- [x] 6.4 Fixture: extend the §5.1 flavored fixture (or a local companion) so at
       least one fid carries an **argument-bearing** effect —
       `inertia(calls, window = "1 hour")` or equivalent with a weight/transformer
       — the minimum that makes the deparse and console forms differ. Without it
