@@ -11,16 +11,17 @@ context: |
   - Run devtools::document() within any task that changes roxygen
     comments, exports, or function signatures — never defer documentation
     regeneration to a final cleanup task.
-  - At each major milestone (a completed task group or phase), bump the
-    package version in DESCRIPTION and add a NEWS.md entry describing
-    what landed (branch precedent: 1.7.2 and 1.7.3 were bumped per
-    completed chunk with their NEWS sections). This applies ON THE
-    INTEGRATION BRANCH ONLY (currently refactor/rate_prep). On a feature
-    branch a milestone instead writes one fragment file to NEWS.d/
-    (protocol in NEWS.d/README.md) and touches neither the DESCRIPTION
-    Version nor NEWS.md — branches produce facts, the trunk performs
-    folds (vault ADR-0040; the DyNES merge is the precedent this
-    prevents).
+  - Folds (DESCRIPTION Version bump, NEWS.md, /opsx:archive, baseline
+    refreezes, the versions ledger) happen ONLY at a merge into an
+    integration branch — develop, or main for hotfixes (currently
+    refactor/rate_prep until the branching model normalizes). Work done
+    directly on the integration branch keeps the old per-phase-milestone
+    bump (precedent: 1.7.2/1.7.3). On any other branch a milestone
+    instead writes one fragment file to NEWS.d/ (protocol in
+    NEWS.d/README.md) and touches neither the DESCRIPTION Version nor
+    NEWS.md — branches produce facts, the trunk performs folds (vault
+    ADR-0040, extended by ADR-0041; the DyNES merge is the precedent
+    this prevents).
   - Run tests with NOT_CRAN=true (e.g. NOT_CRAN=true Rscript -e
     'devtools::test()'): the coefficient baseline and C++ golden tests
     are computationally expensive and use skip_on_cran(), so a bare
@@ -75,12 +76,20 @@ rules:
     - This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
     - Then, still BEFORE the delta-spec sync, run `bash .plan/opsx-spec-placement-check.sh <name>`. `openspec validate` does not check `##` section placement, so a `## MODIFIED`/`## REMOVED` block naming a requirement absent from openspec/specs/** validates cleanly and then silently lands as an ADD at archive, leaving the old wording in place. Unlike the tracker above, this one CAN block: a non-zero exit means fix the delta's section placement (or declare the rename in `## RENAMED`) before syncing. It is rename-aware and safe to re-run post-archive as `archive/<date>-<name>`.
     - /opsx:archive runs ONLY on the integration branch (ADR-0040). A change developed on a feature branch stays active — deltas unfolded — until the branch merges; the fold then happens on the trunk, where the living spec's current wording is known. Archiving on a branch is how make-multivariate-spec dissolved in the DyNES merge.
+    - openspec/changes/archive/ is TRACKED (ADR-0041) so archived decision memory (proposal, design, deltas, tasks) travels with every clone and branch. The personal session journal does not — progress*.md is gitignored at any depth, and the tracker script's .plan/ snapshot is its preservation mechanism, so after the tracker runs, delete progress*.md from the change dir before the archive mv. Never edit an archived change; archives are append-only by construction.
+  branching:
+    # Parallel variant branches, each carrying OpenSpec changes (ADR-0041).
+    - A change completed on a branch is NOT archived there. Flip it to landed instead — add `status: landed (<branch>, awaiting fold)` to its proposal.md — and leave the directory in place. A landed change is inert; its tracked artifacts are the decision memory until the trunk fold.
+    - A change whose deltas build on another un-archived change declares it with `depends-on: <change>` in proposal.md and writes its deltas against the POST-predecessor wording (its `## MODIFIED` may name a requirement that today exists only in the predecessor's `## ADDED`). The placement pre-flight is EXPECTED to fail for such a change until the predecessor folds — that is deferral, not a defect; the check that counts runs at fold time, in dependency order.
+    - Where a completed change is separable from its variant's unlanded siblings (code and deltas independent), prefer landing it on the integration branch via its own small merge over waiting for the variant to mature — fold latency is merge cadence.
   merge:
     # Landing a feature branch on the integration branch (ADR-0040). The
     # merge IS the milestone: every fold the branch deferred happens here,
     # once, in this order.
+    - Keep the merge commit PURE (code conflicts only); every fold below lands in its own commit(s) immediately after, so a botched fold reverts without touching the code merge and the bump commit is a clean tag anchor.
     - Fold NEWS.d/ fragments into NEWS.md under the new version heading (filename order), delete the consumed fragments, and bump DESCRIPTION Version — the single milestone bump for everything the branch landed.
-    - Archive the branch's completed changes on the trunk: for each, the normal rules.archive sequence (tracker first, placement pre-flight, delta sync). Then run `openspec validate` across ALL active changes — the merge may have moved living-spec wording under other changes' deltas.
+    - Archive the branch's landed changes on the trunk IN depends-on ORDER (a successor's delta headers resolve only after its predecessor's ADDED requirements fold): for each, the normal rules.archive sequence (tracker first, placement pre-flight, delta sync, journal scrub). Then run `openspec validate` across ALL active changes — the merge may have moved living-spec wording under other changes' deltas.
     - Regenerate, never hand-merge, generated files: Rcpp bindings via the cpp-recompile skill and man/NAMESPACE via devtools::document() on the merge result.
     - Full NOT_CRAN=true suite with the frozen 1e-6 baselines reporting PASS, not SKIP. Any intentional baseline move happens here on the trunk under the ADR-0021 bar, never on the branch.
     - Merge review (vault): capture decisions that arrived embedded in the branch as ADRs, re-ground affected active proposals, append the version row context to .plan/goldfish_versions.csv if the archive tracker did not, and drop a dashboard fragment in the vault _dashboard-inbox/.
+    - After ANY fold lands on the trunk, every still-open variant branch merges the integration branch in promptly and re-runs `bash .plan/opsx-spec-placement-check.sh` across its own active changes, fixing delta headers against the freshly folded spec wording while context is fresh — not months later at its own merge.
