@@ -17,12 +17,21 @@ fragments from two parallel branches from ever colliding on a filename.
 ## Writing a fragment
 
 One markdown bullet (or a few), exactly as it should appear in `NEWS.md` —
-user-facing wording, American English, backticks around code:
+user-facing wording, American English, backticks around code. The bullet
+conventions are shared across the stocnet suite (`manynet` and `autograph`
+carry the same section); the full list is in
+[`.github/CONTRIBUTING.md`](../.github/CONTRIBUTING.md#changelog-newsmd).
+In short: lead with the verb for the change type (`Added`, `Fixed`,
+`Renamed ... to ...`, `Improved`, `Updated`, `Removed`, `Moved`, `Split`),
+keep the bullet to one line under 81 characters, and cluster several changes
+to one function under an `Improved ...` lead bullet that names it.
 
 ```markdown
-* `estimate_dynamu()` estimates the five two-sided coordination
-  mechanisms (#NNN).
+* Added `estimate_dynamu()` for two-sided coordination (closed #NNN).
 ```
+
+A bullet that will not fit on one line is holding more than one change:
+split it into a lead bullet and sub-bullets rather than letting it wrap.
 
 A fragment is never edited after the branch is shared; refine wording by
 replacing the file in the same branch before merge.

@@ -141,6 +141,45 @@ We follow several conventions for writing tests:
 A final way of contributing to the package is in developing the vignettes/articles that illustrate the value added in the package. 
 Please contact us directly with proposals for updating the documentation, or submit an issue if existing documentation is unclear.
 
+## Changelog (`NEWS.md`)
+
+Released entries live in `NEWS.md`. A feature branch never edits that file:
+it drops a fragment in [`NEWS.d/`](../NEWS.d/README.md) instead, and the
+integration branch folds the fragments once at merge. Write the fragment in
+its final wording, because folding is insertion plus light editing for flow.
+
+Bullet conventions are shared across the stocnet suite (see the matching
+sections in the `manynet` and `autograph` CONTRIBUTING files), so a reader
+moving between packages meets one style:
+
+- Start each bullet with the verb that matches the change type: `Added`,
+  `Fixed` (suffix `(closed #123)` when it closes an issue), `Renamed ... to
+  ...`, `Improved`, `Updated` (documentation), `Removed`/`Dropped`,
+  `Moved`/`Migrated`, `Split`. Sub-bullets may lead with the same verbs.
+- Keep a bullet to one line under 81 characters. A bullet that wraps holds
+  too much: shorten it, or split it into a lead bullet with sub-bullets.
+  Each bullet states *what* changed; the why and how belong in the function
+  documentation or a vignette.
+- Where several changes concern one function, lead with an `Improved ...`
+  bullet naming the function and put the individual points beneath it, so
+  the cluster groups by function rather than by change type. Do not repeat
+  the function name in those sub-bullets. Indent sub-bullets by two spaces
+  and nest at most one level further.
+- Name the generic (`residuals()`) when a change reaches every class it
+  dispatches on; spell out the method (`residuals.goldfishFit()`) when it
+  reaches only one, so a reader knows which objects are affected.
+- Reuse the sentence structure across parallel bullets, and use one word for
+  one thing throughout a version's entries.
+- Thank the author of a cited issue with an `@`-tag when it was not opened
+  by a maintainer.
+
+goldfish groups a version's bullets under change-type headings
+(`## Breaking changes`, `## New features`, `## Bug fixes`,
+`## Deprecations`, `## Documentation`, `## Internal changes`) rather than
+under the function-family headings `manynet` and `autograph` take from their
+pkgdown reference index. The verb still carries the change type inside each
+bullet, so the two schemes read the same at bullet level.
+
 ## Versioning
 Note that the `goldfish` package is version according to [semantic versioning](https://www.jvandemo.com/a-simple-guide-to-semantic-versioning/).
 This means that versions follow the Major.Minor.Patch semantic format.
