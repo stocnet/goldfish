@@ -17,6 +17,11 @@ expectation ahead of the 2.0.0 submission.
   gains `starts_with("test")` and `evaluate_model`; the post-estimation
   methods topic set (including the re-wired `augment`) is indexed; every
   non-internal topic is covered, verified by `pkgdown::check_pkgdown()`.
+- **Website CI gate**: a `website-builds` job in `prchecks.yml` runs
+  `pkgdown::check_pkgdown()` and `pkgdown::build_site()` on every pull
+  request, so the index contract is enforced continuously instead of once
+  (parity with autograph's job, added there in `b76438a`). It reports
+  buildability only; deployment stays in `pushrelease.yml`.
 - **Examples-run gate**: every documented example on a non-internal topic
   runs green via `devtools::run_examples()` (including `\donttest` blocks
   locally), added as a pre-flight step alongside the NOT_CRAN test gate.

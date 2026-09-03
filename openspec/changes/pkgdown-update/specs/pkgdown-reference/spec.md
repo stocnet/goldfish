@@ -22,6 +22,24 @@ remain exempt.
 - **WHEN** `pkgdown::build_reference()` runs on the updated yaml
 - **THEN** it completes without warnings.
 
+### Requirement: The reference-index contract is enforced on every pull request
+A `website-builds` job in `.github/workflows/prchecks.yml` SHALL run
+`pkgdown::check_pkgdown()` and then `pkgdown::build_site()` on each pull
+request, so an uncovered topic or a broken cross-reference fails the PR
+rather than surfacing at the next release build. The job SHALL NOT deploy;
+deployment stays in `pushrelease.yml`.
+
+#### Scenario: a new exported topic is left out of the index
+- **WHEN** a pull request adds an exported, non-internal function without
+  an entry in the `_pkgdown.yml` reference index
+- **THEN** the `website-builds` job fails on `pkgdown::check_pkgdown()`,
+  naming the uncovered topic
+
+#### Scenario: the gate reports buildability without publishing
+- **WHEN** the `website-builds` job completes on a pull request
+- **THEN** the site has been built and its output discarded, and no
+  deployment has occurred
+
 ### Requirement: Documented examples run green
 Every example on a non-internal topic SHALL run without error via
 `devtools::run_examples()` (executed in a fresh subprocess, `\donttest`
