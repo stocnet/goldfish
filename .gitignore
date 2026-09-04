@@ -24,12 +24,13 @@ docs
 # Personal memory: points at an Obsidian decision-record vault only I have.
 CLAUDE.local.md
 
-# OpenSpec: share config, the living folded spec, and active proposals so a
-# collaborator has the same standards; keep the personal per-change session
-# journal (progress.md), archived changes (delete-on-archive), and the
-# parallel-session ownership claims local.
-openspec/changes/archive/
-openspec/changes/*/progress.md
+# OpenSpec: share config, the living folded spec, active proposals, AND the
+# archive (changes/archive/ is tracked since ADR-0041 so decision memory
+# travels with every clone and branch); keep the personal per-change session
+# journals (progress*.md, at any depth — active or archived) and the
+# parallel-session ownership claims local. Pre-2026-07 archives live in
+# .plan/openspec/archive (local-only).
+openspec/changes/**/progress*.md
 openspec/changes/_claims/
 
 # .plan is scratch; track only the cross-version benchmark ledger and the

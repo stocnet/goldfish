@@ -18,13 +18,16 @@ fold into `openspec/specs/**` and the change moves to
 `changes/archive/<date>-<name>/`.
 
 **What is version-controlled (collaboration policy):** the living spec
-(`openspec/specs/**`), `openspec/config.yaml`, and **active** proposals
-(`openspec/changes/<name>/` incl. `proposal.md`/`design.md`/`specs/`/`tasks.md`)
+(`openspec/specs/**`), `openspec/config.yaml`, **active** proposals
+(`openspec/changes/<name>/` incl. `proposal.md`/`design.md`/`specs/`/`tasks.md`),
+and the **archive** (`changes/archive/<date>-<name>/` — archived decision memory
+travels with every clone and branch; append-only, never edited after archiving)
 are tracked so collaborators share the same standards. Kept local (gitignored):
-each change's `progress.md` (personal session journal), `changes/archive/`
-(deleted from the tree on archive — history retains it), `.claude/settings.local.json`
-(personal permissions), and `.plan/` scratch except the tracked
-`goldfish_versions.csv` ledger + its three tooling scripts. Project-specific notes:
+per-change session journals (`progress*.md`, active or archived — the archive
+tracker's `.plan/` snapshot preserves them), pre-2026-07 archives (moved to the
+local `.plan/openspec/archive/`), `.claude/settings.local.json` (personal
+permissions), and `.plan/` scratch except the tracked `goldfish_versions.csv`
+ledger + its three tooling scripts. Project-specific notes:
 
 - **Archive tracking (run FIRST during `/opsx:archive`)**: before the sync/move
   steps, while the change dir still exists, run
