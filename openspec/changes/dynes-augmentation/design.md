@@ -72,7 +72,11 @@ process simulation, specification validation, and the recovery study.
   latent and imputing them through the augmentation machinery — a genuinely new
   estimand the DyNES core makes reachable, recorded as a future extension
   (completely different estimation), not attempted here.
-- Missing-data / partially observed waves beyond complete snapshots.
+- Missing-data / partially observed waves beyond complete snapshots — a recorded
+  **future goal**, not a v1 capability. v1 validates snapshot completeness and **aborts
+  loudly** on `NA` tie values rather than silently coercing them to tie-absence (which
+  would manufacture spurious flips); handling item nonresponse / structural missingness
+  in a wave is the deferred work.
 
 ## Decisions
 
@@ -233,7 +237,7 @@ by `test-walk_handle.R`). That pin is a **reused correctness contract**, not mer
 regression guard: the augmenter's proposal density `q` (R mirror) and the evaluator's
 target density `f` (C++ kernel) must agree fid-for-fid or the D14 importance weights are
 silently wrong, and that agreement is exactly what the pin already guarantees. DyNES's
-batch-vs-replay test (task 3.5) extends the same pin; it does not re-establish it.
+batch-vs-replay test (task 3.6) extends the same pin; it does not re-establish it.
 
 Corollary — the evaluator's only genuinely new C++ is the **K-loop batching wrapper**
 over the pool; the per-event math is 100% reuse of code that already clears the 1e-6
@@ -909,8 +913,34 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
 - **`augment_seq_random()`** — per interval of length L with n flips: draw n iid
   uniform times, then within each same-dyad ordered chain (length c_j, D8)
   reassign that chain's drawn times to its events in sorted order, then sort the
-  interval. Exactly uniform over the valid configurations, rejection-free; log
-  proposal density per interval: Σ_j log(c_j!) − n·log L.
+  interval. This respects same-dyad chain order by construction but is otherwise
+  **support-blind** — it never consults live support — so under cross-dyad support
+  coupling (the same regime that strands `sim`) the sorted ordering can fire a flip
+  whose support is not yet applicable (e.g. under a max-outdegree-1 constraint,
+  `create i→k` placed before `dissolve i→j`). `random` therefore carries the **same
+  reject-and-redraw** treatment as `sim`: the drawn ordering is replayed against the
+  support constraints (a legality check `sim` gets for free from its emptying risk set
+  but `random` must perform explicitly — θ-free, so computable once per interval) and
+  an illegal ordering is rejected and redrawn until legal, so the delivered draw is
+  uniform over the **legal** configurations; a restart-count ceiling aborts with the
+  coupled constraint named if a legal ordering is vanishingly likely. Log proposal
+  density per interval: Σ_j log(c_j!) − n·log L − log P(legal), where P(legal) is the
+  legal-ordering fraction (estimated by the redraw acceptance rate, ≡ 1 on any
+  coupling-free spec).
+
+  **Why the normalizer cancels — random's redraw is pool hygiene, not weight
+  correction.** Unlike `sim`'s θ-dependent, per-draw `P̂(complete)`, random's `q_raw =
+  Σ_j log(c_j!) − n·log L` is **identical for every draw** (a uniform proposal assigns
+  equal density to every configuration) and `P(legal)` is a **θ-free per-interval
+  structural constant**, so `q = q_raw − log P(legal)` is a pool-global constant that
+  **cancels** in the normalized importance weights (w_i = f_i / Σ_k f_k — D13's
+  "target / uniform density" with the uniform density made explicit). Consequences:
+  (a) random incurs **no plug-in-normalizer bias**, so the one-per-run coupling warning
+  `sim` emits (D20 "Known bias") does **not** fire for random; (b) the operative reason
+  to reject is therefore not the weight but that an illegal draw has `f = 0` (or may
+  **error** rather than cleanly return −Inf — the rejected alternative below), making it
+  dead weight that shrinks the effective pool below K — so excluding it honors the
+  "never build/evaluate an invalid sequence" principle, it is not a weight fix.
 - **`augment_seq_sim()`** — constrained sequential simulation. At each step the
   sender–flavor risk set is: the observed PE pairs with remaining
   **support-applicable** events (the support constraints supply the
@@ -934,26 +964,45 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   in the same interval, where a locally-legal greedy step can dissolve the enabling state
   before the dependent flip is placed and never reopen it before the wave end. v1 does not
   prove this away: it **rejects the partial draw and restarts** the whole interval's `sim`
-  when the risk set empties before all flips are placed, so the delivered draw is from the
-  **success-conditioned** distribution. Consequently the recorded proposal density `q` is
-  the **restart-normalized** density (the accumulated per-step density divided by the draw's
-  success probability, i.e. conditioned on completion) — the importance weight `f/q` must
-  use that success-conditioned `q`, or it is biased. A restart-count ceiling guards against a
-  spec whose coupling makes completion vanishingly likely; exhausting it aborts with a
-  diagnostic naming the coupled support constraint rather than looping. `random` and `mcmc`
-  are unaffected (they never draw forward-greedily under live support): `random` places the
-  fixed flip set directly, and `mcmc` proposes only order/time moves on an
-  already-endpoint-hitting sequence.
+  when the risk set empties before all flips are placed, drawing until the interval
+  completes, so the delivered draw is from the **success-conditioned** distribution
+  `q_success(Ω) = q_raw(Ω) / P(complete)`. Consequently the recorded proposal density `q`
+  is the **restart-normalized** density — the accumulated per-step density `q_raw` divided
+  by the draw's completion probability `P(complete)` — and the importance weight `f/q` must
+  use it, or it is biased. Fixing the number of *completed* draws this way keeps the pool
+  size fixed at K (no random live-count bookkeeping), which is why v1 conditions on success
+  rather than counting attempts. `random` and `mcmc` are **also exposed** to this coupling
+  — both are **support-blind** (neither consults live support the way `sim` does), so the
+  real axis is support-blind-vs-live-support, not greedy-vs-not — and each needs its own
+  legality check, resolved differently: `random` reject-and-redraws with a θ-free
+  normalizer that cancels (see its bullet), while `mcmc` needs **no** redraw normalizer —
+  an illegal cross-dyad proposal is rejected natively by the MH ratio
+  (`f(Ω′) = 0 ⇒ α = 0`), i.e. just another (rejected) step on the chain (see the permute
+  bullet). Both must still *detect* the illegality via a support lookup, contra the
+  earlier "unaffected" claim.
 
-  **Known bias (v1 correctness hazard → v2 removal).** The restart makes `q` a
-  *success-conditioned* density, so the recorded proposal density MUST be **restart-
-  normalized** (accumulated per-step density ÷ completion probability). If an implementation
-  records the raw accumulated density instead, `f/q` is **biased** — and biased precisely in
-  the cross-dyad-coupled cases the restart exists to handle, where it is least visible
-  (weights still normalize; they are just wrong). v1 carries this as a guarded sharp edge
-  (the restart-normalization is a hard requirement, tested on a coupled fixture); it is not
-  fully *removed* until v2's cycle-aware risk sets eliminate the restart regime altogether
-  (below), at which point there is no success-conditioning left to get wrong.
+  **Where `P(complete)` comes from — the restart acceptance rate.** `P(complete)` has no
+  closed form on a coupled spec, but it does not need one: the restart loop *is* its
+  estimator. For each interval draw at `θ_ref`, `P̂(complete) = successes / attempts` (the
+  fraction of forward draws that completed) is a free Monte-Carlo estimate, recorded with
+  the sequence's reference record (D14) so the same `θ_ref`-specific normalizer travels with
+  the sequence across cross-iteration reweighting. On a coupling-free spec no draw ever
+  strands, `P̂(complete) ≡ 1`, and `q = q_raw` exactly — the plug-in normalizer departs from
+  1 only in the coupled regime. A restart-count ceiling guards against a spec whose coupling
+  makes completion vanishingly likely; exhausting it aborts with a diagnostic naming the
+  coupled support constraint rather than looping.
+
+  **Known bias (v1 sharp edge → v2 removal).** `P̂(complete)` is a plug-in (ratio-estimator)
+  normalizer, so on a coupled spec `f/q` carries a small, bounded bias — least visible
+  exactly where it acts (weights still normalize; they are just slightly off). v1 carries
+  this as a guarded sharp edge: the restart-normalization is a hard requirement (tested on a
+  coupled fixture), and the **first** time any interval draw restarts in an estimation run
+  the loop emits **exactly one** `cli` warning for the whole run — deduplicated, never per
+  iteration or per draw — that cross-dyad coupling triggered success-conditioned proposals
+  whose importance weights may carry a plug-in-normalizer bias, naming the coupled
+  constraint. It is not fully *removed* until v2's cycle-aware risk sets eliminate the
+  restart regime altogether (below), at which point there is no success-conditioning left to
+  get wrong.
 
   **V2 note — cycle-structured latent processes (future development).** Reject-and-restart
   is the minimal-assumption v1 mechanism; it degrades badly when completion is rare because
@@ -983,9 +1032,10 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   with a deterministic fallback when a type has no valid move, so the type choice
   cancels in the acceptance ratio):
   - **permute** — pick a same-wave PE pair (ω_h, ω_k), h < k, uniformly among the
-    pairs whose swap respects same-dyad chain order (violating swaps are excluded
-    **before** proposing — an invalid sequence is never built, never evaluated);
-    swap their slots and redraw both times.
+    pairs whose swap respects same-dyad chain order (same-dyad-violating swaps are
+    excluded **before** proposing — such an invalid sequence is never built, never
+    evaluated; *cross-dyad* support illegality is handled by rejection instead, see the
+    legality note below); swap their slots and redraw both times.
   - **shift** — pick one PE uniformly and redraw its time inside its slot window:
     relative order among PE is preserved; only the position relative to REs can
     change. Fixes the mixing hole of single-PE intervals (which have no pairs).
@@ -1014,6 +1064,24 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   frozen rate **under Ω′**, emitted as a byproduct of the same pass that computes
   f(Ω′): the engine's `what` surface (D3) gains a named-pair rate-at-position
   query.
+
+  **Cross-dyad support legality — check without a redraw normalizer.** Two illegality
+  sources are handled differently. *Same-dyad chain-order* violations are excluded
+  **before** proposing (permute bullet): the check is local (the two events' dyad +
+  flavor order, no state replay) and the exclusion is move-invariant, so it cancels in
+  α. *Cross-dyad support* violations — the coupling regime that strands `sim` and forces
+  `random` to redraw — are **not** excluded from the proposal set: doing so would make
+  the valid-pair set state-dependent and break the pick-probability cancellation α relies
+  on. Instead the move is proposed freely and, when a cheap support lookup finds the swap
+  fires a flip without applicable support, it is treated as `f(Ω′) = 0 ⇒ α = 0` and
+  rejected — **just another (rejected) step on the chain**, counted in the sweep like any
+  rejection. This needs **no** reject-and-redraw normalizer (unlike `random`): the target
+  genuinely has zero mass on support-illegal sequences, so `f(Ω′) = 0` is the correct
+  target, not a proposal correction, and q_fwd/q_rev are untouched. The lookup earns its
+  keep by (a) skipping the full preprocess of a doomed proposal and (b) dodging the walk's
+  not-guaranteed-−Inf-on-illegal-transitions hazard (rejected alternative below). Heavy
+  coupling that makes most permutes illegal is a **mixing** cost (low acceptance), not a
+  correctness one — a future move-set refinement, not v1.
 
   **Evaluator injection** (the likelihood inside the chain): each EM iteration the
   ABEM loop builds `make_proposal_evaluator(spec, theta_k)` —
@@ -1253,7 +1321,7 @@ stats" is silent corruption, not a missed optimization.
 **Carve-out seam (who owns what).** This change owns the statistics-emitting primitive
 (`compute_lik_seq()` / `evaluate_sequence_pool()`, task 4), the pool-entry record
 construction (tasks 4.2/4.3 — where the optional attachment would be adopted), and the
-chain-loop invariant inside `augment_seq_mcmc()` (task 3.4). `abmcem` owns
+chain-loop invariant inside `augment_seq_mcmc()` (task 3.5). `abmcem` owns
 `make_proposal_evaluator()` — the θ_k-closed closure whose return would widen to surface
 the stats handle — and its injection into the augmenter's `init()`. So A1/A2/A3 straddle
 the seam at exactly one point (the closure's return contract); everything else is this
@@ -1278,7 +1346,12 @@ the abmcem-side widening is the only remaining work when A3 lands.
   dimensions) → the recovery study (task 6.2) adds a flips-per-interval stress sweep
   (~2 → 5 → 15 → 40) to locate the ESS cliff empirically, and the vignette (task 6.3)
   states the resulting operating envelope so sparse-wave / many-change regimes are a
-  documented limit rather than a silent one.
+  documented limit rather than a silent one. At **runtime**, when effective sample size
+  collapses under an importance-weighted augmenter (`random`/`sim`), the loop emits an
+  actionable `cli` recommendation to switch to `augment_seq_mcmc()` rather than only
+  surfacing silently-wide MC error — the **message surface owned by `abmcem`** (the EM
+  loop/diagnostics), the **collapse threshold owned by this change** (the 6.2/6.3
+  degeneracy study that measures where ESS cliffs), so the two cannot drift.
 - **MCMC mixing / augmenter validity bugs produce silently wrong estimates** → the
   toy end-to-end prototype (small n, 2 waves, random augmenter, existing likelihood)
   is kept as a test fixture with known-parameter recovery bounds; endpoint-hitting is
@@ -1399,6 +1472,19 @@ package.
   - `initialize = "sim"` (a nearer-target constrained draw, D16) as the sanctioned
     mitigation **for MCMC**, scoped honestly: `initialize` is the MCMC chain start and
     has no effect on a standalone `random` run, whose sanctioned cold start is θ₀ = 0.
+- **[resolved — runtime ESS collapse, distinct from cold start]** Separate from the
+  cold-start corner above (bad θ₀), effective sample size also collapses **mid-run** as
+  flips-per-interval grows — the sequence-space dimension is ~#flips and IS-weight variance
+  grows roughly exponentially in it, so at high dimension the `random`/`sim` importance
+  weights degenerate no matter the θ. The guard *detects* this but cannot *recover* it by
+  resampling. Resolution: **diagnose-and-guide**, emitting an actionable `cli`
+  recommendation to switch to `augment_seq_mcmc()` (which does not pay the IS-dimension
+  tax). **Ownership split so the two changes cannot drift:** `abmcem` owns the **message
+  surface** (it holds the EM loop and per-iteration ESS diagnostics where the recommendation
+  fires); this change owns the **collapse threshold** — the numeric ESS floor that means
+  "switch now" is set by the 6.2/6.3 degeneracy study (the flips-per-interval stress sweep
+  that measures the cliff), not guessed at the abmcem desk. Recorded here, mirrored into
+  abmcem's D14.
 - **[resolved]** Tied observed event times during augmentation. The only tie an
   augmented sequence can carry is **observed-RE ↔ observed-RE**: sampled PE times lie in
   *open* intervals strictly between anchors (D20 numeric guard), so a PE can never tie an

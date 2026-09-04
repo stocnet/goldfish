@@ -96,11 +96,27 @@
       under `ess_threshold` × K); it names the proposal/target mismatch and the
       mitigations and never redraws or grows the pool; quiet on the default
       θ₀ = 0 path
+- [ ] 2.2b Runtime ESS-collapse recommendation + restart-warning dedup (design
+      D5, dynes-augmentation D14/#5 and D20): (a) when mid-run ESS collapses under
+      an importance-weighted augmenter (`routine = "random"`/`"sim"`) the loop
+      emits an actionable cli recommendation to switch to `augment_seq_mcmc()` —
+      **this change owns the message surface; the numeric ESS floor comes from
+      `dynes-augmentation`'s 6.2/6.3 study** (do not hard-code a guess) — distinct
+      from the redraw guard and the cold-start diagnostic; the recommendation only
+      informs, never switches augmenters; (b) the loop owns the **run-level dedup
+      state** for the `sim` reject-and-restart coupling warning, so **exactly one**
+      warning fires per estimation run (first restart at any iteration/draw),
+      never per iteration or per draw
 - [ ] 2.3 Tests: hand-computed weight/ESS fixtures, reweighting-ratio
       fixtures, scheme-dispatch equivalences against closed forms from an
       analytic stub evaluator (design D11), guard-warning snapshots, cold-start
       diagnostic snapshot (fires below the pathology floor, distinct from the
-      guard warning, silent at θ₀ = 0), **negative-variance ASE floor** (a
+      guard warning, silent at θ₀ = 0),
+      **runtime ESS-collapse recommendation** snapshot (fires under a high-dimension
+      IS pool, names `augment_seq_mcmc()`, distinct from the redraw guard) and
+      **restart-warning dedup** (a run with many restarts emits exactly one coupling
+      warning; a coupling-free run emits none),
+      **negative-variance ASE floor** (a
       near-constant-Λ resampling fixture yields ASE = 0 not `NaN`, records the
       `ase_floored` flag; design D8)
 - [ ] 2.4 Verification `NOT_CRAN=true` (PASS not SKIP); commit. **No

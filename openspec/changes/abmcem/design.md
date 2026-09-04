@@ -317,7 +317,12 @@ default θ₀ = 0, where the proposal is near the model.
 ### D5 — Weight state: reference records, refresh, ESS guard (from dynes-augmentation D14)
 
 Every pooled sequence permanently stores (θ_ref, log-likelihood at θ_ref, log
-proposal density); for MCMC draws the last two coincide. Weights stay on the
+proposal density); for MCMC draws the last two coincide. The stored log proposal
+density is taken **as reported by the augmenter**: for `sim` draws it is already the
+**restart-normalized** (success-conditioned) density — divided by the completion
+probability the augmenter estimates as its restart acceptance rate
+(`dynes-augmentation` D20) — so the weight machinery consumes it verbatim, never
+re-normalizing (a coupling-free draw reports normalizer 1 and is unaffected). Weights stay on the
 log scale; cross-iteration reweighting is the likelihood ratio against each
 sequence's own θ_ref — the Monte-Carlo-EM sample-reuse importance-weight update
 of Casella & Levine (2001), added to `inst/REFERENCES.bib` and cited from the
@@ -359,6 +364,27 @@ runtime. Two staleness defenses, one code path:
   restarts the grow schedule, and it consumes a fresh `draw_index` range (D10).
   Warn when the guard fires (new draws generated) and when it is disabled but the
   condition is met; never at startup.
+
+**Runtime ESS-collapse recommendation (dynes-augmentation D14/#5 resolution).**
+Distinct from the redraw guard above (which regenerates the pool) and from the
+startup cold-start diagnostic (below, a bad-θ₀ corner): when ESS collapses
+**mid-run** under an importance-weighted augmenter (`routine = "random"`/`"sim"`)
+because flips-per-interval is high — the IS-weight variance grows ~exponentially in
+the sequence-space dimension, so no redraw at any θ recovers it — the loop emits an
+actionable `cli` recommendation to **switch to `augment_seq_mcmc()`** (which does not
+pay the IS-dimension tax). **This change owns the message surface** (the recommendation
+fires here, in the per-iteration ESS diagnostics); **`dynes-augmentation` owns the
+numeric collapse threshold** — the ESS floor that means "switch now" comes from its
+6.2/6.3 degeneracy study (the flips-per-interval cliff), not guessed here — so the two
+cannot drift. The recommendation only informs; it does not itself switch augmenters.
+
+**Restart-coupling warning is deduplicated by the loop (dynes-augmentation D20).** The
+`sim` augmenter's reject-and-restart fires inside augmenter draws this loop drives; the
+augmenter reports that a restart occurred, but the **loop owns the run-level dedup
+state** so that **exactly one** warning is emitted per estimation run (the first time
+any interval restarts, at any iteration or draw), naming the coupled constraint and its
+plug-in-normalizer bias — never one warning per iteration or per draw. A coupling-free
+run (no restart ever fires) emits none.
 
 **Cold-start diagnostic (dynes-augmentation D14 resolution).** The "never at
 startup" rule silences the recurring guard warning at iteration 1, where a redraw is

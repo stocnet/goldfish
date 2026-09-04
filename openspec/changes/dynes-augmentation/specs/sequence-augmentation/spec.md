@@ -9,7 +9,10 @@ transition/support specification: each observed value change maps through the
 flavor is never latent); a change larger than one allowed step SHALL decompose into
 a per-dyad ordered chain of events; net-zero changes SHALL produce no events. All
 panel-semantics layers SHALL share one wave grid, the node set SHALL be constant
-over the period, and an observed relational event falling exactly on a wave time
+over the period, each wave snapshot SHALL be complete (no `NA` tie values — an
+incomplete snapshot SHALL abort before diffing rather than be coerced to
+tie-absence; missing-data waves are a recorded future goal), and an observed
+relational event falling exactly on a wave time
 SHALL belong to the earlier interval (preceding the snapshot). The diffing function
 SHALL be usable standalone on a validated data object. The diff output SHALL be
 compiled once, at estimation entry, into a shared `augmentation_recipe` — a θ-free,
@@ -30,6 +33,11 @@ same-dyad chain order respected.
 - **WHEN** wave t has ties {(1,2)} and wave t+1 has ties {(1,2 absent), (3,4)}
 - **THEN** the candidate set for the interval is one dissolution (1,2) and one creation
   (3,4).
+
+#### Scenario: incomplete wave aborts before diffing
+- **WHEN** a panel-semantics layer's snapshot at a wave carries `NA` tie values
+- **THEN** wave diffing aborts with an informative error requiring complete snapshots,
+  rather than treating the missing entries as tie-absence and emitting spurious flips.
 
 #### Scenario: multi-step change decomposes into an ordered chain
 - **WHEN** a dyad's value changes 0→2 between waves under ±1-step transitions
@@ -60,7 +68,18 @@ injective flavor map, risk-set universe, and pair/constraint graph — θ-free, 
 once), and observed event streams, returning one or more endpoint-hitting sequences
 together with the log proposal density of their full generative path — and SHALL
 provide three constructors: `augment_seq_random()`
-(iid-uniform times per interval, same-dyad chains ordered by within-chain sorting),
+(iid-uniform times per interval, same-dyad chains ordered by within-chain sorting; being
+otherwise **support-blind**, under cross-dyad support coupling — the same regime that
+strands `sim` — the sorted ordering can fire a flip without applicable support, so the
+draw SHALL be checked for support-legality and an illegal ordering **rejected and
+redrawn** until legal, the recorded proposal density carrying the `− log P(legal)`
+normalizer, with P(legal) the θ-free legal-ordering fraction estimated by the redraw
+acceptance rate and ≡ 1 on any coupling-free spec; because this normalizer is a
+θ-free pool-wide constant it cancels in the normalized importance weights, so unlike
+`sim` the redraw introduces **no** plug-in-normalizer bias and SHALL NOT emit the
+coupling bias warning — its purpose is to keep `f = 0` / walk-erroring draws out of the
+pool; a restart-count ceiling SHALL abort naming the coupled constraint when a legal
+ordering is vanishingly likely),
 `augment_seq_sim()` (constrained sequential simulation from the model at `theta` as an
 external driver of the `multi-process-walk` handle — reusing the `process-simulation`
 per-step drawing core under wave-endpoint conditioning: sender–flavor risk sets
@@ -70,15 +89,27 @@ waiting times from truncated exponentials at the selected pair's rate, bounded b
 next anchor — min(next relational event, wave end); if the risk set empties with flips
 still unplaced — possible only under cross-dyad support coupling, where a greedy step
 disables another latent flip's support before it is placed — the interval draw SHALL
-**reject-and-restart**, so the delivered sequence is success-conditioned and its recorded
-proposal density is **restart-normalized** (the accumulated per-step density divided by the
-draw's completion probability); a restart-count ceiling SHALL abort with a diagnostic
-naming the coupling rather than loop when completion is vanishingly likely), and
+**reject-and-restart**, drawing until the interval completes, so the delivered sequence is
+success-conditioned and its recorded proposal density is **restart-normalized** (the
+accumulated per-step density divided by the draw's completion probability, which SHALL be
+estimated by the restart acceptance rate — completed draws ÷ attempted draws — recorded per
+draw with its reference parameters, and which is exactly 1 on any coupling-free spec where
+no draw ever strands); the loop SHALL emit **exactly one** deduplicated warning per
+estimation run — never per iteration or per draw — the first time any interval restarts,
+noting the resulting importance weights may carry a plug-in-normalizer bias and naming the
+coupled constraint; a restart-count ceiling SHALL abort with a diagnostic naming the
+coupling rather than loop when completion is vanishingly likely), and
 `augment_seq_mcmc()` (one serial global
 chain over the whole sequence; within-wave permute and shift moves mixed by the
 user-facing `move_probs`; rate-based truncated-exponential time proposals frozen at
 the state after the preceding panel event; burn-in and thinning counted in sweeps;
-moves violating same-dyad chain order excluded before proposal). The MCMC augmenter
+moves violating same-dyad chain order excluded before proposal, while *cross-dyad*
+support-illegal proposals SHALL NOT be excluded from the proposal set — doing so would
+make the valid-move set state-dependent and break the pick-probability cancellation the
+acceptance ratio relies on — but SHALL instead be detected by a support lookup and
+rejected via the MH ratio as `f(Ω′) = 0 ⇒ α = 0`, a normal (rejected) step on the chain
+requiring **no** redraw normalizer, the lookup sparing the doomed proposal's preprocess
+and the walk's not-guaranteed-−Inf-on-illegal-transition hazard). The MCMC augmenter
 SHALL receive an injected proposal-evaluator closure providing each candidate's
 log-likelihood and the named-pair rates its reverse densities need; it SHALL NOT
 call the pool evaluator directly. Augmenters SHALL NOT compute importance weights;
@@ -101,6 +132,17 @@ regardless of which order the input carries.
 - **THEN** each is endpoint-hitting with times inside the interval, chain order
   respected, and orderings vary across draws.
 
+#### Scenario: random augmenter redraws a support-illegal ordering
+- **WHEN** `augment_seq_random()` draws an ordering that, under cross-dyad support
+  coupling, fires a flip whose support is not yet applicable
+- **THEN** the ordering is rejected and redrawn until legal (so every delivered draw is
+  support-legal and no `f = 0` / walk-erroring sequence enters the pool), the recorded
+  proposal density carries the `− log P(legal)` normalizer with P(legal) the θ-free
+  legal-ordering fraction estimated by the redraw acceptance rate, and — because that
+  normalizer is a θ-free pool-wide constant that cancels in the normalized weights — the
+  coupling bias warning is NOT emitted for `random`; a coupling-free spec redraws never
+  (P(legal) ≡ 1) and exceeding the restart ceiling aborts naming the coupled constraint.
+
 #### Scenario: simulation augmenter drives the walk handle
 - **WHEN** `augment_seq_sim()` draws a sequence at parameters `theta`
 - **THEN** each next event is drawn from the model's rates/choices obtained by
@@ -111,16 +153,34 @@ regardless of which order the input carries.
 #### Scenario: simulation augmenter restarts a stranded draw
 - **WHEN** `augment_seq_sim()`'s greedy forward draw empties the risk set with flips still
   unplaced (cross-dyad support coupling)
-- **THEN** the interval draw is rejected and restarted, the delivered sequence is
-  endpoint-hitting, and its recorded proposal density is restart-normalized (divided by the
-  completion probability) so the importance weight uses the success-conditioned proposal;
-  exceeding the restart ceiling aborts with a diagnostic naming the coupling.
+- **THEN** the interval draw is rejected and restarted until it completes, the delivered
+  sequence is endpoint-hitting, and its recorded proposal density is restart-normalized —
+  divided by the completion probability estimated as the restart acceptance rate (completed
+  ÷ attempted draws) recorded with its reference parameters — so the importance weight uses
+  the success-conditioned proposal; exceeding the restart ceiling aborts with a diagnostic
+  naming the coupling.
+
+#### Scenario: coupling emits exactly one warning per run
+- **WHEN** an estimation run performs any restart in any interval at any iteration
+- **THEN** exactly one deduplicated warning is emitted for the whole run, the first time a
+  restart occurs, noting the plug-in-normalizer bias the success-conditioned proposal may
+  carry and naming the coupled constraint — never one warning per iteration or per draw; a
+  coupling-free run (no restart ever fires) emits no such warning.
 
 #### Scenario: mutation preserves validity
 - **WHEN** `augment_seq_mcmc()` proposes a move on a valid sequence
 - **THEN** the proposed sequence is endpoint-hitting (moves stay within one wave and
   respect chain order) and the forward/reverse truncated-exponential time densities
   are reported for the acceptance computation.
+
+#### Scenario: mcmc rejects a cross-dyad support-illegal proposal
+- **WHEN** `augment_seq_mcmc()` proposes a permute whose swap fires a flip without
+  applicable support (cross-dyad support coupling)
+- **THEN** the proposal is not excluded from the proposal set (so the pick-probability
+  cancellation is preserved) but is detected by a support lookup and rejected via the MH
+  ratio as `f(Ω′) = 0 ⇒ α = 0` — the chain stays at the current state, counted as an
+  ordinary rejected step in the sweep, with no redraw normalizer applied and the doomed
+  proposal's preprocess spared.
 
 #### Scenario: single-event intervals still mix
 - **WHEN** a between-wave interval contains exactly one panel event

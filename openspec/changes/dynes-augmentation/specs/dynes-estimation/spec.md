@@ -96,7 +96,11 @@ include a **flips-per-interval stress sweep** (e.g. ~2 → 5 → 15 → 40 chang
 between-wave interval) that locates the effective-sample-size cliff where importance-
 weighted augmentation degenerates, so the vignette can state an honest operating envelope
 (how sparse a wave / how many changes per interval is where DyNES stops being trustworthy)
-rather than leaving users to discover it as silently wide MC error.
+rather than leaving users to discover it as silently wide MC error. The located cliff
+SHALL also define the **numeric ESS-collapse threshold** consumed by the runtime
+recommendation to switch to `augment_seq_mcmc()` — this change owns that threshold; the
+`abmcem` change owns the message surface that emits it — so the runtime guidance and the
+documented envelope agree by construction rather than being independently guessed.
 
 #### Scenario: known parameters recovered
 - **WHEN** the seeded recovery test runs on a small simulated two-wave panel
@@ -107,4 +111,5 @@ rather than leaving users to discover it as silently wide MC error.
 - **WHEN** the full study sweeps flips-per-interval upward at a fixed pool size
 - **THEN** it records where effective sample size collapses (weights degenerate faster
   than pool growth recovers), and that boundary is reported as the vignette's operating
-  envelope.
+  envelope and supplies the numeric ESS-collapse threshold the runtime
+  switch-to-`augment_seq_mcmc()` recommendation fires at.

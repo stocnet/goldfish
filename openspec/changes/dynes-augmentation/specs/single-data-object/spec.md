@@ -39,7 +39,13 @@ Wave updates SHALL emit right-censored statistic updates like other exogenous ev
 When a panel layer is a **modeled process** of a multivariate specification under
 `estimate_dynes()`, its rows are interpreted as **state snapshots** to be augmented
 (consecutive waves diffed into candidate flip events per the `sequence-augmentation`
-capability) rather than change-list updates. A panel layer referenced only as an
+capability) rather than change-list updates. Each such snapshot SHALL be **complete** —
+every dyad in the (fixed) node set carries an observed value at every wave; a wave carrying
+`NA` (unobserved or structurally missing) tie values SHALL abort with an informative error
+before augmentation, because v1 cannot diff a partially observed wave into an unambiguous
+flip set and MUST NOT silently coerce missing entries to tie-absence (which would
+manufacture spurious flips). Missing-data / partially observed waves are a recorded future
+goal, not a v1 capability. A panel layer referenced only as an
 **exogenous covariate** SHALL remain a **static step-covariate** — its state jumps only
 at wave times, it is not latent, and no random sampling of its between-wave path is
 done (there is no per-layer static-vs-random choice). A panel layer referenced nowhere
@@ -61,6 +67,13 @@ beyond the focal-layer rule.
   `estimate_dynes()`
 - **THEN** its rows are read as complete state snapshots at wave times, diffable into
   candidate flip events, not incremental change-list updates.
+
+#### Scenario: Incomplete wave snapshot rejected
+- **WHEN** a modeled panel layer under `estimate_dynes()` carries `NA` tie values at one
+  or more waves (item nonresponse or structural missingness)
+- **THEN** validation aborts with an informative error that v1 requires complete wave
+  snapshots, rather than coercing the missing entries to tie-absence and manufacturing
+  spurious creation/dissolution flips.
 
 #### Scenario: Exogenous-only panel reference stays static
 - **WHEN** a panel layer is referenced only as an exogenous covariate under

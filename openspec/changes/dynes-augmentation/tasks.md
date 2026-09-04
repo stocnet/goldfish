@@ -7,7 +7,7 @@
 > wave grid (task 6.1). **Landing order:** `abmcem` lands first against its
 > **prototype-path (zero-iteration) evaluator** — that adapter is the integration seam;
 > this change then retires the adapter and swaps in the real augmenters + batched
-> evaluator. `process-simulation` must land before task 3.3 (`augment_seq_sim()`).
+> evaluator. `process-simulation` must land before task 3.4 (`augment_seq_sim()`).
 > Keep this order in sync with the mirror note in `abmcem/tasks.md`.
 >
 > **Export handoff (cross-change, `abmcem` D2/Q1).** `abmcem` implements and tests
@@ -94,7 +94,9 @@
       dependent process
 - [ ] 2.2 Wave diffing into candidate flip sets per between-wave interval
       (standalone-usable on a validated data object) plus the endpoint-hitting
-      sequence validator
+      sequence validator; reject **incomplete** snapshots (`NA` tie values) with an
+      informative abort before diffing rather than coercing them to tie-absence
+      (missing-data waves are a recorded future goal, not a v1 capability)
 - [ ] 2.3 Compile the diff output once at estimation entry into the shared
       `augmentation_recipe` (θ-free, sequence-free: flip sets, per-dyad chains,
       injective flavor map validated exactly once here, risk-set **membership**
@@ -103,6 +105,7 @@
       the mutable per-draw cursor interface the three augmenters hold over it
       (static-plan / mutable-state split, full contract in design D22)
 - [ ] 2.4 Tests (testthat 3e: diff fixtures, flag validation, focal-rule scoping,
+      incomplete-snapshot (`NA`) abort,
       `augmentation_recipe` compiled-once + injective-map-validated-once assertions,
       cli message snapshots); `devtools::document()`
 - [ ] 2.5 Verification: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
@@ -120,9 +123,31 @@
       per-draw cursor; no per-event hook is added to the recipe loop and
       `preprocess-output-writers` is not modified by this change — baselines gate the
       commit
-- [ ] 3.2 `augment_seq_random()` (iid-uniform times with within-chain sorting over
-      the flip set, closed-form proposal density reported, design D20)
-- [ ] 3.3 `augment_seq_sim()`: constrained sequential model-driven draw at `theta`
+- [ ] 3.2 Shared restart-ceiling helper: the reject-and-restart / reject-and-redraw
+      driver both `augment_seq_sim()` (task 3.4) and `augment_seq_random()` (task 3.3)
+      consume — a bounded loop that redraws an interval until it succeeds (sim: the greedy
+      draw completes; random: the ordering is support-legal), estimates the per-`θ_ref`
+      success probability as the acceptance rate (successes ÷ attempts) for the caller's
+      proposal-density normalizer, and **aborts with a `cli` diagnostic naming the coupled
+      support constraint** when a restart-count ceiling is exhausted (completion vanishingly
+      likely). This helper is the single home for the ceiling constant, the acceptance-rate
+      estimator, and the abort message. The one-per-run deduplicated coupling **bias
+      warning** is NOT the helper's — it is `sim`-only (task 3.4), because `random`'s
+      normalizer cancels — so it lives with the caller, not here.
+- [ ] 3.3 `augment_seq_random()` (iid-uniform times with within-chain sorting over
+      the flip set, closed-form proposal density reported, design D20).
+      **Support-legality reject-and-redraw (design D20):** `random` is support-blind, so
+      under cross-dyad support coupling the sorted ordering can fire a flip without
+      applicable support — replay the drawn ordering against the support constraints and
+      **reject-and-redraw** until legal (a coupling-free spec never redraws) via the shared
+      restart-ceiling helper (task 3.2). Record the proposal density as
+      `Σ_j log(c_j!) − n·log L − log P(legal)` with `P(legal)` the θ-free legal-ordering
+      fraction estimated by the helper's redraw acceptance rate. Because that normalizer is a
+      θ-free pool-wide **constant that cancels** in the normalized weights, `random` incurs
+      **no** plug-in-normalizer bias and MUST NOT emit the coupling bias warning (contrast
+      `sim`, task 3.4); the redraw's purpose is pool hygiene — keeping `f = 0` /
+      walk-erroring draws out of the pool.
+- [ ] 3.4 `augment_seq_sim()`: constrained sequential model-driven draw at `theta`
       driving the walk handle and reusing the `process-simulation` per-step drawing
       core under wave-endpoint conditioning (R-side risk-set restriction over
       support-applicable remaining events plus the globally next relational event;
@@ -133,13 +158,20 @@
       trailing censored interval `[t_last, t_{m+1}]` in the proposal density.
       **Completion / reject-and-restart (design D20):** the greedy forward draw can strand
       under cross-dyad support coupling (a step disables another latent flip's support); v1
-      **rejects and restarts** the interval draw when the risk set empties with flips
-      unplaced, so the delivered sequence is success-conditioned and the recorded `q` is
-      restart-normalized (divided by the completion probability) — the importance weight must
-      use that success-conditioned `q`. A restart-count ceiling aborts with a diagnostic
-      naming the coupling. Cycle-structured latent processes (join → produce → close) are a
-      v2 direction needing differently-determined risk sets, out of v1 scope.
-- [ ] 3.4 `augment_seq_mcmc()`: permute + shift move set with rate-based
+      **rejects and restarts** the interval draw until it completes when the risk set empties
+      with flips unplaced, so the delivered sequence is success-conditioned and the recorded
+      `q` is restart-normalized — divided by the completion probability, **estimated as the
+      restart acceptance rate** (completed ÷ attempted draws, recorded per draw with its
+      reference parameters; exactly 1 on any coupling-free spec) — and the importance weight
+      must use that success-conditioned `q`. The restart loop, its acceptance-rate estimator,
+      and the restart-count-ceiling abort (naming the coupling) are the shared helper's
+      (task 3.2); `sim` additionally emits **exactly one** deduplicated `cli` warning per
+      estimation run (never per iteration/draw) the first time any interval restarts, flagging
+      the plug-in-normalizer bias and naming the coupled constraint — this bias warning is
+      `sim`-only (it does not fire for `random`, whose normalizer cancels). Cycle-structured
+      latent processes (join → produce → close) are a v2 direction needing
+      differently-determined risk sets, out of v1 scope.
+- [ ] 3.5 `augment_seq_mcmc()`: permute + shift move set with rate-based
       truncated-exponential time redraws, unified pred/succ windows, upfront
       exclusion of chain-order-violating swaps, and the injected
       proposal-evaluator closure (design D20; insert/delete excursions recorded
@@ -147,6 +179,15 @@
       and the D16 chain lifecycle: warm start into each EM iteration's new
       target, burn-in at every chain restart, same-chain continuation for
       within-iteration growth.
+      **Cross-dyad support legality — check, no redraw normalizer (design D20):** only
+      *same-dyad* chain-order violations are excluded upfront (above). *Cross-dyad*
+      support-illegal proposals MUST NOT be excluded from the proposal set — that would make
+      the valid-move set state-dependent and break the pick-probability cancellation the
+      acceptance ratio relies on — but MUST be detected by a cheap support lookup and
+      rejected via the MH ratio as `f(Ω′) = 0 ⇒ α = 0`, an ordinary rejected step in the
+      sweep needing **no** redraw normalizer (`q_fwd`/`q_rev` untouched; the target genuinely
+      has zero mass there). The lookup spares the doomed proposal's preprocess and dodges the
+      walk's not-guaranteed-−Inf-on-illegal-transition hazard.
       **Time-domain invariants (design D20):** rate-based time redraws use the walk
       handle's `Λ`; `q_fwd`/`q_rev` are products of truncated-exponential *time*
       densities; the trailing censored interval to the wave endpoint is a
@@ -157,7 +198,7 @@
       invariant is the contract the D23 reuse fast-follow (A3) depends on: retain the
       **current accepted** `(current_stats, current_loglik)`, adopted together on accept
       and held across rejects, never the last (possibly rejected) proposal's pair.
-- [ ] 3.5 Tests: endpoint-hitting asserted on every draw in tests and an opt-in debug
+- [ ] 3.6 Tests: endpoint-hitting asserted on every draw in tests and an opt-in debug
       path (trust-by-construction in production, no per-draw hot-path check),
       proposal-density correctness on hand-computed fixtures, walk-handle
       batch-vs-replay consistency; verification run `NOT_CRAN=true` (PASS not SKIP);
@@ -175,7 +216,21 @@
       with cross-dyad support coupling that forces `augment_seq_sim()` to strand-and-restart,
       assert the recorded proposal density is the **success-conditioned** (restart-
       normalized) density, not the raw accumulated one — the guard against a silent `f/q`
-      bias in exactly the coupled case.
+      bias in exactly the coupled case — that its completion-probability normalizer equals
+      the observed restart acceptance rate (completed ÷ attempted) on the fixture, that a
+      coupling-free fixture records normalizer 1 (no restart), and that a whole run emits
+      **exactly one** deduplicated coupling warning regardless of how many draws restart.
+      **Cross-dyad support-legality checks (design D20):** on a hand-built two-wave fixture
+      with a cross-dyad support coupling (e.g. a max-outdegree-1 constraint forcing
+      `dissolve` before `create`), assert (a) `augment_seq_random()` never delivers a
+      support-illegal ordering, its recorded `q` carries the `− log P(legal)` normalizer whose
+      value equals the observed redraw acceptance rate, a coupling-free fixture records
+      `P(legal) ≡ 1` (no redraw), and **no** coupling bias warning is emitted for `random`
+      (the normalizer cancels); and (b) `augment_seq_mcmc()` proposes the cross-dyad-illegal
+      permute (it is not pre-excluded, so pick-probability cancellation holds) but rejects it
+      via `f(Ω′) = 0 ⇒ α = 0` — the chain stays put, the step is counted as an ordinary
+      rejection, no redraw normalizer is applied, and the doomed proposal's preprocess is
+      skipped.
       **Injected-substream determinism (design D20, resolved RNG open question):** assert
       each augmenter draw is a pure function of its injected `L'Ecuyer-CMRG` substream
       state — the same injected state reproduces the same sequence and proposal density
@@ -183,7 +238,7 @@
       This is the augmenter-side half of the cross-`n_cores` promise; the seam-side keying
       (`(iteration, draw_index)`) and index-ordered reduction are tested in abmcem.
 
-- [ ] 3.6 Cold-start near-target property (design D14/D1 resolution, augmenter side):
+- [ ] 3.7 Cold-start near-target property (design D14/D1 resolution, augmenter side):
       roxygen caveat on `augment_seq_random()` that it is the sanctioned cold start
       **only near θ₀ = 0** (uniform draws = the near-uniform model there — uniform
       order-statistic times, uniform ordering), and away from 0 the model-driven
@@ -191,7 +246,7 @@
       θ₀ = 0 the `random` proposal's importance weights are non-degenerate
       (ESS ≈ K), and that a θ₀ far from 0 drives ESS toward 1 — the fixture the
       abmcem-side diagnostic + construction guard are tested against. `initialize =
-      "sim"` is the MCMC-routine mitigation (task 3.4), inert for a standalone
+      "sim"` is the MCMC-routine mitigation (task 3.5), inert for a standalone
       `random` run.
 
 ## 4. Batched pool evaluator
@@ -208,7 +263,7 @@
       candidate space for a *single* event, the latter replays from event 0 (O(events)
       per call, O(n²) if looped over a sequence). Reaching for either inside the
       evaluator is the anti-pattern. The per-event math is pure reuse (pinned to the R
-      mirror at 1e-10 — the reused correctness contract to *extend*, per task 3.5, not
+      mirror at 1e-10 — the reused correctness contract to *extend*, per task 3.6, not
       re-derive); the only new C++ is the K-loop batching wrapper, plus the conditional
       broadcast-decode-reduce fusion gated on B1 (task 1.1).
       **Compensator emits the censored tail (design D20):** the rate fid's
@@ -261,7 +316,7 @@
 
 - [ ] 5.1 (moved) The general `simulate()` surface is implemented by the standalone
       `process-simulation` change. This change consumes it: `augment_seq_sim()`
-      (task 3.3) reuses that change's per-step drawing core, and the recovery study
+      (task 3.4) reuses that change's per-step drawing core, and the recovery study
       (task 6.2) simulates panels through it. No simulation tasks remain here.
 
 ## 6. Validation study and documentation
@@ -292,9 +347,14 @@
       **Degeneracy envelope (spec `dynes-estimation`):** the full study sweeps
       flips-per-interval (~2 → 5 → 15 → 40) at fixed pool size to locate the ESS cliff where
       importance-weighted augmentation degenerates, and reports that boundary as the
-      vignette's operating envelope (task 6.3).
+      vignette's operating envelope (task 6.3). The located cliff also **sets the numeric
+      ESS-collapse threshold** the runtime switch-to-`augment_seq_mcmc()` recommendation
+      fires at — this change owns that threshold; `abmcem` owns the message surface that
+      emits it (design Open Questions, "runtime ESS collapse"; abmcem D14).
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, algorithm variants,
-      reading MC vs asymptotic error); dataset example; `devtools::document()`
+      reading MC vs asymptotic error; the operating envelope and the runtime
+      switch-to-`augment_seq_mcmc()` recommendation with the ESS floor it fires at);
+      dataset example; `devtools::document()`
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and
       no `/opsx:archive` on this branch** — record the DyNES milestone as a
