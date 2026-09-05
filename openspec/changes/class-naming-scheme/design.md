@@ -98,6 +98,21 @@ maximize ambiguity), bare constructor names (the bug).
 
 ### D2 — Scope is drawn by lifecycle and by mechanism, not by export status
 
+*Reaffirmed 2026-09-05 (Alvaro), after the question was reopened.* A
+UI-classes-only rule was considered — internal classes taking bare camelCase
+without the package prefix — on the grounds that autograph's dispatch, the
+driver behind ADR-0031, only ever sees the user-facing classes. It was
+rejected once the internals were measured: they are not inert markers but
+**genuine dispatch classes**, carrying 21 internal S3 methods across
+`compute_event_contribution` (9), `preprocess` (10) and `estimate_int` (2).
+None appears in NAMESPACE, because those generics are never exported, which is
+why a first pass mistook them for non-dispatching. Given they dispatch, the
+prefix is cheap insurance; a two-tier rule would also need a mechanical test
+for "user-facing" that does not exist (`algorithm.goldfish` has no registered
+method yet is returned by `set_algorithm_newton()`), and "flexible" is how a
+convention drifts back.
+
+
 The rename is full (Alvaro, 2026-08-19): internal classes move too —
 `goldfishWriterDefault`/`goldfishWriterGather`/`goldfishWriterDB`,
 `goldfishSourceEnvir`/`goldfishSourceStocnet`, `goldfishModelSpec*`,
@@ -386,13 +401,12 @@ dissolved afterward, since the descriptor change collapses variants whose
 implementations coincide. That is roughly eleven internal, unexported class
 strings — no user surface, no deprecation — paid once.
 
-If that waste is judged not worth paying, the alternative is a **scope**
-decision on this change, not a re-ordering: drop the `model_spec` hierarchy
-rows from the rename table and let `model-spec-descriptor` name those classes
-as it reshapes them. That choice can be taken at task 1.1, when the inventory
-makes the size of the overlap concrete, and it is the moment open question 2
-(the `goldfishModelSpec*` identifiers) stops mattering if the answer is to
-drop them.
+*Scope settled 2026-09-05 (Alvaro):* the rows **stay**, and the waste is
+accepted. The hierarchy is renamed here like everything else, so this change
+carries one rule with no carve-out, and the identifiers are fixed in the table
+(`goldfishModelSpecDnRate` …, `goldfishAxisSender`/`goldfishAxisDyad`). Some
+of those names will not survive `model-spec-descriptor`; that is the cost of a
+uniform rule, and it is ~11 unexported strings.
 
 ## Risks / Trade-offs
 
@@ -428,6 +442,11 @@ aliases in a later autograph release.
 - Should autograph's defunct aliases be deleted immediately after this
   folds (goldfish and autograph are co-developed here) or kept one
   autograph release for third parties?
-- `goldfishModelSpec` hierarchy: whether the subclass identifiers keep
-  their current suffix words verbatim once inventoried (task 1.1
-  decides against the actual strings).
+- ~~`goldfishModelSpec` hierarchy identifiers~~ — settled 2026-09-05.
+  Variants extend the parent (`goldfishModelSpecDnRate`, …, longest
+  `goldfishModelSpecDniChoice` at 26 characters, using D17's vocabulary);
+  the two indexing classes take their own prefix
+  (`goldfishAxisSender`, `goldfishAxisDyad`) because the axis is an
+  orthogonal fact, not a variant. `goldfishSpec*` was rejected: it sits one
+  word from `goldfishSpec`, the class `make_specification()` returns, and
+  would read as a subclass relationship that does not exist.

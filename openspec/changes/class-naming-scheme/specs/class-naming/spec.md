@@ -7,9 +7,12 @@ name plus a short camelCase identifier that compresses the object —
 `goldfish<Thing>` — following the stocnet ecosystem rule (autograph
 CONTRIBUTING; RSiena's `sienaFit`/`sienaGOF`/`sienaAlgorithm`
 precedent). This replaces both prior conventions (bare constructor
-names and the dotted `.goldfish` suffix). The rename table below is
-authoritative package-wide: where any other capability in the living
-spec still spells a class in a retired form, this table governs.
+names and the dotted `.goldfish` suffix). This rule, not the table
+below, is what conformance is measured against: the table records what
+each existing class becomes, and a class created after the table was
+written is governed by the rule whether or not it appears there. Where
+any other capability in the living spec still spells a class in a
+retired form, the table governs the spelling.
 
 | Producer | Retired class | Class |
 | --- | --- | --- |
@@ -37,7 +40,11 @@ spec still spells a class in a retired form, this table governs.
 | formula parsing | `goldfish.formulae` | `goldfishFormulae` |
 | preprocess writers (internal) | `writer_*` | `goldfishWriter*` |
 | data-source seam (internal) | `data_source_envir`, `data_source_stocnet` | `goldfishSourceEnvir`, `goldfishSourceStocnet` |
-| model-spec hierarchy (internal) | `model_spec*` | `goldfishModelSpec*` |
+| model-spec parent (internal) | `model_spec` | `goldfishModelSpec` |
+| model-spec variants (internal) | `dynam_rate_spec`, `dynam_rate_ordered_spec`, `dynam_choice_spec`, `dynam_choice_coord_spec` | `goldfishModelSpecDnRate`, `goldfishModelSpecDnCox`, `goldfishModelSpecDnChoice`, `goldfishModelSpecDnCoord` |
+| model-spec variants (internal) | `dynami_rate_spec`, `dynami_rate_ordered_spec`, `dynami_choice_spec` | `goldfishModelSpecDniRate`, `goldfishModelSpecDniCox`, `goldfishModelSpecDniChoice` |
+| model-spec variants (internal) | `rem_rate_spec`, `rem_rate_ordered_spec` | `goldfishModelSpecRemRate`, `goldfishModelSpecRemCox` |
+| risk-set axis (internal) | `sender_spec`, `dyad_spec` | `goldfishAxisSender`, `goldfishAxisDyad` |
 | support-constraint plan (internal) | `support_constraint_plan` | `goldfishSupportPlan` |
 | fixing/seeding specs (internal) | `fixed_spec`, `initial_spec` | `goldfishFixedSpec`, `goldfishInitialSpec` |
 | `make_joint_specification()` (`make-multivariate-spec`, archived) | `joint_specification.goldfish` | `goldfishJointSpec` |
@@ -95,6 +102,31 @@ returns moves.
   `diagnose_outliers`, `diagnose_changepoints`, `margin_table` and
   `evaluate_model` are still exported functions under those exact names
 
+### Requirement: Conformance is enumerated from the source, not read from the table
+
+A guard test SHALL enumerate the classes goldfish actually attaches — from the
+`S3method()` registrations, from the literal strings at class-assignment
+sites, and from the literal strings in `inherits()` and `is()` calls —
+subtract the exempt categories, and assert that every remaining class matches
+the `goldfish<Thing>` form. Conformance SHALL NOT be established by checking
+the rename table, because a class minted after the table was written would
+pass by omission. The enumeration is best-effort and cannot be proven
+complete; a non-conforming class discovered outside it SHALL be treated as a
+gap in the exemption list rather than as a table update.
+
+#### Scenario: a newly minted class that breaks the rule fails the guard
+
+- **WHEN** a class not matching `goldfish<Thing>` is attached anywhere in the
+  package and is not in an exempt category
+- **THEN** the guard test fails and names it, whether or not the rename table
+  mentions it
+
+#### Scenario: the table is not the completeness criterion
+
+- **WHEN** the guard test runs
+- **THEN** it derives the class list from the package source, and passing does
+  not depend on the rename table being current
+
 ### Requirement: No goldfish class carries a dot-suffix package qualifier
 
 No class that goldfish attaches on the live path SHALL contain a dot at
@@ -138,7 +170,16 @@ method names without per-line suppressions.
   no entry's string admits a second generic/class split at a snake_case
   boundary
 
-### Requirement: Exemptions are the deprecated path and the effect dispatch tags
+### Requirement: Exemptions are the deprecated path, the effect tags, and condition classes
+
+Condition classes SHALL keep their `goldfish_<snake_case>` names. A condition
+is matched on its class vector by `tryCatch()` and `expect_error(class = )`
+and is never dispatched on, so it does not compete for the S3 method namespace
+this rule exists to protect; the names are already package-qualified, so the
+collision the scheme prevents cannot arise; and snake_case is the R
+ecosystem's convention for conditions (`rlang_error`, `vctrs_error_cast_lossy`).
+Renaming them would break every caller matching on a class string and buy
+nothing.
 
 Classes on the deprecated path SHALL keep their existing names:
 `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`,
@@ -156,6 +197,13 @@ rename is otherwise full, exported or not.
 - **WHEN** `make_network()` is called
 - **THEN** it warns as deprecated and returns an object classed
   `network.goldfish`, unchanged by this rule
+
+#### Scenario: a condition class keeps its snake_case name
+
+- **WHEN** an error or warning condition goldfish signals is caught by class
+- **THEN** the class string is the `goldfish_<snake_case>` name it has today,
+  unchanged by this rule, so `expect_error(class = )` and `tryCatch()` callers
+  keep working
 
 #### Scenario: an effect tag is unaffected
 

@@ -16,12 +16,13 @@ pre-2.0.0, before `parametric-rates`.
   function names, so the inventory separates class-string sites from
   function-name sites before any edit (design D9). Confirm every
   effect-tag string stays off the list (D2 exemption).
-- [ ] 1.1a Decide the `model_spec` hierarchy's scope (design D18): rename its
-      classes here, or drop those rows and let `model-spec-descriptor` name
-      them when it reshapes them. The 1.1 inventory makes the overlap
-      concrete; if the rows are dropped, design open question 2 (the
-      `goldfishModelSpec*` identifiers) is moot. Record the answer in both
-      changes.
+- [ ] 1.1a Confirm the `model_spec` hierarchy is in scope (design D18,
+      settled 2026-09-05: the rows stay and the rename waste is accepted).
+      The twelve identifiers are fixed in the rename table — nine
+      `goldfishModelSpec<Variant>` plus the parent, and
+      `goldfishAxisSender`/`goldfishAxisDyad` for the axis. Note in
+      `progress.md` which of them `model-spec-descriptor` is expected to
+      dissolve, so the next change does not re-derive it.
 - [ ] 1.2 Lint spike (design D15): one throwaway file declaring a
   method per generic family on a camelCase class
   (`print.goldfishFit`, `diagnose_onset.goldfishFit`, …); run
@@ -30,12 +31,21 @@ pre-2.0.0, before `parametric-rates`.
   commit; no scattered `# nolint`.
 - [ ] 1.3 Add the package-wide guard test
   (`tests/testthat/test_class_naming.R`, testthat 3e per
-  **r-lib:testing-r-packages**): construct one object of each live
-  class and assert (a) it inherits its `goldfish<Thing>` name, (b) it
-  does not inherit the retired name, (c) no live class string contains
-  a dot at all, inherited base/tibble classes excepted, and (d) the
-  exported function names are unchanged. It fails
-  now; it is the completion criterion.
+  **r-lib:testing-r-packages**). It **enumerates the classes the package
+  actually attaches** — from `S3method()` registrations, from literal
+  strings at class-assignment sites, and from literal strings in
+  `inherits()`/`is()` calls — subtracts the three exempt categories
+  (deprecated path, effect dispatch tags, `goldfish_<snake>` condition
+  classes), and asserts every remainder matches `goldfish<Thing>`. It
+  SHALL NOT read the rename table: a class minted later would pass by
+  omission, which is how the table drifted twice. Also assert (a) no live
+  class string contains a dot, inherited base/tibble classes excepted, and
+  (b) the exported function names are unchanged. It fails now; it is the
+  completion criterion.
+      Known limit: the scan is best-effort. `dyad_spec` escaped a first
+      attempt because it appears only inside `inherits(x, c(...))`, so
+      verify the enumeration finds all twelve `model_spec` classes before
+      trusting it.
 - [ ] 1.4 Amend the tracked `CLAUDE.md` naming policy (design D14):
   class strings follow `goldfish<Thing>` camelCase per ADR-0031 /
   autograph CONTRIBUTING; snake_case (and "never reintroduce
@@ -216,8 +226,10 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 10. Close
 
-- [ ] 10.1 The guard test from 1.3 passes in full and covers every row
-  of the rename table, internals included.
+- [ ] 10.1 The guard test from 1.3 passes in full over the enumerated
+  class set, internals included. Cross-check once, by hand, that every
+  rename-table row is reflected in the code — but the test's authority is
+  the enumeration, not the table.
 - [ ] 10.2 Bump `DESCRIPTION` to the next patch version with one
   consolidated `NEWS.md` **Breaking changes** entry: the complete
   old→new table, the `data.goldfish` split, the stub behavior, the
