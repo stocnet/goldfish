@@ -61,7 +61,7 @@ estimate_int <- function(spec, ...) {
   UseMethod("estimate_int")
 }
 
-estimate_int.sender_spec <- function(spec, ...) {
+estimate_int.goldfishAxisSender <- function(spec, ...) {
   estimate_int_impl(
     spec = spec,
     is_rate_model = TRUE,
@@ -70,12 +70,12 @@ estimate_int.sender_spec <- function(spec, ...) {
   )
 }
 
-estimate_int.dyad_spec <- function(spec, ...) {
+estimate_int.goldfishAxisDyad <- function(spec, ...) {
   estimate_int_impl(
     spec = spec,
     is_rate_model = FALSE,
-    reduceArrayToMatrix = inherits(spec, "dynam_choice_spec") ||
-      inherits(spec, "dynami_choice_spec"),
+    reduceArrayToMatrix = inherits(spec, "goldfishKindDnChoice") ||
+      inherits(spec, "goldfishKindDniChoice"),
     ...
   )
 }
@@ -860,7 +860,7 @@ event_contribution_rate <- function(
   )
 }
 
-compute_event_contribution.dynam_rate_spec <- function(
+compute_event_contribution.goldfishKindDnRate <- function(
   spec,
   statsArray,
   activeDyad,
@@ -882,7 +882,7 @@ compute_event_contribution.dynam_rate_spec <- function(
   )
 }
 
-compute_event_contribution.rem_rate_spec <- function(
+compute_event_contribution.goldfishKindRemRate <- function(
   spec,
   statsArray,
   activeDyad,
@@ -906,10 +906,10 @@ compute_event_contribution.rem_rate_spec <- function(
   )
 }
 
-compute_event_contribution.dynami_rate_spec <-
-  compute_event_contribution.dynam_rate_spec
+compute_event_contribution.goldfishKindDniRate <-
+  compute_event_contribution.goldfishKindDnRate
 
-compute_event_contribution.dynam_rate_ordered_spec <- function(
+compute_event_contribution.goldfishKindDnCox <- function(
   spec,
   statsArray,
   activeDyad,
@@ -946,10 +946,10 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
   )
 }
 
-compute_event_contribution.dynami_rate_ordered_spec <-
-  compute_event_contribution.dynam_rate_ordered_spec
+compute_event_contribution.goldfishKindDniCox <-
+  compute_event_contribution.goldfishKindDnCox
 
-compute_event_contribution.dynam_choice_spec <- function(
+compute_event_contribution.goldfishKindDnChoice <- function(
   spec,
   statsArray,
   activeDyad,
@@ -992,10 +992,10 @@ compute_event_contribution.dynam_choice_spec <- function(
   )
 }
 
-compute_event_contribution.dynami_choice_spec <-
-  compute_event_contribution.dynam_choice_spec
+compute_event_contribution.goldfishKindDniChoice <-
+  compute_event_contribution.goldfishKindDnChoice
 
-compute_event_contribution.dynam_choice_coord_spec <- function(
+compute_event_contribution.goldfishKindDnCoord <- function(
   spec,
   statsArray,
   activeDyad,
@@ -1051,7 +1051,7 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
   )
 }
 
-compute_event_contribution.rem_rate_ordered_spec <- function(
+compute_event_contribution.goldfishKindRemCox <- function(
   spec,
   statsArray,
   activeDyad,
@@ -1990,7 +1990,10 @@ make_r_engine_evaluator <- function(
   # Applied unless the intercept itself carries a value: fixed, so there is
   # nothing to start, or seeded, so the user chose the start.
   if (
-    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
+    inherits(
+      spec,
+      c("goldfishKindDnRate", "goldfishKindDniRate", "goldfishKindRemRate")
+    ) &&
       has_intercept &&
       seed_intercept
   ) {
@@ -2119,7 +2122,7 @@ compute_iteration_step <- function(
 
   updateopportunities <- !is.null(opportunitiesList) && !is_rate
   correctReflexive <- !allowReflexive &&
-    inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
+    inherits(spec, c("goldfishKindDnChoice", "goldfishKindDniChoice"))
 
   # A sender-loop support_constraint is folded into `active_sender` at
   # preprocessing: the availability object already carries
@@ -2137,12 +2140,12 @@ compute_iteration_step <- function(
   # into a dense point `active_dyad`: the maintained matrix IS the
   # per-event risk mask, so the presence axis-reductions are skipped and it is
   # consumed directly as `active_dyad_mask`, replacing the standalone per-event mask.
-  is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
+  is_rem <- inherits(spec, c("goldfishKindRemRate", "goldfishKindRemCox"))
   # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
   # choices), so a folded coordination constraint — symmetrised into the dense
   # point `active_dyad` — is consumed as the full risk mask exactly
   # like REM, NOT via the one-sided-choice row accessor.
-  is_coord <- inherits(spec, "dynam_choice_coord_spec")
+  is_coord <- inherits(spec, "goldfishKindDnCoord")
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {

@@ -923,15 +923,15 @@ make_groups_interaction <- function(
 
   class(interaction.updates) <- c(
     class(interaction.updates),
-    "interaction.network.updates"
+    "goldfishInterNet"
   )
   class(dependent.events) <- c(
     class(dependent.events),
-    "interaction.groups.updates"
+    "goldfishInterGrp"
   )
   class(exogenous.events) <- c(
     class(exogenous.events),
-    "interaction.groups.updates"
+    "goldfishInterGrp"
   )
 
   # PATCH Marion: remove factors in label columns
@@ -1097,7 +1097,7 @@ clean_interaction_events <- function(
         # assign the windowed class
         class(eventsobject) <- c(
           class(eventsobject),
-          "windowed.interaction.network.updates"
+          "goldfishInterWindow"
         )
 
         # reassign object

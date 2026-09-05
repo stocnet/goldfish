@@ -87,27 +87,27 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 3. Internal classes (new scope)
 
-- [ ] 3.1 Rename the writer classes → `goldfishWriterDefault` /
+- [x] 3.1 Rename the writer classes → `goldfishWriterDefault` /
   `goldfishWriterGather` / `goldfishWriterDB` (exact current strings
   from inventory 1.1; `R/preprocess_writers.R` and dispatch sites).
-- [ ] 3.2 Rename `data_source_envir` / `data_source_stocnet` →
+- [x] 3.2 Rename `data_source_envir` / `data_source_stocnet` →
   `goldfishSourceEnvir` / `goldfishSourceStocnet` (`R/data_source.R`
   and every `inherits()` seam, including the DyNAMi boundary guards).
-- [ ] 3.3 Rename the `model_spec` hierarchy → `goldfishKind*` (parent
+- [x] 3.3 Rename the `model_spec` hierarchy → `goldfishKind*` (parent
   `goldfishKind`; axis classes → `goldfishAxisSender`/`goldfishAxisDyad`),
   `support_constraint_plan` → `goldfishSupportPlan`, and `fixed_spec` /
   `initial_spec` → `goldfishCoefFixed` / `goldfishCoefInit` (exact
   strings per inventory; `R/model_spec.R`, the support-constraint and
   fixed-parameter files).
-- [ ] 3.3a Rename the DyNAM-i interaction classes → `goldfishInterNet` /
+- [x] 3.3a Rename the DyNAM-i interaction classes → `goldfishInterNet` /
       `goldfishInterGrp` / `goldfishInterWindow` (`R/make_data_group.R`
       stamps them; `R/model_preprocess_group.R:155,161,167` reads them; plus
       `R/zzz_testthat_helpers.R`). They lose their only consumer when
       `refactor-dynami-engine` converts the `preprocessInteraction` monolith —
       record that in `progress.md` so the successor knows they are already
       renamed.
-- [ ] 3.4 Update affected tests/snapshots (diff-reviewed).
-- [ ] 3.5 Verification: `air format` → `lintr` → `document()` →
+- [x] 3.4 Update affected tests/snapshots (diff-reviewed).
+- [x] 3.5 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**; full suite green before the larger clusters.
 
 ## 4. Preprocessing classes

@@ -8,11 +8,11 @@
 choice_cpp <- getFromNamespace("estimate_DyNAM_choice", "goldfish")
 rate_ordered_cpp <- getFromNamespace("estimate_DyNAM_rate_ordered", "goldfish")
 choice_r <- getFromNamespace(
-  "compute_event_contribution.dynam_choice_spec",
+  "compute_event_contribution.goldfishKindDnChoice",
   "goldfish"
 )
 rate_ordered_r <- getFromNamespace(
-  "compute_event_contribution.dynam_rate_ordered_spec",
+  "compute_event_contribution.goldfishKindDnCox",
   "goldfish"
 )
 
@@ -206,8 +206,21 @@ test_that("the shifted pass leaves the exact-time likelihood unmoved", {
   # dependent, mixed, and fully right-censored: the censored branch contributes
   # its timing term but no observed statistic.
   for (dep in list(c(1, 1), c(1, 0), c(0, 0))) {
-    res <- poisson_k(b, s_mat, nc, sel, dt, dep, integer(0), integer(0),
-                      0L, 0L, FALSE, FALSE, FALSE)
+    res <- poisson_k(
+      b,
+      s_mat,
+      nc,
+      sel,
+      dt,
+      dep,
+      integer(0),
+      integer(0),
+      0L,
+      0L,
+      FALSE,
+      FALSE,
+      FALSE
+    )
     ref <- poisson_reference(s_mat, b, nc, sel, dt, dep)
     label <- paste(dep, collapse = "")
     expect_equal(res$logLikelihood, ref$logLikelihood, info = label)
@@ -225,8 +238,21 @@ test_that("total_rate is the absolute-scale sum, recovered from the normalizer",
   set.seed(11)
   s_mat <- matrix(round(rnorm(5 * 2), 3), 5, 2)
   b <- c(0.3, 0.6)
-  res <- poisson_k(b, s_mat, c(5L), 0L, 1.0, 1, integer(0), integer(0),
-                    0L, 0L, FALSE, FALSE, FALSE)
+  res <- poisson_k(
+    b,
+    s_mat,
+    c(5L),
+    0L,
+    1.0,
+    1,
+    integer(0),
+    integer(0),
+    0L,
+    0L,
+    FALSE,
+    FALSE,
+    FALSE
+  )
   expect_equal(as.numeric(res$total_rate), sum(exp(s_mat %*% b)))
 })
 
@@ -236,8 +262,21 @@ test_that("the conditional component survives an overflowing total rate", {
   # algebraic route (intervalLogL - log T + Dt*T) would be NaN here.
   s_mat <- matrix(c(1000, 999, 997), 3, 1)
   b <- 1
-  res <- poisson_k(b, s_mat, c(3L), 0L, 1.0, 1, integer(0), integer(0),
-                    0L, 0L, FALSE, FALSE, FALSE)
+  res <- poisson_k(
+    b,
+    s_mat,
+    c(3L),
+    0L,
+    1.0,
+    1,
+    integer(0),
+    integer(0),
+    0L,
+    0L,
+    FALSE,
+    FALSE,
+    FALSE
+  )
   expect_true(is.infinite(as.numeric(res$total_rate)))
   expect_false(is.finite(res$logLikelihood))
   cond <- as.numeric(res$conditional_logl)
@@ -251,8 +290,21 @@ test_that("the conditional component survives underflowing rates", {
   # 1 or a NaN, while x_obs - lse is exact.
   s_mat <- matrix(c(-800, -801, -803), 3, 1)
   b <- 1
-  res <- poisson_k(b, s_mat, c(3L), 0L, 1.0, 1, integer(0), integer(0),
-                    0L, 0L, FALSE, FALSE, FALSE)
+  res <- poisson_k(
+    b,
+    s_mat,
+    c(3L),
+    0L,
+    1.0,
+    1,
+    integer(0),
+    integer(0),
+    0L,
+    0L,
+    FALSE,
+    FALSE,
+    FALSE
+  )
   expect_equal(as.numeric(res$total_rate), 0) # underflowed, correctly
   naive_ratio <- exp(-800) / sum(exp(c(-800, -801, -803)))
   expect_true(is.nan(naive_ratio)) # what the pre-change route would have given

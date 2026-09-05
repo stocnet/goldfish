@@ -99,7 +99,7 @@
       print(test_time(time_container()))
     Message
       i The fit carries the preprocessed statistics it was estimated from (about 83.8 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 83.7 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 83.8 Kb).
       i The fit carries the preprocessed statistics it was estimated from (about 53.8 Kb).
       i The fit carries the preprocessed statistics it was estimated from (about 56.8 Kb).
       -- <test_time> -----------------------------------------------------------------

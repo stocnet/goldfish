@@ -379,7 +379,11 @@ build_spec_map <- function(
   data = NULL,
   modeled_flavor = NULL
 ) {
-  stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
+  stat_kind <- if (inherits(model_spec, "goldfishAxisSender")) {
+    "sender"
+  } else {
+    "dyad"
+  }
   nodes <- model_spec$nodes
   nodes2 <- model_spec$nodes2
   # Metadata/data boundary: the plan + call templates need
@@ -445,7 +449,7 @@ build_spec_map <- function(
         data = data
       )
     }
-    if (inherits(support_constraint, "support_constraint_plan")) {
+    if (inherits(support_constraint, "goldfishSupportPlan")) {
       plan$support_constraint <- compile_one(support_constraint)
       plan$derivations <- c(
         plan$derivations,

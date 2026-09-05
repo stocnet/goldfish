@@ -26,7 +26,7 @@ test_that("compute_statistics returns a preprocessed.goldfish object", {
     sub_model = "choice"
   )
   expect_s3_class(prep, "preprocessed.goldfish")
-  expect_s3_class(prep$model_spec, "dynam_choice_spec")
+  expect_s3_class(prep$model_spec, "goldfishKindDnChoice")
 })
 
 test_that("compute_statistics matches the estimate preprocessing only output", {

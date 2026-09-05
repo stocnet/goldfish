@@ -263,11 +263,11 @@ new_fixed_spec <- function(idx, values, names) {
   }
   structure(
     list(idx = idx, values = values, names = names),
-    class = "fixed_spec"
+    class = "goldfishCoefFixed"
   )
 }
 
-is_fixed_spec <- function(x) inherits(x, "fixed_spec")
+is_fixed_spec <- function(x) inherits(x, "goldfishCoefFixed")
 
 # The starting-value contract, the same shape as the fixed-coefficient one:
 # which coefficients the user seeded, at what value, under which label. What is
@@ -300,11 +300,11 @@ new_initial_spec <- function(idx, values, names) {
   }
   structure(
     list(idx = idx, values = values, names = names),
-    class = "initial_spec"
+    class = "goldfishCoefInit"
   )
 }
 
-is_initial_spec <- function(x) inherits(x, "initial_spec")
+is_initial_spec <- function(x) inherits(x, "goldfishCoefInit")
 
 # Match the names of a user-supplied vector against the coefficient labels a fit
 # renders (the `tidy()` / `coef()` names), returning their positions. A name

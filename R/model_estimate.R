@@ -1747,7 +1747,7 @@ estimate_wrapper <- function(
   # choice submodel, or REM); a rate-only spec rejects them.
   constraint_plan <- NULL
   if (!is.null(support_constraint)) {
-    if (inherits(support_constraint, "support_constraint_plan")) {
+    if (inherits(support_constraint, "goldfishSupportPlan")) {
       constraint_plan <- support_constraint
     } else if (!is.null(flavor_plan)) {
       # A multi-flavor walk supplies the already-parsed per-`(layer, flavor)`

@@ -3,7 +3,7 @@
 #' S3 generic dispatched on the model specification class.
 #' Model variants converted to the recipe architecture implement a dedicated
 #' method; the remaining variants fall back to the monolithic loop through
-#' `preprocess.model_spec()` until their recipe lands.
+#' `preprocess.goldfishKind()` until their recipe lands.
 #'
 #' @param spec a `model_spec` object from `new_model_spec()`.
 #' @param ... arguments passed to the recipe methods, see
@@ -16,13 +16,17 @@ preprocess <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.model_spec <- function(spec, ...) {
-  legacy_sub_model <- if (inherits(spec, "sender_spec")) "rate" else "choice"
+preprocess.goldfishKind <- function(spec, ...) {
+  legacy_sub_model <- if (inherits(spec, "goldfishAxisSender")) {
+    "rate"
+  } else {
+    "choice"
+  }
   preprocess_monolith(model = spec$model, sub_model = legacy_sub_model, ...)
 }
 
 #' @noRd
-preprocess.dynam_rate_spec <- function(spec, ...) {
+preprocess.goldfishKindDnRate <- function(spec, ...) {
   run_sender_recipe_loop(
     spec,
     ...,
@@ -32,7 +36,7 @@ preprocess.dynam_rate_spec <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
+preprocess.goldfishKindDnCox <- function(spec, ...) {
   run_sender_recipe_loop(
     spec,
     ...,
@@ -42,7 +46,7 @@ preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.dynam_choice_spec <- function(spec, ...) {
+preprocess.goldfishKindDnChoice <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec,
     ...,
@@ -52,7 +56,7 @@ preprocess.dynam_choice_spec <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.dynam_choice_coord_spec <- function(spec, ...) {
+preprocess.goldfishKindDnCoord <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec,
     ...,
@@ -62,7 +66,7 @@ preprocess.dynam_choice_coord_spec <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.rem_rate_spec <- function(spec, ...) {
+preprocess.goldfishKindRemRate <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec,
     ...,
@@ -72,7 +76,7 @@ preprocess.rem_rate_spec <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.rem_rate_ordered_spec <- function(spec, ...) {
+preprocess.goldfishKindRemCox <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec,
     ...,
@@ -131,7 +135,7 @@ run_dynami_monolith <- function(
 
 #' @rdname preprocess_dynami
 #' @noRd
-preprocess.dynami_rate_spec <- function(
+preprocess.goldfishKindDniRate <- function(
   spec,
   events,
   effects,
@@ -164,7 +168,7 @@ preprocess.dynami_rate_spec <- function(
 
 #' @rdname preprocess_dynami
 #' @noRd
-preprocess.dynami_rate_ordered_spec <- function(
+preprocess.goldfishKindDniCox <- function(
   spec,
   events,
   effects,
@@ -197,7 +201,7 @@ preprocess.dynami_rate_ordered_spec <- function(
 
 #' @rdname preprocess_dynami
 #' @noRd
-preprocess.dynami_choice_spec <- function(
+preprocess.goldfishKindDniChoice <- function(
   spec,
   events,
   effects,
@@ -667,7 +671,7 @@ run_sender_recipe_loop <- function(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
-      is_sender = inherits(spec, "sender_spec"),
+      is_sender = inherits(spec, "goldfishAxisSender"),
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),
@@ -1570,7 +1574,7 @@ run_dyad_recipe_loop <- function(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
-      is_sender = inherits(spec, "sender_spec"),
+      is_sender = inherits(spec, "goldfishAxisSender"),
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),

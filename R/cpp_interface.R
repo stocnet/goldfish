@@ -944,7 +944,7 @@ estimate_ <- function(
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
   # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
-  if (inherits(spec, "dynam_choice_coord_spec")) {
+  if (inherits(spec, "goldfishKindDnCoord")) {
     res <- estimate_DyNAM_MM(
       parameters,
       event_mat,
@@ -974,7 +974,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_choice_spec")) {
+  if (inherits(spec, "goldfishKindDnChoice")) {
     res <- estimate_DyNAM_choice(
       parameters,
       event_mat,
@@ -1001,7 +1001,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "rem_rate_ordered_spec")) {
+  if (inherits(spec, "goldfishKindRemCox")) {
     res <- estimate_REM_ordered(
       parameters,
       event_mat,
@@ -1031,7 +1031,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "rem_rate_spec")) {
+  if (inherits(spec, "goldfishKindRemRate")) {
     res <- estimate_REM(
       parameters,
       event_mat,
@@ -1065,7 +1065,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_rate_spec")) {
+  if (inherits(spec, "goldfishKindDnRate")) {
     res <- estimate_DyNAM_rate(
       parameters,
       event_mat,
@@ -1098,7 +1098,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_rate_ordered_spec")) {
+  if (inherits(spec, "goldfishKindDnCox")) {
     res <- estimate_DyNAM_rate_ordered(
       parameters,
       event_mat,

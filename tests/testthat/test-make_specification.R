@@ -245,7 +245,7 @@ test_that("dyadic support_constraint parses into a plan-ready structure", {
     data = d
   )
   cp <- spec$constraint
-  expect_s3_class(cp, "support_constraint_plan")
+  expect_s3_class(cp, "goldfishSupportPlan")
   expect_identical(cp$atom_labels, "tie(call_network)")
   expect_identical(cp$expr, quote(.a1 != 0))
   # a genuinely dyadic (point) atom stores the mask dense
@@ -285,7 +285,7 @@ test_that("rate-only spec accepts a dyadic constraint atom via the row-reduction
     ),
     "row-reduction"
   )
-  expect_s3_class(spec$constraint, "support_constraint_plan")
+  expect_s3_class(spec$constraint, "goldfishSupportPlan")
 })
 
 test_that("out-of-grammar constraint is rejected at construction", {

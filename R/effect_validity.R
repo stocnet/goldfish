@@ -189,7 +189,7 @@ resolve_effect_args <- function(signature, original, effect, envir) {
 #' @param call the calling environment, for the error's context.
 #' @noRd
 check_effect_attributes <- function(effect, refs, src, call = NULL) {
-  if (!inherits(src, "data_source_stocnet")) {
+  if (!inherits(src, "goldfishSourceStocnet")) {
     return(invisible(NULL))
   }
   for (ref in unlist(strsplit(
@@ -253,7 +253,7 @@ check_effect_sides <- function(
   sub_model,
   call = NULL
 ) {
-  if (!inherits(src, "data_source_stocnet") || identical(model, "DyNAMi")) {
+  if (!inherits(src, "goldfishSourceStocnet") || identical(model, "DyNAMi")) {
     return(invisible(NULL))
   }
   requirements <- effect_side_requirements(effect, type, sub_model)

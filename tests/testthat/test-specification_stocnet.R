@@ -317,7 +317,7 @@ test_that("mutually exclusive flavors derive complementary masks", {
   )
   expect_s3_class(
     spec$processes$creation$constraint,
-    "support_constraint_plan"
+    "goldfishSupportPlan"
   )
 })
 
@@ -351,7 +351,7 @@ test_that("a single modeled flavor still derives its mask", {
 
   expect_equal(spec$modeled_flavor, "creation")
   expect_equal(deparse1(spec$derived_constraint), "~!tie(calls)")
-  expect_s3_class(spec$constraint, "support_constraint_plan")
+  expect_s3_class(spec$constraint, "goldfishSupportPlan")
 })
 
 test_that("a redundant layer derives no constraint", {

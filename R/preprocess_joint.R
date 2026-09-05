@@ -346,7 +346,7 @@ compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
     sub_model = fp$sub_model,
     legacy_sub_model = legacy_sub_model,
     stat_block = paste(spec$model, fp$sub_model, sep = ":"),
-    is_sender = inherits(spec_map, "sender_spec"),
+    is_sender = inherits(spec_map, "goldfishAxisSender"),
     fids = fid_rows$fid,
     flavors = fp$flavors,
     effect_maps = fp$effect_maps,
@@ -575,7 +575,7 @@ build_joint_schedule <- function(units, shared_objects) {
 #' @param control_preprocessing preprocessing options (for the imputation policy
 #'   carried onto each compiled `spec_map`).
 #'
-#' @return a `merged_blocks.goldfish` list with: `blocks` (per `stat_block`, its
+#' @return a `goldfishBlock` list with: `blocks` (per `stat_block`, its
 #'   model/sub-model/family, `is_sender` shape flag, member fids and per-process
 #'   unit keys, and the cross-process effect union); `units` (the per-process
 #'   compiled `spec_map`s keyed by `focal:family`, each with its `shared_oid ->
@@ -663,7 +663,7 @@ build_merged_blocks <- function(
       support_constraints = support_constraints,
       process_map = joint_spec$process_map
     ),
-    class = "merged_blocks.goldfish"
+    class = "goldfishBlock"
   )
 }
 
@@ -1588,7 +1588,7 @@ run_merged_walk <- function(
   structure(
     outputs[ordered_keys],
     process_map = merged$process_map,
-    class = "joint_preprocessed.goldfish"
+    class = "goldfishJointPrep"
   )
 }
 

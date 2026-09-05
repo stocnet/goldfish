@@ -278,7 +278,7 @@ walk_fold_engine <- function(engine) {
 #'   [preprocess_joint()].
 #' @param call the calling environment, for error reporting.
 #'
-#' @return `walk_open()` returns a `walk_handle.goldfish` object.
+#' @return `walk_open()` returns a `goldfishWalk` object.
 #' @keywords internal
 #' @name walk_handle
 walk_open <- function(
@@ -382,7 +382,7 @@ walk_open <- function(
   handle$exo_cursor <- 0L
   handle$current_time <- start_time
   handle$opened <- TRUE
-  structure(handle, class = "walk_handle.goldfish")
+  structure(handle, class = "goldfishWalk")
 }
 
 # --------------------------------------------------------------------------- #
@@ -427,7 +427,7 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
 # --------------------------------------------------------------------------- #
 
 #' @rdname walk_handle
-#' @param handle a `walk_handle.goldfish` from [walk_open()].
+#' @param handle a `goldfishWalk` from [walk_open()].
 #' @param t the clock time to advance to.
 #' @return `walk_advance()` returns the handle invisibly.
 #' @keywords internal
@@ -696,9 +696,9 @@ walk_engine_of_fid <- function(handle, fid) {
 }
 
 walk_assert_open <- function(handle, call = rlang::caller_env()) {
-  if (!inherits(handle, "walk_handle.goldfish") || !isTRUE(handle$opened)) {
+  if (!inherits(handle, "goldfishWalk") || !isTRUE(handle$opened)) {
     cli::cli_abort(
-      "{.arg handle} must be an open {.cls walk_handle.goldfish} from
+      "{.arg handle} must be an open {.cls goldfishWalk} from
        {.fn walk_open}.",
       call = call,
       class = "goldfish_walk_not_open"

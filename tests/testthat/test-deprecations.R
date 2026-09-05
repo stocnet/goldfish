@@ -11,7 +11,7 @@ test_that("DyNAM rate with no-intercept formula adds the intercept", {
     ),
     "waiting times"
   )
-  expect_s3_class(prep$model_spec, "dynam_rate_spec")
+  expect_s3_class(prep$model_spec, "goldfishKindDnRate")
   expect_true(prep$model_spec$has_intercept)
   expect_message(
     compute_statistics(
@@ -53,7 +53,7 @@ test_that("REM choice sub_model warns and behaves as rate", {
     ),
     "rate"
   )
-  expect_s3_class(prep$model_spec, "rem_rate_spec")
+  expect_s3_class(prep$model_spec, "goldfishKindRemRate")
   expect_warning(
     compute_statistics(
       depNetwork ~ 1 + inertia,

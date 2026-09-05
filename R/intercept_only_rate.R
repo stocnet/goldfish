@@ -272,7 +272,7 @@ make_intercept_only_rate <- function(
       n_periods = n_periods,
       frozen = TRUE
     ),
-    class = "intercept_only_rate"
+    class = "goldfishCteRate"
   )
 }
 
@@ -322,7 +322,7 @@ validate_wave_times <- function(
 # TRUE for an intercept-only rate object -- the flag θ-layout / optimizer code
 # reads to exclude the pinned intercept from the score and Hessian.
 is_intercept_only_rate <- function(x) {
-  inherits(x, "intercept_only_rate")
+  inherits(x, "goldfishCteRate")
 }
 
 # The half-open period membership convention (design-resolved): interior wave

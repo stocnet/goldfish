@@ -7,20 +7,20 @@ test_that("constrained_support_map matches the wired families", {
   expect_identical(
     names(supported)[!is.na(supported)],
     c(
-      "dynam_choice_spec",
-      "dynam_choice_coord_spec",
-      "dynam_rate_spec",
-      "rem_rate_spec",
-      "rem_rate_ordered_spec"
+      "goldfishKindDnChoice",
+      "goldfishKindDnCoord",
+      "goldfishKindDnRate",
+      "goldfishKindRemRate",
+      "goldfishKindRemCox"
     )
   )
   expect_identical(
     names(supported)[is.na(supported)],
     c(
-      "dynam_rate_ordered_spec",
-      "dynami_rate_spec",
-      "dynami_rate_ordered_spec",
-      "dynami_choice_spec"
+      "goldfishKindDnCox",
+      "goldfishKindDniRate",
+      "goldfishKindDniCox",
+      "goldfishKindDniChoice"
     )
   )
 })

@@ -152,19 +152,19 @@ preprocess_interaction <- function(
     for (e in seq.int(length(events))) {
       ev <- events[[e]]
       if (
-        inherits(ev, "interaction.groups.updates") &&
+        inherits(ev, "goldfishInterGrp") &&
           all(get(dname, envir = prep_envir) == ev)
       ) {
         depindex <- e
         deporder <- attr(ev, "order")
       } else if (
-        inherits(ev, "interaction.groups.updates") &&
+        inherits(ev, "goldfishInterGrp") &&
           !all(get(dname, envir = prep_envir) == ev)
       ) {
         exoindex <- e
         exoorder <- attr(ev, "order")
       } else if (
-        inherits(ev, "interaction.network.updates") &&
+        inherits(ev, "goldfishInterNet") &&
           !is.null(attr(ev, "order"))
       ) {
         numpast <- numpast + 1
@@ -548,11 +548,11 @@ preprocess_interaction <- function(
       # an exogenous event or past update
       isinteractionupdate <- inherits(
         events[[next_event]],
-        "interaction.network.updates"
+        "goldfishInterNet"
       )
       isgroupupdate <- inherits(
         events[[next_event]],
-        "interaction.groups.updates"
+        "goldfishInterGrp"
       )
 
       # a. calculate statistics changes:

@@ -243,7 +243,7 @@ writer_default <- function() {
       # For the default writer the product is the assembled object itself.
       render = function(out, spec) out
     ),
-    class = c("writer_default", "preprocess_writer")
+    class = c("goldfishWriterDefault", "goldfishWriter")
   )
 }
 
@@ -273,7 +273,7 @@ writer_gather <- function() {
       finalize = base$finalize,
       render = function(out, spec) gather_from_prep(out, spec)
     ),
-    class = c("writer_gather", "preprocess_writer")
+    class = c("goldfishWriterGather", "goldfishWriter")
   )
 }
 
@@ -307,7 +307,7 @@ writer_db <- function(db = NULL, db_table = "stats") {
       finalize = base$finalize,
       render = base$render
     ),
-    class = c("writer_db", "writer_gather", "preprocess_writer")
+    class = c("goldfishWriterDB", "goldfishWriterGather", "goldfishWriter")
   )
 }
 

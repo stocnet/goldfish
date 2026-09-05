@@ -217,50 +217,21 @@ conforms <- function(x) grepl("^goldfish[A-Z][A-Za-z0-9]*$", x)
 # breaks the rule still fails, and an entry that has been renamed must be
 # removed, so the list cannot rot. It is empty when the change closes.
 pending_rename <- c(
-  "data_source",
-  "data_source_envir",
-  "data_source_stocnet",
   "diagnose_changepoints",
   "diagnose_onset",
   "diagnose_outliers",
-  "dyad_spec",
-  "dynam_choice_coord_spec",
-  "dynam_choice_spec",
-  "dynam_rate_ordered_spec",
-  "dynam_rate_spec",
-  "dynami_choice_spec",
-  "dynami_rate_ordered_spec",
-  "dynami_rate_spec",
-  "fixed_spec",
   "flavored_preprocessed.goldfish",
   "flavored_result.goldfish",
   "flavored_statistics.goldfish",
-  "initial_spec",
-  "interaction.groups.updates",
-  "interaction.network.updates",
-  "intercept_only_rate",
-  "joint_preprocessed.goldfish",
   "margin_table",
-  "merged_blocks.goldfish",
-  "model_spec",
-  "preprocess_writer",
   "preprocessed.goldfish",
   "preprocessed_db.goldfish",
   "preprocessing.goldfish",
-  "rem_rate_ordered_spec",
-  "rem_rate_spec",
   "result.goldfish",
-  "sender_spec",
   "summary.result.goldfish",
-  "support_constraint_plan",
   "test_gof",
   "test_parameter",
-  "test_time",
-  "walk_handle.goldfish",
-  "windowed.interaction.network.updates",
-  "writer_db",
-  "writer_default",
-  "writer_gather"
+  "test_time"
 )
 
 test_that("every class goldfish attaches is goldfish<Thing>", {
@@ -271,7 +242,7 @@ test_that("every class goldfish attaches is goldfish<Thing>", {
 
 test_that("the enumeration reaches classes that only a method name names", {
   # `dyad_spec` has no `inherits()` site anywhere: it is reachable only
-  # through `estimate_int.dyad_spec` and through the literal handed to the
+  # through `estimate_int.goldfishAxisDyad` and through the literal handed to
   # spec constructor. It escaped a first enumeration, so it is asserted.
   own <- goldfish_own_classes()
   hierarchy <- list(

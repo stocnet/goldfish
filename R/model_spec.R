@@ -2,16 +2,16 @@
 #'
 #' Low-level constructors for the typed model specification objects that
 #' carry the resolved model variant through preprocessing and estimation.
-#' The class vector follows `c("<variant>_spec", "<indexing>_spec",
-#' "model_spec")`. `sender_spec` variants are sender-indexed but may be
-#' two-mode: the receiver side (`nodes2`) and `is_two_mode` are carried so a
+#' The class vector follows `c("goldfishKind<Variant>", "goldfishAxis<Axis>",
+#' "goldfishKind")`. `goldfishAxisSender` variants are sender-indexed but may
+#' be two-mode: the receiver side (`nodes2`) and `is_two_mode` are carried so a
 #' rate model over an n1 x n2 network sizes its statistics on both modes.
 #'
 #' @param is_two_mode logical, whether sender and receiver node sets differ.
 #' @param nodes,nodes2 names of the node sets of the dependent events.
 #' @param ... additional fields stored in the spec object.
 #'
-#' @return an object of class `model_spec`.
+#' @return an object of class `goldfishKind`.
 #' @name model_spec
 #' @noRd
 model_spec_structure <- function(
@@ -34,7 +34,7 @@ model_spec_structure <- function(
       risk_set = risk_set_descriptor(indexing, sub_model, is_two_mode),
       ...
     ),
-    class = c(variant, indexing, "model_spec")
+    class = c(variant, indexing, "goldfishKind")
   )
 }
 
@@ -79,7 +79,7 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
     choice_coordination = "coordination",
     "multinomial"
   )
-  if (identical(indexing, "sender_spec")) {
+  if (identical(indexing, "goldfishAxisSender")) {
     return(list(
       axis = "sender",
       fold_target = "active_sender",
@@ -240,15 +240,15 @@ risk_set_is_dyadic <- function(spec) {
 #' @noRd
 constrained_support_map <- function() {
   c(
-    dynam_choice_spec = "DyNAM choice",
-    dynam_choice_coord_spec = "DyNAM choice_coordination",
-    dynam_rate_spec = "DyNAM rate",
-    dynam_rate_ordered_spec = NA_character_,
-    rem_rate_spec = "REM rate",
-    rem_rate_ordered_spec = "REM rate_ordered",
-    dynami_rate_spec = NA_character_,
-    dynami_rate_ordered_spec = NA_character_,
-    dynami_choice_spec = NA_character_
+    goldfishKindDnChoice = "DyNAM choice",
+    goldfishKindDnCoord = "DyNAM choice_coordination",
+    goldfishKindDnRate = "DyNAM rate",
+    goldfishKindDnCox = NA_character_,
+    goldfishKindRemRate = "REM rate",
+    goldfishKindRemCox = "REM rate_ordered",
+    goldfishKindDniRate = NA_character_,
+    goldfishKindDniCox = NA_character_,
+    goldfishKindDniChoice = NA_character_
   )
 }
 
@@ -285,8 +285,8 @@ dynam_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynam_rate_spec",
-    "sender_spec",
+    "goldfishKindDnRate",
+    "goldfishAxisSender",
     "DyNAM",
     "rate",
     is_two_mode = is_two_mode,
@@ -305,8 +305,8 @@ dynam_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynam_rate_ordered_spec",
-    "sender_spec",
+    "goldfishKindDnCox",
+    "goldfishAxisSender",
     "DyNAM",
     "rate_ordered",
     is_two_mode = is_two_mode,
@@ -325,8 +325,8 @@ dynam_choice_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynam_choice_spec",
-    "dyad_spec",
+    "goldfishKindDnChoice",
+    "goldfishAxisDyad",
     "DyNAM",
     "choice",
     is_two_mode = is_two_mode,
@@ -345,8 +345,8 @@ dynam_choice_coord_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynam_choice_coord_spec",
-    "dyad_spec",
+    "goldfishKindDnCoord",
+    "goldfishAxisDyad",
     "DyNAM",
     "choice_coordination",
     is_two_mode = is_two_mode,
@@ -365,8 +365,8 @@ dynami_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynami_rate_spec",
-    "sender_spec",
+    "goldfishKindDniRate",
+    "goldfishAxisSender",
     "DyNAMi",
     "rate",
     is_two_mode = is_two_mode,
@@ -385,8 +385,8 @@ dynami_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynami_rate_ordered_spec",
-    "sender_spec",
+    "goldfishKindDniCox",
+    "goldfishAxisSender",
     "DyNAMi",
     "rate_ordered",
     is_two_mode = is_two_mode,
@@ -405,8 +405,8 @@ dynami_choice_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "dynami_choice_spec",
-    "dyad_spec",
+    "goldfishKindDniChoice",
+    "goldfishAxisDyad",
     "DyNAMi",
     "choice",
     is_two_mode = is_two_mode,
@@ -425,8 +425,8 @@ rem_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "rem_rate_spec",
-    "dyad_spec",
+    "goldfishKindRemRate",
+    "goldfishAxisDyad",
     "REM",
     "rate",
     is_two_mode = is_two_mode,
@@ -445,8 +445,8 @@ rem_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "rem_rate_ordered_spec",
-    "dyad_spec",
+    "goldfishKindRemCox",
+    "goldfishAxisDyad",
     "REM",
     "rate_ordered",
     is_two_mode = is_two_mode,
@@ -459,7 +459,7 @@ rem_rate_ordered_spec <- function(
 #' Construct a typed model specification
 #'
 #' Validates `(model, sub_model, is_two_mode, nodes, nodes2)` and returns
-#' the corresponding `model_spec` object. The class of the returned object
+#' the corresponding `goldfishKind` object. The class of the returned object
 #' is the resolved model variant, computed once; all downstream dispatch
 #' uses it. Not exported.
 #'
@@ -467,7 +467,7 @@ rem_rate_ordered_spec <- function(
 #' @param model character, one of `"DyNAM"`, `"REM"`, `"DyNAMi"`.
 #' @param sub_model character, a valid sub model for `model`.
 #'
-#' @return an object of class `model_spec`.
+#' @return an object of class `goldfishKind`.
 #' @noRd
 new_model_spec <- function(
   model,

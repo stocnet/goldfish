@@ -161,7 +161,7 @@ test_that("a single-process specification opens and replays byte-identically", {
   map <- attr(batch, "process_map")
 
   handle <- walk_open(spec)
-  expect_s3_class(handle, "walk_handle.goldfish")
+  expect_s3_class(handle, "goldfishWalk")
 
   schedule <- handle$schedule
   theta <- list("1" = c(0.4, -0.15), "2" = c(0.6, 0.3))
@@ -263,7 +263,7 @@ test_that("handle misuse aborts with cli errors", {
   handle <- walk_open(js)
 
   # Evaluate on an unopened object.
-  not_open <- structure(list(), class = "walk_handle.goldfish")
+  not_open <- structure(list(), class = "goldfishWalk")
   expect_error(
     walk_evaluate(not_open, 1L, c(0, 0)),
     class = "goldfish_walk_not_open"

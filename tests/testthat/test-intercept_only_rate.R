@@ -6,7 +6,7 @@
 test_that("intercept-only rate carries no covariate columns and a fixed intercept", {
   rate <- make_intercept_only_rate(log(0.5))
 
-  expect_s3_class(rate, "intercept_only_rate")
+  expect_s3_class(rate, "goldfishCteRate")
   expect_true(is_intercept_only_rate(rate))
   expect_identical(rate$sub_model, "rate")
   expect_true(rate$has_intercept)

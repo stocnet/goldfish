@@ -131,7 +131,7 @@ test_that("a specification threads its support_constraint into estimation", {
     support_constraint = ~ tie(call_network),
     data = d$data
   )
-  expect_s3_class(spec$constraint, "support_constraint_plan")
+  expect_s3_class(spec$constraint, "goldfishSupportPlan")
   prep <- estimate_dynam(spec, sub_model = "choice", preprocessing_only = TRUE)
   expect_s3_class(prep, "preprocessed.goldfish")
 })

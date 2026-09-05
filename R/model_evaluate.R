@@ -463,7 +463,7 @@ evaluate_engine_once <- function(
       # same choice or the contribution meets an array of the wrong rank.
       reduce_array_to_matrix = inherits(
         spec,
-        c("dynam_choice_spec", "dynami_choice_spec")
+        c("goldfishKindDnChoice", "goldfishKindDniChoice")
       ),
       seed_intercept = FALSE
     )
