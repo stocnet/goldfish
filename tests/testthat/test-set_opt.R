@@ -17,7 +17,7 @@ test_that("set_algorithm_newton works correctly", {
   default_opts <- set_algorithm_newton()
   expect_s3_class(
     default_opts,
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
   expect_true(is.list(default_opts))
@@ -47,7 +47,7 @@ test_that("set_algorithm_newton works correctly", {
   )
   expect_s3_class(
     custom_opts,
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
   expect_true(is.list(custom_opts))

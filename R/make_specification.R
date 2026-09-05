@@ -5,8 +5,8 @@
 #' `make_specification()` bundles the rate and/or choice formulas of a model
 #' together with its `model`, sub-model(s), the dependent process (named by
 #' `layer`), an optional `support_constraint`, and the `data` object, returning a
-#' reusable `specification.goldfish` object. The object holds the parsed formula
-#' bundles that preprocessing consumes, so it can be passed directly to
+#' reusable `goldfishSpec` object. The object holds the parsed formula bundles
+#' that preprocessing consumes, so it can be passed directly to
 #' [estimate_dynam()] / [estimate_rem()] in place of a formula.
 #'
 #' Unlike the formula interface (`estimate_dynam(dep ~ ...)`), the rate and
@@ -74,7 +74,7 @@
 #' @param data a `stocnet` object, raw or stamped by [as_goldfish()]. It is
 #'   validated here either way: a stamp records provenance, not validity.
 #'
-#' @return an S3 object of class `specification.goldfish`.
+#' @return an S3 object of class `goldfishSpec`.
 #'
 #' @seealso [estimate_dynam()], [estimate_rem()], [make_dependent_events()],
 #'   [make_data()]
@@ -277,7 +277,7 @@ make_specification <- function(
         data = data,
         call = match.call()
       ),
-      class = "specification.goldfish"
+      class = "goldfishSpec"
     ))
   }
 
@@ -340,7 +340,7 @@ make_specification <- function(
       data = data,
       call = match.call()
     ),
-    class = "specification.goldfish"
+    class = "goldfishSpec"
   )
 }
 
@@ -426,7 +426,7 @@ make_dynami_specification <- function(
       data = data,
       call = match.call()
     ),
-    class = "specification.goldfish"
+    class = "goldfishSpec"
   )
 }
 

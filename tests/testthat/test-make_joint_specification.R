@@ -527,7 +527,7 @@ test_that("an exogenous-only panel reference composes and stays separable", {
   js <- exogenous_only_join()
   expect_s3_class(js, "goldfishJointSpec")
   # The joint class deliberately does NOT inherit the single-process class.
-  expect_false(inherits(js, "specification.goldfish"))
+  expect_false(inherits(js, "goldfishSpec"))
   # friendship is panel-observed but modeled by no process, so reading it is a
   # static exogenous step-covariate -- nothing latent, no fid coupled.
   expect_false(any(js$process_map$coupled))

@@ -22,7 +22,7 @@ walk_evaluate(handle, fid, theta, call = rlang::caller_env())
 }
 \arguments{
 \item{spec}{a \code{goldfishJointSpec} from
-\code{\link[=make_joint_specification]{make_joint_specification()}} (or a single \code{specification.goldfish}, wrapped
+\code{\link[=make_joint_specification]{make_joint_specification()}} (or a single \code{goldfishSpec}, wrapped
 as a one-process join).}
 
 \item{control_preprocessing}{preprocessing options, as for

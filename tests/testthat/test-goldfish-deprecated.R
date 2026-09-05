@@ -6,7 +6,7 @@ test_that("set_estimation_opt() forwards to set_algorithm_newton()", {
   )
   expect_s3_class(
     set_estimation_opt(),
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
 })

@@ -66,7 +66,7 @@ atoms' values, with no columns and no coefficients. For 0/1 indicators
 validated here either way: a stamp records provenance, not validity.}
 }
 \value{
-an S3 object of class \code{specification.goldfish}.
+an S3 object of class \code{goldfishSpec}.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -75,8 +75,8 @@ an S3 object of class \code{specification.goldfish}.
 \code{make_specification()} bundles the rate and/or choice formulas of a model
 together with its \code{model}, sub-model(s), the dependent process (named by
 \code{layer}), an optional \code{support_constraint}, and the \code{data} object, returning a
-reusable \code{specification.goldfish} object. The object holds the parsed formula
-bundles that preprocessing consumes, so it can be passed directly to
+reusable \code{goldfishSpec} object. The object holds the parsed formula bundles
+that preprocessing consumes, so it can be passed directly to
 \code{\link[=estimate_dynam]{estimate_dynam()}} / \code{\link[=estimate_rem]{estimate_rem()}} in place of a formula.
 
 Unlike the formula interface (\code{estimate_dynam(dep ~ ...)}), the rate and

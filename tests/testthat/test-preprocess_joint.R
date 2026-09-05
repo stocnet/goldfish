@@ -82,7 +82,7 @@ test_that("build_merged_blocks compiles one spec_map per process, grouped by blo
   )
   # Each unit carries a walk-ready spec_map resolved against its own focal.
   for (key in names(mb$units)) {
-    expect_s3_class(mb$units[[key]]$spec_map, "spec_map.goldfish")
+    expect_s3_class(mb$units[[key]]$spec_map, "goldfishSpecMap")
   }
   expect_equal(mb$units[["emails:choice"]]$spec_map$focal, "emails")
   expect_equal(mb$units[["calls:rate"]]$spec_map$focal, "calls")

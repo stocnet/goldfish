@@ -413,11 +413,11 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
 
 #' @export
 #' @rdname print-method
-#' @return For objects of class `specification.goldfish` print a single-glance
-#'   overview of the model, dependent process, and formulas.
-print.specification.goldfish <- function(x, ...) {
+#' @return For objects of class `goldfishSpec` print a single-glance overview
+#'   of the model, dependent process, and formulas.
+print.goldfishSpec <- function(x, ...) {
   submodels <- names(x$submodels)
-  cli::cli_rule(left = "{.cls specification.goldfish}")
+  cli::cli_rule(left = "{.cls goldfishSpec}")
   cli::cli_text("Model {.val {x$model}} · sub-model{?s} {.field {submodels}}")
 
   dep <- x$dependent
@@ -1053,13 +1053,13 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-# Print algorithm_newton.goldfish object
+# Print goldfishAlgoNewton object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `algorithm_newton.goldfish`, print a summary
+#' @return For objects of class `goldfishAlgoNewton`, print a summary
 #'   of the estimation algorithm options.
-print.algorithm_newton.goldfish <- function(x, ...) {
-  cat("Estimation Algorithm Options (algorithm_newton.goldfish):\n")
+print.goldfishAlgoNewton <- function(x, ...) {
+  cat("Estimation Algorithm Options (goldfishAlgoNewton):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {

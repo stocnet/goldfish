@@ -64,7 +64,7 @@ test_that("a raw stocnet is accepted as data", {
     data = make_stocnet_fixture()
   )
 
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_true(spec$valid)
 })
 
@@ -491,7 +491,7 @@ test_that("a half-specified flavor set builds and records the gap", {
     model = "DyNAM",
     data = flavored_fixture()
   )
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
   # creation lacks a choice, dissolution lacks a rate.
   gaps <- spec$completion_gaps

@@ -37,8 +37,8 @@
 #' construction; subset/nested cross-process coupling is recorded future
 #' development.
 #'
-#' @param ... two or more `specification.goldfish` objects (from
-#'   [make_specification()]) over one shared data object.
+#' @param ... two or more `goldfishSpec` objects (from [make_specification()])
+#'   over one shared data object.
 #' @param data the shared `stocnet` data object the specifications were built
 #'   over. Defaults to the data carried by the first specification.
 #'
@@ -47,7 +47,7 @@
 #'   `process_map` (one row per likelihood-producing formula across all
 #'   processes, with the shared `constraint_id`s and a `coupled` flag marking
 #'   fids that read a modeled panel layer's latent state). It deliberately does
-#'   NOT inherit `specification.goldfish`.
+#'   NOT inherit `goldfishSpec`.
 #'
 #' @seealso [make_specification()]
 #' @export
@@ -65,11 +65,11 @@ make_joint_specification <- function(..., data = NULL) {
     specs,
     inherits,
     logical(1),
-    what = "specification.goldfish"
+    what = "goldfishSpec"
   )
   if (any(not_spec)) {
     cli::cli_abort(c(
-      "Every argument in {.arg ...} must be a {.cls specification.goldfish}.",
+      "Every argument in {.arg ...} must be a {.cls goldfishSpec}.",
       "x" = "Argument{?s} {.val {which(not_spec)}} {?is/are} not.",
       "i" = "Build each process with {.fn make_specification}."
     ))

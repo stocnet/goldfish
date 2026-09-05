@@ -31,7 +31,7 @@ test_that("make_specification builds a DyNAM specification object", {
     data = d,
     layer = "calls_dependent"
   )
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_identical(spec$model, "DyNAM")
   expect_identical(names(spec$submodels), c("rate", "choice"))
   expect_identical(spec$layer, "calls_dependent")

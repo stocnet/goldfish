@@ -707,7 +707,7 @@ build_merged_blocks <- function(
 #     spec_map over the one shared state.
 # =========================================================================== #
 
-# Wrap a single flavored or plain `specification.goldfish` as a degenerate joint
+# Wrap a single flavored or plain `goldfishSpec` as a degenerate joint
 # specification so the merged substrate builder can walk it. The one-process
 # case is what the frozen-baseline gate compares against `preprocess_flavored`:
 # it must run through the SAME merged driver as a true multi-process join. The
@@ -1594,7 +1594,7 @@ run_merged_walk <- function(
 
 # Preprocess a joint (or single) specification through the merged single-clock
 # walk. Accepts a `goldfishJointSpec` directly, or a single
-# `specification.goldfish` (wrapped as a one-process join) so the same driver
+# `goldfishSpec` (wrapped as a one-process join) so the same driver
 # serves the frozen-baseline gate.
 preprocess_joint <- function(
   spec,
@@ -1604,11 +1604,11 @@ preprocess_joint <- function(
 ) {
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
-  } else if (inherits(spec, "specification.goldfish")) {
+  } else if (inherits(spec, "goldfishSpec")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
-      "{.fn preprocess_joint} requires a {.cls specification.goldfish} or
+      "{.fn preprocess_joint} requires a {.cls goldfishSpec} or
        {.cls goldfishJointSpec}.",
       .internal = TRUE
     )

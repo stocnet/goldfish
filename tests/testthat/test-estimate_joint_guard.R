@@ -75,7 +75,7 @@ test_that("estimate_dynam rejects a joint specification, pointing to dynes", {
   local_cli_context()
   js <- make_joint_fixture()
   expect_s3_class(js, "goldfishJointSpec")
-  # The joint class does not inherit specification.goldfish, so the rejection is
+  # The joint class does not inherit goldfishSpec, so the rejection is
   # the class guard firing before the single-specification dispatch branch --
   # never a fall-through into estimate_wrapper.
   expect_snapshot(estimate_dynam(js), error = TRUE)
@@ -124,7 +124,7 @@ test_that("estimate_rem rejects a panel-focal single specification", {
 })
 
 test_that("the panel-focal guard fires on the shared preprocessing path", {
-  # estimate_dynami() takes no specification.goldfish object (DyNAM-i is not a
+  # estimate_dynami() takes no goldfishSpec object (DyNAM-i is not a
   # make_specification() model), so its PE-focal protection is the same
   # check_dependent_panel guard reached through validate_goldfish_data during
   # preprocessing. Confirm the guard fires there, covering the estimator whose

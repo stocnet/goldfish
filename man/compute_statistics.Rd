@@ -20,8 +20,8 @@ compute_statistics(
 \item{x}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfish_effects")}), or a \code{specification.goldfish} object
-from \code{\link[=make_specification]{make_specification()}} — the same first argument the \verb{estimate_*()}
+(see \code{vignette("goldfish_effects")}), or a \code{goldfishSpec} object from
+\code{\link[=make_specification]{make_specification()}} — the same first argument the \verb{estimate_*()}
 functions take.}
 
 \item{model}{a character string specifying the model. Current options are

@@ -752,10 +752,10 @@ pinned_rate_descriptor <- function(bundle, model, call = rlang::caller_env()) {
 # one treatment.
 #
 # The reinterpretation is scoped to the generative context by TYPE: it accepts
-# ONLY a `goldfishJointSpec`. The single-process estimation path
-# operates on a plain `specification.goldfish` and never reaches this function,
-# so a bare `rate = ~ 1` under `estimate_dynam()` / `estimate_rem()` keeps its
-# existing estimated-intercept meaning untouched.
+# ONLY a `goldfishJointSpec`. The single-process estimation path operates on a
+# plain `goldfishSpec` and never reaches this function, so a bare `rate = ~ 1`
+# under `estimate_dynam()` / `estimate_rem()` keeps its existing
+# estimated-intercept meaning untouched.
 mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
   if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(

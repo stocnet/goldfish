@@ -62,26 +62,26 @@ pre-2.0.0, before `parametric-rates`.
   class strings follow `goldfish<Thing>` camelCase per ADR-0031 /
   autograph CONTRIBUTING; snake_case (and "never reintroduce
   camelCase") continues to govern functions, arguments, and objects.
-- [ ] 1.5 Verification: **not-cran-test** skill (`NOT_CRAN=true`,
+- [x] 1.5 Verification: **not-cran-test** skill (`NOT_CRAN=true`,
   background); record the pre-change baseline — frozen 1e-6 and C++
   goldens PASS, not SKIP.
 
 ## 2. Formulae, algorithm, and specification classes
 
-- [ ] 2.1 Rename `goldfish.formulae` → `goldfishFormulae`
+- [x] 2.1 Rename `goldfish.formulae` → `goldfishFormulae`
   (`R/formula_parser.R`, single site, plus any `inherits()` guard).
-- [ ] 2.2 Rename `algorithm.goldfish` → `goldfishAlgo` and
+- [x] 2.2 Rename `algorithm.goldfish` → `goldfishAlgo` and
   `algorithm_newton.goldfish` → `goldfishAlgoNewton`
   (`R/set_opt.R`, print method, the `control_algo` gates in the
   estimators). Hand-edit roxygen `@method` tags (D9); run
   `devtools::document()` in-task per **r-lib:r-package-development**.
-- [ ] 2.3 Rename `specification.goldfish` → `goldfishSpec` and
+- [x] 2.3 Rename `specification.goldfish` → `goldfishSpec` and
   `spec_map.goldfish` → `goldfishSpecMap` (`R/make_specification.R`,
   `R/model_spec.R`, print method, estimator entry points accepting a
   specification).
-- [ ] 2.4 Update affected tests; re-record print snapshots, reading
+- [x] 2.4 Update affected tests; re-record print snapshots, reading
   each diff before accepting (D11), stating in the commit what changed.
-- [ ] 2.5 Verification: `air format` touched files → `lintr` on the
+- [x] 2.5 Verification: `air format` touched files → `lintr` on the
   same files → `devtools::document()` → **not-cran-test**. NAMESPACE
   diff shows renamed `S3method` entries, no dropped export.
 

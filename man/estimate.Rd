@@ -100,7 +100,7 @@ modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
-\item{control_algo}{An object of class \code{algorithm.goldfish}
+\item{control_algo}{An object of class \code{goldfishAlgo}
 (typically created by \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}),
 specifying the algorithm and its parameters for the estimation.}
 
@@ -138,7 +138,7 @@ set, written in the restricted boolean-tree grammar: effect atoms
 arithmetic \verb{+ - * /}; a bare effect means \code{effect != 0}. Inside a constraint
 \code{*} is elementwise arithmetic, never the effects formula's interaction
 expansion; for 0/1 indicators prefer \code{&} over \code{*} (\code{tie(a) & tie(b)}).
-Ignored when \code{x} is a \code{specification.goldfish} object (which carries its own
+Ignored when \code{x} is a \code{goldfishSpec} object (which carries its own
 constraint). See \code{\link[=make_specification]{make_specification()}} for the full grammar. \code{NULL} by
 default.}
 

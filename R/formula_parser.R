@@ -359,7 +359,7 @@ compare_formulas <- function(
 #'   fetches events inside state creation.
 #' @param envir environment where the data objects live.
 #'
-#' @return an S3 object of class `c(class(model_spec), "spec_map.goldfish")`
+#' @return an S3 object of class `c(class(model_spec), "goldfishSpecMap")`
 #'   carrying the `model_spec` fields plus `parsed_terms`, `plan`,
 #'   `effects_template`, `effect_description` (the single source of truth for
 #'   print/naming metadata), and the `effects`/`window_parameters`/
@@ -493,7 +493,7 @@ build_spec_map <- function(
         modeled_flavor = modeled_flavor
       )
     ),
-    class = c(class(model_spec), "spec_map.goldfish")
+    class = c(class(model_spec), "goldfishSpecMap")
   )
 }
 
@@ -838,7 +838,7 @@ create_effects_functions <- function(
     model,
     sub_model
   )
-  structure(effects, class = "goldfish.formulae")
+  structure(effects, class = "goldfishFormulae")
 }
 
 # The declared `is_two_mode` disagrees with what the argument's layer actually

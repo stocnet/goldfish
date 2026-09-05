@@ -1083,7 +1083,7 @@ test_that("process_map$completed marks exactly the auto-supplied fids", {
 })
 
 test_that("a single-process rate-only spec is not completed by estimation", {
-  # The excluded path: estimate_dynam() over a rate-only specification.goldfish
+  # The excluded path: estimate_dynam() over a rate-only goldfishSpec
   # keeps it rate-only (no choice added), so its preprocessed output is unchanged.
   spec <- make_specification(
     rate = ~ 1 + indeg,

@@ -272,7 +272,7 @@ walk_fold_engine <- function(engine) {
 #' it never performs completion itself.
 #'
 #' @param spec a `goldfishJointSpec` from
-#'   [make_joint_specification()] (or a single `specification.goldfish`, wrapped
+#'   [make_joint_specification()] (or a single `goldfishSpec`, wrapped
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
@@ -290,11 +290,11 @@ walk_open <- function(
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
-  } else if (inherits(spec, "specification.goldfish")) {
+  } else if (inherits(spec, "goldfishSpec")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
-      "{.fn walk_open} requires a {.cls specification.goldfish} or
+      "{.fn walk_open} requires a {.cls goldfishSpec} or
        {.cls goldfishJointSpec}.",
       call = call
     )

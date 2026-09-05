@@ -8,11 +8,11 @@
 \alias{print.nodes.goldfish}
 \alias{print.network.goldfish}
 \alias{print.dependent.goldfish}
-\alias{print.specification.goldfish}
+\alias{print.goldfishSpec}
 \alias{print.goldfishJointSpec}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
-\alias{print.algorithm_newton.goldfish}
+\alias{print.goldfishAlgoNewton}
 \alias{print.preprocessing.goldfish}
 \title{Methods for \code{goldfish} objects.}
 \usage{
@@ -41,7 +41,7 @@
 
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
 
-\method{print}{specification.goldfish}(x, ...)
+\method{print}{goldfishSpec}(x, ...)
 
 \method{print}{goldfishJointSpec}(x, ...)
 
@@ -49,7 +49,7 @@
 
 \method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
 
-\method{print}{algorithm_newton.goldfish}(x, ...)
+\method{print}{goldfishAlgoNewton}(x, ...)
 
 \method{print}{preprocessing.goldfish}(x, ...)
 }
@@ -135,14 +135,14 @@ linked default network
 and a printing of the first rows in the events data frame.
 See \code{\link[=make_dependent_events]{make_dependent_events()}}.
 
-For objects of class \code{specification.goldfish} print a single-glance
-overview of the model, dependent process, and formulas.
+For objects of class \code{goldfishSpec} print a single-glance overview
+of the model, dependent process, and formulas.
 
 For objects of class \code{goldfishJointSpec} print one section
 per modeled layer (flavors nested), each formula's fid and separable/coupled
 status, and the derived and combined support constraints.
 
-For objects of class \code{algorithm_newton.goldfish}, print a summary
+For objects of class \code{goldfishAlgoNewton}, print a summary
 of the estimation algorithm options.
 
 For objects of class \code{preprocessing.goldfish}, print a summary

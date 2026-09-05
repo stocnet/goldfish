@@ -803,9 +803,9 @@ test_that("mark_pinned_rates rejects the single-process path", {
     model = "DyNAM",
     data = data
   )
-  # a plain specification.goldfish is the single-process path -- pinning is
+  # a plain goldfishSpec is the single-process path -- pinning is
   # generative-only, so it aborts rather than touching estimate_dynam/estimate_rem.
-  expect_s3_class(single, "specification.goldfish")
+  expect_s3_class(single, "goldfishSpec")
   expect_snapshot(error = TRUE, mark_pinned_rates(single))
 })
 

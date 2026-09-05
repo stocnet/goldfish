@@ -217,8 +217,6 @@ conforms <- function(x) grepl("^goldfish[A-Z][A-Za-z0-9]*$", x)
 # breaks the rule still fails, and an entry that has been renamed must be
 # removed, so the list cannot rot. It is empty when the change closes.
 pending_rename <- c(
-  "algorithm.goldfish",
-  "algorithm_newton.goldfish",
   "data_source",
   "data_source_envir",
   "data_source_stocnet",
@@ -237,7 +235,6 @@ pending_rename <- c(
   "flavored_preprocessed.goldfish",
   "flavored_result.goldfish",
   "flavored_statistics.goldfish",
-  "goldfish.formulae",
   "initial_spec",
   "interaction.groups.updates",
   "interaction.network.updates",
@@ -254,8 +251,6 @@ pending_rename <- c(
   "rem_rate_spec",
   "result.goldfish",
   "sender_spec",
-  "spec_map.goldfish",
-  "specification.goldfish",
   "summary.result.goldfish",
   "support_constraint_plan",
   "test_gof",

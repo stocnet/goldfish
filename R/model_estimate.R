@@ -77,7 +77,7 @@
 #' For `estimate_rem()` the valid values are `"rate"` (full dyadic hazard
 #' model, the default) and `"rate_ordered"` (only the order of the events is
 #' modeled); `"choice"` is kept as a deprecated alias of `"rate"`.
-#' @param control_algo An object of class `algorithm.goldfish`
+#' @param control_algo An object of class `goldfishAlgo`
 #'   (typically created by [set_algorithm_newton()]),
 #'   specifying the algorithm and its parameters for the estimation.
 #' @param control_prep An object of class
@@ -117,7 +117,7 @@
 #'   arithmetic `+ - * /`; a bare effect means `effect != 0`. Inside a constraint
 #'   `*` is elementwise arithmetic, never the effects formula's interaction
 #'   expansion; for 0/1 indicators prefer `&` over `*` (`tie(a) & tie(b)`).
-#'   Ignored when `x` is a `specification.goldfish` object (which carries its own
+#'   Ignored when `x` is a `goldfishSpec` object (which carries its own
 #'   constraint). See [make_specification()] for the full grammar. `NULL` by
 #'   default.
 #' @param verbose logical indicating whether should print
@@ -399,11 +399,11 @@
 NULL
 
 # A joint (multivariate) specification is a distinct class that does NOT inherit
-# specification.goldfish, so it slips past the single-specification dispatch
-# branch and would otherwise fall through to estimate_wrapper. The event-stream
-# estimators reject it by class and point at the multivariate estimator; the
-# check runs before the specification.goldfish branch so a joint object never
-# reaches single-process estimation.
+# goldfishSpec, so it slips past the single-specification dispatch branch and
+# would otherwise fall through to estimate_wrapper. The event-stream estimators
+# reject it by class and point at the multivariate estimator; the check runs
+# before the goldfishSpec branch so a joint object never reaches
+# single-process estimation.
 reject_joint_specification <- function(x, call = rlang::caller_env()) {
   if (inherits(x, "goldfishJointSpec")) {
     cli::cli_abort(
@@ -488,7 +488,7 @@ estimate_dynam <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "DyNAM",
@@ -569,7 +569,7 @@ estimate_dynami <- function(
   # rejected at joint composition, so it cannot appear in a joint object. An
   # explicit rejection is deferred to when DyNAM-i becomes composable.
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "DyNAMi",
@@ -648,7 +648,7 @@ estimate_rem <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "REM",
@@ -704,11 +704,11 @@ abort_on_completion_gaps <- function(spec, call = rlang::caller_env()) {
   )
 }
 
-# Estimate from a specification.goldfish object. Selects the submodel
-# bundle matching the requested sub_model's family (rate vs choice), reuses its
-# parsed formula bundle so estimation does not re-parse, and forwards to the
-# shared estimator with the bundle's own sub_model. Results are identical to
-# estimating the equivalent `layer ~ rhs` formula.
+# Estimate from a goldfishSpec object. Selects the submodel bundle matching the
+# requested sub_model's family (rate vs choice), reuses its parsed formula
+# bundle so estimation does not re-parse, and forwards to the shared estimator
+# with the bundle's own sub_model. Results are identical to estimating the
+# equivalent `layer ~ rhs` formula.
 estimate_from_specification <- function(
   spec,
   model,
@@ -803,8 +803,8 @@ estimate_from_specification <- function(
 #' @param x a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
-#'   (see `vignette("goldfish_effects")`), or a `specification.goldfish` object
-#'   from [make_specification()] — the same first argument the `estimate_*()`
+#'   (see `vignette("goldfish_effects")`), or a `goldfishSpec` object from
+#'   [make_specification()] — the same first argument the `estimate_*()`
 #'   functions take.
 #' @param model a character string specifying the model. Current options are
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
@@ -1012,7 +1012,7 @@ compute_statistics <- function(
   output <- match.arg(output)
   # A specification takes the same front door here as at estimation, so the two
   # entry points cannot disagree about what a specification means.
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = model,
@@ -1617,7 +1617,7 @@ estimate_wrapper <- function(
     is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessed) ||
       inherits(preprocessed, "preprocessed.goldfish"),
-    inherits(control_algo, "algorithm.goldfish"),
+    inherits(control_algo, "goldfishAlgo"),
     inherits(control_prep, "preprocessing.goldfish")
   )
 
@@ -1775,7 +1775,7 @@ estimate_wrapper <- function(
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
     is.null(preprocessed)
-  # A specification.goldfish object supplies its parsed bundle so estimation
+  # A goldfishSpec object supplies its parsed bundle so estimation
   # reuses it rather than re-parsing; it was parsed with the same
   # recipe-deferred window semantics. Otherwise parse the formula here.
   if (is.null(parsed_formula)) {
