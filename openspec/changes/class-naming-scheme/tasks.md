@@ -47,7 +47,7 @@ pre-2.0.0, before `parametric-rates`.
       attempt because it appears only inside `inherits(x, c(...))`, so
       verify the enumeration finds all twelve `model_spec` classes before
       trusting it.
-- [ ] 1.3a Converge the class idioms (design D20) **before** the rename
+- [x] 1.3a Converge the class idioms (design D20) **before** the rename
       clusters, so the later inventories see one form. Replace the six
       `attr(x, "class") <-` sites with `class(x) <-`: three stamp
       `result.goldfish` (`estimation_core.R:320`, `cpp_interface.R:756`,
@@ -58,7 +58,7 @@ pre-2.0.0, before `parametric-rates`.
       `%in% class(x)` has zero sites; it is a prohibition in the spec, not a
       migration. Pure refactor: no class string moves here, so the suite must
       be green with an identical NAMESPACE.
-- [ ] 1.4 Amend the tracked `CLAUDE.md` naming policy (design D14):
+- [x] 1.4 Amend the tracked `CLAUDE.md` naming policy (design D14):
   class strings follow `goldfish<Thing>` camelCase per ADR-0031 /
   autograph CONTRIBUTING; snake_case (and "never reintroduce
   camelCase") continues to govern functions, arguments, and objects.

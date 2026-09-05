@@ -209,6 +209,22 @@ crash or memory bug originates there:
   reintroduce it. Internals still in camelCase (`prepEnvir`, `linkEnvir`, `isDirected`,
   `GetDetailPrint`, …) migrate to snake_case whenever a file is touched. Enforced via
   `object_name_linter("snake_case")` in `.lintr`.
+- **S3 class strings are the one carve-out**: every class goldfish attaches is
+  `goldfish<Thing>` — the package name plus a short camelCase identifier
+  (`goldfishFit`, `goldfishGOF`, `goldfishStat`, `goldfishKindDnRate`). This is the
+  stocnet ecosystem rule (autograph `CONTRIBUTING`, RSiena's
+  `sienaFit`/`sienaGOF`/`sienaAlgorithm`), and it applies to internal classes too, not
+  only the ones users see. A class carries **no dot** — not even the base-R
+  `summary.<class>` idiom, so `summary()` on a fit returns `goldfishSummFit`. Three
+  exemptions: the deprecated-path classes (`nodes.goldfish`, `network.goldfish`,
+  `dependent.goldfish`, `global.goldfish`, and the legacy `data.goldfish`
+  environment), the effect dispatch tags (`inertia`, `recip`, …), and condition
+  classes, which stay `goldfish_<snake_case>` because they are matched by
+  `tryCatch()`/`expect_error(class = )` rather than dispatched on. Nothing here
+  loosens the snake_case rule above: it governs everything *callable* — functions,
+  arguments, objects — and a class string is data, not a name a user calls.
+  `tests/testthat/test-class_naming.R` enumerates the package's classes from the
+  namespace and enforces this; extend its exemption lists, never its expectations.
 - **Cross-package calls**: never `pkg:::fn()` on another package's unexported objects
   (R CMD check/CRAN violation). Rule: `@importFrom` when a function is used across
   functions or in hot paths; `pkg::fn()` for occasional calls.
