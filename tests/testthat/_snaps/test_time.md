@@ -60,7 +60,7 @@
     Code
       print(test_time(fit))
     Message
-      -- <test_time> -----------------------------------------------------------------
+      -- <goldfishTimeTest> ----------------------------------------------------------
       Model "DyNAM" · sub-model "choice" · backend "cpp"
       439 intervals, 439 dependent events; 2 effects tested.
       Score test of a "identity" time trend in each coefficient.
@@ -79,7 +79,7 @@
     Code
       print(test_time(fit, method = "periods", periods = 2L))
     Message
-      -- <test_time> -----------------------------------------------------------------
+      -- <goldfishTimeTest> ----------------------------------------------------------
       Model "DyNAM" · sub-model "choice" · backend "cpp"
       439 intervals, 439 dependent events; 2 effects tested.
       Score test of a coefficient difference across 2 periods.
@@ -102,7 +102,7 @@
       i The fit carries the preprocessed statistics it was estimated from (about 83.8 Kb).
       i The fit carries the preprocessed statistics it was estimated from (about 53.8 Kb).
       i The fit carries the preprocessed statistics it was estimated from (about 56.8 Kb).
-      -- <test_time> -----------------------------------------------------------------
+      -- <goldfishTimeTest> ----------------------------------------------------------
       Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
       Score test of a "identity" time trend in each coefficient.
     Output

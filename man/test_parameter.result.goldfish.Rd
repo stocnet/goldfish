@@ -2,12 +2,12 @@
 % Please edit documentation in R/test_parameter.R
 \name{test_parameter.result.goldfish}
 \alias{test_parameter.result.goldfish}
-\alias{print.test_parameter}
+\alias{print.goldfishParamTest}
 \title{Score test of a coefficient held at an imposed value}
 \usage{
 \method{test_parameter}{result.goldfish}(x, effects = NULL, preprocessed = NULL, ...)
 
-\method{print}{test_parameter}(x, ...)
+\method{print}{goldfishParamTest}(x, ...)
 }
 \arguments{
 \item{x}{a fitted model of class \code{"result.goldfish"} carrying at least one

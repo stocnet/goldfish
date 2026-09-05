@@ -48,7 +48,7 @@ test_that("term-wise changepoints segment the term's own series", {
 
   segmented <- diagnose_changepoints(fit, effect = terms$term[[2]])
 
-  expect_s3_class(segmented, "diagnose_changepoints")
+  expect_s3_class(segmented, "goldfishChangepoints")
   expect_equal(attr(segmented, "params")$effect, terms$term[[2]])
   expect_type(segmented$cpt, "logical")
   expect_equal(nrow(segmented), length(fit$interval_log_lik))

@@ -198,7 +198,7 @@ diagnose_onset.result.goldfish <- function(
       ),
       summary = onset_summary_table(x, path, dropped_events, accrual, tolerance)
     ),
-    "diagnose_onset",
+    "goldfishOnset",
     context = list(
       model = x$model,
       sub_model = x$sub_model,
@@ -258,7 +258,7 @@ diagnose_onset.flavored_result.goldfish <- function(
   contexts <- lapply(blocks, attr, "context")
   new_diagnostic_list(
     components,
-    "diagnose_onset",
+    "goldfishOnset",
     context = list(
       model = x$model,
       layer = x$layer,
@@ -408,12 +408,12 @@ onset_term_labels <- function(x) {
 
 #' @return The object, invisibly.
 #' @rdname diagnose_onset
-#' @method print diagnose_onset
+#' @method print goldfishOnset
 #' @export
-print.diagnose_onset <- function(x, ...) {
+print.goldfishOnset <- function(x, ...) {
   context <- attr(x, "context")
   params <- attr(x, "params")
-  cli::cli_rule(left = "{.cls diagnose_onset}")
+  cli::cli_rule(left = "{.cls goldfishOnset}")
   # A container reports its processes where a single fit reports its sub-model:
   # the paths below belong to several of them, and one sub-model name would
   # describe only whichever came first.

@@ -30,7 +30,7 @@
     Code
       header(diagnose_onset(fit))
     Message
-      -- <diagnose_onset> ------------------------------------------------------------
+      -- <goldfishOnset> -------------------------------------------------------------
       Model "DyNAM" · sub-model "rate" · backend "cpp"
       16 intervals, 12 dependent events; "opg" information accrual.
       Every path is back within 0.1 standard errors of its estimate by the first 5

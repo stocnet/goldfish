@@ -17,8 +17,10 @@ cannot hold. The metadata is the same either way.
 \details{
 The metadata travels as attributes:
 \describe{
-\item{\code{diagnostic}}{a character value naming the producer, which is also
-the object's first class (\code{"margin_table"}).}
+\item{\code{diagnostic}}{a character value naming the object's first class
+(\code{"goldfishMargins"}). It is the class rather than the producing
+function, so it moved with the 2.0.0 class rename:
+\code{margin_table()} returns \code{"goldfishMargins"}, not \code{"margin_table"}.}
 \item{\code{context}}{a list describing the fit the table was computed from:
 \code{model}, \code{sub_model}, \code{backend}, \code{n_events}, the per-role observed
 totals, the node-set names (and, on a two-mode fit, \code{two_mode = TRUE}),

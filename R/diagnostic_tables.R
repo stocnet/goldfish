@@ -194,8 +194,10 @@ node_labels <- function(nodes) {
 #' @details
 #' The metadata travels as attributes:
 #' \describe{
-#'   \item{`diagnostic`}{a character value naming the producer, which is also
-#'     the object's first class (`"margin_table"`).}
+#'   \item{`diagnostic`}{a character value naming the object's first class
+#'     (`"goldfishMargins"`). It is the class rather than the producing
+#'     function, so it moved with the 2.0.0 class rename:
+#'     `margin_table()` returns `"goldfishMargins"`, not `"margin_table"`.}
 #'   \item{`context`}{a list describing the fit the table was computed from:
 #'     `model`, `sub_model`, `backend`, `n_events`, the per-role observed
 #'     totals, the node-set names (and, on a two-mode fit, `two_mode = TRUE`),
@@ -432,19 +434,19 @@ demote_if_incomplete <- function(out) {
 # and, when dplyr is attached, the reconstruction step its verbs restore
 # attributes through.
 #' @export
-`[.diagnose_outliers` <- function(x, ...) {
+`[.goldfishOutliers` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @export
-`[.diagnose_changepoints` <- function(x, ...) {
+`[.goldfishChangepoints` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @export
-`[.margin_table` <- function(x, ...) {
+`[.goldfishMargins` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
@@ -600,7 +602,7 @@ margin_table.result.goldfish <- function(
   rows <- margin_rows(x, dispersion = dispersion, preprocessed = preprocessed)
   new_diagnostic_table(
     rows$table,
-    class = "margin_table",
+    class = "goldfishMargins",
     context = margin_context(x, rows),
     params = list(scales = rows$defined_scales),
     defining = "observed"
@@ -649,7 +651,7 @@ margin_table.flavored_result.goldfish <- function(
   context$role_totals <- role_totals(do.call(rbind, tables))
   new_diagnostic_table(
     do.call(rbind, tables),
-    class = "margin_table",
+    class = "goldfishMargins",
     context = context,
     params = list(scales = defined),
     defining = "observed"
@@ -791,11 +793,11 @@ role_totals <- function(table) {
 }
 
 #' @export
-#' @method print margin_table
+#' @method print goldfishMargins
 #' @noRd
-print.margin_table <- function(x, ...) {
+print.goldfishMargins <- function(x, ...) {
   context <- attr(x, "context")
-  cli::cli_rule(left = "{.cls margin_table}")
+  cli::cli_rule(left = "{.cls goldfishMargins}")
   cli::cli_text(
     "Model {.val {context$model}} ·
      sub-model {.val {context$sub_model}} ·
@@ -824,7 +826,7 @@ print.margin_table <- function(x, ...) {
     )
   }
   body <- x
-  class(body) <- setdiff(class(body), "margin_table")
+  class(body) <- setdiff(class(body), "goldfishMargins")
   print(body, ...)
   invisible(x)
 }

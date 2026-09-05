@@ -1344,16 +1344,16 @@ augment.flavored_result.goldfish <- function(x, ...) {
 
 #' @return The object, invisibly.
 #' @rdname diagnose
-#' @method print diagnose_outliers
+#' @method print goldfishOutliers
 #' @export
-print.diagnose_outliers <- function(x, ...) {
+print.goldfishOutliers <- function(x, ...) {
   print_diagnose_table(x, x$outlier, "outlier")
 }
 
 #' @rdname diagnose
-#' @method print diagnose_changepoints
+#' @method print goldfishChangepoints
 #' @export
-print.diagnose_changepoints <- function(x, ...) {
+print.goldfishChangepoints <- function(x, ...) {
   print_diagnose_table(x, x$cpt, "changepoint")
 }
 

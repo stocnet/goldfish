@@ -217,16 +217,9 @@ conforms <- function(x) grepl("^goldfish[A-Z][A-Za-z0-9]*$", x)
 # breaks the rule still fails, and an entry that has been renamed must be
 # removed, so the list cannot rot. It is empty when the change closes.
 pending_rename <- c(
-  "diagnose_changepoints",
-  "diagnose_onset",
-  "diagnose_outliers",
   "flavored_result.goldfish",
-  "margin_table",
   "result.goldfish",
-  "summary.result.goldfish",
-  "test_gof",
-  "test_parameter",
-  "test_time"
+  "summary.result.goldfish"
 )
 
 test_that("every class goldfish attaches is goldfish<Thing>", {

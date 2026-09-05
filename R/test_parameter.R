@@ -158,7 +158,7 @@ test_parameter.result.goldfish <- function(
       df = 1L,
       p_value = stats::pchisq(statistic, df = 1L, lower.tail = FALSE)
     ),
-    "test_parameter",
+    "goldfishParamTest",
     context = list(
       model = x$model,
       sub_model = x$sub_model,
@@ -307,18 +307,18 @@ invert_information_block <- function(
 }
 
 #' @export
-`[.test_parameter` <- function(x, ...) {
+`[.goldfishParamTest` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @return The object, invisibly.
 #' @rdname test_parameter.result.goldfish
-#' @method print test_parameter
+#' @method print goldfishParamTest
 #' @export
-print.test_parameter <- function(x, ...) {
+print.goldfishParamTest <- function(x, ...) {
   context <- attr(x, "context")
-  cli::cli_rule(left = "{.cls test_parameter}")
+  cli::cli_rule(left = "{.cls goldfishParamTest}")
   cli::cli_text(
     "Model {.val {context$model}} ·
      sub-model {.val {context$sub_model}} ·
@@ -335,7 +335,7 @@ print.test_parameter <- function(x, ...) {
      {.field p} = {format.pval(joint$p_value, digits = 3)}"
   )
   body <- x
-  class(body) <- setdiff(class(body), "test_parameter")
+  class(body) <- setdiff(class(body), "goldfishParamTest")
   print(body, ...)
   invisible(x)
 }
@@ -403,7 +403,7 @@ test_parameter.flavored_result.goldfish <- function(
   }
   new_diagnostic_table(
     do.call(rbind, lapply(per_process, `[[`, "table")),
-    "test_parameter",
+    "goldfishParamTest",
     context = list(
       model = x$model,
       layer = x$layer,

@@ -8,8 +8,8 @@
 \alias{diagnose_changepoints.result.goldfish}
 \alias{diagnose_outliers.flavored_result.goldfish}
 \alias{diagnose_changepoints.flavored_result.goldfish}
-\alias{print.diagnose_outliers}
-\alias{print.diagnose_changepoints}
+\alias{print.goldfishOutliers}
+\alias{print.goldfishChangepoints}
 \title{Diagnostic functions}
 \usage{
 diagnose_outliers(x, ...)
@@ -59,9 +59,9 @@ diagnose_changepoints(x, ...)
   ...
 )
 
-\method{print}{diagnose_outliers}(x, ...)
+\method{print}{goldfishOutliers}(x, ...)
 
-\method{print}{diagnose_changepoints}(x, ...)
+\method{print}{goldfishChangepoints}(x, ...)
 }
 \arguments{
 \item{x}{an object of class \code{result.goldfish} output from an

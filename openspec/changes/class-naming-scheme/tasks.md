@@ -131,27 +131,27 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 5. Diagnostic classes (autograph-fixed names)
 
-- [ ] 5.1 Rename the list-shaped diagnostics: `test_gof` →
+- [x] 5.1 Rename the list-shaped diagnostics: `test_gof` →
   `goldfishGOF` (`R/test_gof.R`), `test_time` → `goldfishTimeTest`
   (`R/test_time.R`), `test_parameter` → `goldfishParamTest`
   (`R/test_parameter.R`, incl. the `setdiff(class(body), ...)`
   demotion), `diagnose_onset` → `goldfishOnset`
   (`R/diagnose_onset.R`). Class strings and roxygen `@method` tags by
   hand; do **not** touch the identically named exported functions (D9).
-- [ ] 5.2 Rename the tibble-shaped diagnostics: `diagnose_outliers` →
+- [x] 5.2 Rename the tibble-shaped diagnostics: `diagnose_outliers` →
   `goldfishOutliers`, `diagnose_changepoints` →
   `goldfishChangepoints`, `margin_table` → `goldfishMargins`,
   `evaluate_model` → `goldfishEval` (`R/diagnostic_tables.R`,
   `R/model_evaluate.R`, the shared diagnostic-table constructor's
   `class` argument, the `[` methods, the demotions).
-- [ ] 5.3 Update the three class strings in
+- [x] 5.3 Update the three class strings in
   `register_diagnostic_reconstruct()` (`R/zzz.R`); verify with dplyr
   attached that `filter()` on a diagnostic table still demotes on the
   documented rule.
-- [ ] 5.4 Update affected tests/snapshots. Assert explicitly that
+- [x] 5.4 Update affected tests/snapshots. Assert explicitly that
   `export(test_gof)` and the other seven function exports survive in
   NAMESPACE — the anti-`sed` guard.
-- [ ] 5.5 Verification: `air format` → `lintr` → `document()` →
+- [x] 5.5 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**.
 
 ## 6. autograph dispatch verification (no rename work)

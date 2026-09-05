@@ -3,7 +3,7 @@
 \name{test_time.result.goldfish}
 \alias{test_time.result.goldfish}
 \alias{test_time.flavored_result.goldfish}
-\alias{print.test_time}
+\alias{print.goldfishTimeTest}
 \title{Test whether an effect's coefficient is constant over the sequence}
 \usage{
 \method{test_time}{result.goldfish}(
@@ -26,7 +26,7 @@
   ...
 )
 
-\method{print}{test_time}(x, ...)
+\method{print}{goldfishTimeTest}(x, ...)
 }
 \arguments{
 \item{x}{a fitted model of class \code{"result.goldfish"}; for the print method,

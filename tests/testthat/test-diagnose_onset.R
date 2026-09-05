@@ -52,12 +52,12 @@ test_that("the paths and the accrual curve need no pass and no replay", {
   )
   onset <- diagnose_onset(fit)
 
-  expect_s3_class(onset, "diagnose_onset")
+  expect_s3_class(onset, "goldfishOnset")
   expect_named(onset, c("path", "accrual", "summary"))
   for (component in onset) {
     expect_s3_class(component, "tbl_df")
   }
-  expect_identical(attr(onset, "diagnostic"), "diagnose_onset")
+  expect_identical(attr(onset, "diagnostic"), "goldfishOnset")
   expect_identical(attr(onset, "params")$information, "opg")
   expect_identical(
     attr(onset, "context")$n_intervals,

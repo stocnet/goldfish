@@ -300,7 +300,7 @@ test_gof.result.goldfish <- function(
       process = gof_process_table(paths, labels, tested, clock),
       omnibus = cauchy_omnibus(p_value)
     ),
-    "test_gof",
+    "goldfishGOF",
     context = list(
       model = object$model,
       sub_model = object$sub_model,
@@ -641,7 +641,7 @@ test_gof.flavored_result.goldfish <- function(
   components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
-    "test_gof",
+    "goldfishGOF",
     context = gof_flavored_context(object, map, rows, components$effects),
     params = list(clock = clock, n_sim = n_sim)
   )
@@ -697,15 +697,15 @@ gof_flavored_context <- function(object, map, rows, effects) {
 
 #' @return The object, invisibly.
 #' @rdname test_gof.result.goldfish
-#' @method print test_gof
+#' @method print goldfishGOF
 #' @export
-print.test_gof <- function(x, ...) {
+print.goldfishGOF <- function(x, ...) {
   context <- attr(x, "context")
   params <- attr(x, "params")
   # One print for both shapes, told apart by the column the flavored form
   # appends -- the same branch `print.margin_table` makes.
   blocked <- "flavor" %in% names(x$effects)
-  cli::cli_rule(left = "{.cls test_gof}")
+  cli::cli_rule(left = "{.cls goldfishGOF}")
   if (blocked) {
     cli::cli_text(
       "Model {.val {context$model}} · layer {.val {context$layer}} ·

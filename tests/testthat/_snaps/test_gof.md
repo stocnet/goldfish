@@ -50,7 +50,7 @@
     Code
       header(test_gof(fit))
     Message
-      -- <test_gof> ------------------------------------------------------------------
+      -- <goldfishGOF> ---------------------------------------------------------------
       Model "DyNAM" · sub-model "rate" · backend "cpp"
       16 intervals, 12 dependent events; 4 effects tested.
       Supremum of the standardized cumulative score process, against the Kolmogorov
@@ -63,7 +63,7 @@
     Code
       header(test_gof(fit, clock = "information", n_sim = 100))
     Message
-      -- <test_gof> ------------------------------------------------------------------
+      -- <goldfishGOF> ---------------------------------------------------------------
       Model "DyNAM" · sub-model "rate" · backend "cpp"
       16 intervals, 12 dependent events; 4 effects tested.
       Supremum of the standardized cumulative score process, against 100 simulated
@@ -90,7 +90,7 @@
     Code
       print(test_gof(container))
     Message
-      -- <test_gof> ------------------------------------------------------------------
+      -- <goldfishGOF> ---------------------------------------------------------------
       Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
       Supremum of the standardized cumulative score process, against the Kolmogorov
       distribution on the event clock.

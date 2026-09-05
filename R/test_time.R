@@ -230,7 +230,7 @@ test_time.result.goldfish <- function(
       ),
       periods = time_delta_table(augmented$delta, tested, labels, grouping)
     ),
-    "test_time",
+    "goldfishTimeTest",
     context = list(
       model = x$model,
       sub_model = x$sub_model,
@@ -667,7 +667,7 @@ test_time.flavored_result.goldfish <- function(
   components$effects <- rank_by_statistic(components$effects)
   new_diagnostic_list(
     components,
-    "test_time",
+    "goldfishTimeTest",
     context = list(
       model = x$model,
       layer = x$layer,
@@ -717,15 +717,15 @@ time_block <- function(
 }
 
 #' @rdname test_time.result.goldfish
-#' @method print test_time
+#' @method print goldfishTimeTest
 #' @export
-print.test_time <- function(x, ...) {
+print.goldfishTimeTest <- function(x, ...) {
   context <- attr(x, "context")
   params <- attr(x, "params")
   # One print for both shapes, told apart by the column the flavored form
   # appends -- the same branch `print.test_gof` makes.
   blocked <- "flavor" %in% names(x$effects)
-  cli::cli_rule(left = "{.cls test_time}")
+  cli::cli_rule(left = "{.cls goldfishTimeTest}")
   if (blocked) {
     cli::cli_text(
       "Model {.val {context$model}} · layer {.val {context$layer}} ·

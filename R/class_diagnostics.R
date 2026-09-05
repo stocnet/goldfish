@@ -233,7 +233,7 @@ diagnose_outliers.result.goldfish <- function(
 
   new_diagnostic_table(
     data,
-    "diagnose_outliers",
+    "goldfishOutliers",
     context = diagnose_context(x, candidate),
     params = list(
       method = method,
@@ -365,7 +365,7 @@ diagnose_changepoints.result.goldfish <- function(
 
   new_diagnostic_table(
     data,
-    "diagnose_changepoints",
+    "goldfishChangepoints",
     context = diagnose_context(x, candidate),
     params = list(
       moment = moment,
@@ -418,7 +418,7 @@ diagnose_outliers.flavored_result.goldfish <- function(
   # Each process is flagged against its OWN series rather than a pooled one: a
   # rate process and a choice process do not share a scale, so a threshold
   # applied across both would flag whichever has the wider spread.
-  flavored_diagnose_table(x, blocks, "diagnose_outliers")
+  flavored_diagnose_table(x, blocks, "goldfishOutliers")
 }
 
 #' @export
@@ -458,7 +458,7 @@ diagnose_changepoints.flavored_result.goldfish <- function(
   # Segmented per process for the same reason: a changepoint is a break in one
   # process's series, and concatenating two series would place a break at the
   # seam between them.
-  flavored_diagnose_table(x, blocks, "diagnose_changepoints")
+  flavored_diagnose_table(x, blocks, "goldfishChangepoints")
 }
 
 # Which intervals take part in the statistic. Read off the `NA` pattern

@@ -2,7 +2,7 @@
 % Please edit documentation in R/test_gof.R
 \name{test_gof.result.goldfish}
 \alias{test_gof.result.goldfish}
-\alias{print.test_gof}
+\alias{print.goldfishGOF}
 \title{Goodness of fit from the cumulative score processes}
 \usage{
 \method{test_gof}{result.goldfish}(
@@ -13,7 +13,7 @@
   ...
 )
 
-\method{print}{test_gof}(x, ...)
+\method{print}{goldfishGOF}(x, ...)
 }
 \arguments{
 \item{object}{a fitted model of class \code{"result.goldfish"}, estimated with
