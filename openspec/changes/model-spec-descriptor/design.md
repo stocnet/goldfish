@@ -61,7 +61,7 @@ this change exists to remove. Fields, each a closed vocabulary:
 
 | Field | Values | Replaces |
 | --- | --- | --- |
-| `axis` | `sender`, `dyad`, `dyad_symmetric` | `risk_set$axis`, the indexing class |
+| `axis` | `sender`, `dyad` | `risk_set$axis`, the indexing class |
 | `timing` | `timed`, `ordinal` | `right_censored`, `intercept_scalars` |
 | `likelihood` | `poisson`, `multinomial`, `coordination` | `risk_set$normalizer` |
 | `input_shape` | `standard`, `grouped` | the DyNAMi variant classes |
@@ -72,6 +72,26 @@ this change exists to remove. Fields, each a closed vocabulary:
 different implementation. Preprocessing does not: it selects a loop and passes
 flags, which is a lookup, not a polymorphism. Estimation genuinely does, so it
 keeps dispatch (D3).
+
+### D1a — Symmetry is a likelihood property, not a risk-set axis
+
+Corrected 2026-09-05 (Alvaro). Today's `risk_set$axis` takes a fourth value,
+`dyad_symmetric`, for one-mode coordination. That conflates two different
+facts. Coordination allows **asymmetric covariates** — the statistics are
+computed on the same reduced `n1r x n2r` dyad grid every dyadic model uses,
+and the code says so: the branch that scatters a reduced grid into the full
+one treats `dyad` and `dyad_symmetric` identically. What differs is the
+*reduction*: coordination's realized risk set is the unordered pair list
+`{a > b}`, so its likelihood sums each unordered dyad once instead of twice.
+That divergence lives entirely in the event-reduction step.
+
+So `axis` takes `sender` or `dyad` only, and symmetrization is carried by
+`likelihood = "coordination"`, which the likelihood dispatch already reads.
+Preprocessing, which is what `axis` drives, sees no difference — which is the
+test of whether a fact belongs on that field.
+
+*Consequence:* the `dyad_symmetric` string is retired rather than renamed. Any
+site testing it tests `likelihood == "coordination"` instead.
 
 ### D2 — `timing` names the behavior; `right_censored`/`intercept_scalars` retire
 
@@ -146,11 +166,22 @@ gives `dynam_rate_spec` a `goldfish<Thing>` name, while this change deletes
 several of those classes outright. Renaming a class and then removing it is
 pure waste, and doing both in one branch makes each diff unreviewable.
 
-*Decision:* this change lands **first** where they overlap, or
-`class-naming-scheme` explicitly excludes the `model_spec` hierarchy from its
-table and picks it up afterward. Which of the two is chosen is a scheduling
-call for the maintainer; the design only requires that it be made before
-either starts, and recorded in both changes.
+*Decision (Alvaro, 2026-09-05):* **`class-naming-scheme` lands first; this
+change follows.** The rename is already artifact-complete and its blockers are
+cleared, while this change is a fresh proposal; sequencing the finished work
+first keeps the rename's diff mechanical and reviewable.
+
+The accepted cost is that the `model_spec` hierarchy gets renamed and then
+partly dissolved: this change collapses variants whose implementations are
+identical, so a handful of names minted by the rename will not survive it.
+That is bounded — around eleven internal, unexported class strings, no user
+surface — and paid once. It is recorded here rather than discovered later.
+
+An alternative remains available if that waste is judged not worth paying:
+`class-naming-scheme` excludes the `model_spec` hierarchy from its table, and
+this change names those classes when it reshapes them. That is a scope
+decision on the rename, not a re-ordering, and it can be taken at the rename's
+task 1.1 without disturbing anything here.
 
 ## Risks / Trade-offs
 
@@ -175,9 +206,12 @@ change beyond an internal-refactor note. Rollback is per-commit (D7).
 
 ## Open Questions
 
-- Ordering against `class-naming-scheme` (D8) — which lands first.
-- Whether `dyad_symmetric` is an `axis` value or an `encoding`, given
-  one-mode coordination currently sets both.
+- Whether `class-naming-scheme` should exclude the `model_spec` hierarchy
+  from its rename table (D8's alternative), to avoid renaming classes this
+  change then dissolves. Ordering itself is settled: rename first.
+- Whether retiring `dyad_symmetric` (D1a) touches the C++ boundary, or only
+  the R-side reduction dispatch — `DyNAM_MM_default.cpp` is named in the
+  comment at the branch site and must be checked before task 2.1.
 - Whether `input_shape` earns its place, or DyNAMi's preprocessing difference
   should be expressed as recipe fields directly — answerable once the
   effect-registry work shows how much of the gap it closes.

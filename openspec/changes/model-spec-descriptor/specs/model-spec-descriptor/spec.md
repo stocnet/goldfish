@@ -7,7 +7,7 @@ spec constructor and nowhere else, from which every downstream component reads
 the facts it needs. The descriptor SHALL subsume the risk-set descriptor
 rather than coexisting with it, so a model spec carries one behavioral object,
 not two. Each field SHALL take a value from a closed vocabulary: `axis`
-(`sender`, `dyad`, `dyad_symmetric`), `timing` (`timed`, `ordinal`),
+(`sender`, `dyad`), `timing` (`timed`, `ordinal`),
 `likelihood` (`poisson`, `multinomial`, `coordination`), `input_shape`
 (`standard`, `grouped`), and `distribution` (`exponential`, with `weibull` and
 `gompertz` reserved for the parametric rate work). A field that no consumer
@@ -19,6 +19,14 @@ branches on SHALL NOT be added.
 - **THEN** it carries a single behavioral descriptor whose fields are all
   drawn from their declared vocabularies, and no second behavioral descriptor
   object is present on the spec
+
+#### Scenario: symmetry is carried by the likelihood, not the axis
+
+- **WHEN** a one-mode coordination spec is constructed
+- **THEN** its `axis` is `dyad`, the same value a REM spec carries, and the
+  fact that its likelihood sums unordered pairs once is carried by
+  `likelihood`, because preprocessing computes statistics on the same dyad
+  grid for both
 
 #### Scenario: an unsupported combination is rejected at construction
 

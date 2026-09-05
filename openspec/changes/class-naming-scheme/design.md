@@ -368,6 +368,32 @@ DyNAM coordination and the five DyNAMu mechanisms relate in the class
 hierarchy — flat siblings, a shared coordination family class, or a
 mechanism field — is open and is **not** settled by this decision.
 
+### D18 — This change lands before `model-spec-descriptor`
+
+New (2026-09-05, Alvaro). The `model-spec-descriptor` change proposes
+replacing the `model_spec` variant class hierarchy with a single behavioral
+descriptor, on the finding that the nine variant classes carry two bits for
+preprocessing, that two preprocess methods are byte-identical, and that three
+likelihood methods are literal aliases. Both changes rewrite
+`R/model_spec.R`, `R/model_preprocess.R` and `R/estimation_core.R`.
+
+**This change goes first.** It is artifact-complete with its blockers
+cleared; the descriptor work is a fresh proposal. Sequencing the finished work
+first keeps this rename mechanical.
+
+The cost, accepted and recorded: the `model_spec` names minted here are partly
+dissolved afterward, since the descriptor change collapses variants whose
+implementations coincide. That is roughly eleven internal, unexported class
+strings — no user surface, no deprecation — paid once.
+
+If that waste is judged not worth paying, the alternative is a **scope**
+decision on this change, not a re-ordering: drop the `model_spec` hierarchy
+rows from the rename table and let `model-spec-descriptor` name those classes
+as it reshapes them. That choice can be taken at task 1.1, when the inventory
+makes the size of the overlap concrete, and it is the moment open question 2
+(the `goldfishModelSpec*` identifiers) stops mattering if the answer is to
+drop them.
+
 ## Risks / Trade-offs
 
 - **A renamed class silently loses its S3 registration** → unchanged

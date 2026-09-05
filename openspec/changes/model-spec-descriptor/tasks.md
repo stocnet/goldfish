@@ -9,10 +9,11 @@ task 1.1 — see design D8.**
 
 ## 1. Descriptor construction (additive; nothing reads it yet)
 
-- [ ] 1.1 Settle design D8 with the maintainer and record the answer in both
-      changes: either this change lands first on the shared files, or
-      `class-naming-scheme` excludes the `model_spec` hierarchy from its
-      rename table and takes it afterward. Do not start 1.2 until recorded.
+- [ ] 1.1 Confirm `class-naming-scheme` has landed before starting (design
+      D8, settled 2026-09-05: the rename goes first, this change follows).
+      If that change chose to exclude the `model_spec` hierarchy from its
+      table, note which class strings arrive unrenamed, since this change
+      then names them as it reshapes them.
 - [ ] 1.2 Inventory: for each of the 9 variants record its current class
       vector, its `preprocess.*` parameters, its `compute_event_contribution`
       method (noting the three aliases), and the descriptor values it will
@@ -42,7 +43,15 @@ task 1.1 — see design D8.**
 - [ ] 2.3 Tests: preprocessing output is byte-identical to before for every
       variant. Compare against stored output, not against a re-run of the new
       code.
-- [ ] 2.4 Verification: `air format` → `lintr` → **not-cran-test**.
+- [ ] 2.4 Retire the `dyad_symmetric` axis string (design D1a): one-mode
+      coordination carries `axis = "dyad"` like every other dyadic model, and
+      the sites testing `dyad_symmetric` test `likelihood == "coordination"`
+      instead. Check the C++ boundary first — the branch comment names
+      `DyNAM_MM_default.cpp`, so confirm the reduction path is R-side before
+      changing the string.
+- [ ] 2.5 Verification: `air format` → `lintr` → **not-cran-test**. The
+      coordination baselines are the detector here: the unordered-pair
+      reduction must produce identical numbers.
 
 ## 3. One name per behavior — retire the flag pair
 

@@ -16,6 +16,12 @@ pre-2.0.0, before `parametric-rates`.
   function names, so the inventory separates class-string sites from
   function-name sites before any edit (design D9). Confirm every
   effect-tag string stays off the list (D2 exemption).
+- [ ] 1.1a Decide the `model_spec` hierarchy's scope (design D18): rename its
+      classes here, or drop those rows and let `model-spec-descriptor` name
+      them when it reshapes them. The 1.1 inventory makes the overlap
+      concrete; if the rows are dropped, design open question 2 (the
+      `goldfishModelSpec*` identifiers) is moot. Record the answer in both
+      changes.
 - [ ] 1.2 Lint spike (design D15): one throwaway file declaring a
   method per generic family on a camelCase class
   (`print.goldfishFit`, `diagnose_onset.goldfishFit`, …); run
