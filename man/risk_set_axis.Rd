@@ -7,7 +7,7 @@
 risk_set_axis(x)
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"} (from
+\item{x}{a fitted model of class \code{"goldfishFit"} (from
 \code{\link[=estimate_dynam]{estimate_dynam()}}, \code{\link[=estimate_rem]{estimate_rem()}}), a preprocessed object, or a model
 specification.}
 }

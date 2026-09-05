@@ -98,5 +98,5 @@ test_that("the axis reads off a preprocessed object and a model spec too", {
 test_that("a fit predating the recorded axis reads as NULL, not an error", {
   # The `backend` convention: an old object reports an unknown value rather than
   # failing, so a consumer can branch on it.
-  expect_null(risk_set_axis(structure(list(), class = "result.goldfish")))
+  expect_null(risk_set_axis(structure(list(), class = "goldfishFit")))
 })

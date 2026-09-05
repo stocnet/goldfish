@@ -9,18 +9,18 @@
 #'
 #' Printing functions for `goldfish` objects.
 #'
-#' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
+#' @param x an object of class `goldfishFit`, `goldfishSummFit`,
 #' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
 #' `goldfishStat`.
 #' @param digits minimal number of significant digits, see [print.default()].
 #' @param width controls the maximum number of columns on a line used in
-#' printing `summary.result.goldfish` and `goldfishStat`,
+#' printing `goldfishSummFit` and `goldfishStat`,
 #' see  [print.default()].
 #' @param complete logical. Indicates whether the parameter coefficients
 #' of effects held fixed during estimation (via `offset()`) should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
-#' `result.goldfish` and `summary.result.goldfish`.
-#' @param compact logical. For objects of class `summary.result.goldfish`,
+#' `goldfishFit` and `goldfishSummFit`.
+#' @param compact logical. For objects of class `goldfishSummFit`,
 #' when `TRUE` (the default) a single coefficients table is printed whose row
 #' labels are compact term strings and the separate "Effects details" table is
 #' omitted; when `FALSE` the "Effects details" table is printed before the
@@ -39,13 +39,13 @@ NULL
 
 # Print Goldfish results
 # @return prints just the coefficients of the estimated model.
-#   See \code{\link{print.summary.result.goldfish}} for a more
+#   See \code{\link{print.goldfishSummFit}} for a more
 #   comprehensible output.
 #' @importFrom stats coef
 #' @export
 #' @rdname print-method
-#' @method print result.goldfish
-print.result.goldfish <- function(
+#' @method print goldfishFit
+print.goldfishFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -72,10 +72,10 @@ print.result.goldfish <- function(
   invisible(x)
 }
 
-#' @method summary result.goldfish
+#' @method summary goldfishFit
 #' @export
 #' @noRd
-summary.result.goldfish <- function(object, ...) {
+summary.goldfishFit <- function(object, ...) {
   abort_if_stale_result(object, "a summary")
   nParams <- object$n_params
 
@@ -115,17 +115,17 @@ summary.result.goldfish <- function(object, ...) {
   object$coef_mat <- coefmat
   object$AIC <- stats::AIC(object)
   object$BIC <- stats::BIC(object)
-  class(object) <- "summary.result.goldfish"
+  class(object) <- "goldfishSummFit"
   return(object)
   # format.pval()
 }
 
 #' @export
 #' @rdname print-method
-#' @return For objects of class `result.goldfish` and `summary.result.goldfish`
+#' @return For objects of class `goldfishFit` and `goldfishSummFit`
 #'  print the estimated coefficients when `complete = FALSE`, otherwise it
 #'  includes also the fixed coefficients.
-#' For `summary.result.goldfish` print:
+#' For `goldfishSummFit` print:
 #' \item{Effect details:}{a table with additional information of the effects.
 #' The information corresponds to the  values of the effects arguments when
 #' they are modified and if they where fixed during estimation, see
@@ -140,7 +140,7 @@ summary.result.goldfish <- function(object, ...) {
 #'   in the last iteration. Information criteria as the AIC, BIC and the AIC
 #'   corrected for small sample size AICc are reported.}
 #' \item{Model and sub_model:}{the values set during estimation.}
-print.summary.result.goldfish <- function(
+print.goldfishSummFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -680,9 +680,9 @@ print_flavor_processes <- function(x) {
 # layer or flavor name containing a dot or colliding with another cannot be
 # mistaken for structure.
 #' @export
-#' @method print flavored_result.goldfish
+#' @method print goldfishFlavFit
 #' @noRd
-print.flavored_result.goldfish <- function(
+print.goldfishFlavFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -690,7 +690,7 @@ print.flavored_result.goldfish <- function(
   complete = FALSE
 ) {
   map <- x$process_map
-  cli::cli_rule(left = "{.cls flavored_result.goldfish}")
+  cli::cli_rule(left = "{.cls goldfishFlavFit}")
   cli::cli_text(
     "Model {.val {x$model}} · layer {.val {x$layer}} ·
      {length(x$flavors)} flavor{?s}"
@@ -1120,9 +1120,9 @@ generics::tidy
 # tidy <- function(x) UseMethod("tidy")
 # # just for testing, don't use because overwrites use in other packages
 
-#' @method tidy result.goldfish
+#' @method tidy goldfishFit
 #' @export
-tidy.result.goldfish <- function(
+tidy.goldfishFit <- function(
   x,
   conf.int = FALSE,
   conf.level = 0.95,
@@ -1131,7 +1131,7 @@ tidy.result.goldfish <- function(
   ...
 ) {
   isFixed <- GetFixed(x)
-  coefMat <- summary.result.goldfish(x)$coef_mat
+  coefMat <- summary.goldfishFit(x)$coef_mat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf.int) {
@@ -1195,9 +1195,9 @@ generics::glance
 # glance <- function(x) UseMethod("glance")
 # just for testing, don't use because overwrites use in other packages
 
-#' @method glance result.goldfish
+#' @method glance goldfishFit
 #' @export
-glance.result.goldfish <- function(x, ...) {
+glance.goldfishFit <- function(x, ...) {
   with(
     summary(x),
     tibble::tibble(
@@ -1241,7 +1241,7 @@ generics::augment
 #' `.resid`: it realizes no outcome, so a fitted outcome probability and its
 #' deviance are not defined there.
 #'
-#' @param x a fitted model of class `"result.goldfish"`.
+#' @param x a fitted model of class `"goldfishFit"`.
 #' @param ... Additional arguments passed to or from other methods
 #'   (currently unused).
 #'
@@ -1262,11 +1262,11 @@ generics::augment
 #' )
 #' augment(fit)
 #'
-#' @seealso [residuals.result.goldfish()] and [fitted.result.goldfish()] for
+#' @seealso [residuals.goldfishFit()] and [fitted.goldfishFit()] for
 #'   the same quantities on their own, and the other types they come in.
-#' @method augment result.goldfish
+#' @method augment goldfishFit
 #' @export
-augment.result.goldfish <- function(x, ...) {
+augment.goldfishFit <- function(x, ...) {
   # Aborts: the per-event column it appends comes from `interval_log_lik`, so on
   # an old object it would hand back a tibble with a column of NULL-turned-NA
   # rather than the per-event log-likelihood it promises.
@@ -1324,9 +1324,9 @@ augment.result.goldfish <- function(x, ...) {
 }
 
 #' @export
-#' @method augment flavored_result.goldfish
+#' @method augment goldfishFlavFit
 #' @noRd
-augment.flavored_result.goldfish <- function(x, ...) {
+augment.goldfishFlavFit <- function(x, ...) {
   # A tidy return, so the identity travels as columns rather than as a list:
   # the per-process tables row-bind and gain `flavor` and `family` appended
   # after the existing columns. That keeps the event columns positionally

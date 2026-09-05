@@ -91,7 +91,7 @@ test_that("legacy formula path is unchanged when a spec is not passed", {
     sub_model = "choice",
     data = d
   )
-  expect_s3_class(m, "result.goldfish")
+  expect_s3_class(m, "goldfishFit")
 })
 
 test_that("a dependent object on the LHS is rejected pointing at layer", {

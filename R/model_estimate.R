@@ -142,12 +142,12 @@
 #' It is an environment that contains the nodesets, networks,
 #' attributes and dependent events objects. Default to `NULL`.
 #'
-#' @return returns an object of [class()] `"result.goldfish"`
+#' @return returns an object of [class()] `"goldfishFit"`
 #' when `preprocessing_only = FALSE` or
 #' a preprocessed statistics object of class `"goldfishStat"`
 #' when `preprocessing_only = TRUE`.
 #'
-#' An object of class `"result.goldfish"` is a list including:
+#' An object of class `"goldfishFit"` is a list including:
 #'   \item{parameters}{a numeric vector with the coefficients estimates.}
 #'   \item{standard_errors}{
 #'    a numeric vector with the standard errors of the coefficients estimates.}

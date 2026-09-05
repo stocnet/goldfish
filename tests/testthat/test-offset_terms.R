@@ -124,7 +124,7 @@ test_that("a constant-across-alternatives offset in choice warns, not aborts", {
     ),
     "constant across the choice alternatives"
   )
-  expect_s3_class(m, "result.goldfish")
+  expect_s3_class(m, "goldfishFit")
 })
 
 test_that("offset_coef arity and pairing are validated", {

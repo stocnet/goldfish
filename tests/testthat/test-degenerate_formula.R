@@ -177,7 +177,7 @@ test_that("an all-fixed model is an evaluation, not an error", {
     sub_model = "choice",
     data = dataTest
   )
-  expect_s3_class(offset_only, "result.goldfish")
+  expect_s3_class(offset_only, "goldfishFit")
   expect_length(coef(offset_only), 0L)
   expect_true(is.finite(as.numeric(logLik(offset_only))))
 

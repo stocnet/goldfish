@@ -161,12 +161,12 @@ procedure; slows down the routine significantly.}
 \code{goldfishStat} object uses.}
 }
 \value{
-returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
+returns an object of \code{\link[=class]{class()}} \code{"goldfishFit"}
 when \code{preprocessing_only = FALSE} or
 a preprocessed statistics object of class \code{"goldfishStat"}
 when \code{preprocessing_only = TRUE}.
 
-An object of class \code{"result.goldfish"} is a list including:
+An object of class \code{"goldfishFit"} is a list including:
 \item{parameters}{a numeric vector with the coefficients estimates.}
 \item{standard_errors}{
 a numeric vector with the standard errors of the coefficients estimates.}

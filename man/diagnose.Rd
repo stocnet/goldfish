@@ -3,18 +3,18 @@
 \name{diagnose}
 \alias{diagnose}
 \alias{diagnose_outliers}
-\alias{diagnose_outliers.result.goldfish}
+\alias{diagnose_outliers.goldfishFit}
 \alias{diagnose_changepoints}
-\alias{diagnose_changepoints.result.goldfish}
-\alias{diagnose_outliers.flavored_result.goldfish}
-\alias{diagnose_changepoints.flavored_result.goldfish}
+\alias{diagnose_changepoints.goldfishFit}
+\alias{diagnose_outliers.goldfishFlavFit}
+\alias{diagnose_changepoints.goldfishFlavFit}
 \alias{print.goldfishOutliers}
 \alias{print.goldfishChangepoints}
 \title{Diagnostic functions}
 \usage{
 diagnose_outliers(x, ...)
 
-\method{diagnose_outliers}{result.goldfish}(
+\method{diagnose_outliers}{goldfishFit}(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -28,7 +28,7 @@ diagnose_outliers(x, ...)
 
 diagnose_changepoints(x, ...)
 
-\method{diagnose_changepoints}{result.goldfish}(
+\method{diagnose_changepoints}{goldfishFit}(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -39,7 +39,7 @@ diagnose_changepoints(x, ...)
   ...
 )
 
-\method{diagnose_outliers}{flavored_result.goldfish}(
+\method{diagnose_outliers}{goldfishFlavFit}(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -49,7 +49,7 @@ diagnose_changepoints(x, ...)
   ...
 )
 
-\method{diagnose_changepoints}{flavored_result.goldfish}(
+\method{diagnose_changepoints}{goldfishFlavFit}(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -64,7 +64,7 @@ diagnose_changepoints(x, ...)
 \method{print}{goldfishChangepoints}(x, ...)
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish} output from an
+\item{x}{an object of class \code{goldfishFit} output from an
 \code{\link{estimate}} call; for the print methods, the
 \code{diagnose_outliers} or \code{diagnose_changepoints} table they render.}
 
@@ -99,7 +99,7 @@ and the argument is ignored.}
 
 \item{preprocessed}{a \code{goldfishStat} object, needed only when
 \code{effect} is given on an exact-time fit that did not store the
-\code{"conditional_scores"} primitive. See \code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}}.}
+\code{"conditional_scores"} primitive. See \code{\link[=residuals.goldfishFit]{residuals.goldfishFit()}}.}
 
 \item{parameter}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to \code{threshold}
 in goldfish 2.0.0.}
@@ -111,7 +111,7 @@ See section \emph{Change point} for details.}
 The object, invisibly.
 }
 \description{
-Provide diagnostic functions for an object of class \code{result.goldfish}.
+Provide diagnostic functions for an object of class \code{goldfishFit}.
 \code{outliers} helps to identify outliers events.
 \code{changepoints} helps to identify where a change point
 in the events sequence is presented using the log-likelihood.

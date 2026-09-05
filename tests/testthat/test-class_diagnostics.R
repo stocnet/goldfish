@@ -39,7 +39,7 @@ test_that("the diagnose_* family dispatches on the fitted object", {
     "diagnose_onset"
   )) {
     expect_true("UseMethod" %in% all.names(body(get(fn))))
-    expect_false(is.null(getS3method(fn, "result.goldfish", optional = TRUE)))
+    expect_false(is.null(getS3method(fn, "goldfishFit", optional = TRUE)))
     expect_false(is.null(getS3method(fn, "default", optional = TRUE)))
   }
 

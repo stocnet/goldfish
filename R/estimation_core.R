@@ -317,7 +317,7 @@ estimate_int_impl <- function(
     estimationResult$total_rate <- nr$total_rate
     estimationResult$conditional_logl <- nr$conditional_logl
   }
-  class(estimationResult) <- "result.goldfish"
+  class(estimationResult) <- "goldfishFit"
   estimationResult
 }
 

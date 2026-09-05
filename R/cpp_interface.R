@@ -753,7 +753,7 @@ estimate_c_int <- function(
   if (returnEventProbabilities) {
     estimationResult$event_probabilities <- eventProbabilities
   }
-  class(estimationResult) <- "result.goldfish"
+  class(estimationResult) <- "goldfishFit"
   estimationResult
 }
 
@@ -779,7 +779,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #'
 #' Drives `maxLik::maxLik()` over the fixed preprocessed data through memoized
 #' closures on the `default_c` evaluator, then maps the result into the standard
-#' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
+#' `goldfishFit` object so `summary()` / `vcov()` / `logLik()` and the
 #' post-estimation methods work unchanged. Only reached for
 #' `optimizer != "newton_raphson"`, guarded upstream to the cpp backend
 #' with maxLik installed.
@@ -797,7 +797,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #' @param return_interval_loglik,return_event_scores whether to attach the
 #'   per-event outputs, evaluated at the optimum.
 #' @param verbose passed through as the maxLik print level.
-#' @return a `result.goldfish` list, structurally identical to the NR path.
+#' @return a `goldfishFit` list, structurally identical to the NR path.
 #' @noRd
 estimate_via_maxlik <- function(
   evaluate,
@@ -902,7 +902,7 @@ estimate_via_maxlik <- function(
   if (return_event_scores) {
     estimation_result$event_scores <- final$event_scores
   }
-  class(estimation_result) <- "result.goldfish"
+  class(estimation_result) <- "goldfishFit"
   estimation_result
 }
 

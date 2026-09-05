@@ -7,8 +7,8 @@
 margin_table(x, ...)
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"} or
-\code{"flavored_result.goldfish"}, estimated with \code{"margins"} among the
+\item{x}{a fitted model of class \code{"goldfishFit"} or
+\code{"goldfishFlavFit"}, estimated with \code{"margins"} among the
 \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics} primitives.}
 
 \item{...}{additional arguments passed to or from other methods (currently

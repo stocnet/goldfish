@@ -77,7 +77,7 @@
 #' use [lmtest::lrtest()] or [lmtest::waldtest()], whose generics goldfish fits
 #' already satisfy.
 #'
-#' @param x a fitted model of class `"result.goldfish"` carrying at least one
+#' @param x a fitted model of class `"goldfishFit"` carrying at least one
 #'   `offset()` term, or a multi-process fit; for the print method, the
 #'   `test_parameter` object it renders.
 #' @param effects an optional selection of the held terms to test, given by any
@@ -118,9 +118,9 @@
 #' @seealso [test_gof()] for whether an estimated effect's contribution is
 #'   spread over the sequence, [test_time()] for whether it is constant, and
 #'   [diagnostic-tables] for the metadata a diagnostic object carries.
-#' @method test_parameter result.goldfish
+#' @method test_parameter goldfishFit
 #' @export
-test_parameter.result.goldfish <- function(
+test_parameter.goldfishFit <- function(
   x,
   effects = NULL,
   preprocessed = NULL,
@@ -313,7 +313,7 @@ invert_information_block <- function(
 }
 
 #' @return The object, invisibly.
-#' @rdname test_parameter.result.goldfish
+#' @rdname test_parameter.goldfishFit
 #' @method print goldfishParamTest
 #' @export
 print.goldfishParamTest <- function(x, ...) {
@@ -360,17 +360,17 @@ print.goldfishParamTest <- function(x, ...) {
 #' it is not one the specification asks for, and a combination nobody has
 #' asked to interpret is not worth reporting.
 #'
-#' @inheritParams test_parameter.result.goldfish
-#' @param x a multi-process fit of class `"flavored_result.goldfish"`.
+#' @inheritParams test_parameter.goldfishFit
+#' @param x a multi-process fit of class `"goldfishFlavFit"`.
 #'
 #' @return An object of class `test_parameter`, shaped as the single-fit result
-#'   and documented at [test_parameter.result.goldfish()], with `flavor` and
+#'   and documented at [test_parameter.goldfishFit()], with `flavor` and
 #'   `family` columns appended and one joint row per process in the metadata.
 #'
-#' @seealso [test_parameter.result.goldfish()] for what each process's test is.
-#' @method test_parameter flavored_result.goldfish
+#' @seealso [test_parameter.goldfishFit()] for what each process's test is.
+#' @method test_parameter goldfishFlavFit
 #' @export
-test_parameter.flavored_result.goldfish <- function(
+test_parameter.goldfishFlavFit <- function(
   x,
   effects = NULL,
   preprocessed = NULL,

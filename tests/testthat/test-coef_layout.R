@@ -344,7 +344,7 @@ test_that("a stub summary() groups the flat coefficients via coef_layout()", {
   skip_if_not(exists("flavored_container_fit"))
   fit <- flavored_container_fit()
 
-  # summary.flavored_result.goldfish() itself is out of scope for this change
+  # summary.goldfishFlavFit() itself is out of scope for this change
   # (design D6); this stub stands in for it, grouping the result's coef_layout()
   # rows into the per-process blocks a real summary() would render.
   summary_stub <- function(result) {

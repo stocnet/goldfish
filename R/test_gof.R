@@ -164,7 +164,7 @@
 #' the softmax, and a constant column there would have identically zero score.
 #' No such row exists on those fits, and none is missing.
 #'
-#' @param object a fitted model of class `"result.goldfish"`, estimated with
+#' @param object a fitted model of class `"goldfishFit"`, estimated with
 #'   `"scores"` among the [set_algorithm_newton()] `diagnostics` primitives.
 #' @param x the `test_gof` object the print method renders. It is a separate
 #'   argument because `print()`'s own first formal is `x`, where this test's
@@ -242,9 +242,9 @@
 #'   changing over the sequence, [test_parameter()] for an imposed value,
 #'   [diagnose_onset()] for the accrual curve that chooses the clock, and
 #'   [diagnostic-tables] for the metadata a diagnostic object carries.
-#' @method test_gof result.goldfish
+#' @method test_gof goldfishFit
 #' @export
-test_gof.result.goldfish <- function(
+test_gof.goldfishFit <- function(
   object,
   effects = NULL,
   clock = c("event", "information"),
@@ -571,7 +571,7 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 #' rather than of any row, so it lives in the metadata, reachable as
 #' `attr(x, "context")$joint`. Neither is printed: the printed report is the
 #' per-block individual tests, for the reason given under
-#' [test_gof.result.goldfish()]'s experimental section.
+#' [test_gof.goldfishFit()]'s experimental section.
 #'
 #' The joint combination is taken over the **effect-level** p-values of every
 #' block, not over the per-block omnibus values. A block carrying more effects
@@ -590,20 +590,20 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 #' have different formulas. Naming a term some process does not carry is an
 #' error that says which process, rather than a silent omission.
 #'
-#' @inheritParams test_gof.result.goldfish
-#' @param object a multi-process fit of class `"flavored_result.goldfish"`, as
+#' @inheritParams test_gof.goldfishFit
+#' @param object a multi-process fit of class `"goldfishFlavFit"`, as
 #'   returned by estimating a [make_specification()] with more than one process.
 #'
 #' @return An object of class `test_gof`, shaped exactly as the single-fit
-#'   result and documented at [test_gof.result.goldfish()], with `flavor` and
+#'   result and documented at [test_gof.goldfishFit()], with `flavor` and
 #'   `family` columns appended to each component and the joint omnibus in the
 #'   metadata. The printed report shows the per-block individual tests; no
 #'   combination is rendered at either level.
 #'
-#' @seealso [test_gof.result.goldfish()] for what each block's test is.
-#' @method test_gof flavored_result.goldfish
+#' @seealso [test_gof.goldfishFit()] for what each block's test is.
+#' @method test_gof goldfishFlavFit
 #' @export
-test_gof.flavored_result.goldfish <- function(
+test_gof.goldfishFlavFit <- function(
   object,
   effects = NULL,
   clock = c("event", "information"),
@@ -696,7 +696,7 @@ gof_flavored_context <- function(object, map, rows, effects) {
 }
 
 #' @return The object, invisibly.
-#' @rdname test_gof.result.goldfish
+#' @rdname test_gof.goldfishFit
 #' @method print goldfishGOF
 #' @export
 print.goldfishGOF <- function(x, ...) {

@@ -3,7 +3,7 @@
     Code
       print(res)
     Message
-      ── <flavored_result.goldfish> ──────────────────────────────────────────────────
+      ── <goldfishFlavFit> ───────────────────────────────────────────────────────────
       Model "DyNAM" · layer "calls" · 2 flavors
       
       Flavor "creation"

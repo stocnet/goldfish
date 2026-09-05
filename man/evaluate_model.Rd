@@ -2,12 +2,12 @@
 % Please edit documentation in R/model_evaluate.R
 \name{evaluate_model}
 \alias{evaluate_model}
-\alias{evaluate_model.result.goldfish}
+\alias{evaluate_model.goldfishFit}
 \title{Evaluate a fitted model at a parameter vector}
 \usage{
 evaluate_model(x, ...)
 
-\method{evaluate_model}{result.goldfish}(
+\method{evaluate_model}{goldfishFit}(
   x,
   at = stats::coef(x),
   return = c("loglik", "score"),
@@ -19,7 +19,7 @@ evaluate_model(x, ...)
 )
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"}.}
+\item{x}{a fitted model of class \code{"goldfishFit"}.}
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}

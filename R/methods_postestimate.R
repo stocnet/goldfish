@@ -5,12 +5,12 @@
 #' For a comprehensive output use `summary()`.
 #' Note that while the output to the console is rounded, the returned vector
 #' is not.
-#' @param object an object of class `result.goldfish` output from an
+#' @param object an object of class `goldfishFit` output from an
 #' [estimate] call.
 #' @param complete logical. Indicates whether the parameter coefficients of
 #' effects held fixed during estimation (via `offset()`) should be printed.
 #' @param ... additional arguments to be passed.
-#' @method coef result.goldfish
+#' @method coef goldfishFit
 #' @export
 #' @noRd
 #' @return A named numeric vector with the extracted coefficients from the
@@ -32,7 +32,7 @@
 #'   data = social_evolution
 #' )
 #' coef(mod01)
-coef.result.goldfish <- function(object, ..., complete = FALSE) {
+coef.goldfishFit <- function(object, ..., complete = FALSE) {
   # Deliberately unguarded: `parameters` was never renamed, so an old object's
   # coefficients are still the right numbers, and `print()` -- which calls this
   # twice -- already carries the diagnosis for the interactive case.
@@ -64,7 +64,7 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' models. i.e., models where the model specification of one contains a subset
 #' of the predictor variables that define the other.
 #'
-#' @param object an object of class \code{result.goldfish} output from an
+#' @param object an object of class \code{goldfishFit} output from an
 #' \code{\link{estimate}} call with a fitted model.
 #' @param avgPerEvent a logical value indicating whether the average
 #' likelihood per event should be calculated.
@@ -85,8 +85,8 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' When `avgPerEvent = TRUE`, the function returns the average log-likelihood
 #' per dependent event, dividing by the same count `nobs` reports.
 #' @export
-#' @method logLik result.goldfish
-logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
+#' @method logLik goldfishFit
+logLik.goldfishFit <- function(object, ..., avgPerEvent = FALSE) {
   # Guards the AIC() / BIC() path too: the default methods reach the fit only
   # through logLik(), and a NULL `df` is exactly what let them misreport.
   abort_if_stale_result(object, "a log-likelihood")
@@ -103,8 +103,8 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 }
 
 #' @export
-#' @method vcov result.goldfish
-vcov.result.goldfish <- function(object, complete = FALSE, ...) {
+#' @method vcov goldfishFit
+vcov.goldfishFit <- function(object, complete = FALSE, ...) {
   abort_if_stale_result(object, "a variance-covariance matrix")
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
@@ -274,9 +274,9 @@ flavored_component_labels <- function(object) {
 }
 
 #' @export
-#' @method coef flavored_result.goldfish
+#' @method coef goldfishFlavFit
 #' @noRd
-coef.flavored_result.goldfish <- function(object, ..., complete = FALSE) {
+coef.goldfishFlavFit <- function(object, ..., complete = FALSE) {
   fids <- object$process_map$fid[flavored_row_order(object)]
   out <- lapply(fids, function(f) {
     stats::coef(object$results[[as.character(f)]], complete = complete, ...)
@@ -285,9 +285,9 @@ coef.flavored_result.goldfish <- function(object, ..., complete = FALSE) {
 }
 
 #' @export
-#' @method vcov flavored_result.goldfish
+#' @method vcov goldfishFlavFit
 #' @noRd
-vcov.flavored_result.goldfish <- function(object, complete = FALSE, ...) {
+vcov.goldfishFlavFit <- function(object, complete = FALSE, ...) {
   fids <- object$process_map$fid[flavored_row_order(object)]
   out <- lapply(fids, function(f) {
     stats::vcov(object$results[[as.character(f)]], complete = complete, ...)
@@ -296,9 +296,9 @@ vcov.flavored_result.goldfish <- function(object, complete = FALSE, ...) {
 }
 
 #' @export
-#' @method logLik flavored_result.goldfish
+#' @method logLik goldfishFlavFit
 #' @noRd
-logLik.flavored_result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
+logLik.goldfishFlavFit <- function(object, ..., avgPerEvent = FALSE) {
   parts <- lapply(object$process_map$fid, function(f) {
     stats::logLik(object$results[[as.character(f)]])
   })

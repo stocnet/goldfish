@@ -94,14 +94,30 @@ format_status <- function(stamp, current) {
   "outdated"
 }
 
-# The bullets both severities share, so the diagnosis reads the same whether it
+# The bullets every severity shares, so the diagnosis reads the same whether it
 # was informed or thrown.
+#
+# `"retired_class"` is not a format status: it is the verdict for an object
+# whose layout is CURRENT but whose class name is not. Those two populations get
+# opposite advice, and telling a dev-line user that their components were
+# renamed sends them looking for a component change that never happened -- so
+# the retired-class branch says only what is true, that the class moved.
 stale_result_bullets <- function(status) {
   if (identical(status, "newer")) {
     c(
       "x" = "It was fitted by a newer version of {.pkg goldfish} than the one
              loaded, so this version does not know its layout.",
       "i" = "Update {.pkg goldfish}, or re-fit the model with this version."
+    )
+  } else if (identical(status, "retired_class")) {
+    c(
+      "x" = "Its class {.cls result.goldfish} was retired in {.pkg goldfish}
+             2.0.0: a fitted model is now {.cls goldfishFit}.",
+      "i" = "Its components are current. Only the class name changed, so
+             nothing inside the object needs repairing.",
+      "i" = "goldfish attaches no fallback class, so no method dispatches on
+             the retired name. Re-fit the model. See
+             {.code news(package = \"goldfish\")} for the class table."
     )
   } else {
     c(
@@ -127,7 +143,7 @@ inform_if_stale_result <- function(x) {
     return(invisible(FALSE))
   }
   cli::cli_inform(c(
-    "This {.cls result.goldfish} object was not fitted by this version of
+    "This {.cls goldfishFit} object was not fitted by this version of
      {.pkg goldfish}.",
     stale_result_bullets(status)
   ))
@@ -143,17 +159,60 @@ abort_if_stale_result <- function(
   what,
   call = rlang::caller_env()
 ) {
-  abort_if_not_class(x, "result.goldfish", what, call = call)
+  abort_if_not_class(x, "goldfishFit", what, call = call)
   status <- result_format_status(x)
   if (identical(status, "current")) {
     return(invisible(FALSE))
   }
   cli::cli_abort(
     c(
-      "Cannot compute {what} from a {.cls result.goldfish} object that was not
+      "Cannot compute {what} from a {.cls goldfishFit} object that was not
        fitted by this version of {.pkg goldfish}.",
       stale_result_bullets(status)
     ),
     call = call
   )
+}
+
+# The retired class name is the discriminator ----
+#
+# Objects fitted before 2.0.0 carry `result.goldfish`, which no longer names any
+# class goldfish attaches. Exactly two methods survive on it (design: no other
+# generic registers, so `coef()`, `logLik()`, `predict()` and the rest give R's
+# own "no applicable method" error, which is already the right message).
+#
+# The two populations reachable through this name need opposite advice, and the
+# recorded format epoch is what tells them apart: an object from a released
+# goldfish (<= 1.7.0) records no epoch and its components were renamed as well,
+# while an object from the development line records the current epoch and has
+# only lost its class name. Diagnosing from the class alone would tell the
+# second group to look for a component change that never happened.
+retired_result_class_status <- function(x) {
+  if (identical(result_format_status(x), "current")) {
+    "retired_class"
+  } else {
+    "outdated"
+  }
+}
+
+abort_retired_result_class <- function(x, call = rlang::caller_env()) {
+  cli::cli_abort(
+    c(
+      "This object carries the retired class {.cls result.goldfish}.",
+      stale_result_bullets(retired_result_class_status(x))
+    ),
+    call = call
+  )
+}
+
+#' @export
+#' @noRd
+print.result.goldfish <- function(x, ...) {
+  abort_retired_result_class(x)
+}
+
+#' @export
+#' @noRd
+summary.result.goldfish <- function(object, ...) {
+  abort_retired_result_class(object)
 }

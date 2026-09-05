@@ -185,6 +185,12 @@ deprecated_path_classes <- c(
   "data.goldfish"
 )
 
+# The retired fit class. It names no class goldfish attaches -- nothing is
+# stamped with it any more -- but two diagnostic stubs stay registered on it so
+# a fit stored by an earlier goldfish gets an explanation instead of R's "no
+# applicable method". Exempt because it is a gravestone, not a class.
+retired_stub_classes <- c("result.goldfish")
+
 goldfish_own_classes <- function() {
   ns <- asNamespace("goldfish")
   object_names <- ls(ns, all.names = TRUE)
@@ -200,6 +206,7 @@ goldfish_own_classes <- function() {
     effect_dispatch_tags(object_names, generics),
     foreign_classes,
     deprecated_path_classes,
+    retired_stub_classes,
     # `default` is S3's fallback, not a class.
     "default"
   )
@@ -216,11 +223,7 @@ conforms <- function(x) grepl("^goldfish[A-Z][A-Za-z0-9]*$", x)
 # cluster. Scaffolding, not a rename table: a class absent from here that
 # breaks the rule still fails, and an entry that has been renamed must be
 # removed, so the list cannot rot. It is empty when the change closes.
-pending_rename <- c(
-  "flavored_result.goldfish",
-  "result.goldfish",
-  "summary.result.goldfish"
-)
+pending_rename <- character()
 
 test_that("every class goldfish attaches is goldfish<Thing>", {
   own <- goldfish_own_classes()
@@ -278,4 +281,13 @@ test_that("the diagnostic constructors keep their exported names", {
     ) %in%
       exported
   ))
+})
+
+test_that("the retired fit class carries exactly the two diagnostic stubs", {
+  # No fallback class and no other generic: coef(), logLik(), predict() and the
+  # rest give R's own dispatch error, which already says the true thing. Two
+  # stubs is the whole compatibility surface.
+  registered <- getNamespaceInfo(asNamespace("goldfish"), "S3methods")
+  on_retired <- registered[registered[, 2] == "result.goldfish", 1]
+  expect_setequal(on_retired, c("print", "summary"))
 })

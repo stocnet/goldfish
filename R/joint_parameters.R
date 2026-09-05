@@ -243,7 +243,7 @@ set_parameters <- function(spec, ...) {
   # re-simulate round-trip), which keeps the fid grouping the flat `coef()`
   # vector discards. A flat, free-only `coef()` vector is not accepted directly
   # because its per-parameter names collide across fids.
-  if (length(dots) == 1L && inherits(dots[[1]], "flavored_result.goldfish")) {
+  if (length(dots) == 1L && inherits(dots[[1]], "goldfishFlavFit")) {
     return(set_parameters_from_result(spec, dots[[1]]))
   }
 
@@ -760,9 +760,9 @@ coef_layout.goldfishParams <- function(x, ...) {
 }
 
 #' @export
-#' @method coef_layout flavored_result.goldfish
+#' @method coef_layout goldfishFlavFit
 #' @rdname coef_layout
-coef_layout.flavored_result.goldfish <- function(x, ...) {
+coef_layout.goldfishFlavFit <- function(x, ...) {
   process_map <- x$process_map
   sub_models <- process_sub_models(process_map)
   blocks <- vector("list", nrow(process_map))

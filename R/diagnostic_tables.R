@@ -181,10 +181,12 @@ node_labels <- function(nodes) {
 #' The diagnostic table contract
 #'
 #' @description
-#' Every diagnostic data object goldfish returns carries the producing
-#' function's name at the head of its classes, and enough metadata for a print
-#' or plot method to describe the object without reaching back into the fit it
-#' came from. Where one table says everything the object *is* a
+#' Every diagnostic data object goldfish returns carries its own
+#' `goldfish<Thing>` class at the head of its classes — `goldfishMargins` for
+#' `margin_table()`, `goldfishOutliers` for `diagnose_outliers()`, and so on —
+#' and enough metadata for a print or plot method to describe the object
+#' without reaching back into the fit it came from. Where one table says
+#' everything the object *is* a
 #' [tibble::tibble()] — `margin_table()`, `diagnose_outliers()`,
 #' `diagnose_changepoints()`. Where it does not, the object is a classed list
 #' whose components are each a tibble: `diagnose_onset()` carries a parameter
@@ -510,8 +512,8 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #' the same fit: a tie-oriented model implies both the out- and the in-degree
 #' margin.
 #'
-#' @param x a fitted model of class `"result.goldfish"` or
-#'   `"flavored_result.goldfish"`, estimated with `"margins"` among the
+#' @param x a fitted model of class `"goldfishFit"` or
+#'   `"goldfishFlavFit"`, estimated with `"margins"` among the
 #'   [set_algorithm_newton()] `diagnostics` primitives.
 #' @param dispersion whether to add the `dispersion` column, which needs one
 #'   evaluation pass over the model's statistics. `FALSE` by default, so the
@@ -593,7 +595,7 @@ margin_table.default <- function(x, ...) {
 }
 
 #' @export
-margin_table.result.goldfish <- function(
+margin_table.goldfishFit <- function(
   x,
   dispersion = FALSE,
   preprocessed = NULL,
@@ -610,7 +612,7 @@ margin_table.result.goldfish <- function(
 }
 
 #' @export
-margin_table.flavored_result.goldfish <- function(
+margin_table.goldfishFlavFit <- function(
   x,
   dispersion = FALSE,
   preprocessed = NULL,

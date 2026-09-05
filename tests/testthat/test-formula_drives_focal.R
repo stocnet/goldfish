@@ -8,7 +8,7 @@ test_that("a focal-less two-mode object estimates, resolving modeled sides", {
   withr::local_options(lifecycle_verbosity = "quiet")
   obj <- as_goldfish(make_stocnet_fixture_twomode_estimable_nofocal())
   fit <- estimate_dynam(membership ~ 1 + ego(x), sub_model = "rate", data = obj)
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 
   # Sides resolve against the modeled `membership` layer (p -> o), not a
@@ -28,7 +28,7 @@ test_that("a focal-less two-mode object estimates, resolving modeled sides", {
 test_that("a focal-less one-mode object estimates", {
   obj <- as_goldfish(make_stocnet_fixture_onemode_nofocal())
   fit <- estimate_rem(calls ~ 1 + inertia, data = obj)
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 })
 
@@ -45,7 +45,7 @@ test_that("modeling a layer other than info$focal resolves to that layer", {
     sub_model = "rate",
     data = as_goldfish(mp)
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 
   # The sides are `attend`'s disjoint pair (actor -> event), not the one-mode

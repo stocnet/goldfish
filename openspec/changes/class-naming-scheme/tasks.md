@@ -169,13 +169,13 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 7. Result classes and the retired-name stubs
 
-- [ ] 7.1 Rename `result.goldfish` → `goldfishFit` across `R/` — the
+- [x] 7.1 Rename `result.goldfish` → `goldfishFit` across `R/` — the
   largest surface (131 class-string sites; principal files
   `methods_display.R`, `methods_postestimate.R`, `methods_predict.R`,
   `methods_residuals.R`, `methods_tests.R`, `model_estimate.R`,
   `model_evaluate.R`, `model_terms.R`, `format_version.R`,
   `diagnose_onset.R`, `test_*.R`, `diagnostic_tables.R`).
-- [ ] 7.2 Rename `flavored_result.goldfish` → `goldfishFlavFit`; class
+- [x] 7.2 Rename `flavored_result.goldfish` → `goldfishFlavFit`; class
   the summary object `goldfishSummFit` (design D6, reversed 2026-09-05)
   and render it with `print.goldfishSummFit()`. The method stays
   `summary.goldfishFit()` — a method name, not a class name; the class it
@@ -183,27 +183,27 @@ pre-2.0.0, before `parametric-rates`.
   `summary`/`tidy`/`glance` are absent from the flavored class today, so
   whether a `goldfishSummFlavFit` exists is ADR-0038's contract-table
   question, not this task's.
-- [ ] 7.2a Keep the fit classes flat (design D19): `goldfishFlavFit` is
+- [x] 7.2a Keep the fit classes flat (design D19): `goldfishFlavFit` is
       renamed as a flat class, **not** `c("goldfishFlavFit", "goldfishFit")`.
       This change disclaims the shared-parent question; introducing
       inheritance here would answer it silently.
-- [ ] 7.3 Add the third staleness diagnosis in `R/format_version.R`
+- [x] 7.3 Add the third staleness diagnosis in `R/format_version.R`
   (design D5): a current-epoch object on the retired class is told its
   **class** was renamed, not its components. Extend
   `stale_result_bullets()`; render via cli semantic elements per
   **r-lib:cli**. Do not move `FIT_VERSION`/`PREP_VERSION`.
-- [ ] 7.4 Write the two retired-name stubs (`print.result.goldfish`,
+- [x] 7.4 Write the two retired-name stubs (`print.result.goldfish`,
   `summary.result.goldfish`) alongside the retired-name shims in
   `R/goldfish-defunct.R` (or sibling), per **r-lib:lifecycle**;
   register exactly these two and no other generic (design D4).
-- [ ] 7.5 Test the stubs on both populations (no-epoch released shape;
+- [x] 7.5 Test the stubs on both populations (no-epoch released shape;
   current-epoch dev shape); assert the messages differ and the second
   never claims components were renamed; snapshot under a pinned cli
   context.
-- [ ] 7.6 Update the affected tests and snapshots — the largest set
+- [x] 7.6 Update the affected tests and snapshots — the largest set
   (54 test sites plus every snapshot naming the class). Review each
   diff.
-- [ ] 7.7 Verification: `air format` → `lintr` → `document()` →
+- [x] 7.7 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**. Frozen baselines unchanged; a moved coefficient
   stops the task.
 

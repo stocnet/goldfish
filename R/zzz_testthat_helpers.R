@@ -868,7 +868,7 @@ resModObject <- structure(
        control_algo = estimation_options(fixedParameters = c(NA, 1, NA)))"
     )
   ),
-  class = "result.goldfish"
+  class = "goldfishFit"
 )
 
 # Restore the caller's lifecycle verbosity (see the note at the top of this

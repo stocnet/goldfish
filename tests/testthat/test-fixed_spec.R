@@ -498,7 +498,7 @@ old_string_column_fit <- function() {
         dimnames = list(c("inertia", "recip"), c("Object", "fixed"))
       )
     ),
-    class = "result.goldfish"
+    class = "goldfishFit"
   )
 }
 

@@ -69,7 +69,7 @@ EVALUATE_PRIMITIVE_OF <- c(
 #' set. Nothing is zeroed out — that is what makes the output usable as the
 #' constrained-model input of a score test.
 #'
-#' @param x a fitted model of class `"result.goldfish"`.
+#' @param x a fitted model of class `"goldfishFit"`.
 #' @param at the parameter vector to evaluate at. Either a full-length numeric
 #'   vector in coefficient order, or a named one matched against the
 #'   coefficient labels the model reports, in which case unnamed coefficients
@@ -178,7 +178,7 @@ evaluate_model.default <- function(x, ...) {
 
 #' @rdname evaluate_model
 #' @export
-evaluate_model.result.goldfish <- function(
+evaluate_model.goldfishFit <- function(
   x,
   at = stats::coef(x),
   return = c("loglik", "score"),
@@ -674,9 +674,9 @@ evaluate_margins <- function(res, spec, prep, backend) {
 }
 
 #' @export
-#' @method evaluate_model flavored_result.goldfish
+#' @method evaluate_model goldfishFlavFit
 #' @noRd
-evaluate_model.flavored_result.goldfish <- function(x, ..., flavor = NULL) {
+evaluate_model.goldfishFlavFit <- function(x, ..., flavor = NULL) {
   # `at` defaults to the fit's own coefficients on the single-process method, so
   # each process evaluates at its own by default rather than at a vector that
   # would have to be split across them.

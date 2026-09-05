@@ -78,7 +78,7 @@
 #' `offset(..., coef = 0)` and use [test_parameter()]. `test_time()` holds the
 #' statistic fixed and asks about the coefficient on it.
 #'
-#' @param x a fitted model of class `"result.goldfish"`; for the print method,
+#' @param x a fitted model of class `"goldfishFit"`; for the print method,
 #'   the `test_time` object it renders.
 #' @param method `"trend"` (default) for a smooth drift in the coefficient, or
 #'   `"periods"` for a difference between regimes.
@@ -101,7 +101,7 @@
 #'       directly, which is how an exogenous regime is supplied.}
 #'   }
 #'   Ignored by `"trend"`.
-#' @inheritParams test_gof.result.goldfish
+#' @inheritParams test_gof.goldfishFit
 #' @inheritParams evaluate_model
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
@@ -156,9 +156,9 @@
 #'   held at an imposed value, [diagnose_changepoints()] for locating a shift
 #'   rather than testing one, and [diagnostic-tables] for the metadata a
 #'   diagnostic object carries.
-#' @method test_time result.goldfish
+#' @method test_time goldfishFit
 #' @export
-test_time.result.goldfish <- function(
+test_time.goldfishFit <- function(
   x,
   method = c("trend", "periods"),
   transform = c("identity", "rank"),
@@ -617,10 +617,10 @@ time_delta_table <- function(delta, tested, labels, grouping) {
   )
 }
 
-#' @rdname test_time.result.goldfish
-#' @method test_time flavored_result.goldfish
+#' @rdname test_time.goldfishFit
+#' @method test_time goldfishFlavFit
 #' @export
-test_time.flavored_result.goldfish <- function(
+test_time.goldfishFlavFit <- function(
   x,
   method = c("trend", "periods"),
   transform = c("identity", "rank"),
@@ -716,7 +716,7 @@ time_block <- function(
   )
 }
 
-#' @rdname test_time.result.goldfish
+#' @rdname test_time.goldfishFit
 #' @method print goldfishTimeTest
 #' @export
 print.goldfishTimeTest <- function(x, ...) {

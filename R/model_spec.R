@@ -135,7 +135,7 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
 #' model. A one-mode model draws both dyad axes from side 1, because its sender
 #' and receiver sets are the same nodes, so its lookup carries side 1 only.
 #'
-#' @param x a fitted model of class `"result.goldfish"` (from
+#' @param x a fitted model of class `"goldfishFit"` (from
 #'   [estimate_dynam()], [estimate_rem()]), a preprocessed object, or a model
 #'   specification.
 #'
@@ -187,7 +187,7 @@ risk_set_axis <- function(x) {
   # per process, each with its own risk set. Returning NULL here would let a
   # caller read "no axis" as an answer about the model rather than as the
   # container being the wrong object to ask.
-  if (inherits(x, "flavored_result.goldfish")) {
+  if (inherits(x, "goldfishFlavFit")) {
     cli::cli_abort(c(
       "A flavored fit carries no single risk-set axis.",
       "x" = "It holds one fit per process, and each has its own.",

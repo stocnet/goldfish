@@ -2,21 +2,21 @@
 % Please edit documentation in R/diagnose_onset.R
 \name{diagnose_onset}
 \alias{diagnose_onset}
-\alias{diagnose_onset.result.goldfish}
-\alias{diagnose_onset.flavored_result.goldfish}
+\alias{diagnose_onset.goldfishFit}
+\alias{diagnose_onset.goldfishFlavFit}
 \alias{print.goldfishOnset}
 \title{Diagnose the onset of the observed sequence}
 \usage{
 diagnose_onset(x, ...)
 
-\method{diagnose_onset}{result.goldfish}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
+\method{diagnose_onset}{goldfishFit}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
 
-\method{diagnose_onset}{flavored_result.goldfish}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
+\method{diagnose_onset}{goldfishFlavFit}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
 
 \method{print}{goldfishOnset}(x, ...)
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"}, estimated with
+\item{x}{a fitted model of class \code{"goldfishFit"}, estimated with
 \code{"scores"} among the \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics}
 primitives; for the print method, the \code{diagnose_onset} object it
 renders.}
@@ -132,7 +132,7 @@ dependent set and compare the estimate with and without them.}
 Both are conditioning on early history, which is standard practice for
 relational event models; the influence measures here are
 \strong{likelihood deletion, not history deletion} — see the caveats in
-\code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}}.
+\code{\link[=residuals.goldfishFit]{residuals.goldfishFit()}}.
 }
 
 \section{Why changepoint detection does not find this}{
@@ -198,7 +198,7 @@ head(onset$accrual)
 \seealso{
 \code{\link[=diagnose_outliers]{diagnose_outliers()}} and \code{\link[=diagnose_changepoints]{diagnose_changepoints()}} for the
 per-interval log-likelihood diagnostics,
-\code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}} for the per-event influence measures the
+\code{\link[=residuals.goldfishFit]{residuals.goldfishFit()}} for the per-event influence measures the
 path is the cumulative form of, and \link{diagnostic-tables} for the
 metadata a diagnostic object carries.
 }

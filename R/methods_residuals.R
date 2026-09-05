@@ -127,7 +127,7 @@ RESIDUAL_TYPES_SCORES <- c(
 #' after enough events have accumulated) or to exclude the opening segment
 #' from estimation, and to compare the estimate with and without it.
 #'
-#' @param object a fitted model of class `"result.goldfish"`.
+#' @param object a fitted model of class `"goldfishFit"`.
 #' @param type the residual type, one of `"deviance"` (default), `"score"`,
 #'   `"schoenfeld"`, `"scaled_schoenfeld"`, `"cox_snell"`, `"response"`,
 #'   `"martingale"`, `"dfbeta"`, `"dfbetas"` and `"cooks"`.
@@ -197,9 +197,9 @@ RESIDUAL_TYPES_SCORES <- c(
 #' @seealso [estimate_dynam()] for the primitives these read,
 #'   [set_algorithm_newton()] for requesting them, and [margin_table()] for
 #'   the per-actor calibration counterpart.
-#' @method residuals result.goldfish
+#' @method residuals goldfishFit
 #' @export
-residuals.result.goldfish <- function(
+residuals.goldfishFit <- function(
   object,
   type = c(
     "deviance",
@@ -739,9 +739,9 @@ influence_rows <- function(object, scores, type) {
 }
 
 #' @export
-#' @method residuals flavored_result.goldfish
+#' @method residuals goldfishFlavFit
 #' @noRd
-residuals.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+residuals.goldfishFlavFit <- function(object, ..., flavor = NULL) {
   # A residual series is a vector, a matrix or a list of them, so nothing in the
   # return can say which process it came from -- hence a list keyed by process
   # label rather than the row-bound table `augment()` gives.

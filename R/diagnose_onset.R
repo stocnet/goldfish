@@ -75,7 +75,7 @@
 #' Both are conditioning on early history, which is standard practice for
 #' relational event models; the influence measures here are
 #' **likelihood deletion, not history deletion** — see the caveats in
-#' [residuals.result.goldfish()].
+#' [residuals.goldfishFit()].
 #'
 #' @section Why changepoint detection does not find this:
 #' Running [diagnose_changepoints()] on the per-interval log-likelihood
@@ -87,7 +87,7 @@
 #' detector never sees; and on a rate or REM fit the pooled series is
 #' dominated by the alternation of dependent and right-censored intervals.
 #'
-#' @param x a fitted model of class `"result.goldfish"`, estimated with
+#' @param x a fitted model of class `"goldfishFit"`, estimated with
 #'   `"scores"` among the [set_algorithm_newton()] `diagnostics`
 #'   primitives; for the print method, the `diagnose_onset` object it
 #'   renders.
@@ -150,7 +150,7 @@
 #'
 #' @seealso [diagnose_outliers()] and [diagnose_changepoints()] for the
 #'   per-interval log-likelihood diagnostics,
-#'   [residuals.result.goldfish()] for the per-event influence measures the
+#'   [residuals.goldfishFit()] for the per-event influence measures the
 #'   path is the cumulative form of, and [diagnostic-tables] for the
 #'   metadata a diagnostic object carries.
 #' @export
@@ -165,7 +165,7 @@ diagnose_onset.default <- function(x, ...) {
 
 #' @rdname diagnose_onset
 #' @export
-diagnose_onset.result.goldfish <- function(
+diagnose_onset.goldfishFit <- function(
   x,
   information = c("opg", "expected"),
   tolerance = 0.1,
@@ -211,9 +211,9 @@ diagnose_onset.result.goldfish <- function(
 }
 
 #' @rdname diagnose_onset
-#' @method diagnose_onset flavored_result.goldfish
+#' @method diagnose_onset goldfishFlavFit
 #' @export
-diagnose_onset.flavored_result.goldfish <- function(
+diagnose_onset.goldfishFlavFit <- function(
   x,
   information = c("opg", "expected"),
   tolerance = 0.1,

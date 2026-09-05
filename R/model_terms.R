@@ -50,7 +50,7 @@
 #' This is a *fit-scoped* helper: it answers which terms this model has. It is
 #' not the effect catalogue, which answers which effects goldfish provides.
 #'
-#' @param x a fitted model of class `"result.goldfish"`, or a flavored
+#' @param x a fitted model of class `"goldfishFit"`, or a flavored
 #'   multi-process fit.
 #' @param pattern an optional regular expression; only terms matching it in any
 #'   of their names or in their effect details are returned. Matching is
@@ -92,14 +92,14 @@ model_terms.default <- function(x, pattern = NULL, ...) {
 
 #' @rdname model_terms
 #' @export
-model_terms.result.goldfish <- function(x, pattern = NULL, ...) {
+model_terms.goldfishFit <- function(x, pattern = NULL, ...) {
   abort_if_stale_result(x, "a term table")
   filter_model_terms(term_table(x$names), pattern)
 }
 
 #' @rdname model_terms
 #' @export
-model_terms.flavored_result.goldfish <- function(x, pattern = NULL, ...) {
+model_terms.goldfishFlavFit <- function(x, pattern = NULL, ...) {
   tables <- lapply(flavored_processes(x), function(process) {
     append_process_identity(term_table(process$fit$names), process)
   })

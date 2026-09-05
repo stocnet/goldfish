@@ -4,7 +4,7 @@
 \alias{coef_layout}
 \alias{coef_layout.goldfishJointSpec}
 \alias{coef_layout.goldfishParams}
-\alias{coef_layout.flavored_result.goldfish}
+\alias{coef_layout.goldfishFlavFit}
 \title{Tabulate the coefficient layout of a joint parameter surface}
 \usage{
 coef_layout(x, ...)
@@ -13,7 +13,7 @@ coef_layout(x, ...)
 
 \method{coef_layout}{goldfishParams}(x, ...)
 
-\method{coef_layout}{flavored_result.goldfish}(x, ...)
+\method{coef_layout}{goldfishFlavFit}(x, ...)
 }
 \arguments{
 \item{x}{a \code{goldfishJointSpec} (from
