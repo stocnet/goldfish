@@ -45,9 +45,10 @@ folds next.
   already dispatches on are adopted verbatim; the rest follow the same
   rule with short identifiers:
   - Fits: `result.goldfish` → `goldfishFit`,
-    `flavored_result.goldfish` → `goldfishFlavoredFit`,
-    `summary.result.goldfish` → `summary.goldfishFit` (base-R/RSiena
-    summary idiom, see design D6).
+    `flavored_result.goldfish` → `goldfishFlavFit`,
+    `summary.result.goldfish` → `goldfishSummFit` (no dot; the base-R
+    `summary.<class>` idiom is deliberately not followed — design D6,
+    reversed 2026-09-05).
   - Diagnostics: `test_gof` → `goldfishGOF`, `test_time` →
     `goldfishTimeTest`, `test_parameter` → `goldfishParamTest`,
     `diagnose_onset` → `goldfishOnset`, `diagnose_outliers` →
@@ -56,14 +57,21 @@ folds next.
     `evaluate_model` → `goldfishEval`.
   - Preprocessing: `preprocessed.goldfish` → `goldfishPrep`,
     `preprocessed_db.goldfish` → `goldfishPrepDB`,
-    `preprocessing.goldfish` → `goldfishPrepControl`,
-    `flavored_preprocessed.goldfish` → `goldfishFlavoredPrep`,
-    `flavored_statistics.goldfish` → `goldfishFlavoredStats`.
+    `preprocessing.goldfish` → `goldfishPrepCtrl`,
+    `flavored_preprocessed.goldfish` → `goldfishFlavPrep`,
+    `flavored_statistics.goldfish` → `goldfishFlavStats`.
   - Specification and algorithm: `specification.goldfish` →
     `goldfishSpec`, `spec_map.goldfish` → `goldfishSpecMap`,
-    `algorithm.goldfish` → `goldfishAlgorithm`,
-    `algorithm_newton.goldfish` → `goldfishAlgorithmNewton`.
+    `algorithm.goldfish` → `goldfishAlgo`,
+    `algorithm_newton.goldfish` → `goldfishAlgoNewton`.
   - Formulae: `goldfish.formulae` → `goldfishFormulae`.
+- Class identifiers are drawn from a fixed short-word vocabulary
+  (design D17): `Dn`/`Dni`/`Rem`/`Mu` for the model families, `Cox` for
+  ordered, `Coord` for choice coordination, plus `Prep`, `Spec`, `Ctrl`,
+  `Algo`, `Flav`, `Summ`. A new class extends that table rather than
+  inventing a synonym. This shortens `goldfishAlgorithmNewton` to
+  `goldfishAlgoNewton`, `goldfishPrepControl` to `goldfishPrepCtrl`, and
+  the three `goldfishFlavored*` names to `goldfishFlav*`.
 - **BREAKING** — The rename is **full**: internal classes that never
   leave the package also move (Alvaro, 2026-08-19) — `writer_*` →
   `goldfishWriter*`, `data_source_envir`/`data_source_stocnet` →
@@ -119,11 +127,11 @@ text (design D8a).
 - `diagnostic-plot-classes`: replaces the "constructor name, no suffix"
   SHALL in place (an additive delta would leave two contradicting
   rules).
-- `preprocessing-controls`: return classes `goldfishPrepControl` /
+- `preprocessing-controls`: return classes `goldfishPrepCtrl` /
   `goldfishPrep` are the contract.
 - `preprocess-output-writers`: default writer returns `goldfishPrep`.
 - `model-specification`: `make_specification()` returns `goldfishSpec`.
-- `optimizer-selection`: `goldfishAlgorithm` / `goldfishAlgorithmNewton`.
+- `optimizer-selection`: `goldfishAlgo` / `goldfishAlgoNewton`.
 - `multimode-networks`: clarifies that `data.goldfish` names the legacy
   environment, distinct from the new `goldfishData` stamp.
 

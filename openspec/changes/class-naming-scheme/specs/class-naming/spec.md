@@ -22,17 +22,17 @@ spec still spells a class in a retired form, this table governs.
 | `margin_table()` | `margin_table` | `goldfishMargins` |
 | `evaluate_model()` | `evaluate_model` | `goldfishEval` |
 | `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` | `result.goldfish` | `goldfishFit` |
-| a flavored specification fit | `flavored_result.goldfish` | `goldfishFlavoredFit` |
-| `summary()` on a fit | `summary.result.goldfish` | `summary.goldfishFit` |
+| a flavored specification fit | `flavored_result.goldfish` | `goldfishFlavFit` |
+| `summary()` on a fit | `summary.result.goldfish` | `goldfishSummFit` |
 | `compute_statistics(output = "preprocessed")` | `preprocessed.goldfish` | `goldfishPrep` |
 | `compute_statistics(output = "db")` | `preprocessed_db.goldfish` | `goldfishPrepDB` |
-| flavored preprocessing | `flavored_preprocessed.goldfish` | `goldfishFlavoredPrep` |
-| flavored statistics | `flavored_statistics.goldfish` | `goldfishFlavoredStats` |
-| `set_preprocessing()` | `preprocessing.goldfish` | `goldfishPrepControl` |
+| flavored preprocessing | `flavored_preprocessed.goldfish` | `goldfishFlavPrep` |
+| flavored statistics | `flavored_statistics.goldfish` | `goldfishFlavStats` |
+| `set_preprocessing()` | `preprocessing.goldfish` | `goldfishPrepCtrl` |
 | `make_specification()` | `specification.goldfish` | `goldfishSpec` |
 | the specification process map | `spec_map.goldfish` | `goldfishSpecMap` |
-| `set_algorithm_newton()` | `algorithm_newton.goldfish` | `goldfishAlgorithmNewton` |
-| the algorithm superclass | `algorithm.goldfish` | `goldfishAlgorithm` |
+| `set_algorithm_newton()` | `algorithm_newton.goldfish` | `goldfishAlgoNewton` |
+| the algorithm superclass | `algorithm.goldfish` | `goldfishAlgo` |
 | `as_goldfish()` | `data.goldfish` | `goldfishData` |
 | formula parsing | `goldfish.formulae` | `goldfishFormulae` |
 | preprocess writers (internal) | `writer_*` | `goldfishWriter*` |
@@ -91,29 +91,29 @@ returns moves.
 
 ### Requirement: No goldfish class carries a dot-suffix package qualifier
 
-No class that goldfish attaches on the live path SHALL qualify the
-package with a dot suffix (`<thing>.goldfish`): a dot creates no S3
-inheritance — dispatch is on exact strings — so a dotted suffix is
-convention masquerading as structure, and it produces method-name
-ambiguity (`plot.test_gof.goldfish` parses two ways). The base-R
-summary idiom is the sanctioned dotted form: the object `summary()`
-returns SHALL be classed `summary.goldfishFit`, printed by
-`print.summary.goldfishFit()`, following `summary.lm` and RSiena's
-`summary.sienaFit`. With camelCase classes this is unambiguous, because
-goldfish generics are snake_case and none is named `print.summary`.
+No class that goldfish attaches on the live path SHALL contain a dot at
+all. A dot creates no S3 inheritance — dispatch is on exact strings — so a
+dotted qualifier is convention masquerading as structure, and it produces
+method-name ambiguity (`plot.test_gof.goldfish` parses two ways). The rule
+admits **no exception**, the base-R `summary.<class>` idiom included: the
+object `summary()` returns on a fit SHALL be classed `goldfishSummFit`,
+printed by `print.goldfishSummFit()`. Following base R here would make a
+single class both a method name and the name of the class that method
+returns, and would give `print.summary.goldfishFit` three dots to read
+through, for conformity this package does not need.
 
-#### Scenario: the summary object follows the base idiom
+#### Scenario: the summary object carries no dot
 
 - **WHEN** `summary()` is called on a fitted model
-- **THEN** the returned object inherits `summary.goldfishFit`, and
-  `print()` on it dispatches to `print.summary.goldfishFit`
+- **THEN** the returned object inherits `goldfishSummFit`, and `print()`
+  on it dispatches to `print.goldfishSummFit`
 
 #### Scenario: no live class carries a dotted package suffix
 
 - **WHEN** the class strings goldfish attaches on the live path are
   enumerated
-- **THEN** none ends in `.goldfish`, the deprecated-path classes named
-  in the exemption requirement excepted
+- **THEN** none contains a dot, the deprecated-path classes named in the
+  exemption requirement excepted
 
 ### Requirement: Method names parse uniquely — snake_case generic, camelCase class
 

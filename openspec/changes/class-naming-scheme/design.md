@@ -78,7 +78,7 @@ Constraints this design works inside:
 (`Fit`, `Prep`, `Spec`, `Eval`), not a transliteration of the
 constructor name. Where autograph@develop fixed a name, that name is
 adopted verbatim (the seven above); where RSiena has a precedent, it is
-followed (`goldfishAlgorithm` ← `sienaAlgorithm`;
+followed (`goldfishAlgo` ← `sienaAlgorithm`;
 `goldfishTimeTest` ← `sienaTimeTest`).
 
 *Why the flip from ADR-0020's `_goldfish` suffix.* Three reasons, in
@@ -135,23 +135,41 @@ renamed; a current-epoch object (dev line) is told only its class name
 is retired. `FIT_VERSION`/`PREP_VERSION` do not move — no component of
 any object changes.
 
-### D6 — The summary object is `summary.goldfishFit`, following RSiena and base R
+### D6 — The summary object is `goldfishSummFit`; no class carries a dot at all
 
-Flipped from the previous design. RSiena classes its summary as
-`summary.sienaFit` (with `print.summary.sienaFit`), the base-R
-`summary.lm` idiom, and goldfish follows: `summary(fit)` returns
-`summary.goldfishFit`, printed by `print.summary.goldfishFit()`. The
-former "no dots anywhere" goal narrows to **no dot-suffix package
-qualification** (`.goldfish` at the end of a class): the `summary.`
-*prefix* is the entrenched base-R idiom, and with camelCase classes it
-is unambiguous — `print.summary.goldfishFit` has one parse because no
-goldfish generic is named `print.summary`. The previous design rejected
-the idiom to keep a uniform no-dot rule; with the ambiguity dissolved
-by camelCase, breaking with base R would buy uniformity nobody needs at
-the price of surprising every R user. This also still removes the live
-`summary.result.goldfish` method-name/class-name collision: the method
-is `summary.goldfishFit()` and the class it returns is
-`summary.goldfishFit` — the same relationship `stats::summary.lm` has.
+Reversed 2026-09-05 (Alvaro). An earlier revision of this decision adopted
+the base-R/RSiena dotted idiom — `summary()` returning a class literally
+named `summary.goldfishFit`, printed by `print.summary.goldfishFit()` —
+on the argument that `summary.` is a *prefix* rather than the `.goldfish`
+package *suffix* the rule bans, and that camelCase left it unambiguous to
+parse. That reasoning was sound and is still true. It is dropped anyway,
+because parsing was never the objection: the shape is **confusing to
+read**, and it buys conformity with base R at the cost of the one rule
+this change exists to make simple.
+
+`summary()` on a fit SHALL return `goldfishSummFit`, printed by
+`print.goldfishSummFit()`. The no-dot rule then holds without exception on
+the live path, which is worth more than the idiom.
+
+Three concrete reasons the idiom cost more here than it does in base R.
+(1) `summary.goldfishFit` is simultaneously a method name and the name of
+the class that method returns — exactly `summary.lm`'s situation, and the
+previous revision claimed the rename "removes the collision" when in fact
+it reproduces base R's. A design that has to explain why its own stated
+rule does not apply here has found the wrong rule or the wrong exception.
+(2) `print.summary.goldfishFit` carries three dots and reads as a method
+on a generic named `print.summary`. Unambiguous to R; not to a reader.
+(3) The flavored sibling makes it worse, not better: the dotted form gives
+`summary.goldfishFlavFit`, whereas `goldfishSummFlavFit` stays one token.
+
+*Note on the flavored side.* `summary`, `tidy` and `glance` are currently
+**absent** from `flavored_result.goldfish` (18 methods against
+`result.goldfish`'s 20) — so there is no sibling to be parallel with yet,
+only a hole. Whether `goldfishSummFlavFit` comes into existence, or the
+flavored class inherits the plain summary, or `summary` is refused for
+flavored fits, is decided by ADR-0038's inherit/override/refuse contract
+table, not here. This decision fixes only the *name* a summary object
+carries if one exists.
 
 ### D7 — Hard rename, no fallback class
 
@@ -260,7 +278,7 @@ of this change (it lands with the rename, not before it).
 ### D15 — Lint compatibility is verified in groundwork, not discovered mid-rename
 
 New. S3 method names like `print.goldfishFit` and
-`summary.goldfishFit` must pass `.lintr`'s
+`goldfishSummFit` must pass `.lintr`'s
 `object_name_linter("snake_case")`. lintr exempts S3 methods for known
 generics, but goldfish defines its own snake_case generics whose
 methods on camelCase classes may still be flagged
@@ -297,6 +315,49 @@ parametric/coordination changes create is born under the new rule").
 *Rejected:* leaving the table as a closed, one-time snapshot — a table
 that cannot absorb classes discovered after its own drafting stops
 being authoritative the first time a concurrent branch lands.
+
+### D17 — Class identifiers use a fixed short-word vocabulary
+
+New (2026-09-05, Alvaro). D1 says the identifier is "a short word
+compressing the object", which under-determines the result: the same
+concept was spelled `Algorithm` in one row and `Prep` in another, and the
+`model_spec` hierarchy would have produced names like
+`goldfishModelSpecDynamRateOrdered` (33 characters). A class string is read
+in method names, `inherits()` calls, test assertions and print output, so
+length is a real cost paid many times.
+
+The identifier SHALL be built from this vocabulary, and a new class
+extends the table rather than inventing a synonym:
+
+| Concept | Short | Concept | Short |
+| --- | --- | --- | --- |
+| DyNAM | `Dn` | preprocessed | `Prep` |
+| DyNAM-i | `Dni` | specification | `Spec` |
+| REM | `Rem` | control | `Ctrl` |
+| DyNAMu | `Mu` | algorithm | `Algo` |
+| ordered (Cox partial likelihood) | `Cox` | flavored | `Flav` |
+| choice coordination | `Coord` | summary | `Summ` |
+
+`Cox` replaces `Ordered` because it names the estimator rather than the
+arity, which is the more useful fact at a call site.
+
+Applied, this shortens four already-agreed rows —
+`goldfishAlgorithmNewton` (23) becomes `goldfishAlgoNewton` (18),
+`goldfishPrepControl` becomes `goldfishPrepCtrl`,
+`goldfishFlavoredFit`/`goldfishFlavoredPrep`/`goldfishFlavoredStats` become
+`goldfishFlavFit`/`goldfishFlavPrep`/`goldfishFlavStats` — and leaves
+`goldfishChangepoints` (20) as the longest live class, which cannot move
+because autograph@develop already dispatches on it (D12).
+
+*Deliberately unsettled.* The coordination short name is recorded here as
+`Coord`, **not** as a mechanism name. Naming DyNAM's `choice_coordination`
+after a DyNAMu mechanism (`Conj`) was proposed and withdrawn the same day:
+`estimate_dynamu()` is its own estimator (ADR-0022) with its own `model=`
+value, so its variants are siblings of the DyNAM ones, and a mechanism
+name would produce two different classes both meaning "conjunctive". How
+DyNAM coordination and the five DyNAMu mechanisms relate in the class
+hierarchy — flat siblings, a shared coordination family class, or a
+mechanism field — is open and is **not** settled by this decision.
 
 ## Risks / Trade-offs
 

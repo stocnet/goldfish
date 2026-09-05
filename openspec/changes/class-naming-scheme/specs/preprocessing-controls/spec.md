@@ -5,7 +5,7 @@ The package SHALL export `set_preprocessing()` (the renamed
 `set_preprocessing_opt()`) with the same arguments and semantics —
 `start_time`, `end_time`, `opportunities_list` (already soft-deprecated),
 `impute`, `db`, `db_table` — returning an object of class
-`c("goldfishPrepControl", "list")`. The `print` method SHALL dispatch on
+`c("goldfishPrepCtrl", "list")`. The `print` method SHALL dispatch on
 the new class. Argument validation SHALL be unchanged.
 
 The documentation of `start_time` and `end_time` SHALL describe the behavior
@@ -18,7 +18,7 @@ continues past `end_time`.
 
 #### Scenario: constructor returns the new class
 - **WHEN** `set_preprocessing(start_time = 10)` is called
-- **THEN** the returned object inherits `goldfishPrepControl`, carries
+- **THEN** the returned object inherits `goldfishPrepCtrl`, carries
   `start_time = 10`, and prints via the new-class method.
 
 #### Scenario: option semantics unchanged
@@ -35,7 +35,7 @@ continues past `end_time`.
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 the preprocessing control object through a `control_prep` argument
 (default `set_preprocessing()`), validated with `inherits(x,
-"goldfishPrepControl")`. Functions minted after this change that take
+"goldfishPrepCtrl")`. Functions minted after this change that take
 a preprocessing control (`compute_statistics()` in revise-gather-output,
 future estimators) SHALL use the same `control_prep` name and validation.
 `gather_model_data()` is deprecated wholesale by revise-gather-output and
@@ -49,7 +49,7 @@ SHALL NOT be re-signatured.
 
 #### Scenario: wrong object rejected
 - **WHEN** `control_prep` receives an object that does not inherit
-  `goldfishPrepControl`
+  `goldfishPrepCtrl`
 - **THEN** the caller aborts with a cli error naming `set_preprocessing()`.
 
 ### Requirement: preprocessed= is the single supply argument on estimators

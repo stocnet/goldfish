@@ -27,8 +27,8 @@ pre-2.0.0, before `parametric-rates`.
   **r-lib:testing-r-packages**): construct one object of each live
   class and assert (a) it inherits its `goldfish<Thing>` name, (b) it
   does not inherit the retired name, (c) no live class string contains
-  a dot except `summary.goldfishFit` and inherited base/tibble
-  classes, and (d) the exported function names are unchanged. It fails
+  a dot at all, inherited base/tibble classes excepted, and (d) the
+  exported function names are unchanged. It fails
   now; it is the completion criterion.
 - [ ] 1.4 Amend the tracked `CLAUDE.md` naming policy (design D14):
   class strings follow `goldfish<Thing>` camelCase per ADR-0031 /
@@ -42,8 +42,8 @@ pre-2.0.0, before `parametric-rates`.
 
 - [ ] 2.1 Rename `goldfish.formulae` → `goldfishFormulae`
   (`R/formula_parser.R`, single site, plus any `inherits()` guard).
-- [ ] 2.2 Rename `algorithm.goldfish` → `goldfishAlgorithm` and
-  `algorithm_newton.goldfish` → `goldfishAlgorithmNewton`
+- [ ] 2.2 Rename `algorithm.goldfish` → `goldfishAlgo` and
+  `algorithm_newton.goldfish` → `goldfishAlgoNewton`
   (`R/set_opt.R`, print method, the `control_algo` gates in the
   estimators). Hand-edit roxygen `@method` tags (D9); run
   `devtools::document()` in-task per **r-lib:r-package-development**.
@@ -76,7 +76,7 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 4. Preprocessing classes
 
-- [ ] 4.1 Rename `preprocessing.goldfish` → `goldfishPrepControl`
+- [ ] 4.1 Rename `preprocessing.goldfish` → `goldfishPrepCtrl`
   (`R/set_opt.R`, the `control_prep` validation in all three
   estimators, print method).
 - [ ] 4.2 Rename `preprocessed.goldfish` → `goldfishPrep` and
@@ -85,8 +85,8 @@ pre-2.0.0, before `parametric-rates`.
   `preprocessed =` argument gate, `R/format_version.R`
   `abort_if_not_class()` call sites, the gather expansion).
 - [ ] 4.3 Rename `flavored_preprocessed.goldfish` →
-  `goldfishFlavoredPrep` and `flavored_statistics.goldfish` →
-  `goldfishFlavoredStats` (`R/preprocess_flavored.R`,
+  `goldfishFlavPrep` and `flavored_statistics.goldfish` →
+  `goldfishFlavStats` (`R/preprocess_flavored.R`,
   `R/estimate_flavored.R`).
 - [ ] 4.4 Update affected tests/snapshots (diff-reviewed).
 - [ ] 4.5 Verification: `air format` → `lintr` → `document()` →
@@ -139,11 +139,14 @@ pre-2.0.0, before `parametric-rates`.
   `methods_residuals.R`, `methods_tests.R`, `model_estimate.R`,
   `model_evaluate.R`, `model_terms.R`, `format_version.R`,
   `diagnose_onset.R`, `test_*.R`, `diagnostic_tables.R`).
-- [ ] 7.2 Rename `flavored_result.goldfish` → `goldfishFlavoredFit`;
-  class the summary object `summary.goldfishFit` (design D6) with
-  `print.summary.goldfishFit()`; the fit's summary method becomes
-  `summary.goldfishFit()` — same string as the class it returns, the
-  base-R relationship.
+- [ ] 7.2 Rename `flavored_result.goldfish` → `goldfishFlavFit`; class
+  the summary object `goldfishSummFit` (design D6, reversed 2026-09-05)
+  and render it with `print.goldfishSummFit()`. The method stays
+  `summary.goldfishFit()` — a method name, not a class name; the class it
+  returns is `goldfishSummFit`, which is the whole point of the reversal.
+  `summary`/`tidy`/`glance` are absent from the flavored class today, so
+  whether a `goldfishSummFlavFit` exists is ADR-0038's contract-table
+  question, not this task's.
 - [ ] 7.3 Add the third staleness diagnosis in `R/format_version.R`
   (design D5): a current-epoch object on the retired class is told its
   **class** was renamed, not its components. Extend
@@ -218,5 +221,6 @@ pre-2.0.0, before `parametric-rates`.
 - [ ] 10.4 Answer [stocnet/autograph#60] with the final table, noting:
   goldfish adopted autograph@develop's seven names verbatim, the two
   classes the issue missed (`goldfishParamTest`, `goldfishEval`), the
-  summary idiom (`summary.goldfishFit`, per RSiena), and that
-  autograph's defunct aliases are now deletable.
+  summary class (`goldfishSummFit` — goldfish does **not** follow the
+  base-R/RSiena `summary.<class>` idiom; no live class carries a dot), and
+  that autograph's defunct aliases are now deletable.
