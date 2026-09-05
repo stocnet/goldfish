@@ -147,6 +147,10 @@ find_last_presence <- function(node, time, nodes, composition_changes) {
 #'
 #' @examples check_classes(c(1L, 2L), c("numeric", "integer", "character"))
 check_classes <- function(object, classes) {
+  # `is()` rather than `inherits()`: the classes asked about here are basic
+  # types and the S4 `Matrix`, where implicit-class and S4 inheritance are the
+  # point -- `inherits(1L, "numeric")` is FALSE. This is a type check, not the
+  # S3 class test the naming rule governs.
   vapply(classes, function(x) methods::is(object, x), logical(1))
 }
 

@@ -219,7 +219,6 @@ conforms <- function(x) grepl("^goldfish[A-Z][A-Za-z0-9]*$", x)
 pending_rename <- c(
   "algorithm.goldfish",
   "algorithm_newton.goldfish",
-  "class",
   "data_source",
   "data_source_envir",
   "data_source_stocnet",

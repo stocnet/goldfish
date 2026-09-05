@@ -56,7 +56,7 @@ make_groups_interaction <- function(
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
-    methods::is(seed_randomization, "numeric"),
+    is.numeric(seed_randomization),
     is.null(progress) || inherits(progress, "logical")
   )
 
@@ -921,16 +921,16 @@ make_groups_interaction <- function(
   )
   attr(dependent.events, "order") <- deporder
 
-  attr(interaction.updates, "class") <- c(
-    attr(interaction.updates, "class"),
+  class(interaction.updates) <- c(
+    class(interaction.updates),
     "interaction.network.updates"
   )
-  attr(dependent.events, "class") <- c(
-    attr(dependent.events, "class"),
+  class(dependent.events) <- c(
+    class(dependent.events),
     "interaction.groups.updates"
   )
-  attr(exogenous.events, "class") <- c(
-    attr(exogenous.events, "class"),
+  class(exogenous.events) <- c(
+    class(exogenous.events),
     "interaction.groups.updates"
   )
 
