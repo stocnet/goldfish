@@ -108,6 +108,30 @@ from `timing` at the call site, and no other site names either old flag.
 consequence in the estimation code rather than the property of the sub-model,
 which is why the second name was needed in the first place.
 
+*There is a third name (found 2026-09-05).* The preprocessed object stores
+both fields, and stores one as a copy of the other:
+
+```r
+# R/preprocess_writers.R
+has_intercept  = has_intercept,
+right_censored = has_intercept,
+```
+
+`has_intercept` appears at 129 sites across 15 files, a comparable surface to
+the pair it duplicates. It is not a straight synonym everywhere — it states a
+property of the *formula* (an intercept term is present), while `timing`
+states a property of the *sub-model* — but on the preprocessed object they
+carry the same value, which is how a reader ends up unable to tell whether
+three knobs are one knob.
+
+The migration therefore has to decide, per site, which of the three a use
+actually means, rather than mapping all of them onto `timing`. Where a site
+genuinely asks "does this formula carry an intercept term", that question
+survives and keeps `has_intercept`; where it is standing in for "is this a
+timed rate", it becomes `timing`. Task 3.1 covers the pair; the
+`has_intercept` sites are inventoried in task 1.2 and triaged there, because
+collapsing them blindly would erase a real distinction.
+
 ### D3 — Dispatch survives only for the likelihood
 
 `compute_event_contribution` keeps S3 dispatch: six genuinely different
@@ -182,6 +206,101 @@ An alternative remains available if that waste is judged not worth paying:
 this change names those classes when it reshapes them. That is a scope
 decision on the rename, not a re-ordering, and it can be taken at the rename's
 task 1.1 without disturbing anything here.
+
+### D9 — The preprocessing output classes collapse into one, distinguished by fields
+
+New (2026-09-05, Alvaro). The same over-specification the variant classes show
+appears again on the output side, measured on the current tree:
+
+| Class | S3 methods | `inherits()` checks |
+| --- | --- | --- |
+| `preprocessed.goldfish` | 1 (`print`) | 3 |
+| `preprocessed_db.goldfish` | 0 | 0 |
+| `flavored_preprocessed.goldfish` | 0 | 0 |
+| `flavored_statistics.goldfish` | 0 | 0 |
+| the `output = "gather"` return | **no class at all** | — |
+
+Four classes and one unclassed shape, with one method and three checks between
+them. The two flavored classes are structurally identical —
+`structure(outputs, process_map = process_map, class = …)` — differing only in
+which function built them, which is provenance, not behavior. And the gather
+shape, a user-facing return of an exported function, carries no class, so it
+is invisible to `inherits()`, to print dispatch, and to any rename.
+
+`compute_statistics()` SHALL return one class, `goldfishStat`, with the
+distinctions carried as fields:
+
+| Field | Values | Replaces |
+| --- | --- | --- |
+| `storage` | `pointer`, `stack`, `db` | `preprocessed` / gather / `preprocessed_db` |
+| `scope` | `single`, `flavored` | the `flavored_*` pair |
+
+One `print` method reads them. The gather gap closes by construction rather
+than by minting a fifth class.
+
+*The `test_*()` precedent, read precisely.* The diagnostic tables were the
+model for this, and they do **not** collapse to one class:
+`new_diagnostic_table(df, class, context, params, defining)` shares one
+constructor and one metadata stamp while keeping distinct class strings. They
+keep them because autograph plots each differently — a real dispatch
+difference. Here there is none, so the same pattern lands on one class plus
+metadata. The rule the precedent actually carries is *share construction and
+metadata; keep a class only where behavior branches* — which is D3's rule for
+the likelihood, applied to the output side.
+
+*Boundary, and the burden of proof (Alvaro, 2026-09-05).* `goldfishFlavPrep`
+and `goldfishJointPrep` are internal preprocessing containers rather than
+`compute_statistics()` returns, so they are inventoried separately — but the
+default is **convergence, not separation**. Keeping a preprocessing container
+distinct from the statistics output requires a **strong** reason: a real
+dispatch difference, or a field one shape carries that the other cannot. Minor
+differences are not a reason to keep two classes; they are a reason to
+converge, and where the inventory finds only minor differences the convergence
+is proposed and approved rather than assumed either way. The failure this
+guards against is the one already measured here — four classes, one method,
+three checks — which arose precisely from treating small differences as
+grounds for a new class.
+
+`goldfishPrepCtrl` is out of scope entirely: `set_preprocessing()` controls
+preprocessing rather than producing statistics, so it is a different kind of
+object, not a variant of the same one.
+
+### D10 — The mechanical flavored fan-outs collapse; the contract table does not
+
+New (2026-09-05, Alvaro). Seventeen generics are implemented twice, once for
+`result.goldfish` and once for `flavored_result.goldfish`
+([ADR-0038](../../../decisions)). Classifying them shows two different
+problems wearing one label:
+
+| Shape | Generics | Size |
+| --- | --- | --- |
+| helper fan-out | `fitted`, `predict`, `residuals`, `evaluate_model` | 8–19 lines |
+| trivial hand loop | `coef`, `vcov` | 8 lines each |
+| large hand loop | `test_gof`, `test_parameter`, `test_time` | 48–67 lines |
+| bespoke | `diagnose_outliers`/`changepoints`/`onset`, `margin_table`, `coef_layout`, `print`, `augment`, `model_terms` | 11–69 lines |
+
+The first six are this change's rule applied a third time. They carry no
+behavior of their own: `predict.flavored_result.goldfish` is a one-line call to
+`flavored_component_apply()`, and `vcov` is the same `lapply` over
+`object$results` written by hand instead of through the helper. A container of
+N doing exactly what one does, N times, is the same finding as D9 — identical
+behavior expressed as separate implementations.
+
+**In scope:** those six collapse to a single fan-out path, with `coef` and
+`vcov` moved onto `flavored_component_apply()` rather than keeping their hand
+loops.
+
+**Explicitly out of scope:** the shared fit-class parent and its
+inherit/override/refuse contract table. That is not a duplication problem and
+this change's rule does not reach it. ADR-0038's core is a correctness hazard —
+a DyNES fit maximizes a Monte-Carlo estimate of the observed-data likelihood,
+so a `logLik()` inherited from a parent lets `AIC()` and `BIC()` return numbers
+that look like information criteria and are not. Whether each generic should
+inherit, override or refuse is a modeling judgment that differs per generic; it
+cannot be derived from a field the way `storage` and `scope` derive print
+behavior in D9. Collapsing the six mechanical cases neither answers it nor
+prejudges it, and the eleven remaining generics stay exactly as they are until
+the change that owns that question decides them.
 
 ## Risks / Trade-offs
 

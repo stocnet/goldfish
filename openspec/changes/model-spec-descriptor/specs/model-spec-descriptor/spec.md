@@ -87,6 +87,34 @@ from `timing` at the call site; no other site SHALL name either retired flag.
 - **THEN** they differ in `timing`, and no consumer needs a second field to
   tell them apart
 
+### Requirement: One statistics-output class, distinguished by fields
+
+`compute_statistics()` SHALL return a single class whose variations are
+carried as fields rather than as separate class strings: a `storage` field
+taking `pointer`, `stack` or `db`, and a `scope` field taking `single` or
+`flavored`. Every shape it returns SHALL carry that class — including the
+gather shape, which today is returned to users unclassed. A single print
+method SHALL render all of them by reading the fields. The classes this
+replaces SHALL NOT be retained as aliases.
+
+#### Scenario: every output shape is classed
+
+- **WHEN** `compute_statistics()` is called with each supported `output` value
+- **THEN** each return carries the statistics-output class, and its `storage`
+  field records which shape it is
+
+#### Scenario: the gather shape is no longer unclassed
+
+- **WHEN** `compute_statistics(output = "gather")` returns
+- **THEN** the result carries the statistics-output class with
+  `storage = "stack"`, so `inherits()` and print dispatch reach it
+
+#### Scenario: the flavored distinction is a field
+
+- **WHEN** a flavored specification and a single process are each preprocessed
+- **THEN** both results carry the same class, differing in `scope`, and no
+  separate flavored class is attached
+
 ### Requirement: S3 dispatch is retained only where implementations differ
 
 Dispatch SHALL be kept where two variants run genuinely different code and

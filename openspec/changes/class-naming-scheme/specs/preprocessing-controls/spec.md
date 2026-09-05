@@ -55,7 +55,7 @@ SHALL NOT be re-signatured.
 ### Requirement: preprocessed= is the single supply argument on estimators
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 a `preprocessed =` argument (default `NULL`) taking a
-`goldfishPrep` object to skip preprocessing, with exactly the
+`goldfishStat` object to skip preprocessing, with exactly the
 semantics `preprocessing_init =` had (including the format-version check
 rejecting stale objects). The argument name matches the diagnostic
 consumers' `preprocessed =` so one name supplies the replay object
@@ -63,12 +63,12 @@ everywhere; the standalone producer of that object is
 `compute_statistics(output = "preprocessed")` (revise-gather-output).
 
 #### Scenario: preprocessed object reused
-- **WHEN** a `goldfishPrep` object is passed as
+- **WHEN** a `goldfishStat` object is passed as
   `estimate_dynam(..., preprocessed = prep)`
 - **THEN** estimation skips preprocessing and produces the same fit as the
   full pipeline.
 
 #### Scenario: stale object rejected
-- **WHEN** a `goldfishPrep` with an outdated format version is
+- **WHEN** a `goldfishStat` with an outdated format version is
   supplied via `preprocessed =`
 - **THEN** estimation aborts with the existing outdated-format error.

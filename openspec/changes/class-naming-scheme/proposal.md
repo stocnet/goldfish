@@ -55,11 +55,11 @@ folds next.
     `goldfishOutliers`, `diagnose_changepoints` →
     `goldfishChangepoints`, `margin_table` → `goldfishMargins`,
     `evaluate_model` → `goldfishEval`.
-  - Preprocessing: `preprocessed.goldfish` → `goldfishPrep`,
-    `preprocessed_db.goldfish` → `goldfishPrepDB`,
+  - Preprocessing: `preprocessed.goldfish` → `goldfishStat`,
+    `preprocessed_db.goldfish` → `goldfishStatDB`,
     `preprocessing.goldfish` → `goldfishPrepCtrl`,
     `flavored_preprocessed.goldfish` → `goldfishFlavPrep`,
-    `flavored_statistics.goldfish` → `goldfishFlavStats`.
+    `flavored_statistics.goldfish` → `goldfishFlavStat`.
   - Specification and algorithm: `specification.goldfish` →
     `goldfishSpec`, `spec_map.goldfish` → `goldfishSpecMap`,
     `algorithm.goldfish` → `goldfishAlgo`,
@@ -76,9 +76,9 @@ folds next.
   leave the package also move (Alvaro, 2026-08-19) — `writer_*` →
   `goldfishWriter*`, `data_source_envir`/`data_source_stocnet` →
   `goldfishSourceEnvir`/`goldfishSourceStocnet`, the `model_spec`
-  hierarchy → `goldfishModelSpec*`, `support_constraint_plan` →
+  hierarchy → `goldfishKind*`, `support_constraint_plan` →
   `goldfishSupportPlan`, `fixed_spec`/`initial_spec` →
-  `goldfishFixedSpec`/`goldfishInitialSpec`. Exactly two exemptions
+  `goldfishCoefFixed`/`goldfishCoefInit`. Exactly three exemptions
   remain: the ~60 effect dispatch tags (`inertia`, `recip`, …), which
   stop being classes when `effect-term-registry` replaces string-built
   S3 dispatch, and the deprecated path (below).
@@ -128,8 +128,8 @@ text (design D8a).
   SHALL in place (an additive delta would leave two contradicting
   rules).
 - `preprocessing-controls`: return classes `goldfishPrepCtrl` /
-  `goldfishPrep` are the contract.
-- `preprocess-output-writers`: default writer returns `goldfishPrep`.
+  `goldfishStat` are the contract.
+- `preprocess-output-writers`: default writer returns `goldfishStat`.
 - `model-specification`: `make_specification()` returns `goldfishSpec`.
 - `optimizer-selection`: `goldfishAlgo` / `goldfishAlgoNewton`.
 - `multimode-networks`: clarifies that `data.goldfish` names the legacy

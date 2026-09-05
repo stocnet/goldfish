@@ -19,7 +19,7 @@ pre-2.0.0, before `parametric-rates`.
 - [ ] 1.1a Confirm the `model_spec` hierarchy is in scope (design D18,
       settled 2026-09-05: the rows stay and the rename waste is accepted).
       The twelve identifiers are fixed in the rename table — nine
-      `goldfishModelSpec<Variant>` plus the parent, and
+      `goldfishKind<Variant>` plus the parent, and
       `goldfishAxisSender`/`goldfishAxisDyad` for the axis. Note in
       `progress.md` which of them `model-spec-descriptor` is expected to
       dissolve, so the next change does not re-derive it.
@@ -33,7 +33,8 @@ pre-2.0.0, before `parametric-rates`.
   (`tests/testthat/test_class_naming.R`, testthat 3e per
   **r-lib:testing-r-packages**). It **enumerates the classes the package
   actually attaches** — from `S3method()` registrations, from literal
-  strings at class-assignment sites, and from literal strings in
+  strings at every class-assignment form (`class(x) <-`,
+  `structure(class = )`, `attr(x, "class") <-`), and from literal strings in
   `inherits()`/`is()` calls — subtracts the three exempt categories
   (deprecated path, effect dispatch tags, `goldfish_<snake>` condition
   classes), and asserts every remainder matches `goldfish<Thing>`. It
@@ -46,6 +47,17 @@ pre-2.0.0, before `parametric-rates`.
       attempt because it appears only inside `inherits(x, c(...))`, so
       verify the enumeration finds all twelve `model_spec` classes before
       trusting it.
+- [ ] 1.3a Converge the class idioms (design D20) **before** the rename
+      clusters, so the later inventories see one form. Replace the six
+      `attr(x, "class") <-` sites with `class(x) <-`: three stamp
+      `result.goldfish` (`estimation_core.R:320`, `cpp_interface.R:756`,
+      `:905`) and three the DyNAM-i interaction classes
+      (`make_data_group.R:924,928,932`). Replace the single
+      `methods::is(seed_randomization, "numeric")` (`make_data_group.R:59`)
+      with `is.numeric()` — it is a type check, not a class test.
+      `%in% class(x)` has zero sites; it is a prohibition in the spec, not a
+      migration. Pure refactor: no class string moves here, so the suite must
+      be green with an identical NAMESPACE.
 - [ ] 1.4 Amend the tracked `CLAUDE.md` naming policy (design D14):
   class strings follow `goldfish<Thing>` camelCase per ADR-0031 /
   autograph CONTRIBUTING; snake_case (and "never reintroduce
@@ -81,11 +93,19 @@ pre-2.0.0, before `parametric-rates`.
 - [ ] 3.2 Rename `data_source_envir` / `data_source_stocnet` →
   `goldfishSourceEnvir` / `goldfishSourceStocnet` (`R/data_source.R`
   and every `inherits()` seam, including the DyNAMi boundary guards).
-- [ ] 3.3 Rename the `model_spec` hierarchy → `goldfishModelSpec*`,
+- [ ] 3.3 Rename the `model_spec` hierarchy → `goldfishKind*` (parent
+  `goldfishKind`; axis classes → `goldfishAxisSender`/`goldfishAxisDyad`),
   `support_constraint_plan` → `goldfishSupportPlan`, and `fixed_spec` /
-  `initial_spec` → `goldfishFixedSpec` / `goldfishInitialSpec` (exact
+  `initial_spec` → `goldfishCoefFixed` / `goldfishCoefInit` (exact
   strings per inventory; `R/model_spec.R`, the support-constraint and
   fixed-parameter files).
+- [ ] 3.3a Rename the DyNAM-i interaction classes → `goldfishInterNet` /
+      `goldfishInterGrp` / `goldfishInterWindow` (`R/make_data_group.R`
+      stamps them; `R/model_preprocess_group.R:155,161,167` reads them; plus
+      `R/zzz_testthat_helpers.R`). They lose their only consumer when
+      `refactor-dynami-engine` converts the `preprocessInteraction` monolith —
+      record that in `progress.md` so the successor knows they are already
+      renamed.
 - [ ] 3.4 Update affected tests/snapshots (diff-reviewed).
 - [ ] 3.5 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**; full suite green before the larger clusters.
@@ -95,14 +115,14 @@ pre-2.0.0, before `parametric-rates`.
 - [ ] 4.1 Rename `preprocessing.goldfish` → `goldfishPrepCtrl`
   (`R/set_opt.R`, the `control_prep` validation in all three
   estimators, print method).
-- [ ] 4.2 Rename `preprocessed.goldfish` → `goldfishPrep` and
-  `preprocessed_db.goldfish` → `goldfishPrepDB`
+- [ ] 4.2 Rename `preprocessed.goldfish` → `goldfishStat` and
+  `preprocessed_db.goldfish` → `goldfishStatDB`
   (`R/preprocess_writers.R`, `R/model_preprocess.R`, the
   `preprocessed =` argument gate, `R/format_version.R`
   `abort_if_not_class()` call sites, the gather expansion).
 - [ ] 4.3 Rename `flavored_preprocessed.goldfish` →
   `goldfishFlavPrep` and `flavored_statistics.goldfish` →
-  `goldfishFlavStats` (`R/preprocess_flavored.R`,
+  `goldfishFlavStat` (`R/preprocess_flavored.R`,
   `R/estimate_flavored.R`).
 - [ ] 4.4 Update affected tests/snapshots (diff-reviewed).
 - [ ] 4.5 Verification: `air format` → `lintr` → `document()` →
@@ -163,6 +183,10 @@ pre-2.0.0, before `parametric-rates`.
   `summary`/`tidy`/`glance` are absent from the flavored class today, so
   whether a `goldfishSummFlavFit` exists is ADR-0038's contract-table
   question, not this task's.
+- [ ] 7.2a Keep the fit classes flat (design D19): `goldfishFlavFit` is
+      renamed as a flat class, **not** `c("goldfishFlavFit", "goldfishFit")`.
+      This change disclaims the shared-parent question; introducing
+      inheritance here would answer it silently.
 - [ ] 7.3 Add the third staleness diagnosis in `R/format_version.R`
   (design D5): a current-epoch object on the retired class is told its
   **class** was renamed, not its components. Extend

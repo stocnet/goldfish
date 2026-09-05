@@ -7,6 +7,17 @@
 > internal stocnet→environment bridge that change introduces, along with the
 > `data_source_envir`/`is_legacy` seam, when the monolith goes.
 
+> **Class note (2026-09-05):** three internal classes exist only to carry
+> DyNAM-i events through the monolith this change retires —
+> `interaction.network.updates`, `interaction.groups.updates` and
+> `windowed.interaction.network.updates`, stamped in `R/make_data_group.R` and
+> read in exactly one place, `preprocessInteraction`
+> (`R/model_preprocess_group.R:155,161,167`). `class-naming-scheme` renames
+> them to `goldfishInterNet`, `goldfishInterGrp` and `goldfishInterWindow`
+> under its uniform rule, expecting them to lose their only consumer here.
+> When the monolith goes, check whether they still have one: if not, remove
+> them rather than carrying three classes nothing reads.
+
 ## Why
 
 The DyNAM/REM preprocessing path was converted to the recipe architecture

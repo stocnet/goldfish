@@ -19,6 +19,12 @@ task 1.1 — see design D8.**
       method (noting the three aliases), and the descriptor values it will
       carry. Record the table in `progress.md` — it is the migration's
       reference and the reviewer's checklist.
+      Also triage the 129 `has_intercept` sites (design D2): the preprocessed
+      object stores `right_censored = has_intercept`, so the pair is really a
+      triple. Mark each site as *formula property* (an intercept term is
+      present — keeps `has_intercept`) or *sub-model property* (standing in
+      for "is this a timed rate" — becomes `timing`). Collapsing them blindly
+      would erase a real distinction.
 - [ ] 1.3 Build the descriptor in the spec constructor, subsuming the existing
       `risk_set` list (design D1): `axis`, `timing`, `likelihood`,
       `input_shape`, `distribution`, `fold_target`, `encoding`. Abort on a
@@ -53,6 +59,48 @@ task 1.1 — see design D8.**
       coordination baselines are the detector here: the unordered-pair
       reduction must produce identical numbers.
 
+## 2a. Collapse the statistics-output classes (design D9)
+
+- [ ] 2a.1 Inventory the five shapes: the three `compute_statistics()` output
+      values plus the two flavored containers. Record each one's current
+      class, its `storage`/`scope` values, and every `inherits()` site
+      (there are three, all on `preprocessed.goldfish`).
+- [ ] 2a.2 Return one `goldfishStat` class from every shape, with `storage`
+      (`pointer`/`stack`/`db`) and `scope` (`single`/`flavored`) as fields.
+      The gather shape gains a class it never had, so this is the one task in
+      the change that adds user-visible surface rather than moving it.
+- [ ] 2a.3 Fold the four retired classes' behaviour into one `print` method
+      reading the fields; delete the retired classes rather than aliasing
+      them. Check `goldfishFlavPrep` and `goldfishJointPrep` against the 2a.1
+      inventory. The default is convergence: keeping either separate needs a
+      strong reason — a real dispatch difference, or a field one carries that
+      the other cannot. If only minor differences are found, propose the
+      convergence and get it approved rather than assuming separation
+      (design D9).
+- [ ] 2a.4 Tests: each output shape carries the class and the right `storage`;
+      the gather shape is classed; a flavored and a single result differ only
+      in `scope`; print renders all shapes.
+- [ ] 2a.5 Verification: `air format` → `lintr` → `devtools::document()` →
+      **not-cran-test**.
+
+## 2b. Collapse the mechanical flavored fan-outs (design D10)
+
+- [ ] 2b.1 Confirm the classification against the tree before editing: the six
+      in scope are `fitted`, `predict`, `residuals`, `evaluate_model` (already
+      one-liners over `flavored_component_apply()`) and `coef`, `vcov` (the
+      same loop written by hand). Record the other eleven in `progress.md` as
+      out of scope so the next reader does not re-derive the split.
+- [ ] 2b.2 Move `coef` and `vcov` onto `flavored_component_apply()` and reduce
+      the six to a single fan-out path. Do **not** touch the eleven remaining
+      generics, and do not introduce a shared fit-class parent — that belongs
+      to the change owning ADR-0038's contract table.
+- [ ] 2b.3 Tests: each of the six returns per-component results named as
+      before, for both a flavored and a single fit; snapshots reviewed, not
+      accepted wholesale.
+- [ ] 2b.4 Verification: `air format` → `lintr` → `devtools::document()` →
+      **not-cran-test**. Coefficients cannot move — these are fan-outs, not
+      arithmetic.
+
 ## 3. One name per behavior — retire the flag pair
 
 - [ ] 3.1 Replace `right_censored` / `intercept_scalars` with `timing`
@@ -66,7 +114,9 @@ task 1.1 — see design D8.**
       Hand-edit one site at a time; a scripted pass over comments is
       forbidden.
 - [ ] 3.3 Grep for both retired names and require an empty result outside the
-      recipe-helper signatures documented in 3.1.
+      recipe-helper signatures documented in 3.1. `has_intercept` survives only
+      at the sites task 1.2 marked as a formula property; assert the
+      preprocessed object no longer carries `right_censored` as a copy of it.
 - [ ] 3.4 Verification: `air format` → `lintr` → `devtools::document()` →
       **not-cran-test**.
 

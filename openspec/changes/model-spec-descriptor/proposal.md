@@ -83,6 +83,22 @@ the rest of the variant space.
   No exported function, argument, or return value changes; no user-visible
   behavior changes; no coefficient moves.
 
+- **The preprocessing output classes collapse too** (design D9). Four marker
+  classes carry one `print` method and three `inherits()` checks between them,
+  and a fifth shape — `compute_statistics(output = "gather")` — is returned to
+  users with no class at all. They become one `goldfishStat` class whose
+  `storage` (`pointer`/`stack`/`db`) and `scope` (`single`/`flavored`) fields
+  carry what the class strings encoded, which also closes the unclassed-gather
+  gap by construction.
+
+- **Six mechanical flavored fan-outs collapse** (design D10). Of the
+  seventeen generics implemented once per fit class, six carry no behavior of
+  their own — `fitted`, `predict`, `residuals` and `evaluate_model` are already
+  one-liners over `flavored_component_apply()`, and `coef` and `vcov` are the
+  same loop written by hand. They become one fan-out path. The shared fit-class
+  parent and its contract table are **not** in scope: that is a correctness
+  question about which generics may safely inherit, not a duplication one.
+
 ## Capabilities
 
 ### New Capabilities

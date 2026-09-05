@@ -32,3 +32,14 @@
 
 - [ ] 2.1 Bump `DESCRIPTION` + `NEWS.md`; full `NOT_CRAN=true` suite green
       (DyNAMi baselines PASS not SKIP); `openspec validate --strict`.
+
+## Class cleanup (added 2026-09-05)
+
+- [ ] Retire the three DyNAM-i interaction marker classes if the converted
+      recipe path no longer reads them: `goldfishInterNet`,
+      `goldfishInterGrp`, `goldfishInterWindow` (renamed by
+      `class-naming-scheme`; stamped in `R/make_data_group.R`, read only by
+      `preprocessInteraction`). If the recipe path still needs the
+      distinction, record why in `progress.md` — a marker class nothing reads
+      is exactly the over-specification `model-spec-descriptor` was written
+      about.
