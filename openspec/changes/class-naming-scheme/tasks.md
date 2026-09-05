@@ -5,7 +5,7 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 1. Groundwork
 
-- [ ] 1.1 Build the authoritative rename inventory: for every class in
+- [x] 1.1 Build the authoritative rename inventory: for every class in
   the `class-naming` table — now including the internal classes
   (`writer_*`, `data_source_*`, `model_spec` hierarchy,
   `support_constraint_plan`, `fixed_spec`/`initial_spec`) — list its
@@ -16,20 +16,20 @@ pre-2.0.0, before `parametric-rates`.
   function names, so the inventory separates class-string sites from
   function-name sites before any edit (design D9). Confirm every
   effect-tag string stays off the list (D2 exemption).
-- [ ] 1.1a Confirm the `model_spec` hierarchy is in scope (design D18,
+- [x] 1.1a Confirm the `model_spec` hierarchy is in scope (design D18,
       settled 2026-09-05: the rows stay and the rename waste is accepted).
       The twelve identifiers are fixed in the rename table — nine
       `goldfishKind<Variant>` plus the parent, and
       `goldfishAxisSender`/`goldfishAxisDyad` for the axis. Note in
       `progress.md` which of them `model-spec-descriptor` is expected to
       dissolve, so the next change does not re-derive it.
-- [ ] 1.2 Lint spike (design D15): one throwaway file declaring a
+- [x] 1.2 Lint spike (design D15): one throwaway file declaring a
   method per generic family on a camelCase class
   (`print.goldfishFit`, `diagnose_onset.goldfishFit`, …); run
   `lintr::lint()` with the project `.lintr`. If `object_name_linter`
   flags method names, adjust `.lintr` with a documented setting in this
   commit; no scattered `# nolint`.
-- [ ] 1.3 Add the package-wide guard test
+- [x] 1.3 Add the package-wide guard test
   (`tests/testthat/test_class_naming.R`, testthat 3e per
   **r-lib:testing-r-packages**). It **enumerates the classes the package
   actually attaches** — from `S3method()` registrations, from literal
