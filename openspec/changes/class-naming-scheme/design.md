@@ -337,6 +337,7 @@ extends the table rather than inventing a synonym:
 | DyNAMu | `Mu` | algorithm | `Algo` |
 | ordered (Cox partial likelihood) | `Cox` | flavored | `Flav` |
 | choice coordination | `Coord` | summary | `Summ` |
+| constant (intercept-only) | `Cte` | | |
 
 `Cox` replaces `Ordered` because it names the estimator rather than the
 arity, which is the more useful fact at a call site.
@@ -348,6 +349,14 @@ Applied, this shortens four already-agreed rows —
 `goldfishFlavFit`/`goldfishFlavPrep`/`goldfishFlavStats` — and leaves
 `goldfishChangepoints` (20) as the longest live class, which cannot move
 because autograph@develop already dispatches on it (D12).
+
+*Parents named 2026-09-05.* The table previously listed the `writer_*` and
+`data_source_*` children but not the classes they inherit from, so
+`preprocess_writer` and `data_source` had no target; they are
+`goldfishWriter` and `goldfishSource`, the children keeping their suffixes
+(`goldfishWriterDefault`, `goldfishSourceEnvir`, …). `Cte` names the
+intercept-only rate for what it is — a constant hazard — rather than for
+its formula syntax.
 
 *Deliberately unsettled.* The coordination short name is recorded here as
 `Coord`, **not** as a mechanism name. Naming DyNAM's `choice_coordination`
