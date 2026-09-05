@@ -514,7 +514,7 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #' @param dispersion whether to add the `dispersion` column, which needs one
 #'   evaluation pass over the model's statistics. `FALSE` by default, so the
 #'   ordinary call stays a read of what estimation already stored.
-#' @param preprocessed a `preprocessed.goldfish` object, as returned by
+#' @param preprocessed a `goldfishStat` object, as returned by
 #'   [compute_statistics()]. Read only when `dispersion = TRUE`, and defaulting
 #'   to the object attached by `estimate_*(return_preprocessed = TRUE)`.
 #' @param ... additional arguments passed to or from other methods (currently

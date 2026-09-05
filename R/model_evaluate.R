@@ -93,7 +93,7 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   primitive is a preference, met with a message saying the score rows already
 #'   are those rows, while asking this function *for* the value is a demand, and
 #'   returning nothing under a name the caller supplied would be a lie.
-#' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
+#' @param preprocessed a `goldfishStat` object to evaluate over, as
 #'   returned by [compute_statistics()]. Defaults to the object attached by
 #'   `estimate_*(return_preprocessed = TRUE)`; with neither route available the
 #'   evaluation aborts naming both, rather than silently recomputing statistics

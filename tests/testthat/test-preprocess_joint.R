@@ -374,7 +374,7 @@ test_that("the merged walk returns one preprocessed object per fid", {
   expect_equal(names(out), as.character(sort(map$fid)))
   expect_true(all(vapply(
     out,
-    function(p) inherits(p, "preprocessed.goldfish"),
+    function(p) inherits(p, "goldfishStat"),
     logical(1)
   )))
 })

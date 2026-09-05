@@ -14,7 +14,7 @@
       resolve_preprocessed(fit$names, fit)
     Condition
       Error:
-      ! `preprocessed` must be a <preprocessed.goldfish> object.
+      ! `preprocessed` must be a <goldfishStat> object.
       x You supplied a <data.frame> object.
       i Build one with `compute_statistics(..., output = "preprocessed")`.
 

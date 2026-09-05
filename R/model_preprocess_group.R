@@ -12,7 +12,7 @@
 #' @param groups_network a character with the object that contains the
 #' groups network information
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #'
 #' @noRd
 preprocess_interaction <- function(
@@ -641,6 +641,6 @@ preprocess_interaction <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "preprocessed.goldfish"
+    class = "goldfishStat"
   ))
 }

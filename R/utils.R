@@ -599,9 +599,9 @@ apply_broadcast_update <- function(
 #' to the positions of the new formula. Both objects must cover the same
 #' stored-event sequence.
 #'
-#' @param old_prep `preprocessed.goldfish` object reused through
+#' @param old_prep `goldfishStat` object reused through
 #'   `preprocessed`.
-#' @param new_prep `preprocessed.goldfish` object with the newly added
+#' @param new_prep `goldfishStat` object with the newly added
 #'   effects, or NULL when the new formula adds no effects.
 #' @param effects_indexes integer vector from `compare_formulas()`: for
 #'   each effect of the new formula, its position in the old formula or 0

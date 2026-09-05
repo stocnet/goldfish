@@ -21,7 +21,7 @@ test_that("compute_statistics(output = 'db') round-trips against the gather writ
     output = "db",
     control_prep = set_preprocessing(db = con, db_table = "stats")
   )
-  expect_s3_class(descriptor, "preprocessed_db.goldfish")
+  expect_s3_class(descriptor, "goldfishStatDB")
   expect_null(descriptor$stat_all_events)
   expect_identical(descriptor$db_table, "stats")
 

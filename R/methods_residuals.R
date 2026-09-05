@@ -151,7 +151,7 @@ RESIDUAL_TYPES_SCORES <- c(
 #'   and the uncensored spans number its observed one.
 #'
 #'   Supplying `level` for any other type is an error: they have one reading.
-#' @param preprocessed a `preprocessed.goldfish` object to recompute from, as
+#' @param preprocessed a `goldfishStat` object to recompute from, as
 #'   returned by [compute_statistics()]. Only the recomputing types read it, and
 #'   only when the fit did not store what they need; it defaults to the object
 #'   attached by `estimate_*(return_preprocessed = TRUE)`.

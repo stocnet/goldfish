@@ -39,7 +39,7 @@ only the order of the events, which has neither.}
 
 \item{output}{a character string specifying the output format of the
 preprocessed statistics. \code{"preprocessed"} returns the estimation-ready
-\code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
+\code{goldfishStat} object; \code{"gather"} returns the gather stack (one
 row per event x alternative, the format the deprecated
 \code{\link[=gather_model_data]{gather_model_data()}} produced);
 \code{"data.frame"} returns the same rows as a ready-to-estimate long frame
@@ -55,7 +55,7 @@ events (right-censored ones included, where the model has them) times
 the candidates alive at each. That is where the memory goes on a large
 sequence: use \code{output = "db"} when the rows do not fit in memory.}
 
-\item{control_prep}{an object of class \code{preprocessing.goldfish} created
+\item{control_prep}{an object of class \code{goldfishPrepCtrl} created
 with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 
 \item{progress}{logical. Whether to print a progress bar during
@@ -70,7 +70,7 @@ preserved.}
 \item{...}{additional arguments passed to the preprocessing stage.}
 }
 \value{
-an object of class \code{"preprocessed.goldfish"} with the change
+an object of class \code{"goldfishStat"} with the change
 statistics of the effects for the event sequence and the information
 of the model variant computed. See the \code{Value} section of
 \code{\link[=estimate_dynam]{estimate_dynam()}} for the \code{preprocessing_only = TRUE} case.

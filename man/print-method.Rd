@@ -11,9 +11,9 @@
 \alias{print.goldfishSpec}
 \alias{print.goldfishJointSpec}
 \alias{print.data.goldfish}
-\alias{print.preprocessed.goldfish}
+\alias{print.goldfishStat}
 \alias{print.goldfishAlgoNewton}
-\alias{print.preprocessing.goldfish}
+\alias{print.goldfishPrepCtrl}
 \title{Methods for \code{goldfish} objects.}
 \usage{
 \method{print}{goldfishParams}(x, ...)
@@ -47,16 +47,16 @@
 
 \method{print}{data.goldfish}(x, ...)
 
-\method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
+\method{print}{goldfishStat}(x, ..., width = getOption("width"))
 
 \method{print}{goldfishAlgoNewton}(x, ...)
 
-\method{print}{preprocessing.goldfish}(x, ...)
+\method{print}{goldfishPrepCtrl}(x, ...)
 }
 \arguments{
 \item{x}{an object of class \code{result.goldfish}, \code{summary.result.goldfish},
 \code{nodes.goldfish}, \code{network.goldfish}, \code{dependent.goldfish}, or
-\code{preprocessed.goldfish}.}
+\code{goldfishStat}.}
 
 \item{...}{further arguments to be passed to the respective \code{default}
 method.}
@@ -64,7 +64,7 @@ method.}
 \item{digits}{minimal number of significant digits, see \code{\link[=print.default]{print.default()}}.}
 
 \item{width}{controls the maximum number of columns on a line used in
-printing \code{summary.result.goldfish} and \code{preprocessed.goldfish},
+printing \code{summary.result.goldfish} and \code{goldfishStat},
 see  \code{\link[=print.default]{print.default()}}.}
 
 \item{complete}{logical. Indicates whether the parameter coefficients
@@ -145,7 +145,7 @@ status, and the derived and combined support constraints.
 For objects of class \code{goldfishAlgoNewton}, print a summary
 of the estimation algorithm options.
 
-For objects of class \code{preprocessing.goldfish}, print a summary
+For objects of class \code{goldfishPrepCtrl}, print a summary
 of the preprocessing control options.
 }
 \description{

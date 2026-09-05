@@ -222,7 +222,7 @@ flavored_statistics_output <- function(
   structure(
     outputs,
     process_map = process_map,
-    class = "flavored_statistics.goldfish"
+    class = "goldfishFlavStat"
   )
 }
 

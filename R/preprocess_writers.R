@@ -89,7 +89,7 @@ NULL
 NULL
 
 #' @describeIn preprocess_writers default flat-buffer writer producing the
-#'   `preprocessed.goldfish` object consumed by both estimation engines.
+#'   `goldfishStat` object consumed by both estimation engines.
 #' @noRd
 writer_default <- function() {
   buf_capacity <- NULL
@@ -464,7 +464,7 @@ write_gather_to_db <- function(
   gathered$fid <- fid
   gathered$n_rows <- n_rows
   gathered$n_parameters <- n_parameters
-  structure(gathered, class = "preprocessed_db.goldfish")
+  structure(gathered, class = "goldfishStatDB")
 }
 
 #' Complete a db export with its map and node tables
@@ -483,7 +483,7 @@ write_gather_to_db <- function(
 #' prefix-matching drop would be a destructive guess against tables the
 #' connection may own for other reasons.
 #'
-#' @param descriptors fid-keyed list of `preprocessed_db.goldfish` descriptors,
+#' @param descriptors fid-keyed list of `goldfishStatDB` descriptors,
 #'   one per written process table.
 #' @param process_map the identity table of the export, one row per fid.
 #' @noRd
@@ -806,12 +806,12 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
   }
 }
 
-#' Assemble the flat-buffer `preprocessed.goldfish` object
+#' Assemble the flat-buffer `goldfishStat` object
 #'
 #' Shared output assembly for the default writer: computes the intercept
 #' scalars (`n_dep_events`, `total_time`, `avg_active_entity`) and the
 #' composition-change C-format presence matrices, then wraps the per-event
-#' fields produced by the writer into a `preprocessed.goldfish` object.
+#' fields produced by the writer into a `goldfishStat` object.
 #'
 #' @noRd
 assemble_default_output <- function(
@@ -925,6 +925,6 @@ assemble_default_output <- function(
       right_censored = has_intercept,
       prep_version = PREP_VERSION
     ),
-    class = "preprocessed.goldfish"
+    class = "goldfishStat"
   )
 }

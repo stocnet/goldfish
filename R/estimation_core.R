@@ -2679,7 +2679,7 @@ getMultinomialProbabilities <- function(
 #' array reductions of `reduceStatisticsList()` were no-ops at those call
 #' sites.
 #'
-#' @param statsList a `preprocessed.goldfish` object.
+#' @param statsList a `goldfishStat` object.
 #' @param addInterceptEffect logical, whether to prepend the intercept
 #'   statistic.
 #' @param is_sender logical, whether the statistics are sender-indexed (a rate

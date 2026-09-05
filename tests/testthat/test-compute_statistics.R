@@ -18,15 +18,19 @@ test_that("max_length bounds the produced statistic-column names", {
   expect_identical(anyDuplicated(gathered$names_effects), 0L)
 })
 
-test_that("compute_statistics returns a preprocessed.goldfish object", {
+test_that("compute_statistics returns a goldfishStat object", {
   prep <- compute_statistics(
     depNetwork ~ inertia + recip,
     data = dataTest,
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
   expect_s3_class(prep$model_spec, "goldfishKindDnChoice")
+  # Dispatch, not only the class string: a class renamed without its print
+  # method still satisfies every inherits() check and then quietly prints
+  # through print.default(), which is the failure a value assertion misses.
+  expect_output(print(prep), "Preprocess object for the model")
 })
 
 test_that("compute_statistics matches the estimate preprocessing only output", {

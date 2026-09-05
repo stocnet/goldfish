@@ -1053,7 +1053,7 @@ test_that("return_preprocessed attaches the replay object and reports its size",
     ),
     "preprocessed statistics"
   )
-  expect_s3_class(fit$preprocessed, "preprocessed.goldfish")
+  expect_s3_class(fit$preprocessed, "goldfishStat")
 })
 
 test_that("a fit does not carry the replay object unless it is asked for", {

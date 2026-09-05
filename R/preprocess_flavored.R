@@ -4,7 +4,7 @@
 # A multi-flavor specification models K competing processes (flavors) on one
 # focal layer. Preprocessing walks the event sequence ONCE -- the
 # union of all flavors' effects is computed a single time over one shared
-# process state, and one `preprocessed.goldfish` object is emitted per flavor.
+# process state, and one `goldfishStat` object is emitted per flavor.
 # This is the multi-consumer generalization of the recipe loop (one clock, one
 # state, N formula plans reading it) that `simulate()` and the DyNES augmenter
 # also require.
@@ -467,7 +467,7 @@ consumer_write_dependent <- function(cs, event_info) {
 # realizes the plan's support mask exactly as before. A flavored walk finalizes
 # each consumer against its OWN inputs -- the union initial statistics projected
 # to its columns, and its own derived-plus-user constraint -- and returns a
-# flavor-named list of `preprocessed.goldfish` objects.
+# flavor-named list of `goldfishStat` objects.
 #
 # `project_initial_stats` differs per loop (a sender kernel is indexed on its
 # second margin, a dyad array on its third). The support masks are realized in
@@ -750,7 +750,7 @@ render_process_label <- function(process_map, fid) {
 # DyNAM-rate and the same effect in DyNAM-choice resolve to different update
 # functions, so there is nothing to share between them.
 #
-# Returns a list of `preprocessed.goldfish` objects indexed by fid, carrying the
+# Returns a list of `goldfishStat` objects indexed by fid, carrying the
 # `process_map` identity table as an attribute.
 preprocess_flavored <- function(
   spec,
@@ -851,6 +851,6 @@ preprocess_flavored <- function(
   structure(
     outputs,
     process_map = process_map,
-    class = "flavored_preprocessed.goldfish"
+    class = "goldfishFlavPrep"
   )
 }

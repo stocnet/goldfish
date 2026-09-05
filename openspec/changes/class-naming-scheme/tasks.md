@@ -112,20 +112,20 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 4. Preprocessing classes
 
-- [ ] 4.1 Rename `preprocessing.goldfish` → `goldfishPrepCtrl`
+- [x] 4.1 Rename `preprocessing.goldfish` → `goldfishPrepCtrl`
   (`R/set_opt.R`, the `control_prep` validation in all three
   estimators, print method).
-- [ ] 4.2 Rename `preprocessed.goldfish` → `goldfishStat` and
+- [x] 4.2 Rename `preprocessed.goldfish` → `goldfishStat` and
   `preprocessed_db.goldfish` → `goldfishStatDB`
   (`R/preprocess_writers.R`, `R/model_preprocess.R`, the
   `preprocessed =` argument gate, `R/format_version.R`
   `abort_if_not_class()` call sites, the gather expansion).
-- [ ] 4.3 Rename `flavored_preprocessed.goldfish` →
+- [x] 4.3 Rename `flavored_preprocessed.goldfish` →
   `goldfishFlavPrep` and `flavored_statistics.goldfish` →
   `goldfishFlavStat` (`R/preprocess_flavored.R`,
   `R/estimate_flavored.R`).
-- [ ] 4.4 Update affected tests/snapshots (diff-reviewed).
-- [ ] 4.5 Verification: `air format` → `lintr` → `document()` →
+- [x] 4.4 Update affected tests/snapshots (diff-reviewed).
+- [x] 4.5 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**; the preprocessing round-trip tests must exercise
   print dispatch, not only values.
 

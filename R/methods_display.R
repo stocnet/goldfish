@@ -11,10 +11,10 @@
 #'
 #' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
 #' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
-#' `preprocessed.goldfish`.
+#' `goldfishStat`.
 #' @param digits minimal number of significant digits, see [print.default()].
 #' @param width controls the maximum number of columns on a line used in
-#' printing `summary.result.goldfish` and `preprocessed.goldfish`,
+#' printing `summary.result.goldfish` and `goldfishStat`,
 #' see  [print.default()].
 #' @param complete logical. Indicates whether the parameter coefficients
 #' of effects held fixed during estimation (via `offset()`) should be printed.
@@ -943,19 +943,19 @@ print.data.goldfish <- function(x, ...) {
   invisible(x)
 }
 
-# print preprocessed.goldfish
+# print goldfishStat
 #
-# @param x a preprocessed.goldfish object
+# @param x a goldfishStat object
 #' @export
 #' @rdname print-method
 #
 # @examples print(
 #   structure(
 #     list(formula = dep ~ inertia, dependentStatistics = numeric(20)),
-#     class = "preprocessed.goldfish"
+#     class = "goldfishStat"
 #   )
 # )
-print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
+print.goldfishStat <- function(x, ..., width = getOption("width")) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
   cat(" dependent events processed: ", sum(x$is_dependent == 1L), "\n")
@@ -1086,13 +1086,13 @@ print.goldfishAlgoNewton <- function(x, ...) {
   invisible(x)
 }
 
-# Print preprocessing.goldfish object
+# Print goldfishPrepCtrl object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `preprocessing.goldfish`, print a summary
+#' @return For objects of class `goldfishPrepCtrl`, print a summary
 #'   of the preprocessing control options.
-print.preprocessing.goldfish <- function(x, ...) {
-  cat("Preprocessing Control Options (preprocessing.goldfish):\n")
+print.goldfishPrepCtrl <- function(x, ...) {
+  cat("Preprocessing Control Options (goldfishPrepCtrl):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {

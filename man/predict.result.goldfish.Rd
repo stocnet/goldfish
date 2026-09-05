@@ -26,7 +26,7 @@ all of them.}
 \item{at}{an optional parameter vector to predict at, in the form
 \code{\link[=evaluate_model]{evaluate_model()}} accepts. Defaults to the fitted coefficients.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object to recompute from, as
+\item{preprocessed}{a \code{goldfishStat} object to recompute from, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Only the recomputing types read it, and
 only when the fit did not store what they need; it defaults to the object
 attached by \code{estimate_*(return_preprocessed = TRUE)}.}

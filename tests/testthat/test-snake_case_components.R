@@ -72,5 +72,5 @@ test_that("the export and preprocessed objects follow the same convention", {
   )
   expect_contains(names(prep), c("initial_stats", "start_time", "end_time"))
   expect_gt(length(prep$initial_stats), 0L)
-  expect_snake_case_names(prep, "preprocessed.goldfish")
+  expect_snake_case_names(prep, "goldfishStat")
 })

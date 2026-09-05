@@ -105,26 +105,26 @@ attributes and dependent events objects. Default to \code{NULL}.}
 specifying the algorithm and its parameters for the estimation.}
 
 \item{control_prep}{An object of class
-\code{preprocessing.goldfish} (typically created by
+\code{goldfishPrepCtrl} (typically created by
 \code{\link[=set_preprocessing]{set_preprocessing()}}),
 specifying parameters for data preprocessing. This is only used
-if \code{preprocessed} is not a \code{preprocessed.goldfish} object or NULL.}
+if \code{preprocessed} is not a \code{goldfishStat} object or NULL.}
 
 \item{preprocessed}{an optional preprocessed object of class
-\code{preprocessed.goldfish} from a previous estimation. When it is provided,
+\code{goldfishStat} from a previous estimation. When it is provided,
 the function will skip the preprocessing of the effects that are already
 present in the object and only preprocess the new effects. Default to
 \code{NULL}.}
 
 \item{preprocessing_only}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} logical. If
 \code{TRUE}, the function will only run the preprocessing stage and return an
-object of class \code{preprocessed.goldfish}. Default to \code{FALSE}. Superseded in
+object of class \code{goldfishStat}. Default to \code{FALSE}. Superseded in
 goldfish 2.0.0 by \code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "preprocessed"},
 which returns the same object from a function that says what it does; it
 keeps working through 2.x.}
 
 \item{return_preprocessed}{logical. If \code{TRUE}, the returned fit carries the
-\code{preprocessed.goldfish} object it was estimated from, under \code{preprocessed},
+\code{goldfishStat} object it was estimated from, under \code{preprocessed},
 and a message reports its approximate size. Diagnostics that replay the
 change statistics read it from there instead of asking for one. It is much
 larger than the fit itself, so it is opt-in; the alternative is to supply
@@ -158,12 +158,12 @@ procedure; slows down the routine significantly.}
 
 \item{preprocessing_init}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
 \code{preprocessed} in goldfish 2.0.0, the name every diagnostic consumer of a
-\code{preprocessed.goldfish} object uses.}
+\code{goldfishStat} object uses.}
 }
 \value{
 returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
 when \code{preprocessing_only = FALSE} or
-a preprocessed statistics object of class \code{"preprocessed.goldfish"}
+a preprocessed statistics object of class \code{"goldfishStat"}
 when \code{preprocessing_only = TRUE}.
 
 An object of class \code{"result.goldfish"} is a list including:
@@ -297,7 +297,7 @@ sets are the same nodes. The per-event components deliberately carry no
 \code{names()} or \code{dimnames()} of their own: this one table per fit would
 otherwise be repeated once per event, which on a long sequence is exactly
 the size blow-up the per-event primitives are guarded against.}
-\item{preprocessed}{the \code{preprocessed.goldfish} object the model was
+\item{preprocessed}{the \code{goldfishStat} object the model was
 estimated from, present only when \code{return_preprocessed = TRUE}. It is the
 same object \code{\link[=compute_statistics]{compute_statistics()}} returns under
 \code{output = "preprocessed"}, so a diagnostic reads it from the fit or takes

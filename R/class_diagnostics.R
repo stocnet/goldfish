@@ -21,7 +21,7 @@
 #'   term} section. Accepts any name the term answers to (the compact string
 #'   the summary prints, the export form, the `coef()` label) or its position;
 #'   [model_terms()] lists them.
-#' @param preprocessed a `preprocessed.goldfish` object, needed only when
+#' @param preprocessed a `goldfishStat` object, needed only when
 #'   `effect` is given on an exact-time fit that did not store the
 #'   `"conditional_scores"` primitive. See [residuals.result.goldfish()].
 #'

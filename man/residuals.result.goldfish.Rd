@@ -41,7 +41,7 @@ and the uncensored spans number its observed one.
 
 Supplying \code{level} for any other type is an error: they have one reading.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object to recompute from, as
+\item{preprocessed}{a \code{goldfishStat} object to recompute from, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Only the recomputing types read it, and
 only when the fit did not store what they need; it defaults to the object
 attached by \code{estimate_*(return_preprocessed = TRUE)}.}

@@ -1385,7 +1385,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
 
   # `finalize_consumers()` returns one object for a single output and a
   # fid-named list otherwise; normalize to a fid-keyed list either way.
-  if (inherits(outputs, "preprocessed.goldfish")) {
+  if (inherits(outputs, "goldfishStat")) {
     outputs <- stats::setNames(list(outputs), as.character(engine$fids[1L]))
   }
 
@@ -1411,7 +1411,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
 }
 
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
-# assembled, returning one `preprocessed.goldfish` object per fid.
+# assembled, returning one `goldfishStat` object per fid.
 run_merged_walk <- function(
   merged,
   control_preprocessing = set_preprocessing_opt(),

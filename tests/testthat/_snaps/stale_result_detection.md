@@ -4,7 +4,7 @@
       abort_if_stale_result(prep, "a summary")
     Condition
       Error:
-      ! Cannot compute a summary from a <preprocessed.goldfish> object.
+      ! Cannot compute a summary from a <goldfishStat> object.
       x A <result.goldfish> object is required.
       i Pass the fitted model itself, not one of its components.
 

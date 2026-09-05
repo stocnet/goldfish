@@ -186,7 +186,7 @@ test_that("flavored gather is fid-keyed and carries the process_map", {
   ))
 
   map <- attr(gathered, "process_map")
-  expect_s3_class(gathered, "flavored_statistics.goldfish")
+  expect_s3_class(gathered, "goldfishFlavStat")
   expect_named(gathered, as.character(map$fid))
   expect_setequal(map$flavor, c("creation", "dissolution"))
   # The keying is the estimation container's keying, not a parallel convention.

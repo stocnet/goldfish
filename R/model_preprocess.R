@@ -9,7 +9,7 @@
 #' @param ... arguments passed to the recipe methods, see
 #'   `preprocess_monolith()` and `run_sender_recipe_loop()`.
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #' @noRd
 preprocess <- function(spec, ...) {
   UseMethod("preprocess")
@@ -282,7 +282,7 @@ preprocess.goldfishKindDniChoice <- function(
 #'   does not consume (`is_two_mode`, `right_censored`,
 #'   `ignore_rep_parameter`, `opportunitiesList`).
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #' @noRd
 # Fold a sender-loop support_constraint into `active_sender`.
 # The per-event effective availability is the row-reduction a sender is at risk
@@ -1156,7 +1156,7 @@ dedup_cells <- function(cells, n1) {
 #'   plan, call templates, and node sets are unpacked from it.
 #' @inheritParams run_sender_recipe_loop
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #' @noRd
 NULL
 
@@ -2039,7 +2039,7 @@ run_dyad_recipe_loop <- function(
 #' @param right_censored logical does it consider right censored events?
 #' @param progress logical should print progress
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #'
 #' @noRd
 preprocess_monolith <- function(
@@ -2717,7 +2717,7 @@ preprocess_monolith <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "preprocessed.goldfish"
+    class = "goldfishStat"
   ))
 }
 

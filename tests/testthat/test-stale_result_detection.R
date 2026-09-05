@@ -89,7 +89,7 @@ test_that("the two objects are recognized by the same rule", {
   # confirm an absent stamp while the preprocessed object did not. Both now read
   # their own slot against their own epoch and nothing else.
   bare_fit <- structure(list(), class = "result.goldfish")
-  bare_prep <- structure(list(), class = "preprocessed.goldfish")
+  bare_prep <- structure(list(), class = "goldfishStat")
   expect_identical(result_format_status(bare_fit), "outdated")
   expect_identical(preprocessed_format_status(bare_prep), "outdated")
 
@@ -99,7 +99,7 @@ test_that("the two objects are recognized by the same rule", {
   )
   stamped_prep <- structure(
     list(prep_version = PREP_VERSION),
-    class = "preprocessed.goldfish"
+    class = "goldfishStat"
   )
   expect_identical(result_format_status(stamped_fit), "current")
   expect_identical(preprocessed_format_status(stamped_prep), "current")

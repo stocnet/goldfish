@@ -18,7 +18,7 @@ unused).}
 evaluation pass over the model's statistics. \code{FALSE} by default, so the
 ordinary call stays a read of what estimation already stored.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object, as returned by
+\item{preprocessed}{a \code{goldfishStat} object, as returned by
 \code{\link[=compute_statistics]{compute_statistics()}}. Read only when \code{dispersion = TRUE}, and defaulting
 to the object attached by \code{estimate_*(return_preprocessed = TRUE)}.}
 }

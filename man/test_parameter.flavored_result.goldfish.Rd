@@ -14,7 +14,7 @@ name a term answers to or by position; \code{\link[=model_terms]{model_terms()}}
 \strong{effect} name selects every term of that effect, so \code{effects = "inertia"} tests each held variant of \code{inertia} the formula carries.
 Defaults to every \code{offset()} term the fit carries.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
+\item{preprocessed}{a \code{goldfishStat} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the object attached by
 \code{estimate_*(return_preprocessed = TRUE)}; with neither route available the
 evaluation aborts naming both, rather than silently recomputing statistics

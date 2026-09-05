@@ -117,7 +117,7 @@ test_that("a rate-only spec accepts a dyadic support_constraint via the row-redu
     ),
     "row-reduction"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
   expect_true(isTRUE(prep$active_sender_folded))
 })
 
@@ -133,5 +133,5 @@ test_that("a specification threads its support_constraint into estimation", {
   )
   expect_s3_class(spec$constraint, "goldfishSupportPlan")
   prep <- estimate_dynam(spec, sub_model = "choice", preprocessing_only = TRUE)
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
 })

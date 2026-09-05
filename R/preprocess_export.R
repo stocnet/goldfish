@@ -49,7 +49,7 @@
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
 #' @param control_preprocessing An object of class
-#'   `"preprocessing.goldfish"`, usually the result of a call to
+#'   `"goldfishPrepCtrl"`, usually the result of a call to
 #'   [set_preprocessing()]. This object contains parameters that control
 #'   the data preprocessing. See [set_preprocessing()] for details on
 #'   the available parameters. This function keeps the pre-2.0.0 argument

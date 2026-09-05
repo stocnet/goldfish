@@ -94,7 +94,7 @@ test_that("the driver returns fid-indexed objects with a process_map", {
   expect_equal(map$fid, seq_len(4L))
   expect_true(all(vapply(
     out,
-    function(p) inherits(p, "preprocessed.goldfish"),
+    function(p) inherits(p, "goldfishStat"),
     logical(1)
   )))
   expect_equal(unique(map$layer), "calls")

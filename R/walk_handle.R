@@ -2,7 +2,7 @@
 # Walk handle: a stateful stepper over the merged single-clock walk.
 #
 # `preprocess_joint()` runs the merged walk in one batch pass and returns one
-# `preprocessed.goldfish` per fid. A *generative* driver (the DyNES augmenter,
+# `goldfishStat` per fid. A *generative* driver (the DyNES augmenter,
 # `simulate()`) instead needs to step the walk: advance the clock, evaluate a
 # fid at the live state and parameters, and inject an event (observed or
 # sampled)

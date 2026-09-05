@@ -97,7 +97,7 @@ one dependent event whose span already accumulates the censored intervals
 of its own waiting time, so there is no pooled alternative left to choose
 and the argument is ignored.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object, needed only when
+\item{preprocessed}{a \code{goldfishStat} object, needed only when
 \code{effect} is given on an exact-time fit that did not store the
 \code{"conditional_scores"} primitive. See \code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}}.}
 

@@ -19,7 +19,7 @@ test_that("set_preprocessing_opt() forwards to set_preprocessing()", {
   )
   expect_s3_class(
     set_preprocessing_opt(),
-    c("preprocessing.goldfish", "list"),
+    c("goldfishPrepCtrl", "list"),
     exact = TRUE
   )
 })

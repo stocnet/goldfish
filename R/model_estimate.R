@@ -81,23 +81,23 @@
 #'   (typically created by [set_algorithm_newton()]),
 #'   specifying the algorithm and its parameters for the estimation.
 #' @param control_prep An object of class
-#'   `preprocessing.goldfish` (typically created by
+#'   `goldfishPrepCtrl` (typically created by
 #'   [set_preprocessing()]),
 #'   specifying parameters for data preprocessing. This is only used
-#'   if `preprocessed` is not a `preprocessed.goldfish` object or NULL.
+#'   if `preprocessed` is not a `goldfishStat` object or NULL.
 #' @param preprocessed an optional preprocessed object of class
-#'  `preprocessed.goldfish` from a previous estimation. When it is provided,
+#'  `goldfishStat` from a previous estimation. When it is provided,
 #'  the function will skip the preprocessing of the effects that are already
 #'  present in the object and only preprocess the new effects. Default to
 #'  `NULL`.
 #' @param preprocessing_only `r lifecycle::badge("deprecated")` logical. If
 #'  `TRUE`, the function will only run the preprocessing stage and return an
-#'  object of class `preprocessed.goldfish`. Default to `FALSE`. Superseded in
+#'  object of class `goldfishStat`. Default to `FALSE`. Superseded in
 #'  goldfish 2.0.0 by [compute_statistics()] with `output = "preprocessed"`,
 #'  which returns the same object from a function that says what it does; it
 #'  keeps working through 2.x.
 #' @param return_preprocessed logical. If `TRUE`, the returned fit carries the
-#'  `preprocessed.goldfish` object it was estimated from, under `preprocessed`,
+#'  `goldfishStat` object it was estimated from, under `preprocessed`,
 #'  and a message reports its approximate size. Diagnostics that replay the
 #'  change statistics read it from there instead of asking for one. It is much
 #'  larger than the fit itself, so it is opt-in; the alternative is to supply
@@ -109,7 +109,7 @@
 #'  `control_prep` in goldfish 2.0.0.
 #' @param preprocessing_init `r lifecycle::badge("deprecated")` Renamed to
 #'  `preprocessed` in goldfish 2.0.0, the name every diagnostic consumer of a
-#'  `preprocessed.goldfish` object uses.
+#'  `goldfishStat` object uses.
 #' @param support_constraint a one-sided formula restricting the per-event risk
 #'   set, written in the restricted boolean-tree grammar: effect atoms
 #'   (`tie(net)`, `indeg(net)`, ...) combined with `& | !`, comparisons
@@ -144,7 +144,7 @@
 #'
 #' @return returns an object of [class()] `"result.goldfish"`
 #' when `preprocessing_only = FALSE` or
-#' a preprocessed statistics object of class `"preprocessed.goldfish"`
+#' a preprocessed statistics object of class `"goldfishStat"`
 #' when `preprocessing_only = TRUE`.
 #'
 #' An object of class `"result.goldfish"` is a list including:
@@ -278,7 +278,7 @@
 #'   `names()` or `dimnames()` of their own: this one table per fit would
 #'   otherwise be repeated once per event, which on a long sequence is exactly
 #'   the size blow-up the per-event primitives are guarded against.}
-#'   \item{preprocessed}{the `preprocessed.goldfish` object the model was
+#'   \item{preprocessed}{the `goldfishStat` object the model was
 #'   estimated from, present only when `return_preprocessed = TRUE`. It is the
 #'   same object [compute_statistics()] returns under
 #'   `output = "preprocessed"`, so a diagnostic reads it from the fit or takes
@@ -818,7 +818,7 @@ estimate_from_specification <- function(
 #' @param data a `data.goldfish` object created with [make_data()].
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
-#'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
+#'   `goldfishStat` object; `"gather"` returns the gather stack (one
 #'   row per event x alternative, the format the deprecated
 #'   [gather_model_data()] produced);
 #'   `"data.frame"` returns the same rows as a ready-to-estimate long frame
@@ -833,7 +833,7 @@ estimate_from_specification <- function(
 #'   events (right-censored ones included, where the model has them) times
 #'   the candidates alive at each. That is where the memory goes on a large
 #'   sequence: use `output = "db"` when the rows do not fit in memory.
-#' @param control_prep an object of class `preprocessing.goldfish` created
+#' @param control_prep an object of class `goldfishPrepCtrl` created
 #'   with [set_preprocessing()].
 #' @param progress logical. Whether to print a progress bar during
 #'   preprocessing.
@@ -844,7 +844,7 @@ estimate_from_specification <- function(
 #'   preserved.
 #' @param ... additional arguments passed to the preprocessing stage.
 #'
-#' @return an object of class `"preprocessed.goldfish"` with the change
+#' @return an object of class `"goldfishStat"` with the change
 #'   statistics of the effects for the event sequence and the information
 #'   of the model variant computed. See the `Value` section of
 #'   [estimate_dynam()] for the `preprocessing_only = TRUE` case.
@@ -1186,7 +1186,7 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
 #' printing step). Isolated from the DyNAMi front-end so the shared
 #' estimate path carries no model conditionals in its preprocessing.
 #'
-#' @return a list with `prep` (preprocessed.goldfish) and `spec_map`.
+#' @return a list with `prep` (goldfishStat) and `spec_map`.
 #' @noRd
 preprocess_recipe <- function(
   parsed_formula,
@@ -1263,7 +1263,7 @@ preprocess_recipe <- function(
 #' is deferred to a future DyNAMi engine refactor. Fenced here so the shared
 #' recipe path (`preprocess_recipe()`) is DyNAMi-free.
 #'
-#' @return a preprocessed.goldfish object.
+#' @return a goldfishStat object.
 #' @noRd
 preprocess_dynami <- function(
   model_spec,
@@ -1482,10 +1482,10 @@ resolve_preprocessed <- function(
   call = rlang::caller_env()
 ) {
   if (!is.null(preprocessed)) {
-    if (!inherits(preprocessed, "preprocessed.goldfish")) {
+    if (!inherits(preprocessed, "goldfishStat")) {
       cli::cli_abort(
         c(
-          "{.arg preprocessed} must be a {.cls preprocessed.goldfish} object.",
+          "{.arg preprocessed} must be a {.cls goldfishStat} object.",
           "x" = "You supplied a {.cls {class(preprocessed)[[1]]}} object.",
           "i" = "Build one with {.code compute_statistics(..., output =
                  \"preprocessed\")}."
@@ -1616,9 +1616,9 @@ estimate_wrapper <- function(
     rlang::is_scalar_logical(verbose),
     is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessed) ||
-      inherits(preprocessed, "preprocessed.goldfish"),
+      inherits(preprocessed, "goldfishStat"),
     inherits(control_algo, "goldfishAlgo"),
-    inherits(control_prep, "preprocessing.goldfish")
+    inherits(control_prep, "goldfishPrepCtrl")
   )
 
   if (is.null(progress)) {

@@ -685,7 +685,7 @@ reconcile_legacy_diagnostics <- function(
 #' Specifies control parameters for the data preprocessing stage,
 #' used by `estimate_dynam()`, `estimate_rem()` and `estimate_dynami()`
 #' (when `preprocessed` is not a
-#' `preprocessed.goldfish` object) and [compute_statistics()].
+#' `goldfishStat` object) and [compute_statistics()].
 #'
 #' @param start_time A numerical value or a date-time character string
 #'   (parsable by `as.POSIXct`) indicating the starting time when the events
@@ -750,7 +750,7 @@ reconcile_legacy_diagnostics <- function(
 # @param keep_receiver_index A logical value. If `TRUE`, the receiver index,
 #  the index in the nodeset, of the potential receivers of the events is
 #  kept in the preprocessed data.
-#' @return An object of class `preprocessing.goldfish` (a list object), with
+#' @return An object of class `goldfishPrepCtrl` (a list object), with
 #'  where the components values are the default values or the values provided
 #'  to the function. The list object has the following components:
 #'   \item{start_time}{Value from `start_time` argument.}
@@ -891,7 +891,7 @@ set_preprocessing <- function(
     db_table = db_table
   )
 
-  class(control_list) <- c("preprocessing.goldfish", "list")
+  class(control_list) <- c("goldfishPrepCtrl", "list")
   return(control_list)
 }
 
