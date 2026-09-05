@@ -10,6 +10,7 @@
 \alias{print.dependent.goldfish}
 \alias{print.goldfishSpec}
 \alias{print.goldfishJointSpec}
+\alias{print.goldfishData}
 \alias{print.data.goldfish}
 \alias{print.goldfishStat}
 \alias{print.goldfishAlgoNewton}
@@ -44,6 +45,8 @@
 \method{print}{goldfishSpec}(x, ...)
 
 \method{print}{goldfishJointSpec}(x, ...)
+
+\method{print}{goldfishData}(x, ...)
 
 \method{print}{data.goldfish}(x, ...)
 

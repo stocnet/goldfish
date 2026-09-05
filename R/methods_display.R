@@ -729,12 +729,20 @@ print.goldfishFlavFit <- function(
   invisible(x)
 }
 
+# The two producers print under their own methods rather than through one
+# method branching on `is.environment()`. `as_goldfish()` stamps a stocnet-
+# shaped list with `goldfishData`; `make_data()` and the DyNAM-i path build the
+# legacy environment, which keeps `data.goldfish`. The branch is gone, so
+# neither object can reach the other's rendering.
+#' @export
+#' @rdname print-method
+print.goldfishData <- function(x, ...) {
+  print_data_goldfish_list(x, ...)
+}
+
 #' @export
 #' @rdname print-method
 print.data.goldfish <- function(x, ...) {
-  if (!is.environment(x)) {
-    return(print_data_goldfish_list(x, ...))
-  }
   cat("Goldfish Data Environment\n")
   cat("=========================\n\n")
 

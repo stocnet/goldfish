@@ -209,16 +209,16 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 8. The data.goldfish split
 
-- [ ] 8.1 `as_goldfish()` stamps `goldfishData` instead of
+- [x] 8.1 `as_goldfish()` stamps `goldfishData` instead of
   `data.goldfish` (`R/as_goldfish.R`); the legacy environment stays on
   `data.goldfish` (design D3).
-- [ ] 8.2 Split print dispatch (`print.goldfishData` for the stamp;
+- [x] 8.2 Split print dispatch (`print.goldfishData` for the stamp;
   legacy keeps its method). Audit every
   `inherits(x, "data.goldfish")` guard per site — the one task where a
   mechanical rename is actively wrong.
-- [ ] 8.3 Test both producers in one session: each inherits its own
+- [x] 8.3 Test both producers in one session: each inherits its own
   class, neither the other's, each prints under its own method.
-- [ ] 8.4 Verification: `air format` → `lintr` → `document()` →
+- [x] 8.4 Verification: `air format` → `lintr` → `document()` →
   **not-cran-test**; the DyNAMi path still builds its legacy
   environment unchanged.
 
