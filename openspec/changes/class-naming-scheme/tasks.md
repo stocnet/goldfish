@@ -250,15 +250,15 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 10. Close
 
-- [ ] 10.1 The guard test from 1.3 passes in full over the enumerated
+- [x] 10.1 The guard test from 1.3 passes in full over the enumerated
   class set, internals included. Cross-check once, by hand, that every
   rename-table row is reflected in the code — but the test's authority is
   the enumeration, not the table.
-- [ ] 10.2 Bump `DESCRIPTION` to the next patch version with one
+- [x] 10.2 Bump `DESCRIPTION` to the next patch version with one
   consolidated `NEWS.md` **Breaking changes** entry: the complete
   old→new table, the `data.goldfish` split, the stub behavior, the
   CLAUDE.md policy carve-out, and the re-fit requirement (design D13).
-- [ ] 10.3 Final verification: **not-cran-test** on the whole suite;
+- [x] 10.3 Final verification: **not-cran-test** on the whole suite;
   frozen 1e-6 and C++ goldens PASS, not SKIP.
 - [ ] 10.4 Answer [stocnet/autograph#60] with the final table, noting:
   goldfish adopted autograph@develop's seven names verbatim, the two
