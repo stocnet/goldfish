@@ -261,9 +261,11 @@ test_that("coef/residuals/fitted return NULL on the retired class", {
   # machinery exists to prevent, in the one place the design assumed R would
   # raise for us.
   #
-  # Not fixed here: the design fixes the retired name at exactly two stubs, and
-  # widening that set is its call, not this test's. If it is widened, this test
-  # fails and should be deleted.
+  # Accepted, not deferred (design D4, amended 2026-09-06): the stub set stays
+  # at two rather than growing a maintained compatibility surface on a name
+  # that exists only as a gravestone. `coef()` returning NULL on a fit the user
+  # must re-fit anyway is the smaller harm. This test keeps the gap visible; if
+  # a later change widens the stub set, it fails and should be deleted.
   old <- old_cran_fit()
   expect_null(stats::coef(old))
   expect_null(stats::residuals(old))

@@ -143,6 +143,28 @@ Unchanged: exactly two stubs (`print.result.goldfish`,
 `summary.result.goldfish`) explain and stop; every other generic gives
 R's own "no applicable method". No fallback class on renamed objects.
 
+*Amended 2026-09-06 (Alvaro), after implementation measured the premise.*
+"Every other generic gives R's own 'no applicable method'" is **false for
+three of them**. `stats::coef()`, `stats::residuals()` and
+`stats::fitted()` have `default` methods that read a component off the
+list and return `NULL` when it is absent, so on an object classed
+`result.goldfish` they answer `NULL` with no condition raised at all —
+the silent-wrong-answer failure the staleness machinery exists to
+prevent, in the one place this design assumed R would raise for us.
+Everything else behaves as stated: `logLik()`, `vcov()`, `predict()`,
+`augment()`, `tidy()`, `glance()`, `AIC()` and `BIC()` raise
+`simpleError`, and the diagnostic generics answer through goldfish's own
+`default` method with a better message than a stub would give.
+
+**The stub set stays at two, and the `NULL` is accepted.** Widening it
+would trade a bounded, documented gap for a maintained compatibility
+surface on a name that exists only as a gravestone, and `coef(NULL)` on a
+fit a user must re-fit anyway is a small harm next to that. The behavior
+is pinned by a test in `tests/testthat/test-stale_result_detection.R`
+named as a known gap, so it stays visible rather than being rediscovered;
+that test is the thing to delete if a later change (`fit-class-hierarchy`
+is the natural home) decides differently.
+
 ### D5 — The stub diagnoses by epoch, not by class alone
 
 Unchanged: a no-epoch object (CRAN ≤ 1.7.0) is told its components were
