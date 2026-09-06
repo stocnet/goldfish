@@ -2180,8 +2180,7 @@ estimate_wrapper <- function(
       cat("Removing no longer required effects.\n")
     }
     allprep <- preprocessed
-    is_rate_model <- preprocessed$model == "DyNAM" &&
-      preprocessed$sub_model == "rate"
+    is_rate_model <- identical(risk_set_axis(preprocessed), "sender")
     init_is_flat <- is.null(preprocessed$stats_change)
     has_new_effects <- min(effects_indexes) == 0
     if (has_new_effects && init_is_flat != is.null(newprep$stats_change)) {

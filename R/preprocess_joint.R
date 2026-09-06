@@ -1360,10 +1360,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
             opportunitiesList = opportunities
           ))
         }
-        if (
-          !is.null(opportunities) &&
-            spec_map$sub_model %in% c("choice", "choice_coordination")
-        ) {
+        if (!is.null(opportunities) && is_choice_family(spec_map)) {
           out <- fold_active_dyad_opportunity(out, opportunities)
         }
         out

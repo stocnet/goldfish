@@ -434,10 +434,10 @@ ReducePreprocess <- function(
     )
   }
 
-  if (
-    (preproData$sub_model == "rate" || preproData$model == "REM") &&
-      sum(rc_idx) > 0
-  ) {
+  # Right-censored statistic changes exist only for a sub-model that models
+  # the waiting times; the row count is checked too, because a legacy object
+  # may carry the flag without the rows.
+  if (isTRUE(preproData$is_exact_time) && sum(rc_idx) > 0) {
     rightCensoredStatChange <- if (is_flat) {
       combine_point_broadcast(ReduceEffUpdatesFlat(rc_idx), rc_idx)
     } else {

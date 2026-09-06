@@ -1848,10 +1848,10 @@ run_dyad_recipe_loop <- function(
           opportunitiesList = opportunitiesList
         ))
       }
-      if (
-        !is.null(opportunitiesList) &&
-          spec$sub_model %in% c("choice", "choice_coordination")
-      ) {
+      # An opportunity list names which receivers a sender may reach, so it
+      # is meaningful only to the two choice families: the receiver row, and
+      # coordination's unordered pairs.
+      if (!is.null(opportunitiesList) && is_choice_family(spec)) {
         # The deprecated opportunity list is a point-kind availability
         # contribution: fold it into the `active_dyad` point buffer during the
         # preprocessing pass so estimation reads it through the point accessor

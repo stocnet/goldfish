@@ -309,6 +309,19 @@ risk_set_symmetrize <- function(spec) {
   identical(behavior_likelihood(spec), "coordination")
 }
 
+#' Whether the sub-model chooses among alternatives within a risk set
+#'
+#' The two choice families: a receiver row given a sender, and coordination's
+#' unordered pairs. Both pick one alternative out of a set, which is what
+#' makes an opportunity list meaningful to them and to nothing else. The rate
+#' families are excluded even though one of them is dyadic, because a rate
+#' models when an event happens rather than which alternative it picks.
+#' @noRd
+is_choice_family <- function(spec) {
+  identical(risk_set_axis(spec), "receiver_given_sender") ||
+    identical(behavior_likelihood(spec), "coordination")
+}
+
 #' Whether the risk set spans the full dyad matrix (both presences fold)
 #' @noRd
 risk_set_is_dyadic <- function(spec) {

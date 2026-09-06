@@ -137,3 +137,41 @@ test_that("a DyNAM-i spec dispatches to the DyNAM method, with no alias", {
     ls(ns, all.names = TRUE)
   )))
 })
+
+test_that("no component re-derives behavior from model or sub_model", {
+  # The rule is that a site holding a SPEC reads the descriptor. It cannot
+  # apply to a site that runs before a spec exists: during parsing and
+  # specification building, `model` and `sub_model` are the user's arguments
+  # and there is nothing to read them off. So the exception list is by phase,
+  # documented per file with the reason, and never pattern-matched.
+  exceptions <- c(
+    # The constructor itself, which is where the mapping lives.
+    "model_spec.R" = "builds the descriptor",
+    # Validators checking a user-supplied value against its allowed set.
+    "class_checks.R" = "validates a user-supplied model / sub_model",
+    "formula_validate.R" = "validates a formula against the requested pair",
+    # Pre-spec: the arguments have not been resolved into a spec yet.
+    "model_estimate.R" = "estimator entry, before new_model_spec()",
+    "make_specification.R" = "builds a specification from user arguments",
+    "make_joint_specification.R" = "builds a joint specification",
+    "formula_parser.R" = "parses a formula against the requested pair",
+    "preprocess_joint.R" = "plans the merged walk from requested pairs",
+    "preprocess_export.R" = "labels an export from the requested pair",
+    # The legacy loops take the two-value sub-model as a string argument and
+    # never see a spec.
+    "model_preprocess.R" = "monolith loop, takes the legacy sub_model string",
+    "model_preprocess_group.R" = "group loop, same legacy string argument",
+    "dynami_bridge.R" = "DyNAM-i bridge, same legacy string argument",
+    "intercept_only_rate.R" = "prose only, no branch"
+  )
+
+  hits <- grep(
+    "sub_model *(==|%in%)|(?<![_$\\\\w])model *(==|%in%)",
+    source_lines(),
+    value = TRUE,
+    perl = TRUE
+  )
+  hits <- hits[!grepl("^\\\\s*#", sub("^[^ ]+ ", "", hits))]
+  offenders <- hits[!(sub(":.*", "", hits) %in% names(exceptions))]
+  expect_identical(offenders, character(0))
+})
