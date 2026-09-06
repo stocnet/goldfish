@@ -2,13 +2,13 @@
 % Please edit documentation in R/model_terms.R
 \name{model_terms}
 \alias{model_terms}
-\alias{model_terms.goldfishFit}
+\alias{model_terms.goldfishBaseFit}
 \alias{model_terms.goldfishFlavFit}
 \title{The terms of a fitted model, and what to call them}
 \usage{
 model_terms(x, pattern = NULL, ...)
 
-\method{model_terms}{goldfishFit}(x, pattern = NULL, ...)
+\method{model_terms}{goldfishBaseFit}(x, pattern = NULL, ...)
 
 \method{model_terms}{goldfishFlavFit}(x, pattern = NULL, ...)
 }

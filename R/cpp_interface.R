@@ -753,7 +753,7 @@ estimate_c_int <- function(
   if (returnEventProbabilities) {
     estimationResult$event_probabilities <- eventProbabilities
   }
-  class(estimationResult) <- "goldfishFit"
+  class(estimationResult) <- c("goldfishFit", "goldfishBaseFit")
   estimationResult
 }
 
@@ -902,7 +902,7 @@ estimate_via_maxlik <- function(
   if (return_event_scores) {
     estimation_result$event_scores <- final$event_scores
   }
-  class(estimation_result) <- "goldfishFit"
+  class(estimation_result) <- c("goldfishFit", "goldfishBaseFit")
   estimation_result
 }
 

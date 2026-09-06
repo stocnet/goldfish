@@ -101,7 +101,7 @@ fabricate_joint_result <- function(
       process_map = spec$process_map,
       model = "DyNAM"
     ),
-    class = "goldfishFlavFit"
+    class = c("goldfishFlavFit", "goldfishBaseFit")
   )
 }
 

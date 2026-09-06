@@ -51,7 +51,7 @@ fake_fit <- function(log_lik) {
         stringsAsFactors = FALSE
       )
     ),
-    class = "goldfishFit"
+    class = c("goldfishFit", "goldfishBaseFit")
   )
 }
 

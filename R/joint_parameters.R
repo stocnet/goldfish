@@ -760,6 +760,13 @@ coef_layout.goldfishParams <- function(x, ...) {
 }
 
 #' @export
+#' @method coef_layout goldfishFit
+#' @rdname coef_layout
+coef_layout.goldfishFit <- function(x, ...) {
+  refuse_fit_generic("coef_layout", "goldfishFit")
+}
+
+#' @export
 #' @method coef_layout goldfishFlavFit
 #' @rdname coef_layout
 coef_layout.goldfishFlavFit <- function(x, ...) {

@@ -92,7 +92,7 @@ model_terms.default <- function(x, pattern = NULL, ...) {
 
 #' @rdname model_terms
 #' @export
-model_terms.goldfishFit <- function(x, pattern = NULL, ...) {
+model_terms.goldfishBaseFit <- function(x, pattern = NULL, ...) {
   abort_if_stale_result(x, "a term table")
   filter_model_terms(term_table(x$names), pattern)
 }

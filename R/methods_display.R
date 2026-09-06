@@ -44,8 +44,8 @@ NULL
 #' @importFrom stats coef
 #' @export
 #' @rdname print-method
-#' @method print goldfishFit
-print.goldfishFit <- function(
+#' @method print goldfishBaseFit
+print.goldfishBaseFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -72,10 +72,10 @@ print.goldfishFit <- function(
   invisible(x)
 }
 
-#' @method summary goldfishFit
+#' @method summary goldfishBaseFit
 #' @export
 #' @noRd
-summary.goldfishFit <- function(object, ...) {
+summary.goldfishBaseFit <- function(object, ...) {
   abort_if_stale_result(object, "a summary")
   nParams <- object$n_params
 
@@ -121,6 +121,23 @@ summary.goldfishFit <- function(object, ...) {
 }
 
 #' @export
+#' @method summary goldfishFlavFit
+#' @noRd
+summary.goldfishFlavFit <- function(object, ..., flavor = NULL) {
+  # A summary is not a table, so the container answers the way `coef()` and
+  # `vcov()` do: a list named by process label, unwrapped to the ordinary
+  # single-fit shape when `flavor =` leaves one process. Each element is a
+  # `goldfishSummFit`, so printing the list reaches the existing print method
+  # per process rather than needing a summary class of its own.
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) summary(fit, ...),
+    "summary"
+  )
+}
+
+#' @export
 #' @rdname print-method
 #' @return For objects of class `goldfishFit` and `goldfishSummFit`
 #'  print the estimated coefficients when `complete = FALSE`, otherwise it
@@ -162,7 +179,9 @@ print.goldfishSummFit <- function(
 
   if (!complete && any(isFixed)) {
     names <- detail_display_table(x$names[!isFixed, , drop = FALSE])
-    coefMat <- x$coef_mat[!isFixed, ]
+    # `drop = FALSE`: a fit left with one free coefficient would otherwise
+    # hand `printCoefmat()` the four statistics as a bare vector.
+    coefMat <- x$coef_mat[!isFixed, , drop = FALSE]
   } else {
     names <- detail_display_table(x$names)
     coefMat <- x$coef_mat
@@ -1205,9 +1224,9 @@ generics::tidy
 # tidy <- function(x) UseMethod("tidy")
 # # just for testing, don't use because overwrites use in other packages
 
-#' @method tidy goldfishFit
+#' @method tidy goldfishBaseFit
 #' @export
-tidy.goldfishFit <- function(
+tidy.goldfishBaseFit <- function(
   x,
   conf.int = FALSE,
   conf.level = 0.95,
@@ -1216,7 +1235,7 @@ tidy.goldfishFit <- function(
   ...
 ) {
   isFixed <- GetFixed(x)
-  coefMat <- summary.goldfishFit(x)$coef_mat
+  coefMat <- summary(x)$coef_mat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf.int) {
@@ -1265,7 +1284,10 @@ tidy.goldfishFit <- function(
       result <- cbind(result, tibble::as_tibble(confIntervalComplete))
     }
   } else {
-    coefMat <- coefMat[!isFixed, ]
+    # `drop = FALSE`: with one free coefficient the matrix would collapse to a
+    # length-4 vector, and the tibble would come back as a single `value`
+    # column of four rows instead of one row of four statistics.
+    coefMat <- coefMat[!isFixed, , drop = FALSE]
     result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
 
     if (conf.int) result <- cbind(result, tibble::as_tibble(confInterval))
@@ -1274,15 +1296,28 @@ tidy.goldfishFit <- function(
   return(tibble::as_tibble(result))
 }
 
+#' @export
+#' @method tidy goldfishFlavFit
+#' @noRd
+tidy.goldfishFlavFit <- function(x, ...) {
+  # A tidy return, so the identity travels as columns and the coefficient
+  # columns stay positionally stable against a single-process fit's -- the same
+  # convention `augment()` and `model_terms()` follow on this class.
+  tables <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(tidy(process$fit, ...), process)
+  })
+  do.call(rbind, tables)
+}
+
 #' @importFrom generics glance
 #' @export
 generics::glance
 # glance <- function(x) UseMethod("glance")
 # just for testing, don't use because overwrites use in other packages
 
-#' @method glance goldfishFit
+#' @method glance goldfishBaseFit
 #' @export
-glance.goldfishFit <- function(x, ...) {
+glance.goldfishBaseFit <- function(x, ...) {
   with(
     summary(x),
     tibble::tibble(
@@ -1305,6 +1340,20 @@ glance.goldfishFit <- function(x, ...) {
       nobs = x$n_events
     )
   )
+}
+
+#' @export
+#' @method glance goldfishFlavFit
+#' @noRd
+glance.goldfishFlavFit <- function(x, ...) {
+  # One row per process rather than one row for the container: the fit
+  # statistics are per process, and a single row would have to either pick one
+  # process's or invent a pooled quantity. `logLik()` on the container is where
+  # the joint value lives, since the processes factorize.
+  rows <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(glance(process$fit, ...), process)
+  })
+  do.call(rbind, rows)
 }
 
 #' @importFrom generics augment

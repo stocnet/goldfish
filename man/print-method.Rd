@@ -3,7 +3,7 @@
 \name{print.goldfishParams}
 \alias{print.goldfishParams}
 \alias{print-method}
-\alias{print.goldfishFit}
+\alias{print.goldfishBaseFit}
 \alias{print.goldfishSummFit}
 \alias{print.nodes.goldfish}
 \alias{print.network.goldfish}
@@ -19,7 +19,7 @@
 \usage{
 \method{print}{goldfishParams}(x, ...)
 
-\method{print}{goldfishFit}(
+\method{print}{goldfishBaseFit}(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),

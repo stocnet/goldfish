@@ -10,7 +10,7 @@
 #' @param complete logical. Indicates whether the parameter coefficients of
 #' effects held fixed during estimation (via `offset()`) should be printed.
 #' @param ... additional arguments to be passed.
-#' @method coef goldfishFit
+#' @method coef goldfishBaseFit
 #' @export
 #' @noRd
 #' @return A named numeric vector with the extracted coefficients from the
@@ -32,7 +32,7 @@
 #'   data = social_evolution
 #' )
 #' coef(mod01)
-coef.goldfishFit <- function(object, ..., complete = FALSE) {
+coef.goldfishBaseFit <- function(object, ..., complete = FALSE) {
   # Deliberately unguarded: `parameters` was never renamed, so an old object's
   # coefficients are still the right numbers, and `print()` -- which calls this
   # twice -- already carries the diagnosis for the interactive case.
@@ -85,8 +85,8 @@ coef.goldfishFit <- function(object, ..., complete = FALSE) {
 #' When `avgPerEvent = TRUE`, the function returns the average log-likelihood
 #' per dependent event, dividing by the same count `nobs` reports.
 #' @export
-#' @method logLik goldfishFit
-logLik.goldfishFit <- function(object, ..., avgPerEvent = FALSE) {
+#' @method logLik goldfishBaseFit
+logLik.goldfishBaseFit <- function(object, ..., avgPerEvent = FALSE) {
   # Guards the AIC() / BIC() path too: the default methods reach the fit only
   # through logLik(), and a NULL `df` is exactly what let them misreport.
   abort_if_stale_result(object, "a log-likelihood")
@@ -103,8 +103,8 @@ logLik.goldfishFit <- function(object, ..., avgPerEvent = FALSE) {
 }
 
 #' @export
-#' @method vcov goldfishFit
-vcov.goldfishFit <- function(object, complete = FALSE, ...) {
+#' @method vcov goldfishBaseFit
+vcov.goldfishBaseFit <- function(object, complete = FALSE, ...) {
   abort_if_stale_result(object, "a variance-covariance matrix")
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")

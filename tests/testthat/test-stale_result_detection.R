@@ -45,7 +45,7 @@ old_cran_fit <- function() {
 # retired-class one and testing two things at once.
 stale_current_class_fit <- function() {
   fit <- old_cran_fit()
-  class(fit) <- "goldfishFit"
+  class(fit) <- c("goldfishFit", "goldfishBaseFit")
   fit
 }
 

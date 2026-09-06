@@ -147,7 +147,7 @@ estimate_flavored <- function(
       flavors = names(spec$processes),
       call = call %||% spec$call
     ),
-    class = "goldfishFlavFit"
+    class = c("goldfishFlavFit", "goldfishBaseFit")
   )
 }
 
