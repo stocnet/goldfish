@@ -203,6 +203,46 @@ test_that("flavored gather is fid-keyed and carries the process_map", {
   expect_identical(map$flavor, container$process_map$flavor)
 })
 
+test_that("the six mechanical fan-outs share one path and one naming", {
+  # Four of these were already one-liners over the shared helper and two were
+  # the same loop written by hand. The claim of the collapse is that all six
+  # now agree on component order, labels and the `flavor =` selection --
+  # because there is one implementation of that, not six.
+  data <- flavored_fixture_data()
+  # Four of the six read the preprocessed statistics, so the fit has to carry
+  # them for this to exercise the fan-out rather than a shared refusal.
+  fit <- suppressWarnings(estimate_dynam(
+    make_specification(
+      choice = list(creation ~ trans, dissolution ~ trans),
+      model = "DyNAM",
+      data = data
+    ),
+    return_preprocessed = TRUE
+  ))
+  expected <- c(
+    "calls \u203a creation \u203a choice",
+    "calls \u203a dissolution \u203a choice"
+  )
+
+  fan_outs <- list(
+    coef = function(x, ...) stats::coef(x, ...),
+    vcov = function(x, ...) stats::vcov(x, ...),
+    fitted = function(x, ...) stats::fitted(x, ...),
+    predict = function(x, ...) stats::predict(x, ...),
+    residuals = function(x, ...) stats::residuals(x, ...),
+    evaluate_model = function(x, ...) evaluate_model(x, ...)
+  )
+  for (generic in names(fan_outs)) {
+    out <- suppressWarnings(fan_outs[[generic]](fit))
+    expect_named(out, expected, info = generic)
+    # Naming one process returns the ordinary single-fit shape, which is what
+    # the shared helper is for and what the hand loops could not do.
+    one <- suppressWarnings(fan_outs[[generic]](fit, flavor = "creation"))
+    expect_false(identical(names(one), expected), info = generic)
+    expect_equal(one, out[[1L]], info = generic)
+  }
+})
+
 test_that("a flavored and a single result differ only in their scope", {
   # The whole point of the collapse: a container of processes and one process
   # are the same kind of object, and what separates them is a field.

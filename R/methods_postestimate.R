@@ -276,23 +276,25 @@ flavored_component_labels <- function(object) {
 #' @export
 #' @method coef goldfishFlavFit
 #' @noRd
-coef.goldfishFlavFit <- function(object, ..., complete = FALSE) {
-  fids <- object$process_map$fid[flavored_row_order(object)]
-  out <- lapply(fids, function(f) {
-    stats::coef(object$results[[as.character(f)]], complete = complete, ...)
-  })
-  stats::setNames(out, flavored_component_labels(object))
+coef.goldfishFlavFit <- function(object, ..., complete = FALSE, flavor = NULL) {
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::coef(fit, complete = complete, ...),
+    "coef"
+  )
 }
 
 #' @export
 #' @method vcov goldfishFlavFit
 #' @noRd
-vcov.goldfishFlavFit <- function(object, complete = FALSE, ...) {
-  fids <- object$process_map$fid[flavored_row_order(object)]
-  out <- lapply(fids, function(f) {
-    stats::vcov(object$results[[as.character(f)]], complete = complete, ...)
-  })
-  stats::setNames(out, flavored_component_labels(object))
+vcov.goldfishFlavFit <- function(object, complete = FALSE, ..., flavor = NULL) {
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) stats::vcov(fit, complete = complete, ...),
+    "vcov"
+  )
 }
 
 #' @export
