@@ -7,7 +7,7 @@ spec constructor and nowhere else, from which every downstream component reads
 the facts it needs. The descriptor SHALL subsume the risk-set descriptor
 rather than coexisting with it, so a model spec carries one behavioral object,
 not two. Each field SHALL take a value from a closed vocabulary: `axis`
-(`sender`, `dyad`), `timing` (`timed`, `ordinal`),
+(`sender`, `receiver_given_sender`, `dyad`), `timing` (`timed`, `ordinal`),
 `likelihood` (`poisson`, `multinomial`, `coordination`), `input_shape`
 (`standard`, `grouped`), and `distribution` (`exponential`, with `weibull` and
 `gompertz` reserved for the parametric rate work). A field that no consumer

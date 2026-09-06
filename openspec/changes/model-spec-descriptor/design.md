@@ -61,7 +61,7 @@ this change exists to remove. Fields, each a closed vocabulary:
 
 | Field | Values | Replaces |
 | --- | --- | --- |
-| `axis` | `sender`, `dyad` | `risk_set$axis`, the indexing class |
+| `axis` | `sender`, `receiver_given_sender`, `dyad` | `risk_set$axis`, the indexing class |
 | `timing` | `timed`, `ordinal` | `right_censored`, `intercept_scalars` |
 | `likelihood` | `poisson`, `multinomial`, `coordination` | `risk_set$normalizer` |
 | `input_shape` | `standard`, `grouped` | the DyNAMi variant classes |
@@ -72,6 +72,29 @@ this change exists to remove. Fields, each a closed vocabulary:
 different implementation. Preprocessing does not: it selects a loop and passes
 flags, which is a lookup, not a polymorphism. Estimation genuinely does, so it
 keeps dispatch (D3).
+
+*Amended 2026-09-06 (Alvaro) — `axis` keeps three values, not two.* As first
+written the row gave `axis` the vocabulary `sender`, `dyad` and said it
+replaced "`risk_set$axis`, the indexing class". Those are two different things
+on the tree, and only the second is two-valued: the indexing class is
+`goldfishAxisSender` / `goldfishAxisDyad`, while `risk_set$axis` also takes
+`receiver_given_sender` for choice, which D1a does not address.
+
+That third value is load-bearing. Twenty sites in `R/` branch on it, and
+`risk_set_axis()` is exported and documents it — indeed the example in its own
+help page is precisely the distinction it draws, that position `i` names a
+sender under a rate model and a receiver-given-sender under a choice model.
+Collapsing it into `dyad` would change an exported return value and erase the
+fact the accessor exists to carry, neither of which this change is entitled to
+do.
+
+So `axis` takes `sender`, `receiver_given_sender` or `dyad` — the risk-set
+geometry, minus the `dyad_symmetric` that D1a retires — and the preprocessing
+loop is read off it as `axis == "sender"` rather than needing a field of its
+own. That reproduces today's dispatch for all six non-DyNAMi variants exactly:
+the two sender-recipe variants are the two whose axis is `sender`. The
+original two-value vocabulary was an abbreviation error, not a proposal to
+merge choice into the dyadic geometry.
 
 ### D1a — Symmetry is a likelihood property, not a risk-set axis
 
