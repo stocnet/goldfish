@@ -1,6 +1,25 @@
 # Model behavior is a descriptor, not a class hierarchy
 
+status: landed (refactor/class-naming-scheme, awaiting fold)
 depends-on: class-naming-scheme
+
+> **Landed 2026-09-06** on `refactor/class-naming-scheme`, 37/37, seven code
+> commits plus three artifact commits, `NOT_CRAN=true` green at every one
+> (final PASS 7255 / FAIL 0 / SKIP 5; all six frozen baseline files PASS with
+> 156 assertions, none skipped, at every commit — no coefficient moved).
+> `devtools::check()`: 0 errors, 3 warnings, 4 notes, all pre-existing.
+> Not archived here: `/opsx:archive` runs only on the integration branch
+> (ADR-0040), so the deltas stay unfolded and this directory stays in place
+> as the decision memory until the merge.
+>
+> Four decisions were taken during implementation and are recorded in
+> `design.md`: D1 amended (`axis` keeps `receiver_given_sender`), D9's two
+> open boundaries settled (the `data.frame` output stays unclassed; only
+> `goldfishFlavStat` converges), and the retired flag pair takes the name
+> `is_exact_time` rather than being removed. `progress.md` carries the
+> session journal, including two findings the next reader needs: a
+> pre-existing DyNAM-i bug on the compiled engine, and two successor
+> proposals whose wording this change invalidates.
 
 ## Why
 
