@@ -77,9 +77,11 @@ of the model variant computed. See the \code{Value} section of
 
 Every output form reports two logical fields describing the likelihood
 shape it was produced under, so a consumer never has to infer it from the
-columns: \code{has_intercept} (the exact-time time intercept is present) and
-\code{right_censored} (right-censored rows are stored, carrying \code{timespan} and
-\code{is_dependent}). Both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
+columns: \code{has_intercept} (the formula carries the time intercept) and
+\code{is_exact_time} (the sub-model models the waiting times between events,
+so the right-censored rows are stored, carrying \code{timespan} and
+\code{is_dependent}). They answer different questions but agree on every
+object: both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
 \code{"rate_ordered"} and the choice sub-models.
 }
 \description{

@@ -856,7 +856,7 @@ resModObject <- structure(
     model = "DyNAM",
     sub_model = "choice",
     backend = "cpp",
-    right_censored = FALSE,
+    is_exact_time = FALSE,
     # Declares which layout this hand-built fixture emulates. The
     # post-estimation methods refuse an object carrying no record, so a fixture
     # they are called on has to say -- and when the layout next moves, this line

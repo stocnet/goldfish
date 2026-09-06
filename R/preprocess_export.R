@@ -224,10 +224,13 @@ finalize_gather_output <- function(
   colnames(gathered$stat_all_events) <- names_effects
   gathered$effect_description <- effect_description
   # Reported on every output form so a consumer never has to infer the
-  # likelihood shape from the columns: an exact-time sub-model carries the time
-  # intercept and the right-censored rows, an ordinal one carries neither.
+  # likelihood shape from the columns. The two agree on every reachable
+  # object, but they answer different questions: whether the formula carries
+  # an intercept term, and whether the sub-model models the waiting times
+  # between events -- which is what decides that the right-censored rows are
+  # stored and the exposure denominator exists.
   gathered$has_intercept <- has_intercept
-  gathered$right_censored <- has_intercept
+  gathered$is_exact_time <- has_intercept
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL

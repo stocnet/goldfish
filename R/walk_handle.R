@@ -196,7 +196,7 @@ walk_prepare_engine <- function(engine) {
   recorder <- new_consumer(
     writer_default(),
     gid_lookup = NULL,
-    right_censored = FALSE
+    is_exact_time = FALSE
   )
   engine$consumers <- list(recorder)
   engine$rc_consumers <- list()

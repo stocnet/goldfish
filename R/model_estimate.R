@@ -283,11 +283,12 @@
 #'   same object [compute_statistics()] returns under
 #'   `output = "preprocessed"`, so a diagnostic reads it from the fit or takes
 #'   an equivalent one through its own `preprocessed` argument.}
-#'   \item{right_censored}{
-#'   a logical value indicating if the estimation process considered
-#'   right-censored events.
-#'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
-#'   REM (`estimate_rem()`), when the model includes the intercept.}
+#'   \item{is_exact_time}{
+#'   a logical value indicating whether the sub-model models the waiting
+#'   times between events rather than only their order. `TRUE` for
+#'   `estimate_dynam(x, sub_model = "rate")` and for REM (`estimate_rem()`)
+#'   with the intercept; it is what makes the right-censored intervals
+#'   contribute to the likelihood and gives it an exposure denominator.}
 #'   \item{right_censored_events}{a logical vector indicating whether or not an
 #'   event is a right censored event. It is the fit's **only** spelling of that
 #'   fact: the preprocessed object carries the same information as
@@ -851,9 +852,11 @@ estimate_from_specification <- function(
 #'
 #'   Every output form reports two logical fields describing the likelihood
 #'   shape it was produced under, so a consumer never has to infer it from the
-#'   columns: `has_intercept` (the exact-time time intercept is present) and
-#'   `right_censored` (right-censored rows are stored, carrying `timespan` and
-#'   `is_dependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
+#'   columns: `has_intercept` (the formula carries the time intercept) and
+#'   `is_exact_time` (the sub-model models the waiting times between events,
+#'   so the right-censored rows are stored, carrying `timespan` and
+#'   `is_dependent`). They answer different questions but agree on every
+#'   object: both are `TRUE` for `sub_model = "rate"` and `FALSE` for
 #'   `"rate_ordered"` and the choice sub-models.
 #'
 #' @section The `"data.frame"` output:
@@ -1279,7 +1282,7 @@ preprocess_dynami <- function(
   nodes2,
   is_two_mode,
   ignore_rep_parameter,
-  right_censored,
+  is_exact_time,
   control_prep,
   parsed_formula,
   progress,
@@ -1311,7 +1314,7 @@ preprocess_dynami <- function(
     is_two_mode = is_two_mode,
     startTime = control_prep$start_time,
     endTime = control_prep$end_time,
-    right_censored = right_censored,
+    is_exact_time = is_exact_time,
     opportunitiesList = control_prep$opportunities_list,
     progress = progress,
     groups_network = parsed_formula$default_network_name,
@@ -1855,7 +1858,10 @@ estimate_wrapper <- function(
     ))
     parsed_formula$has_intercept <- has_intercept <- TRUE
   }
-  right_censored <- has_intercept
+  # An exact-time sub-model is exactly one carrying the time intercept: the
+  # branches above add it for `rate` and drop it for `rate_ordered`, so by
+  # here the formula's own property answers the sub-model's.
+  is_exact_time <- has_intercept
 
   # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
@@ -2124,7 +2130,7 @@ estimate_wrapper <- function(
           .nodes2,
           is_two_mode,
           ignore_rep_parameter,
-          right_censored,
+          is_exact_time,
           control_prep,
           parsed_formula,
           progress,
@@ -2302,7 +2308,7 @@ estimate_wrapper <- function(
         .nodes2,
         is_two_mode,
         ignore_rep_parameter,
-        right_censored,
+        is_exact_time,
         control_prep,
         parsed_formula,
         progress,
@@ -2773,7 +2779,7 @@ estimate_wrapper <- function(
   # spelling changes, so a fit stays current across ordinary releases. Epoch 2
   # is the snake_case component set.
   result$fit_version <- FIT_VERSION
-  result$right_censored <- has_intercept
+  result$is_exact_time <- has_intercept
   result$n_params <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
   # user's estimate_*() call. On the specification path the estimator is reached

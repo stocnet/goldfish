@@ -288,7 +288,7 @@ project_update_block <- function(block, gid_lookup) {
 init_consumers <- function(
   consumer_specs,
   writer,
-  right_censored,
+  is_exact_time,
   spec,
   dims,
   initial_stats_fn
@@ -309,11 +309,11 @@ init_consumers <- function(
     writer$init(
       spec,
       c(
-        writer_dims(dims$nEffects, right_censored),
+        writer_dims(dims$nEffects, is_exact_time),
         list(initial_stats_fn = initial_stats_fn)
       )
     )
-    return(list(new_consumer(writer, right_censored = right_censored)))
+    return(list(new_consumer(writer, is_exact_time = is_exact_time)))
   }
 
   consumers <- lapply(consumer_specs, function(cspec) {
@@ -332,7 +332,7 @@ init_consumers <- function(
     new_consumer(
       cspec$writer,
       gid_lookup = flavor_gid_lookup(effect_map, dims$nEffects),
-      right_censored = cspec$has_intercept
+      is_exact_time = cspec$has_intercept
     )
   })
   names(consumers) <- names(consumer_specs)
@@ -377,11 +377,11 @@ build_consumer_specs <- function(
   specs
 }
 
-new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
+new_consumer <- function(writer, gid_lookup = NULL, is_exact_time = FALSE) {
   e <- new.env(parent = emptyenv())
   e$writer <- writer
   e$gid_lookup <- gid_lookup
-  e$right_censored <- right_censored
+  e$is_exact_time <- is_exact_time
   e$pending_dep <- list()
   e$pending_dep_cols <- 0L
   e$pending_rc <- list()
@@ -394,9 +394,9 @@ new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
 }
 
 # Append one point-buffer block to a consumer's pending buffers (dependent
-# always, right-censored when the consumer stores right-censored events),
-# projecting to the consumer's columns first. A NULL `gid_lookup` stores the
-# block unchanged (single-output fast path).
+# always, right-censored when the consumer's sub-model models waiting times
+# and so stores those rows), projecting to the consumer's columns first. A
+# NULL `gid_lookup` stores the block unchanged (single-output fast path).
 consumer_accumulate_point <- function(cs, block) {
   pb <- if (is.null(cs$gid_lookup)) {
     block
@@ -408,7 +408,7 @@ consumer_accumulate_point <- function(cs, block) {
   }
   cs$pending_dep[[length(cs$pending_dep) + 1L]] <- pb
   cs$pending_dep_cols <- cs$pending_dep_cols + ncol(pb)
-  if (cs$right_censored) {
+  if (cs$is_exact_time) {
     cs$pending_rc[[length(cs$pending_rc) + 1L]] <- pb
     cs$pending_rc_cols <- cs$pending_rc_cols + ncol(pb)
   }
@@ -426,7 +426,7 @@ consumer_accumulate_broadcast <- function(cs, bc_block) {
   }
   cs$pending_dep_bc[[length(cs$pending_dep_bc) + 1L]] <- pb
   cs$pending_dep_bc_cols <- cs$pending_dep_bc_cols + ncol(pb)
-  if (cs$right_censored) {
+  if (cs$is_exact_time) {
     cs$pending_rc_bc[[length(cs$pending_rc_bc) + 1L]] <- pb
     cs$pending_rc_bc_cols <- cs$pending_rc_bc_cols + ncol(pb)
   }

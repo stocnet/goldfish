@@ -23,7 +23,7 @@
 #'     recipe-computed assembly inputs (`initial_stats`,
 #'     `active_sender_init` / `active_sender_changes`,
 #'     `active_dyad_init` / `active_dyad_changes`, `start_time`, `end_time`,
-#'     `intercept_scalars`). Returns the writer's output.}
+#'     `is_exact_time`). Returns the writer's output.}
 #' }
 #'
 #' Recipe methods emit output exclusively through these hooks; they never
@@ -275,7 +275,7 @@ writer_default <- function() {
           active_dyad_encoding = active_dyad_encoding_for(tail$spec),
           start_time = tail$start_time,
           end_time = tail$end_time,
-          intercept_scalars = tail$intercept_scalars,
+          is_exact_time = tail$is_exact_time,
           has_intercept = has_intercept
         )
       },
@@ -874,15 +874,15 @@ assemble_default_output <- function(
   active_dyad_encoding,
   start_time,
   end_time,
-  intercept_scalars,
-  has_intercept = intercept_scalars,
+  is_exact_time,
+  has_intercept = is_exact_time,
   stat_mat_broadcast = matrix(0, 4L, 0L),
   stat_mat_broadcast_pointer = numeric(n_stored)
 ) {
   n_dep_events <- NULL
   total_time <- NULL
   avg_active_entity <- NULL
-  if (intercept_scalars) {
+  if (is_exact_time) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
     nActors <- sum(active_sender_init)
@@ -965,7 +965,13 @@ assemble_default_output <- function(
       active_dyad_update = active_dyad_update,
       active_dyad_update_pointer = active_dyad_update_pointer,
       has_intercept = has_intercept,
-      right_censored = has_intercept,
+      # Whether the sub-model models the waiting times between events. It
+      # equals `has_intercept` on every reachable object -- an exact-time
+      # sub-model always carries the time intercept -- but it states a
+      # property of the sub-model, where `has_intercept` states one of the
+      # formula, and a consumer asking which likelihood shape produced this
+      # object is asking the former.
+      is_exact_time = has_intercept,
       prep_version = PREP_VERSION
     ),
     storage = "pointer"

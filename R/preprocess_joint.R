@@ -1216,7 +1216,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   consumers <- init_consumers(
     consumer_specs,
     writer = writer_default(),
-    right_censored = FALSE,
+    is_exact_time = FALSE,
     spec = spec_map,
     dims = list(
       nEffects = nEffects,
@@ -1228,7 +1228,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
     ),
     initial_stats_fn = function() engine$initial_stats
   )
-  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
+  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
 
   engine <- new.env(parent = emptyenv())
   engine$key <- unit$key
@@ -1256,7 +1256,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   engine$consumers <- consumers
   engine$consumer_specs <- consumer_specs
   engine$rc_consumers <- rc_consumers
-  engine$is_timed_rate <- length(rc_consumers) > 0L
+  engine$is_exact_time <- length(rc_consumers) > 0L
   engine$i_total <- 0L
   engine$i_dep <- 0L
   engine$last_time <- NA_real_
@@ -1280,7 +1280,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     active_dyad_changes = ctx$active_dyad_changes,
     start_time = start_time,
     end_time = end_time,
-    intercept_scalars = engine$is_timed_rate
+    is_exact_time = engine$is_exact_time
   )
 
   if (engine$is_sender) {
@@ -1483,7 +1483,7 @@ run_merged_walk <- function(
               receiver = ev_receiver
             )
           )
-        } else if (engine$is_timed_rate) {
+        } else if (engine$is_exact_time) {
           interval <- t - engine$last_time
           engine$last_time <- t
           engine$i_total <- engine$i_total + 1L
@@ -1530,7 +1530,7 @@ run_merged_walk <- function(
       interval <- t - engine$last_time
       engine$last_time <- t
       engine$i_total <- engine$i_total + 1L
-      if (engine$is_timed_rate && interval > 0) {
+      if (engine$is_exact_time && interval > 0) {
         merged_route_rc(
           engine,
           list(

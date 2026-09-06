@@ -28,7 +28,7 @@ preprocess_interaction <- function(
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  right_censored = FALSE,
+  is_exact_time = FALSE,
   progress = FALSE,
   groups_network = groups_network,
   prep_envir = environment()
@@ -74,7 +74,7 @@ preprocess_interaction <- function(
 
   # initialize return objects
   # CHANGED MARION: for choice model, only joining events
-  if (right_censored) {
+  if (is_exact_time) {
     n_dependent_events <-
       length(unique(unlist(lapply(events, function(x) x$time))))
   } else {
@@ -442,7 +442,7 @@ preprocess_interaction <- function(
     if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
-      if (right_censored && interval > 0) {
+      if (is_exact_time && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
         # rightCensoredStatistics[[ pointers[next_event] ]] <- updates_intervals
         # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-

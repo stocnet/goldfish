@@ -23,7 +23,7 @@ test_that("preprocess init", {
     "formula",
     "model",
     "sub_model",
-    "right_censored",
+    "is_exact_time",
     "n_params"
   )
   expect_equal(

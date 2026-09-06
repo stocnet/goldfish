@@ -302,11 +302,12 @@ estimated from, present only when \code{return_preprocessed = TRUE}. It is the
 same object \code{\link[=compute_statistics]{compute_statistics()}} returns under
 \code{output = "preprocessed"}, so a diagnostic reads it from the fit or takes
 an equivalent one through its own \code{preprocessed} argument.}
-\item{right_censored}{
-a logical value indicating if the estimation process considered
-right-censored events.
-Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
-REM (\code{estimate_rem()}), when the model includes the intercept.}
+\item{is_exact_time}{
+a logical value indicating whether the sub-model models the waiting
+times between events rather than only their order. \code{TRUE} for
+\code{estimate_dynam(x, sub_model = "rate")} and for REM (\code{estimate_rem()})
+with the intercept; it is what makes the right-censored intervals
+contribute to the likelihood and gives it an exposure denominator.}
 \item{right_censored_events}{a logical vector indicating whether or not an
 event is a right censored event. It is the fit's \strong{only} spelling of that
 fact: the preprocessed object carries the same information as

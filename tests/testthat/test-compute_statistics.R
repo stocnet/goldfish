@@ -166,7 +166,7 @@ test_that("an exact-time model reports its intercept and censoring", {
   }))
 
   expect_true(gathered$has_intercept)
-  expect_true(gathered$right_censored)
+  expect_true(gathered$is_exact_time)
   expect_true("Intercept" %in% colnames(gathered$stat_all_events))
   # Right-censored rows are the ones the waiting-time likelihood needs the
   # exposure for, so they must carry timespan and be marked non-dependent.
@@ -186,13 +186,13 @@ test_that("an ordinal model reports neither, on gather and on the replay object"
   prep <- do.call(compute_statistics, args)
 
   expect_false(gathered$has_intercept)
-  expect_false(gathered$right_censored)
+  expect_false(gathered$is_exact_time)
   expect_false("Intercept" %in% colnames(gathered$stat_all_events))
   expect_null(gathered$timespan)
   # The replay object reports the same pair, so a consumer holding only the
   # preprocessed object knows the likelihood shape without re-deriving it.
   expect_false(prep$has_intercept)
-  expect_false(prep$right_censored)
+  expect_false(prep$is_exact_time)
 })
 
 test_that("the replay object reports the flags for an exact-time model", {
@@ -203,7 +203,7 @@ test_that("the replay object reports the flags for an exact-time model", {
     sub_model = "rate"
   )
   expect_true(prep$has_intercept)
-  expect_true(prep$right_censored)
+  expect_true(prep$is_exact_time)
 })
 
 test_that("an unavailable sub_model names the model's allowed set", {
@@ -361,7 +361,7 @@ test_that("a DyNAM-i rate gather carries the intercept and its exposure", {
 
   # Exact-time: the forced time intercept column and the exposure fields.
   expect_true(gathered$has_intercept)
-  expect_true(gathered$right_censored)
+  expect_true(gathered$is_exact_time)
   expect_identical(gathered$names_effects[1L], "Intercept")
   expect_length(gathered$timespan, length(gathered$n_candidates))
   # Sender-indexed rows carry no receiver identity.

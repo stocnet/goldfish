@@ -159,12 +159,8 @@ test_that("every variant reaches its recipe with the parameters timing sets", {
     do.call(preprocess, list(...), envir = asNamespace("goldfish"))
   }
   recorder <- function(loop) {
-    function(spec, ..., right_censored, intercept_scalars) {
-      seen <<- list(
-        loop = loop,
-        right_censored = right_censored,
-        intercept_scalars = intercept_scalars
-      )
+    function(spec, ..., is_exact_time) {
+      seen <<- list(loop = loop, is_exact_time = is_exact_time)
       "recorded"
     }
   }
@@ -177,10 +173,9 @@ test_that("every variant reaches its recipe with the parameters timing sets", {
     expect_identical(dispatch(specs[[variant]]), "recorded", info = variant)
     want <- expected[[variant]]
     expect_identical(seen$loop, want$loop, info = variant)
-    # Both parameters follow `timing` alone, which is the point of retiring
-    # the pair: they cannot disagree because they read one field.
-    expect_identical(seen$right_censored, want$timed, info = variant)
-    expect_identical(seen$intercept_scalars, want$timed, info = variant)
+    # One parameter, read off `timing`. The pair it replaces could disagree
+    # in principle and never did; now it cannot, because there is one name.
+    expect_identical(seen$is_exact_time, want$timed, info = variant)
   }
 })
 
