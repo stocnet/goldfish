@@ -92,16 +92,20 @@ from `timing` at the call site; no other site SHALL name either retired flag.
 `compute_statistics()` SHALL return a single class whose variations are
 carried as fields rather than as separate class strings: a `storage` field
 taking `pointer`, `stack` or `db`, and a `scope` field taking `single` or
-`flavored`. Every shape it returns SHALL carry that class — including the
-gather shape, which today is returned to users unclassed. A single print
+`flavored`. Every goldfish-shaped return SHALL carry that class — including
+the gather shape, which today is returned to users unclassed. The
+`data.frame` return is excluded: it hands off to a base type, no consumer
+branches on it, and `storage` has no value naming it. A single print
 method SHALL render all of them by reading the fields. The classes this
 replaces SHALL NOT be retained as aliases.
 
 #### Scenario: every output shape is classed
 
-- **WHEN** `compute_statistics()` is called with each supported `output` value
+- **WHEN** `compute_statistics()` is called with each `output` value that
+  returns a goldfish-shaped object
 - **THEN** each return carries the statistics-output class, and its `storage`
-  field records which shape it is
+  field records which shape it is, while the `data.frame` output returns a
+  plain data frame
 
 #### Scenario: the gather shape is no longer unclassed
 

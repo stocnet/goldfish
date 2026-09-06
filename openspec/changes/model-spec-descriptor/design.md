@@ -298,6 +298,35 @@ guards against is the one already measured here — four classes, one method,
 three checks — which arose precisely from treating small differences as
 grounds for a new class.
 
+*Resolved 2026-09-06 (Alvaro) — the two preprocessing containers stay.* The
+2a.1 inventory was run and found the weakest possible case for separation:
+`goldfishFlavPrep`, `goldfishJointPrep` and `goldfishFlavStat` are all
+`structure(outputs, process_map = ..., class = ...)`, with **zero** S3 methods
+and **zero** `inherits()` checks among them in `R/`, and under this design's
+own fields the first two are indistinguishable — both
+`{storage: pointer, scope: flavored}`. The fid ordering that distinguishes
+`goldfishJointPrep` is behavior of its constructor, not of its class.
+
+The proposal put to Alvaro was therefore convergence, per the default above.
+The decision is **to converge `goldfishFlavStat` only**, and to leave
+`goldfishFlavPrep` and `goldfishJointPrep` as they are. So the collapse is
+scoped to what `compute_statistics()` returns — the object users receive —
+and the internal preprocessing containers are left to whatever change next
+has reason to touch them. This is a deliberate departure from the stated
+default, recorded here so the next reader does not re-run the inventory and
+conclude the question was simply missed.
+
+*Also settled 2026-09-06 — the `data.frame` output does not get the class.*
+The inventory above counts three `compute_statistics()` output values; there
+are in fact **four**, and `output = "data.frame"` was the one not listed. It
+stays a plain data frame: it is a deliberate hand-off to a base type, no
+consumer branches on it, and `storage`'s vocabulary has no value for a frame —
+extending it would widen a vocabulary this design declares closed, and
+prepending a class to a data frame changes print and format dispatch for
+nothing. The delta's "every shape it returns" is reworded to "every
+goldfish-shaped return" so the exclusion is a decision on the record rather
+than an omission.
+
 `goldfishPrepCtrl` is out of scope entirely: `set_preprocessing()` controls
 preprocessing rather than producing statistics, so it is a different kind of
 object, not a variant of the same one.
