@@ -110,7 +110,7 @@ the rest of the variant space.
 
 ### Modified Capabilities
 
-- `model-recipe-dispatch`: the "S3 model_spec class hierarchy" requirement is
+- `model-recipe-dispatch`: the "S3 goldfishKind class hierarchy" requirement is
   replaced — the hierarchy narrows to what actually dispatches, and the recipe
   choice becomes a descriptor read. The DyNAMi delegation requirement is
   restated without aliases.

@@ -40,8 +40,8 @@ fisheries_treaties
 #> 
 #> ── # Fisheries Treaties ────────────────────────────────────────────────────────
 #> # A dynamic, labelled, multiplex, signed, weighted, undirected network of 154
-#> nodes and 413 treaties ties and 413 contiguity ties from 1960-03-19 to
-#> 1969-12-09
+#> nodes and 99 treaty ties and 314 contiguity ties (38 parallel) from 1960-03-19
+#> to 1969-12-09
 #> 
 #> ── Nodes
 #> # A tibble: 154 × 4
@@ -307,7 +307,7 @@ system.time(
 #> ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
 #>    user  system elapsed 
-#>  10.850   0.349  10.179
+#>  10.542   0.265   9.779
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -407,7 +407,7 @@ system.time(
 #> ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
 #>    user  system elapsed 
-#>   3.597   0.174   3.430
+#>   3.707   0.166   3.469
 ```
 
 # Extensions...
@@ -461,18 +461,18 @@ diagnose_outliers(tieModel)
 diagnose_changepoints(tieModel)
 #> 8 changepoints identified by the "PELT" method.
 #> Computed over the dependent intervals: 69 of 69 intervals.
-#> # A tibble: 8 × 10
-#>   time                sender receiver increment right_censored_event
-#>   <dttm>              <chr>  <chr>        <dbl> <lgl>               
-#> 1 1964-12-01 00:00:00 DEU    NLD              1 FALSE               
-#> 2 1967-05-19 00:00:00 CAN    USA              1 FALSE               
-#> 3 1967-10-27 00:00:00 MEX    USA              1 FALSE               
-#> 4 1967-12-18 00:00:00 RUS    USA              1 FALSE               
-#> 5 1968-12-12 00:00:00 BRA    URY              1 FALSE               
-#> 6 1969-01-31 00:00:00 RUS    USA              1 FALSE               
-#> 7 1969-06-12 00:00:00 POL    USA              1 FALSE               
-#> 8 1969-12-09 00:00:00 ESP    PRT              1 FALSE               
-#> # ℹ 5 more variables: interval_log_lik <dbl>, .fitted <dbl>, .resid <dbl>,
+#> # A tibble: 8 × 11
+#>   time                sender receiver increment censored n_intervals
+#>   <dttm>              <chr>  <chr>        <dbl> <lgl>          <int>
+#> 1 1964-12-01 00:00:00 DEU    NLD              1 FALSE              1
+#> 2 1967-05-19 00:00:00 CAN    USA              1 FALSE              1
+#> 3 1967-10-27 00:00:00 MEX    USA              1 FALSE              1
+#> 4 1967-12-18 00:00:00 RUS    USA              1 FALSE              1
+#> 5 1968-12-12 00:00:00 BRA    URY              1 FALSE              1
+#> 6 1969-01-31 00:00:00 RUS    USA              1 FALSE              1
+#> 7 1969-06-12 00:00:00 POL    USA              1 FALSE              1
+#> 8 1969-12-09 00:00:00 ESP    PRT              1 FALSE              1
+#> # ℹ 5 more variables: event_log_lik <dbl>, .fitted <dbl>, .resid <dbl>,
 #> #   .series <dbl>, cpt <lgl>
 ```
 
@@ -515,22 +515,22 @@ coefficient implies?
 # Qualified: this vignette attaches migraph, which exports a `test_gof` of its
 # own, so the bare name resolves to whichever package was attached last.
 goldfish::test_gof(tieModelDiag)
-#> ── <test_gof> ──────────────────────────────────────────────────────────────────
+#> ── <goldfishGOF> ───────────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "choice_coordination" · backend "cpp"
 #> 69 intervals, 69 dependent events; 8 effects tested.
 #> Supremum of the standardized cumulative score process, against the Kolmogorov
 #> distribution on the event clock.
-#> # A tibble: 8 × 6
-#>   index term                 coefficient statistic  p_value   scale
-#>   <int> <chr>                <chr>           <dbl>    <dbl>   <dbl>
-#> 1     1 inertia/treaties [W] inrt            0.978 0.295    24.0   
-#> 2     2 indeg/treaties       ideg            2.17  0.000157 23.8   
-#> 3     3 trans/treaties       trans           1.11  0.167     9.47  
-#> 4     4 tie/contiguity       tie             0.884 0.416     0.0138
-#> 5     5 alter/regime         alter_reg       1.42  0.0355   87.7   
-#> 6     6 diff/regime          diff_reg        0.496 0.966    96.7   
-#> 7     7 alter/gdp            alter_gdp       0.813 0.523     3.05  
-#> 8     8 diff/gdp             diff_gdp        0.600 0.864     2.87
+#> # A tibble: 8 × 7
+#>   index term                 coefficient statistic  p_value   scale  rank
+#>   <int> <chr>                <chr>           <dbl>    <dbl>   <dbl> <int>
+#> 1     1 inertia/treaties [W] inrt            0.978 0.295    24.0        4
+#> 2     2 indeg/treaties       ideg            2.17  0.000157 23.8        1
+#> 3     3 trans/treaties       trans           1.11  0.167     9.47       3
+#> 4     4 tie/contiguity       tie             0.884 0.416     0.0138     5
+#> 5     5 alter/regime         alter_reg       1.42  0.0355   87.7        2
+#> 6     6 diff/regime          diff_reg        0.496 0.966    96.7        8
+#> 7     7 alter/gdp            alter_gdp       0.813 0.523     3.05       6
+#> 8     8 diff/gdp             diff_gdp        0.600 0.864     2.87       7
 ```
 
 And did any coefficient drift over the observation window?
@@ -538,21 +538,21 @@ And did any coefficient drift over the observation window?
 
 ``` r
 goldfish::test_time(tieModelDiag)
-#> ── <test_time> ─────────────────────────────────────────────────────────────────
+#> ── <goldfishTimeTest> ──────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "choice_coordination" · backend "cpp"
 #> 69 intervals, 69 dependent events; 8 effects tested.
 #> Score test of a "identity" time trend in each coefficient.
-#> # A tibble: 8 × 6
-#>   index term                 coefficient statistic    df    p_value
-#>   <int> <chr>                <chr>           <dbl> <int>      <dbl>
-#> 1     1 inertia/treaties [W] inrt          5.74        1 0.0166    
-#> 2     2 indeg/treaties       ideg         20.6         1 0.00000556
-#> 3     3 trans/treaties       trans         4.41        1 0.0357    
-#> 4     4 tie/contiguity       tie           0.00337     1 0.954     
-#> 5     5 alter/regime         alter_reg     5.43        1 0.0198    
-#> 6     6 diff/regime          diff_reg      0.0400      1 0.841     
-#> 7     7 alter/gdp            alter_gdp     1.42        1 0.233     
-#> 8     8 diff/gdp             diff_gdp      0.107       1 0.743
+#> # A tibble: 8 × 7
+#>   index term                 coefficient statistic    df    p_value  rank
+#>   <int> <chr>                <chr>           <dbl> <int>      <dbl> <int>
+#> 1     1 inertia/treaties [W] inrt          5.74        1 0.0166         2
+#> 2     2 indeg/treaties       ideg         20.6         1 0.00000556     1
+#> 3     3 trans/treaties       trans         4.41        1 0.0357         4
+#> 4     4 tie/contiguity       tie           0.00337     1 0.954          8
+#> 5     5 alter/regime         alter_reg     5.43        1 0.0198         3
+#> 6     6 diff/regime          diff_reg      0.0400      1 0.841          7
+#> 7     7 alter/gdp            alter_gdp     1.42        1 0.233          5
+#> 8     8 diff/gdp             diff_gdp      0.107       1 0.743          6
 #> 
 #> Joint test: chi-squared 30.37 on 8 df, p 0.0001821.
 ```

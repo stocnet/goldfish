@@ -190,7 +190,7 @@ have no exposure-time term and so no compensator,
 ``` r
 margins <- margin_table(calls_rate)
 head(margins, 3)
-#> ── <margin_table> ──────────────────────────────────────────────────────────────
+#> ── <goldfishMargins> ───────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "rate" · backend "cpp"
 #> 439 events
 #> Observed by role: sender 439
@@ -251,17 +251,17 @@ whose contribution is concentrated somewhere in the sequence.
 ``` r
 gof <- test_gof(calls_choice)
 gof
-#> ── <test_gof> ──────────────────────────────────────────────────────────────────
+#> ── <goldfishGOF> ───────────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "choice" · backend "cpp"
 #> 439 intervals, 439 dependent events; 3 effects tested.
 #> Supremum of the standardized cumulative score process, against the Kolmogorov
 #> distribution on the event clock.
-#> # A tibble: 3 × 6
-#>   index term          coefficient statistic p_value scale
-#>   <int> <chr>         <chr>           <dbl>   <dbl> <dbl>
-#> 1     1 inertia/calls inrt            1.13   0.153   6.89
-#> 2     2 recip/calls   rec             1.48   0.0254  7.86
-#> 3     3 trans/calls   trans           0.696  0.718   4.74
+#> # A tibble: 3 × 7
+#>   index term          coefficient statistic p_value scale  rank
+#>   <int> <chr>         <chr>           <dbl>   <dbl> <dbl> <int>
+#> 1     1 inertia/calls inrt            1.13   0.153   6.89     2
+#> 2     2 recip/calls   rec             1.48   0.0254  7.86     1
+#> 3     3 trans/calls   trans           0.696  0.718   4.74     3
 ```
 
 Every diagnostic object here has a `plot()` method in
@@ -325,8 +325,8 @@ test_gof(calls_choice, clock = "information", n_sim = 200)$effects[, c("term", "
 #> # A tibble: 3 × 2
 #>   term          p_value
 #>   <chr>           <dbl>
-#> 1 inertia/calls  0.129 
-#> 2 recip/calls    0.0249
+#> 1 inertia/calls  0.144 
+#> 2 recip/calls    0.0199
 #> 3 trans/calls    0.567
 ```
 
@@ -341,16 +341,16 @@ statistics and one evaluation pass.
 
 ``` r
 test_time(calls_choice)
-#> ── <test_time> ─────────────────────────────────────────────────────────────────
+#> ── <goldfishTimeTest> ──────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "choice" · backend "cpp"
 #> 439 intervals, 439 dependent events; 3 effects tested.
 #> Score test of a "identity" time trend in each coefficient.
-#> # A tibble: 3 × 6
-#>   index term          coefficient statistic    df p_value
-#>   <int> <chr>         <chr>           <dbl> <int>   <dbl>
-#> 1     1 inertia/calls inrt            6.02      1  0.0141
-#> 2     2 recip/calls   rec             6.60      1  0.0102
-#> 3     3 trans/calls   trans           0.100     1  0.751
+#> # A tibble: 3 × 7
+#>   index term          coefficient statistic    df p_value  rank
+#>   <int> <chr>         <chr>           <dbl> <int>   <dbl> <int>
+#> 1     1 inertia/calls inrt            6.02      1  0.0141     2
+#> 2     2 recip/calls   rec             6.60      1  0.0102     1
+#> 3     3 trans/calls   trans           0.100     1  0.751      3
 #> 
 #> Joint test: chi-squared 10.19 on 3 df, p 0.01702.
 ```
@@ -405,7 +405,7 @@ held <- estimate_dynam(
 #> ℹ The fit carries the preprocessed statistics it was estimated from (about
 #>   215.2 Kb).
 test_parameter(held)
-#> ── <test_parameter> ────────────────────────────────────────────────────────────
+#> ── <goldfishParamTest> ─────────────────────────────────────────────────────────
 #> Model "DyNAM" · sub-model "choice" · backend "cpp"
 #> Score test of 1 coefficient held at an imposed value, over 439 events.
 #> Joint: LM = 1.148 on 1 degree of freedom, p = 0.284

@@ -1,29 +1,29 @@
 # model-recipe-dispatch Specification
 
 ## Purpose
-Define the internal S3 `model_spec` class hierarchy (constructed by `new_model_spec()`) that drives recipe and effect dispatch across all model variants.
+Define the internal S3 `goldfishKind` class hierarchy (constructed by `new_model_spec()`) that drives recipe and effect dispatch across all model variants.
 ## Requirements
-### Requirement: S3 model_spec class hierarchy
-The package SHALL define 9 internal S3 classes covering all model variants. Each class SHALL be constructed by `new_model_spec(model, sub_model, is_two_mode, nodes, nodes2, ...)` which is NOT exported. The class vector SHALL follow the pattern `c("<variant>_spec", "<indexing>_spec", "model_spec")`.
+### Requirement: S3 goldfishKind class hierarchy
+The package SHALL define 9 internal S3 classes covering all model variants. Each class SHALL be constructed by `new_model_spec(model, sub_model, is_two_mode, nodes, nodes2, ...)` which is NOT exported. The class vector SHALL follow the pattern `c("goldfishKind<Variant>", "goldfishAxis<Axis>", "goldfishKind")`.
 
 #### Scenario: Spec class resolves from model and sub_model
 - **WHEN** `new_model_spec("DyNAM", "rate", is_two_mode = FALSE, ...)` is called
-- **THEN** the returned object has `class(spec)[1] == "dynam_rate_spec"`
+- **THEN** the returned object has `class(spec)[1] == "goldfishKindDnRate"`
 
 #### Scenario: Sender-indexed spec class is correct
 - **WHEN** `new_model_spec("DyNAM", "rate_ordered", ...)` is called
-- **THEN** `inherits(spec, "sender_spec")` is TRUE and `inherits(spec, "dyad_spec")` is FALSE
+- **THEN** `inherits(spec, "goldfishAxisSender")` is TRUE and `inherits(spec, "goldfishAxisDyad")` is FALSE
 
 #### Scenario: Dyad-indexed spec class is correct
 - **WHEN** `new_model_spec("REM", "rate", ...)` is called
-- **THEN** `inherits(spec, "dyad_spec")` is TRUE and `inherits(spec, "sender_spec")` is FALSE
+- **THEN** `inherits(spec, "goldfishAxisDyad")` is TRUE and `inherits(spec, "goldfishAxisSender")` is FALSE
 
 #### Scenario: All 9 valid variant combinations are accepted
 - **WHEN** `new_model_spec()` is called with each of the 9 valid (model, sub_model) combinations
-- **THEN** a `model_spec` object is returned without error for each
+- **THEN** a `goldfishKind` object is returned without error for each
 
 ### Requirement: is_two_mode requires both node sets
-When `is_two_mode = TRUE`, `new_model_spec()` SHALL require both `nodes` and `nodes2` to be non-NULL and non-identical. `sender_spec` variants (dynam_rate, dynam_rate_ordered, dynami_rate, dynami_rate_ordered) SHALL force `is_two_mode = FALSE` regardless of input.
+When `is_two_mode = TRUE`, `new_model_spec()` SHALL require both `nodes` and `nodes2` to be non-NULL and non-identical. `goldfishAxisSender` variants (dynam_rate, dynam_rate_ordered, dynami_rate, dynami_rate_ordered) SHALL force `is_two_mode = FALSE` regardless of input.
 
 #### Scenario: Two-mode spec requires nodes2
 - **WHEN** `new_model_spec("DyNAM", "choice", is_two_mode = TRUE, nodes = "actors", nodes2 = NULL, ...)` is called
@@ -34,32 +34,32 @@ When `is_two_mode = TRUE`, `new_model_spec()` SHALL require both `nodes` and `no
 - **THEN** `spec$is_two_mode` is FALSE and no error or warning is emitted
 
 ### Requirement: compute_stats exported preprocessing entry point
-The package SHALL export `compute_stats(formula, data, model, sub_model, ...)` which constructs a `model_spec` internally and returns a `preprocessed.goldfish` object. `new_model_spec()` and `preprocess()` SHALL NOT be exported.
+The package SHALL export `compute_stats(formula, data, model, sub_model, ...)` which constructs a `goldfishKind` internally and returns a `goldfishStat` object. `new_model_spec()` and `preprocess()` SHALL NOT be exported.
 
-#### Scenario: compute_stats returns preprocessed.goldfish
+#### Scenario: compute_stats returns goldfishStat
 - **WHEN** `compute_stats(formula, data, model = "DyNAM", sub_model = "rate")` is called with valid inputs
-- **THEN** the returned object inherits from `"preprocessed.goldfish"`
+- **THEN** the returned object inherits from `"goldfishStat"`
 
 #### Scenario: compute_stats result is usable by estimate_dynam
 - **WHEN** the result of `compute_stats(...)` is passed as `preprocessing` argument to `estimate_dynam()`
 - **THEN** estimation completes successfully and produces the same coefficients as without pre-computing
 
 ### Requirement: preprocess dispatches per recipe with no model-type branches
-`preprocess()` SHALL be an S3 generic. Each concrete `model_spec` class SHALL have a dedicated `preprocess.<class>()` method. Concrete methods MAY be thin configurations delegating to shared unexported family kernels (`run_sender_recipe_loop()`, `run_dyad_recipe_loop()`); no `preprocess.sender_spec()` / `preprocess.dyad_spec()` S3 fallback methods SHALL be defined. No recipe method or kernel SHALL contain a runtime branch on `model`, `sub_model`, or `modelType` strings inside its event loop; constant boolean configuration knobs (e.g. `right_censored`) evaluated on loop-invariant values are permitted.
+`preprocess()` SHALL be an S3 generic. Each concrete `goldfishKind` class SHALL have a dedicated `preprocess.<class>()` method. Concrete methods MAY be thin configurations delegating to shared unexported family kernels (`run_sender_recipe_loop()`, `run_dyad_recipe_loop()`); no `preprocess.goldfishAxisSender()` / `preprocess.goldfishAxisDyad()` S3 fallback methods SHALL be defined. No recipe method or kernel SHALL contain a runtime branch on `model`, `sub_model`, or `modelType` strings inside its event loop; constant boolean configuration knobs (e.g. `right_censored`) evaluated on loop-invariant values are permitted.
 
 #### Scenario: Dispatched recipe produces correct initialStats shape for sender model
-- **WHEN** `preprocess(spec)` is called with a `dynam_rate_spec` where `n1=10`, `nEffects=3`
+- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnRate` where `n1=10`, `nEffects=3`
 - **THEN** `dim(result$initialStats)` is `c(10L, 3L)`
 
 #### Scenario: Dispatched recipe produces correct initialStats shape for dyad model
-- **WHEN** `preprocess(spec)` is called with a `dynam_choice_spec` where `n1=10`, `n2=10`, `nEffects=3`
+- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnChoice` where `n1=10`, `n2=10`, `nEffects=3`
 - **THEN** `dim(result$initialStats)` is `c(100L, 3L)`
 
 #### Scenario: Rate recipe computes intercept scalars; ordered recipe does not
-- **WHEN** `preprocess(spec)` is called with a `dynam_rate_spec`
+- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnRate`
 - **THEN** `result$avg_active_actors` is a positive numeric
 
-- **WHEN** `preprocess(spec)` is called with a `dynam_rate_ordered_spec`
+- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnCox`
 - **THEN** `result$avg_active_actors` is NULL
 
 ### Requirement: global() rejected in choice sub-models
@@ -74,7 +74,7 @@ A formula containing a `global()` effect SHALL cause `estimate_dynam()` with `su
 - **THEN** estimation completes without error
 
 ### Requirement: estimate_int dispatches per recipe
-`estimate_int()` SHALL be an S3 generic dispatching on the `model_spec`
+`estimate_int()` SHALL be an S3 generic dispatching on the `goldfishKind`
 class. The internal model-type strings (`"DyNAM-M"`, `"DyNAM-MM"`,
 `"REM"`, `"REM-ordered"`, `"DyNAM-M-Rate"`, `"DyNAM-M-Rate-ordered"`) SHALL
 NOT drive branching anywhere in the R pipeline — `R/estimation_core.R`,
@@ -147,11 +147,11 @@ Recipe methods SHALL maintain all evolving data objects in a named-list state co
 - **THEN** a deprecation warning is emitted suggesting `sub_model = "rate"`
 
 ### Requirement: DyNAMi spec participates in dispatch, delegates to existing loop
-`dynami_rate_spec` and `dynami_choice_spec` SHALL exist as valid spec classes. Their `preprocess()` methods SHALL delegate to the existing DyNAMi monolithic preprocessing loop without change. The dedicated DyNAMi recipe (post-event update order) is out of scope.
+`goldfishKindDniRate` and `goldfishKindDniChoice` SHALL exist as valid spec classes. Their `preprocess()` methods SHALL delegate to the existing DyNAMi monolithic preprocessing loop without change. The dedicated DyNAMi recipe (post-event update order) is out of scope.
 
 #### Scenario: estimate_dynami produces a typed spec
 - **WHEN** `estimate_dynami(formula, data, sub_model = "rate")` is called
-- **THEN** the internally constructed spec satisfies `inherits(spec, "dynami_rate_spec")`
+- **THEN** the internally constructed spec satisfies `inherits(spec, "goldfishKindDniRate")`
 
 #### Scenario: DyNAMi coefficients are unchanged after dispatch wiring
 - **WHEN** DyNAMi model coefficients are compared before and after the dispatch refactor

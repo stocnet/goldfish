@@ -182,8 +182,8 @@ node_labels <- function(nodes) {
 #'
 #' @description
 #' Every diagnostic data object goldfish returns carries its own
-#' `goldfish<Thing>` class at the head of its classes — `goldfishMargins` for
-#' `margin_table()`, `goldfishOutliers` for `diagnose_outliers()`, and so on —
+#' `goldfish<Thing>` class at the head of its classes (`goldfishMargins` for
+#' `margin_table()`, `goldfishOutliers` for `diagnose_outliers()`, and so on)
 #' and enough metadata for a print or plot method to describe the object
 #' without reaching back into the fit it came from. Where one table says
 #' everything the object *is* a

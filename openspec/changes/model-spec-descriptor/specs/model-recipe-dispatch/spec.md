@@ -4,7 +4,7 @@ Note: written against the living spec as merged at v1.9.30.
 
 ## MODIFIED Requirements
 
-### Requirement: S3 model_spec class hierarchy
+### Requirement: S3 goldfishKind class hierarchy
 The package SHALL define internal S3 classes for the model variants, and the
 class vector SHALL carry only what dispatches. Each spec SHALL be constructed
 by the non-exported spec constructor, which SHALL also compute the behavioral

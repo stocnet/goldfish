@@ -182,7 +182,7 @@ backend.
 - **THEN** the storage guardrail message is emitted before the fit runs.
 
 ### Requirement: The fitted result records the backend that produced it
-Every fitted `result.goldfish` object SHALL carry the resolved backend value
+Every fitted `goldfishFit` object SHALL carry the resolved backend value
 (`"cpp"`, `"r"` or `"gather"`) as its `backend` component, written once in the
 shared results assembly so both compiled and R estimation paths populate it
 identically. Consumers of fitted objects SHALL treat a missing `backend`

@@ -181,7 +181,7 @@ append a single ellipsis character `…`, so the printed table never wraps.
 - **THEN** the string is cut to the available width and ends with `…`
 
 ### Requirement: Compact single-table summary print
-`print.summary.result.goldfish()` SHALL accept a `compact` argument defaulting
+`print.goldfishSummFit()` SHALL accept a `compact` argument defaulting
 to `TRUE`. When `compact = TRUE` the method SHALL print a single coefficients
 table whose row labels are the compact term strings and SHALL NOT print the
 separate "Effects details" table. When `compact = FALSE` the method SHALL retain
@@ -199,7 +199,7 @@ coefficients table.
 - **THEN** both the "Effects details" table and the coefficients table are printed
 
 ### Requirement: tidy term uses the shared builder
-`tidy.result.goldfish()` with `compact = TRUE` SHALL populate the `term` column
+`tidy.goldfishFit()` with `compact = TRUE` SHALL populate the `term` column
 from the shared builder's export-mode output; with `compact = FALSE` it SHALL
 continue to return the full multi-column effect description.
 
@@ -233,7 +233,7 @@ column and database names.
   unique
 
 ### Requirement: Second legend for opaque argument codes
-`print.summary.result.goldfish()` with `compact = TRUE` SHALL print a second
+`print.goldfishSummFit()` with `compact = TRUE` SHALL print a second
 legend after the coefficients table and `printCoefmat()`'s `Signif. codes:` line
 and before the convergence/information-criteria block. The legend SHALL contain
 one line per opaque coded token that actually appears in the rendered table,
@@ -271,12 +271,12 @@ the legend.
 - **THEN** the second legend still prints after the coefficients table
 
 ### Requirement: Minimal-unique short names for coef and vcov
-`coef.result.goldfish()` and `vcov.result.goldfish()` SHALL name parameters with
+`coef.goldfishFit()` and `vcov.goldfishFit()` SHALL name parameters with
 a minimal-unique short form: the curated short effect name as the base, with the
 smallest disambiguating suffix appended to all members of any colliding base-name
 group (first the object display prefix using the 3→6 shortest-unique-prefix rule,
 then argument codes if still colliding) until all names are unique. `vcov()`
-dimnames SHALL equal `coef()` names exactly. The flat `print.result.goldfish()`
+dimnames SHALL equal `coef()` names exactly. The flat `print.goldfishFit()`
 vector SHALL use these names.
 
 #### Scenario: Unique base name kept short
@@ -325,7 +325,7 @@ with `.` so the metadata never appears in rendered strings or the details table.
 ### Requirement: Backward compatibility with pre-upgrade saved objects
 Methods that use the decoder columns SHALL access them with a
 read-if-present-else-compute pattern and SHALL NOT depend on the dot-prefixed
-columns being present. When the columns are absent (e.g. a `result.goldfish`
+columns being present. When the columns are absent (e.g. a `goldfishFit`
 saved by an earlier package version), the method SHALL compute the needed strings
 by calling the builder on the display columns. The builder SHALL produce one term
 string per row for any effect-description matrix carrying an `Object` column
@@ -334,7 +334,7 @@ guaranteed to have.
 
 #### Scenario: Old object without dot-columns still prints
 - **WHEN** `print()`, `coef()`, `vcov()`, or `tidy()` is called on a
-  `result.goldfish` whose `$names` has only display columns (no dot-columns)
+  `goldfishFit` whose `$names` has only display columns (no dot-columns)
 - **THEN** the call succeeds, computing the strings from the display columns via
   the builder
 

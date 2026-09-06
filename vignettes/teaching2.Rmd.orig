@@ -358,7 +358,7 @@ neither attaches a p-value. The `test_*` family makes claims instead.
 ```{r diag-gate2, include = FALSE}
 #| purl = FALSE
 has_plots <- requireNamespace("autograph", quietly = TRUE) &&
-  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+  !is.null(getS3method("plot", "goldfishGOF", optional = TRUE))
 ```
 
 What a diagnostic can tell you is decided at estimation time: a primitive not

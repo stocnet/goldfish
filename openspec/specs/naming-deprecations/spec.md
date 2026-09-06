@@ -46,7 +46,7 @@ change — revise-gather-output owns that retirement once its replacement
 #### Scenario: preprocessing_only untouched here
 - **WHEN** `estimate_rem(f, data = d, preprocessing_only = TRUE)` is called
   after this change and before revise-gather-output lands
-- **THEN** it returns the `preprocessed.goldfish` object with no
+- **THEN** it returns the `goldfishStat` object with no
   deprecation warning (the retirement belongs to revise-gather-output).
 
 ### Requirement: No two-hop deprecation messages

@@ -5,8 +5,8 @@
 \title{The diagnostic table contract}
 \description{
 Every diagnostic data object goldfish returns carries its own
-\verb{goldfish<Thing>} class at the head of its classes — \code{goldfishMargins} for
-\code{margin_table()}, \code{goldfishOutliers} for \code{diagnose_outliers()}, and so on —
+\verb{goldfish<Thing>} class at the head of its classes (\code{goldfishMargins} for
+\code{margin_table()}, \code{goldfishOutliers} for \code{diagnose_outliers()}, and so on)
 and enough metadata for a print or plot method to describe the object
 without reaching back into the fit it came from. Where one table says
 everything the object \emph{is} a

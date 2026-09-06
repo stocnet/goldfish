@@ -170,7 +170,7 @@ or a completion-supplied rate for a choice-only flavor — SHALL be understood a
 `rate = ~ 1` and a completion-supplied rate SHALL produce the **same** pinned object. A
 rate carrying **any** effect SHALL keep its estimated baseline intercept (with a
 standard error) unchanged. The **single-process estimation path** (`estimate_dynam()` /
-`estimate_rem()` over one `specification.goldfish`) SHALL be unchanged: a bare
+`estimate_rem()` over one `goldfishSpec`) SHALL be unchanged: a bare
 `rate = ~ 1` there SHALL retain its existing estimated-intercept meaning, and the frozen
 1e-6 baselines SHALL report PASS.
 

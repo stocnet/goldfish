@@ -156,7 +156,7 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 6. autograph dispatch verification (no rename work)
 
-- [ ] 6.1 With goldfish (post-cluster-5) and autograph@develop loaded:
+- [x] 6.1 With goldfish (post-cluster-5) and autograph@develop loaded:
   build one object of each of the seven autograph-plotted classes
   (`goldfishFit`, `goldfishGOF`, `goldfishTimeTest`,
   `goldfishOutliers`, `goldfishChangepoints`, `goldfishOnset`,
@@ -224,13 +224,13 @@ pre-2.0.0, before `parametric-rates`.
 
 ## 9. Documentation, living spec, and active-change deltas
 
-- [ ] 9.1 Sweep `man/` by regenerating with `devtools::document()`;
+- [x] 9.1 Sweep `man/` by regenerating with `devtools::document()`;
   grep for every retired class string; hand-edit roxygen prose that
   still names one (never scripted).
-- [ ] 9.2 Sweep the vignettes: edit `.Rmd.orig` sources only, rebuild
+- [x] 9.2 Sweep the vignettes: edit `.Rmd.orig` sources only, rebuild
   with `Rscript vignettes/rebuild-all.R` against the installed
   goldfish.
-- [ ] 9.3 Sweep the living spec (design D8) **and, in the same
+- [x] 9.3 Sweep the living spec (design D8) **and, in the same
   commit, the active-change verbatim delta copies (design D8a, D8b)**:
   `parametric-rates/specs/model-specification`,
   `two-sided-coordination/specs/model-specification`,
@@ -242,7 +242,7 @@ pre-2.0.0, before `parametric-rates`.
   `openspec/specs/` and all three changes' `specs/` for every retired class
   string and require an empty result — excluding the deprecated-path
   names, which are intentionally retained. Hand-edited, diff-reviewed.
-- [ ] 9.4 Verification: `devtools::check()`;
+- [x] 9.4 Verification: `devtools::check()`;
   `bash .plan/opsx-spec-placement-check.sh class-naming-scheme`;
   `openspec validate class-naming-scheme --strict`; re-run the
   placement check for `parametric-rates` and `two-sided-coordination`

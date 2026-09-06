@@ -131,7 +131,7 @@ c(meetings = TRUE))` after the fact would wipe out `friendship`'s and
 
 # Step 1: Specifying two co-evolving processes
 
-Build one `specification.goldfish` per process with [make_specification()],
+Build one `goldfishSpec` per process with [make_specification()],
 as for a single-process model, then combine them with
 `make_joint_specification()`. `meetings`' choice formula reads
 `tie(friendship)` -- a relational process reading the panel layer as a
@@ -158,7 +158,7 @@ meetings_spec <- make_specification(
 
 joint_spec <- make_joint_specification(calls_spec, meetings_spec, data = joint_data)
 joint_spec
-#> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+#> ── <goldfishJointSpec> ─────────────────────────────────────────────────────────
 #> 2 processes over one shared data object · 4 formulas · 0 coupled · 4 separable
 #> · 0 auto-supplied
 #> 
@@ -248,7 +248,7 @@ joint_spec_flavored <- make_joint_specification(
   data = joint_data_flavored
 )
 joint_spec_flavored
-#> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+#> ── <goldfishJointSpec> ─────────────────────────────────────────────────────────
 #> 2 processes over one shared data object · 6 formulas · 0 coupled · 6 separable
 #> · 0 auto-supplied
 #> 
@@ -389,14 +389,14 @@ tryCatch(
   estimate_dynam(joint_spec, sub_model = "choice"),
   error = function(e) cat(conditionMessage(e))
 )
-#> A <joint_specification.goldfish> cannot be estimated with the
-#> event-stream estimators.
+#> A <goldfishJointSpec> cannot be estimated with the event-stream
+#> estimators.
 #> ℹ Multivariate specifications are estimated with `estimate_dynes()`.
 ```
 
 `estimate_dynam()` and `estimate_rem()` abort on a
-`joint_specification.goldfish` object -- it is a distinct S3 class that
-deliberately does not inherit `specification.goldfish`, so it never reaches
+`goldfishJointSpec` object -- it is a distinct S3 class that
+deliberately does not inherit `goldfishSpec`, so it never reaches
 their single-specification dispatch path -- and point to `estimate_dynes()`.
 The same estimators (plus `estimate_dynami()`) also abort on a *single*
 specification whose focal layer is panel-observed, for the same reason.
@@ -491,7 +491,7 @@ below for what that looks like -- it needs a modeled panel process, which
 
 # Developer notes: the walk handle
 
-The pieces above build and read a `joint_specification.goldfish`; actually
+The pieces above build and read a `goldfishJointSpec`; actually
 *preprocessing* it for estimation, or *driving* it forward for simulation or
 augmentation, are different jobs. This package version supplies both
 substrates internally, for `dynes-augmentation` and `process-simulation` to
@@ -499,7 +499,7 @@ build on:
 
 - **Batch preprocessing** (`preprocess_joint()`, internal) walks the composed
   event sequence **once**, on a single shared clock hosting every process's
-  statistic blocks, and returns one `preprocessed.goldfish` per fid -- the
+  statistic blocks, and returns one `goldfishStat` per fid -- the
   same object shape a single-process `preprocess()` returns, just one per fid
   instead of one for the whole call. An event is dependent for its own
   `(layer, flavor)` fids, a right-censoring boundary for every *other* timed
@@ -608,7 +608,7 @@ build on:
   #>   it with a uniform choice over the support-legal alternatives.
   #> ℹ The default adds no free parameter; it is auto-supplied for the simulate
   #>   generative surface.
-  #> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+  #> ── <goldfishJointSpec> ─────────────────────────────────────────────────────────
   #> 2 processes over one shared data object · 6 formulas · 4 coupled · 1 separable
   #> · 1 auto-supplied
   #> 
@@ -646,7 +646,7 @@ build on:
   #>   with a pinned intercept-only rate (zero free parameters).
   #> ℹ The default adds no free parameter; it is auto-supplied for the simulate
   #>   generative surface.
-  #> ── <joint_specification.goldfish> ──────────────────────────────────────────────
+  #> ── <goldfishJointSpec> ─────────────────────────────────────────────────────────
   #> 2 processes over one shared data object · 6 formulas · 4 coupled · 1 separable
   #> · 1 auto-supplied
   #> 

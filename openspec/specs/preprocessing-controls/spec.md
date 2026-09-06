@@ -8,7 +8,7 @@ The package SHALL export `set_preprocessing()` (the renamed
 `set_preprocessing_opt()`) with the same arguments and semantics —
 `start_time`, `end_time`, `opportunities_list` (already soft-deprecated),
 `impute`, `db`, `db_table` — returning an object of class
-`c("preprocessing.goldfish", "list")`. The `print` method SHALL dispatch on
+`c("goldfishPrepCtrl", "list")`. The `print` method SHALL dispatch on
 the new class. Argument validation SHALL be unchanged.
 
 The documentation of `start_time` and `end_time` SHALL describe the behavior
@@ -21,7 +21,7 @@ continues past `end_time`.
 
 #### Scenario: constructor returns the new class
 - **WHEN** `set_preprocessing(start_time = 10)` is called
-- **THEN** the returned object inherits `preprocessing.goldfish`, carries
+- **THEN** the returned object inherits `goldfishPrepCtrl`, carries
   `start_time = 10`, and prints via the new-class method.
 
 #### Scenario: option semantics unchanged
@@ -38,7 +38,7 @@ continues past `end_time`.
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 the preprocessing control object through a `control_prep` argument
 (default `set_preprocessing()`), validated with `inherits(x,
-"preprocessing.goldfish")`. Functions minted after this change that take
+"goldfishPrepCtrl")`. Functions minted after this change that take
 a preprocessing control (`compute_statistics()` in revise-gather-output,
 future estimators) SHALL use the same `control_prep` name and validation.
 `gather_model_data()` is deprecated wholesale by revise-gather-output and
@@ -52,13 +52,13 @@ SHALL NOT be re-signatured.
 
 #### Scenario: wrong object rejected
 - **WHEN** `control_prep` receives an object that does not inherit
-  `preprocessing.goldfish`
+  `goldfishPrepCtrl`
 - **THEN** the caller aborts with a cli error naming `set_preprocessing()`.
 
 ### Requirement: preprocessed= is the single supply argument on estimators
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 a `preprocessed =` argument (default `NULL`) taking a
-`preprocessed.goldfish` object to skip preprocessing, with exactly the
+`goldfishStat` object to skip preprocessing, with exactly the
 semantics `preprocessing_init =` had (including the format-version check
 rejecting stale objects). The argument name matches the diagnostic
 consumers' `preprocessed =` so one name supplies the replay object
@@ -66,13 +66,13 @@ everywhere; the standalone producer of that object is
 `compute_statistics(output = "preprocessed")` (revise-gather-output).
 
 #### Scenario: preprocessed object reused
-- **WHEN** a `preprocessed.goldfish` object is passed as
+- **WHEN** a `goldfishStat` object is passed as
   `estimate_dynam(..., preprocessed = prep)`
 - **THEN** estimation skips preprocessing and produces the same fit as the
   full pipeline.
 
 #### Scenario: stale object rejected
-- **WHEN** a `preprocessed.goldfish` with an outdated format version is
+- **WHEN** a `goldfishStat` with an outdated format version is
   supplied via `preprocessed =`
 - **THEN** estimation aborts with the existing outdated-format error.
 
