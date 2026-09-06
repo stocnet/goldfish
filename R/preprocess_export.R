@@ -233,7 +233,7 @@ finalize_gather_output <- function(
   attr(gathered, "event_receiver") <- NULL
   attr(gathered, "is_dependent") <- NULL
   attr(gathered, "timespan") <- NULL
-  gathered
+  new_goldfish_stat(gathered, storage = "stack")
 }
 
 #' Assemble the ready-to-estimate long frame from a gather stack

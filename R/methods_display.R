@@ -964,6 +964,20 @@ print.data.goldfish <- function(x, ...) {
 #   )
 # )
 print.goldfishStat <- function(x, ..., width = getOption("width")) {
+  # One class, several shapes. `scope` says whether this is one process or a
+  # container of them, and `storage` says where the statistics live; between
+  # them they decide what is worth showing, which is why neither needed a
+  # class string of its own.
+  if (identical(stat_scope(x), "flavored")) {
+    return(print_stat_flavored(x))
+  }
+  storage <- stat_storage(x)
+  if (identical(storage, "stack")) {
+    return(print_stat_stack(x))
+  }
+  if (identical(storage, "db")) {
+    return(print_stat_db(x))
+  }
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
   cat(" dependent events processed: ", sum(x$is_dependent == 1L), "\n")
@@ -1058,6 +1072,69 @@ print.goldfishStat <- function(x, ..., width = getOption("width")) {
     }
   )
 
+  invisible(NULL)
+}
+
+#' Render the non-pointer statistics shapes
+#'
+#' The pointer shape above lists the flat buffers estimation reads. The other
+#' three shapes hold something else -- expanded rows, a database descriptor, or
+#' several processes -- so each says what it is and how big it is, rather than
+#' describing components it does not have.
+#' @name print_stat_shapes
+#' @noRd
+print_stat_stack <- function(x) {
+  # A stack carries one row per alternative in each event's risk set, so its
+  # size is the two numbers a reader needs before joining or modeling it: how
+  # many rows, over how many events.
+  n_rows <- nrow(x$stat_all_events)
+  n_events <- length(x$n_candidates)
+  cli::cli_text("{.strong Gather stack}: statistics as expanded rows.")
+  cli::cli_ul(c(
+    "{n_rows} row{?s} over {n_events} event{?s}",
+    "statistic{?s}: {.val {x$names_effects}}"
+  ))
+  if (isTRUE(x$has_intercept)) {
+    cli::cli_alert_info(
+      "Exact-time sub-model: carries the time intercept and the
+       right-censored rows."
+    )
+  }
+  invisible(NULL)
+}
+
+#' @rdname print_stat_shapes
+#' @noRd
+print_stat_db <- function(x) {
+  cli::cli_text("{.strong Statistics in a database}, not in memory.")
+  cli::cli_ul(c(
+    "table{?s}: {.val {unname(x$db_tables)}}",
+    "{x$n_rows} row{?s} x {x$n_parameters} parameter{?s}"
+  ))
+  cli::cli_alert_info(
+    "Read them with the connection in {.code $db}; this object is a
+     descriptor."
+  )
+  invisible(NULL)
+}
+
+#' @rdname print_stat_shapes
+#' @noRd
+print_stat_flavored <- function(x) {
+  process_map <- attr(x, "process_map")
+  storage <- stat_storage(x)
+  cli::cli_text(
+    "{.strong Statistics for {nrow(process_map)} process{?es}}
+     ({.field {storage}} storage)."
+  )
+  cli::cli_ul(paste0(
+    "{.val ",
+    process_map$flavor,
+    "} ({.field ",
+    process_map$family,
+    "})"
+  ))
+  cli::cli_alert_info("Index by fid: {.code x[[{.val {names(x)[1]}}]]}.")
   invisible(NULL)
 }
 

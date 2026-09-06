@@ -1,3 +1,7 @@
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
 test_that("the compute_stats name is gone, with no stub", {
   # Deleted outright rather than deprecated: the name only ever existed in the
   # unreleased 2.0.0 development line, so no released user is served by a stub.
@@ -587,4 +591,71 @@ test_that("the frame reproduces the estimator through conditional logit", {
     as.numeric(logLik(clogit_fit)),
     tolerance = 1e-4
   )
+})
+
+test_that("every goldfish-shaped output carries the class and its storage", {
+  # Four classes and an unclassed shape became one class plus two fields. The
+  # value assertions matter less than what they replace: nothing here needs to
+  # know which of five things it was handed.
+  shapes <- list(
+    preprocessed = "pointer",
+    gather = "stack"
+  )
+  for (output in names(shapes)) {
+    stat <- compute_statistics(
+      depNetwork ~ inertia,
+      data = dataTest,
+      model = "DyNAM",
+      sub_model = "choice",
+      output = output
+    )
+    expect_s3_class(stat, "goldfishStat", exact = TRUE)
+    expect_identical(attr(stat, "storage"), shapes[[output]], info = output)
+    expect_identical(attr(stat, "scope"), "single", info = output)
+  }
+})
+
+test_that("one print method renders every shape by reading the fields", {
+  # Dispatch, not only the class string: a shape that inherits() reaches but
+  # print.default() renders is the failure a value assertion misses. The
+  # pointer shape lists the flat buffers estimation reads; the stack holds
+  # expanded rows instead, so it reports what it actually has.
+  local_cli_context()
+  stat_of <- function(output) {
+    compute_statistics(
+      depNetwork ~ inertia,
+      data = dataTest,
+      model = "DyNAM",
+      sub_model = "choice",
+      output = output
+    )
+  }
+  expect_output(print(stat_of("preprocessed")), "Preprocess object for the")
+  expect_snapshot(print(stat_of("gather")))
+})
+
+test_that("the gather shape is classed, where it used to be returned bare", {
+  gathered <- compute_statistics(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  )
+  expect_s3_class(gathered, "goldfishStat")
+  expect_identical(attr(gathered, "storage"), "stack")
+})
+
+test_that("the data.frame output stays a plain frame", {
+  # Excluded deliberately: it hands off to a base type, nothing branches on
+  # it, and prepending a class would change print and format dispatch.
+  frame <- compute_statistics(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "data.frame"
+  )
+  expect_s3_class(frame, "data.frame", exact = TRUE)
+  expect_null(attr(frame, "storage"))
 })

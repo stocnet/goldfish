@@ -1,3 +1,7 @@
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
 # Per-flavor estimation: the container equals standalone per-flavor fits, the
 # redundant (no-constraint) branch behaves as its own case, and the container's
 # methods present one component per process.
@@ -186,13 +190,67 @@ test_that("flavored gather is fid-keyed and carries the process_map", {
   ))
 
   map <- attr(gathered, "process_map")
-  expect_s3_class(gathered, "goldfishFlavStat")
+  # One statistics class for every shape: a container differs from a single
+  # process in its `scope`, not in a class string of its own.
+  expect_s3_class(gathered, "goldfishStat")
+  expect_identical(attr(gathered, "scope"), "flavored")
+  expect_identical(attr(gathered, "storage"), "stack")
   expect_named(gathered, as.character(map$fid))
   expect_setequal(map$flavor, c("creation", "dissolution"))
   # The keying is the estimation container's keying, not a parallel convention.
   container <- suppressWarnings(estimate_dynam(spec))
   expect_identical(map$fid, container$process_map$fid)
   expect_identical(map$flavor, container$process_map$flavor)
+})
+
+test_that("a flavored and a single result differ only in their scope", {
+  # The whole point of the collapse: a container of processes and one process
+  # are the same kind of object, and what separates them is a field.
+  data <- flavored_fixture_data()
+  spec <- make_specification(
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  )
+  flavored <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+  # One flavor is one process, so this returns the bare stack rather than a
+  # container -- which is exactly the pair the scope field has to separate.
+  single <- suppressWarnings(compute_statistics(
+    make_specification(
+      choice = list(creation ~ trans),
+      model = "DyNAM",
+      data = data
+    ),
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+  expect_identical(class(flavored), class(single))
+  expect_identical(stat_storage(flavored), stat_storage(single))
+  expect_identical(stat_scope(flavored), "flavored")
+  expect_identical(stat_scope(single), "single")
+})
+
+test_that("print reads the fields rather than a class per combination", {
+  local_cli_context()
+  data <- flavored_fixture_data()
+  spec <- make_specification(
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  )
+  gathered <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+  expect_snapshot(print(gathered))
 })
 
 test_that("a per-fid gather stack equals its single-flavor run", {

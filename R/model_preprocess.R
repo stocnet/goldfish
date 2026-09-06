@@ -2562,7 +2562,7 @@ preprocess_monolith <- function(
     close(pb)
   }
 
-  return(structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       stats_change = stats_change,
@@ -2580,8 +2580,8 @@ preprocess_monolith <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "goldfishStat"
-  ))
+    storage = "pointer"
+  )
 }
 
 #' initialize the cache object or the stat matrices

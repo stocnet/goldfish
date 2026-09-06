@@ -60,6 +60,49 @@
 #' @keywords internal
 NULL
 
+#' The statistics-output object
+#'
+#' Preprocessing produces one kind of object in several shapes, and the shapes
+#' differ in where the statistics live and how many processes are inside, not
+#' in what any consumer does with them. So there is one class, and those two
+#' facts are carried as attributes rather than as class strings:
+#'
+#' \describe{
+#'   \item{`storage`}{`"pointer"` for the flat buffers estimation reads
+#'     directly, `"stack"` for the expanded row-per-alternative gather stack,
+#'     `"db"` for a descriptor naming tables in a database rather than holding
+#'     the statistics in memory.}
+#'   \item{`scope`}{`"single"` for one process, `"flavored"` for a fid-keyed
+#'     container of them.}
+#' }
+#'
+#' Attributes and not list elements because a flavored container's elements are
+#' the per-process objects themselves — it is indexed and iterated by fid, so a
+#' `storage` element in it would read as a process.
+#'
+#' @param x the object to class.
+#' @param storage,scope the two facts above.
+#' @return `x` with the class and both attributes.
+#' @noRd
+new_goldfish_stat <- function(
+  x,
+  storage = c("pointer", "stack", "db"),
+  scope = c("single", "flavored")
+) {
+  structure(
+    x,
+    storage = match.arg(storage),
+    scope = match.arg(scope),
+    class = "goldfishStat"
+  )
+}
+
+#' @noRd
+stat_storage <- function(x) attr(x, "storage")
+
+#' @noRd
+stat_scope <- function(x) attr(x, "scope") %||% "single"
+
 #' Broadcast-update entry format
 #'
 #' Constant-value fan-out updates (an `alter()` / `ego()` / degree projection,
@@ -464,7 +507,7 @@ write_gather_to_db <- function(
   gathered$fid <- fid
   gathered$n_rows <- n_rows
   gathered$n_parameters <- n_parameters
-  structure(gathered, class = "goldfishStatDB")
+  new_goldfish_stat(gathered, storage = "db")
 }
 
 #' Complete a db export with its map and node tables
@@ -483,8 +526,8 @@ write_gather_to_db <- function(
 #' prefix-matching drop would be a destructive guess against tables the
 #' connection may own for other reasons.
 #'
-#' @param descriptors fid-keyed list of `goldfishStatDB` descriptors,
-#'   one per written process table.
+#' @param descriptors fid-keyed list of db-storage `goldfishStat`
+#'   descriptors, one per written process table.
 #' @param process_map the identity table of the export, one row per fid.
 #' @noRd
 finish_db_export <- function(descriptors, db, db_table, process_map) {
@@ -894,7 +937,7 @@ assemble_default_output <- function(
     active_dyad_update_pointer <- temp$presenceUpdatePointer
   }
 
-  structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       stat_mat_update = stat_mat_update,
@@ -925,6 +968,6 @@ assemble_default_output <- function(
       right_censored = has_intercept,
       prep_version = PREP_VERSION
     ),
-    class = "goldfishStat"
+    storage = "pointer"
   )
 }

@@ -626,7 +626,7 @@ preprocess_interaction <- function(
     close(pb)
   }
 
-  return(structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       dependent_stats_change = dependentStatistics,
@@ -641,6 +641,6 @@ preprocess_interaction <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "goldfishStat"
-  ))
+    storage = "pointer"
+  )
 }
