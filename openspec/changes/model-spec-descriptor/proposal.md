@@ -1,5 +1,7 @@
 # Model behavior is a descriptor, not a class hierarchy
 
+depends-on: class-naming-scheme
+
 ## Why
 
 The model spec encodes what a model *is* three times, in three shapes, and

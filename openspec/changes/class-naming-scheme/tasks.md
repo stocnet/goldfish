@@ -163,7 +163,7 @@ pre-2.0.0, before `parametric-rates`.
   `goldfishMargins`), plot each, and confirm dispatch reaches the new
   methods — not the defunct aliases (design D12). Confirm
   `goldfishParamTest` and `goldfishEval` have no autograph method.
-- [ ] 6.2 Record in `progress.md` (and in issue #60's answer) that
+- [x] 6.2 Record in `progress.md` (and in issue #60's answer) that
   autograph's defunct aliases are now deletable; open/ping the
   autograph cleanup issue rather than deleting from this change.
 
@@ -260,7 +260,7 @@ pre-2.0.0, before `parametric-rates`.
   CLAUDE.md policy carve-out, and the re-fit requirement (design D13).
 - [x] 10.3 Final verification: **not-cran-test** on the whole suite;
   frozen 1e-6 and C++ goldens PASS, not SKIP.
-- [ ] 10.4 Answer [stocnet/autograph#60] with the final table, noting:
+- [x] 10.4 Answer [stocnet/autograph#60] with the final table, noting:
   goldfish adopted autograph@develop's seven names verbatim, the two
   classes the issue missed (`goldfishParamTest`, `goldfishEval`), the
   summary class (`goldfishSummFit` — goldfish does **not** follow the

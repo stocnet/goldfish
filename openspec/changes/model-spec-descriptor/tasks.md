@@ -9,14 +9,25 @@ task 1.1 — see design D8.**
 
 ## 1. Descriptor construction (additive; nothing reads it yet)
 
-- [ ] 1.1 Confirm `class-naming-scheme` has **folded to the trunk** before
-      starting (design D8). It landed on `refactor/class-naming-scheme`
-      2026-09-06 at 48/50, but a branch-landed change is not folded: check
-      that the merge has happened, since this change rewrites the same three
-      files. The scope question D8 left open is **closed** — the rename
-      included the hierarchy, so the classes arriving here are
-      `goldfishKind`, the nine `goldfishKind<Variant>` names, and
+- [ ] 1.1 Confirm `class-naming-scheme` is flagged **landed** before starting
+      (design D8; `rules.branching` — a change completed on a branch is not
+      archived there, it is flagged `status: landed` and its directory stays
+      as the decision memory until the merge). It landed 2026-09-06 at 50/50
+      on `refactor/class-naming-scheme`, which is this change's branch too, so
+      the renamed code is simply present — no fold is required to start.
+      The scope question D8 left open is **closed**: the rename included the
+      hierarchy, so the classes arriving here are `goldfishKind`, the nine
+      `goldfishKind<Variant>` names, and
       `goldfishAxisSender`/`goldfishAxisDyad` (D8's resolution table).
+- [ ] 1.1a Note the one predecessor artifact this change will turn red:
+      `tests/testthat/test-class_naming.R` asserts that all **twelve**
+      model-kind classes are reachable, by name, in its "the enumeration
+      reaches classes that only a method name names" test. Collapsing the
+      variants deletes most of them, so that assertion must be reduced to the
+      classes this change leaves standing — expected to be the two axis
+      classes plus whichever kind classes survive the collapse. It is a
+      deliberate consequence, not a regression; leaving it red would hide the
+      next real one.
 - [ ] 1.2 Inventory: for each of the 9 variants record its current class
       vector, its `preprocess.*` parameters, its `compute_event_contribution`
       method (noting the three aliases), and the descriptor values it will

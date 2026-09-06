@@ -1,5 +1,17 @@
 # Class Naming — goldfish Classes Go camelCase
 
+status: landed (refactor/class-naming-scheme, awaiting fold)
+
+> **Landed 2026-09-06** on `refactor/class-naming-scheme`, 50/50, eleven
+> commits, `NOT_CRAN=true` green at every one (final PASS 7141 / FAIL 0 /
+> SKIP 5; all six frozen baseline files PASS, 156 assertions, none skipped).
+> Not archived here: `/opsx:archive` runs only on the integration branch
+> (ADR-0040), so the deltas stay unfolded and this directory stays in place
+> as the decision memory until the merge. The `NEWS.d/` fragment and the
+> Version bump are merge-time folds. Successors on this branch —
+> `model-spec-descriptor`, then `fit-class-hierarchy` — declare
+> `depends-on: class-naming-scheme` and run against the landed code.
+
 > Revised 2026-08-19: the scheme changed from the `_goldfish` suffix
 > (ADR-0020) to the stocnet-ecosystem `goldfish<Thing>` camelCase prefix
 > (ADR-0031, supersedes ADR-0020), after autograph@develop shipped the

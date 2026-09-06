@@ -1,5 +1,7 @@
 # Fit classes share a parent, governed by a contract table
 
+depends-on: class-naming-scheme, model-spec-descriptor
+
 ## Why
 
 goldfish has two fitted-model classes and is about to gain a third, and they do
