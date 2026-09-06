@@ -90,6 +90,71 @@ into the rename it would answer a correctness question inside a mechanical
 diff, and into the descriptor change it would mix a modeling judgment with a
 refactor whose rule explicitly does not reach it.
 
+### D7 — The parent is `goldfishBaseFit`, and it carries the shape-level methods
+
+New (2026-09-06, Alvaro). `goldfishFit` is the concrete single-process class
+and cannot become the parent without a rename this change disclaims, so the
+parent is a new name: `goldfishBaseFit`, which satisfies ADR-0031
+(`goldfish` + a camelCase noun, no dot).
+
+The parent is not a marker. The `goldfishFit` methods that need only the common
+fit surface — `parameters`, `standard_errors`, `names`, `n_params`,
+`log_likelihood`, `n_events`, `call` — move onto it: `print`, `summary`,
+`tidy`, `glance`, `coef`, `vcov`, `logLik`, `model_terms`. `goldfishFit`'s
+column then reads a real `inherit` for those eight, and the DyNES class will
+inherit them without writing them a third time.
+
+The generics that read a fit's estimation internals — `augment`, `fitted`,
+`predict`, `residuals`, `evaluate_model`, `test_gof`, `test_parameter`,
+`test_time`, `diagnose_outliers`, `diagnose_changepoints`, `diagnose_onset`,
+`margin_table` — get **no parent default**, so a class that omits one gets a
+dispatch error rather than a method reading fields it does not have. This is
+ADR-0038's rejected Option C, with the boundary written into the table and
+checked, which is what the ADR says Option D is.
+
+`goldfishFlavFit` overrides every row: it is a container of fits rather than a
+fit, so each of its methods is a fan-out over components. That answers
+ADR-0038's first open question in the direction of *container* — its parent is
+shared for the contract's sake, not because it is a subtype.
+
+### D8 — The Monte-Carlo `logLik` verdict is deferred, its mechanism is not
+
+New (2026-09-06, Alvaro). D3 asks for the `logLik` verdict on a Monte-Carlo fit
+first, because it is why the table exists. The verdict is **not settled here**:
+the DyNES fit class does not exist yet, so deciding what its `logLik` returns
+would be deciding DyNES's estimation semantics, which this change's Non-Goals
+exclude.
+
+What ships instead is everything the decision needs: the `refuse` verdict, the
+refusal helper reading its reason from the table, and the completeness test
+that fails until the DyNES column is filled. The verdict is therefore forced at
+the moment the class arrives — which is exactly D4's mechanism working — rather
+than assumed now against an unwritten estimator.
+
+The refusal machinery is not shipped untested: `coef_layout` on a
+single-process fit is a genuine `refuse` today (D9), so the message has a live
+row.
+
+### D9 — Answers to the Open Questions
+
+- **`coef_layout` on `goldfishFit`: `refuse`.** The layout is a coefficient
+  surface over the fids of a joint specification; a single-process fit has no
+  fid blocks, so a one-block layout would be an invented shape rather than a
+  smaller one. The refusal names `coef()` and the joint fit as the alternatives.
+  This also replaces the "no applicable method" a user currently gets from
+  `set_parameters_from_result()` when handing it a single-process fit.
+- **`summary`/`tidy`/`glance` on `goldfishFlavFit`: `override`, following the
+  return-shape convention already documented on `augment.goldfishFlavFit`.**
+  The tidy returns (`tidy`, `glance`) row-bind the per-process tables and
+  append the process identity as columns; the non-tidy return (`summary`) is a
+  list named by process label, unwrapped when `flavor =` selects one, exactly
+  as `coef` and `vcov` behave.
+- **`print.summary` is not a row.** `print.goldfishSummFit` dispatches on the
+  summary class, not on a fit class. Because `summary()` on a flavored fit
+  returns the same `goldfishSummFit` objects (one per process), the existing
+  print method reaches them through ordinary list printing, and no second
+  summary class is minted.
+
 ## Risks / Trade-offs
 
 - **The table is filled in mechanically to make the test pass** → the `refuse`
@@ -110,9 +175,7 @@ changes; no re-fit required.
 
 ## Open Questions
 
-- Is the `logLik` verdict for the DyNES fit `refuse`, or `override` returning
-  the Monte-Carlo estimate with a class that `AIC()` cannot consume?
-- Do `summary`/`tidy`/`glance` on a flavored fit `inherit` (one row per
-  component) or `override` (a combined table)?
-- Does `coef_layout`, currently flavored-only, become `inherit` for the single
-  class or stay flavored-only as a deliberate `refuse`?
+All three are answered — see D8 (the DyNES `logLik` verdict, deferred to the
+change that ships the class, with the mechanism landing here) and D9
+(`summary`/`tidy`/`glance` on a flavored fit, and `coef_layout` on a
+single-process fit).

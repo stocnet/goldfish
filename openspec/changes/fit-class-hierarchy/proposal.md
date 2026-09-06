@@ -1,6 +1,15 @@
 # Fit classes share a parent, governed by a contract table
 
+status: landed (refactor/class-naming-scheme, awaiting fold)
 depends-on: class-naming-scheme, model-spec-descriptor
+
+> **Landed 2026-09-06** on `refactor/class-naming-scheme`, 18/18, four
+> commits, `NOT_CRAN=true` green at every one (final PASS 7307 / FAIL 0 /
+> SKIP 5; all six frozen baseline files PASS, none skipped). Not archived
+> here: `/opsx:archive` runs only on the integration branch (ADR-0040), and
+> this change's deltas fold after `class-naming-scheme` and
+> `model-spec-descriptor`, in `depends-on` order. Implementation decisions
+> D7–D9 and vault ADR-0050 refine ADR-0038 without superseding it.
 
 ## Why
 
