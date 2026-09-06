@@ -142,70 +142,88 @@ test_that("new_model_spec two-mode requires both node sets", {
   expect_identical(spec$nodes2, "clubs")
 })
 
-test_that("every spec class carries the documented risk-set descriptor", {
+test_that("every spec class carries the documented behavioral descriptor", {
   expected <- list(
     dynam_rate = list(
       axis = "sender",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = NA_character_
     ),
     dynam_rate_ordered = list(
       axis = "sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = NA_character_
     ),
     dynam_choice = list(
       axis = "receiver_given_sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "alter",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "alter"
     ),
     dynam_choice_coord = list(
       axis = "dyad_symmetric",
+      timing = "ordinal",
+      likelihood = "coordination",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = TRUE,
-      normalizer = "coordination"
+      encoding = "outer"
     ),
     dynami_rate = list(
       axis = "sender",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = NA_character_
     ),
     dynami_rate_ordered = list(
       axis = "sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = NA_character_
     ),
     dynami_choice = list(
       axis = "receiver_given_sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "alter",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "alter"
     ),
     rem_rate = list(
       axis = "dyad",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = "outer"
     ),
     rem_rate_ordered = list(
       axis = "dyad",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "outer"
     )
   )
   constructors <- list(
@@ -221,22 +239,59 @@ test_that("every spec class carries the documented risk-set descriptor", {
   )
   for (variant in names(expected)) {
     spec <- constructors[[variant]](nodes = "actors")
-    expect_identical(spec$risk_set, expected[[variant]], info = variant)
-    expect_identical(risk_set_axis(spec), expected[[variant]]$axis)
+    want <- expected[[variant]]
+    expect_identical(spec$behavior, want, info = variant)
+    expect_identical(risk_set_axis(spec), want$axis, info = variant)
+    expect_identical(behavior_timing(spec), want$timing, info = variant)
+    expect_identical(behavior_likelihood(spec), want$likelihood, info = variant)
+    expect_identical(
+      behavior_input_shape(spec),
+      want$input_shape,
+      info = variant
+    )
     expect_identical(
       risk_set_fold_target(spec),
-      expected[[variant]]$fold_target
+      want$fold_target,
+      info = variant
     )
-    expect_identical(risk_set_encoding(spec), expected[[variant]]$encoding)
+    expect_identical(risk_set_encoding(spec), want$encoding, info = variant)
+    # Symmetrization is the coordination likelihood's reduction of the dyad
+    # grid to unordered pairs, so it follows that field and needs no other.
     expect_identical(
       risk_set_symmetrize(spec),
-      expected[[variant]]$symmetrize
-    )
-    expect_identical(
-      risk_set_normalizer(spec),
-      expected[[variant]]$normalizer
+      identical(want$likelihood, "coordination"),
+      info = variant
     )
   }
+})
+
+test_that("a spec carries one behavioral object, not two", {
+  spec <- dynam_choice_spec(nodes = "actors")
+  expect_setequal(
+    names(spec),
+    c("model", "sub_model", "is_two_mode", "nodes", "nodes2", "behavior")
+  )
+  # `model` and `sub_model` survive as provenance -- what the user asked for --
+  # so their presence above is expected; a second descriptor beside `behavior`
+  # is what must not come back.
+  expect_false("risk_set" %in% names(spec))
+})
+
+test_that("an unmapped combination aborts rather than yielding NA fields", {
+  # REM has no choice sub-model: reaching a consumer with a half-filled
+  # descriptor is the failure mode this abort exists to prevent.
+  expect_error(
+    behavior_descriptor("goldfishAxisDyad", "REM", "choice", FALSE),
+    "No behavioral descriptor is defined"
+  )
+  expect_error(
+    behavior_descriptor("goldfishAxisSender", "DyNAM", "meeting", FALSE),
+    "No behavioral descriptor is defined"
+  )
+  expect_error(
+    behavior_descriptor("goldfishAxisPair", "DyNAM", "rate", FALSE),
+    "must be one of"
+  )
 })
 
 test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {

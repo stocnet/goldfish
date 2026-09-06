@@ -280,7 +280,7 @@ abort_if_exposure_undefined <- function(
   if (!"exposure" %in% quantities) {
     return(invisible(NULL))
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible(NULL))
   }
   cli::cli_abort(
@@ -312,7 +312,7 @@ abort_if_conditional_scores_undefined <- function(
   if (!"conditional_scores" %in% quantities) {
     return(invisible(NULL))
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible(NULL))
   }
   sub_model <- spec$sub_model
@@ -669,7 +669,7 @@ evaluate_margins <- function(res, spec, prep, backend) {
     axis = risk_set_axis(spec),
     nodes = evaluate_nodes_frame(prep, side = 1L),
     nodes2 = evaluate_nodes_frame(prep, side = 2L),
-    is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    is_exact_time = identical(behavior_likelihood(spec), "poisson")
   )
 }
 

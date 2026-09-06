@@ -570,7 +570,7 @@ export_single_process_db <- function(
 #'
 #' @noRd
 gather_from_prep <- function(prep, spec) {
-  has_intercept <- identical(risk_set_normalizer(spec), "poisson")
+  has_intercept <- identical(behavior_likelihood(spec), "poisson")
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
   # Rate models reduce over a single receiver column; the estimation
@@ -637,9 +637,9 @@ gather_from_prep <- function(prep, spec) {
   # Poisson (rate / standard REM) and coordination carry per-event timespans;
   # coordination weights them to zero, the others take the intervals; the
   # remaining multinomial families read no timespan.
-  if (risk_set_normalizer(spec) %in% c("poisson", "coordination")) {
+  if (behavior_likelihood(spec) %in% c("poisson", "coordination")) {
     is_dependent <- as.logical(statsList$is_dependent)
-    timespan <- if (!identical(risk_set_normalizer(spec), "coordination")) {
+    timespan <- if (!identical(behavior_likelihood(spec), "coordination")) {
       statsList$intervals
     } else {
       numeric(length(is_dependent))

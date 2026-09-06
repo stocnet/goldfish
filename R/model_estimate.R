@@ -1397,7 +1397,7 @@ note_conditional_scores_identity <- function(
   if (!"conditional_scores" %in% diagnostics) {
     return(invisible())
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible())
   }
   sub_model <- spec$sub_model

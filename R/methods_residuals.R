@@ -404,7 +404,7 @@ fit_component <- function(
 # Is this an exact-time (Poisson) sub-model? The one predicate the type-level
 # branches read, so "which families have a compensator" is stated once.
 is_exact_time_fit <- function(object) {
-  identical(risk_set_normalizer(object$model_spec), "poisson")
+  identical(behavior_likelihood(object$model_spec), "poisson")
 }
 
 # Schoenfeld rows are the score rows without the exposure term. On a
@@ -498,10 +498,10 @@ cox_snell_residuals <- function(object, call = rlang::caller_env()) {
     # the same family and the reason has to name the one being asked. A
     # coordination likelihood is a softmax over unordered dyads, not over a
     # sender's alternatives, so calling it multinomial is simply wrong.
-    normalizer <- risk_set_normalizer(object$model_spec)
+    likelihood <- behavior_likelihood(object$model_spec)
     sub_model <- object$model_spec$sub_model
     models <- switch(
-      normalizer,
+      likelihood,
       coordination = "which unordered dyad formed",
       multinomial = "which alternative was realized",
       "which outcome was realized"
@@ -509,7 +509,7 @@ cox_snell_residuals <- function(object, call = rlang::caller_env()) {
     cli::cli_abort(
       c(
         "Cox-Snell residuals are defined for the exact-time sub-models only.",
-        "x" = "{.val {sub_model}} has a {normalizer} likelihood, which carries
+        "x" = "{.val {sub_model}} has a {likelihood} likelihood, which carries
                no compensator: it models {models}, not when.",
         "i" = "Use {.code type = \"deviance\"} for a per-interval
                goodness-of-fit measure on this sub-model."

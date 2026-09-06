@@ -108,7 +108,7 @@ make_engine_evaluator <- function(
   # value -- fixed, so there is nothing to start, or seeded, so the user chose
   # the start. Seeding some other coefficient leaves the intercept alone.
   if (
-    identical(risk_set_normalizer(spec), "poisson") &&
+    identical(behavior_likelihood(spec), "poisson") &&
       has_intercept &&
       seed_intercept
   ) {
@@ -156,7 +156,7 @@ make_engine_evaluator <- function(
   # takes, so a NULL never reaches a kernel that would read it.
   is_dependent <- NULL
   timespan <- NA
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     is_dependent <- as.logical(stats_list$is_dependent)
     timespan <- stats_list$intervals
   } else if (!identical(risk_set_axis(spec), "receiver_given_sender")) {
@@ -702,7 +702,7 @@ estimate_c_int <- function(
       axis = risk_set_axis(spec),
       nodes = nodes,
       nodes2 = nodes2,
-      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+      is_exact_time = identical(behavior_likelihood(spec), "poisson")
     )
     if (!is.null(margins)) estimationResult$margins <- margins
   }
@@ -1192,7 +1192,7 @@ gather_ <- function(
       n_actors2,
       twomode_or_reflexive,
       active_dyad_encoding = active_dyad_encoding,
-      is_coordination = identical(risk_set_normalizer(spec), "coordination")
+      is_coordination = identical(behavior_likelihood(spec), "coordination")
     )
   } else if (identical(risk_set_axis(spec), "receiver_given_sender")) {
     gathered_data <- gather_receiver_model_r(
@@ -1739,8 +1739,9 @@ margin_slots <- function(index) {
   as.integer(index) - 1L
 }
 
-# The likelihood kernel is selected by the spec's normalizer, not a model-type
-# string: multinomial (choice / ordinal rate), Poisson (rate), or coordination.
+# The likelihood kernel is selected by the spec's likelihood family, not a
+# model-type string: multinomial (choice / ordinal rate), Poisson (rate), or
+# coordination.
 compute_ <- function(
   spec,
   parameters,
@@ -1787,7 +1788,7 @@ compute_ <- function(
   }
   # dyad / dyad_symmetric keep both sides.
 
-  if (identical(risk_set_normalizer(spec), "multinomial")) {
+  if (identical(behavior_likelihood(spec), "multinomial")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
@@ -1807,7 +1808,7 @@ compute_ <- function(
     )
   }
 
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     res <- compute_poisson_selection(
       parameters,
       stat_all_events,
@@ -1830,7 +1831,7 @@ compute_ <- function(
     )
   }
 
-  if (identical(risk_set_normalizer(spec), "coordination")) {
+  if (identical(behavior_likelihood(spec), "coordination")) {
     res <- compute_coordination_selection(
       parameters,
       stat_all_events,

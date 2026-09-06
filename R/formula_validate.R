@@ -490,7 +490,7 @@ fixed_spec_mask <- function(fixed_spec, n_params) {
 # A term held at a fixed value still counts: an all-fixed model estimates
 # nothing but evaluates its likelihood, which is a supported use.
 #
-# The reason differs by risk set, and so does the message. Where the normalizer
+# The reason differs by risk set, and so does the message. Where the likelihood
 # is Poisson an intercept alone is a well-defined baseline rate against elapsed
 # time, and goldfish is declining a model it could in principle fit; saying it
 # is unidentified there would be false and would send the reader looking for a
@@ -508,7 +508,7 @@ abort_if_no_effect_terms <- function(
   }
 
   sub_model <- spec$sub_model
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     cli::cli_abort(
       c(
         "A model needs at least one effect term.",

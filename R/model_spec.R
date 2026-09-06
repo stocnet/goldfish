@@ -31,92 +31,136 @@ model_spec_structure <- function(
       is_two_mode = is_two_mode,
       nodes = nodes,
       nodes2 = nodes2,
-      risk_set = risk_set_descriptor(indexing, sub_model, is_two_mode),
+      behavior = behavior_descriptor(indexing, model, sub_model, is_two_mode),
       ...
     ),
     class = c(variant, indexing, "goldfishKind")
   )
 }
 
-#' Risk-set dispatch descriptor
+#' Behavioral descriptor of a model specification
 #'
-#' The single parse-time decision point for the risk-set geometry a model
-#' spec carries. Derived once, at construction, from the resolved
-#' `(indexing, sub_model, is_two_mode)`; every downstream site (availability
-#' encoding selection, fold-family selection, validation family, rate
-#' detection, estimation guards) reads it through the accessors below and
-#' none re-derives the family or geometry from model/sub_model strings or
-#' from array dimensionality. Fields:
+#' The single parse-time decision point for everything a downstream component
+#' needs to know about how a model behaves. Derived once, at construction,
+#' from the resolved `(indexing, model, sub_model, is_two_mode)`; every
+#' consumer (recipe selection, availability encoding, fold-family selection,
+#' validation family, rate detection, estimation guards) reads it through the
+#' accessors below and none re-derives the family, geometry or timing regime
+#' from model/sub_model strings or from array dimensionality. `model` and
+#' `sub_model` stay on the spec as provenance — what the user asked for —
+#' and are not switches.
+#'
+#' Every field takes a value from a closed vocabulary, and a field no consumer
+#' branches on does not belong here. Fields:
 #' \describe{
 #'   \item{`axis`}{the risk-set axis: `"sender"` (rate models, sender-indexed),
 #'     `"receiver_given_sender"` (choice — one sender's receiver row),
 #'     `"dyad"` (REM / REM-ordered / two-mode coordination — the full dyad
-#'     matrix), or `"dyad_symmetric"` (one-mode coordination — the dyad matrix
-#'     symmetrized for the mutual likelihood).}
+#'     matrix), or `"dyad_symmetric"` (one-mode coordination — the dyad
+#'     matrix symmetrized for the mutual likelihood). Preprocessing reads the
+#'     sender recipe off `"sender"` and the dyad recipe off everything else.}
+#'   \item{`timing`}{the timing regime: `"timed"` when the sub-model is a rate
+#'     over waiting times, so the likelihood carries an exposure denominator
+#'     and the right-censored intervals contribute to it; `"ordinal"` when
+#'     only the order of the events that occurred is modeled and the elapsed
+#'     time carries no contribution.}
+#'   \item{`likelihood`}{the likelihood family, from `sub_model`: `"poisson"`
+#'     (rate — timespan-weighted waiting times), `"multinomial"` (choice /
+#'     ordinal rate — the softmax over the risk set), or `"coordination"`
+#'     (the mutual `getLikelihoodMM` product). The compiled interface selects
+#'     the timespan handling, the `compute_` kernel, and the intercept-init
+#'     family from this, never from a model-type string.}
+#'   \item{`input_shape`}{`"grouped"` for DyNAM-i, whose events arrive as
+#'     group interactions and reach a preprocessing loop of their own;
+#'     `"standard"` for every other model.}
+#'   \item{`distribution`}{the waiting-time distribution, `"exponential"`
+#'     today. It is an axis orthogonal to the rest: a Weibull rate is still a
+#'     timed sender-indexed Poisson-family model, differing only in the hazard
+#'     it integrates, so it belongs on a field rather than in the variant.}
 #'   \item{`fold_target`}{the maintained availability object a support
 #'     constraint folds into: `"active_sender"` for rate, `"active_dyad"`
 #'     for every dyad-loop family.}
 #'   \item{`encoding`}{the base `active_dyad` encoding when no constraint
 #'     sharpens it: `"outer"` for the dyadic risk sets (both presences fold),
 #'     `"alter"` for choice (receiver presence only), `NA` for rate.}
-#'   \item{`symmetrize`}{`TRUE` only for one-mode coordination; the value the
-#'     undirected-REM discussion will reuse.}
-#'   \item{`normalizer`}{the likelihood normalizer, from `sub_model`:
-#'     `"poisson"` (rate — timespan-weighted waiting times), `"multinomial"`
-#'     (choice / ordinal rate — the softmax over the risk set), or
-#'     `"coordination"` (the mutual `getLikelihoodMM` product). The compiled
-#'     interface selects the timespan handling, the `compute_` kernel, and the
-#'     intercept-init family from this, never from a model-type string.}
 #' }
 #' @noRd
-risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
-  # The likelihood normalizer follows the sub-model: `rate` is the
-  # timespan-weighted Poisson, `choice_coordination` the mutual product, and
-  # everything else (`choice`, ordinal `rate_ordered`) the multinomial softmax.
-  normalizer <- switch(
+behavior_descriptor <- function(indexing, model, sub_model, is_two_mode) {
+  # The nine supported variants, spelled out rather than validated field by
+  # field: an unmapped combination must fail here rather than reach a
+  # consumer with a descriptor whose fields are missing or NA.
+  variants <- c(
+    "DyNAM/rate",
+    "DyNAM/rate_ordered",
+    "DyNAM/choice",
+    "DyNAM/choice_coordination",
+    "DyNAMi/rate",
+    "DyNAMi/rate_ordered",
+    "DyNAMi/choice",
+    "REM/rate",
+    "REM/rate_ordered"
+  )
+  combination <- paste(model, sub_model, sep = "/")
+  if (!combination %in% variants) {
+    cli::cli_abort(c(
+      "No behavioral descriptor is defined for {.val {combination}}.",
+      "i" = "Mapped combinations are {.val {variants}}."
+    ))
+  }
+  indexings <- c("goldfishAxisSender", "goldfishAxisDyad")
+  if (!indexing %in% indexings) {
+    cli::cli_abort(c(
+      "{.arg indexing} must be one of {.val {indexings}}.",
+      "x" = "{.val {indexing}} is not an indexing class."
+    ))
+  }
+
+  # A rate models the waiting time itself, so its likelihood carries an
+  # exposure denominator and the right-censored intervals contribute to it.
+  # Every other sub-model compares only the ordering of the events that did
+  # occur, and the elapsed time between them drops out.
+  timing <- if (identical(sub_model, "rate")) "timed" else "ordinal"
+
+  likelihood <- switch(
     sub_model,
     rate = "poisson",
     choice_coordination = "coordination",
     "multinomial"
   )
-  if (identical(indexing, "goldfishAxisSender")) {
-    return(list(
-      axis = "sender",
-      fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = normalizer
-    ))
-  }
-  if (identical(sub_model, "choice")) {
-    return(list(
-      axis = "receiver_given_sender",
-      fold_target = "active_dyad",
-      encoding = "alter",
-      symmetrize = FALSE,
-      normalizer = normalizer
-    ))
-  }
-  if (identical(sub_model, "choice_coordination")) {
+
+  axis <- if (identical(indexing, "goldfishAxisSender")) {
+    "sender"
+  } else if (identical(sub_model, "choice")) {
+    "receiver_given_sender"
+  } else if (
+    identical(sub_model, "choice_coordination") && !isTRUE(is_two_mode)
+  ) {
     # One-mode coordination symmetrizes the dyad matrix for the mutual
     # likelihood; a (rejected-before-construction) two-mode coordination would
     # not. Deriving from is_two_mode keeps the value correct either way.
-    symmetrize <- !isTRUE(is_two_mode)
-    return(list(
-      axis = if (symmetrize) "dyad_symmetric" else "dyad",
-      fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = symmetrize,
-      normalizer = normalizer
-    ))
+    "dyad_symmetric"
+  } else {
+    # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
+    "dyad"
   }
-  # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
+
   list(
-    axis = "dyad",
-    fold_target = "active_dyad",
-    encoding = "outer",
-    symmetrize = FALSE,
-    normalizer = normalizer
+    axis = axis,
+    timing = timing,
+    likelihood = likelihood,
+    input_shape = if (identical(model, "DyNAMi")) "grouped" else "standard",
+    distribution = "exponential",
+    fold_target = if (identical(axis, "sender")) {
+      "active_sender"
+    } else {
+      "active_dyad"
+    },
+    encoding = switch(
+      axis,
+      sender = NA_character_,
+      receiver_given_sender = "alter",
+      "outer"
+    )
   )
 }
 
@@ -174,14 +218,14 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
 #' @seealso [estimate_dynam()] for the fitted object's other components.
 #' @export
 risk_set_axis <- function(x) {
-  # Three shapes carry the axis: a model spec has the `risk_set` descriptor, a
+  # Three shapes carry the axis: a model spec has the `behavior` descriptor, a
   # fit has the resolved `risk_set_axis` copied onto it at assembly, and a
   # preprocessed object has the spec it was built from. Specs come first because
   # every internal caller passes one.
   #
-  # Matched by name with `[[`, never `$`: `$risk_set` on a FIT would partially
-  # match its `risk_set_axis` component and return the axis string, which then
-  # fails on `$axis`. Testing membership first also keeps a pre-2.0.0 fit
+  # Matched by name with `[[`, never `$`: `$behavior` is unambiguous today, but
+  # `$risk_set_axis` on a FIT is reached by partial matching from several
+  # shorter names, and testing membership first keeps a pre-2.0.0 fit
   # carrying none of the three on the NULL path rather than a subscript error.
   # A flavored container carries no specification of its own: it is K fits, one
   # per process, each with its own risk set. Returning NULL here would let a
@@ -196,29 +240,41 @@ risk_set_axis <- function(x) {
     ))
   }
   nms <- names(x)
-  if ("risk_set" %in% nms) {
-    return(x[["risk_set"]][["axis"]])
+  if ("behavior" %in% nms) {
+    return(x[["behavior"]][["axis"]])
   }
   if ("risk_set_axis" %in% nms) {
     return(x[["risk_set_axis"]])
   }
   if ("model_spec" %in% nms) {
-    return(x[["model_spec"]][["risk_set"]][["axis"]])
+    return(x[["model_spec"]][["behavior"]][["axis"]])
   }
   NULL
 }
 
 #' @noRd
-risk_set_normalizer <- function(spec) spec$risk_set$normalizer
+behavior_likelihood <- function(spec) spec$behavior$likelihood
 
 #' @noRd
-risk_set_fold_target <- function(spec) spec$risk_set$fold_target
+behavior_timing <- function(spec) spec$behavior$timing
 
 #' @noRd
-risk_set_encoding <- function(spec) spec$risk_set$encoding
+behavior_input_shape <- function(spec) spec$behavior$input_shape
 
 #' @noRd
-risk_set_symmetrize <- function(spec) isTRUE(spec$risk_set$symmetrize)
+risk_set_fold_target <- function(spec) spec$behavior$fold_target
+
+#' @noRd
+risk_set_encoding <- function(spec) spec$behavior$encoding
+
+#' Whether the dyad grid is reduced to unordered pairs
+#'
+#' True for one-mode coordination, whose likelihood sums each unordered dyad
+#' once rather than reading `(a, b)` and `(b, a)` as separate observations.
+#' @noRd
+risk_set_symmetrize <- function(spec) {
+  identical(risk_set_axis(spec), "dyad_symmetric")
+}
 
 #' Whether the risk set spans the full dyad matrix (both presences fold)
 #' @noRd

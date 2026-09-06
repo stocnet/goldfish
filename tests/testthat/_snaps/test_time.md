@@ -98,10 +98,10 @@
     Code
       print(test_time(time_container()))
     Message
-      i The fit carries the preprocessed statistics it was estimated from (about 83.8 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 83.8 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 53.8 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 56.8 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 84.2 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 84.2 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 54.2 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 57.2 Kb).
       -- <goldfishTimeTest> ----------------------------------------------------------
       Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
       Score test of a "identity" time trend in each coefficient.

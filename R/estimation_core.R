@@ -296,7 +296,7 @@ estimate_int_impl <- function(
       axis = risk_set_axis(spec),
       nodes = nodes,
       nodes2 = nodes2,
-      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+      is_exact_time = identical(behavior_likelihood(spec), "poisson")
     )
   }
   if (return_availability && !is.null(nr$availability)) {
@@ -2118,7 +2118,7 @@ compute_iteration_step <- function(
   margin_axis <- risk_set_axis(spec)
   # Exact-time (Poisson) sub-models carry the compensator scale; all families
   # carry the probability scale. total_rate exists only on the Poisson kernel.
-  is_exact_time <- identical(risk_set_normalizer(spec), "poisson")
+  is_exact_time <- identical(behavior_likelihood(spec), "poisson")
 
   updateopportunities <- !is.null(opportunitiesList) && !is_rate
   correctReflexive <- !allowReflexive &&

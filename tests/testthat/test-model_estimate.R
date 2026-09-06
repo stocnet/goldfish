@@ -64,15 +64,15 @@ test_that("probabilities guardrail warns with the estimated footprint", {
     is_dependent = rep(1L, 100)
   )
   expect_snapshot(
-    warn_probabilities_footprint(prep, list(risk_set = list(axis = "dyad")))
+    warn_probabilities_footprint(prep, list(behavior = list(axis = "dyad")))
   )
   expect_snapshot(
-    warn_probabilities_footprint(prep, list(risk_set = list(axis = "sender")))
+    warn_probabilities_footprint(prep, list(behavior = list(axis = "sender")))
   )
   expect_snapshot(
     warn_probabilities_footprint(
       prep,
-      list(risk_set = list(axis = "receiver_given_sender"))
+      list(behavior = list(axis = "receiver_given_sender"))
     )
   )
 })
@@ -84,7 +84,7 @@ test_that("probabilities guardrail skips when dims are unavailable", {
     is_dependent = integer(0)
   )
   expect_no_warning(
-    warn_probabilities_footprint(prep, list(risk_set = list(axis = "dyad")))
+    warn_probabilities_footprint(prep, list(behavior = list(axis = "dyad")))
   )
 })
 
