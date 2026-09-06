@@ -143,7 +143,8 @@ Unchanged: exactly two stubs (`print.result.goldfish`,
 `summary.result.goldfish`) explain and stop; every other generic gives
 R's own "no applicable method". No fallback class on renamed objects.
 
-*Amended 2026-09-06 (Alvaro), after implementation measured the premise.*
+*Amended 2026-09-06 (Alvaro), after implementation measured the premise
+(ADR-0046).*
 "Every other generic gives R's own 'no applicable method'" is **false for
 three of them**. `stats::coef()`, `stats::residuals()` and
 `stats::fitted()` have `default` methods that read a component off the
