@@ -2,7 +2,7 @@
 
 ## Context
 
-`model_spec_structure()` stamps `c(variant, indexing, "model_spec")`, where
+`model_spec_structure()` stamps `c(variant, indexing, "goldfishKind")`, where
 `variant` is `model × sub_model`. Three mechanisms then read model behavior:
 the class vector (S3 dispatch), the `risk_set` descriptor field (a list
 computed once by `risk_set_descriptor()`), and direct string tests on
@@ -185,7 +185,7 @@ have the identifier swapped under them.
 ### D8 — This change and `class-naming-scheme` do not run concurrently
 
 Both rewrite `R/model_spec.R`, `R/model_preprocess.R` and
-`R/estimation_core.R`. Worse, they disagree about the destination: the rename
+`R/estimation_core.R`. Worse, they disagreed about the destination: the rename
 gives `dynam_rate_spec` a `goldfish<Thing>` name, while this change deletes
 several of those classes outright. Renaming a class and then removing it is
 pure waste, and doing both in one branch makes each diff unreviewable.
@@ -201,11 +201,25 @@ identical, so a handful of names minted by the rename will not survive it.
 That is bounded — around eleven internal, unexported class strings, no user
 surface — and paid once. It is recorded here rather than discovered later.
 
-An alternative remains available if that waste is judged not worth paying:
-`class-naming-scheme` excludes the `model_spec` hierarchy from its table, and
-this change names those classes when it reshapes them. That is a scope
-decision on the rename, not a re-ordering, and it can be taken at the rename's
-task 1.1 without disturbing anything here.
+*Resolved 2026-09-06.* `class-naming-scheme` has **landed** (48/50 on
+`refactor/class-naming-scheme`), and its task 1.1a settled the scope question
+the other way: the `model_spec` rows stay in the rename table and the waste is
+accepted, so the change carries one rule with no carve-out. The alternative
+previously recorded here — excluding the hierarchy from the rename table and
+letting this change name those classes when it reshapes them — is therefore
+**closed**, not merely unchosen. The concrete starting state for this change:
+
+| Was | Is now |
+| --- | --- |
+| `model_spec` | `goldfishKind` |
+| `dynam_rate_spec`, `dynam_rate_ordered_spec` | `goldfishKindDnRate`, `goldfishKindDnCox` |
+| `dynam_choice_spec`, `dynam_choice_coord_spec` | `goldfishKindDnChoice`, `goldfishKindDnCoord` |
+| `dynami_rate_spec`, `dynami_rate_ordered_spec`, `dynami_choice_spec` | `goldfishKindDniRate`, `goldfishKindDniCox`, `goldfishKindDniChoice` |
+| `rem_rate_spec`, `rem_rate_ordered_spec` | `goldfishKindRemRate`, `goldfishKindRemCox` |
+| `sender_spec`, `dyad_spec` | `goldfishAxisSender`, `goldfishAxisDyad` |
+
+The two axis classes are the ones this change leaves alone, so they are the
+two of the twelve expected to survive it.
 
 ### D9 — The preprocessing output classes collapse into one, distinguished by fields
 
@@ -214,10 +228,10 @@ appears again on the output side, measured on the current tree:
 
 | Class | S3 methods | `inherits()` checks |
 | --- | --- | --- |
-| `preprocessed.goldfish` | 1 (`print`) | 3 |
-| `preprocessed_db.goldfish` | 0 | 0 |
-| `flavored_preprocessed.goldfish` | 0 | 0 |
-| `flavored_statistics.goldfish` | 0 | 0 |
+| `goldfishStat` | 1 (`print`) | 3 |
+| `goldfishStatDB` | 0 | 0 |
+| `goldfishFlavPrep` | 0 | 0 |
+| `goldfishFlavStat` | 0 | 0 |
 | the `output = "gather"` return | **no class at all** | — |
 
 Four classes and one unclassed shape, with one method and three checks between
@@ -232,8 +246,8 @@ distinctions carried as fields:
 
 | Field | Values | Replaces |
 | --- | --- | --- |
-| `storage` | `pointer`, `stack`, `db` | `preprocessed` / gather / `preprocessed_db` |
-| `scope` | `single`, `flavored` | the `flavored_*` pair |
+| `storage` | `pointer`, `stack`, `db` | `goldfishStat` / gather / `goldfishStatDB` |
+| `scope` | `single`, `flavored` | the `goldfishFlav*` pair |
 
 One `print` method reads them. The gather gap closes by construction rather
 than by minting a fifth class.
@@ -268,7 +282,7 @@ object, not a variant of the same one.
 ### D10 — The mechanical flavored fan-outs collapse; the contract table does not
 
 New (2026-09-05, Alvaro). Seventeen generics are implemented twice, once for
-`result.goldfish` and once for `flavored_result.goldfish`
+`goldfishFit` and once for `goldfishFlavFit`
 ([ADR-0038](../../../decisions)). Classifying them shows two different
 problems wearing one label:
 
@@ -280,7 +294,7 @@ problems wearing one label:
 | bespoke | `diagnose_outliers`/`changepoints`/`onset`, `margin_table`, `coef_layout`, `print`, `augment`, `model_terms` | 11–69 lines |
 
 The first six are this change's rule applied a third time. They carry no
-behavior of their own: `predict.flavored_result.goldfish` is a one-line call to
+behavior of their own: `predict.goldfishFlavFit` is a one-line call to
 `flavored_component_apply()`, and `vcov` is the same `lapply` over
 `object$results` written by hand instead of through the helper. A container of
 N doing exactly what one does, N times, is the same finding as D9 — identical
@@ -325,9 +339,11 @@ change beyond an internal-refactor note. Rollback is per-commit (D7).
 
 ## Open Questions
 
-- Whether `class-naming-scheme` should exclude the `model_spec` hierarchy
-  from its rename table (D8's alternative), to avoid renaming classes this
-  change then dissolves. Ordering itself is settled: rename first.
+- ~~Whether `class-naming-scheme` should exclude the `model_spec` hierarchy
+  from its rename table (D8's alternative)~~ — **closed 2026-09-06**: the
+  rename landed with the hierarchy included (its task 1.1a), so the classes
+  this change dissolves are the `goldfishKind*` names, not the `*_spec` ones.
+  See D8's resolution note for the old→new table.
 - Whether retiring `dyad_symmetric` (D1a) touches the C++ boundary, or only
   the R-side reduction dispatch — `DyNAM_MM_default.cpp` is named in the
   comment at the branch site and must be checked before task 2.1.

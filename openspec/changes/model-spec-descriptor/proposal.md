@@ -5,7 +5,7 @@
 The model spec encodes what a model *is* three times, in three shapes, and
 they disagree about how many kinds there are.
 
-The class vector is `c(variant, indexing, "model_spec")`, where `variant` is
+The class vector is `c(variant, indexing, "goldfishKind")`, where `variant` is
 the cartesian product of `model` and `sub_model` — nine classes. That
 granularity is real for exactly one consumer. An audit of the current code
 (2026-09-05) found:
@@ -33,7 +33,8 @@ granularity is real for exactly one consumer. An audit of the current code
   **130 sites across 18 files**.
 
 - **Three of the nine likelihoods are aliases.**
-  `compute_event_contribution.dynami_rate_spec <- compute_event_contribution.dynam_rate_spec`
+  `compute_event_contribution.goldfishKindDniRate <-
+  compute_event_contribution.goldfishKindDnRate`
   and its two siblings are literal assignments. DyNAMi differs only in
   preprocessing (31-line methods against 9-line ones), and the effect-registry
   work is expected to close even that.
@@ -79,7 +80,7 @@ the rest of the variant space.
   implementations genuinely differ — the likelihood — so
   `compute_event_contribution` keeps a class to dispatch on, and the three
   DyNAMi aliases are deleted rather than re-registered.
-- **BREAKING (internal only)** — the `model_spec` class vector changes shape.
+- **BREAKING (internal only)** — the `goldfishKind` class vector changes shape.
   No exported function, argument, or return value changes; no user-visible
   behavior changes; no coefficient moves.
 

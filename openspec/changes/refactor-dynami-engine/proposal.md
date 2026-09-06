@@ -5,18 +5,18 @@
 > This change is the **post-release engine conversion only**: it consumes the
 > stocnet boundary that will already exist, and additionally retires the
 > internal stocnet→environment bridge that change introduces, along with the
-> `data_source_envir`/`is_legacy` seam, when the monolith goes.
+> `goldfishSourceEnvir`/`is_legacy` seam, when the monolith goes.
 
-> **Class note (2026-09-05):** three internal classes exist only to carry
-> DyNAM-i events through the monolith this change retires —
-> `interaction.network.updates`, `interaction.groups.updates` and
-> `windowed.interaction.network.updates`, stamped in `R/make_data_group.R` and
-> read in exactly one place, `preprocessInteraction`
-> (`R/model_preprocess_group.R:155,161,167`). `class-naming-scheme` renames
-> them to `goldfishInterNet`, `goldfishInterGrp` and `goldfishInterWindow`
-> under its uniform rule, expecting them to lose their only consumer here.
-> When the monolith goes, check whether they still have one: if not, remove
-> them rather than carrying three classes nothing reads.
+> **Class note (2026-09-05, updated 2026-09-06):** three internal classes
+> exist only to carry DyNAM-i events through the monolith this change retires —
+> `goldfishInterNet`, `goldfishInterGrp` and `goldfishInterWindow`, stamped in
+> `R/make_data_group.R` and read in exactly one place, `preprocessInteraction`
+> (`R/model_preprocess_group.R:155,161,167`). `class-naming-scheme` has now
+> landed and renamed them from `interaction.network.updates`,
+> `interaction.groups.updates` and `windowed.interaction.network.updates` under
+> its uniform rule, expecting them to lose their only consumer here. When the
+> monolith goes, check whether they still have one: if not, remove them rather
+> than carrying three classes nothing reads.
 
 ## Why
 
@@ -58,7 +58,7 @@ rewritten.
   `dynami-stocnet-boundary` already landed it (its grounding decides; see its
   design open questions).
 - Retire the internal stocnet→environment bridge introduced by
-  `dynami-stocnet-boundary` and delete the `data_source_envir`/`is_legacy`
+  `dynami-stocnet-boundary` and delete the `goldfishSourceEnvir`/`is_legacy`
   seam — the last environment consumers go with the monolith.
 - Retire `R/model_preprocess_group.R`'s monolith and the DyNAMi branches in
   `cleanInteractionEvents` once the recipe loop reproduces them at the 1e-6

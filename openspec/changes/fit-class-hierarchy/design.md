@@ -2,8 +2,8 @@
 
 ## Context
 
-Three fitted-model classes exist or are imminent: `result.goldfish` (single
-process), `flavored_result.goldfish` (a container of per-fid fits), and a DyNES
+Three fitted-model classes exist or are imminent: `goldfishFit` (single
+process), `goldfishFlavFit` (a container of per-fid fits), and a DyNES
 fit from the `abmcem` Monte-Carlo EM loop. They are flat — the flavored class
 does not inherit the single one — so sixteen generics are written twice, and
 four (`summary`, `tidy`, `glance`, `print.summary`) were written once and

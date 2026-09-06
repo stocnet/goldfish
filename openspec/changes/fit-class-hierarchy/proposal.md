@@ -4,14 +4,14 @@
 
 goldfish has two fitted-model classes and is about to gain a third, and they do
 not inherit from one another. `estimate_flavored()` builds its result as a flat
-`flavored_result.goldfish` — not `c("flavored_result.goldfish",
-"result.goldfish")` — and the object is a *container*: per-fid fits plus
+`goldfishFlavFit` — not `c("goldfishFlavFit", "goldfishFit")` — and the
+object is a *container*: per-fid fits plus
 `process_map`, `model`, `layer`, `flavors` and `call`. A DyNES fit from the
 `abmcem` loop would be a third such class.
 
 The cost of flatness is already measurable. **Sixteen generics are implemented
 twice**, once per class. And the leak has already happened: `summary`, `tidy`,
-`glance` and `print.summary` exist **only** for `result.goldfish`, so flavored
+`glance` and `print.summary` exist **only** for `goldfishFit`, so flavored
 fits silently lack all four. Nobody decided that — it is what happens when
 every new generic must be written twice and one of them is forgotten. A third
 flat class makes it three times, and the next omission is a matter of when.
