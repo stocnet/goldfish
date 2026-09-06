@@ -63,6 +63,6 @@ ADR-0038. **Runs after `class-naming-scheme`, and after
 - [x] 5.3 `NEWS.d/` fragment: flavored fits gain `summary`/`tidy`/`glance`;
       any generic now refusing is named. **Do not** bump `DESCRIPTION` or edit
       `NEWS.md` — merge-time folds (ADR-0040).
-- [ ] 5.4 Final **not-cran-test**; frozen 1e-6 and C++ goldens PASS not SKIP.
+- [x] 5.4 Final **not-cran-test**; frozen 1e-6 and C++ goldens PASS not SKIP.
 - [x] 5.5 Update ADR-0038's `spec:` field to this change, and note in
       `abmcem` that the DyNES fit class must arrive with its column filled.
