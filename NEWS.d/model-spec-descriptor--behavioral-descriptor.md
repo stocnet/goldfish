@@ -6,6 +6,10 @@
     events are modeled, rather than the consequence that right-censored rows
     are stored.
   * `has_intercept` is unchanged and still reports the formula's property.
+  * **`fit$right_censored` does not error.** It partially matches the
+    per-event `right_censored_events` vector and returns it, so old code
+    reading a scalar now silently receives a logical vector. Use
+    `fit$is_exact_time`, or `fit[["right_censored"]]`, which returns `NULL`.
 * Changed `risk_set_axis()` to return `"dyad"` for one-mode coordination.
   * It returned `"dyad_symmetric"`, which is retired.
   * Coordination reads the same dyad grid every dyadic model reads, so it
@@ -30,6 +34,8 @@
 * Improved the error when a DyNAM-i model reaches the compiled engine.
   * It failed with an internal `object 'res' not found`; it now names the
     model and points at `set_algorithm_newton(backend = "r")`.
+  * DyNAM-i still requires the R backend. The compiled path was never wired
+    for it and no baseline covers it.
 
 ## Internal
 
