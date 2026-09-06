@@ -284,15 +284,15 @@ estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
 consumers treat a missing value as an unknown backend.}
 \item{risk_set_axis}{a character value naming the axis a position in any
 per-event diagnostic component refers to: \code{"sender"},
-\code{"receiver_given_sender"}, \code{"dyad"} or \code{"dyad_symmetric"}. Read it with
-\code{\link[=risk_set_axis]{risk_set_axis()}}, which documents the four values and how each joins to
-\code{node_lookup}. Absent on objects fitted before goldfish 2.0.0.}
+\code{"receiver_given_sender"} or \code{"dyad"}. Read it with \code{\link[=risk_set_axis]{risk_set_axis()}},
+which documents the three values and how each joins to \code{node_lookup}.
+Absent on objects fitted before goldfish 2.0.0.}
 \item{node_lookup}{the \verb{(side, local, global, label)} table documented
 under \code{\link[=compute_statistics]{compute_statistics()}}, carried on the fit so a per-event diagnostic
 index resolves to the original node row and its label. It is \emph{the} index
 resolver: join a position to the side \code{\link[=risk_set_axis]{risk_set_axis()}} names — side 1 for
 \code{"sender"}, side 2 for \code{"receiver_given_sender"} on a two-mode model, and
-side 1 for both dyad axes on a one-mode model, whose sender and receiver
+side 1 for the dyad axis on a one-mode model, whose sender and receiver
 sets are the same nodes. The per-event components deliberately carry no
 \code{names()} or \code{dimnames()} of their own: this one table per fit would
 otherwise be repeated once per event, which on a long sequence is exactly

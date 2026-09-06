@@ -1577,8 +1577,8 @@ expand_event_probabilities <- function(
       full[receiver_slots] <- as.numeric(p_reduced)
       full
     },
-    # dyad (REM, REM_ordered) and dyad_symmetric (coordination) carry the
-    # reduced n1r x n2r grid, which scatters into the whole n1 x n2 grid.
+    # The dyad families (REM, REM_ordered, coordination) carry the reduced
+    # n1r x n2r grid, which scatters into the whole n1 x n2 grid.
     {
       full <- matrix(0, n_actors1, n_actors2)
       full[sender_slots, receiver_slots] <- p_reduced
@@ -1608,10 +1608,10 @@ r_reduce_event <- function(
   receiver_slots
 ) {
   axis <- ctx$margin_axis
-  # Coordination (DyNAM-MM) is a fourth geometry: its realized risk set is the
-  # UNORDERED dyad list {a > b}, not the n1 x n2 grid. Rank and margins
+  # Coordination shares the dyad axis, but its REALIZED risk set is the
+  # unordered dyad list {a > b} rather than the n1 x n2 grid. Rank and margins
   # run over that list, matching DyNAM_MM_default.cpp, so it takes its own path.
-  if (identical(axis, "dyad_symmetric")) {
+  if (isTRUE(ctx$is_coordination)) {
     return(r_reduce_event_coordination(
       state,
       ctx,
@@ -1635,7 +1635,7 @@ r_reduce_event <- function(
       axis,
       sender = activeDyad[1],
       receiver_given_sender = activeDyad[2],
-      # dyad / dyad_symmetric: column-major linear index into the n1r x n2r grid
+      # dyad: column-major linear index into the n1r x n2r grid
       activeDyad[1] + (activeDyad[2] - 1L) * n1r
     )
   } else {
@@ -2208,6 +2208,10 @@ compute_iteration_step <- function(
     event_weights = event_weights,
     return_event_information_trace = return_event_information_trace,
     margin_axis = margin_axis,
+    # Coordination shares the dyad axis but reduces to unordered pairs, so the
+    # margin and rank paths need it as its own fact rather than reading it out
+    # of a fourth axis value.
+    is_coordination = identical(behavior_likelihood(spec), "coordination"),
     is_exact_time = is_exact_time,
     # Whole-node-set sizes, used to scatter the reduced per-event risk set back
     # onto actor ids: margins accumulate into them, probabilities expand to them.
@@ -2334,10 +2338,19 @@ compute_iteration_step <- function(
     returnList$conditional_logl <- state$conditional_logl
   }
   if (return_margins) {
-    returnList$margins <- assemble_r_margins(state, margin_axis, is_exact_time)
+    returnList$margins <- assemble_r_margins(
+      state,
+      margin_axis,
+      is_exact_time,
+      ctx$is_coordination
+    )
   }
   if (return_availability) {
-    returnList$availability <- assemble_r_availability(state, margin_axis)
+    returnList$availability <- assemble_r_availability(
+      state,
+      margin_axis,
+      ctx$is_coordination
+    )
   }
   if (return_conditional_scores && is_exact_time) {
     returnList$conditional_scores <- state$conditional_scores
@@ -2357,7 +2370,7 @@ compute_iteration_step <- function(
 
 # Shape the raw per-side margin accumulators into the result list the cpp
 # backend also produces (cpp_interface.R): two accumulators for the two-sided
-# families (dyad / dyad_symmetric -> sender + receiver), one for the single-
+# families (dyad -> sender + receiver), one for the single-
 # sided ones. The primary `expected` is the compensator scale on exact-time
 # fits and the probability scale on multinomial ones; exact-time fits carry the
 # probability-scale variant additionally under `expected_probability*`.
@@ -2399,10 +2412,10 @@ accumulate_r_availability <- function(
 # backend also produces, using the margins' own side rule: the two-sided dyad
 # families report each side separately, the sender / receiver / endpoint
 # families report one vector per quantity. `exposure` is absent off exact-time.
-assemble_r_availability <- function(state, margin_axis) {
+assemble_r_availability <- function(state, margin_axis, is_coordination) {
   # Exposure first, as the compiled assembly orders it, so the two backends
   # produce identical lists rather than the same set in a different order.
-  if (identical(margin_axis, "dyad")) {
+  if (identical(margin_axis, "dyad") && !is_coordination) {
     availability <- list()
     if (!is.null(state$a_exp_i)) {
       availability$exposure_sender <- state$a_exp_i
@@ -2422,12 +2435,17 @@ assemble_r_availability <- function(state, margin_axis) {
   availability
 }
 
-assemble_r_margins <- function(state, margin_axis, is_exact_time) {
-  # Only standard REM / REM_ordered (axis "dyad") are two-sided (distinct sender
-  # and receiver accumulators). Coordination ("dyad_symmetric") credits both
+assemble_r_margins <- function(
+  state,
+  margin_axis,
+  is_exact_time,
+  is_coordination
+) {
+  # Only standard REM / REM_ordered are two-sided (distinct sender and receiver
+  # accumulators). Coordination shares their dyad axis but credits both
   # endpoints into ONE actor set, so its result is single-sided like the sender
-  # / receiver families.
-  if (identical(margin_axis, "dyad")) {
+  # / receiver families -- which is why the axis alone cannot decide this.
+  if (identical(margin_axis, "dyad") && !is_coordination) {
     margins <- list(
       observed_sender = state$m_obs_i,
       expected_sender = state$m_exp_i,
@@ -2442,7 +2460,7 @@ assemble_r_margins <- function(state, margin_axis, is_exact_time) {
     one <- if (identical(margin_axis, "receiver_given_sender")) {
       list(obs = state$m_obs_j, exp = state$m_exp_j, prob = state$m_prob_j)
     } else {
-      # sender or dyad_symmetric (coordination): the side-i accumulators.
+      # sender, or coordination crediting both endpoints: side-i accumulators.
       list(obs = state$m_obs_i, exp = state$m_exp_i, prob = state$m_prob_i)
     }
     margins <- list(observed = one$obs, expected = one$exp)

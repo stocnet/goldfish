@@ -18,11 +18,10 @@ A length-one character vector, one of:
 per-event position is an actor who could have acted.}
 \item{\code{"receiver_given_sender"}}{choice models — one sender's receiver
 row, so a per-event position is a candidate receiver.}
-\item{\code{"dyad"}}{REM, REM-ordered and two-mode coordination — the full
-ordered dyad grid.}
-\item{\code{"dyad_symmetric"}}{one-mode coordination — the dyad matrix
-symmetrized for the mutual likelihood, so a position names an
-unordered pair.}
+\item{\code{"dyad"}}{REM, REM-ordered and coordination — the full ordered
+dyad grid. Coordination shares this axis because its statistics are
+computed on the same grid; that its likelihood sums each unordered
+pair once is a property of the likelihood, not of the axis.}
 }
 \code{NULL} for a fit produced before goldfish 2.0.0, which did not record it;
 consumers treat a missing value as an unknown axis, as they do for
@@ -40,8 +39,9 @@ model family from \code{model} / \code{sub_model}.
 \details{
 Join a per-event index to the fit's \code{node_lookup} on the side the axis names:
 side 1 for \code{"sender"}, side 2 for \code{"receiver_given_sender"} on a two-mode
-model. A one-mode model draws both dyad axes from side 1, because its sender
-and receiver sets are the same nodes, so its lookup carries side 1 only.
+model. A one-mode model draws both ends of a dyad from side 1, because its
+sender and receiver sets are the same nodes, so its lookup carries side 1
+only.
 }
 \examples{
 data("social_evolution")

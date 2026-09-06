@@ -172,7 +172,7 @@ test_that("every spec class carries the documented behavioral descriptor", {
       encoding = "alter"
     ),
     dynam_choice_coord = list(
-      axis = "dyad_symmetric",
+      axis = "dyad",
       timing = "ordinal",
       likelihood = "coordination",
       input_shape = "standard",
@@ -281,15 +281,15 @@ test_that("an unmapped combination aborts rather than yielding NA fields", {
   # REM has no choice sub-model: reaching a consumer with a half-filled
   # descriptor is the failure mode this abort exists to prevent.
   expect_error(
-    behavior_descriptor("goldfishAxisDyad", "REM", "choice", FALSE),
+    behavior_descriptor("goldfishAxisDyad", "REM", "choice"),
     "No behavioral descriptor is defined"
   )
   expect_error(
-    behavior_descriptor("goldfishAxisSender", "DyNAM", "meeting", FALSE),
+    behavior_descriptor("goldfishAxisSender", "DyNAM", "meeting"),
     "No behavioral descriptor is defined"
   )
   expect_error(
-    behavior_descriptor("goldfishAxisPair", "DyNAM", "rate", FALSE),
+    behavior_descriptor("goldfishAxisPair", "DyNAM", "rate"),
     "must be one of"
   )
 })
@@ -302,19 +302,22 @@ test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {
   expect_false(risk_set_is_dyadic(dynam_rate_spec(nodes = "actors")))
 })
 
-test_that("coordination symmetrize follows one-mode vs two-mode", {
-  # One-mode coordination symmetrizes the dyad for the mutual likelihood; a
-  # two-mode risk set (rejected before construction elsewhere) would not.
-  one_mode <- dynam_choice_coord_spec(nodes = "actors")
-  expect_identical(risk_set_axis(one_mode), "dyad_symmetric")
-  expect_true(risk_set_symmetrize(one_mode))
-  two_mode <- dynam_choice_coord_spec(
-    is_two_mode = TRUE,
-    nodes = "actors",
-    nodes2 = "clubs"
+test_that("coordination symmetrizes by its likelihood, not by its axis", {
+  # Coordination reads the same dyad grid every dyadic model does -- what
+  # differs is that its likelihood sums each unordered pair once. So it shares
+  # the axis and is told apart by the likelihood, and no consumer needs a
+  # fourth axis value to find it.
+  coordination <- dynam_choice_coord_spec(nodes = "actors")
+  expect_identical(risk_set_axis(coordination), "dyad")
+  expect_identical(
+    risk_set_axis(coordination),
+    risk_set_axis(rem_rate_spec(
+      nodes = "actors"
+    ))
   )
-  expect_identical(risk_set_axis(two_mode), "dyad")
-  expect_false(risk_set_symmetrize(two_mode))
+  expect_identical(behavior_likelihood(coordination), "coordination")
+  expect_true(risk_set_symmetrize(coordination))
+  expect_false(risk_set_symmetrize(rem_rate_spec(nodes = "actors")))
 })
 
 test_that("estimate_dynam constructs and forwards the typed spec", {

@@ -31,7 +31,7 @@ model_spec_structure <- function(
       is_two_mode = is_two_mode,
       nodes = nodes,
       nodes2 = nodes2,
-      behavior = behavior_descriptor(indexing, model, sub_model, is_two_mode),
+      behavior = behavior_descriptor(indexing, model, sub_model),
       ...
     ),
     class = c(variant, indexing, "goldfishKind")
@@ -42,7 +42,7 @@ model_spec_structure <- function(
 #'
 #' The single parse-time decision point for everything a downstream component
 #' needs to know about how a model behaves. Derived once, at construction,
-#' from the resolved `(indexing, model, sub_model, is_two_mode)`; every
+#' from the resolved `(indexing, model, sub_model)`; every
 #' consumer (recipe selection, availability encoding, fold-family selection,
 #' validation family, rate detection, estimation guards) reads it through the
 #' accessors below and none re-derives the family, geometry or timing regime
@@ -54,11 +54,12 @@ model_spec_structure <- function(
 #' branches on does not belong here. Fields:
 #' \describe{
 #'   \item{`axis`}{the risk-set axis: `"sender"` (rate models, sender-indexed),
-#'     `"receiver_given_sender"` (choice — one sender's receiver row),
-#'     `"dyad"` (REM / REM-ordered / two-mode coordination — the full dyad
-#'     matrix), or `"dyad_symmetric"` (one-mode coordination — the dyad
-#'     matrix symmetrized for the mutual likelihood). Preprocessing reads the
-#'     sender recipe off `"sender"` and the dyad recipe off everything else.}
+#'     `"receiver_given_sender"` (choice — one sender's receiver row), or
+#'     `"dyad"` (REM, REM-ordered and coordination — the full dyad matrix).
+#'     Coordination is `"dyad"` like the rest: its statistics are computed on
+#'     the same grid, and the unordered-pair reduction its likelihood applies
+#'     is carried by `likelihood`. Preprocessing reads the sender recipe off
+#'     `"sender"` and the dyad recipe off everything else.}
 #'   \item{`timing`}{the timing regime: `"timed"` when the sub-model is a rate
 #'     over waiting times, so the likelihood carries an exposure denominator
 #'     and the right-censored intervals contribute to it; `"ordinal"` when
@@ -85,7 +86,7 @@ model_spec_structure <- function(
 #'     `"alter"` for choice (receiver presence only), `NA` for rate.}
 #' }
 #' @noRd
-behavior_descriptor <- function(indexing, model, sub_model, is_two_mode) {
+behavior_descriptor <- function(indexing, model, sub_model) {
   # The nine supported variants, spelled out rather than validated field by
   # field: an unmapped combination must fail here rather than reach a
   # consumer with a descriptor whose fields are missing or NA.
@@ -132,15 +133,11 @@ behavior_descriptor <- function(indexing, model, sub_model, is_two_mode) {
     "sender"
   } else if (identical(sub_model, "choice")) {
     "receiver_given_sender"
-  } else if (
-    identical(sub_model, "choice_coordination") && !isTRUE(is_two_mode)
-  ) {
-    # One-mode coordination symmetrizes the dyad matrix for the mutual
-    # likelihood; a (rejected-before-construction) two-mode coordination would
-    # not. Deriving from is_two_mode keeps the value correct either way.
-    "dyad_symmetric"
   } else {
-    # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
+    # REM rate / rate_ordered and coordination alike: the whole dyad matrix,
+    # both presences fold. Coordination's statistics are computed on the same
+    # grid; what differs is that its likelihood sums each unordered pair once,
+    # and that is carried by `likelihood`, not here.
     "dyad"
   }
 
@@ -176,8 +173,9 @@ behavior_descriptor <- function(indexing, model, sub_model, is_two_mode) {
 #'
 #' Join a per-event index to the fit's `node_lookup` on the side the axis names:
 #' side 1 for `"sender"`, side 2 for `"receiver_given_sender"` on a two-mode
-#' model. A one-mode model draws both dyad axes from side 1, because its sender
-#' and receiver sets are the same nodes, so its lookup carries side 1 only.
+#' model. A one-mode model draws both ends of a dyad from side 1, because its
+#' sender and receiver sets are the same nodes, so its lookup carries side 1
+#' only.
 #'
 #' @param x a fitted model of class `"goldfishFit"` (from
 #'   [estimate_dynam()], [estimate_rem()]), a preprocessed object, or a model
@@ -189,11 +187,10 @@ behavior_descriptor <- function(indexing, model, sub_model, is_two_mode) {
 #'       per-event position is an actor who could have acted.}
 #'     \item{`"receiver_given_sender"`}{choice models — one sender's receiver
 #'       row, so a per-event position is a candidate receiver.}
-#'     \item{`"dyad"`}{REM, REM-ordered and two-mode coordination — the full
-#'       ordered dyad grid.}
-#'     \item{`"dyad_symmetric"`}{one-mode coordination — the dyad matrix
-#'       symmetrized for the mutual likelihood, so a position names an
-#'       unordered pair.}
+#'     \item{`"dyad"`}{REM, REM-ordered and coordination — the full ordered
+#'       dyad grid. Coordination shares this axis because its statistics are
+#'       computed on the same grid; that its likelihood sums each unordered
+#'       pair once is a property of the likelihood, not of the axis.}
 #'   }
 #'   `NULL` for a fit produced before goldfish 2.0.0, which did not record it;
 #'   consumers treat a missing value as an unknown axis, as they do for
@@ -273,13 +270,13 @@ risk_set_encoding <- function(spec) spec$behavior$encoding
 #' once rather than reading `(a, b)` and `(b, a)` as separate observations.
 #' @noRd
 risk_set_symmetrize <- function(spec) {
-  identical(risk_set_axis(spec), "dyad_symmetric")
+  identical(behavior_likelihood(spec), "coordination")
 }
 
 #' Whether the risk set spans the full dyad matrix (both presences fold)
 #' @noRd
 risk_set_is_dyadic <- function(spec) {
-  risk_set_axis(spec) %in% c("dyad", "dyad_symmetric")
+  identical(risk_set_axis(spec), "dyad")
 }
 
 #' Engine capability for constrained (support_constraint) estimation

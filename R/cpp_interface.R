@@ -1786,7 +1786,7 @@ compute_ <- function(
   } else if (identical(axis, "sender")) {
     margin_j <- integer(0) # sender margins only
   }
-  # dyad / dyad_symmetric keep both sides.
+  # The dyad axis keeps both sides.
 
   if (identical(behavior_likelihood(spec), "multinomial")) {
     res <- compute_multinomial_selection(

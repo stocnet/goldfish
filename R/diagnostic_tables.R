@@ -713,7 +713,10 @@ margin_sides <- function(margins, axis, call = rlang::caller_env()) {
     axis %||% "",
     sender = "sender",
     receiver_given_sender = "receiver",
-    dyad_symmetric = "endpoint",
+    # A dyad-axis fit reaching here is coordination. The two-sided families
+    # share that axis but name their margins per side, so they returned above;
+    # what is left credits both endpoints into one actor set.
+    dyad = "endpoint",
     cli::cli_abort(
       c(
         "Cannot name the margin role of this fit.",
