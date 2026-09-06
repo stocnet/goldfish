@@ -8,6 +8,16 @@ package_r_dir <- function() {
   path
 }
 
+# S3 methods of an internal generic, read off the namespace. See the note in
+# "dispatch survives only where implementations differ" for why not methods().
+internal_methods <- function(generic) {
+  grep(
+    paste0("^", generic, "[.]"),
+    ls(asNamespace("goldfish"), all.names = TRUE),
+    value = TRUE
+  )
+}
+
 source_lines <- function() {
   dir <- package_r_dir()
   files <- list.files(dir, pattern = "[.]R$", full.names = TRUE)
@@ -102,14 +112,17 @@ test_that("dispatch survives only where implementations differ", {
 
   # `estimate_int` still dispatches on the axis it loops over, and
   # preprocessing dispatches on nothing per variant.
+  #
+  # Enumerated from the namespace, not with `methods()`: these generics are
+  # internal with no `S3method()` entry, so an INSTALLED package has nothing
+  # for `methods()` to find and it returns character(0). Under `load_all()`
+  # it finds them, which is how a test can pass in development and fail
+  # under `R CMD check`.
   expect_setequal(
-    as.character(methods(estimate_int)),
+    internal_methods("estimate_int"),
     c("estimate_int.goldfishAxisSender", "estimate_int.goldfishAxisDyad")
   )
-  expect_identical(
-    as.character(methods(preprocess)),
-    "preprocess.goldfishKind"
-  )
+  expect_identical(internal_methods("preprocess"), "preprocess.goldfishKind")
 })
 
 test_that("a DyNAM-i spec dispatches to the DyNAM method, with no alias", {

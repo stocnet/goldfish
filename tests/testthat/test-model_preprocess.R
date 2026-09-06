@@ -128,8 +128,15 @@ test_that("Imputation of missing data when categorical/string data is missing.",
 test_that("preprocessing dispatches once, on the descriptor, not per variant", {
   # A method per variant is what this replaced: the recipe choice is a lookup,
   # so one method reads it off the spec and nothing dispatches on the kind.
+  # Enumerated from the namespace: `preprocess` is internal with no
+  # `S3method()` entry, so `methods()` finds nothing in an installed package
+  # and this would pass under load_all() while failing under R CMD check.
   expect_identical(
-    as.character(methods("preprocess")),
+    grep(
+      "^preprocess[.]",
+      ls(asNamespace("goldfish"), all.names = TRUE),
+      value = TRUE
+    ),
     "preprocess.goldfishKind"
   )
 })
