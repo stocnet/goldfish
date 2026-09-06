@@ -1,13 +1,20 @@
 #' Preprocess a model given its specification
 #'
-#' S3 generic dispatched on the model specification class.
-#' Model variants converted to the recipe architecture implement a dedicated
-#' method; the remaining variants fall back to the monolithic loop through
-#' `preprocess.goldfishKind()` until their recipe lands.
+#' Selecting a recipe is a lookup, not a polymorphism: every variant runs the
+#' same two loops, differing only in which one and in the parameters that
+#' distinguish a timed rate from an ordinal sub-model. So the generic carries
+#' one method that reads those facts off the spec's behavioral descriptor,
+#' rather than a method per model variant restating them.
 #'
-#' @param spec a `model_spec` object from `new_model_spec()`.
-#' @param ... arguments passed to the recipe methods, see
-#'   `preprocess_monolith()` and `run_sender_recipe_loop()`.
+#' DyNAM-i is the one difference that is still real: its events arrive as
+#' group interactions and reach a preprocessing loop of their own. That is a
+#' property of the input, not of the model variant, so the descriptor's input
+#' shape carries it and the same method routes on it — until the
+#' effect-registry work closes the gap and the branch goes too.
+#'
+#' @param spec a `goldfishKind` object from `new_model_spec()`.
+#' @param ... arguments passed to the recipe loops, see
+#'   `run_sender_recipe_loop()` and `run_dyad_recipe_loop()`.
 #'
 #' @return a list of class goldfishStat
 #' @noRd
@@ -17,92 +24,38 @@ preprocess <- function(spec, ...) {
 
 #' @noRd
 preprocess.goldfishKind <- function(spec, ...) {
-  legacy_sub_model <- if (inherits(spec, "goldfishAxisSender")) {
-    "rate"
-  } else {
-    "choice"
+  if (identical(behavior_input_shape(spec), "grouped")) {
+    return(run_dynami_monolith(spec, ...))
   }
-  preprocess_monolith(model = spec$model, sub_model = legacy_sub_model, ...)
+  recipe <- if (identical(risk_set_axis(spec), "sender")) {
+    run_sender_recipe_loop
+  } else {
+    run_dyad_recipe_loop
+  }
+  # A timed rate models the waiting times, so its loop emits the
+  # right-censored intervals and the intercept scalars that multiply them.
+  # An ordinal sub-model models only which event came next and needs neither,
+  # which is why both parameters follow one fact rather than two.
+  timed <- identical(behavior_timing(spec), "timed")
+  recipe(spec, ..., right_censored = timed, intercept_scalars = timed)
 }
 
-#' @noRd
-preprocess.goldfishKindDnRate <- function(spec, ...) {
-  run_sender_recipe_loop(
-    spec,
-    ...,
-    right_censored = TRUE,
-    intercept_scalars = TRUE
-  )
-}
-
-#' @noRd
-preprocess.goldfishKindDnCox <- function(spec, ...) {
-  run_sender_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.goldfishKindDnChoice <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.goldfishKindDnCoord <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.goldfishKindRemRate <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = TRUE,
-    intercept_scalars = TRUE
-  )
-}
-
-#' @noRd
-preprocess.goldfishKindRemCox <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' DyNAMi recipe wrappers
+#' DyNAM-i preprocessing delegate
 #'
-#' Thin wrappers delegating to the existing monolithic DyNAMi preprocessing
-#' loop with unchanged arguments. The dedicated DyNAMi recipe
-#' (post-event update order, `sub_type` normalisation) is deferred to the
-#' effects unification change. `preprocess_interaction()` keeps computing its
-#' own start and end times from the event streams, as it did before the
-#' dispatch wiring.
+#' Thin delegate to the existing monolithic DyNAM-i preprocessing loop with
+#' unchanged arguments. The dedicated DyNAM-i recipe (post-event update order,
+#' `sub_type` normalisation) is deferred to the effects unification change.
+#' `preprocess_interaction()` keeps computing its own start and end times from
+#' the event streams, as it did before the dispatch wiring.
 #'
 #' @inheritParams run_sender_recipe_loop
 #' @param groups_network character, name of the groups network object.
-#' @param ... absorbs the recipe arguments that the DyNAMi loop does not
+#' @param ... absorbs the recipe arguments that the DyNAM-i loop does not
 #'   consume (`window_parameters`, `ignore_rep_parameter`, `is_two_mode`,
-#'   `startTime`, `endTime`, `opportunitiesList`).
-#' @name preprocess_dynami
+#'   `startTime`, `endTime`, `opportunitiesList`, `writer`).
 #' @noRd
 run_dynami_monolith <- function(
-  sub_model,
+  spec,
   events,
   effects,
   events_objects_link,
@@ -113,10 +66,19 @@ run_dynami_monolith <- function(
   right_censored = FALSE,
   progress = FALSE,
   groups_network = NULL,
-  prep_envir = new.env()
+  prep_envir = new.env(),
+  ...
 ) {
   prep <- preprocess_interaction(
-    sub_model = sub_model,
+    # The interaction loop predates the ordinal split and knows two sub-models
+    # only. Both sender-indexed DyNAM-i variants take its rate path -- they
+    # differ downstream, in the likelihood, not in how the statistics are
+    # gathered -- and the receiver-indexed one takes its choice path.
+    sub_model = if (identical(risk_set_axis(spec), "sender")) {
+      "rate"
+    } else {
+      "choice"
+    },
     events = events,
     effects = effects,
     events_objects_link = events_objects_link,
@@ -131,105 +93,6 @@ run_dynami_monolith <- function(
   )
   prep$prep_version <- PREP_VERSION
   prep
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.goldfishKindDniRate <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "rate",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.goldfishKindDniCox <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "rate",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.goldfishKindDniChoice <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "choice",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
 }
 
 #' Sender-indexed recipe kernel
