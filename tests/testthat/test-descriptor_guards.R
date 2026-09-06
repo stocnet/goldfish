@@ -87,3 +87,53 @@ test_that("is_exact_time follows the sub-model on every output form", {
     expect_false("right_censored" %in% names(timed), info = output)
   }
 })
+
+test_that("dispatch survives only where implementations differ", {
+  # Nine variants, six likelihood methods, and no method registered as an
+  # alias of another: a registered method contains an implementation.
+  ns <- asNamespace("goldfish")
+  methods <- grep(
+    "^compute_event_contribution[.]",
+    ls(ns, all.names = TRUE),
+    value = TRUE
+  )
+  bodies <- lapply(methods, function(m) body(get(m, envir = ns)))
+  expect_identical(anyDuplicated(bodies), 0L)
+
+  # `estimate_int` still dispatches on the axis it loops over, and
+  # preprocessing dispatches on nothing per variant.
+  expect_setequal(
+    as.character(methods(estimate_int)),
+    c("estimate_int.goldfishAxisSender", "estimate_int.goldfishAxisDyad")
+  )
+  expect_identical(
+    as.character(methods(preprocess)),
+    "preprocess.goldfishKind"
+  )
+})
+
+test_that("a DyNAM-i spec dispatches to the DyNAM method, with no alias", {
+  pairs <- list(
+    c("rate", "rate"),
+    c("rate_ordered", "rate_ordered"),
+    c("choice", "choice")
+  )
+  for (p in pairs) {
+    dynami <- new_model_spec("DyNAMi", p[1], nodes = "actors")
+    dynam <- new_model_spec("DyNAM", p[2], nodes = "actors")
+    # The same class, so necessarily the same method -- which is why deleting
+    # the three aliases removed code rather than behavior.
+    expect_identical(class(dynami)[1], class(dynam)[1], info = p[1])
+    expect_identical(
+      utils::getS3method("compute_event_contribution", class(dynami)[1]),
+      utils::getS3method("compute_event_contribution", class(dynam)[1]),
+      info = p[1]
+    )
+  }
+  # And no method is registered under any retired variant name.
+  ns <- asNamespace("goldfish")
+  expect_false(any(grepl(
+    "^compute_event_contribution[.]goldfishKind(Dn|Dni|Rem)",
+    ls(ns, all.names = TRUE)
+  )))
+})

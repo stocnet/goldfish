@@ -459,11 +459,11 @@ evaluate_engine_once <- function(
       is_two_mode = is_two_mode,
       # The choice families reduce the per-event statistics array to the
       # sender's matrix before the contribution reads it; estimation decides
-      # this from the same two spec classes, and an evaluation must make the
+      # this from the same descriptor field, and an evaluation must make the
       # same choice or the contribution meets an array of the wrong rank.
-      reduce_array_to_matrix = inherits(
-        spec,
-        c("goldfishKindDnChoice", "goldfishKindDniChoice")
+      reduce_array_to_matrix = identical(
+        risk_set_axis(spec),
+        "receiver_given_sender"
       ),
       seed_intercept = FALSE
     )

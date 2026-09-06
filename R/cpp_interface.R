@@ -941,10 +941,24 @@ estimate_ <- function(
   event_weights = NULL,
   return_event_information_trace = FALSE
 ) {
+  # DyNAM-i shares its likelihood with the corresponding DyNAM variant -- that
+  # is why it needs no method of its own -- but its preprocessed object comes
+  # from the group-interaction loop, and no kernel below has ever been
+  # validated against that shape. Reaching this function with one has always
+  # failed; refuse it by name rather than by falling through to an unassigned
+  # result, and rather than silently running a kernel on data it was not
+  # written for.
+  if (identical(behavior_input_shape(spec), "grouped")) {
+    cli::cli_abort(c(
+      "The compiled engine does not run {.val DyNAMi} models.",
+      "i" = "Use {.code set_algorithm_newton(backend = \"r\")}."
+    ))
+  }
+
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
   # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
-  if (inherits(spec, "goldfishKindDnCoord")) {
+  if (inherits(spec, "goldfishLikCoordination")) {
     res <- estimate_DyNAM_MM(
       parameters,
       event_mat,
@@ -974,7 +988,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "goldfishKindDnChoice")) {
+  if (inherits(spec, "goldfishLikReceiverMultinom")) {
     res <- estimate_DyNAM_choice(
       parameters,
       event_mat,
@@ -1001,7 +1015,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "goldfishKindRemCox")) {
+  if (inherits(spec, "goldfishLikDyadMultinom")) {
     res <- estimate_REM_ordered(
       parameters,
       event_mat,
@@ -1031,7 +1045,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "goldfishKindRemRate")) {
+  if (inherits(spec, "goldfishLikDyadPoisson")) {
     res <- estimate_REM(
       parameters,
       event_mat,
@@ -1065,7 +1079,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "goldfishKindDnRate")) {
+  if (inherits(spec, "goldfishLikSenderPoisson")) {
     res <- estimate_DyNAM_rate(
       parameters,
       event_mat,
@@ -1098,7 +1112,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "goldfishKindDnCox")) {
+  if (inherits(spec, "goldfishLikSenderMultinom")) {
     res <- estimate_DyNAM_rate_ordered(
       parameters,
       event_mat,

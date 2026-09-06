@@ -27,22 +27,22 @@ predictor_stats_3d <- function(predictorMatrix) {
 
 choice_fn <-
   getFromNamespace(
-    "compute_event_contribution.goldfishKindDnChoice",
+    "compute_event_contribution.goldfishLikReceiverMultinom",
     "goldfish"
   )
 rem_ordered_fn <-
   getFromNamespace(
-    "compute_event_contribution.goldfishKindRemCox",
+    "compute_event_contribution.goldfishLikDyadMultinom",
     "goldfish"
   )
 rate_ordered_fn <-
   getFromNamespace(
-    "compute_event_contribution.goldfishKindDnCox",
+    "compute_event_contribution.goldfishLikSenderMultinom",
     "goldfish"
   )
 coord_fn <-
   getFromNamespace(
-    "compute_event_contribution.goldfishKindDnCoord",
+    "compute_event_contribution.goldfishLikCoordination",
     "goldfish"
   )
 

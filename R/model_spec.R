@@ -2,8 +2,10 @@
 #'
 #' Low-level constructors for the typed model specification objects that
 #' carry the resolved model variant through preprocessing and estimation.
-#' The class vector follows `c("goldfishKind<Variant>", "goldfishAxis<Axis>",
-#' "goldfishKind")`. `goldfishAxisSender` variants are sender-indexed but may
+#' The class vector follows `c("goldfishLik<Likelihood>", "goldfishAxis<Axis>",
+#' "goldfishKind")` — the two things that dispatch, and not the model and
+#' sub-model pairing, which dispatches nothing.
+#' `goldfishAxisSender` variants are sender-indexed but may
 #' be two-mode: the receiver side (`nodes2`) and `is_two_mode` are carried so a
 #' rate model over an n1 x n2 network sizes its statistics on both modes.
 #'
@@ -15,7 +17,6 @@
 #' @name model_spec
 #' @noRd
 model_spec_structure <- function(
-  variant,
   indexing,
   model,
   sub_model,
@@ -24,6 +25,7 @@ model_spec_structure <- function(
   nodes2,
   ...
 ) {
+  behavior <- behavior_descriptor(indexing, model, sub_model)
   structure(
     list(
       model = model,
@@ -31,10 +33,44 @@ model_spec_structure <- function(
       is_two_mode = is_two_mode,
       nodes = nodes,
       nodes2 = nodes2,
-      behavior = behavior_descriptor(indexing, model, sub_model),
+      behavior = behavior,
       ...
     ),
-    class = c(variant, indexing, "goldfishKind")
+    class = c(likelihood_class(behavior), indexing, "goldfishKind")
+  )
+}
+
+#' The class a spec dispatches its likelihood on
+#'
+#' A class earns its place by dispatching a different implementation, so the
+#' class vector names the two things that do: the likelihood, and the axis the
+#' estimation entry point loops over. It does not name the model and sub-model
+#' pairing, which decides neither.
+#'
+#' The likelihood implementation is determined by `(axis, likelihood)` and by
+#' nothing else — six pairs across the nine supported variants. That is what
+#' makes DyNAM-i free: a DyNAM-i rate spec lands on the same pair as a DyNAM
+#' rate spec because its likelihood code was always the same code, so it needs
+#' no class and no alias method of its own.
+#'
+#' @param behavior a spec's behavioral descriptor.
+#' @return the likelihood class string.
+#' @noRd
+likelihood_class <- function(behavior) {
+  combination <- paste(behavior$axis, behavior$likelihood, sep = "/")
+  switch(
+    combination,
+    "sender/poisson" = "goldfishLikSenderPoisson",
+    "sender/multinomial" = "goldfishLikSenderMultinom",
+    "receiver_given_sender/multinomial" = "goldfishLikReceiverMultinom",
+    "dyad/poisson" = "goldfishLikDyadPoisson",
+    "dyad/multinomial" = "goldfishLikDyadMultinom",
+    "dyad/coordination" = "goldfishLikCoordination",
+    cli::cli_abort(c(
+      "No likelihood is implemented for {.val {combination}}.",
+      "i" = "A new axis or likelihood family needs a method, not a mapping
+             onto an existing one."
+    ))
   )
 }
 
@@ -281,43 +317,46 @@ risk_set_is_dyadic <- function(spec) {
 
 #' Engine capability for constrained (support_constraint) estimation
 #'
-#' The single table answering whether an engine consumes a `support_constraint`
-#' for a given model family. Every wired recipe family folds its availability
-#' during preprocessing and reads the folded buffers natively on all engines, so
-#' the capability is engine-independent: one row per spec class. The DyNAMi
-#' monolith and the ordinal DyNAM-rate path do not yet consume a folded
-#' constraint. Keyed by `class(spec)[1]`; the value is a human-readable family
-#' label for supported classes and `NA` for unsupported ones, so the abort
-#' message enumerates the supported families from the table and wiring a new
-#' family is a one-row edit.
-#' @noRd
-constrained_support_map <- function() {
-  c(
-    goldfishKindDnChoice = "DyNAM choice",
-    goldfishKindDnCoord = "DyNAM choice_coordination",
-    goldfishKindDnRate = "DyNAM rate",
-    goldfishKindDnCox = NA_character_,
-    goldfishKindRemRate = "REM rate",
-    goldfishKindRemCox = "REM rate_ordered",
-    goldfishKindDniRate = NA_character_,
-    goldfishKindDniCox = NA_character_,
-    goldfishKindDniChoice = NA_character_
-  )
-}
-
+#' Whether an engine consumes a `support_constraint` for a given model family.
+#' Every wired recipe family folds its availability during preprocessing and
+#' reads the folded buffers natively on all engines, so the capability is
+#' engine-independent. Two families are unwired, and the descriptor names both:
+#' the DyNAM-i monolith (its input shape is grouped, so it never reaches the
+#' recipe that folds) and the ordinal DyNAM-rate path (a sender axis under a
+#' multinomial likelihood, whose loop does not read a folded constraint).
+#'
+#' This was a table keyed by the variant class. It is a rule now because the
+#' variant classes are gone, and because a table of nine rows for a rule with
+#' two clauses was nine chances to disagree with itself.
 #' @noRd
 constrained_estimation_supported <- function(spec) {
-  !is.na(constrained_support_map()[class(spec)[1]])
+  if (identical(behavior_input_shape(spec), "grouped")) {
+    return(FALSE)
+  }
+  !(identical(risk_set_axis(spec), "sender") &&
+    identical(behavior_likelihood(spec), "multinomial"))
+}
+
+#' The families a support_constraint is wired for, for the abort message
+#' @noRd
+constrained_supported_families <- function() {
+  c(
+    "DyNAM choice",
+    "DyNAM choice_coordination",
+    "DyNAM rate",
+    "REM rate",
+    "REM rate_ordered"
+  )
 }
 
 #' Abort when a support_constraint reaches an unwired model family
 #'
-#' The message enumerates the supported families from the capability table so
-#' it stays in sync with [constrained_support_map()].
+#' The message enumerates the supported families from
+#' [constrained_supported_families()], which is provenance for the reader --
+#' the rule that decides is [constrained_estimation_supported()].
 #' @noRd
 abort_constraint_unsupported <- function(spec, call = rlang::caller_env()) {
-  supported <- unname(constrained_support_map())
-  supported <- supported[!is.na(supported)]
+  supported <- constrained_supported_families()
   cli::cli_abort(
     c(
       "{.arg support_constraint} is not consumed for {.val {spec$model}}
@@ -338,7 +377,6 @@ dynam_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDnRate",
     "goldfishAxisSender",
     "DyNAM",
     "rate",
@@ -358,7 +396,6 @@ dynam_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDnCox",
     "goldfishAxisSender",
     "DyNAM",
     "rate_ordered",
@@ -378,7 +415,6 @@ dynam_choice_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDnChoice",
     "goldfishAxisDyad",
     "DyNAM",
     "choice",
@@ -398,7 +434,6 @@ dynam_choice_coord_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDnCoord",
     "goldfishAxisDyad",
     "DyNAM",
     "choice_coordination",
@@ -418,7 +453,6 @@ dynami_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDniRate",
     "goldfishAxisSender",
     "DyNAMi",
     "rate",
@@ -438,7 +472,6 @@ dynami_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDniCox",
     "goldfishAxisSender",
     "DyNAMi",
     "rate_ordered",
@@ -458,7 +491,6 @@ dynami_choice_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindDniChoice",
     "goldfishAxisDyad",
     "DyNAMi",
     "choice",
@@ -478,7 +510,6 @@ rem_rate_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindRemRate",
     "goldfishAxisDyad",
     "REM",
     "rate",
@@ -498,7 +529,6 @@ rem_rate_ordered_spec <- function(
   ...
 ) {
   model_spec_structure(
-    "goldfishKindRemCox",
     "goldfishAxisDyad",
     "REM",
     "rate_ordered",

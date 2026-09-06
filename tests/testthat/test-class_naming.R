@@ -232,30 +232,47 @@ test_that("every class goldfish attaches is goldfish<Thing>", {
 })
 
 test_that("the enumeration reaches classes that only a method name names", {
-  # `dyad_spec` has no `inherits()` site anywhere: it is reachable only
+  # `goldfishAxisDyad` has no `inherits()` site anywhere: it is reachable only
   # through `estimate_int.goldfishAxisDyad` and through the literal handed to
-  # spec constructor. It escaped a first enumeration, so it is asserted.
+  # the spec constructor. It escaped a first enumeration, so it is asserted.
+  #
+  # This list was twelve rows: one per model variant, plus the two axes. Nine
+  # of those variant classes are gone -- the likelihood implementation is
+  # determined by the risk-set axis and the likelihood family, six pairs
+  # across the nine variants, so the class vector names the pair that
+  # dispatches instead of the model and sub-model pairing that did not.
   own <- goldfish_own_classes()
-  hierarchy <- list(
-    c("model_spec", "goldfishKind"),
-    c("dynam_rate_spec", "goldfishKindDnRate"),
-    c("dynam_rate_ordered_spec", "goldfishKindDnCox"),
-    c("dynam_choice_spec", "goldfishKindDnChoice"),
-    c("dynam_choice_coord_spec", "goldfishKindDnCoord"),
-    c("dynami_rate_spec", "goldfishKindDniRate"),
-    c("dynami_rate_ordered_spec", "goldfishKindDniCox"),
-    c("dynami_choice_spec", "goldfishKindDniChoice"),
-    c("rem_rate_spec", "goldfishKindRemRate"),
-    c("rem_rate_ordered_spec", "goldfishKindRemCox"),
-    c("sender_spec", "goldfishAxisSender"),
-    c("dyad_spec", "goldfishAxisDyad")
+  hierarchy <- c(
+    "goldfishKind",
+    "goldfishLikSenderPoisson",
+    "goldfishLikSenderMultinom",
+    "goldfishLikReceiverMultinom",
+    "goldfishLikDyadPoisson",
+    "goldfishLikDyadMultinom",
+    "goldfishLikCoordination",
+    "goldfishAxisSender",
+    "goldfishAxisDyad"
   )
-  reached <- vapply(
-    hierarchy,
-    function(spelling) any(spelling %in% own),
-    logical(1)
+  expect_true(all(hierarchy %in% own))
+})
+
+test_that("no variant class outlives the collapse", {
+  # Deleted rather than renamed: a class that dispatches nothing is not a
+  # class, and leaving one behind would let a method be registered on it
+  # again without anything noticing.
+  own <- goldfish_own_classes()
+  retired <- c(
+    "goldfishKindDnRate",
+    "goldfishKindDnCox",
+    "goldfishKindDnChoice",
+    "goldfishKindDnCoord",
+    "goldfishKindDniRate",
+    "goldfishKindDniCox",
+    "goldfishKindDniChoice",
+    "goldfishKindRemRate",
+    "goldfishKindRemCox"
   )
-  expect_true(all(reached))
+  expect_identical(intersect(own, retired), character(0))
 })
 
 test_that("no class goldfish attaches carries a dot", {

@@ -8,11 +8,11 @@
 choice_cpp <- getFromNamespace("estimate_DyNAM_choice", "goldfish")
 rate_ordered_cpp <- getFromNamespace("estimate_DyNAM_rate_ordered", "goldfish")
 choice_r <- getFromNamespace(
-  "compute_event_contribution.goldfishKindDnChoice",
+  "compute_event_contribution.goldfishLikReceiverMultinom",
   "goldfish"
 )
 rate_ordered_r <- getFromNamespace(
-  "compute_event_contribution.goldfishKindDnCox",
+  "compute_event_contribution.goldfishLikSenderMultinom",
   "goldfish"
 )
 

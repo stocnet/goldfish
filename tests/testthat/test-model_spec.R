@@ -1,39 +1,42 @@
 test_that("constructors return the documented class vectors", {
+  # Nine variants, six class vectors. A DyNAM-i spec and its DyNAM
+  # counterpart carry the SAME one, which is what removes the three alias
+  # methods: they were assignments of one implementation to a second name.
   expect_identical(
     class(dynam_rate_spec(nodes = "actors")),
-    c("goldfishKindDnRate", "goldfishAxisSender", "goldfishKind")
+    c("goldfishLikSenderPoisson", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynam_rate_ordered_spec(nodes = "actors")),
-    c("goldfishKindDnCox", "goldfishAxisSender", "goldfishKind")
+    c("goldfishLikSenderMultinom", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynam_choice_spec(nodes = "actors")),
-    c("goldfishKindDnChoice", "goldfishAxisDyad", "goldfishKind")
+    c("goldfishLikReceiverMultinom", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(dynam_choice_coord_spec(nodes = "actors")),
-    c("goldfishKindDnCoord", "goldfishAxisDyad", "goldfishKind")
+    c("goldfishLikCoordination", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(dynami_rate_spec(nodes = "actors")),
-    c("goldfishKindDniRate", "goldfishAxisSender", "goldfishKind")
+    c("goldfishLikSenderPoisson", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynami_rate_ordered_spec(nodes = "actors")),
-    c("goldfishKindDniCox", "goldfishAxisSender", "goldfishKind")
+    c("goldfishLikSenderMultinom", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynami_choice_spec(nodes = "actors")),
-    c("goldfishKindDniChoice", "goldfishAxisDyad", "goldfishKind")
+    c("goldfishLikReceiverMultinom", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(rem_rate_spec(nodes = "actors")),
-    c("goldfishKindRemRate", "goldfishAxisDyad", "goldfishKind")
+    c("goldfishLikDyadPoisson", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(rem_rate_ordered_spec(nodes = "actors")),
-    c("goldfishKindRemCox", "goldfishAxisDyad", "goldfishKind")
+    c("goldfishLikDyadMultinom", "goldfishAxisDyad", "goldfishKind")
   )
 })
 
@@ -66,7 +69,7 @@ test_that("constructors store extra fields passed through dots", {
 
 test_that("new_model_spec resolves the spec class from model and sub_model", {
   spec <- new_model_spec("DyNAM", "rate", nodes = "actors")
-  expect_identical(class(spec)[1], "goldfishKindDnRate")
+  expect_identical(class(spec)[1], "goldfishLikSenderPoisson")
 })
 
 test_that("new_model_spec sender-indexed spec is not dyad-indexed", {
@@ -326,21 +329,21 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
     sub_model = "choice",
     data = dataTest
   )
-  expect_s3_class(fitChoice$model_spec, "goldfishKindDnChoice")
+  expect_s3_class(fitChoice$model_spec, "goldfishLikReceiverMultinom")
   prepCoord <- estimate_dynam(
     depNetwork ~ inertia,
     sub_model = "choice_coordination",
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepCoord$model_spec, "goldfishKindDnCoord")
+  expect_s3_class(prepCoord$model_spec, "goldfishLikCoordination")
   prepRate <- estimate_dynam(
     depNetwork ~ 1 + indeg,
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "goldfishKindDnRate")
+  expect_s3_class(prepRate$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepRate$model_spec$has_intercept)
   # A no-intercept `rate` formula gets the intercept added (waiting-time model),
   # not the ordinal spec.
@@ -350,7 +353,7 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepRateAdded$model_spec, "goldfishKindDnRate")
+  expect_s3_class(prepRateAdded$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepRateAdded$model_spec$has_intercept)
 })
 
@@ -361,7 +364,7 @@ test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepExplicit$model_spec, "goldfishKindDnCox")
+  expect_s3_class(prepExplicit$model_spec, "goldfishLikSenderMultinom")
   expect_identical(prepExplicit$sub_model, "rate")
   expect_false(isTRUE(prepExplicit$model_spec$has_intercept))
   # Dropping auto-ordinal: a no-intercept `rate` formula is now a waiting-time
@@ -372,7 +375,7 @@ test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepImplicit$model_spec, "goldfishKindDnRate")
+  expect_s3_class(prepImplicit$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepImplicit$model_spec$has_intercept)
   expect_warning(
     estimate_dynam(
@@ -392,7 +395,7 @@ test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "goldfishKindRemRate")
+  expect_s3_class(prepRate$model_spec, "goldfishLikDyadPoisson")
   expect_identical(prepRate$sub_model, "choice")
   prepOrdered <- estimate_rem(
     depNetwork ~ inertia,
@@ -400,12 +403,12 @@ test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepOrdered$model_spec, "goldfishKindRemCox")
+  expect_s3_class(prepOrdered$model_spec, "goldfishLikDyadMultinom")
 })
 
 test_that("estimate_rem constructs and forwards the typed spec", {
   fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
-  expect_s3_class(fitRem$model_spec, "goldfishKindRemRate")
+  expect_s3_class(fitRem$model_spec, "goldfishLikDyadPoisson")
   expect_true(fitRem$model_spec$has_intercept)
   # A no-intercept REM rate formula adds the intercept (waiting times), not the
   # ordinal spec; ordinal requires explicit `rate_ordered`.
@@ -414,7 +417,7 @@ test_that("estimate_rem constructs and forwards the typed spec", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepRemAdded$model_spec, "goldfishKindRemRate")
+  expect_s3_class(prepRemAdded$model_spec, "goldfishLikDyadPoisson")
   expect_true(prepRemAdded$model_spec$has_intercept)
 })
 
@@ -426,14 +429,14 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
     data = snet,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "goldfishKindDniRate")
+  expect_s3_class(prepRate$model_spec, "goldfishLikSenderPoisson")
   prepChoice <- estimate_dynami(
     interactions ~ inertia(past, weighted = TRUE, sub_type = "count"),
     sub_model = "choice",
     data = snet,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepChoice$model_spec, "goldfishKindDniChoice")
+  expect_s3_class(prepChoice$model_spec, "goldfishLikReceiverMultinom")
 })
 
 test_that("new_model_spec sender-indexed specs carry a two-mode receiver", {

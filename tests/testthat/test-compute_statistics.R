@@ -30,7 +30,7 @@ test_that("compute_statistics returns a goldfishStat object", {
     sub_model = "choice"
   )
   expect_s3_class(prep, "goldfishStat")
-  expect_s3_class(prep$model_spec, "goldfishKindDnChoice")
+  expect_s3_class(prep$model_spec, "goldfishLikReceiverMultinom")
   # Dispatch, not only the class string: a class renamed without its print
   # method still satisfies every inherits() check and then quietly prints
   # through print.default(), which is the failure a value assertion misses.

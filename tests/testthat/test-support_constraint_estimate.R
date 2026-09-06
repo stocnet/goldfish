@@ -262,6 +262,6 @@ test_that("a no-intercept REM rate constraint adds the intercept and runs", {
     data = fx$data,
     support_constraint = ~ tie(allowedNet)
   ))
-  expect_s3_class(m$model_spec, "goldfishKindRemRate")
+  expect_s3_class(m$model_spec, "goldfishLikDyadPoisson")
   expect_true(m$model_spec$has_intercept)
 })

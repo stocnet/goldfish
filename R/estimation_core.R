@@ -74,8 +74,10 @@ estimate_int.goldfishAxisDyad <- function(spec, ...) {
   estimate_int_impl(
     spec = spec,
     is_rate_model = FALSE,
-    reduceArrayToMatrix = inherits(spec, "goldfishKindDnChoice") ||
-      inherits(spec, "goldfishKindDniChoice"),
+    reduceArrayToMatrix = identical(
+      risk_set_axis(spec),
+      "receiver_given_sender"
+    ),
     ...
   )
 }
@@ -860,7 +862,7 @@ event_contribution_rate <- function(
   )
 }
 
-compute_event_contribution.goldfishKindDnRate <- function(
+compute_event_contribution.goldfishLikSenderPoisson <- function(
   spec,
   statsArray,
   activeDyad,
@@ -882,7 +884,7 @@ compute_event_contribution.goldfishKindDnRate <- function(
   )
 }
 
-compute_event_contribution.goldfishKindRemRate <- function(
+compute_event_contribution.goldfishLikDyadPoisson <- function(
   spec,
   statsArray,
   activeDyad,
@@ -906,10 +908,7 @@ compute_event_contribution.goldfishKindRemRate <- function(
   )
 }
 
-compute_event_contribution.goldfishKindDniRate <-
-  compute_event_contribution.goldfishKindDnRate
-
-compute_event_contribution.goldfishKindDnCox <- function(
+compute_event_contribution.goldfishLikSenderMultinom <- function(
   spec,
   statsArray,
   activeDyad,
@@ -946,10 +945,7 @@ compute_event_contribution.goldfishKindDnCox <- function(
   )
 }
 
-compute_event_contribution.goldfishKindDniCox <-
-  compute_event_contribution.goldfishKindDnCox
-
-compute_event_contribution.goldfishKindDnChoice <- function(
+compute_event_contribution.goldfishLikReceiverMultinom <- function(
   spec,
   statsArray,
   activeDyad,
@@ -992,10 +988,7 @@ compute_event_contribution.goldfishKindDnChoice <- function(
   )
 }
 
-compute_event_contribution.goldfishKindDniChoice <-
-  compute_event_contribution.goldfishKindDnChoice
-
-compute_event_contribution.goldfishKindDnCoord <- function(
+compute_event_contribution.goldfishLikCoordination <- function(
   spec,
   statsArray,
   activeDyad,
@@ -1051,7 +1044,7 @@ compute_event_contribution.goldfishKindDnCoord <- function(
   )
 }
 
-compute_event_contribution.goldfishKindRemCox <- function(
+compute_event_contribution.goldfishLikDyadMultinom <- function(
   spec,
   statsArray,
   activeDyad,
@@ -1990,10 +1983,7 @@ make_r_engine_evaluator <- function(
   # Applied unless the intercept itself carries a value: fixed, so there is
   # nothing to start, or seeded, so the user chose the start.
   if (
-    inherits(
-      spec,
-      c("goldfishKindDnRate", "goldfishKindDniRate", "goldfishKindRemRate")
-    ) &&
+    identical(behavior_likelihood(spec), "poisson") &&
       has_intercept &&
       seed_intercept
   ) {
@@ -2122,7 +2112,7 @@ compute_iteration_step <- function(
 
   updateopportunities <- !is.null(opportunitiesList) && !is_rate
   correctReflexive <- !allowReflexive &&
-    inherits(spec, c("goldfishKindDnChoice", "goldfishKindDniChoice"))
+    identical(risk_set_axis(spec), "receiver_given_sender")
 
   # A sender-loop support_constraint is folded into `active_sender` at
   # preprocessing: the availability object already carries
@@ -2140,12 +2130,13 @@ compute_iteration_step <- function(
   # into a dense point `active_dyad`: the maintained matrix IS the
   # per-event risk mask, so the presence axis-reductions are skipped and it is
   # consumed directly as `active_dyad_mask`, replacing the standalone per-event mask.
-  is_rem <- inherits(spec, c("goldfishKindRemRate", "goldfishKindRemCox"))
+  is_rem <- identical(risk_set_axis(spec), "dyad") &&
+    !identical(behavior_likelihood(spec), "coordination")
   # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
   # choices), so a folded coordination constraint — symmetrised into the dense
   # point `active_dyad` — is consumed as the full risk mask exactly
   # like REM, NOT via the one-sided-choice row accessor.
-  is_coord <- inherits(spec, "goldfishKindDnCoord")
+  is_coord <- identical(behavior_likelihood(spec), "coordination")
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
