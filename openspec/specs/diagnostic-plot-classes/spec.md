@@ -25,11 +25,13 @@ shape. What is forbidden is a component that cannot be mapped until it has
 been reshaped, unnested, or recomputed. Both shapes SHALL
 carry the metadata contract, so a plot method reads what it is looking at
 rather than inferring it from the columns present. goldfish SHALL NOT
-contain ggplot2 plotting code for these objects; plot methods live in autograph (branch `feature/goldfish-diag`
-off `develop`), dispatching on class only, following autograph's existing
-RSiena/ergm/MoNAn pattern. New class names SHALL follow the
-constructor-name convention: the class is the exported constructor's own
-snake_case name, with no suffix. Where a plot-data component carries
+contain ggplot2 plotting code for these objects; plot methods live in
+autograph (already renamed on autograph@develop), dispatching on class
+only, following autograph's existing RSiena/ergm/MoNAn pattern. New
+class names SHALL follow the package-scoped convention of the
+class-naming capability: `goldfish` plus a short camelCase identifier
+(`goldfish<Thing>`), so that a plot method can tell whose object it
+received. Where a plot-data component carries
 actor identities from a two-mode fit, the labels SHALL be resolved per side
 via the model's `node_lookup` (sender-mode and receiver-mode slices), so the
 autograph methods never re-derive node identity. Where a plot method offers
@@ -64,32 +66,15 @@ per single rendering — for the onset class,
   sniffs columns to learn what it received
 
 #### Scenario: autograph renders without goldfish
-- **WHEN** the autograph plot method for the test_gof class is called on a
-  saved fixture object in a session without goldfish attached
+- **WHEN** the autograph plot method for the `goldfishGOF` class is
+  called on a saved fixture object in a session without goldfish attached
 - **THEN** it produces the plot from the object's components alone.
 
-### Requirement: examine functions adopt the constructor-named classes
-`diagnose_outliers()` SHALL return an object of class `diagnose_outliers`
-and `diagnose_changepoints()` an object of class `diagnose_changepoints`
-(tibble-based, built by the shared diagnostic-table constructor), replacing
-the shared `diagnostic.goldfish` class. The `outlier` and `cpt` columns
-SHALL be logical, and the autograph methods `plot.diagnose_outliers` /
-`plot.diagnose_changepoints` SHALL be updated on `feature/goldfish-diag`
-to consume the logical columns (fixing the current `"YES"` string check).
-The goldfish `print` method SHALL dispatch on the new classes. This is a
-breaking change recorded in NEWS.
-
-#### Scenario: outliers object carries the aligned contract
-- **WHEN** `diagnose_outliers(fit)` runs
-- **THEN** the result has classes
-  `c("diagnose_outliers", "tbl_df", "tbl", "data.frame")`,
-  a logical `outlier` column, and a `label` column for flagged events.
-
-#### Scenario: autograph plots the aligned outliers object
-- **WHEN** the updated `plot.diagnose_outliers` receives an object with
-  logical `outlier` values containing at least one `TRUE`
-- **THEN** it renders the intervalLogL trace with flagged events highlighted
-  and labeled.
+#### Scenario: a plot method can tell whose object it received
+- **WHEN** an autograph plot method is registered for a goldfish diagnostic
+- **THEN** it is registered on a `goldfish`-prefixed camelCase class, so
+  an identically-shaped object from another package does not dispatch to
+  it
 
 ### Requirement: term-wise examine series via effect selection
 The functions `diagnose_changepoints()` and `diagnose_outliers()` SHALL
@@ -353,4 +338,28 @@ is the failure this requirement exists to prevent.
 - **WHEN** a plot method draws only the highest-ranked terms of a model with
   more terms than it will draw
 - **THEN** it reports how many terms were not drawn
+
+### Requirement: examine functions adopt the package-scoped classes
+`diagnose_outliers()` SHALL return an object of class
+`goldfishOutliers` and `diagnose_changepoints()` an object of class
+`goldfishChangepoints` (tibble-based, built by the shared
+diagnostic-table constructor), replacing the shared `diagnostic.goldfish`
+class — the exact strings autograph@develop's `plot.goldfishOutliers` /
+`plot.goldfishChangepoints` methods already dispatch on. The `outlier`
+and `cpt` columns SHALL be logical, which autograph@develop's renamed
+methods already consume (the earlier `"YES"` string check is fixed
+upstream). The goldfish `print` method SHALL dispatch on the new
+classes. This is a breaking change recorded in NEWS.
+
+#### Scenario: outliers object carries the aligned contract
+- **WHEN** `diagnose_outliers(fit)` runs
+- **THEN** the result has classes
+  `c("goldfishOutliers", "tbl_df", "tbl", "data.frame")`,
+  a logical `outlier` column, and a `label` column for flagged events.
+
+#### Scenario: autograph plots the aligned outliers object
+- **WHEN** autograph's `plot.goldfishOutliers` receives an object
+  with logical `outlier` values containing at least one `TRUE`
+- **THEN** it renders the intervalLogL trace with flagged events highlighted
+  and labeled.
 

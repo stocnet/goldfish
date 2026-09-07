@@ -4,23 +4,27 @@
 Define the internal S3 `goldfishKind` class hierarchy (constructed by `new_model_spec()`) that drives recipe and effect dispatch across all model variants.
 ## Requirements
 ### Requirement: S3 goldfishKind class hierarchy
-The package SHALL define 9 internal S3 classes covering all model variants. Each class SHALL be constructed by `new_model_spec(model, sub_model, is_two_mode, nodes, nodes2, ...)` which is NOT exported. The class vector SHALL follow the pattern `c("goldfishKind<Variant>", "goldfishAxis<Axis>", "goldfishKind")`.
+The package SHALL define internal S3 classes for the model variants, and the
+class vector SHALL carry only what dispatches. Each spec SHALL be constructed
+by the non-exported spec constructor, which SHALL also compute the behavioral
+descriptor. The class vector SHALL name the likelihood class and the risk-set
+axis; it SHALL NOT encode the `model` and `sub_model` pairing for its own
+sake, because preprocessing and the estimation entry point read the descriptor
+and the axis rather than a per-variant class. Variants whose likelihood
+implementation is identical SHALL share one likelihood class rather than being
+given a class each and an alias method.
 
 #### Scenario: Spec class resolves from model and sub_model
-- **WHEN** `new_model_spec("DyNAM", "rate", is_two_mode = FALSE, ...)` is called
-- **THEN** the returned object has `class(spec)[1] == "goldfishKindDnRate"`
+- **WHEN** a spec is constructed for a given model and sub-model
+- **THEN** it carries the likelihood class its implementation requires and the
+  class for its risk-set axis, and its descriptor records the model and
+  sub-model as provenance
 
-#### Scenario: Sender-indexed spec class is correct
-- **WHEN** `new_model_spec("DyNAM", "rate_ordered", ...)` is called
-- **THEN** `inherits(spec, "goldfishAxisSender")` is TRUE and `inherits(spec, "goldfishAxisDyad")` is FALSE
-
-#### Scenario: Dyad-indexed spec class is correct
-- **WHEN** `new_model_spec("REM", "rate", ...)` is called
-- **THEN** `inherits(spec, "goldfishAxisDyad")` is TRUE and `inherits(spec, "goldfishAxisSender")` is FALSE
-
-#### Scenario: All 9 valid variant combinations are accepted
-- **WHEN** `new_model_spec()` is called with each of the 9 valid (model, sub_model) combinations
-- **THEN** a `goldfishKind` object is returned without error for each
+#### Scenario: two variants sharing an implementation share a class
+- **WHEN** specs are constructed for two variants whose likelihood code is the
+  same
+- **THEN** both carry the same likelihood class, and only one method is
+  registered for them
 
 ### Requirement: is_two_mode requires both node sets
 When `is_two_mode = TRUE`, `new_model_spec()` SHALL require both `nodes` and `nodes2` to be non-NULL and non-identical. `goldfishAxisSender` variants (dynam_rate, dynam_rate_ordered, dynami_rate, dynami_rate_ordered) SHALL force `is_two_mode = FALSE` regardless of input.
@@ -45,22 +49,22 @@ The package SHALL export `compute_stats(formula, data, model, sub_model, ...)` w
 - **THEN** estimation completes successfully and produces the same coefficients as without pre-computing
 
 ### Requirement: preprocess dispatches per recipe with no model-type branches
-`preprocess()` SHALL be an S3 generic. Each concrete `goldfishKind` class SHALL have a dedicated `preprocess.<class>()` method. Concrete methods MAY be thin configurations delegating to shared unexported family kernels (`run_sender_recipe_loop()`, `run_dyad_recipe_loop()`); no `preprocess.goldfishAxisSender()` / `preprocess.goldfishAxisDyad()` S3 fallback methods SHALL be defined. No recipe method or kernel SHALL contain a runtime branch on `model`, `sub_model`, or `modelType` strings inside its event loop; constant boolean configuration knobs (e.g. `right_censored`) evaluated on loop-invariant values are permitted.
+Preprocessing SHALL select its recipe and that recipe's parameters by reading
+the behavioral descriptor, not by dispatching on a per-variant S3 class and
+not by branching on `model` or `sub_model`. The recipe selection SHALL follow
+the descriptor's risk-set axis, and the parameters that distinguish a timed
+rate from an ordinal sub-model SHALL follow the descriptor's `timing` field.
 
-#### Scenario: Dispatched recipe produces correct initialStats shape for sender model
-- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnRate` where `n1=10`, `nEffects=3`
-- **THEN** `dim(result$initialStats)` is `c(10L, 3L)`
+#### Scenario: recipe selection reads the descriptor
+- **WHEN** preprocessing runs for any supported model variant
+- **THEN** the recipe and its parameters are determined by the descriptor's
+  axis and timing fields, and no per-variant preprocess method participates
 
-#### Scenario: Dispatched recipe produces correct initialStats shape for dyad model
-- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnChoice` where `n1=10`, `n2=10`, `nEffects=3`
-- **THEN** `dim(result$initialStats)` is `c(100L, 3L)`
-
-#### Scenario: Rate recipe computes intercept scalars; ordered recipe does not
-- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnRate`
-- **THEN** `result$avg_active_actors` is a positive numeric
-
-- **WHEN** `preprocess(spec)` is called with a `goldfishKindDnCox`
-- **THEN** `result$avg_active_actors` is NULL
+#### Scenario: variants with identical preprocessing share one path
+- **WHEN** preprocessing runs for a choice sub-model and for a coordination
+  sub-model
+- **THEN** both take the same recipe path with the same parameters, because
+  their descriptors agree on axis and timing
 
 ### Requirement: global() rejected in choice sub-models
 A formula containing a `global()` effect SHALL cause `estimate_dynam()` with `sub_model = "choice"` or `sub_model = "choice_coordination"` (and `compute_stats()` for those sub-models) to call `cli::cli_abort()` before preprocessing begins. The error message SHALL state that global covariates in choice sub-models will be supported only through interaction effects in a future release. Rate sub-models (`DyNAM` rate / rate_ordered, `REM` rate / rate_ordered) SHALL continue to accept `global()`.
@@ -147,13 +151,21 @@ Recipe methods SHALL maintain all evolving data objects in a named-list state co
 - **THEN** a deprecation warning is emitted suggesting `sub_model = "rate"`
 
 ### Requirement: DyNAMi spec participates in dispatch, delegates to existing loop
-`goldfishKindDniRate` and `goldfishKindDniChoice` SHALL exist as valid spec classes. Their `preprocess()` methods SHALL delegate to the existing DyNAMi monolithic preprocessing loop without change. The dedicated DyNAMi recipe (post-event update order) is out of scope.
+A DyNAM-i spec SHALL participate in dispatch through the same descriptor as
+every other spec, and its difference SHALL be carried by the descriptor's
+`input_shape` field rather than by a per-variant class. Its likelihood SHALL
+be the same class as the corresponding DyNAM variant, since the
+implementations are identical, and no alias method SHALL be registered for it.
+Its preprocessing SHALL continue to delegate to the group-interaction loop for
+as long as that difference is real.
 
-#### Scenario: estimate_dynami produces a typed spec
-- **WHEN** `estimate_dynami(formula, data, sub_model = "rate")` is called
-- **THEN** the internally constructed spec satisfies `inherits(spec, "goldfishKindDniRate")`
+#### Scenario: a DyNAM-i spec shares the DyNAM likelihood
+- **WHEN** the likelihood is computed for a DyNAM-i rate spec
+- **THEN** it dispatches to the same method a DyNAM rate spec dispatches to,
+  with no alias registered
 
-#### Scenario: DyNAMi coefficients are unchanged after dispatch wiring
-- **WHEN** DyNAMi model coefficients are compared before and after the dispatch refactor
-- **THEN** all coefficients agree to within 1e-6
+#### Scenario: the grouped input shape is visible on the descriptor
+- **WHEN** a DyNAM-i spec is constructed
+- **THEN** its descriptor records the grouped input shape, and preprocessing
+  reads that field to reach the group-interaction loop
 

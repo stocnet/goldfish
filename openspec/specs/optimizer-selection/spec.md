@@ -106,6 +106,7 @@ event-influence measures) without this change implementing those diagnostics.
   2.0.0
 - **THEN** the call fails as an unknown argument, with no lifecycle warning
   path for it.
+
 ### Requirement: Optimizer selection via set_algorithm_newton()
 `set_algorithm_newton()` (the renamed `set_estimation_opt()`) SHALL accept an
 `optimizer` argument as a flat algorithm list — `"newton_raphson"` (default),
@@ -210,7 +211,6 @@ corresponding legacy engine.
   supplied to an estimator
 - **THEN** estimation runs on the `cpp` backend.
 
-
 ### Requirement: initial parameter values align to terms by name
 
 `set_algorithm_newton(initial_parameters =)` SHALL accept, in addition to the full-length
@@ -257,3 +257,4 @@ forms.
   `initial_parameters = list(creation = list(rate = c(inertia = 0.5)))`
 - **THEN** only the creation rate process seeds `inertia`; every other process starts at
   its defaults, and an unknown flavor or family key would abort naming the valid ones.
+

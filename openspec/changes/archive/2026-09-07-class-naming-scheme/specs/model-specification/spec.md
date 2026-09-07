@@ -1,7 +1,12 @@
-## RENAMED Requirements
-
-- FROM: `### Requirement: make_specification constructs a specification.goldfish object`
-- TO: `### Requirement: make_specification constructs a goldfishSpec object`
+Note: this delta carried a `## RENAMED` block moving
+`### Requirement: make_specification constructs a specification.goldfish object`
+to `### Requirement: make_specification constructs a goldfishSpec object`. That
+rename was already applied to the living spec during implementation (commit
+`cb54380`, the sweep over `man/`, the vignettes and the living spec), so at
+fold time the `FROM` header no longer resolved and `openspec archive` aborted.
+The block is removed as satisfied rather than kept as an unresolvable
+instruction; the `## MODIFIED` block below carries the requirement's wording
+under its new name.
 
 ## MODIFIED Requirements
 
