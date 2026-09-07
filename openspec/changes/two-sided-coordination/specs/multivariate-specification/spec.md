@@ -14,8 +14,8 @@ both, plus `choice_coordination` in the mixable-process list.
 The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
 `goldfishJointSpec` object — a multivariate specification that portrays their
-co-evolution (design D17 — renamed from `goldfishJointSpec` under
-the retired `<noun>.goldfish` house convention). Construction SHALL NOT
+co-evolution (design D17 — renamed from `joint_specification.goldfish`
+under the retired `<noun>.goldfish` house convention). Construction SHALL NOT
 require a panel-observed layer to be referenced — all viability is consumer-owned. A
 combination that references no panel-observed layer SHALL compose: it is
 estimation-separable (the factorized likelihood) yet generatively coupled through the
