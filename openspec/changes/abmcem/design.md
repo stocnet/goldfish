@@ -469,13 +469,17 @@ retired. `coef()`/`vcov()` stay **flat** (base-generic contract), named by the
 standard and MC error side by side, and surface the `converged` flag (D7) —
 rendering via cli semantic elements under a pinned context for snapshots.
 
-**The result class arrives with its contract-table column filled**
-(`fit-class-hierarchy`, ADR-0038 and ADR-0050). Every fitted-model class
-carries the shared parent `goldfishBaseFit`, and
-`inst/fit-class-contract.csv` records one verdict — `inherit`, `override` or
-`refuse` — for every generic dispatching on a fit class. The completeness
-test fails until this class has a verdict in every row, so the column is a
-task of this change, not a follow-up.
+**The result class arrives with its verdicts recorded**
+(`fit-class-hierarchy`, ADR-0038, ADR-0050 and ADR-0052). Every fitted-model
+class carries the shared parent `goldfishBaseFit`, and the
+`fit-class-hierarchy` capability in `openspec/specs/` records one verdict —
+`inherit`, `override` or `refuse` — for every generic dispatching on a fit
+class. That record is a **design-time obligation, not a test fixture**: this
+change states its verdicts in that capability's spec before writing the
+class, which is the point at which the question can still be argued. What a
+test does check is reachability — a generic registered on any fit surface
+must be reachable for every fit class — so a class that simply inherits
+everything passes it while still owing the argument.
 
 Two rows are decided by the paragraphs above rather than left open. `coef()`
 and `vcov()` are `override` (flat, composite-labelled, MC error carried

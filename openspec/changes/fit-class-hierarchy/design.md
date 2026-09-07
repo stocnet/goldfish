@@ -155,6 +155,49 @@ row.
   print method reaches them through ordinary list printing, and no second
   summary class is minted.
 
+### D10 — The contract is a spec obligation, not an artifact (reverses D5)
+
+New (2026-09-07, Alvaro). D5 put the table on disk as data "so the test reads
+the same artifact a human edits". Built that way, it went into `inst/`, which
+means it **installs** — and `refuse_fit_generic()` read its `reason` and
+`alternative` cells at runtime to build the refusal message. The package
+therefore shipped a 42-row governance table to deliver two sentences, and
+assembled a cli message out of data rather than writing cli at the call site.
+
+The premise turned out to be wrong in both directions. The table was never
+needed for enforcement: a rule derived from the namespace alone — *every
+generic registered on any fit surface is reachable for every fit class, by its
+own method or the parent's* — reports the four gaps that motivated this change
+(`summary`, `tidy`, `glance` on the container, and `coef_layout` on a single
+fit) and is strictly stronger than the table-driven test, because there is no
+table to go stale and agree with itself. And the table was in the wrong place
+for its real job, which is not checking but **arguing**: the moment a missing
+cell matters is when a change is being designed, not when a suite runs.
+
+So the two jobs separate:
+
+- **Enforcement** lives in `tests/testthat/test-fit_class_reachability.R`, with
+  no artifact at all. A deliberate exemption still registers a method — one
+  that refuses with a reason — so it satisfies reachability rather than needing
+  an exemption list to keep in step.
+- **The argument** lives in the `fit-class-hierarchy` capability's `spec.md`,
+  which folds into `openspec/specs/` at the merge. That is the only place it
+  can go and still travel: the living spec is strictly one `spec.md` per
+  capability, so a sibling file would not fold, and the archive is append-only,
+  so a grid there could never gain the DyNES column.
+
+The grid is recorded as the rule plus the cells a reader could not derive — the
+parent-borne group, the no-parent-default group, the container rule, and each
+refusal with its reason. Enumerating all 42 cells would restate one rule 33
+times and is the part most likely to drift, precisely because nothing checks it
+any more.
+
+*Accepted cost:* D5's argument against prose stands and is now the risk taken.
+Nothing checks that a reason was written or that the grid still matches the
+code; what replaces that is the OpenSpec workflow, since a change touching fit
+classes must update the capability spec and is validated when it does. Vault
+ADR-0052 records the reversal against ADR-0038's D5.
+
 ## Risks / Trade-offs
 
 - **The table is filled in mechanically to make the test pass** → the `refuse`

@@ -4,9 +4,9 @@
 
 The fitted-model classes SHALL share a parent class, so that a generic
 implemented once on the parent reaches every fit class unless that class is
-deliberately excused by the contract table. The parent SHALL NOT be introduced
-without the table, because inheritance alone is what allows a generic to
-produce a value for a class where the value is not meaningful.
+deliberately excused. The parent SHALL NOT be introduced without the
+per-class contract below, because inheritance alone is what allows a generic
+to produce a value for a class where the value is not meaningful.
 
 #### Scenario: a generic written once reaches every fit class
 
@@ -22,39 +22,63 @@ produce a value for a class where the value is not meaningful.
 
 ### Requirement: Every generic-by-class combination carries a recorded verdict
 
-A checked-in, machine-readable contract table SHALL record, for each generic
-dispatching on a fit class and each concrete fit class, exactly one verdict:
-`inherit` (the parent's method is correct here), `override` (this class needs
-its own, with a stated reason), or `refuse` (the generic is not meaningful
-here). The table SHALL be the same artifact a test reads and a human edits, so
-the two cannot drift.
+Each generic dispatching on a fit class SHALL carry, for each concrete fit
+class, exactly one verdict: `inherit` (the parent's method is correct here),
+`override` (this class needs its own, for a stated reason), or `refuse` (the
+generic is not meaningful here). A change that adds a fit class, or adds a
+generic dispatching on fit classes, SHALL record the resulting verdicts in
+this requirement before it is implemented, so that a missing cell is argued
+during design rather than discovered by a user.
 
-#### Scenario: an undecided cell fails the test
+The verdicts in force are:
 
-- **WHEN** a fit class is added, or a generic dispatching on fit classes is
-  added, and the table has no verdict for the resulting combination
-- **THEN** the contract test fails and names the missing cell
+- **Parent-borne — `inherit` on every leaf fit class.** `print`, `summary`,
+  `tidy`, `glance`, `coef`, `vcov`, `logLik`, `model_terms`: the generics
+  needing only the common fit surface — parameters, standard errors, effect
+  names, parameter and event counts, the call.
+- **No parent default — `override`, per class.** The generics reading a fit's
+  estimation internals: `augment`, `fitted`, `predict`, `residuals`,
+  `evaluate_model`, `test_gof`, `test_parameter`, `test_time`,
+  `diagnose_outliers`, `diagnose_changepoints`, `diagnose_onset`,
+  `margin_table`. Withholding a parent default is deliberate: a class that
+  omits one gets a dispatch error rather than a method reading fields it does
+  not have.
+- **Container — `override` on every generic.** A class that holds fits rather
+  than being one answers by fanning out over its components, so no cell of its
+  column can be `inherit`.
+- **Refused.** `coef_layout` on a single-process fit: a single process has no
+  per-process blocks, so a layout over it would be an invented shape rather
+  than a smaller one.
 
-#### Scenario: an override states its reason
+#### Scenario: an undecided cell is argued during design
 
-- **WHEN** a cell is `override`
-- **THEN** the table records why that class cannot use the parent's method
+- **WHEN** a change adds a fit class, or a generic dispatching on fit classes,
+  and this requirement records no verdict for the resulting combination
+- **THEN** the change records the verdict here, with its reason where the
+  verdict is `override` or `refuse`, before the code is written
+
+#### Scenario: a generic reaching one fit class reaches all of them
+
+- **WHEN** a generic is registered on any fit class or on the parent
+- **THEN** every concrete fit class can reach it, through its own method or
+  through the parent's, and a class that cannot is a defect rather than an
+  omission — including a class deliberately excused, which registers a
+  refusing method rather than no method
 
 ### Requirement: A generic that is not meaningful for a class refuses
 
 A generic SHALL be recorded as `refuse` where it would otherwise return a
 value that is not meaningful for a fit class, and the call SHALL abort with a
-message naming
-the class and the reason, rather than returning a value. This SHALL apply in
-particular where a fit maximizes a Monte-Carlo estimate of the likelihood
-rather than an exact likelihood: a quantity that is not an exact log-likelihood
-SHALL NOT reach `AIC()` or `BIC()` through inheritance, because those return
-numbers that appear to be information criteria and are not.
+message naming the class and the reason, rather than returning a value. This
+SHALL apply in particular where a fit maximizes a Monte-Carlo estimate of the
+likelihood rather than an exact likelihood: a quantity that is not an exact
+log-likelihood SHALL NOT reach `AIC()` or `BIC()` through inheritance, because
+those return numbers that appear to be information criteria and are not.
 
 #### Scenario: a Monte-Carlo fit does not silently supply a log-likelihood
 
 - **WHEN** `logLik()` is called on a fit whose likelihood is a Monte-Carlo
-  estimate, and the table records `refuse`
+  estimate, and the recorded verdict is `refuse`
 - **THEN** the call aborts explaining that the quantity is an estimate, and
   `AIC()` and `BIC()` therefore cannot return a value for that fit
 

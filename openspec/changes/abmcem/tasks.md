@@ -176,11 +176,12 @@
       elements grouping the flat coefficients per process via `coef_layout()`,
       asymptotic and MC error side by side plus the `converged` status,
       pinned-context snapshots. **The class carries the shared parent
-      `goldfishBaseFit` and fills its column in `inst/fit-class-contract.csv`
-      — one verdict per generic, the completeness test fails until it is
-      complete. The `logLik` row is the one to decide rather than copy: a
-      Monte-Carlo estimate reaching `AIC()`/`BIC()` through inheritance is
-      the hazard the table exists for (design D9).**
+      `goldfishBaseFit` and records its verdicts in the `fit-class-hierarchy`
+      capability spec — one per generic, written before the class is, since
+      it is an argument to be made rather than a fixture to fill. The
+      `logLik` verdict is the one to decide rather than copy: a Monte-Carlo
+      estimate reaching `AIC()`/`BIC()` through inheritance is the hazard the
+      contract exists for (design D9, ADR-0052).**
 - [ ] 5.4 Tests: end-to-end toy ascent (stub augmenter + real adapter + real
       SGD, seeded recovery within bounds, skip_on_cran), grow-then-accept,
       retry-abort, and **`max_iterations`-returns-last-accepted-with-warning**
