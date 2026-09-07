@@ -19,7 +19,7 @@ overriding \code{info$focal}.}
 \item{...}{reserved for future use.}
 }
 \value{
-\code{x}, unchanged in structure, with \code{"data.goldfish"} prepended to its
+\code{x}, unchanged in structure, with \code{"goldfishData"} prepended to its
 class vector.
 }
 \description{
@@ -30,7 +30,7 @@ class vector.
 runs the same validation that \code{estimate_dynam()}, \code{estimate_rem()}, and
 \code{make_specification()} apply to a \code{stocnet} object, failing fast with an
 informative error when the data does not meet goldfish's contract, and stamps
-the object with the \code{data.goldfish} class marker.
+the object with the \code{goldfishData} class marker.
 
 Passing the stamped object to estimation is equivalent to passing the raw
 stocnet: validation runs again unconditionally at specification time. The

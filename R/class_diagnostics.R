@@ -1,10 +1,10 @@
 #' Diagnostic functions
 #'
-#' Provide diagnostic functions for an object of class \code{result.goldfish}.
+#' Provide diagnostic functions for an object of class \code{goldfishFit}.
 #' \code{outliers} helps to identify outliers events.
 #' \code{changepoints} helps to identify where a change point
 #' in the events sequence is presented using the log-likelihood.
-#' @param x an object of class \code{result.goldfish} output from an
+#' @param x an object of class \code{goldfishFit} output from an
 #' \code{\link{estimate}} call; for the print methods, the
 #' \code{diagnose_outliers} or \code{diagnose_changepoints} table they render.
 #' @param ... additional arguments passed to or from other methods.
@@ -21,9 +21,9 @@
 #'   term} section. Accepts any name the term answers to (the compact string
 #'   the summary prints, the export form, the `coef()` label) or its position;
 #'   [model_terms()] lists them.
-#' @param preprocessed a `preprocessed.goldfish` object, needed only when
+#' @param preprocessed a `goldfishStat` object, needed only when
 #'   `effect` is given on an exact-time fit that did not store the
-#'   `"conditional_scores"` primitive. See [residuals.result.goldfish()].
+#'   `"conditional_scores"` primitive. See [residuals.goldfishFit()].
 #'
 #' @section Diagnosing one term:
 #' Without `effect` both functions read the per-interval log-likelihood, and
@@ -143,7 +143,7 @@ diagnose_outliers.default <- function(x, ...) {
 
 #' @export
 #' @rdname diagnose
-diagnose_outliers.result.goldfish <- function(
+diagnose_outliers.goldfishFit <- function(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -233,7 +233,7 @@ diagnose_outliers.result.goldfish <- function(
 
   new_diagnostic_table(
     data,
-    "diagnose_outliers",
+    "goldfishOutliers",
     context = diagnose_context(x, candidate),
     params = list(
       method = method,
@@ -284,7 +284,7 @@ diagnose_changepoints.default <- function(x, ...) {
 
 #' @export
 #' @rdname diagnose
-diagnose_changepoints.result.goldfish <- function(
+diagnose_changepoints.goldfishFit <- function(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -365,7 +365,7 @@ diagnose_changepoints.result.goldfish <- function(
 
   new_diagnostic_table(
     data,
-    "diagnose_changepoints",
+    "goldfishChangepoints",
     context = diagnose_context(x, candidate),
     params = list(
       moment = moment,
@@ -384,7 +384,7 @@ diagnose_changepoints.result.goldfish <- function(
 
 #' @export
 #' @rdname diagnose
-diagnose_outliers.flavored_result.goldfish <- function(
+diagnose_outliers.goldfishFlavFit <- function(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -418,12 +418,12 @@ diagnose_outliers.flavored_result.goldfish <- function(
   # Each process is flagged against its OWN series rather than a pooled one: a
   # rate process and a choice process do not share a scale, so a threshold
   # applied across both would flag whichever has the wider spread.
-  flavored_diagnose_table(x, blocks, "diagnose_outliers")
+  flavored_diagnose_table(x, blocks, "goldfishOutliers")
 }
 
 #' @export
 #' @rdname diagnose
-diagnose_changepoints.flavored_result.goldfish <- function(
+diagnose_changepoints.goldfishFlavFit <- function(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -458,7 +458,7 @@ diagnose_changepoints.flavored_result.goldfish <- function(
   # Segmented per process for the same reason: a changepoint is a break in one
   # process's series, and concatenating two series would place a break at the
   # seam between them.
-  flavored_diagnose_table(x, blocks, "diagnose_changepoints")
+  flavored_diagnose_table(x, blocks, "goldfishChangepoints")
 }
 
 # Which intervals take part in the statistic. Read off the `NA` pattern

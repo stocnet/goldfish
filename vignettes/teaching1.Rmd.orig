@@ -520,7 +520,7 @@ model that produced them is one to believe. This is a short tour; the
 # requires. Gate on the METHOD: an older autograph is importable while lacking
 # these methods, so checking the package alone would pass and then fail.
 has_plots <- requireNamespace("autograph", quietly = TRUE) &&
-  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+  !is.null(getS3method("plot", "goldfishGOF", optional = TRUE))
 ```
 
 ## Which events surprised the model

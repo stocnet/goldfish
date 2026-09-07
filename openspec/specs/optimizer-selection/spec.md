@@ -106,6 +106,7 @@ event-influence measures) without this change implementing those diagnostics.
   2.0.0
 - **THEN** the call fails as an unknown argument, with no lifecycle warning
   path for it.
+
 ### Requirement: Optimizer selection via set_algorithm_newton()
 `set_algorithm_newton()` (the renamed `set_estimation_opt()`) SHALL accept an
 `optimizer` argument as a flat algorithm list — `"newton_raphson"` (default),
@@ -113,8 +114,8 @@ event-influence measures) without this change implementing those diagnostics.
 `"newton_raphson"` SHALL preserve the existing damped Newton-Raphson
 estimation path unchanged (interface and, up to floating-point summation
 order, results). The returned object SHALL carry the selected optimizer and
-SHALL have class `c("algorithm_newton.goldfish", "algorithm.goldfish",
-"list")`; the `algorithm.goldfish` superclass is the shared dispatch and
+SHALL have class `c("goldfishAlgoNewton", "goldfishAlgo",
+"list")`; the `goldfishAlgo` superclass is the shared dispatch and
 validation hook for all algorithm objects (the DyNES EM constructor joins it
 later).
 
@@ -129,14 +130,14 @@ later).
 
 #### Scenario: class hierarchy
 - **WHEN** `set_algorithm_newton()` returns
-- **THEN** the object inherits both `algorithm_newton.goldfish` and
-  `algorithm.goldfish`, and the `print` method renders under the new class.
+- **THEN** the object inherits both `goldfishAlgoNewton` and
+  `goldfishAlgo`, and the `print` method renders under the new class.
 
 ### Requirement: Estimators accept the algorithm object via control_algo
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 the algorithm object through a `control_algo` argument (default
 `set_algorithm_newton()`), validated with a single
-`inherits(x, "algorithm.goldfish")` check so future algorithm objects pass
+`inherits(x, "goldfishAlgo")` check so future algorithm objects pass
 the same gate. The internal estimation plumbing SHALL carry the object under
 the same name end to end.
 
@@ -148,7 +149,7 @@ the same name end to end.
 
 #### Scenario: wrong object rejected
 - **WHEN** `control_algo` receives an object that does not inherit
-  `algorithm.goldfish`
+  `goldfishAlgo`
 - **THEN** estimation aborts with a cli error naming the expected
   constructor.
 
@@ -210,7 +211,6 @@ corresponding legacy engine.
   supplied to an estimator
 - **THEN** estimation runs on the `cpp` backend.
 
-
 ### Requirement: initial parameter values align to terms by name
 
 `set_algorithm_newton(initial_parameters =)` SHALL accept, in addition to the full-length
@@ -257,3 +257,4 @@ forms.
   `initial_parameters = list(creation = list(rate = c(inertia = 0.5)))`
 - **THEN** only the creation rate process seeds `inertia`; every other process starts at
   its defaults, and an unknown flavor or family key would abort naming the valid ones.
+

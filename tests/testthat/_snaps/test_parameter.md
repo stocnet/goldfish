@@ -51,7 +51,7 @@
     Code
       header(test_parameter(fit))
     Message
-      -- <test_parameter> ------------------------------------------------------------
+      -- <goldfishParamTest> ---------------------------------------------------------
       Model "DyNAM" · sub-model "choice" · backend "cpp"
       Score test of 1 coefficient held at an imposed value, over 439 events.
       Joint: LM = 70.33 on 1 degree of freedom, p = <2e-16

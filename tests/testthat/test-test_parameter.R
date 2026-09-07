@@ -166,17 +166,17 @@ test_that("the table carries the diagnostic contract", {
   fit <- parameter_fixture()
   result <- test_parameter(fit)
 
-  expect_s3_class(result, "test_parameter")
+  expect_s3_class(result, "goldfishParamTest")
   expect_s3_class(result, "tbl_df")
-  expect_identical(attr(result, "diagnostic"), "test_parameter")
+  expect_identical(attr(result, "diagnostic"), "goldfishParamTest")
   expect_identical(
     attr(result, "version"),
     as.character(utils::packageVersion("goldfish"))
   )
   # Row operations keep the object; dropping a defining column demotes it, so
   # no print can report a statistic from a column that is gone.
-  expect_s3_class(result[1, ], "test_parameter")
-  expect_false(inherits(result[, c("term", "imposed")], "test_parameter"))
+  expect_s3_class(result[1, ], "goldfishParamTest")
+  expect_false(inherits(result[, c("term", "imposed")], "goldfishParamTest"))
 })
 
 test_that("a flavored fit is tested against each process's own offsets", {

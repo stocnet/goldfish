@@ -36,3 +36,6 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.28,local,stocnet/goldfish,32d20ed,32d20ed,archive,FALSE,Archived OpenSpec change 'prep-diag-debug' on 2026-08-05 (version 1.9.28); see openspec/changes/archive/.
 1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,FALSE,Archived OpenSpec change 'intercept-only-rate-spec' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
 1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,FALSE,Archived OpenSpec change 'joint-parameters' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'class-naming-scheme' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'model-spec-descriptor' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'fit-class-hierarchy' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.

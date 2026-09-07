@@ -652,6 +652,32 @@ retired. `coef()`/`vcov()` stay **flat** (base-generic contract), named by the
 standard and MC error side by side, and surface the `converged` flag (D7) —
 rendering via cli semantic elements under a pinned context for snapshots.
 
+**The result class arrives with its verdicts recorded**
+(`fit-class-hierarchy`, ADR-0038, ADR-0050 and ADR-0052). Every fitted-model
+class carries the shared parent `goldfishBaseFit`, and the
+`fit-class-hierarchy` capability in `openspec/specs/` records one verdict —
+`inherit`, `override` or `refuse` — for every generic dispatching on a fit
+class. That record is a **design-time obligation, not a test fixture**: this
+change states its verdicts in that capability's spec before writing the
+class, which is the point at which the question can still be argued. What a
+test does check is reachability — a generic registered on any fit surface
+must be reachable for every fit class — so a class that simply inherits
+everything passes it while still owing the argument.
+
+Two rows are decided by the paragraphs above rather than left open. `coef()`
+and `vcov()` are `override` (flat, composite-labelled, MC error carried
+alongside), and `coef_layout()` is `override` — the DyNES result is a joint
+surface, so unlike a single-process fit it *has* per-process blocks to lay
+out. The row that needs a decision made rather than read off is **`logLik`**:
+this estimator maximizes a Monte-Carlo estimate of the observed-data
+likelihood, so an inherited exact-likelihood `logLik()` would let `AIC()` and
+`BIC()` return numbers that look like information criteria and are not. That
+verdict was deliberately left to this change — `fit-class-hierarchy` D8 —
+because deciding it there would have meant deciding this estimator's
+semantics before the estimator existed. If the verdict is `refuse`, the
+message says the quantity is a Monte-Carlo estimate and names what to use
+instead.
+
 ### D10 — Parallel map seam: sequence-level, serial default (from dynes-augmentation D10)
 
 One internal map seam for every per-sequence loop (pool preprocessing on

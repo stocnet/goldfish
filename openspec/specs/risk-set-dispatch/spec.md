@@ -4,34 +4,25 @@
 TBD - created by archiving change spec-driven-dispatch. Update Purpose after archive.
 ## Requirements
 ### Requirement: Risk-set descriptor decided once, at parse time, on the model spec
-The typed model spec SHALL carry the risk-set dispatch metadata as data
-attached by its constructor at formula-parsing time: the risk-set axis
-(sender / receiver-given-sender / dyad / symmetric-dyad), the fold target and
-encoding policy (which availability object a constraint folds into and how),
-and the symmetrization flag. Every downstream decision site — availability
-encoding selection, fold-family selection, validation family, and estimation
-guards — SHALL read these fields from the spec; no site SHALL re-derive the
-family or geometry from model/sub_model strings or from array
-dimensionality. The dimensionality of the statistics state SHALL NOT be used
-as a family indicator.
+The risk-set facts SHALL continue to be decided exactly once, at parse time,
+on the model spec, and every consumer SHALL read them rather than re-deriving
+the family or geometry from model and sub-model strings or from array
+dimensionality. These fields SHALL be carried as part of the single behavioral
+descriptor the spec constructor builds, not as a separate object beside it, so
+that a spec presents one behavioral surface rather than two. The decided-once
+and no-re-derivation rules SHALL apply to every field of that descriptor, not
+only to the risk-set fields.
 
-#### Scenario: one decision point
-- **WHEN** a model spec is constructed for any model/sub-model combination
-- **THEN** its risk-set descriptor is fully determined at construction, and
-  the encoding decision, fold selection, and validation family for that model
-  are functions of the descriptor alone.
+#### Scenario: risk-set fields live on the one descriptor
+- **WHEN** a model spec is constructed
+- **THEN** its risk-set axis, fold target and encoding are fields of the same
+  descriptor that carries the timing, likelihood and input-shape facts, and no
+  separate risk-set object is attached
 
 #### Scenario: no family re-derivation in estimation glue
-- **WHEN** the estimation entry code (`R/model_estimate.R`) prepares a
-  constrained model after this change
-- **THEN** no is-family boolean is computed by comparing model/sub_model
-  strings; the family properties are read from the spec descriptor.
-
-#### Scenario: rate family read from the spec
-- **WHEN** an engine needs to distinguish a sender-set (rate) model from a
-  dyad-indexed model
-- **THEN** it reads the descriptor's axis, not the dimensionality of the
-  initial statistics array.
+- **WHEN** estimation glue needs the risk-set family or geometry
+- **THEN** it reads the descriptor, and no site recomputes the family from
+  model or sub-model strings or from array dimensionality
 
 ### Requirement: Single engine-capability map for constrained estimation
 One internal table, derived from the risk-set descriptor, SHALL answer

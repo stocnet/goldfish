@@ -4,7 +4,7 @@
 TBD - created by archiving change residuals-gof. Update Purpose after archive.
 ## Requirements
 ### Requirement: residuals method with coxph-style types
-`residuals.result.goldfish(object, type, preprocessed = NULL, ...)` SHALL
+`residuals.goldfishFit(object, type, preprocessed = NULL, ...)` SHALL
 support `type = c("deviance", "schoenfeld", "scaled_schoenfeld", "score",
 "cox_snell", "response", "martingale", "dfbeta", "dfbetas", "cooks")` with
 `"deviance"` as default. Definitions: deviance = `-2 * intervalLogL`
@@ -213,7 +213,7 @@ A method reaching a flavored container SHALL NOT return `NULL`.
   `flavor` and `family` appended after the existing columns
 
 ### Requirement: fitted method
-The method `fitted.result.goldfish()` SHALL accept
+The method `fitted.goldfishFit()` SHALL accept
 `type = c("outcome", "probabilities")` and
 SHALL return, for `"outcome"` (default), `exp(intervalLogL)` — the fitted
 probability (density contribution for exact-time submodels) of each
@@ -226,7 +226,7 @@ per-event fitted probability vectors via stored primitives or
 - **THEN** it returns `exp(fit$intervalLogL)` without an evaluation pass.
 
 ### Requirement: in-sample predict method
-The method `predict.result.goldfish()` SHALL accept
+The method `predict.goldfishFit()` SHALL accept
 `type = c("probabilities", "ranks")`, an optional `events` index subset,
 and `preprocessed`, and SHALL return, at the observed decision points, the
 fitted next-event probability vectors or observed ranks via
@@ -240,13 +240,13 @@ prediction given the observed history — not forecasting (which requires
 - **THEN** the result equals the stored `observed_rank` vector.
 
 ### Requirement: augment gains broom residual columns
-`augment.result.goldfish()` SHALL add `.fitted` (fitted outcome
+`augment.goldfishFit()` SHALL add `.fitted` (fitted outcome
 probability) and `.resid` (deviance residual) columns alongside the
 existing event columns and `intervalLogL`, following broom naming
 conventions. Existing columns SHALL be unchanged. The method SHALL be
 wired like `tidy`/`glance`: registered with
-`S3method(augment, result.goldfish)` and the `generics::augment` generic
-re-exported, replacing the current bare `export(augment.result.goldfish)`
+`S3method(augment, goldfishFit)` and the `generics::augment` generic
+re-exported, replacing the current bare `export(augment.goldfishFit)`
 (the bare export is dev-line-only, so it is removed without a stub;
 NEWS records the wiring fix).
 
@@ -259,7 +259,7 @@ NEWS records the wiring fix).
 #### Scenario: augment dispatches like the other broom generics
 - **WHEN** `augment(fit)` is called after attaching goldfish
 - **THEN** dispatch reaches the method through the re-exported generic,
-  and `augment.result.goldfish` is no longer an exported name (matching
+  and `augment.goldfishFit` is no longer an exported name (matching
   how `tidy`/`glance` are wired).
 
 ### Requirement: documented caveats on residual use

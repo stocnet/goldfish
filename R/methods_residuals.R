@@ -127,7 +127,7 @@ RESIDUAL_TYPES_SCORES <- c(
 #' after enough events have accumulated) or to exclude the opening segment
 #' from estimation, and to compare the estimate with and without it.
 #'
-#' @param object a fitted model of class `"result.goldfish"`.
+#' @param object a fitted model of class `"goldfishFit"`.
 #' @param type the residual type, one of `"deviance"` (default), `"score"`,
 #'   `"schoenfeld"`, `"scaled_schoenfeld"`, `"cox_snell"`, `"response"`,
 #'   `"martingale"`, `"dfbeta"`, `"dfbetas"` and `"cooks"`.
@@ -151,7 +151,7 @@ RESIDUAL_TYPES_SCORES <- c(
 #'   and the uncensored spans number its observed one.
 #'
 #'   Supplying `level` for any other type is an error: they have one reading.
-#' @param preprocessed a `preprocessed.goldfish` object to recompute from, as
+#' @param preprocessed a `goldfishStat` object to recompute from, as
 #'   returned by [compute_statistics()]. Only the recomputing types read it, and
 #'   only when the fit did not store what they need; it defaults to the object
 #'   attached by `estimate_*(return_preprocessed = TRUE)`.
@@ -197,9 +197,9 @@ RESIDUAL_TYPES_SCORES <- c(
 #' @seealso [estimate_dynam()] for the primitives these read,
 #'   [set_algorithm_newton()] for requesting them, and [margin_table()] for
 #'   the per-actor calibration counterpart.
-#' @method residuals result.goldfish
+#' @method residuals goldfishFit
 #' @export
-residuals.result.goldfish <- function(
+residuals.goldfishFit <- function(
   object,
   type = c(
     "deviance",
@@ -404,7 +404,7 @@ fit_component <- function(
 # Is this an exact-time (Poisson) sub-model? The one predicate the type-level
 # branches read, so "which families have a compensator" is stated once.
 is_exact_time_fit <- function(object) {
-  identical(risk_set_normalizer(object$model_spec), "poisson")
+  identical(behavior_likelihood(object$model_spec), "poisson")
 }
 
 # Schoenfeld rows are the score rows without the exposure term. On a
@@ -498,10 +498,10 @@ cox_snell_residuals <- function(object, call = rlang::caller_env()) {
     # the same family and the reason has to name the one being asked. A
     # coordination likelihood is a softmax over unordered dyads, not over a
     # sender's alternatives, so calling it multinomial is simply wrong.
-    normalizer <- risk_set_normalizer(object$model_spec)
+    likelihood <- behavior_likelihood(object$model_spec)
     sub_model <- object$model_spec$sub_model
     models <- switch(
-      normalizer,
+      likelihood,
       coordination = "which unordered dyad formed",
       multinomial = "which alternative was realized",
       "which outcome was realized"
@@ -509,7 +509,7 @@ cox_snell_residuals <- function(object, call = rlang::caller_env()) {
     cli::cli_abort(
       c(
         "Cox-Snell residuals are defined for the exact-time sub-models only.",
-        "x" = "{.val {sub_model}} has a {normalizer} likelihood, which carries
+        "x" = "{.val {sub_model}} has a {likelihood} likelihood, which carries
                no compensator: it models {models}, not when.",
         "i" = "Use {.code type = \"deviance\"} for a per-interval
                goodness-of-fit measure on this sub-model."
@@ -739,9 +739,9 @@ influence_rows <- function(object, scores, type) {
 }
 
 #' @export
-#' @method residuals flavored_result.goldfish
+#' @method residuals goldfishFlavFit
 #' @noRd
-residuals.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+residuals.goldfishFlavFit <- function(object, ..., flavor = NULL) {
   # A residual series is a vector, a matrix or a list of them, so nothing in the
   # return can say which process it came from -- hence a list keyed by process
   # label rather than the row-bound table `augment()` gives.

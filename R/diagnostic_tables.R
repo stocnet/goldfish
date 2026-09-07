@@ -181,10 +181,12 @@ node_labels <- function(nodes) {
 #' The diagnostic table contract
 #'
 #' @description
-#' Every diagnostic data object goldfish returns carries the producing
-#' function's name at the head of its classes, and enough metadata for a print
-#' or plot method to describe the object without reaching back into the fit it
-#' came from. Where one table says everything the object *is* a
+#' Every diagnostic data object goldfish returns carries its own
+#' `goldfish<Thing>` class at the head of its classes (`goldfishMargins` for
+#' `margin_table()`, `goldfishOutliers` for `diagnose_outliers()`, and so on)
+#' and enough metadata for a print or plot method to describe the object
+#' without reaching back into the fit it came from. Where one table says
+#' everything the object *is* a
 #' [tibble::tibble()] — `margin_table()`, `diagnose_outliers()`,
 #' `diagnose_changepoints()`. Where it does not, the object is a classed list
 #' whose components are each a tibble: `diagnose_onset()` carries a parameter
@@ -194,8 +196,10 @@ node_labels <- function(nodes) {
 #' @details
 #' The metadata travels as attributes:
 #' \describe{
-#'   \item{`diagnostic`}{a character value naming the producer, which is also
-#'     the object's first class (`"margin_table"`).}
+#'   \item{`diagnostic`}{a character value naming the object's first class
+#'     (`"goldfishMargins"`). It is the class rather than the producing
+#'     function, so it moved with the 2.0.0 class rename:
+#'     `margin_table()` returns `"goldfishMargins"`, not `"margin_table"`.}
 #'   \item{`context`}{a list describing the fit the table was computed from:
 #'     `model`, `sub_model`, `backend`, `n_events`, the per-role observed
 #'     totals, the node-set names (and, on a two-mode fit, `two_mode = TRUE`),
@@ -432,19 +436,19 @@ demote_if_incomplete <- function(out) {
 # and, when dplyr is attached, the reconstruction step its verbs restore
 # attributes through.
 #' @export
-`[.diagnose_outliers` <- function(x, ...) {
+`[.goldfishOutliers` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @export
-`[.diagnose_changepoints` <- function(x, ...) {
+`[.goldfishChangepoints` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @export
-`[.margin_table` <- function(x, ...) {
+`[.goldfishMargins` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
@@ -508,13 +512,13 @@ dplyr_reconstruct_diagnostic <- function(data, template) {
 #' the same fit: a tie-oriented model implies both the out- and the in-degree
 #' margin.
 #'
-#' @param x a fitted model of class `"result.goldfish"` or
-#'   `"flavored_result.goldfish"`, estimated with `"margins"` among the
+#' @param x a fitted model of class `"goldfishFit"` or
+#'   `"goldfishFlavFit"`, estimated with `"margins"` among the
 #'   [set_algorithm_newton()] `diagnostics` primitives.
 #' @param dispersion whether to add the `dispersion` column, which needs one
 #'   evaluation pass over the model's statistics. `FALSE` by default, so the
 #'   ordinary call stays a read of what estimation already stored.
-#' @param preprocessed a `preprocessed.goldfish` object, as returned by
+#' @param preprocessed a `goldfishStat` object, as returned by
 #'   [compute_statistics()]. Read only when `dispersion = TRUE`, and defaulting
 #'   to the object attached by `estimate_*(return_preprocessed = TRUE)`.
 #' @param ... additional arguments passed to or from other methods (currently
@@ -591,7 +595,7 @@ margin_table.default <- function(x, ...) {
 }
 
 #' @export
-margin_table.result.goldfish <- function(
+margin_table.goldfishFit <- function(
   x,
   dispersion = FALSE,
   preprocessed = NULL,
@@ -600,7 +604,7 @@ margin_table.result.goldfish <- function(
   rows <- margin_rows(x, dispersion = dispersion, preprocessed = preprocessed)
   new_diagnostic_table(
     rows$table,
-    class = "margin_table",
+    class = "goldfishMargins",
     context = margin_context(x, rows),
     params = list(scales = rows$defined_scales),
     defining = "observed"
@@ -608,7 +612,7 @@ margin_table.result.goldfish <- function(
 }
 
 #' @export
-margin_table.flavored_result.goldfish <- function(
+margin_table.goldfishFlavFit <- function(
   x,
   dispersion = FALSE,
   preprocessed = NULL,
@@ -649,7 +653,7 @@ margin_table.flavored_result.goldfish <- function(
   context$role_totals <- role_totals(do.call(rbind, tables))
   new_diagnostic_table(
     do.call(rbind, tables),
-    class = "margin_table",
+    class = "goldfishMargins",
     context = context,
     params = list(scales = defined),
     defining = "observed"
@@ -709,7 +713,10 @@ margin_sides <- function(margins, axis, call = rlang::caller_env()) {
     axis %||% "",
     sender = "sender",
     receiver_given_sender = "receiver",
-    dyad_symmetric = "endpoint",
+    # A dyad-axis fit reaching here is coordination. The two-sided families
+    # share that axis but name their margins per side, so they returned above;
+    # what is left credits both endpoints into one actor set.
+    dyad = "endpoint",
     cli::cli_abort(
       c(
         "Cannot name the margin role of this fit.",
@@ -791,11 +798,11 @@ role_totals <- function(table) {
 }
 
 #' @export
-#' @method print margin_table
+#' @method print goldfishMargins
 #' @noRd
-print.margin_table <- function(x, ...) {
+print.goldfishMargins <- function(x, ...) {
   context <- attr(x, "context")
-  cli::cli_rule(left = "{.cls margin_table}")
+  cli::cli_rule(left = "{.cls goldfishMargins}")
   cli::cli_text(
     "Model {.val {context$model}} ·
      sub-model {.val {context$sub_model}} ·
@@ -824,7 +831,7 @@ print.margin_table <- function(x, ...) {
     )
   }
   body <- x
-  class(body) <- setdiff(class(body), "margin_table")
+  class(body) <- setdiff(class(body), "goldfishMargins")
   print(body, ...)
   invisible(x)
 }

@@ -3,22 +3,23 @@
 \name{print.goldfishParams}
 \alias{print.goldfishParams}
 \alias{print-method}
-\alias{print.result.goldfish}
-\alias{print.summary.result.goldfish}
+\alias{print.goldfishBaseFit}
+\alias{print.goldfishSummFit}
 \alias{print.nodes.goldfish}
 \alias{print.network.goldfish}
 \alias{print.dependent.goldfish}
-\alias{print.specification.goldfish}
+\alias{print.goldfishSpec}
 \alias{print.goldfishJointSpec}
+\alias{print.goldfishData}
 \alias{print.data.goldfish}
-\alias{print.preprocessed.goldfish}
-\alias{print.algorithm_newton.goldfish}
-\alias{print.preprocessing.goldfish}
+\alias{print.goldfishStat}
+\alias{print.goldfishAlgoNewton}
+\alias{print.goldfishPrepCtrl}
 \title{Methods for \code{goldfish} objects.}
 \usage{
 \method{print}{goldfishParams}(x, ...)
 
-\method{print}{result.goldfish}(
+\method{print}{goldfishBaseFit}(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -26,7 +27,7 @@
   complete = FALSE
 )
 
-\method{print}{summary.result.goldfish}(
+\method{print}{goldfishSummFit}(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -41,22 +42,24 @@
 
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
 
-\method{print}{specification.goldfish}(x, ...)
+\method{print}{goldfishSpec}(x, ...)
 
 \method{print}{goldfishJointSpec}(x, ...)
 
+\method{print}{goldfishData}(x, ...)
+
 \method{print}{data.goldfish}(x, ...)
 
-\method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
+\method{print}{goldfishStat}(x, ..., width = getOption("width"))
 
-\method{print}{algorithm_newton.goldfish}(x, ...)
+\method{print}{goldfishAlgoNewton}(x, ...)
 
-\method{print}{preprocessing.goldfish}(x, ...)
+\method{print}{goldfishPrepCtrl}(x, ...)
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish}, \code{summary.result.goldfish},
+\item{x}{an object of class \code{goldfishFit}, \code{goldfishSummFit},
 \code{nodes.goldfish}, \code{network.goldfish}, \code{dependent.goldfish}, or
-\code{preprocessed.goldfish}.}
+\code{goldfishStat}.}
 
 \item{...}{further arguments to be passed to the respective \code{default}
 method.}
@@ -64,15 +67,15 @@ method.}
 \item{digits}{minimal number of significant digits, see \code{\link[=print.default]{print.default()}}.}
 
 \item{width}{controls the maximum number of columns on a line used in
-printing \code{summary.result.goldfish} and \code{preprocessed.goldfish},
+printing \code{goldfishSummFit} and \code{goldfishStat},
 see  \code{\link[=print.default]{print.default()}}.}
 
 \item{complete}{logical. Indicates whether the parameter coefficients
 of effects held fixed during estimation (via \code{offset()}) should be printed.
 The default value is \code{FALSE}. \emph{Note:} applies for objects of class
-\code{result.goldfish} and \code{summary.result.goldfish}.}
+\code{goldfishFit} and \code{goldfishSummFit}.}
 
-\item{compact}{logical. For objects of class \code{summary.result.goldfish},
+\item{compact}{logical. For objects of class \code{goldfishSummFit},
 when \code{TRUE} (the default) a single coefficients table is printed whose row
 labels are compact term strings and the separate "Effects details" table is
 omitted; when \code{FALSE} the "Effects details" table is printed before the
@@ -97,10 +100,10 @@ is complete.
 
 Not value, called for printing side effect.
 
-For objects of class \code{result.goldfish} and \code{summary.result.goldfish}
+For objects of class \code{goldfishFit} and \code{goldfishSummFit}
 print the estimated coefficients when \code{complete = FALSE}, otherwise it
 includes also the fixed coefficients.
-For \code{summary.result.goldfish} print:
+For \code{goldfishSummFit} print:
 \item{Effect details:}{a table with additional information of the effects.
 The information corresponds to the  values of the effects arguments when
 they are modified and if they where fixed during estimation, see
@@ -135,17 +138,17 @@ linked default network
 and a printing of the first rows in the events data frame.
 See \code{\link[=make_dependent_events]{make_dependent_events()}}.
 
-For objects of class \code{specification.goldfish} print a single-glance
-overview of the model, dependent process, and formulas.
+For objects of class \code{goldfishSpec} print a single-glance overview
+of the model, dependent process, and formulas.
 
 For objects of class \code{goldfishJointSpec} print one section
 per modeled layer (flavors nested), each formula's fid and separable/coupled
 status, and the derived and combined support constraints.
 
-For objects of class \code{algorithm_newton.goldfish}, print a summary
+For objects of class \code{goldfishAlgoNewton}, print a summary
 of the estimation algorithm options.
 
-For objects of class \code{preprocessing.goldfish}, print a summary
+For objects of class \code{goldfishPrepCtrl}, print a summary
 of the preprocessing control options.
 }
 \description{

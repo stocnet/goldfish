@@ -38,7 +38,7 @@ resolve_formula_names <- function(
   call = rlang::caller_env(),
   user_env = rlang::caller_env(2)
 ) {
-  if (!inherits(src, "data_source_stocnet")) {
+  if (!inherits(src, "goldfishSourceStocnet")) {
     return(rhs_names)
   }
   sides <- ds_side_names(src)

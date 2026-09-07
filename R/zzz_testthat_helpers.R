@@ -734,7 +734,7 @@ depevents_DyNAMi <- data.frame(
 )
 attr(depevents_DyNAMi, "order") <- c(1, 4, 8, 13, 15, 17, 20, 22)
 class(depevents_DyNAMi) <-
-  c(class(depevents_DyNAMi), "interaction.groups.updates")
+  c(class(depevents_DyNAMi), "goldfishInterGrp")
 
 exoevents_DyNAMi <- data.frame(
   time = c(5, 10, 10, 20, 20, 20, 25, 25),
@@ -745,7 +745,7 @@ exoevents_DyNAMi <- data.frame(
 )
 attr(exoevents_DyNAMi, "order") <- c(3, 7, 12, 14, 16, 19, 21, 23)
 class(exoevents_DyNAMi) <-
-  c(class(exoevents_DyNAMi), "interaction.groups.updates")
+  c(class(exoevents_DyNAMi), "goldfishInterGrp")
 
 pastupdates_DyNAMi <- data.frame(
   time = c(5, 10, 10, 10, 10, 10, 20),
@@ -756,7 +756,7 @@ pastupdates_DyNAMi <- data.frame(
 )
 attr(pastupdates_DyNAMi, "order") <- c(2, 5, 6, 9, 10, 11, 18)
 class(pastupdates_DyNAMi) <-
-  c(class(pastupdates_DyNAMi), "interaction.network.updates")
+  c(class(pastupdates_DyNAMi), "goldfishInterNet")
 
 # A legacy data.goldfish environment for the DyNAM-i tests that exercise the
 # monolith / bridge environment surface. make_data() now assembles every valid
@@ -856,7 +856,7 @@ resModObject <- structure(
     model = "DyNAM",
     sub_model = "choice",
     backend = "cpp",
-    right_censored = FALSE,
+    is_exact_time = FALSE,
     # Declares which layout this hand-built fixture emulates. The
     # post-estimation methods refuse an object carrying no record, so a fixture
     # they are called on has to say -- and when the layout next moves, this line
@@ -868,7 +868,7 @@ resModObject <- structure(
        control_algo = estimation_options(fixedParameters = c(NA, 1, NA)))"
     )
   ),
-  class = "result.goldfish"
+  class = c("goldfishFit", "goldfishBaseFit")
 )
 
 # Restore the caller's lifecycle verbosity (see the note at the top of this

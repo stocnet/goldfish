@@ -92,9 +92,9 @@ test_that("the three describers dispatch on a container", {
   changepoints <- diagnose_changepoints(container)
   onset <- diagnose_onset(container)
 
-  expect_s3_class(outliers, "diagnose_outliers")
-  expect_s3_class(changepoints, "diagnose_changepoints")
-  expect_s3_class(onset, "diagnose_onset")
+  expect_s3_class(outliers, "goldfishOutliers")
+  expect_s3_class(changepoints, "goldfishChangepoints")
+  expect_s3_class(onset, "goldfishOnset")
 
   # The tables stack; the onset does not fit one rectangle, so it stays a list
   # and every component carries the identity rather than only the first.
@@ -160,7 +160,7 @@ test_that("the identity columns are not defining ones", {
   expect_false(any(c("flavor", "family") %in% attr(outliers, "defining")))
 
   dropped <- outliers[, setdiff(names(outliers), c("flavor", "family"))]
-  expect_s3_class(dropped, "diagnose_outliers")
+  expect_s3_class(dropped, "goldfishOutliers")
   expect_equal(attr(dropped, "defining"), attr(outliers, "defining"))
   expect_equal(attr(dropped, "context"), attr(outliers, "context"))
 
@@ -168,12 +168,26 @@ test_that("the identity columns are not defining ones", {
   # demotes the object to a plain tibble, exactly as a `grouped_df` demotes
   # when its groups are gone.
   demoted <- outliers[, setdiff(names(outliers), "outlier")]
-  expect_false(inherits(demoted, "diagnose_outliers"))
+  expect_false(inherits(demoted, "goldfishOutliers"))
 })
 
 test_that("plot dispatch survives dropping the identity columns", {
   skip_on_cran()
   skip_if_not_installed("autograph")
+  # autograph is upstream of the class names: it registers plot.goldfishOutliers
+  # from 1.0.6 on, and 1.0.5 still dispatches on the retired `diagnose_outliers`
+  # spelling. Where the installed autograph predates the rename there is no
+  # method to reach, so this asserts nothing and skips rather than failing on an
+  # older dependency.
+  skip_if(
+    is.null(utils::getS3method(
+      "plot",
+      "goldfishOutliers",
+      optional = TRUE,
+      envir = asNamespace("autograph")
+    )),
+    "installed autograph predates the goldfish<Thing> class names"
+  )
   container <- flavored_container_fit()
 
   outliers <- diagnose_outliers(container)

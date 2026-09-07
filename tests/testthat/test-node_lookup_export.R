@@ -150,7 +150,9 @@ test_that("the db export descriptor carries the node lookup", {
     control_prep = set_preprocessing(db = con, db_table = "stats")
   )
 
-  expect_s3_class(descriptor, "preprocessed_db.goldfish")
+  expect_s3_class(descriptor, "goldfishStat")
+  # The db shape is the same class carrying a different `storage`.
+  expect_identical(attr(descriptor, "storage"), "db")
   lookup <- descriptor$node_lookup
   expect_named(lookup, c("side", "local", "global", "label"))
   # The long SQL table's index_i / index_j join to this lookup off-database.

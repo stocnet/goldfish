@@ -4,7 +4,7 @@
 The multivariate specification surface for co-evolving processes: the exported
 `make_joint_specification(...)` constructor that composes two or more
 `make_specification()` objects over one shared mode-map object into a distinct
-`joint_specification.goldfish` class, the mode-set-identity conformance rule for
+`goldfishJointSpec` class, the mode-set-identity conformance rule for
 cross-process reads, the process_map fid vocabulary extended across processes,
 direct-reference coupling detection surfaced to consumers, focal-layer
 uniqueness, event-stream estimator rejection of the joint object, and the
@@ -227,7 +227,7 @@ Completion is a **single transform** shared by every consumer (`simulate()`,
 non-walk-driven paths carry identical fid sets; it SHALL NOT be performed inside
 `walk_open()`, and it SHALL NOT be applied to the single-process / flavored
 estimation path (`estimate_dynam()` / `estimate_rem()` over one
-`specification.goldfish`), which keeps rate-only and choice-only specifications
+`goldfishSpec`), which keeps rate-only and choice-only specifications
 unchanged. `make_specification()` SHALL NOT abort on a half-specified flavored
 specification (so it can be built and reach a generative consumer); the
 same-flavor-set error is re-imposed by the single-process estimators at estimation
@@ -293,7 +293,7 @@ time on an unfilled gap.
   any completion runs.
 
 #### Scenario: single-process estimation is not completed
-- **WHEN** a rate-only DyNAM `specification.goldfish` (choice `NULL`) is passed to
+- **WHEN** a rate-only DyNAM `goldfishSpec` (choice `NULL`) is passed to
   `estimate_dynam()`
 - **THEN** no choice is added, the specification estimates as rate-only, and the
   preprocessed output is byte-identical to the pre-change path (frozen baselines
@@ -339,7 +339,7 @@ auto-supplied sub-models are visible beyond the one-time construction warning.
 The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
 `goldfishJointSpec` object — a multivariate specification that portrays their
-co-evolution (design D17 — renamed from `joint_specification.goldfish` under
+co-evolution (design D17 — renamed from `goldfishJointSpec` under
 the retired `<noun>.goldfish` house convention). Construction SHALL NOT
 require a panel-observed layer to be referenced — all viability is consumer-owned. A
 combination that references no panel-observed layer SHALL compose: it is
@@ -595,7 +595,7 @@ this change SHALL NOT force the object on them nor alter their signatures.
 
 #### Scenario: single-process surfaces are unaffected
 - **WHEN** `estimate_dynam()` is called with a numeric `initial_parameters`, or
-  `simulate()` is called on a single `specification.goldfish` with a numeric
+  `simulate()` is called on a single `goldfishSpec` with a numeric
   `coef`
 - **THEN** both proceed unchanged, requiring no `goldfishParams`.
 

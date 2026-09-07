@@ -14,14 +14,14 @@ test_parameter(x, ...)
 test_time(x, ...)
 }
 \arguments{
-\item{object}{a fitted model of class \code{"result.goldfish"}, or a
+\item{object}{a fitted model of class \code{"goldfishFit"}, or a
 specification (multi-process) fit. Named \code{object} rather than \code{x} on
 \code{\link[=test_gof]{test_gof()}} alone, matching the signature the sibling generic already
 publishes.}
 
 \item{...}{additional arguments passed to or from other methods.}
 
-\item{x}{a fitted model of class \code{"result.goldfish"}, or a specification
+\item{x}{a fitted model of class \code{"goldfishFit"}, or a specification
 (multi-process) fit.}
 }
 \value{
@@ -55,6 +55,6 @@ explicitly if both are attached; that always resolves.
 }
 \seealso{
 \code{\link[=diagnose_outliers]{diagnose_outliers()}} and \code{\link[=diagnose_changepoints]{diagnose_changepoints()}} for the
-descriptive counterparts, \code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}} for the residuals
+descriptive counterparts, \code{\link[=residuals.goldfishFit]{residuals.goldfishFit()}} for the residuals
 these read, and \link{diagnostic-tables} for the metadata a result carries.
 }

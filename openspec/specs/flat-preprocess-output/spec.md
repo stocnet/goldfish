@@ -1,10 +1,10 @@
 # flat-preprocess-output Specification
 
 ## Purpose
-Define the flat-buffer `preprocessed.goldfish` output: combined `stat_mat_update` / `stat_mat_pointer` point updates, `stat_mat_broadcast` fan-out, unified event fields, and engine-native initial stats, consumed by the R (`default`) and C++ (`default_c`) estimation engines without restructuring.
+Define the flat-buffer `goldfishStat` output: combined `stat_mat_update` / `stat_mat_pointer` point updates, `stat_mat_broadcast` fan-out, unified event fields, and engine-native initial stats, consumed by the R (`default`) and C++ (`default_c`) estimation engines without restructuring.
 ## Requirements
 ### Requirement: Combined flat update matrix in preprocessed output
-The `preprocessed.goldfish` object SHALL contain `stat_mat_update` (a 4 × K integer/numeric matrix with rows `node1`, `node2`, `effect`, `replace` — all 0-indexed) covering **both** dependent and right-censored events in event-sequence order, holding only cell-specific (point) updates. `stat_mat_pointer` (numeric vector, length = number of stored events) SHALL record the end-column index in `stat_mat_update` after each stored event's updates are written. The object SHALL additionally contain `stat_mat_broadcast` (a 4 × M matrix with rows `kind`, `fixed`, `effect`, `replace`) and `stat_mat_broadcast_pointer` (length = number of stored events) holding the constant-value fan-out updates that were previously materialised as duplicate `stat_mat_update` columns; both SHALL be empty (0 columns) for models with no broadcast-eligible effects. The existing `is_dependent` integer vector (1L = dependent, 0L = right-censored) distinguishes event types. The `stats_change` nested list SHALL NOT be present in the returned object. The `preprocessed.goldfish` format `version` SHALL be bumped so that objects preprocessed by earlier versions are rejected by the `preprocessed` version check.
+The `goldfishStat` object SHALL contain `stat_mat_update` (a 4 × K integer/numeric matrix with rows `node1`, `node2`, `effect`, `replace` — all 0-indexed) covering **both** dependent and right-censored events in event-sequence order, holding only cell-specific (point) updates. `stat_mat_pointer` (numeric vector, length = number of stored events) SHALL record the end-column index in `stat_mat_update` after each stored event's updates are written. The object SHALL additionally contain `stat_mat_broadcast` (a 4 × M matrix with rows `kind`, `fixed`, `effect`, `replace`) and `stat_mat_broadcast_pointer` (length = number of stored events) holding the constant-value fan-out updates that were previously materialised as duplicate `stat_mat_update` columns; both SHALL be empty (0 columns) for models with no broadcast-eligible effects. The existing `is_dependent` integer vector (1L = dependent, 0L = right-censored) distinguishes event types. The `stats_change` nested list SHALL NOT be present in the returned object. The `goldfishStat` format `version` SHALL be bumped so that objects preprocessed by earlier versions are rejected by the `preprocessed` version check.
 
 #### Scenario: Combined flat matrix is built during preprocessing
 - **WHEN** `preprocess()` is called on any valid model formula
@@ -19,14 +19,14 @@ The `preprocessed.goldfish` object SHALL contain `stat_mat_update` (a 4 × K int
 - **THEN** that fan-out adds one column to `stat_mat_broadcast` and zero columns to `stat_mat_update` for that effect at that event
 
 ### Requirement: Unified event fields retained
-The `preprocessed.goldfish` object SHALL retain the unified event fields already produced by the monolithic loop: `is_dependent`, `event_time`, `event_sender`, `event_receiver`, `intervals`, `event_pos`, `active_mode1_init`, `active_mode1_changes`, `active_mode2_init`, `active_mode2_changes`, `startTime`, and `endTime`. Recipe methods SHALL produce these fields with the same semantics as the pre-refactor monolith.
+The `goldfishStat` object SHALL retain the unified event fields already produced by the monolithic loop: `is_dependent`, `event_time`, `event_sender`, `event_receiver`, `intervals`, `event_pos`, `active_mode1_init`, `active_mode1_changes`, `active_mode2_init`, `active_mode2_changes`, `startTime`, and `endTime`. Recipe methods SHALL produce these fields with the same semantics as the pre-refactor monolith.
 
 #### Scenario: Unified fields present in recipe output
-- **WHEN** any recipe method returns a `preprocessed.goldfish` object
+- **WHEN** any recipe method returns a `goldfishStat` object
 - **THEN** all unified event fields listed above are present and `length(event_pos)` equals the number of stored events
 
 ### Requirement: Global-attribute events handled in rate recipe loops
-Recipe methods for rate models — `preprocess.dynam_rate_spec()` (sender-indexed), `preprocess.rem_rate_spec()` and `preprocess.rem_rate_ordered_spec()` (dyad-indexed) — SHALL process global-attribute events (event streams with neither `node` nor `sender`/`receiver` columns): updating the linked `global.goldfish` object column named by `attr(events, "replace")`, and emitting right-censored statistic updates (previous value immediately before the change event) mirroring the node-attribute right-censoring behaviour of the pre-refactor monolith.
+Recipe methods for rate models — `preprocess.goldfishKindDnRate()` (sender-indexed), `preprocess.goldfishKindRemRate()` and `preprocess.goldfishKindRemCox()` (dyad-indexed) — SHALL process global-attribute events (event streams with neither `node` nor `sender`/`receiver` columns): updating the linked `global.goldfish` object column named by `attr(events, "replace")`, and emitting right-censored statistic updates (previous value immediately before the change event) mirroring the node-attribute right-censoring behaviour of the pre-refactor monolith.
 
 #### Scenario: Global change event updates all actors' statistics
 - **WHEN** `preprocess()` runs a DyNAM-rate model with a `global(seasons$winter)` effect and one linked event changing `winter` from 0 to 1 at time t
@@ -41,7 +41,7 @@ Recipe methods for rate models — `preprocess.dynam_rate_spec()` (sender-indexe
 - **THEN** coefficients agree with the stored baselines to within 1e-6 (baseline regenerable only with documented justification per design D18)
 
 ### Requirement: initialStats retained in engine-native form
-`initialStats` SHALL be stored in the form each estimation engine uses natively. For `sender_spec` models (rate, rate_ordered), `initialStats` SHALL be `n1 × nEffects` (2D). For `dyad_spec` models (choice, choice_coord, REM), `initialStats` SHALL be `n1 × n2 × nEffects` (3D). The C++ interface SHALL flatten the 3D form to `n1*n2 × nEffects` at call time; preprocessing recipes SHALL NOT pre-flatten it.
+`initialStats` SHALL be stored in the form each estimation engine uses natively. For `goldfishAxisSender` models (rate, rate_ordered), `initialStats` SHALL be `n1 × nEffects` (2D). For `goldfishAxisDyad` models (choice, choice_coord, REM), `initialStats` SHALL be `n1 × n2 × nEffects` (3D). The C++ interface SHALL flatten the 3D form to `n1*n2 × nEffects` at call time; preprocessing recipes SHALL NOT pre-flatten it.
 
 #### Scenario: Sender model produces 2D initialStats
 - **WHEN** `preprocess()` is called for a DyNAM-rate submodel with `n1=10`, `nEffects=2`
@@ -52,7 +52,7 @@ Recipe methods for rate models — `preprocess.dynam_rate_spec()` (sender-indexe
 - **THEN** `length(dim(preprocessedObject$initialStats))` equals 3 and `dim(preprocessedObject$initialStats)` equals `c(10L, 10L, 3L)`
 
 ### Requirement: Intercept scalars stored in preprocessed output
-The `preprocessed.goldfish` object SHALL contain `n_dep_events` (integer count of dependent events), `total_time` (numeric sum of all inter-event intervals), and `avg_active_actors` (numeric time-weighted mean number of active actors per dependent event). These SHALL be computed once during the preprocessing event loop and SHALL NOT be recomputed at estimation time. When a `support_constraint` is active, `avg_active_actors` SHALL count the **post-constraint** active set (rate: senders with at least one allowed receiver; dyadic models: allowed (sender, receiver) pairs), time-weighted over the sub-intervals created by mask flips.
+The `goldfishStat` object SHALL contain `n_dep_events` (integer count of dependent events), `total_time` (numeric sum of all inter-event intervals), and `avg_active_actors` (numeric time-weighted mean number of active actors per dependent event). These SHALL be computed once during the preprocessing event loop and SHALL NOT be recomputed at estimation time. When a `support_constraint` is active, `avg_active_actors` SHALL count the **post-constraint** active set (rate: senders with at least one allowed receiver; dyadic models: allowed (sender, receiver) pairs), time-weighted over the sub-intervals created by mask flips.
 
 #### Scenario: Intercept scalars are present and non-negative
 - **WHEN** `preprocess()` completes successfully
@@ -67,7 +67,7 @@ The `preprocessed.goldfish` object SHALL contain `n_dep_events` (integer count o
 - **THEN** `avg_active_actors` equals the time-weighted mean of the constrained sender counts (matching a hand-computed fixture value), not the unconstrained presence counts
 
 ### Requirement: Presence updates stored in C format
-The `preprocessed.goldfish` object SHALL store availability as the per-loop
+The `goldfishStat` object SHALL store availability as the per-loop
 objects in C format: the sender loop stores `active_sender_init` plus
 `active_sender_update` (a 2 x K' integer matrix in C format) and
 `active_sender_update_pointer` (an integer vector aligned to stored events); the
@@ -90,14 +90,14 @@ for display purposes.
 - **THEN** `preprocessedObject$active_sender_update` is NULL
 
 ### Requirement: ignore_repetitions rejected with a clear error
-Any formula containing `ignore_repetitions = TRUE` SHALL cause `estimate_dynam()`, `estimate_rem()`, or `estimate_dynami()` to call `cli::cli_abort()` before preprocessing begins. No `ignoreRep_masks` field SHALL exist in any `preprocessed.goldfish` object. The feature is disabled pending a correct reimplementation (see design Open Questions).
+Any formula containing `ignore_repetitions = TRUE` SHALL cause `estimate_dynam()`, `estimate_rem()`, or `estimate_dynami()` to call `cli::cli_abort()` before preprocessing begins. No `ignoreRep_masks` field SHALL exist in any `goldfishStat` object. The feature is disabled pending a correct reimplementation (see design Open Questions).
 
 #### Scenario: ignore_repetitions triggers immediate error
 - **WHEN** `estimate_dynam(inertia(net) + indeg(net, ignore_repetitions = TRUE), data, sub_model = "choice")` is called
 - **THEN** a `cli::cli_abort()` error is raised before any preprocessing occurs
 
 ### Requirement: Estimation routines are self-contained
-After `preprocess()` returns, neither `estimation_core.R` nor `cpp_interface.R` SHALL call `get()` on any R environment object or accept `defaultNetworkName` / `prepEnvir` parameters for the purposes of ignoreRep or actor-count derivation. All data required for estimation SHALL be present in the `preprocessed.goldfish` object.
+After `preprocess()` returns, neither `estimation_core.R` nor `cpp_interface.R` SHALL call `get()` on any R environment object or accept `defaultNetworkName` / `prepEnvir` parameters for the purposes of ignoreRep or actor-count derivation. All data required for estimation SHALL be present in the `goldfishStat` object.
 
 #### Scenario: Estimation completes without environment lookups
 - **WHEN** `estimate_dynam()` is called after preprocessing and the `prepEnvir` environment is removed
@@ -123,7 +123,7 @@ The refactored pipeline SHALL produce ML coefficient estimates identical to the 
 - **THEN** all tests pass with 0 failures
 
 ### Requirement: Effective dyadic availability carried as an encoding-aware flat statistic (active_dyad)
-The `preprocessed.goldfish` object of a dyad-loop model SHALL carry `active_dyad`
+The `goldfishStat` object of a dyad-loop model SHALL carry `active_dyad`
 — the effective per-event availability with the per-family operands already
 folded (receiver presence and alter/ego/scalar support for choice; both presences
 and all support atoms for REM; opportunity) — as a separate, encoding-aware flat
@@ -158,7 +158,7 @@ be a per-event list of dense matrices, SHALL NOT be a slice or column of
 
 ### Requirement: Multi-flavor preprocessing yields per-flavor flat-buffer objects
 
-Preprocessing a multi-flavor specification SHALL return one `preprocessed.goldfish`
+Preprocessing a multi-flavor specification SHALL return one `goldfishStat`
 object per modeled flavor, each satisfying this capability's single-model contract
 (`stat_mat_update`/`stat_mat_pointer`, broadcast buffers, unified event fields,
 engine-native `initialStats`, availability C-format, intercept scalars) so that either
@@ -174,7 +174,7 @@ the `flavored-processes` capability.
 
 #### Scenario: per-flavor objects are backend-ready
 - **WHEN** a two-flavor DyNAM-rate specification is preprocessed
-- **THEN** two `preprocessed.goldfish` objects are returned, and each estimates on both
+- **THEN** two `goldfishStat` objects are returned, and each estimates on both
   the `r` and `cpp` backends without restructuring.
 
 #### Scenario: is_dependent partitions by flavor on timed models

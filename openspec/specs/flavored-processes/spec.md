@@ -98,14 +98,14 @@ trigger inference — keys resolve against the values present.
 Preprocessing of a multi-flavor specification SHALL walk the event sequence once:
 the union of effects across all flavors' formulas is computed once (an effect shared by
 several formulas contributes one statistics computation, referenced by each flavor's
-effect map), and the output is one `preprocessed.goldfish` object per flavor. Event
+effect map), and the output is one `goldfishStat` object per flavor. Event
 routing SHALL follow the sub-model family: on timed rate sub-models (DyNAM-rate, REM) a
 dependent event of flavor g is dependent in flavor g's output and right-censored in
 every other flavor's output; on ordered and choice sub-models other-flavor events carry
 no right-censoring — they enter only as process-state updates. Each flavor's derived
 mask flips segment that flavor's right-censored timeline.
 
-The driver SHALL return, from a single call, a list of `preprocessed.goldfish`
+The driver SHALL return, from a single call, a list of `goldfishStat`
 objects indexed by an integer formula id (fid), carrying a `process_map` table
 attribute — columns `fid`, `layer`, `flavor`, `family` (rate/choice), `stat_block`,
 `has_intercept`, `constraint_id` — as the identity authority. Support constraints
@@ -120,7 +120,7 @@ be rendered from the process_map, never parsed back from list keys.
 #### Scenario: fid-indexed return with process_map
 - **WHEN** a two-flavor DyNAM specification with rate and choice formulas is
   preprocessed by a single driver call
-- **THEN** the result is four `preprocessed.goldfish` objects indexed by fid whose
+- **THEN** the result is four `goldfishStat` objects indexed by fid whose
   process_map rows identify (layer, flavor, family), with creation's rate and choice
   rows sharing one `constraint_id`.
 
@@ -149,7 +149,7 @@ be rendered from the process_map, never parsed back from list keys.
 
 ### Requirement: Per-flavor intercept bookkeeping over per-flavor risk sets
 
-Each flavor's `preprocessed.goldfish` object SHALL carry its own intercept scalars:
+Each flavor's `goldfishStat` object SHALL carry its own intercept scalars:
 `n_dep_events` counts that flavor's dependent events, and `avg_active_actors` is the
 time-weighted post-constraint count over that flavor's combined (derived + user) mask,
 with sub-intervals at every event and mask flip, such that

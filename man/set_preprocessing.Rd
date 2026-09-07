@@ -78,7 +78,7 @@ export written when a \code{db} connection is configured. Default is
 \code{index_i} / \code{index_j} columns back to the original nodes.}
 }
 \value{
-An object of class \code{preprocessing.goldfish} (a list object), with
+An object of class \code{goldfishPrepCtrl} (a list object), with
 where the components values are the default values or the values provided
 to the function. The list object has the following components:
 \item{start_time}{Value from \code{start_time} argument.}
@@ -90,7 +90,7 @@ to the function. The list object has the following components:
 Specifies control parameters for the data preprocessing stage,
 used by \code{estimate_dynam()}, \code{estimate_rem()} and \code{estimate_dynami()}
 (when \code{preprocessed} is not a
-\code{preprocessed.goldfish} object) and \code{\link[=compute_statistics]{compute_statistics()}}.
+\code{goldfishStat} object) and \code{\link[=compute_statistics]{compute_statistics()}}.
 }
 \examples{
 prep_ctrl <- set_preprocessing(

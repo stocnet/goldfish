@@ -220,7 +220,7 @@ site that today references `presence1`/`presence2` or
 `compute_step`, the R gather routines, the C++ estimators, and the output
 writers. The object keeps its name at every encoding; consumers switch on the
 encoding field, never on the name. Because this changes the
-`preprocessed.goldfish` structure, the preprocessed format version SHALL be
+`goldfishStat` structure, the preprocessed format version SHALL be
 bumped so stale objects supplied through the estimators' `preprocessed =`
 argument (formerly `preprocessing_init =`) are rejected with the existing
 outdated-format error.

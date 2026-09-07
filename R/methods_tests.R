@@ -32,11 +32,11 @@
 #' become invisible to it. Call `goldfish::test_gof()` and its siblings
 #' explicitly if both are attached; that always resolves.
 #'
-#' @param object a fitted model of class `"result.goldfish"`, or a
+#' @param object a fitted model of class `"goldfishFit"`, or a
 #'   specification (multi-process) fit. Named `object` rather than `x` on
 #'   [test_gof()] alone, matching the signature the sibling generic already
 #'   publishes.
-#' @param x a fitted model of class `"result.goldfish"`, or a specification
+#' @param x a fitted model of class `"goldfishFit"`, or a specification
 #'   (multi-process) fit.
 #' @param ... additional arguments passed to or from other methods.
 #'
@@ -44,7 +44,7 @@
 #'   in [diagnostic-tables].
 #'
 #' @seealso [diagnose_outliers()] and [diagnose_changepoints()] for the
-#'   descriptive counterparts, [residuals.result.goldfish()] for the residuals
+#'   descriptive counterparts, [residuals.goldfishFit()] for the residuals
 #'   these read, and [diagnostic-tables] for the metadata a result carries.
 #' @name diagnostic-tests
 NULL

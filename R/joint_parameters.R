@@ -280,8 +280,8 @@ set_init_param <- function(spec, ...) {
   # re-simulate round-trip), which keeps the fid grouping the flat `coef()`
   # vector discards. A flat, free-only `coef()` vector is not accepted directly
   # because its per-parameter names collide across fids.
-  if (length(dots) == 1L && inherits(dots[[1]], "flavored_result.goldfish")) {
-    return(set_init_param_from_result(spec, dots[[1]]))
+  if (length(dots) == 1L && inherits(dots[[1]], "goldfishFlavFit")) {
+    return(set_parameters_from_result(spec, dots[[1]]))
   }
 
   process_map <- spec$process_map
@@ -374,7 +374,7 @@ set_init_param <- function(spec, ...) {
 # (the spec resolves the fixed value, so re-supplying it here would trip the
 # offset-prevails warning). Feeding those back through `set_init_param()` yields
 # a complete object a `simulate()` can drive.
-set_init_param_from_result <- function(
+set_parameters_from_result <- function(
   spec,
   result,
   call = rlang::caller_env()
@@ -797,9 +797,29 @@ coef_layout.goldfishParams <- function(x, ...) {
 }
 
 #' @export
-#' @method coef_layout flavored_result.goldfish
+#' @method coef_layout goldfishFit
 #' @rdname coef_layout
-coef_layout.flavored_result.goldfish <- function(x, ...) {
+coef_layout.goldfishFit <- function(x, ...) {
+  # Refused rather than left without a method: a layout over one process would
+  # be an invented shape, not a smaller one, and "no applicable method" says
+  # nothing about why. The condition class is matched by tests and by callers
+  # that want to tell a refusal from a failure.
+  cli::cli_abort(
+    c(
+      "{.fn coef_layout} is not defined for a {.cls goldfishFit} object.",
+      "x" = "A single-process fit has no per-process blocks: the layout is a
+             coefficient surface over the fids of a joint specification.",
+      "i" = "Use {.fn coef} for the coefficient vector, or {.fn coef_layout}
+             on the joint fit this process belongs to."
+    ),
+    class = "goldfish_generic_refused"
+  )
+}
+
+#' @export
+#' @method coef_layout goldfishFlavFit
+#' @rdname coef_layout
+coef_layout.goldfishFlavFit <- function(x, ...) {
   process_map <- x$process_map
   sub_models <- process_sub_models(process_map)
   blocks <- vector("list", nrow(process_map))

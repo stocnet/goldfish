@@ -6,7 +6,7 @@ single-clock walk that hosts all processes' statistic blocks over one shared
 process state, computing each block's effect statistics once per event and
 routing consumers through a `(layer, flavor) → fid` lookup (dependent for its own
 fids, right-censoring boundary for every other timed rate fid, state-only for
-choice/ordered fids), returning one `preprocessed.goldfish` per fid; and the
+choice/ordered fids), returning one `goldfishStat` per fid; and the
 stateful `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject` handle over that
 walk that drives generative evaluation and event injection against the shared
 state. The handle is an internal developer substrate that asserts — never
@@ -27,7 +27,7 @@ routing SHALL go through a `(layer, flavor) → fid` lookup: the event is
 dependent for its own `(layer, flavor)` fids, a right-censoring boundary for
 every other timed rate fid regardless of layer or mode-pair, and state-only for
 choice/ordered fids. Effect deduplication SHALL extend across processes within a
-statistic block and SHALL NOT cross effect-dispatch families. The walk SHALL return one `preprocessed.goldfish`
+statistic block and SHALL NOT cross effect-dispatch families. The walk SHALL return one `goldfishStat`
 object per fid, indexed by fid with the process_map attached, each passing the
 engine-readiness checks; single-process and flavored specifications SHALL
 preprocess byte-identically to their pre-merge outputs (frozen-baseline gate).

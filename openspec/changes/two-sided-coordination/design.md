@@ -42,6 +42,36 @@ superseded the same day by ADR-0029): coordination reaches
 `make_joint_specification()` as a `make_specification(model = "DyNAMu")`
 object — one constructor, one more model.
 
+### Re-grounded 2026-09-06 against landed `model-spec-descriptor`
+
+That change landed on `refactor/class-naming-scheme` and moved the surface
+this one's dispatch requirement described. Three consequences, none of which
+reverses a decision here:
+
+1. **Preprocessing no longer dispatches on a spec class.** There is one
+   `preprocess.goldfishKind` method that reads the descriptor's risk-set axis
+   (sender recipe vs dyad recipe) and its `timing` (which sets the recipe's
+   one boolean). The `model-recipe-dispatch` delta said "preprocessing and
+   estimation selected by spec class"; that is now true of estimation only,
+   and the delta is reworded.
+2. **The class vector names the likelihood and the axis**, not the model and
+   sub-model pairing: `c("goldfishLik<Axis><Family>", "goldfishAxis<Axis>",
+   "goldfishKind")`. So this change's instinct — "one spec class per mechanism
+   family as needed" — is right and now has a precise form: a mechanism earns
+   a `goldfishLik*` class exactly when its likelihood implementation differs,
+   and mechanisms that share an implementation share the class. That is the
+   rule that deleted the three DyNAM-i alias methods, and it applies here
+   unchanged.
+3. **`likelihood` already has a `coordination` value**, and it is what
+   carries the unordered-pair reduction: the retired `dyad_symmetric` axis is
+   gone, and one-mode coordination now reports `axis = "dyad"` like REM. Any
+   new mechanism that keeps the unordered-pair reduction inherits that
+   arrangement rather than needing an axis value of its own.
+
+D4 (Cox-only timing, no `distribution` argument) is unaffected: the
+descriptor's `distribution` field stays `"exponential"` for a spec that models
+no waiting time, and the ordinal regime is carried by `timing`.
+
 ## Goals / Non-Goals
 
 **Goals:**

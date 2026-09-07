@@ -12,7 +12,7 @@
 #' @param groups_network a character with the object that contains the
 #' groups network information
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #'
 #' @noRd
 preprocess_interaction <- function(
@@ -28,7 +28,7 @@ preprocess_interaction <- function(
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  right_censored = FALSE,
+  is_exact_time = FALSE,
   progress = FALSE,
   groups_network = groups_network,
   prep_envir = environment()
@@ -74,7 +74,7 @@ preprocess_interaction <- function(
 
   # initialize return objects
   # CHANGED MARION: for choice model, only joining events
-  if (right_censored) {
+  if (is_exact_time) {
     n_dependent_events <-
       length(unique(unlist(lapply(events, function(x) x$time))))
   } else {
@@ -152,19 +152,19 @@ preprocess_interaction <- function(
     for (e in seq.int(length(events))) {
       ev <- events[[e]]
       if (
-        inherits(ev, "interaction.groups.updates") &&
+        inherits(ev, "goldfishInterGrp") &&
           all(get(dname, envir = prep_envir) == ev)
       ) {
         depindex <- e
         deporder <- attr(ev, "order")
       } else if (
-        inherits(ev, "interaction.groups.updates") &&
+        inherits(ev, "goldfishInterGrp") &&
           !all(get(dname, envir = prep_envir) == ev)
       ) {
         exoindex <- e
         exoorder <- attr(ev, "order")
       } else if (
-        inherits(ev, "interaction.network.updates") &&
+        inherits(ev, "goldfishInterNet") &&
           !is.null(attr(ev, "order"))
       ) {
         numpast <- numpast + 1
@@ -442,7 +442,7 @@ preprocess_interaction <- function(
     if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
-      if (right_censored && interval > 0) {
+      if (is_exact_time && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
         # rightCensoredStatistics[[ pointers[next_event] ]] <- updates_intervals
         # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
@@ -548,11 +548,11 @@ preprocess_interaction <- function(
       # an exogenous event or past update
       isinteractionupdate <- inherits(
         events[[next_event]],
-        "interaction.network.updates"
+        "goldfishInterNet"
       )
       isgroupupdate <- inherits(
         events[[next_event]],
-        "interaction.groups.updates"
+        "goldfishInterGrp"
       )
 
       # a. calculate statistics changes:
@@ -626,7 +626,7 @@ preprocess_interaction <- function(
     close(pb)
   }
 
-  return(structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       dependent_stats_change = dependentStatistics,
@@ -641,6 +641,6 @@ preprocess_interaction <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "preprocessed.goldfish"
-  ))
+    storage = "pointer"
+  )
 }

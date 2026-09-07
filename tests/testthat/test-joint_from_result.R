@@ -137,7 +137,7 @@ flavored_result_join <- function() {
 }
 
 # There is no live joint-estimate path on this branch (estimate_dynes() lands in
-# abmcem), so a faithful flavored_result.goldfish is fabricated from the spec's
+# abmcem), so a faithful goldfishFlavFit is fabricated from the spec's
 # own coef_layout(): each fid carries the spec's coefficient names, its fixed
 # mask, the fixed value at fixed slots, and `estimate` at every free slot -- the
 # exact skeleton a real fit over this spec would surface. This is the round-trip
@@ -175,7 +175,7 @@ fabricate_joint_result <- function(
       process_map = spec$process_map,
       model = "DyNAM"
     ),
-    class = "flavored_result.goldfish"
+    class = c("goldfishFlavFit", "goldfishBaseFit")
   )
 }
 

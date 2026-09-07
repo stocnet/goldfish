@@ -113,7 +113,7 @@ test_that("choice type = 'ego' is rejected at estimation but computable", {
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
 })
 
 test_that("REM rejects a global main effect only in the ordinal sub-model", {
@@ -161,7 +161,7 @@ test_that("choice global is computable and equals the REM expansion", {
     model = "REM",
     sub_model = "rate_ordered"
   )
-  expect_s3_class(choice, "preprocessed.goldfish")
+  expect_s3_class(choice, "goldfishStat")
   expect_equal(choice$initial_stats, rem$initial_stats, tolerance = 1e-6)
   expect_equal(
     ReducePreprocess(choice),

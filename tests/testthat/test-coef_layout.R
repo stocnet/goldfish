@@ -417,9 +417,9 @@ test_that("a stub summary() groups the flat coefficients via coef_layout()", {
   skip_if_not(exists("flavored_container_fit"))
   fit <- flavored_container_fit()
 
-  # summary.flavored_result.goldfish() itself is out of scope for this change
-  # (design D6); this stub stands in for it, grouping the result's coef_layout()
-  # rows into the per-process blocks a real summary() would render.
+  # A stub rather than the real `summary()`, which answers with one summary
+  # per process: what is under test here is that the layout's rows group into
+  # per-process blocks whose values are the processes' own coefficients.
   summary_stub <- function(result) {
     layout <- coef_layout(result)
     split(layout, layout$process)
@@ -465,4 +465,15 @@ test_that("the flavored layout carries a flavor column and per-flavor fixed valu
   expect_identical(creation_offset$value, -0.3)
   expect_true(dissolution_offset$fixed)
   expect_identical(dissolution_offset$value, 0.4)
+})
+
+test_that("a single-process fit refuses to lay out a joint surface", {
+  skip_on_cran()
+  withr::local_options(cli.width = 80, cli.num_colors = 1)
+  fit <- flavored_container_fit()$results[[1L]]
+
+  expect_error(coef_layout(fit), class = "goldfish_generic_refused")
+  # Snapshotted so the refusal keeps naming the alternatives: the message is
+  # the only thing a user gets in place of a table.
+  expect_snapshot(coef_layout(fit), error = TRUE)
 })

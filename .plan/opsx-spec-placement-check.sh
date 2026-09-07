@@ -14,11 +14,23 @@
 # Renames are the reason a naive version of this check gets ignored. A
 # `## RENAMED Requirements` block moves a requirement's name, so afterwards
 # neither the FROM name (gone from the living spec) nor a MODIFIED block using
-# the TO name resolves the way a plain existence test expects. This script
-# therefore treats a rename as satisfied if EITHER side resolves, which makes it
-# correct before the archive (FROM still in the living spec) and after it (TO now
-# in the living spec) -- so it can be re-run on an already-archived change
-# without crying wolf.
+# the TO name resolves the way a plain existence test expects. A MODIFIED or
+# REMOVED block naming either side of a declared rename is therefore satisfied
+# when either side is in the living spec -- correct before the archive (FROM
+# still there) and after it (TO now there).
+#
+# The rename block ITSELF is stricter, and the reason is the 2026-09-07 fold.
+# `openspec archive` resolves a `## RENAMED` block by its FROM header and
+# aborts the entire archive -- changing nothing -- when that header is not in
+# the living spec. An earlier version of this script accepted either side here
+# too, so `class-naming-scheme` passed the pre-flight and then killed the
+# archive: an implementation task had already applied the rename to the living
+# spec by hand, leaving FROM gone and TO present. The check advertised as the
+# fold's safety net missed the one failure mode that actually stops a fold.
+# Before the archive, FROM resolving is therefore the only thing that counts,
+# and a rename already applied is a defect to fix rather than a harmless no-op.
+# After the archive FROM is gone by construction, so the `archive/<date>-<name>`
+# re-run accepts the TO side instead and still does not cry wolf.
 #
 # Usage: bash .plan/opsx-spec-placement-check.sh <change-name>
 #        bash .plan/opsx-spec-placement-check.sh archive/<date>-<name>
@@ -103,6 +115,27 @@ EOF
   return 1
 }
 
+# Does the rename declaring `$1` as its FROM side actually have a source to
+# move? Stricter than `rename_satisfied` on purpose -- see the note at the top:
+# `openspec archive` needs FROM, so before the fold nothing else will do.
+rename_from_resolves() {
+  local want="$1" i=0 from to
+  while IFS= read -r from; do
+    i=$((i + 1))
+    [ "$want" = "$from" ] || continue
+    to="$(printf '%s\n' "$RENAMED_TO" | sed -n "${i}p")"
+    if [ "$post_archive" -eq 1 ]; then
+      in_living "$from" || in_living "$to"
+      return $?
+    fi
+    in_living "$from"
+    return $?
+  done <<EOF
+$RENAMED_FROM
+EOF
+  return 1
+}
+
 problems=0
 checked=0
 
@@ -137,13 +170,18 @@ for delta in "$change_dir"/*/spec.md; do
           problems=$((problems + 1))
         fi
         ;;
-      # Checked from the FROM side only; the test is symmetric, so also testing
-      # the TO side would report one broken rename twice.
+      # Checked from the FROM side only: that is the side `openspec archive`
+      # resolves, so testing the TO side would add nothing and would report one
+      # broken rename twice.
       RENAMED_FROM)
-        if ! rename_satisfied "$req"; then
+        if ! rename_from_resolves "$req"; then
           echo "DANGLING   $capability :: ## RENAMED FROM '$req'"
-          echo "           neither side of this rename is in $LIVING, so it"
-          echo "           renames nothing."
+          echo "           not in $LIVING. \`openspec archive\` resolves a"
+          echo "           rename by its FROM header and aborts the whole"
+          echo "           archive when it is missing. If the rename was"
+          echo "           already applied to the living spec by hand, drop"
+          echo "           the block as satisfied and say so; otherwise fix"
+          echo "           the FROM name to match the living spec."
           problems=$((problems + 1))
         fi
         ;;

@@ -6,6 +6,11 @@
 `estimate_dynam()`, `estimate_rem()`, and `estimate_dynami()` SHALL accept a
 `distribution` argument with values `c("exponential", "weibull", "gompertz",
 "cox")`, defaulting to `"exponential"`, valid only for rate-family sub-models.
+The argument is one axis to the user, but the spec's behavioral descriptor
+SHALL keep two facts apart: `distribution` on the descriptor SHALL name the
+hazard family only where a hazard is integrated, and `distribution = "cox"`
+SHALL instead resolve to the ordinal timing regime, because a Cox fit
+integrates no hazard and the recipe reads that fact from `timing`.
 Supplying `distribution` (other than the default) together with a choice-family
 sub-model SHALL abort with a cli error (inert arguments are signaled, not
 dropped). The default SHALL reproduce the current exponential fits exactly.
@@ -129,6 +134,13 @@ model previously reached by `sub_model = "rate_ordered"`, producing identical
 coefficients, and the `rate_ordered` token SHALL be removed from every
 estimator and from `make_specification()` (dev-line deletion, NEWS records the
 mapping).
+
+#### Scenario: cox resolves to the ordinal timing regime
+- **WHEN** a spec is constructed with `sub_model = "rate", distribution =
+  "cox"`
+- **THEN** its descriptor reports the ordinal timing regime, and its
+  `distribution` field does not report `"cox"`, because no hazard is
+  integrated for it to name
 
 #### Scenario: cox reproduces rate_ordered coefficients
 - **WHEN** a model previously fitted with `sub_model = "rate_ordered"` is

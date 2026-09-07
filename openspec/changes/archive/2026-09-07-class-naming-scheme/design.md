@@ -1,0 +1,598 @@
+# Design — class-naming-scheme
+
+> Revised 2026-08-19 (ADR-0031 supersedes ADR-0020): scheme flipped from
+> the `_goldfish` snake_case suffix to the `goldfish<Thing>` camelCase
+> prefix, scope extended to internal classes, summary idiom flipped to
+> base R's, and the autograph lockstep inverted — autograph@develop
+> moved first.
+
+## Context
+
+goldfish runs two class-naming conventions at once: seventeen dotted
+classes (`result.goldfish`, …) from the pre-1.7.0 era, and eight bare
+constructor-named classes minted since 1.9.21 (`test_gof`,
+`diagnose_onset`, …) under a convention the living spec wrote down when
+`residuals-gof` archived. [stocnet/autograph#60] is the bug report for
+the second convention: nothing in those class vectors names a package.
+
+The ecosystem answered upstream. autograph@develop's CONTRIBUTING
+(commit 03ec996, 2026-08-17) states the rule for every stocnet package:
+a class is named **package + noun, in camelCase** (`<pkg><Thing>`),
+following RSiena's `sienaFit`/`sienaGOF`/`sienaAlgorithm`; no dot
+suffix (a dot creates no inheritance — dispatch is on exact strings);
+no shared parent class (autograph standardizes by coercion). The same
+commit renamed autograph's goldfish methods to `goldfishFit`,
+`goldfishGOF`, `goldfishTimeTest`, `goldfishOutliers`,
+`goldfishChangepoints`, `goldfishOnset`, `goldfishMargins`, keeping
+goldfish's current spellings only as defunct aliases to be deleted
+"once the oldest supported goldfish is past the rename". manynet's
+CONTRIBUTING (origin/develop, verified 2026-08-19; local checkout is
+143 behind — read via `git show origin/develop:`) adds no competing
+class rule.
+
+Constraints this design works inside:
+
+- **ADR-0031** (supersedes ADR-0020) settles the scheme: `goldfish` +
+  short camelCase identifier, decided by Alvaro 2026-08-19.
+- **ADR-0016** (expires at 2.0.0) licenses the hard rename; nothing on
+  this line has shipped to CRAN. This change folds **next**, before
+  `parametric-rates`, so the closing window is used.
+- The frozen 1e-6 and C++ golden baselines are not regenerated; class
+  names never reach `src/`.
+- The strict snake_case policy stays for functions, arguments, and
+  objects; classes become an explicit carve-out, written into the
+  tracked `CLAUDE.md` by this change (D14).
+
+## Goals / Non-Goals
+
+**Goals**
+
+- Every class goldfish attaches — user-facing or internal — names
+  goldfish, in one convention.
+- goldfish lands exactly on the seven class strings autograph@develop
+  already dispatches on.
+- Method names have one parsing: snake_case generic, dot, camelCase
+  class.
+- The living spec ends with one class-naming rule; active changes'
+  verbatim delta copies are swept in the same commit so their archives
+  reconcile.
+
+**Non-Goals**
+
+- Renaming deprecated-path classes (`nodes.goldfish`,
+  `network.goldfish`, `dependent.goldfish`, `global.goldfish`, the
+  legacy `data.goldfish` environment) — lifecycle exemption confirmed
+  2026-08-19.
+- Renaming the ~60 effect dispatch tags — they stop being classes when
+  `effect-term-registry` replaces string-built dispatch; renaming them
+  fights a mechanism scheduled for retirement (confirmed 2026-08-19).
+- Translation shims for stored objects; changing any object's contents;
+  renaming exported functions.
+
+## Decisions
+
+### D1 — The scheme is `goldfish` + a short camelCase identifier (ADR-0031)
+
+`estimate_dynam()` returns `goldfishFit`; `test_gof()` returns
+`goldfishGOF`. The identifier is a short word compressing the object
+(`Fit`, `Prep`, `Spec`, `Eval`), not a transliteration of the
+constructor name. Where autograph@develop fixed a name, that name is
+adopted verbatim (the seven above); where RSiena has a precedent, it is
+followed (`goldfishAlgo` ← `sienaAlgorithm`;
+`goldfishTimeTest` ← `sienaTimeTest`).
+
+*Why the flip from ADR-0020's `_goldfish` suffix.* Three reasons, in
+order of force. (1) With snake_case generics **and** snake_case
+classes, a method name has multiple generic/class parses —
+`augment_seq.flavored_result_goldfish` reads at several dot boundaries;
+camelCase classes give the dot exactly one reading, which was the
+collision ADR-0020's scheme merely relocated. (2) The ecosystem rule
+now exists and autograph@develop already ships the concrete strings —
+diverging means goldfish objects don't plot. (3) A class visually
+distinct from the function namespace is a feature, not a policy breach:
+the snake_case policy governs names users *call*; a class string is
+data. *Alternatives considered*: `_goldfish` suffix (ADR-0020 —
+superseded for the reasons above), `.goldfish` dot suffix (issue #60's
+own proposal — rejected then and still: dots create no inheritance and
+maximize ambiguity), bare constructor names (the bug).
+
+### D2 — Scope is drawn by lifecycle and by mechanism, not by export status
+
+*Reaffirmed 2026-09-05 (Alvaro), after the question was reopened.* A
+UI-classes-only rule was considered — internal classes taking bare camelCase
+without the package prefix — on the grounds that autograph's dispatch, the
+driver behind ADR-0031, only ever sees the user-facing classes. It was
+rejected once the internals were measured: they are not inert markers but
+**genuine dispatch classes**, carrying 21 internal S3 methods across
+`compute_event_contribution` (9), `preprocess` (10) and `estimate_int` (2).
+None appears in NAMESPACE, because those generics are never exported, which is
+why a first pass mistook them for non-dispatching. Given they dispatch, the
+prefix is cheap insurance; a two-tier rule would also need a mechanical test
+for "user-facing" that does not exist (`algorithm.goldfish` has no registered
+method yet is returned by `set_algorithm_newton()`), and "flexible" is how a
+convention drifts back.
+
+
+The rename is full (Alvaro, 2026-08-19): internal classes move too —
+`goldfishWriterDefault`/`goldfishWriterGather`/`goldfishWriterDB`,
+`goldfishSourceEnvir`/`goldfishSourceStocnet`, `goldfishKind*`,
+`goldfishSupportPlan`, `goldfishCoefFixed`/`goldfishCoefInit`,
+`goldfishFormulae`. Two exemptions, each with a mechanism reason, not a
+purity one:
+
+- **Deprecated path** (four data classes + legacy `data.goldfish`):
+  renaming a name scheduled for deletion spends churn on a string that
+  will not survive the stocnet migration; the dotted spelling now
+  usefully *marks* the legacy path.
+- **Effect dispatch tags**: `effect-term-registry` Layer 1 retires
+  their class role entirely (registry lookup replaces `getS3method`
+  name construction); renaming ~60 tags and their `init_*`/`update_*`
+  method names, then deleting the mechanism, is double churn.
+
+### D3 — `data.goldfish` splits; the stamp side is `goldfishData`
+
+Unchanged in substance from the original design: the legacy
+environment keeps `data.goldfish` (deprecated path), the `as_goldfish()`
+stamp becomes `goldfishData`, print dispatch splits with them. The two
+names are now visually far apart, which removes the earlier
+"confusable in review" cost of the split.
+
+### D4 — The retired `result.goldfish` name is the staleness discriminator
+
+Unchanged: exactly two stubs (`print.result.goldfish`,
+`summary.result.goldfish`) explain and stop; every other generic gives
+R's own "no applicable method". No fallback class on renamed objects.
+
+*Amended 2026-09-06 (Alvaro), after implementation measured the premise
+(ADR-0046).*
+"Every other generic gives R's own 'no applicable method'" is **false for
+three of them**. `stats::coef()`, `stats::residuals()` and
+`stats::fitted()` have `default` methods that read a component off the
+list and return `NULL` when it is absent, so on an object classed
+`result.goldfish` they answer `NULL` with no condition raised at all —
+the silent-wrong-answer failure the staleness machinery exists to
+prevent, in the one place this design assumed R would raise for us.
+Everything else behaves as stated: `logLik()`, `vcov()`, `predict()`,
+`augment()`, `tidy()`, `glance()`, `AIC()` and `BIC()` raise
+`simpleError`, and the diagnostic generics answer through goldfish's own
+`default` method with a better message than a stub would give.
+
+**The stub set stays at two, and the `NULL` is accepted.** Widening it
+would trade a bounded, documented gap for a maintained compatibility
+surface on a name that exists only as a gravestone, and `coef(NULL)` on a
+fit a user must re-fit anyway is a small harm next to that. The behavior
+is pinned by a test in `tests/testthat/test-stale_result_detection.R`
+named as a known gap, so it stays visible rather than being rediscovered;
+that test is the thing to delete if a later change (`fit-class-hierarchy`
+is the natural home) decides differently.
+
+### D5 — The stub diagnoses by epoch, not by class alone
+
+Unchanged: a no-epoch object (CRAN ≤ 1.7.0) is told its components were
+renamed; a current-epoch object (dev line) is told only its class name
+is retired. `FIT_VERSION`/`PREP_VERSION` do not move — no component of
+any object changes.
+
+### D6 — The summary object is `goldfishSummFit`; no class carries a dot at all
+
+Reversed 2026-09-05 (Alvaro). An earlier revision of this decision adopted
+the base-R/RSiena dotted idiom — `summary()` returning a class literally
+named `summary.goldfishFit`, printed by `print.summary.goldfishFit()` —
+on the argument that `summary.` is a *prefix* rather than the `.goldfish`
+package *suffix* the rule bans, and that camelCase left it unambiguous to
+parse. That reasoning was sound and is still true. It is dropped anyway,
+because parsing was never the objection: the shape is **confusing to
+read**, and it buys conformity with base R at the cost of the one rule
+this change exists to make simple.
+
+`summary()` on a fit SHALL return `goldfishSummFit`, printed by
+`print.goldfishSummFit()`. The no-dot rule then holds without exception on
+the live path, which is worth more than the idiom.
+
+Three concrete reasons the idiom cost more here than it does in base R.
+(1) `summary.goldfishFit` is simultaneously a method name and the name of
+the class that method returns — exactly `summary.lm`'s situation, and the
+previous revision claimed the rename "removes the collision" when in fact
+it reproduces base R's. A design that has to explain why its own stated
+rule does not apply here has found the wrong rule or the wrong exception.
+(2) `print.summary.goldfishFit` carries three dots and reads as a method
+on a generic named `print.summary`. Unambiguous to R; not to a reader.
+(3) The flavored sibling makes it worse, not better: the dotted form gives
+`summary.goldfishFlavFit`, whereas `goldfishSummFlavFit` stays one token.
+
+*Note on the flavored side.* `summary`, `tidy` and `glance` are currently
+**absent** from `flavored_result.goldfish` (18 methods against
+`result.goldfish`'s 20) — so there is no sibling to be parallel with yet,
+only a hole. Whether `goldfishSummFlavFit` comes into existence, or the
+flavored class inherits the plain summary, or `summary` is refused for
+flavored fits, is decided by ADR-0038's inherit/override/refuse contract
+table, not here. This decision fixes only the *name* a summary object
+carries if one exists.
+
+### D7 — Hard rename, no fallback class
+
+Unchanged. ADR-0016 licenses the break; autograph's defunct aliases
+(upstream) are the only compatibility layer anywhere, and they are
+autograph's to delete.
+
+### D8 — Living-spec deltas are targeted; the rename table is authoritative
+
+Unchanged in mechanism: deltas where the rule changes or the class
+string is the contract; a closing hand-edited sweep for stale
+spellings; the `diagnostic-plot-classes` "no suffix" SHALL is replaced
+in place.
+
+### D8a — Active changes' verbatim delta copies are swept in the same commit
+
+New (2026-08-19, from cross-session review). `parametric-rates` and
+`two-sided-coordination` carry `## MODIFIED` blocks that are verbatim
+copies of living-spec requirements naming `specification.goldfish`.
+This change folds *before* them, so the moment its sweep rewrites the
+living text, those copies would drift and their archive sync would
+reconcile badly. Therefore the sweep task covers, in the same commit as
+the living-spec edits: `parametric-rates/specs/model-specification`,
+`two-sided-coordination/specs/model-specification`,
+`two-sided-coordination/specs/multivariate-specification`, and the
+`_goldfish` mention in `parametric-rates` design D11 — updating their
+class strings to the post-rename spelling. (Agreed with the session
+holding those changes; it will not sweep them itself.)
+
+### D8b — joint-parameters is added to the D8a sweep list; it owns its own R-code rename
+
+New (2026-08-28). `joint-parameters` is `complete` (all tasks checked)
+but not yet archived, and — unlike `parametric-rates` /
+`two-sided-coordination` — it is not a docs-only proposal: it shipped
+real classes, `parameters.goldfish` (its own) and, pervasively,
+`joint_specification.goldfish` (the already-archived
+`make-multivariate-spec` capability's class, folded into
+`openspec/specs/multivariate-specification/spec.md`). Its own delta
+(`joint-parameters/specs/multivariate-specification`) is therefore
+added to D8a's active-change sweep list for the **doc-text** pass: once
+this change's own rename lands in the living spec, that delta's prose
+must match. The **code-level** rename of `R/joint_parameters.R` and
+`R/make_joint_specification.R` (plus their tests and snapshots) is
+*not* duplicated here — `joint-parameters` tracks it as its own task
+(see that change's design D17 / tasks.md §3), since it is the change
+actively holding those files, and a second change rewriting code
+another change's task is mid-editing would race. If `joint-parameters`
+archives before this change folds, its rename task runs standalone
+against the rename table above (D16); if this change folds first, its
+own clusters cover both classes and `joint-parameters`'s task 3 becomes
+a verification-only no-op.
+
+### D9 — The rename is applied by hand, per class, never by global search-and-replace
+
+Unchanged, and still load-bearing: the *old* diagnostic class strings
+collide with exported function names (`test_gof` is both), so a
+textual replace renames the API; and scripted edits must not touch
+roxygen or comments. Safe edit surface: quoted class strings,
+`inherits()`/`is()` arguments, `class<-`/`structure(class =)` /
+`attr(x, "class")<-` values,
+roxygen `@method` tags, regenerated NAMESPACE.
+
+### D10 — One cluster per commit, tests green at every commit
+
+Unchanged in mechanism; ordering updated for the wider scope,
+cheapest-first: formulae → algorithm/spec → internal
+(writers/sources/plans) → preprocessing → diagnostics → results → data
+stamp.
+
+### D11 — Snapshot tests are reviewed, not accepted wholesale
+
+Unchanged.
+
+### D12 — autograph@develop is upstream; goldfish matches, verification only
+
+Inverted from the previous design. autograph moved first: its develop
+branch (03ec996) already registers `plot.goldfishFit`,
+`plot.goldfishGOF`, `plot.goldfishTimeTest`, `plot.goldfishOutliers`,
+`plot.goldfishChangepoints`, `plot.goldfishOnset`,
+`plot.goldfishMargins`, with goldfish's current names as defunct
+aliases. So there is no autograph rename task: goldfish adopts those
+seven strings verbatim, the lockstep task becomes *verification*
+(build one object of each class in goldfish, plot through
+autograph@develop, confirm dispatch hits the new methods, not the
+aliases), and the alias deletion is autograph's own cleanup once the
+rename ships. `goldfishParamTest` and `goldfishEval` have no autograph
+method — confirmed, not assumed. Issue #60 is answered with the final
+table.
+
+### D13 — Single version bump at the close, one consolidated NEWS table
+
+Unchanged in mechanism; the bump is the next patch version at fold time
+(the numbers in the earlier draft are stale — the package is already at
+1.9.29), with the full old→new table under **Breaking changes**.
+
+### D14 — The tracked CLAUDE.md carves classes out of the snake_case policy
+
+New. The repo's CLAUDE.md states the 1.7.0 renames "retired camelCase
+from the exported API — never reintroduce it". That sentence stays true
+for functions, arguments, and objects, and this change must not leave
+it contradicting the class scheme. The naming section gains the
+carve-out: S3 *class strings* follow the stocnet ecosystem rule
+`goldfish<Thing>` (camelCase), per ADR-0031 and autograph's
+CONTRIBUTING; everything callable stays snake_case. The edit is a task
+of this change (it lands with the rename, not before it).
+
+### D15 — Lint compatibility is verified in groundwork, not discovered mid-rename
+
+New. S3 method names like `print.goldfishFit` and
+`goldfishSummFit` must pass `.lintr`'s
+`object_name_linter("snake_case")`. lintr exempts S3 methods for known
+generics, but goldfish defines its own snake_case generics whose
+methods on camelCase classes may still be flagged
+(`diagnose_onset.goldfishFit`). Groundwork runs the linter over a
+one-file spike declaring one method per generic family; if flags
+appear, `.lintr` gains the documented adjustment (an additional
+accepted style or targeted exclusions) in the same groundwork commit —
+never ad-hoc `# nolint` scattered through the rename.
+
+### D16 — The rename table grows after the initial draft; two more live classes, one prospective family
+
+New (2026-08-28, cross-session audit). Two classes surfaced after this
+change's proposal/table were drafted (2026-08-19): `joint-parameters`
+landed on a concurrent branch and shipped `parameters.goldfish` and
+(pervasively) `joint_specification.goldfish` under the retired
+`<noun>.goldfish` house convention its own task 1.1 named explicitly —
+this change's table did not yet exist to steer it. Separately,
+`abmcem`/`dynes-augmentation` (both unimplemented) had drafted a
+shared internal E-step class family — `estep_is`, `estep_resampling`,
+`estep_uniform`, parent `dynes_estep` — in snake_case, which the D2
+internal-scope rule (no exemption beyond the deprecated path and
+effect tags) already forbids.
+
+**Decision:** both are added to the authoritative table (`goldfishJointSpec`,
+`goldfishParams`, `goldfishEstepIS`/`goldfishEstepResampling`/
+`goldfishEstepUniform`/`goldfishDynesEstep`). The two live classes are
+real renames (D8b covers the coordination with `joint-parameters`, the
+change that will execute them). The four prospective classes need no
+rename at all — `abmcem` and `dynes-augmentation`'s own specs are
+edited directly to the `goldfish<Thing>` spelling (2026-08-28), so
+those changes are simply implemented under the final names from the
+start, per this proposal's original intent ("every class the
+parametric/coordination changes create is born under the new rule").
+*Rejected:* leaving the table as a closed, one-time snapshot — a table
+that cannot absorb classes discovered after its own drafting stops
+being authoritative the first time a concurrent branch lands.
+
+### D17 — Class identifiers use a fixed short-word vocabulary
+
+New (2026-09-05, Alvaro). D1 says the identifier is "a short word
+compressing the object", which under-determines the result: the same
+concept was spelled `Algorithm` in one row and `Prep` in another, and the
+`model_spec` hierarchy would have produced names like
+`goldfishModelSpecDynamRateOrdered` (33 characters). A class string is read
+in method names, `inherits()` calls, test assertions and print output, so
+length is a real cost paid many times.
+
+The identifier SHALL be built from this vocabulary, and a new class
+extends the table rather than inventing a synonym:
+
+| Concept | Short | Concept | Short |
+| --- | --- | --- | --- |
+| DyNAM | `Dn` | preprocessed | `Prep` |
+| DyNAM-i | `Dni` | specification | `Spec` |
+| REM | `Rem` | control | `Ctrl` |
+| DyNAMu | `Mu` | algorithm | `Algo` |
+| ordered (Cox partial likelihood) | `Cox` | flavored | `Flav` |
+| choice coordination | `Coord` | summary | `Summ` |
+| constant (intercept-only) | `Cte` | model kind | `Kind` |
+| risk-set axis | `Axis` | coefficient carrier | `Coef` |
+
+`Cox` replaces `Ordered` because it names the estimator rather than the
+arity, which is the more useful fact at a call site.
+
+Applied, this shortens four already-agreed rows —
+`goldfishAlgorithmNewton` (23) becomes `goldfishAlgoNewton` (18),
+`goldfishPrepControl` becomes `goldfishPrepCtrl`,
+`goldfishFlavoredFit`/`goldfishFlavoredPrep`/`goldfishFlavoredStats` become
+`goldfishFlavFit`/`goldfishFlavPrep`/`goldfishFlavStat` — and leaves
+`goldfishChangepoints` (20) as the longest live class, which cannot move
+because autograph@develop already dispatches on it (D12).
+
+*Singular is preferred, not required (2026-09-05, Alvaro).* A class names one
+kind of thing, so the identifier is singular where the choice is free —
+`goldfishFlavStat`, `goldfishBlock`, `goldfishCoefFixed`. It is a preference
+because three names cannot follow it: `goldfishOutliers`,
+`goldfishChangepoints` and `goldfishMargins` are already registered as plot
+methods in autograph@develop, so changing them would need an autograph
+release (D12). `goldfishFormulae` also stays plural, naming a set of formulas.
+`goldfishParams` stays plural (decided 2026-09-05): it carries a vector of
+free parameters plus a per-fid map, so the plural describes the object, and
+`goldfishParam` would suggest a single coefficient. It is also already shipped
+by `joint-parameters`, so renaming it would be a second churn of the same
+unreleased surface for a preference the object does not fit.
+
+*Parents named 2026-09-05.* The table previously listed the `writer_*` and
+`data_source_*` children but not the classes they inherit from, so
+`preprocess_writer` and `data_source` had no target; they are
+`goldfishWriter` and `goldfishSource`, the children keeping their suffixes
+(`goldfishWriterDefault`, `goldfishSourceEnvir`, …). `Cte` names the
+intercept-only rate for what it is — a constant hazard — rather than for
+its formula syntax.
+
+*`ModelSpec` became `Kind` (2026-09-05, Alvaro).* Three candidates were
+weighed for the class that carries the resolved model variant. `Recipe` was
+rejected despite matching the capability name `model-recipe-dispatch`: the
+living spec says the spec *drives* recipe dispatch rather than being a recipe,
+and `formula_parser.R` already uses "recipe" for windowed-derivation metadata,
+so the word is overloaded twice. `Variant` was the constructor's own argument
+name and a close second. `Kind` won on being short and unpretentious for a
+marker that is provisional — `model-spec-descriptor` collapses these classes
+into fewer likelihood classes, so a name that claims less is the honest one.
+The axis classes, which that change leaves alone, keep `goldfishAxis*`.
+Longest name falls from `goldfishModelSpecDniChoice` (26) to
+`goldfishKindDniChoice` (21).
+
+*`Prep` becomes `Stat` on the user-facing side (2026-09-05, Alvaro).*
+`compute_statistics()` is the function a user calls, so what it returns is
+named for that: `preprocessed.goldfish` → `goldfishStat` and
+`preprocessed_db.goldfish` → `goldfishStatDB`. The old spelling named an
+internal pipeline stage while the flavored container was already named for the
+function, which is why `goldfishFlavStat` looked orphaned — there was no
+`goldfishStat` for it to belong to.
+
+The rename stops at the user-facing boundary, because carrying it further
+would collide: `flavored_preprocessed.goldfish` and
+`flavored_statistics.goldfish` are different objects, and renaming both to
+`FlavStat` would give one name to two classes. So the internal containers keep
+`Prep` — `goldfishFlavPrep` (the flavored preprocessing result) and
+`goldfishJointPrep` — and `goldfishPrepCtrl` keeps it too, since
+`set_preprocessing()` controls preprocessing rather than producing statistics.
+The line is the one the code already draws: `Stat` is what a user receives,
+`Prep` is what the pipeline carries.
+
+*Known gap, handed on.* `compute_statistics(output = "gather")` returns a
+plain unclassed list — a user-facing return with no class at all, so this
+change has nothing to rename there. Classing it is an addition rather than a
+rename, and it is folded into `model-spec-descriptor` together with the
+collapse of these four marker classes (that change's D9).
+
+*The DyNAM-i interaction classes are renamed and expected to dissolve
+(2026-09-05).* `goldfishInterNet`, `goldfishInterGrp` and `goldfishInterWindow`
+are read in exactly one place — `preprocessInteraction` in
+`R/model_preprocess_group.R` — which is the monolith `refactor-dynami-engine`
+exists to convert to the recipe loop. They are renamed here under the uniform
+rule and are expected to have no consumer once that change lands, the same
+rename-then-dissolve trade D18 accepts for the `model_spec` hierarchy.
+`Grp` is singular per the D17 preference.
+
+*Deliberately unsettled.* The coordination short name is recorded here as
+`Coord`, **not** as a mechanism name. Naming DyNAM's `choice_coordination`
+after a DyNAMu mechanism (`Conj`) was proposed and withdrawn the same day:
+`estimate_dynamu()` is its own estimator (ADR-0022) with its own `model=`
+value, so its variants are siblings of the DyNAM ones, and a mechanism
+name would produce two different classes both meaning "conjunctive". How
+DyNAM coordination and the five DyNAMu mechanisms relate in the class
+hierarchy — flat siblings, a shared coordination family class, or a
+mechanism field — is open and is **not** settled by this decision.
+
+### D18 — This change lands before `model-spec-descriptor`
+
+New (2026-09-05, Alvaro). The `model-spec-descriptor` change proposes
+replacing the `model_spec` variant class hierarchy with a single behavioral
+descriptor, on the finding that the nine variant classes carry two bits for
+preprocessing, that two preprocess methods are byte-identical, and that three
+likelihood methods are literal aliases. Both changes rewrite
+`R/model_spec.R`, `R/model_preprocess.R` and `R/estimation_core.R`.
+
+**This change goes first.** It is artifact-complete with its blockers
+cleared; the descriptor work is a fresh proposal. Sequencing the finished work
+first keeps this rename mechanical.
+
+The cost, accepted and recorded: the `model_spec` names minted here are partly
+dissolved afterward, since the descriptor change collapses variants whose
+implementations coincide. That is roughly eleven internal, unexported class
+strings — no user surface, no deprecation — paid once.
+
+*Scope settled 2026-09-05 (Alvaro):* the rows **stay**, and the waste is
+accepted. The hierarchy is renamed here like everything else, so this change
+carries one rule with no carve-out, and the identifiers are fixed in the table
+(`goldfishKindDnRate` …, `goldfishAxisSender`/`goldfishAxisDyad`). Some
+of those names will not survive `model-spec-descriptor`; that is the cost of a
+uniform rule, and it is ~11 unexported strings.
+
+### D19 — This change does not land the shared fit-class parent
+
+New (2026-09-05). ADR-0038 names this change as where the fit-class hierarchy
+is decided, on the reasoning that the change renaming those classes is the
+natural place to give them a parent. In practice this change never picked the
+work up: it carries no task, no requirement and no decision for it, only two
+passing mentions that defer *to* a contract table as though it lived elsewhere.
+An accepted ADR pointing at a change that is not doing the work is worse than
+one pointing nowhere, because it reads as covered.
+
+**This change renames classes and nothing else.** The shared parent and its
+inherit/override/refuse contract table move to their own change, where the
+per-generic decisions — above all whether a Monte-Carlo DyNES fit may inherit
+`logLik()` and so feed `AIC()`/`BIC()` — can be argued one at a time rather
+than skimmed inside a rename. The six mechanically identical flavored fan-outs
+are separately handled by `model-spec-descriptor` D10, being a duplication
+problem rather than a correctness one.
+
+The rename must therefore leave the fit classes' *relationships* exactly as
+they are: `flavored_result.goldfish` becomes `goldfishFlavFit` as a flat class,
+not `c("goldfishFlavFit", "goldfishFit")`. Introducing inheritance while
+renaming would silently answer the question this change just disclaimed.
+
+### D20 — One form for stamping a class, one for testing it
+
+New (2026-09-05). Found while auditing whether every live class had a rename
+target: three classes were stamped through `attr(x, "class") <-`, a form
+neither the change's edit surface (D9) nor the guard test's enumeration named.
+Measured across `R/`:
+
+| Stamping | Sites | | Testing | Sites |
+| --- | --- | --- | --- | --- |
+| `structure(x, class = )` | 56 | | `inherits()` | 109 |
+| `class(x) <-` | 24 | | `methods::is()` | 1 |
+| `attr(x, "class") <-` | **6** | | `%in% class(x)` | 0 |
+
+`structure()` and `class(x) <-` are **not** duplication — one creates and
+classes in a single expression, the other modifies an existing object. Forcing
+them together would be dogma. `attr(x, "class") <-` is duplication: the same
+operation as `class(x) <-`, written longer, with no benefit.
+
+Three of its six sites stamp `result.goldfish` — the largest rename in this
+change (`estimation_core.R:320`, `cpp_interface.R:756`, `:905`). The other
+three stamp the DyNAM-i interaction classes. So the outlier form was concealing
+sites in the change's biggest cluster, which is why this is folded here rather
+than left to a style pass: it is a **correctness** issue for the rename and for
+the guard test, not a preference.
+
+On the testing side the codebase is already converged — 109 `inherits()`
+against one `methods::is(seed_randomization, "numeric")`
+(`make_data_group.R:59`), which is a type check rather than a class test and
+reads better as `is.numeric()`. `%in% class(x)` has **zero** sites anywhere in
+`R/` or `tests/`; it is recorded as a prohibition to keep it that way, not as a
+migration.
+
+*Recorded as a negative result:* the search for further idiom-level convergence
+found only these. Idiom duplication is nearly absent; the duplication that
+matters in this package lives at the class and behavior level, which is what
+`model-spec-descriptor`, `fit-class-hierarchy` and ADR-0045's inspection
+address. A future inspection need not re-derive this.
+
+## Risks / Trade-offs
+
+- **A renamed class silently loses its S3 registration** → unchanged
+  mitigation: every cluster asserts dispatch explicitly and the
+  NAMESPACE diff is read.
+- **The function/class collision invites a bad `sed`** → D9 forbids it;
+  the diagnostic-cluster verification greps that `export(test_gof)` and
+  siblings survive.
+- **A frozen baseline moves** → it cannot if the rename is correct; a
+  moved baseline stops the task (baselines rule).
+- **Active-change delta copies drift** (new) → D8a sweeps them in the
+  same commit; the placement pre-flight re-runs for both affected
+  changes afterwards.
+- **Internal-class rename destabilizes dispatch in hot paths** (new
+  scope) → internals are renamed in their own early clusters with the
+  full `NOT_CRAN=true` suite green before the big `goldfishFit`
+  cluster starts; any effect-adjacent string is checked against the
+  effect-tag exemption list first.
+- **lintr flags method names** → D15 front-loads the spike.
+- **A user's saved fit becomes unusable** → accepted cost (D7); the
+  stub makes it legible.
+
+## Migration Plan
+
+Unchanged for users: no migration for stored objects — re-fit; scripts
+update `inherits()` checks per the NEWS table. Rollback is per-cluster
+commit. autograph: no action required at fold; delete the defunct
+aliases in a later autograph release.
+
+## Open Questions
+
+- Should autograph's defunct aliases be deleted immediately after this
+  folds (goldfish and autograph are co-developed here) or kept one
+  autograph release for third parties?
+- ~~`goldfishModelSpec` hierarchy identifiers~~ — settled 2026-09-05, then
+  renamed to `goldfishKind*` the same day (below).
+  Variants extend the parent (`goldfishKindDnRate`, …, longest
+  `goldfishKindDniChoice` at 21 characters, using D17's vocabulary); the two
+  indexing classes take their own prefix (`goldfishAxisSender`,
+  `goldfishAxisDyad`) because the axis is an orthogonal fact, not a variant.
+  `goldfishSpec*` was rejected: it sits one word from `goldfishSpec`, the
+  class `make_specification()` returns, and would read as a subclass
+  relationship that does not exist.

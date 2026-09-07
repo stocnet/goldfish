@@ -4,7 +4,7 @@
 Define the writer-strategy contract for preprocessing output: preprocessing recipes emit
 their per-event statistics exclusively through a writer object (`init` / `write_event` /
 `finalize`) selected by `compute_stats(..., output = c("default", "gather", "db"))`. Covers
-the default flat-buffer writer (estimation-ready `preprocessed.goldfish`), the native
+the default flat-buffer writer (estimation-ready `goldfishStat`), the native
 gather-stack writer (one row per event × alternative, constraint-aware), and the streaming
 DBI writer, plus documented-but-unimplemented extension points (alternatives sampling,
 parallel chunking, per-event simulation hook).
@@ -14,14 +14,14 @@ Preprocessing recipes SHALL emit their output exclusively through a writer objec
 
 #### Scenario: Default output selected implicitly
 - **WHEN** `compute_stats(formula, data, model = "DyNAM", sub_model = "rate")` is called without `output`
-- **THEN** the returned object is a `preprocessed.goldfish` produced by the default flat-buffer writer
+- **THEN** the returned object is a `goldfishStat` produced by the default flat-buffer writer
 
 #### Scenario: Invalid output value rejected
 - **WHEN** `compute_stats(..., output = "parquet")` is called
 - **THEN** an informative error lists the valid output values
 
 ### Requirement: Default writer produces the flat-buffer preprocessing object
-The default writer SHALL produce the `preprocessed.goldfish` object specified by the flat-preprocess-output capability (`stat_mat_update`, `stat_mat_pointer`, unified event fields, engine-native `initialStats`, intercept scalars, presence C-format). Both estimation engines (R `default`, C++ `default_c`) SHALL consume this output without restructuring.
+The default writer SHALL produce the `goldfishStat` object specified by the flat-preprocess-output capability (`stat_mat_update`, `stat_mat_pointer`, unified event fields, engine-native `initialStats`, intercept scalars, presence C-format). Both estimation engines (R `default`, C++ `default_c`) SHALL consume this output without restructuring.
 
 #### Scenario: Default writer output is estimation-ready
 - **WHEN** the result of `compute_stats(..., output = "default")` is passed to `estimate_dynam()` as precomputed preprocessing
@@ -107,7 +107,7 @@ what the estimation path does with the same object. It SHALL NOT assume the
 `point` encoding, so any constrained object reaching the expansion carries it.
 
 #### Scenario: a point-encoded object expands correctly
-- **WHEN** a stored `preprocessed.goldfish` whose availability is point-encoded
+- **WHEN** a stored `goldfishStat` whose availability is point-encoded
   (because a constraint folded into it) is rendered to a gather stack
 - **THEN** the rows enumerate that event's allowed candidates, rather than
   indexing past the statistics matrix

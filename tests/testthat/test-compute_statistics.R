@@ -1,3 +1,7 @@
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
 test_that("the compute_stats name is gone, with no stub", {
   # Deleted outright rather than deprecated: the name only ever existed in the
   # unreleased 2.0.0 development line, so no released user is served by a stub.
@@ -18,15 +22,19 @@ test_that("max_length bounds the produced statistic-column names", {
   expect_identical(anyDuplicated(gathered$names_effects), 0L)
 })
 
-test_that("compute_statistics returns a preprocessed.goldfish object", {
+test_that("compute_statistics returns a goldfishStat object", {
   prep <- compute_statistics(
     depNetwork ~ inertia + recip,
     data = dataTest,
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
-  expect_s3_class(prep$model_spec, "dynam_choice_spec")
+  expect_s3_class(prep, "goldfishStat")
+  expect_s3_class(prep$model_spec, "goldfishLikReceiverMultinom")
+  # Dispatch, not only the class string: a class renamed without its print
+  # method still satisfies every inherits() check and then quietly prints
+  # through print.default(), which is the failure a value assertion misses.
+  expect_output(print(prep), "Preprocess object for the model")
 })
 
 test_that("compute_statistics matches the estimate preprocessing only output", {
@@ -158,7 +166,7 @@ test_that("an exact-time model reports its intercept and censoring", {
   }))
 
   expect_true(gathered$has_intercept)
-  expect_true(gathered$right_censored)
+  expect_true(gathered$is_exact_time)
   expect_true("Intercept" %in% colnames(gathered$stat_all_events))
   # Right-censored rows are the ones the waiting-time likelihood needs the
   # exposure for, so they must carry timespan and be marked non-dependent.
@@ -178,13 +186,13 @@ test_that("an ordinal model reports neither, on gather and on the replay object"
   prep <- do.call(compute_statistics, args)
 
   expect_false(gathered$has_intercept)
-  expect_false(gathered$right_censored)
+  expect_false(gathered$is_exact_time)
   expect_false("Intercept" %in% colnames(gathered$stat_all_events))
   expect_null(gathered$timespan)
   # The replay object reports the same pair, so a consumer holding only the
   # preprocessed object knows the likelihood shape without re-deriving it.
   expect_false(prep$has_intercept)
-  expect_false(prep$right_censored)
+  expect_false(prep$is_exact_time)
 })
 
 test_that("the replay object reports the flags for an exact-time model", {
@@ -195,7 +203,7 @@ test_that("the replay object reports the flags for an exact-time model", {
     sub_model = "rate"
   )
   expect_true(prep$has_intercept)
-  expect_true(prep$right_censored)
+  expect_true(prep$is_exact_time)
 })
 
 test_that("an unavailable sub_model names the model's allowed set", {
@@ -353,7 +361,7 @@ test_that("a DyNAM-i rate gather carries the intercept and its exposure", {
 
   # Exact-time: the forced time intercept column and the exposure fields.
   expect_true(gathered$has_intercept)
-  expect_true(gathered$right_censored)
+  expect_true(gathered$is_exact_time)
   expect_identical(gathered$names_effects[1L], "Intercept")
   expect_length(gathered$timespan, length(gathered$n_candidates))
   # Sender-indexed rows carry no receiver identity.
@@ -583,4 +591,71 @@ test_that("the frame reproduces the estimator through conditional logit", {
     as.numeric(logLik(clogit_fit)),
     tolerance = 1e-4
   )
+})
+
+test_that("every goldfish-shaped output carries the class and its storage", {
+  # Four classes and an unclassed shape became one class plus two fields. The
+  # value assertions matter less than what they replace: nothing here needs to
+  # know which of five things it was handed.
+  shapes <- list(
+    preprocessed = "pointer",
+    gather = "stack"
+  )
+  for (output in names(shapes)) {
+    stat <- compute_statistics(
+      depNetwork ~ inertia,
+      data = dataTest,
+      model = "DyNAM",
+      sub_model = "choice",
+      output = output
+    )
+    expect_s3_class(stat, "goldfishStat", exact = TRUE)
+    expect_identical(attr(stat, "storage"), shapes[[output]], info = output)
+    expect_identical(attr(stat, "scope"), "single", info = output)
+  }
+})
+
+test_that("one print method renders every shape by reading the fields", {
+  # Dispatch, not only the class string: a shape that inherits() reaches but
+  # print.default() renders is the failure a value assertion misses. The
+  # pointer shape lists the flat buffers estimation reads; the stack holds
+  # expanded rows instead, so it reports what it actually has.
+  local_cli_context()
+  stat_of <- function(output) {
+    compute_statistics(
+      depNetwork ~ inertia,
+      data = dataTest,
+      model = "DyNAM",
+      sub_model = "choice",
+      output = output
+    )
+  }
+  expect_output(print(stat_of("preprocessed")), "Preprocess object for the")
+  expect_snapshot(print(stat_of("gather")))
+})
+
+test_that("the gather shape is classed, where it used to be returned bare", {
+  gathered <- compute_statistics(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  )
+  expect_s3_class(gathered, "goldfishStat")
+  expect_identical(attr(gathered, "storage"), "stack")
+})
+
+test_that("the data.frame output stays a plain frame", {
+  # Excluded deliberately: it hands off to a base type, nothing branches on
+  # it, and prepending a class would change print and format dispatch.
+  frame <- compute_statistics(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "data.frame"
+  )
+  expect_s3_class(frame, "data.frame", exact = TRUE)
+  expect_null(attr(frame, "storage"))
 })

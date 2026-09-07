@@ -56,7 +56,7 @@ make_groups_interaction <- function(
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
-    methods::is(seed_randomization, "numeric"),
+    is.numeric(seed_randomization),
     is.null(progress) || inherits(progress, "logical")
   )
 
@@ -921,17 +921,17 @@ make_groups_interaction <- function(
   )
   attr(dependent.events, "order") <- deporder
 
-  attr(interaction.updates, "class") <- c(
-    attr(interaction.updates, "class"),
-    "interaction.network.updates"
+  class(interaction.updates) <- c(
+    class(interaction.updates),
+    "goldfishInterNet"
   )
-  attr(dependent.events, "class") <- c(
-    attr(dependent.events, "class"),
-    "interaction.groups.updates"
+  class(dependent.events) <- c(
+    class(dependent.events),
+    "goldfishInterGrp"
   )
-  attr(exogenous.events, "class") <- c(
-    attr(exogenous.events, "class"),
-    "interaction.groups.updates"
+  class(exogenous.events) <- c(
+    class(exogenous.events),
+    "goldfishInterGrp"
   )
 
   # PATCH Marion: remove factors in label columns
@@ -1097,7 +1097,7 @@ clean_interaction_events <- function(
         # assign the windowed class
         class(eventsobject) <- c(
           class(eventsobject),
-          "windowed.interaction.network.updates"
+          "goldfishInterWindow"
         )
 
         # reassign object

@@ -22,3 +22,12 @@
       i `sub_model = "rate"` models the waiting times between events; a time intercept has been added.
       i Use `sub_model = "rate_ordered"` to model only the order of the events (ordinal likelihood).
 
+# one print method renders every shape by reading the fields
+
+    Code
+      print(stat_of("gather"))
+    Message
+      Gather stack: statistics as expanded rows.
+      * 38 rows over 12 events
+      * statistic: "inertia_networkState"
+

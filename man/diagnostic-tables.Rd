@@ -4,10 +4,12 @@
 \alias{diagnostic-tables}
 \title{The diagnostic table contract}
 \description{
-Every diagnostic data object goldfish returns carries the producing
-function's name at the head of its classes, and enough metadata for a print
-or plot method to describe the object without reaching back into the fit it
-came from. Where one table says everything the object \emph{is} a
+Every diagnostic data object goldfish returns carries its own
+\verb{goldfish<Thing>} class at the head of its classes (\code{goldfishMargins} for
+\code{margin_table()}, \code{goldfishOutliers} for \code{diagnose_outliers()}, and so on)
+and enough metadata for a print or plot method to describe the object
+without reaching back into the fit it came from. Where one table says
+everything the object \emph{is} a
 \code{\link[tibble:tibble]{tibble::tibble()}} — \code{margin_table()}, \code{diagnose_outliers()},
 \code{diagnose_changepoints()}. Where it does not, the object is a classed list
 whose components are each a tibble: \code{diagnose_onset()} carries a parameter
@@ -17,8 +19,10 @@ cannot hold. The metadata is the same either way.
 \details{
 The metadata travels as attributes:
 \describe{
-\item{\code{diagnostic}}{a character value naming the producer, which is also
-the object's first class (\code{"margin_table"}).}
+\item{\code{diagnostic}}{a character value naming the object's first class
+(\code{"goldfishMargins"}). It is the class rather than the producing
+function, so it moved with the 2.0.0 class rename:
+\code{margin_table()} returns \code{"goldfishMargins"}, not \code{"margin_table"}.}
 \item{\code{context}}{a list describing the fit the table was computed from:
 \code{model}, \code{sub_model}, \code{backend}, \code{n_events}, the per-role observed
 totals, the node-set names (and, on a two-mode fit, \code{two_mode = TRUE}),

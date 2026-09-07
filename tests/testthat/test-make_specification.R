@@ -31,7 +31,7 @@ test_that("make_specification builds a DyNAM specification object", {
     data = d,
     layer = "calls_dependent"
   )
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_identical(spec$model, "DyNAM")
   expect_identical(names(spec$submodels), c("rate", "choice"))
   expect_identical(spec$layer, "calls_dependent")
@@ -91,7 +91,7 @@ test_that("legacy formula path is unchanged when a spec is not passed", {
     sub_model = "choice",
     data = d
   )
-  expect_s3_class(m, "result.goldfish")
+  expect_s3_class(m, "goldfishFit")
 })
 
 test_that("a dependent object on the LHS is rejected pointing at layer", {
@@ -245,7 +245,7 @@ test_that("dyadic support_constraint parses into a plan-ready structure", {
     data = d
   )
   cp <- spec$constraint
-  expect_s3_class(cp, "support_constraint_plan")
+  expect_s3_class(cp, "goldfishSupportPlan")
   expect_identical(cp$atom_labels, "tie(call_network)")
   expect_identical(cp$expr, quote(.a1 != 0))
   # a genuinely dyadic (point) atom stores the mask dense
@@ -285,7 +285,7 @@ test_that("rate-only spec accepts a dyadic constraint atom via the row-reduction
     ),
     "row-reduction"
   )
-  expect_s3_class(spec$constraint, "support_constraint_plan")
+  expect_s3_class(spec$constraint, "goldfishSupportPlan")
 })
 
 test_that("out-of-grammar constraint is rejected at construction", {

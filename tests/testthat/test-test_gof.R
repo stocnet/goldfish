@@ -96,12 +96,12 @@ test_that("the test reads stored scores only, on either clock", {
   gof <- test_gof(fit)
   simulated <- test_gof(fit, clock = "information", n_sim = 50)
 
-  expect_s3_class(gof, "test_gof")
+  expect_s3_class(gof, "goldfishGOF")
   expect_named(gof, c("effects", "process", "omnibus"))
   for (component in gof) {
     expect_s3_class(component, "tbl_df")
   }
-  expect_identical(attr(gof, "diagnostic"), "test_gof")
+  expect_identical(attr(gof, "diagnostic"), "goldfishGOF")
   expect_identical(attr(gof, "params")$clock, "event")
   expect_identical(attr(simulated, "params")$clock, "information")
   expect_identical(attr(simulated, "params")$n_sim, 50L)
@@ -357,7 +357,7 @@ test_that("the container shape is the single shape, row-bound and labeled", {
   blocked <- test_gof(container)
   single <- test_gof(fit_of(container, "creation", "rate"))
 
-  expect_s3_class(blocked, "test_gof")
+  expect_s3_class(blocked, "goldfishGOF")
   # Same three components under the same names: a consumer never has to ask
   # whether a flavored result nested one level deeper.
   expect_named(blocked, c("effects", "process", "omnibus"))

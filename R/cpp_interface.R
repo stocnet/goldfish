@@ -108,7 +108,7 @@ make_engine_evaluator <- function(
   # value -- fixed, so there is nothing to start, or seeded, so the user chose
   # the start. Seeding some other coefficient leaves the intercept alone.
   if (
-    identical(risk_set_normalizer(spec), "poisson") &&
+    identical(behavior_likelihood(spec), "poisson") &&
       has_intercept &&
       seed_intercept
   ) {
@@ -156,7 +156,7 @@ make_engine_evaluator <- function(
   # takes, so a NULL never reaches a kernel that would read it.
   is_dependent <- NULL
   timespan <- NA
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     is_dependent <- as.logical(stats_list$is_dependent)
     timespan <- stats_list$intervals
   } else if (!identical(risk_set_axis(spec), "receiver_given_sender")) {
@@ -702,7 +702,7 @@ estimate_c_int <- function(
       axis = risk_set_axis(spec),
       nodes = nodes,
       nodes2 = nodes2,
-      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+      is_exact_time = identical(behavior_likelihood(spec), "poisson")
     )
     if (!is.null(margins)) estimationResult$margins <- margins
   }
@@ -753,7 +753,7 @@ estimate_c_int <- function(
   if (returnEventProbabilities) {
     estimationResult$event_probabilities <- eventProbabilities
   }
-  attr(estimationResult, "class") <- "result.goldfish"
+  class(estimationResult) <- c("goldfishFit", "goldfishBaseFit")
   estimationResult
 }
 
@@ -779,7 +779,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #'
 #' Drives `maxLik::maxLik()` over the fixed preprocessed data through memoized
 #' closures on the `default_c` evaluator, then maps the result into the standard
-#' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
+#' `goldfishFit` object so `summary()` / `vcov()` / `logLik()` and the
 #' post-estimation methods work unchanged. Only reached for
 #' `optimizer != "newton_raphson"`, guarded upstream to the cpp backend
 #' with maxLik installed.
@@ -797,7 +797,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #' @param return_interval_loglik,return_event_scores whether to attach the
 #'   per-event outputs, evaluated at the optimum.
 #' @param verbose passed through as the maxLik print level.
-#' @return a `result.goldfish` list, structurally identical to the NR path.
+#' @return a `goldfishFit` list, structurally identical to the NR path.
 #' @noRd
 estimate_via_maxlik <- function(
   evaluate,
@@ -902,7 +902,7 @@ estimate_via_maxlik <- function(
   if (return_event_scores) {
     estimation_result$event_scores <- final$event_scores
   }
-  attr(estimation_result, "class") <- "result.goldfish"
+  class(estimation_result) <- c("goldfishFit", "goldfishBaseFit")
   estimation_result
 }
 
@@ -941,10 +941,24 @@ estimate_ <- function(
   event_weights = NULL,
   return_event_information_trace = FALSE
 ) {
+  # DyNAM-i shares its likelihood with the corresponding DyNAM variant -- that
+  # is why it needs no method of its own -- but its preprocessed object comes
+  # from the group-interaction loop, and no kernel below has ever been
+  # validated against that shape. Reaching this function with one has always
+  # failed; refuse it by name rather than by falling through to an unassigned
+  # result, and rather than silently running a kernel on data it was not
+  # written for.
+  if (identical(behavior_input_shape(spec), "grouped")) {
+    cli::cli_abort(c(
+      "The compiled engine does not run {.val DyNAMi} models.",
+      "i" = "Use {.code set_algorithm_newton(backend = \"r\")}."
+    ))
+  }
+
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
   # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
-  if (inherits(spec, "dynam_choice_coord_spec")) {
+  if (inherits(spec, "goldfishLikCoordination")) {
     res <- estimate_DyNAM_MM(
       parameters,
       event_mat,
@@ -974,7 +988,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_choice_spec")) {
+  if (inherits(spec, "goldfishLikReceiverMultinom")) {
     res <- estimate_DyNAM_choice(
       parameters,
       event_mat,
@@ -1001,7 +1015,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "rem_rate_ordered_spec")) {
+  if (inherits(spec, "goldfishLikDyadMultinom")) {
     res <- estimate_REM_ordered(
       parameters,
       event_mat,
@@ -1031,7 +1045,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "rem_rate_spec")) {
+  if (inherits(spec, "goldfishLikDyadPoisson")) {
     res <- estimate_REM(
       parameters,
       event_mat,
@@ -1065,7 +1079,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_rate_spec")) {
+  if (inherits(spec, "goldfishLikSenderPoisson")) {
     res <- estimate_DyNAM_rate(
       parameters,
       event_mat,
@@ -1098,7 +1112,7 @@ estimate_ <- function(
     )
   }
 
-  if (inherits(spec, "dynam_rate_ordered_spec")) {
+  if (inherits(spec, "goldfishLikSenderMultinom")) {
     res <- estimate_DyNAM_rate_ordered(
       parameters,
       event_mat,
@@ -1192,7 +1206,7 @@ gather_ <- function(
       n_actors2,
       twomode_or_reflexive,
       active_dyad_encoding = active_dyad_encoding,
-      is_coordination = identical(risk_set_normalizer(spec), "coordination")
+      is_coordination = identical(behavior_likelihood(spec), "coordination")
     )
   } else if (identical(risk_set_axis(spec), "receiver_given_sender")) {
     gathered_data <- gather_receiver_model_r(
@@ -1739,8 +1753,9 @@ margin_slots <- function(index) {
   as.integer(index) - 1L
 }
 
-# The likelihood kernel is selected by the spec's normalizer, not a model-type
-# string: multinomial (choice / ordinal rate), Poisson (rate), or coordination.
+# The likelihood kernel is selected by the spec's likelihood family, not a
+# model-type string: multinomial (choice / ordinal rate), Poisson (rate), or
+# coordination.
 compute_ <- function(
   spec,
   parameters,
@@ -1785,9 +1800,9 @@ compute_ <- function(
   } else if (identical(axis, "sender")) {
     margin_j <- integer(0) # sender margins only
   }
-  # dyad / dyad_symmetric keep both sides.
+  # The dyad axis keeps both sides.
 
-  if (identical(risk_set_normalizer(spec), "multinomial")) {
+  if (identical(behavior_likelihood(spec), "multinomial")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
@@ -1807,7 +1822,7 @@ compute_ <- function(
     )
   }
 
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     res <- compute_poisson_selection(
       parameters,
       stat_all_events,
@@ -1830,7 +1845,7 @@ compute_ <- function(
     )
   }
 
-  if (identical(risk_set_normalizer(spec), "coordination")) {
+  if (identical(behavior_likelihood(spec), "coordination")) {
     res <- compute_coordination_selection(
       parameters,
       stat_all_events,

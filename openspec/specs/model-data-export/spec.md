@@ -20,7 +20,7 @@ goldfish SHALL export `compute_statistics(x, model, sub_model = NULL,
 data = NULL, output = c("preprocessed", "gather", "data.frame", "db"),
 control_prep = set_preprocessing(), progress, max_length, ...)` — `x` a
 formula or specification, matching the `estimate_*()` first argument —
-returning, per `output`: the `preprocessed.goldfish` replay object
+returning, per `output`: the `goldfishStat` replay object
 (`"preprocessed"`), the gather stack (`"gather"`), the ready-to-estimate
 long frame (`"data.frame"`), or the DBI stream handle (`"db"`).
 `gather_model_data()` SHALL be a lifecycle soft-deprecated wrapper over
@@ -36,7 +36,7 @@ diagnostic replay consumers accept via their `preprocessed =` argument.
 #### Scenario: outputs map to products
 - **WHEN** the same model is run through the four `output` values on a
   small fixture
-- **THEN** `"preprocessed"` returns a `preprocessed.goldfish`, `"gather"`
+- **THEN** `"preprocessed"` returns a `goldfishStat`, `"gather"`
   the gather stack, `"data.frame"` the long frame, and `"db"` streams to
   the supplied DBI table, all from the same preprocessing semantics.
 
@@ -67,13 +67,13 @@ one the legacy flag returns for the same inputs.
   called
 - **THEN** a soft-deprecation warning names
   `compute_statistics(output = "preprocessed")` and the call returns the
-  `preprocessed.goldfish` object as before.
+  `goldfishStat` object as before.
 
 #### Scenario: parity with the legacy route
 - **WHEN** the same formula, data, and preprocessing options run through
   `compute_statistics(output = "preprocessed")` and the deprecated
   `estimate_dynam(..., preprocessing_only = TRUE)`
-- **THEN** the two `preprocessed.goldfish` objects are identical.
+- **THEN** the two `goldfishStat` objects are identical.
 
 ### Requirement: model and sub_model validate once, with cli errors
 `compute_statistics()` SHALL NOT re-validate `model`/`sub_model` locally;

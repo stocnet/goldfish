@@ -2,7 +2,7 @@
 
 ## Purpose
 The single stocnet data object as the one input surface for goldfish: the
-internal validator and stamped `data.goldfish` class, `as_goldfish()`, the
+internal validator and stamped `goldfishData` class, `as_goldfish()`, the
 mode map and deterministic event ordering, component event streams and the
 state materializer, constructor wrappers delegating to manynet, the flavor
 seam, panel layers, node identity on results/exports, and the prebuilt

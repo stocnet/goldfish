@@ -44,10 +44,17 @@ ledger + its three tooling scripts. Project-specific notes:
   scenario structure but **not** `##` section placement, so a `## MODIFIED`
   block naming a requirement the living spec does not have validates cleanly and
   then lands as an ADD at archive, leaving the old wording in place beside the
-  new one. The check understands `## RENAMED` blocks (either side resolving is
-  enough), so it neither flags a legitimate rename nor breaks when re-run on an
-  already-archived change via `archive/<date>-<name>`. A non-zero exit is a
-  reason to fix the delta before syncing, not to skip the step.
+  new one. The check understands `## RENAMED` blocks: a `## MODIFIED`/`##
+  REMOVED` header naming either side of a declared rename is satisfied when
+  either side resolves, so a legitimate rename is not flagged. The rename block
+  **itself** is stricter — its `FROM` header must be in the living spec, because
+  that is the side `openspec archive` resolves, and it aborts the entire archive
+  when `FROM` is missing. (Tightened 2026-09-07: the looser rule let
+  `class-naming-scheme` pass this check and then kill the archive, its rename
+  having already been applied to the living spec by hand.) On an
+  `archive/<date>-<name>` re-run `FROM` is gone by construction, so the `TO`
+  side is accepted there and the check still does not cry wolf. A non-zero exit
+  is a reason to fix the delta before syncing, not to skip the step.
 
 - **Workflow disciplines are authoritative in `openspec/config.yaml`**: commit-per-task,
   run `devtools::document()` inline when roxygen/exports/signatures change, bump
@@ -209,6 +216,22 @@ crash or memory bug originates there:
   reintroduce it. Internals still in camelCase (`prepEnvir`, `linkEnvir`, `isDirected`,
   `GetDetailPrint`, …) migrate to snake_case whenever a file is touched. Enforced via
   `object_name_linter("snake_case")` in `.lintr`.
+- **S3 class strings are the one carve-out**: every class goldfish attaches is
+  `goldfish<Thing>` — the package name plus a short camelCase identifier
+  (`goldfishFit`, `goldfishGOF`, `goldfishStat`, `goldfishKindDnRate`). This is the
+  stocnet ecosystem rule (autograph `CONTRIBUTING`, RSiena's
+  `sienaFit`/`sienaGOF`/`sienaAlgorithm`), and it applies to internal classes too, not
+  only the ones users see. A class carries **no dot** — not even the base-R
+  `summary.<class>` idiom, so `summary()` on a fit returns `goldfishSummFit`. Three
+  exemptions: the deprecated-path classes (`nodes.goldfish`, `network.goldfish`,
+  `dependent.goldfish`, `global.goldfish`, and the legacy `data.goldfish`
+  environment), the effect dispatch tags (`inertia`, `recip`, …), and condition
+  classes, which stay `goldfish_<snake_case>` because they are matched by
+  `tryCatch()`/`expect_error(class = )` rather than dispatched on. Nothing here
+  loosens the snake_case rule above: it governs everything *callable* — functions,
+  arguments, objects — and a class string is data, not a name a user calls.
+  `tests/testthat/test-class_naming.R` enumerates the package's classes from the
+  namespace and enforces this; extend its exemption lists, never its expectations.
 - **Cross-package calls**: never `pkg:::fn()` on another package's unexported objects
   (R CMD check/CRAN violation). Rule: `@importFrom` when a function is used across
   functions or in hot paths; `pkg::fn()` for occasional calls.

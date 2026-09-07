@@ -74,7 +74,7 @@ joint_two_process <- function() {
 test_that("build_merged_blocks compiles one spec_map per process, grouped by block", {
   mb <- build_merged_blocks(joint_two_process())
 
-  expect_s3_class(mb, "merged_blocks.goldfish")
+  expect_s3_class(mb, "goldfishBlock")
   # One unit per (focal, family): calls/emails x rate/choice.
   expect_setequal(
     names(mb$units),
@@ -82,7 +82,7 @@ test_that("build_merged_blocks compiles one spec_map per process, grouped by blo
   )
   # Each unit carries a walk-ready spec_map resolved against its own focal.
   for (key in names(mb$units)) {
-    expect_s3_class(mb$units[[key]]$spec_map, "spec_map.goldfish")
+    expect_s3_class(mb$units[[key]]$spec_map, "goldfishSpecMap")
   }
   expect_equal(mb$units[["emails:choice"]]$spec_map$focal, "emails")
   expect_equal(mb$units[["calls:rate"]]$spec_map$focal, "calls")
@@ -106,10 +106,10 @@ test_that("rate and choice blocks carry the sender (2D) and dyad (3D) shapes", {
   expect_false(mb$blocks[["DyNAM:choice"]]$is_sender)
 
   # The shape flag comes from the compiled spec_map's statistic class.
-  expect_s3_class(mb$units[["calls:rate"]]$spec_map, "sender_spec")
-  expect_s3_class(mb$units[["emails:rate"]]$spec_map, "sender_spec")
-  expect_s3_class(mb$units[["calls:choice"]]$spec_map, "dyad_spec")
-  expect_s3_class(mb$units[["emails:choice"]]$spec_map, "dyad_spec")
+  expect_s3_class(mb$units[["calls:rate"]]$spec_map, "goldfishAxisSender")
+  expect_s3_class(mb$units[["emails:rate"]]$spec_map, "goldfishAxisSender")
+  expect_s3_class(mb$units[["calls:choice"]]$spec_map, "goldfishAxisDyad")
+  expect_s3_class(mb$units[["emails:choice"]]$spec_map, "goldfishAxisDyad")
 })
 
 # ---- Cross-process effect union (per block) ---------------------------------
@@ -370,11 +370,11 @@ test_that("the merged walk returns one preprocessed object per fid", {
   out <- suppressWarnings(preprocess_joint(joint_two_process()))
   map <- attr(out, "process_map")
 
-  expect_s3_class(out, "joint_preprocessed.goldfish")
+  expect_s3_class(out, "goldfishJointPrep")
   expect_equal(names(out), as.character(sort(map$fid)))
   expect_true(all(vapply(
     out,
-    function(p) inherits(p, "preprocessed.goldfish"),
+    function(p) inherits(p, "goldfishStat"),
     logical(1)
   )))
 })

@@ -9,9 +9,9 @@
 # global components plus the mode map.
 #
 # Both answer through this seam so the builders carry no branch of their own.
-# The `data_source_envir` methods exist only for the deprecation cycle in which
-# the legacy constructors still produce environments, and are deleted with them
-# — the file then holds a single implementation.
+# The `goldfishSourceEnvir` methods exist only for the deprecation cycle in
+# which the legacy constructors still produce environments, and are deleted
+# with them — the file then holds a single implementation.
 #
 # The generics are internal, so each method carries @exportS3Method: that emits
 # an S3method() directive (no user-visible export). Without registration
@@ -37,7 +37,7 @@ DEPENDENT_STREAM <- ".dependent"
 #' @param modeled_flavor optional `ties$flavor` value(s) selecting which focal
 #'   rows are modeled; the rest update state only.
 #'
-#' @return a `data_source_stocnet` or `data_source_envir` object.
+#' @return a `goldfishSourceStocnet` or `goldfishSourceEnvir` object.
 #' @noRd
 new_data_source <- function(
   data = NULL,
@@ -48,7 +48,7 @@ new_data_source <- function(
   if (is.null(data)) {
     return(structure(
       list(envir = envir),
-      class = c("data_source_envir", "data_source")
+      class = c("goldfishSourceEnvir", "goldfishSource")
     ))
   }
   info <- data$info %||% list()
@@ -79,7 +79,7 @@ new_data_source <- function(
       net_override = list(),
       att_override = list()
     ),
-    class = c("data_source_stocnet", "data_source")
+    class = c("goldfishSourceStocnet", "goldfishSource")
   )
 }
 
@@ -89,10 +89,10 @@ new_data_source <- function(
 ds_needs_sanitize <- function(src) UseMethod("ds_needs_sanitize")
 
 #' @exportS3Method
-ds_needs_sanitize.data_source_envir <- function(src) TRUE
+ds_needs_sanitize.goldfishSourceEnvir <- function(src) TRUE
 
 #' @exportS3Method
-ds_needs_sanitize.data_source_stocnet <- function(src) FALSE
+ds_needs_sanitize.goldfishSourceStocnet <- function(src) FALSE
 
 # Mode-ness -------------------------------------------------------------------
 #
@@ -108,12 +108,12 @@ ds_needs_sanitize.data_source_stocnet <- function(src) FALSE
 ds_layer_is_two_mode <- function(src, name) UseMethod("ds_layer_is_two_mode")
 
 #' @exportS3Method
-ds_layer_is_two_mode.data_source_envir <- function(src, name) {
+ds_layer_is_two_mode.goldfishSourceEnvir <- function(src, name) {
   length(attr(get(name, envir = src$envir), "nodes")) > 1
 }
 
 #' @exportS3Method
-ds_layer_is_two_mode.data_source_stocnet <- function(src, name) {
+ds_layer_is_two_mode.goldfishSourceStocnet <- function(src, name) {
   isTRUE(ds_layer_map(src, name)$is_two_mode)
 }
 
@@ -123,10 +123,10 @@ ds_layer_is_two_mode.data_source_stocnet <- function(src, name) {
 ds_layer_mode_pair <- function(src, name) UseMethod("ds_layer_mode_pair")
 
 #' @exportS3Method
-ds_layer_mode_pair.data_source_envir <- function(src, name) NULL
+ds_layer_mode_pair.goldfishSourceEnvir <- function(src, name) NULL
 
 #' @exportS3Method
-ds_layer_mode_pair.data_source_stocnet <- function(src, name) {
+ds_layer_mode_pair.goldfishSourceStocnet <- function(src, name) {
   lm <- ds_layer_map(src, name)
   if (is.null(lm)) {
     return(NULL)
@@ -171,12 +171,12 @@ ds_layer_map <- function(src, name) {
 ds_arg_is_two_mode <- function(src, name, value) UseMethod("ds_arg_is_two_mode")
 
 #' @exportS3Method
-ds_arg_is_two_mode.data_source_envir <- function(src, name, value) {
+ds_arg_is_two_mode.goldfishSourceEnvir <- function(src, name, value) {
   length(attr(value, "nodes")) > 1
 }
 
 #' @exportS3Method
-ds_arg_is_two_mode.data_source_stocnet <- function(src, name, value) {
+ds_arg_is_two_mode.goldfishSourceStocnet <- function(src, name, value) {
   # A `list(a, b)` argument holds several layers and has no single mode-ness;
   # the legacy object carries no node sets there either, so both read one-mode.
   if (is.null(name) || grepl("^list\\(", name)) {
@@ -200,7 +200,7 @@ ds_model_is_two_mode <- function(src, nodes = NULL, nodes2 = NULL) {
 # assemblable legacy bundle becomes a stocnet, so nothing mints the environment
 # this method serves. Kept until the DyNAMi engine stops reading the envir seam,
 # so that seam is removed in one pass rather than dismantled piecemeal.
-ds_model_is_two_mode.data_source_envir <- function(
+ds_model_is_two_mode.goldfishSourceEnvir <- function(
   src,
   nodes = NULL,
   nodes2 = NULL
@@ -209,7 +209,7 @@ ds_model_is_two_mode.data_source_envir <- function(
 }
 
 #' @exportS3Method
-ds_model_is_two_mode.data_source_stocnet <- function(
+ds_model_is_two_mode.goldfishSourceStocnet <- function(
   src,
   nodes = NULL,
   nodes2 = NULL
@@ -222,7 +222,7 @@ ds_model_is_two_mode.data_source_stocnet <- function(
 ds_side_names <- function(src) UseMethod("ds_side_names")
 
 #' @exportS3Method
-ds_side_names.data_source_stocnet <- function(src) {
+ds_side_names.goldfishSourceStocnet <- function(src) {
   if (ds_model_is_two_mode(src)) {
     c("nodes_side1", "nodes_side2")
   } else {
@@ -234,7 +234,7 @@ ds_side_names.data_source_stocnet <- function(src) {
 ds_side_ids <- function(src, nodeset) UseMethod("ds_side_ids")
 
 #' @exportS3Method
-ds_side_ids.data_source_stocnet <- function(src, nodeset) {
+ds_side_ids.goldfishSourceStocnet <- function(src, nodeset) {
   layer_side <- layer_side_ids(src, nodeset)
   if (!is.null(layer_side)) {
     return(layer_side)
@@ -284,13 +284,13 @@ layer_side_ids <- function(src, nodeset) {
 ds_layer_side_name <- function(src, layer, side) UseMethod("ds_layer_side_name")
 
 #' @exportS3Method
-ds_layer_side_name.data_source_envir <- function(src, layer, side) {
+ds_layer_side_name.goldfishSourceEnvir <- function(src, layer, side) {
   sides <- ds_layer_sides(src, layer)
   if (length(sides) < side) sides[1] else sides[side]
 }
 
 #' @exportS3Method
-ds_layer_side_name.data_source_stocnet <- function(src, layer, side) {
+ds_layer_side_name.goldfishSourceStocnet <- function(src, layer, side) {
   lm <- ds_layer_map(src, layer)
   if (is.null(lm)) {
     return(ds_side_names(src)[1])
@@ -311,10 +311,10 @@ ds_layer_side_name.data_source_stocnet <- function(src, layer, side) {
 ds_has_nodeset <- function(src, nodeset) UseMethod("ds_has_nodeset")
 
 #' @exportS3Method
-ds_has_nodeset.data_source_envir <- function(src, nodeset) FALSE
+ds_has_nodeset.goldfishSourceEnvir <- function(src, nodeset) FALSE
 
 #' @exportS3Method
-ds_has_nodeset.data_source_stocnet <- function(src, nodeset) {
+ds_has_nodeset.goldfishSourceStocnet <- function(src, nodeset) {
   !is.null(layer_side_ids(src, nodeset))
 }
 
@@ -335,7 +335,7 @@ ds_has_nodeset.data_source_stocnet <- function(src, nodeset) {
 ds_network <- function(src, name) UseMethod("ds_network")
 
 #' @exportS3Method
-ds_network.data_source_envir <- function(src, name) {
+ds_network.goldfishSourceEnvir <- function(src, name) {
   mat <- get(name, envir = src$envir)
   if (!is.matrix(mat)) {
     cli::cli_abort("Object {.val {name}} must be a matrix network.")
@@ -345,7 +345,7 @@ ds_network.data_source_envir <- function(src, name) {
 }
 
 #' @exportS3Method
-ds_network.data_source_stocnet <- function(src, name) {
+ds_network.goldfishSourceStocnet <- function(src, name) {
   if (!is.null(src$net_override[[name]])) {
     return(src$net_override[[name]])
   }
@@ -373,13 +373,13 @@ ds_network.data_source_stocnet <- function(src, name) {
 ds_is_directed <- function(src, name) UseMethod("ds_is_directed")
 
 #' @exportS3Method
-ds_is_directed.data_source_envir <- function(src, name) {
+ds_is_directed.goldfishSourceEnvir <- function(src, name) {
   obj <- get(name, envir = src$envir)
   !inherits(obj, "network.goldfish") || isTRUE(attr(obj, "directed"))
 }
 
 #' @exportS3Method
-ds_is_directed.data_source_stocnet <- function(src, name) {
+ds_is_directed.goldfishSourceStocnet <- function(src, name) {
   if (ds_layer_is_two_mode(src, name)) {
     return(TRUE)
   }
@@ -394,12 +394,12 @@ ds_is_directed.data_source_stocnet <- function(src, name) {
 ds_layer_sides <- function(src, name) UseMethod("ds_layer_sides")
 
 #' @exportS3Method
-ds_layer_sides.data_source_envir <- function(src, name) {
+ds_layer_sides.goldfishSourceEnvir <- function(src, name) {
   attr(get(name, envir = src$envir), "nodes")
 }
 
 #' @exportS3Method
-ds_layer_sides.data_source_stocnet <- function(src, name) {
+ds_layer_sides.goldfishSourceStocnet <- function(src, name) {
   if (ds_layer_is_two_mode(src, name)) {
     c("nodes_side1", "nodes_side2")
   } else {
@@ -419,12 +419,12 @@ ds_layer_sides.data_source_stocnet <- function(src, name) {
 ds_nodal_view <- function(src, nodeset) UseMethod("ds_nodal_view")
 
 #' @exportS3Method
-ds_nodal_view.data_source_envir <- function(src, nodeset) {
+ds_nodal_view.goldfishSourceEnvir <- function(src, nodeset) {
   paste0("nodal:", nodeset)
 }
 
 #' @exportS3Method
-ds_nodal_view.data_source_stocnet <- function(src, nodeset) {
+ds_nodal_view.goldfishSourceStocnet <- function(src, nodeset) {
   mode_view_key(src$mode_map, ds_side_ids(src, nodeset), nodeset)
 }
 
@@ -465,24 +465,24 @@ attribute_stream_has_missing <- function(src, nodeset, attribute) {
 ds_nodes_frame <- function(src, nodeset) UseMethod("ds_nodes_frame")
 
 #' @exportS3Method
-ds_nodes_frame.data_source_envir <- function(src, nodeset) {
+ds_nodes_frame.goldfishSourceEnvir <- function(src, nodeset) {
   get(nodeset, envir = src$envir)
 }
 
 #' @exportS3Method
-ds_nodes_frame.data_source_stocnet <- function(src, nodeset) {
+ds_nodes_frame.goldfishSourceStocnet <- function(src, nodeset) {
   src$nodes[ds_side_ids(src, nodeset), , drop = FALSE]
 }
 
 ds_n_nodes <- function(src, nodeset) UseMethod("ds_n_nodes")
 
 #' @exportS3Method
-ds_n_nodes.data_source_envir <- function(src, nodeset) {
+ds_n_nodes.goldfishSourceEnvir <- function(src, nodeset) {
   nrow(get(nodeset, envir = src$envir))
 }
 
 #' @exportS3Method
-ds_n_nodes.data_source_stocnet <- function(src, nodeset) {
+ds_n_nodes.goldfishSourceStocnet <- function(src, nodeset) {
   length(ds_side_ids(src, nodeset))
 }
 
@@ -494,10 +494,10 @@ ds_n_nodes.data_source_stocnet <- function(src, nodeset) {
 ds_side_modes <- function(src, nodeset) UseMethod("ds_side_modes")
 
 #' @exportS3Method
-ds_side_modes.data_source_envir <- function(src, nodeset) NULL
+ds_side_modes.goldfishSourceEnvir <- function(src, nodeset) NULL
 
 #' @exportS3Method
-ds_side_modes.data_source_stocnet <- function(src, nodeset) {
+ds_side_modes.goldfishSourceStocnet <- function(src, nodeset) {
   modes <- src$mode_map$nodes_lookup$mode[ds_side_ids(src, nodeset)]
   if (all(is.na(modes))) {
     return(NULL)
@@ -513,10 +513,10 @@ ds_side_modes.data_source_stocnet <- function(src, nodeset) {
 ds_node_lookup <- function(src) UseMethod("ds_node_lookup")
 
 #' @exportS3Method
-ds_node_lookup.data_source_envir <- function(src) NULL
+ds_node_lookup.goldfishSourceEnvir <- function(src) NULL
 
 #' @exportS3Method
-ds_node_lookup.data_source_stocnet <- function(src) {
+ds_node_lookup.goldfishSourceStocnet <- function(src) {
   layer_node_lookup(src$mode_map, src$focal)
 }
 
@@ -526,21 +526,21 @@ ds_node_lookup.data_source_stocnet <- function(src) {
 ds_focal_layer <- function(src) UseMethod("ds_focal_layer")
 
 #' @exportS3Method
-ds_focal_layer.data_source_envir <- function(src) NA_character_
+ds_focal_layer.goldfishSourceEnvir <- function(src) NA_character_
 
 #' @exportS3Method
-ds_focal_layer.data_source_stocnet <- function(src) src$focal
+ds_focal_layer.goldfishSourceStocnet <- function(src) src$focal
 
 # Does `nodeset` name the global-attribute container rather than a node set?
 ds_is_global <- function(src, nodeset) UseMethod("ds_is_global")
 
 #' @exportS3Method
-ds_is_global.data_source_envir <- function(src, nodeset) {
+ds_is_global.goldfishSourceEnvir <- function(src, nodeset) {
   inherits(get(nodeset, envir = src$envir), "global.goldfish")
 }
 
 #' @exportS3Method
-ds_is_global.data_source_stocnet <- function(src, nodeset) {
+ds_is_global.goldfishSourceStocnet <- function(src, nodeset) {
   identical(nodeset, GLOBAL_NODESET)
 }
 
@@ -567,12 +567,12 @@ ds_global_value <- function(src, var) {
 ds_attribute <- function(src, nodeset, attribute) UseMethod("ds_attribute")
 
 #' @exportS3Method
-ds_attribute.data_source_envir <- function(src, nodeset, attribute) {
+ds_attribute.goldfishSourceEnvir <- function(src, nodeset, attribute) {
   get(nodeset, envir = src$envir)[[attribute]]
 }
 
 #' @exportS3Method
-ds_attribute.data_source_stocnet <- function(src, nodeset, attribute) {
+ds_attribute.goldfishSourceStocnet <- function(src, nodeset, attribute) {
   key <- att_override_key(nodeset, attribute)
   if (!is.null(src$att_override[[key]])) {
     return(src$att_override[[key]])
@@ -601,7 +601,7 @@ ds_objects_from_table <- function(src, obj_table) {
 }
 
 #' @exportS3Method
-ds_objects_from_table.data_source_envir <- function(src, obj_table) {
+ds_objects_from_table.goldfishSourceEnvir <- function(src, obj_table) {
   get_element_from_data_object_table(obj_table, envir = src$envir)
 }
 
@@ -613,12 +613,12 @@ ds_objects_from_table.data_source_envir <- function(src, obj_table) {
 ds_object_exists <- function(src, name) UseMethod("ds_object_exists")
 
 #' @exportS3Method
-ds_object_exists.data_source_envir <- function(src, name) {
+ds_object_exists.goldfishSourceEnvir <- function(src, name) {
   exists(name, envir = src$envir)
 }
 
 #' @exportS3Method
-ds_object_exists.data_source_stocnet <- function(src, name) {
+ds_object_exists.goldfishSourceStocnet <- function(src, name) {
   # Names were resolved against the components before this point, and an
   # unresolvable one already aborted listing the candidates.
   name %in% src$layers || !is.null(src$derived[[name]])
@@ -634,7 +634,7 @@ ds_table_is_network <- function(src, obj_table) {
 }
 
 #' @exportS3Method
-ds_table_is_network.data_source_envir <- function(src, obj_table) {
+ds_table_is_network.goldfishSourceEnvir <- function(src, obj_table) {
   vapply(
     ds_objects_from_table(src, obj_table),
     FUN = inherits,
@@ -644,7 +644,7 @@ ds_table_is_network.data_source_envir <- function(src, obj_table) {
 }
 
 #' @exportS3Method
-ds_table_is_network.data_source_stocnet <- function(src, obj_table) {
+ds_table_is_network.goldfishSourceStocnet <- function(src, obj_table) {
   # A layer reference fills the table's `object` slot; an attribute reference
   # fills `nodeset`/`attribute` instead. The resolver already settled which is
   # which, so the shape of the row answers this without reading any data.
@@ -652,7 +652,7 @@ ds_table_is_network.data_source_stocnet <- function(src, obj_table) {
 }
 
 #' @exportS3Method
-ds_objects_from_table.data_source_stocnet <- function(src, obj_table) {
+ds_objects_from_table.goldfishSourceStocnet <- function(src, obj_table) {
   lapply(seq_len(nrow(obj_table)), function(i) {
     entry <- obj_table[i, ]
     if (!is.na(entry$object)) {
@@ -669,7 +669,7 @@ ds_attribute_streams <- function(src, nodeset, attribute) {
 }
 
 #' @exportS3Method
-ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
+ds_attribute_streams.goldfishSourceEnvir <- function(src, nodeset, attribute) {
   obj <- get(nodeset, envir = src$envir)
   if (inherits(obj, "global.goldfish")) {
     return(attr(obj, "events") %||% character(0))
@@ -679,7 +679,11 @@ ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
 }
 
 #' @exportS3Method
-ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
+ds_attribute_streams.goldfishSourceStocnet <- function(
+  src,
+  nodeset,
+  attribute
+) {
   if (ds_is_global(src, nodeset)) {
     return(
       if (attribute %in% names(src$streams$global)) {
@@ -709,7 +713,7 @@ ds_check_dependent <- function(src, dep_name, call = rlang::caller_env()) {
 }
 
 #' @exportS3Method
-ds_check_dependent.data_source_envir <- function(
+ds_check_dependent.goldfishSourceEnvir <- function(
   src,
   dep_name,
   call = rlang::caller_env()
@@ -726,7 +730,7 @@ ds_check_dependent.data_source_envir <- function(
 }
 
 #' @exportS3Method
-ds_check_dependent.data_source_stocnet <- function(
+ds_check_dependent.goldfishSourceStocnet <- function(
   src,
   dep_name,
   call = rlang::caller_env()
@@ -755,12 +759,12 @@ ds_check_dependent.data_source_stocnet <- function(
 ds_default_network <- function(src, dep_name) UseMethod("ds_default_network")
 
 #' @exportS3Method
-ds_default_network.data_source_envir <- function(src, dep_name) {
+ds_default_network.goldfishSourceEnvir <- function(src, dep_name) {
   attr(get(dep_name, envir = src$envir), "default_network")
 }
 
 #' @exportS3Method
-ds_default_network.data_source_stocnet <- function(src, dep_name) {
+ds_default_network.goldfishSourceStocnet <- function(src, dep_name) {
   dep_name
 }
 
@@ -777,10 +781,10 @@ ds_default_network.data_source_stocnet <- function(src, dep_name) {
 ds_dependent_key <- function(src, dep_name) UseMethod("ds_dependent_key")
 
 #' @exportS3Method
-ds_dependent_key.data_source_envir <- function(src, dep_name) dep_name
+ds_dependent_key.goldfishSourceEnvir <- function(src, dep_name) dep_name
 
 #' @exportS3Method
-ds_dependent_key.data_source_stocnet <- function(src, dep_name) {
+ds_dependent_key.goldfishSourceStocnet <- function(src, dep_name) {
   DEPENDENT_STREAM
 }
 
@@ -797,7 +801,7 @@ ds_dependent_key.data_source_stocnet <- function(src, dep_name) {
 ds_composition <- function(src, nodeset, n) UseMethod("ds_composition")
 
 #' @exportS3Method
-ds_composition.data_source_envir <- function(src, nodeset, n) {
+ds_composition.goldfishSourceEnvir <- function(src, nodeset, n) {
   nodes_obj <- get(nodeset, envir = src$envir)
   init <- nodes_obj$present %||% rep(TRUE, n)
   streams <- attr(nodes_obj, "events")[
@@ -821,7 +825,7 @@ ds_composition.data_source_envir <- function(src, nodeset, n) {
 }
 
 #' @exportS3Method
-ds_composition.data_source_stocnet <- function(src, nodeset, n) {
+ds_composition.goldfishSourceStocnet <- function(src, nodeset, n) {
   ids <- ds_side_ids(src, nodeset)
   init <- if (is.null(src$nodes$active)) {
     rep(TRUE, n)
@@ -860,12 +864,12 @@ ds_composition.data_source_stocnet <- function(src, nodeset, n) {
 ds_object_streams <- function(src, name) UseMethod("ds_object_streams")
 
 #' @exportS3Method
-ds_object_streams.data_source_envir <- function(src, name) {
+ds_object_streams.goldfishSourceEnvir <- function(src, name) {
   attr(get(name, envir = src$envir), "events")
 }
 
 #' @exportS3Method
-ds_object_streams.data_source_stocnet <- function(src, name) {
+ds_object_streams.goldfishSourceStocnet <- function(src, name) {
   if (!is.null(src$derived[[name]])) {
     return(src$derived[[name]]$streams)
   }
@@ -893,12 +897,12 @@ ds_object_streams.data_source_stocnet <- function(src, name) {
 ds_fetch_stream <- function(src, key) UseMethod("ds_fetch_stream")
 
 #' @exportS3Method
-ds_fetch_stream.data_source_envir <- function(src, key) {
+ds_fetch_stream.goldfishSourceEnvir <- function(src, key) {
   get(key, envir = src$envir)
 }
 
 #' @exportS3Method
-ds_fetch_stream.data_source_stocnet <- function(src, key) {
+ds_fetch_stream.goldfishSourceStocnet <- function(src, key) {
   if (!is.null(src$derived_streams[[key]])) {
     return(src$derived_streams[[key]])
   }
@@ -982,13 +986,13 @@ ds_realize_derivations <- function(src, derivations) {
 }
 
 #' @exportS3Method
-ds_realize_derivations.data_source_envir <- function(src, derivations) {
+ds_realize_derivations.goldfishSourceEnvir <- function(src, derivations) {
   realize_derivations(derivations, src$envir)
   src
 }
 
 #' @exportS3Method
-ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
+ds_realize_derivations.goldfishSourceStocnet <- function(src, derivations) {
   for (d in derivations) {
     if (!identical(d$kind, "window")) {
       next
@@ -1046,7 +1050,7 @@ ds_impute_missing <- function(src, objects_effects_link, policy = NULL) {
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_envir <- function(
+ds_impute_missing.goldfishSourceEnvir <- function(
   src,
   objects_effects_link,
   policy = NULL
@@ -1069,7 +1073,7 @@ ds_impute_missing.data_source_envir <- function(
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_stocnet <- function(
+ds_impute_missing.goldfishSourceStocnet <- function(
   src,
   objects_effects_link,
   policy = NULL

@@ -75,6 +75,63 @@ recipe; coefficients must match to 1e-6. `"cox"` (not `"coxph"`: that is
 survival's function name, not a distribution; not `"ordered"`: it names the
 data reduction, not the model).
 
+### D3a — `cox` is a user-facing spelling; the descriptor carries it as `timing`
+
+New 2026-09-06, re-grounding D1/D3 against the landed
+`model-spec-descriptor`. That change gives every spec one behavioral
+descriptor, on which `distribution` already exists as a reserved field with
+the vocabulary `exponential` (and `weibull`, `gompertz` reserved for this
+work) — exactly the slot ADR-0025 asked for. Three of the four values D1
+proposes drop straight into it. **`cox` does not.**
+
+A Cox fit integrates no hazard: it models which event came next and the
+elapsed time drops out of the likelihood. The descriptor already carries that
+fact, on a different field — `timing`, taking `timed` or `ordinal` — and it is
+the field the preprocessing recipe reads to decide whether right-censored
+intervals are stored and the intercept scalars computed. Putting `cox` in
+`distribution` would make that one field mean two kinds of thing: *which
+parametric family the hazard belongs to*, and *whether there is a hazard at
+all*. That is the conflation the descriptor change exists to remove, one field
+later, and it would break the recipe read that currently follows `timing`.
+
+**Decision.** D1 and D3 stand as written for the *user-facing* argument:
+`distribution = "cox"` is what a user types, `rate_ordered` is still deleted,
+and `"cox"` is still the right word for the reasons D3 gives. The spec
+constructor translates: `distribution = "cox"` sets `timing = "ordinal"` and
+`likelihood = "multinomial"`, and leaves the descriptor's `distribution` field
+naming the hazard family only where a hazard is integrated. The argument is
+one axis to the user; the descriptor keeps two facts apart because two
+different consumers read them.
+
+**D13 follows from this.** Its regime classifiers were written as
+"timed ⟺ `distribution == "exponential"`, ordered ⟺ `distribution == "cox"`".
+Against the landed code those are `timing == "timed"` and
+`timing == "ordinal"` — which is also more robust, because a Weibull or
+Gompertz process is *timed* and would have failed the old classifier's
+`distribution == "exponential"` test on the very axis this change adds.
+
+**This is the test D1 of `model-spec-descriptor` reserved the field for.** Its
+risk register says: "`distribution` is the test case: it is reserved now,
+filled by `parametric-rates`, and if that proves awkward the shape is wrong
+while it is still cheap to change." Three of four values fit; the fourth was
+never a distribution. The field's shape holds.
+
+### D12a — DyNAM-i cannot reach the compiled engine (ADR-0048)
+
+New 2026-09-06. D12 gives `estimate_dynami(sub_model = "rate")` the same
+`distribution` semantics and scopes one recovery test to DyNAM-i data, while
+D5 puts the joint damped Fisher scoring in C++. Those cannot both hold for
+DyNAM-i: the compiled engine refuses a grouped input shape, because it was
+never wired for the group-interaction preprocessed object and no baseline
+covers it (ADR-0048; before that guard it failed with an internal
+`object 'res' not found`).
+
+So D12's recovery test must pin `set_algorithm_newton(backend = "r")`, as
+every existing DyNAM-i baseline does, and the C++ shape machinery of D5 does
+not serve DyNAM-i until that gap is closed. Either this change carries the
+wiring — which means minting DyNAM-i baselines under ADR-0021 — or D12 is
+narrowed to the R backend explicitly.
+
 ### D4 — Shape parameterized on the estimation scale κ = log k (Weibull), γ raw
 κ keeps k > 0 with no clipping (boundary guard by reparameterization);
 Gompertz γ is unconstrained. Chain rule terms for the log scale are applied in

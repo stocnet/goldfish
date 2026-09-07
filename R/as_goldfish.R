@@ -17,7 +17,7 @@
 #' runs the same validation that `estimate_dynam()`, `estimate_rem()`, and
 #' `make_specification()` apply to a `stocnet` object, failing fast with an
 #' informative error when the data does not meet goldfish's contract, and stamps
-#' the object with the `data.goldfish` class marker.
+#' the object with the `goldfishData` class marker.
 #'
 #' Passing the stamped object to estimation is equivalent to passing the raw
 #' stocnet: validation runs again unconditionally at specification time. The
@@ -53,7 +53,7 @@
 #'   overriding `info$focal`.
 #' @param ... reserved for future use.
 #'
-#' @return `x`, unchanged in structure, with `"data.goldfish"` prepended to its
+#' @return `x`, unchanged in structure, with `"goldfishData"` prepended to its
 #'   class vector.
 #'
 #' @seealso [goldfish_data] for how to assemble the `stocnet` object this gates.
@@ -90,14 +90,20 @@ as_goldfish <- function(x, focal = NULL, ...) {
   stamp_data_goldfish(x)
 }
 
-# Prepend the data.goldfish marker while preserving the underlying class vector
+# Prepend the goldfishData marker while preserving the underlying class vector
 # (c("stocnet", "list") for a real stocnet; "list" for a hand-built list).
+#
+# Deliberately NOT `data.goldfish`: that name stays on the legacy environment
+# `make_data()` and the DyNAM-i path build, and the two objects are different
+# enough that one print method had to branch on `is.environment()` to serve
+# both.
 stamp_data_goldfish <- function(x) {
-  structure(x, class = unique(c("data.goldfish", class(x))))
+  structure(x, class = unique(c("goldfishData", class(x))))
 }
 
-# Render the list (stocnet) shape of a stamped object. Legacy environment
-# objects keep the environment print path in print.data.goldfish().
+# Render the list (stocnet) shape of a stamped object. This is what
+# `print.goldfishData()` calls; the legacy environment keeps its own
+# `print.data.goldfish()`.
 print_data_goldfish_list <- function(x, ...) {
   info <- x$info %||% list()
   name <- info$name %||% "goldfish data"

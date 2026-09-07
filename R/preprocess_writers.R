@@ -23,7 +23,7 @@
 #'     recipe-computed assembly inputs (`initial_stats`,
 #'     `active_sender_init` / `active_sender_changes`,
 #'     `active_dyad_init` / `active_dyad_changes`, `start_time`, `end_time`,
-#'     `intercept_scalars`). Returns the writer's output.}
+#'     `is_exact_time`). Returns the writer's output.}
 #' }
 #'
 #' Recipe methods emit output exclusively through these hooks; they never
@@ -60,6 +60,49 @@
 #' @keywords internal
 NULL
 
+#' The statistics-output object
+#'
+#' Preprocessing produces one kind of object in several shapes, and the shapes
+#' differ in where the statistics live and how many processes are inside, not
+#' in what any consumer does with them. So there is one class, and those two
+#' facts are carried as attributes rather than as class strings:
+#'
+#' \describe{
+#'   \item{`storage`}{`"pointer"` for the flat buffers estimation reads
+#'     directly, `"stack"` for the expanded row-per-alternative gather stack,
+#'     `"db"` for a descriptor naming tables in a database rather than holding
+#'     the statistics in memory.}
+#'   \item{`scope`}{`"single"` for one process, `"flavored"` for a fid-keyed
+#'     container of them.}
+#' }
+#'
+#' Attributes and not list elements because a flavored container's elements are
+#' the per-process objects themselves — it is indexed and iterated by fid, so a
+#' `storage` element in it would read as a process.
+#'
+#' @param x the object to class.
+#' @param storage,scope the two facts above.
+#' @return `x` with the class and both attributes.
+#' @noRd
+new_goldfish_stat <- function(
+  x,
+  storage = c("pointer", "stack", "db"),
+  scope = c("single", "flavored")
+) {
+  structure(
+    x,
+    storage = match.arg(storage),
+    scope = match.arg(scope),
+    class = "goldfishStat"
+  )
+}
+
+#' @noRd
+stat_storage <- function(x) attr(x, "storage")
+
+#' @noRd
+stat_scope <- function(x) attr(x, "scope") %||% "single"
+
 #' Broadcast-update entry format
 #'
 #' Constant-value fan-out updates (an `alter()` / `ego()` / degree projection,
@@ -89,7 +132,7 @@ NULL
 NULL
 
 #' @describeIn preprocess_writers default flat-buffer writer producing the
-#'   `preprocessed.goldfish` object consumed by both estimation engines.
+#'   `goldfishStat` object consumed by both estimation engines.
 #' @noRd
 writer_default <- function() {
   buf_capacity <- NULL
@@ -232,7 +275,7 @@ writer_default <- function() {
           active_dyad_encoding = active_dyad_encoding_for(tail$spec),
           start_time = tail$start_time,
           end_time = tail$end_time,
-          intercept_scalars = tail$intercept_scalars,
+          is_exact_time = tail$is_exact_time,
           has_intercept = has_intercept
         )
       },
@@ -243,7 +286,7 @@ writer_default <- function() {
       # For the default writer the product is the assembled object itself.
       render = function(out, spec) out
     ),
-    class = c("writer_default", "preprocess_writer")
+    class = c("goldfishWriterDefault", "goldfishWriter")
   )
 }
 
@@ -273,7 +316,7 @@ writer_gather <- function() {
       finalize = base$finalize,
       render = function(out, spec) gather_from_prep(out, spec)
     ),
-    class = c("writer_gather", "preprocess_writer")
+    class = c("goldfishWriterGather", "goldfishWriter")
   )
 }
 
@@ -307,7 +350,7 @@ writer_db <- function(db = NULL, db_table = "stats") {
       finalize = base$finalize,
       render = base$render
     ),
-    class = c("writer_db", "writer_gather", "preprocess_writer")
+    class = c("goldfishWriterDB", "goldfishWriterGather", "goldfishWriter")
   )
 }
 
@@ -464,7 +507,7 @@ write_gather_to_db <- function(
   gathered$fid <- fid
   gathered$n_rows <- n_rows
   gathered$n_parameters <- n_parameters
-  structure(gathered, class = "preprocessed_db.goldfish")
+  new_goldfish_stat(gathered, storage = "db")
 }
 
 #' Complete a db export with its map and node tables
@@ -483,8 +526,8 @@ write_gather_to_db <- function(
 #' prefix-matching drop would be a destructive guess against tables the
 #' connection may own for other reasons.
 #'
-#' @param descriptors fid-keyed list of `preprocessed_db.goldfish` descriptors,
-#'   one per written process table.
+#' @param descriptors fid-keyed list of db-storage `goldfishStat`
+#'   descriptors, one per written process table.
 #' @param process_map the identity table of the export, one row per fid.
 #' @noRd
 finish_db_export <- function(descriptors, db, db_table, process_map) {
@@ -570,7 +613,7 @@ export_single_process_db <- function(
 #'
 #' @noRd
 gather_from_prep <- function(prep, spec) {
-  has_intercept <- identical(risk_set_normalizer(spec), "poisson")
+  has_intercept <- identical(behavior_likelihood(spec), "poisson")
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
   # Rate models reduce over a single receiver column; the estimation
@@ -637,9 +680,9 @@ gather_from_prep <- function(prep, spec) {
   # Poisson (rate / standard REM) and coordination carry per-event timespans;
   # coordination weights them to zero, the others take the intervals; the
   # remaining multinomial families read no timespan.
-  if (risk_set_normalizer(spec) %in% c("poisson", "coordination")) {
+  if (behavior_likelihood(spec) %in% c("poisson", "coordination")) {
     is_dependent <- as.logical(statsList$is_dependent)
-    timespan <- if (!identical(risk_set_normalizer(spec), "coordination")) {
+    timespan <- if (!identical(behavior_likelihood(spec), "coordination")) {
       statsList$intervals
     } else {
       numeric(length(is_dependent))
@@ -806,12 +849,12 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
   }
 }
 
-#' Assemble the flat-buffer `preprocessed.goldfish` object
+#' Assemble the flat-buffer `goldfishStat` object
 #'
 #' Shared output assembly for the default writer: computes the intercept
 #' scalars (`n_dep_events`, `total_time`, `avg_active_entity`) and the
 #' composition-change C-format presence matrices, then wraps the per-event
-#' fields produced by the writer into a `preprocessed.goldfish` object.
+#' fields produced by the writer into a `goldfishStat` object.
 #'
 #' @noRd
 assemble_default_output <- function(
@@ -831,15 +874,15 @@ assemble_default_output <- function(
   active_dyad_encoding,
   start_time,
   end_time,
-  intercept_scalars,
-  has_intercept = intercept_scalars,
+  is_exact_time,
+  has_intercept = is_exact_time,
   stat_mat_broadcast = matrix(0, 4L, 0L),
   stat_mat_broadcast_pointer = numeric(n_stored)
 ) {
   n_dep_events <- NULL
   total_time <- NULL
   avg_active_entity <- NULL
-  if (intercept_scalars) {
+  if (is_exact_time) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
     nActors <- sum(active_sender_init)
@@ -894,7 +937,7 @@ assemble_default_output <- function(
     active_dyad_update_pointer <- temp$presenceUpdatePointer
   }
 
-  structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       stat_mat_update = stat_mat_update,
@@ -922,9 +965,15 @@ assemble_default_output <- function(
       active_dyad_update = active_dyad_update,
       active_dyad_update_pointer = active_dyad_update_pointer,
       has_intercept = has_intercept,
-      right_censored = has_intercept,
+      # Whether the sub-model models the waiting times between events. It
+      # equals `has_intercept` on every reachable object -- an exact-time
+      # sub-model always carries the time intercept -- but it states a
+      # property of the sub-model, where `has_intercept` states one of the
+      # formula, and a consumer asking which likelihood shape produced this
+      # object is asking the former.
+      is_exact_time = has_intercept,
       prep_version = PREP_VERSION
     ),
-    class = "preprocessed.goldfish"
+    storage = "pointer"
   )
 }

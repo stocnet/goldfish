@@ -146,9 +146,9 @@ test_that("the tables carry the diagnostic metadata contract", {
   outliers <- diagnose_outliers(fit, method = "Hampel", threshold = 3)
   changepoints <- diagnose_changepoints(fit, moment = "variance")
 
-  expect_s3_class(outliers, c("diagnose_outliers", "tbl_df"))
-  expect_s3_class(changepoints, c("diagnose_changepoints", "tbl_df"))
-  expect_identical(attr(outliers, "diagnostic"), "diagnose_outliers")
+  expect_s3_class(outliers, c("goldfishOutliers", "tbl_df"))
+  expect_s3_class(changepoints, c("goldfishChangepoints", "tbl_df"))
+  expect_identical(attr(outliers, "diagnostic"), "goldfishOutliers")
   expect_type(outliers$outlier, "logical")
   expect_type(changepoints$cpt, "logical")
   # The parameters that produced the table, so a saved object explains itself.
@@ -171,11 +171,11 @@ test_that("class and metadata survive subsetting", {
   outliers <- diagnose_outliers(fit, method = "Top", threshold = 2)
 
   subset <- outliers[1:5, ]
-  expect_s3_class(subset, "diagnose_outliers")
+  expect_s3_class(subset, "goldfishOutliers")
   expect_identical(attr(subset, "context"), attr(outliers, "context"))
   expect_identical(attr(subset, "params"), attr(outliers, "params"))
   columns <- outliers[, c("time", "outlier", ".series")]
-  expect_s3_class(columns, "diagnose_outliers")
+  expect_s3_class(columns, "goldfishOutliers")
 })
 
 test_that("removing a defining column demotes the table", {
@@ -189,20 +189,20 @@ test_that("removing a defining column demotes the table", {
   # is gone.
   expect_identical(attr(outliers, "defining"), c("outlier", ".series"))
   dropped <- outliers[, c("time", "sender", ".series")]
-  expect_false(inherits(dropped, "diagnose_outliers"))
+  expect_false(inherits(dropped, "goldfishOutliers"))
   expect_s3_class(dropped, "tbl_df")
   expect_null(attr(dropped, "context"))
   expect_null(attr(dropped, "params"))
   expect_null(attr(dropped, "diagnostic"))
   expect_false(inherits(
     changepoints[, c("time", "cpt")],
-    "diagnose_changepoints"
+    "goldfishChangepoints"
   ))
 
   # A row operation leaves every defining column in place, so it keeps both
   # the class and the count the header reports.
   flagged <- outliers[outliers$outlier, ]
-  expect_s3_class(flagged, "diagnose_outliers")
+  expect_s3_class(flagged, "goldfishOutliers")
   expect_equal(sum(flagged$outlier), sum(outliers$outlier))
   expect_identical(attr(flagged, "params"), attr(outliers, "params"))
 })

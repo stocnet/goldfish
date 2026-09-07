@@ -100,31 +100,31 @@ modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
-\item{control_algo}{An object of class \code{algorithm.goldfish}
+\item{control_algo}{An object of class \code{goldfishAlgo}
 (typically created by \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}),
 specifying the algorithm and its parameters for the estimation.}
 
 \item{control_prep}{An object of class
-\code{preprocessing.goldfish} (typically created by
+\code{goldfishPrepCtrl} (typically created by
 \code{\link[=set_preprocessing]{set_preprocessing()}}),
 specifying parameters for data preprocessing. This is only used
-if \code{preprocessed} is not a \code{preprocessed.goldfish} object or NULL.}
+if \code{preprocessed} is not a \code{goldfishStat} object or NULL.}
 
 \item{preprocessed}{an optional preprocessed object of class
-\code{preprocessed.goldfish} from a previous estimation. When it is provided,
+\code{goldfishStat} from a previous estimation. When it is provided,
 the function will skip the preprocessing of the effects that are already
 present in the object and only preprocess the new effects. Default to
 \code{NULL}.}
 
 \item{preprocessing_only}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} logical. If
 \code{TRUE}, the function will only run the preprocessing stage and return an
-object of class \code{preprocessed.goldfish}. Default to \code{FALSE}. Superseded in
+object of class \code{goldfishStat}. Default to \code{FALSE}. Superseded in
 goldfish 2.0.0 by \code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "preprocessed"},
 which returns the same object from a function that says what it does; it
 keeps working through 2.x.}
 
 \item{return_preprocessed}{logical. If \code{TRUE}, the returned fit carries the
-\code{preprocessed.goldfish} object it was estimated from, under \code{preprocessed},
+\code{goldfishStat} object it was estimated from, under \code{preprocessed},
 and a message reports its approximate size. Diagnostics that replay the
 change statistics read it from there instead of asking for one. It is much
 larger than the fit itself, so it is opt-in; the alternative is to supply
@@ -138,7 +138,7 @@ set, written in the restricted boolean-tree grammar: effect atoms
 arithmetic \verb{+ - * /}; a bare effect means \code{effect != 0}. Inside a constraint
 \code{*} is elementwise arithmetic, never the effects formula's interaction
 expansion; for 0/1 indicators prefer \code{&} over \code{*} (\code{tie(a) & tie(b)}).
-Ignored when \code{x} is a \code{specification.goldfish} object (which carries its own
+Ignored when \code{x} is a \code{goldfishSpec} object (which carries its own
 constraint). See \code{\link[=make_specification]{make_specification()}} for the full grammar. \code{NULL} by
 default.}
 
@@ -158,15 +158,15 @@ procedure; slows down the routine significantly.}
 
 \item{preprocessing_init}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
 \code{preprocessed} in goldfish 2.0.0, the name every diagnostic consumer of a
-\code{preprocessed.goldfish} object uses.}
+\code{goldfishStat} object uses.}
 }
 \value{
-returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
+returns an object of \code{\link[=class]{class()}} \code{"goldfishFit"}
 when \code{preprocessing_only = FALSE} or
-a preprocessed statistics object of class \code{"preprocessed.goldfish"}
+a preprocessed statistics object of class \code{"goldfishStat"}
 when \code{preprocessing_only = TRUE}.
 
-An object of class \code{"result.goldfish"} is a list including:
+An object of class \code{"goldfishFit"} is a list including:
 \item{parameters}{a numeric vector with the coefficients estimates.}
 \item{standard_errors}{
 a numeric vector with the standard errors of the coefficients estimates.}
@@ -284,29 +284,30 @@ estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
 consumers treat a missing value as an unknown backend.}
 \item{risk_set_axis}{a character value naming the axis a position in any
 per-event diagnostic component refers to: \code{"sender"},
-\code{"receiver_given_sender"}, \code{"dyad"} or \code{"dyad_symmetric"}. Read it with
-\code{\link[=risk_set_axis]{risk_set_axis()}}, which documents the four values and how each joins to
-\code{node_lookup}. Absent on objects fitted before goldfish 2.0.0.}
+\code{"receiver_given_sender"} or \code{"dyad"}. Read it with \code{\link[=risk_set_axis]{risk_set_axis()}},
+which documents the three values and how each joins to \code{node_lookup}.
+Absent on objects fitted before goldfish 2.0.0.}
 \item{node_lookup}{the \verb{(side, local, global, label)} table documented
 under \code{\link[=compute_statistics]{compute_statistics()}}, carried on the fit so a per-event diagnostic
 index resolves to the original node row and its label. It is \emph{the} index
 resolver: join a position to the side \code{\link[=risk_set_axis]{risk_set_axis()}} names — side 1 for
 \code{"sender"}, side 2 for \code{"receiver_given_sender"} on a two-mode model, and
-side 1 for both dyad axes on a one-mode model, whose sender and receiver
+side 1 for the dyad axis on a one-mode model, whose sender and receiver
 sets are the same nodes. The per-event components deliberately carry no
 \code{names()} or \code{dimnames()} of their own: this one table per fit would
 otherwise be repeated once per event, which on a long sequence is exactly
 the size blow-up the per-event primitives are guarded against.}
-\item{preprocessed}{the \code{preprocessed.goldfish} object the model was
+\item{preprocessed}{the \code{goldfishStat} object the model was
 estimated from, present only when \code{return_preprocessed = TRUE}. It is the
 same object \code{\link[=compute_statistics]{compute_statistics()}} returns under
 \code{output = "preprocessed"}, so a diagnostic reads it from the fit or takes
 an equivalent one through its own \code{preprocessed} argument.}
-\item{right_censored}{
-a logical value indicating if the estimation process considered
-right-censored events.
-Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
-REM (\code{estimate_rem()}), when the model includes the intercept.}
+\item{is_exact_time}{
+a logical value indicating whether the sub-model models the waiting
+times between events rather than only their order. \code{TRUE} for
+\code{estimate_dynam(x, sub_model = "rate")} and for REM (\code{estimate_rem()})
+with the intercept; it is what makes the right-censored intervals
+contribute to the likelihood and gives it an exposure denominator.}
 \item{right_censored_events}{a logical vector indicating whether or not an
 event is a right censored event. It is the fit's \strong{only} spelling of that
 fact: the preprocessed object carries the same information as

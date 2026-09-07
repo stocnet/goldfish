@@ -69,7 +69,7 @@ EVALUATE_PRIMITIVE_OF <- c(
 #' set. Nothing is zeroed out — that is what makes the output usable as the
 #' constrained-model input of a score test.
 #'
-#' @param x a fitted model of class `"result.goldfish"`.
+#' @param x a fitted model of class `"goldfishFit"`.
 #' @param at the parameter vector to evaluate at. Either a full-length numeric
 #'   vector in coefficient order, or a named one matched against the
 #'   coefficient labels the model reports, in which case unnamed coefficients
@@ -93,7 +93,7 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   primitive is a preference, met with a message saying the score rows already
 #'   are those rows, while asking this function *for* the value is a demand, and
 #'   returning nothing under a name the caller supplied would be a lie.
-#' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
+#' @param preprocessed a `goldfishStat` object to evaluate over, as
 #'   returned by [compute_statistics()]. Defaults to the object attached by
 #'   `estimate_*(return_preprocessed = TRUE)`; with neither route available the
 #'   evaluation aborts naming both, rather than silently recomputing statistics
@@ -178,7 +178,7 @@ evaluate_model.default <- function(x, ...) {
 
 #' @rdname evaluate_model
 #' @export
-evaluate_model.result.goldfish <- function(
+evaluate_model.goldfishFit <- function(
   x,
   at = stats::coef(x),
   return = c("loglik", "score"),
@@ -280,7 +280,7 @@ abort_if_exposure_undefined <- function(
   if (!"exposure" %in% quantities) {
     return(invisible(NULL))
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible(NULL))
   }
   cli::cli_abort(
@@ -312,7 +312,7 @@ abort_if_conditional_scores_undefined <- function(
   if (!"conditional_scores" %in% quantities) {
     return(invisible(NULL))
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible(NULL))
   }
   sub_model <- spec$sub_model
@@ -459,11 +459,11 @@ evaluate_engine_once <- function(
       is_two_mode = is_two_mode,
       # The choice families reduce the per-event statistics array to the
       # sender's matrix before the contribution reads it; estimation decides
-      # this from the same two spec classes, and an evaluation must make the
+      # this from the same descriptor field, and an evaluation must make the
       # same choice or the contribution meets an array of the wrong rank.
-      reduce_array_to_matrix = inherits(
-        spec,
-        c("dynam_choice_spec", "dynami_choice_spec")
+      reduce_array_to_matrix = identical(
+        risk_set_axis(spec),
+        "receiver_given_sender"
       ),
       seed_intercept = FALSE
     )
@@ -669,14 +669,14 @@ evaluate_margins <- function(res, spec, prep, backend) {
     axis = risk_set_axis(spec),
     nodes = evaluate_nodes_frame(prep, side = 1L),
     nodes2 = evaluate_nodes_frame(prep, side = 2L),
-    is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    is_exact_time = identical(behavior_likelihood(spec), "poisson")
   )
 }
 
 #' @export
-#' @method evaluate_model flavored_result.goldfish
+#' @method evaluate_model goldfishFlavFit
 #' @noRd
-evaluate_model.flavored_result.goldfish <- function(x, ..., flavor = NULL) {
+evaluate_model.goldfishFlavFit <- function(x, ..., flavor = NULL) {
   # `at` defaults to the fit's own coefficients on the single-process method, so
   # each process evaluates at its own by default rather than at a vector that
   # would have to be split across them.

@@ -346,7 +346,7 @@ compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
     sub_model = fp$sub_model,
     legacy_sub_model = legacy_sub_model,
     stat_block = paste(spec$model, fp$sub_model, sep = ":"),
-    is_sender = inherits(spec_map, "sender_spec"),
+    is_sender = inherits(spec_map, "goldfishAxisSender"),
     fids = fid_rows$fid,
     flavors = fp$flavors,
     effect_maps = fp$effect_maps,
@@ -575,7 +575,7 @@ build_joint_schedule <- function(units, shared_objects) {
 #' @param control_preprocessing preprocessing options (for the imputation policy
 #'   carried onto each compiled `spec_map`).
 #'
-#' @return a `merged_blocks.goldfish` list with: `blocks` (per `stat_block`, its
+#' @return a `goldfishBlock` list with: `blocks` (per `stat_block`, its
 #'   model/sub-model/family, `is_sender` shape flag, member fids and per-process
 #'   unit keys, and the cross-process effect union); `units` (the per-process
 #'   compiled `spec_map`s keyed by `focal:family`, each with its `shared_oid ->
@@ -663,7 +663,7 @@ build_merged_blocks <- function(
       support_constraints = support_constraints,
       process_map = joint_spec$process_map
     ),
-    class = "merged_blocks.goldfish"
+    class = "goldfishBlock"
   )
 }
 
@@ -707,7 +707,7 @@ build_merged_blocks <- function(
 #     spec_map over the one shared state.
 # =========================================================================== #
 
-# Wrap a single flavored or plain `specification.goldfish` as a degenerate joint
+# Wrap a single flavored or plain `goldfishSpec` as a degenerate joint
 # specification so the merged substrate builder can walk it. The one-process
 # case is what the frozen-baseline gate compares against `preprocess_flavored`:
 # it must run through the SAME merged driver as a true multi-process join. The
@@ -1216,7 +1216,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   consumers <- init_consumers(
     consumer_specs,
     writer = writer_default(),
-    right_censored = FALSE,
+    is_exact_time = FALSE,
     spec = spec_map,
     dims = list(
       nEffects = nEffects,
@@ -1228,7 +1228,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
     ),
     initial_stats_fn = function() engine$initial_stats
   )
-  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
+  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
 
   engine <- new.env(parent = emptyenv())
   engine$key <- unit$key
@@ -1256,7 +1256,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   engine$consumers <- consumers
   engine$consumer_specs <- consumer_specs
   engine$rc_consumers <- rc_consumers
-  engine$is_timed_rate <- length(rc_consumers) > 0L
+  engine$is_exact_time <- length(rc_consumers) > 0L
   engine$i_total <- 0L
   engine$i_dep <- 0L
   engine$last_time <- NA_real_
@@ -1280,7 +1280,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     active_dyad_changes = ctx$active_dyad_changes,
     start_time = start_time,
     end_time = end_time,
-    intercept_scalars = engine$is_timed_rate
+    is_exact_time = engine$is_exact_time
   )
 
   if (engine$is_sender) {
@@ -1360,10 +1360,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
             opportunitiesList = opportunities
           ))
         }
-        if (
-          !is.null(opportunities) &&
-            spec_map$sub_model %in% c("choice", "choice_coordination")
-        ) {
+        if (!is.null(opportunities) && is_choice_family(spec_map)) {
           out <- fold_active_dyad_opportunity(out, opportunities)
         }
         out
@@ -1385,7 +1382,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
 
   # `finalize_consumers()` returns one object for a single output and a
   # fid-named list otherwise; normalize to a fid-keyed list either way.
-  if (inherits(outputs, "preprocessed.goldfish")) {
+  if (inherits(outputs, "goldfishStat")) {
     outputs <- stats::setNames(list(outputs), as.character(engine$fids[1L]))
   }
 
@@ -1411,7 +1408,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
 }
 
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
-# assembled, returning one `preprocessed.goldfish` object per fid.
+# assembled, returning one `goldfishStat` object per fid.
 run_merged_walk <- function(
   merged,
   control_preprocessing = set_preprocessing_opt(),
@@ -1483,7 +1480,7 @@ run_merged_walk <- function(
               receiver = ev_receiver
             )
           )
-        } else if (engine$is_timed_rate) {
+        } else if (engine$is_exact_time) {
           interval <- t - engine$last_time
           engine$last_time <- t
           engine$i_total <- engine$i_total + 1L
@@ -1530,7 +1527,7 @@ run_merged_walk <- function(
       interval <- t - engine$last_time
       engine$last_time <- t
       engine$i_total <- engine$i_total + 1L
-      if (engine$is_timed_rate && interval > 0) {
+      if (engine$is_exact_time && interval > 0) {
         merged_route_rc(
           engine,
           list(
@@ -1588,13 +1585,13 @@ run_merged_walk <- function(
   structure(
     outputs[ordered_keys],
     process_map = merged$process_map,
-    class = "joint_preprocessed.goldfish"
+    class = "goldfishJointPrep"
   )
 }
 
 # Preprocess a joint (or single) specification through the merged single-clock
 # walk. Accepts a `goldfishJointSpec` directly, or a single
-# `specification.goldfish` (wrapped as a one-process join) so the same driver
+# `goldfishSpec` (wrapped as a one-process join) so the same driver
 # serves the frozen-baseline gate.
 preprocess_joint <- function(
   spec,
@@ -1604,11 +1601,11 @@ preprocess_joint <- function(
 ) {
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
-  } else if (inherits(spec, "specification.goldfish")) {
+  } else if (inherits(spec, "goldfishSpec")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
-      "{.fn preprocess_joint} requires a {.cls specification.goldfish} or
+      "{.fn preprocess_joint} requires a {.cls goldfishSpec} or
        {.cls goldfishJointSpec}.",
       .internal = TRUE
     )

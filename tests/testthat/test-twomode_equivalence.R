@@ -75,6 +75,6 @@ test_that("a mixed one/two-mode-layer object estimates consistently", {
     sub_model = "choice",
     data = data
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 })

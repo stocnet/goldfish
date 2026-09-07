@@ -83,7 +83,7 @@ test_that("the ordinal sub-models get the identification message", {
   # take the identification branch, which they reach through the risk-set
   # descriptor rather than through their sub-model name.
   expect_identical(
-    risk_set_normalizer(new_model_spec(
+    behavior_likelihood(new_model_spec(
       model = "DyNAM",
       sub_model = "rate_ordered",
       is_two_mode = FALSE,
@@ -94,7 +94,7 @@ test_that("the ordinal sub-models get the identification message", {
     "multinomial"
   )
   expect_identical(
-    risk_set_normalizer(new_model_spec(
+    behavior_likelihood(new_model_spec(
       model = "REM",
       sub_model = "rate_ordered",
       is_two_mode = FALSE,
@@ -139,7 +139,7 @@ test_that("a rate formula without an intercept is not ordinal", {
   # correct -- which is what lets `cox_snell` compute on it.
   fit <- estimate_rem(depNetwork ~ inertia, sub_model = "rate", data = dataTest)
   expect_true("Intercept" %in% names(coef(fit)))
-  expect_identical(risk_set_normalizer(fit$model_spec), "poisson")
+  expect_identical(behavior_likelihood(fit$model_spec), "poisson")
   expect_true(is_exact_time_fit(fit))
 
   ordinal <- estimate_rem(
@@ -148,7 +148,7 @@ test_that("a rate formula without an intercept is not ordinal", {
     data = dataTest
   )
   expect_false("Intercept" %in% names(coef(ordinal)))
-  expect_identical(risk_set_normalizer(ordinal$model_spec), "multinomial")
+  expect_identical(behavior_likelihood(ordinal$model_spec), "multinomial")
   expect_false(is_exact_time_fit(ordinal))
 })
 
@@ -177,7 +177,7 @@ test_that("an all-fixed model is an evaluation, not an error", {
     sub_model = "choice",
     data = dataTest
   )
-  expect_s3_class(offset_only, "result.goldfish")
+  expect_s3_class(offset_only, "goldfishFit")
   expect_length(coef(offset_only), 0L)
   expect_true(is.finite(as.numeric(logLik(offset_only))))
 

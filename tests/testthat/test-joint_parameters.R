@@ -587,7 +587,7 @@ interaction_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
-# A faithful `flavored_result.goldfish`, mirroring `fabricate_joint_result()` in
+# A faithful `goldfishFlavFit`, mirroring `fabricate_joint_result()` in
 # test-joint_from_result.R: each fid's coefficient names come from the spec's
 # own effect-description matrix, so the console re-render on the result side
 # reproduces the spec side exactly -- what the name-column agreement test below
@@ -617,7 +617,7 @@ fabricate_windowed_result <- function(
   }
   structure(
     list(results = results, process_map = spec$process_map, model = "DyNAM"),
-    class = "flavored_result.goldfish"
+    class = "goldfishFlavFit"
   )
 }
 

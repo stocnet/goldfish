@@ -20,8 +20,8 @@ compute_statistics(
 \item{x}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfish_effects")}), or a \code{specification.goldfish} object
-from \code{\link[=make_specification]{make_specification()}} — the same first argument the \verb{estimate_*()}
+(see \code{vignette("goldfish_effects")}), or a \code{goldfishSpec} object from
+\code{\link[=make_specification]{make_specification()}} — the same first argument the \verb{estimate_*()}
 functions take.}
 
 \item{model}{a character string specifying the model. Current options are
@@ -39,7 +39,7 @@ only the order of the events, which has neither.}
 
 \item{output}{a character string specifying the output format of the
 preprocessed statistics. \code{"preprocessed"} returns the estimation-ready
-\code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
+\code{goldfishStat} object; \code{"gather"} returns the gather stack (one
 row per event x alternative, the format the deprecated
 \code{\link[=gather_model_data]{gather_model_data()}} produced);
 \code{"data.frame"} returns the same rows as a ready-to-estimate long frame
@@ -55,7 +55,7 @@ events (right-censored ones included, where the model has them) times
 the candidates alive at each. That is where the memory goes on a large
 sequence: use \code{output = "db"} when the rows do not fit in memory.}
 
-\item{control_prep}{an object of class \code{preprocessing.goldfish} created
+\item{control_prep}{an object of class \code{goldfishPrepCtrl} created
 with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 
 \item{progress}{logical. Whether to print a progress bar during
@@ -70,16 +70,18 @@ preserved.}
 \item{...}{additional arguments passed to the preprocessing stage.}
 }
 \value{
-an object of class \code{"preprocessed.goldfish"} with the change
+an object of class \code{"goldfishStat"} with the change
 statistics of the effects for the event sequence and the information
 of the model variant computed. See the \code{Value} section of
 \code{\link[=estimate_dynam]{estimate_dynam()}} for the \code{preprocessing_only = TRUE} case.
 
 Every output form reports two logical fields describing the likelihood
 shape it was produced under, so a consumer never has to infer it from the
-columns: \code{has_intercept} (the exact-time time intercept is present) and
-\code{right_censored} (right-censored rows are stored, carrying \code{timespan} and
-\code{is_dependent}). Both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
+columns: \code{has_intercept} (the formula carries the time intercept) and
+\code{is_exact_time} (the sub-model models the waiting times between events,
+so the right-censored rows are stored, carrying \code{timespan} and
+\code{is_dependent}). They answer different questions but agree on every
+object: both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
 \code{"rate_ordered"} and the choice sub-models.
 }
 \description{

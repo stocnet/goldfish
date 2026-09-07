@@ -113,7 +113,7 @@ test_that("global is permitted as a rate_ordered operand but not as a main", {
     model = "DyNAM",
     sub_model = "rate_ordered"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
 })
 
 test_that("DyNAMi rejects a one-mode stocnet as not an interaction object", {
