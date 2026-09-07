@@ -1,3 +1,58 @@
+# goldfish 1.9.30
+
+Folds the `joint-parameters` and `intercept-only-rate-spec` changes: the shared
+parameter surface for joint (DyNES) specifications, and the pinned
+intercept-only rate that generative completion supplies.
+
+## Breaking changes
+
+* Renamed the two classes this release ships to the `goldfish<Thing>` scheme.
+  * `set_parameters()` returns `goldfishParams`, was `parameters.goldfish`.
+  * `make_joint_specification()` returns `goldfishJointSpec`, was
+    `joint_specification.goldfish`.
+  * Unreleased surface, so no deprecation cycle applies.
+
+## New features
+
+* Added `set_parameters()`, building a self-validating `goldfishParams` over a
+  `goldfishJointSpec`.
+  * Each process takes one full-length coefficient vector, keyed by its
+    rendered `layer > flavor > family` label (flavor elided when absent).
+  * Entries may be named or positional, but not a mix.
+  * A slot the formula fixes keeps the specification's value; a value supplied
+    there is warned about and ignored.
+  * An unfilled free slot leaves the object incomplete.
+* Added `set_parameters(spec, result)`, taking a fitted joint result in place
+  of the per-fid vectors for the fit-to-re-simulate round trip.
+  * Values are reconstructed from the result's own `coef_layout()`, after
+    asserting the result was fit against that same specification.
+* Added `coef_layout()`, a generic tabulating a joint parameter surface.
+  * One row per coefficient slot: process label, name, fixed flag, fixed
+    value, and flat-parameter index.
+  * Dispatches on `goldfishJointSpec` (the empty authoring layout, rendering
+    autocompleted fids as fixed), on `goldfishParams`, and on a fitted joint
+    result.
+* Added one shared acceptance surface for `estimate_dynes(initial_parameters)`
+  and joint `simulate(coef)`, taking only a `goldfishParams`.
+  * Estimation reads the free-parameter projection; a partial object is the
+    normal warm-start case.
+  * Simulation asserts completeness and names any unpinned free effect.
+  * A fid autocompleted with zero free parameters counts as resolved.
+* Added the pinned intercept-only rate sub-model.
+  * A layer with no rate sub-model is completed with a zero-free-parameter
+    intercept-only rate, and says so.
+  * The per-period intercept is `log(count / (duration * risk_set_size))`,
+    frozen once on the completed specification.
+
+## Improvements
+
+* Improved `make_joint_specification()`, which now rejects at build any joined
+  process whose `offset()` term lacks an inline coefficient value.
+  * The abort names the offending term and points to
+    `offset(term, coef = value)`.
+  * A bare `offset(term)` remains legal in a standalone
+    `make_specification()`.
+
 # goldfish 1.9.29
 
 Merges the `feature/dynes` line — the multivariate specification and

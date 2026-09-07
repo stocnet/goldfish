@@ -29,6 +29,21 @@ must exist).
       methods in the same session, since this change runs right before
       release-prep.)
 
+## 1b. Website CI gate (added 2026-09-03, autograph parity)
+
+- [ ] 1.4 Add a `website-builds` job to `.github/workflows/prchecks.yml`,
+      mirroring the one autograph added in `b76438a`: `setup-r` +
+      `setup-r-dependencies` with `extra-packages: any::pkgdown, local::.`
+      and `needs: website`, then `pkgdown::check_pkgdown()` followed by
+      `pkgdown::build_site(preview = FALSE, install = FALSE,
+      new_process = FALSE)`. The site itself keeps deploying from
+      `pushrelease.yml`; this job only reports whether it *can* build, so a
+      topic dropped from the reference index fails the PR instead of
+      silently stopping the site at the next release. Land it AFTER task
+      1.1, since `check_pkgdown()` is red until the index gaps close.
+      Note the job runs on `pull_request` to `main` only, matching the
+      existing workflow trigger.
+
 ## 2. Examples gate and timing ledger
 
 - [ ] 2.1 Run all examples in a fresh subprocess

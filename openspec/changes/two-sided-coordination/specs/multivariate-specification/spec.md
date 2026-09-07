@@ -1,15 +1,21 @@
 # multivariate-specification Delta Specification
 
-Note: written against the living spec as merged at v1.9.29; carries the
+Note: written against the living spec as merged at v1.9.30; carries the
 D14–D16 resolution (coordination joins as a dynamu specification object).
+The `make_joint_specification` block was rebased onto the v1.9.30 wording after
+`joint-parameters` archived: that fold renamed the requirement and changed the
+return type to `goldfishJointSpec`, so the pre-rebase copy would have reverted
+both, plus `choice_coordination` in the mixable-process list.
 
 ## MODIFIED Requirements
 
-### Requirement: make_joint_specification composes process specifications
+### Requirement: make_joint_specification composes process specifications into a goldfishJointSpec object
 
 The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
-multivariate specification that portrays their co-evolution. Construction SHALL NOT
+`goldfishJointSpec` object — a multivariate specification that portrays their
+co-evolution (design D17 — renamed from `joint_specification.goldfish` under
+the retired `<noun>.goldfish` house convention). Construction SHALL NOT
 require a panel-observed layer to be referenced — all viability is consumer-owned. A
 combination that references no panel-observed layer SHALL compose: it is
 estimation-separable (the factorized likelihood) yet generatively coupled through the
@@ -20,8 +26,9 @@ it. DyNAM-i processes SHALL be rejected. All processes
 MUST reference one shared mode-map object; one- and two-mode processes MAY be
 composed, and dependent processes over distinct mode-pairs MAY be joined
 provided every cross-process read conforms by mode-set identity (see the
-node-space conformance requirement below). DyNAM (rate, choice) and REM
-processes, timed or ordered, MAY be freely mixed, flavored or plain.
+node-space conformance requirement below). DyNAM (rate, choice,
+choice_coordination) and REM processes, timed or ordered, MAY be freely mixed,
+flavored or plain.
 Two-sided coordination processes join as
 `make_specification(model = "DyNAMu")` objects — of **any** mechanism, since
 construction never owns viability; what a generative consumer cannot handle
@@ -31,21 +38,21 @@ is gated at that consumer (see the mechanism-gating requirement below).
 - **WHEN** `make_joint_specification(friendship_spec, calls_spec, data = x)` runs
   with friendship panel-observed (flavored creation/dissolution) and calls a
   fully observed relational-event process
-- **THEN** a multivariate specification is returned covering both processes'
+- **THEN** a `goldfishJointSpec` is returned covering both processes'
   formulas.
 
 #### Scenario: exogenous-only panel reference composes but is not DyNES-viable
 - **WHEN** no composed process's focal layer is panel-observed, but a
   relational-event process reads a panel-observed layer as an exogenous covariate
   (e.g. `calls ~ ... + tie(friendship)` with friendship panel-observed)
-- **THEN** a multivariate specification is returned — the panel layer enters as a
+- **THEN** a `goldfishJointSpec` is returned — the panel layer enters as a
   static exogenous step-covariate — but no fid is coupled, so `estimate_dynes()`
   will abort on it, naming `estimate_dynam()` (nothing is latent).
 
 #### Scenario: no panel reference composes (estimation-separable, generatively simulable)
 - **WHEN** no composed process references any panel-observed layer (focal or
   exogenous)
-- **THEN** a multivariate specification is returned — the processes are
+- **THEN** a `goldfishJointSpec` is returned — the processes are
   estimation-separable but generatively coupled through the shared clock, so it is a
   valid `simulate()` input — and `estimate_dynes()` (not construction) aborts it,
   naming `estimate_dynam()` for per-process estimation.
@@ -54,8 +61,9 @@ is gated at that consumer (see the mechanism-gating requirement below).
 - **WHEN** `make_joint_specification(friendship_spec, collab_spec, data = x)` runs
   with `collab_spec` a `make_specification(model = "DyNAMu")` object (any
   mechanism) over an undirected layer of the shared mode-map
-- **THEN** a multivariate specification is returned with the coordination process's
+- **THEN** a `goldfishJointSpec` is returned with the coordination process's
   formulas in the `process_map`, regardless of mechanism.
+
 
 ### Requirement: Generative-readiness completion fills half-specified flavors
 
