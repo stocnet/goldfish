@@ -1,3 +1,147 @@
+# goldfish 1.9.31
+
+Folds three changes developed together: every class goldfish attaches moves
+to the `goldfish<Thing>` scheme, model behavior becomes a descriptor computed
+at construction rather than a variant class hierarchy, and the fitted-model
+classes gain a shared parent so a generic written once reaches every fit.
+
+## Breaking changes
+
+* Renamed every S3 class goldfish attaches to the `goldfish<Thing>` scheme.
+  * Stored fits and stored preprocessed objects no longer dispatch: **re-fit**.
+  * A script testing `inherits(x, "result.goldfish")` (or any retired name
+    below) must be updated; there is no fallback class and no deprecation
+    cycle, because this line has never reached CRAN.
+  * The seven names autograph plots on are adopted verbatim from autograph, so
+    plotting needs an autograph past its own rename (1.0.6 or later).
+  * Exported function names are unchanged: `test_gof()` is still `test_gof()`,
+    only the class of what it returns moved.
+* Renamed the fitted-model and summary classes.
+  * `result.goldfish` is now `goldfishFit`.
+  * `flavored_result.goldfish` is now `goldfishFlavFit`.
+  * `summary()` on a fit returns `goldfishSummFit`, was
+    `summary.result.goldfish`; no live class carries a dot any more.
+* Renamed the diagnostic classes.
+  * `test_gof` is now `goldfishGOF`; `test_time` is now `goldfishTimeTest`.
+  * `test_parameter` is now `goldfishParamTest`.
+  * `diagnose_onset` is now `goldfishOnset`.
+  * `diagnose_outliers` is now `goldfishOutliers`.
+  * `diagnose_changepoints` is now `goldfishChangepoints`.
+  * `margin_table` is now `goldfishMargins`.
+  * `attr(x, "diagnostic")` carries the new class string, not the old one.
+* Renamed the preprocessing, specification and algorithm classes.
+  * `preprocessed.goldfish` is now `goldfishStat`, named for
+    `compute_statistics()`, the function a user calls.
+  * `preprocessed_db.goldfish` is now `goldfishStatDB`.
+  * `flavored_preprocessed.goldfish` is now `goldfishFlavPrep`.
+  * `flavored_statistics.goldfish` is now `goldfishFlavStat`.
+  * `preprocessing.goldfish` is now `goldfishPrepCtrl`.
+  * `specification.goldfish` is now `goldfishSpec`.
+  * `spec_map.goldfish` is now `goldfishSpecMap`.
+  * `algorithm.goldfish` is now `goldfishAlgo`.
+  * `algorithm_newton.goldfish` is now `goldfishAlgoNewton`.
+  * `goldfish.formulae` is now `goldfishFormulae`.
+* Split `data.goldfish` into two classes that no longer share a print method.
+  * `as_goldfish()` stamps `goldfishData`.
+  * The legacy environment `make_data()` and the DyNAM-i path build keeps
+    `data.goldfish` as a deprecated-path name.
+* Renamed the internal classes too; the rule is not limited to what users see.
+  * `writer_default` / `writer_gather` / `writer_db` are now
+    `goldfishWriterDefault` / `goldfishWriterGather` / `goldfishWriterDB`,
+    under the parent `goldfishWriter`.
+  * `data_source_envir` / `data_source_stocnet` are now
+    `goldfishSourceEnvir` / `goldfishSourceStocnet`, under `goldfishSource`.
+  * The `model_spec` hierarchy is now `goldfishKind` plus six
+    `goldfishLik<Axis><Family>` likelihood classes (see the descriptor
+    entry below), and the risk-set axis is `goldfishAxisSender` /
+    `goldfishAxisDyad`.
+  * `support_constraint_plan` is now `goldfishSupportPlan`.
+  * `fixed_spec` / `initial_spec` are now `goldfishCoefFixed` /
+    `goldfishCoefInit`.
+  * `intercept_only_rate` is now `goldfishCteRate`.
+  * `walk_handle.goldfish` is now `goldfishWalk`.
+  * `joint_preprocessed.goldfish` is now `goldfishJointPrep`.
+  * `merged_blocks.goldfish` is now `goldfishBlock`.
+  * The DyNAM-i update classes are now `goldfishInterNet` / `goldfishInterGrp`
+    / `goldfishInterWindow`.
+* Retained `result.goldfish` as a diagnostic stub carrying two methods only.
+  * `print()` and `summary()` explain that the object must be re-fitted, and
+    say whether its components moved or only its class name.
+  * Every other generic gives R's own "no applicable method" error.
+* Retained the deprecated-path classes unchanged: `nodes.goldfish`,
+  `network.goldfish`, `dependent.goldfish`, `global.goldfish`, and the legacy
+  `data.goldfish` environment.
+* Retained the effect dispatch tags (`inertia`, `recip`, ...) and the
+  `goldfish_<snake_case>` condition classes unchanged.
+* Added `goldfishBaseFit`, the shared parent of every fitted-model class.
+  * `class(fit)` is now `c("goldfishFit", "goldfishBaseFit")`; a flavored fit
+    carries `c("goldfishFlavFit", "goldfishBaseFit")`.
+  * `print()`, `summary()`, `tidy()`, `glance()`, `coef()`, `vcov()`,
+    `logLik()` and `model_terms()` are registered on the parent, so calling
+    one by its full method name (`coef.goldfishFit()`) no longer resolves.
+  * Which generics a fit class inherits, overrides or refuses is recorded in
+    the project's specification; a test enforces that a generic reaching one
+    fit class reaches them all.
+* `coef_layout()` on a single-process fit now aborts with a reason instead of
+  giving R's "no applicable method": it describes a coefficient surface over
+  the processes of a joint specification, which one process does not have.
+* Renamed the `right_censored` component of a fit to `is_exact_time`.
+  * The same rename applies to every `compute_statistics()` output form.
+  * It names the sub-model's own property, that the waiting times between
+    events are modeled, rather than the consequence that right-censored rows
+    are stored.
+  * `has_intercept` is unchanged and still reports the formula's property.
+  * **`fit$right_censored` does not error.** It partially matches the
+    per-event `right_censored_events` vector and returns it, so old code
+    reading a scalar now silently receives a logical vector. Use
+    `fit$is_exact_time`, or `fit[["right_censored"]]`, which returns `NULL`.
+* Changed `risk_set_axis()` to return `"dyad"` for one-mode coordination.
+  * It returned `"dyad_symmetric"`, which is retired.
+  * Coordination reads the same dyad grid every dyadic model reads, so it
+    names the same axis; that its likelihood sums each unordered pair once is
+    carried by the likelihood instead.
+* Replaced the statistics-output classes with a single `goldfishStat`.
+  * `goldfishStatDB` and `goldfishFlavStat` are retired, with no alias.
+  * `attr(x, "storage")` is `"pointer"`, `"stack"` or `"db"`, and
+    `attr(x, "scope")` is `"single"` or `"flavored"`.
+  * `compute_statistics(output = "gather")` now carries that class, where it
+    was returned to users unclassed.
+  * `output = "data.frame"` still returns a plain data frame.
+
+## New features
+
+* Added `summary()`, `tidy()` and `glance()` for a multi-process fit.
+  * `tidy()` and `glance()` row-bind the per-process tables and append
+    `flavor` and `family`, as `augment()` and `model_terms()` already did.
+  * `summary()` answers with a list named by process label, narrowed by
+    `flavor =`, as `coef()` and `vcov()` already did.
+  * All three existed only for a single-process fit, so a flavored fit
+    previously failed with R's "no applicable method".
+* Added a `flavor` argument to `coef()` and `vcov()` on a flavored fit.
+  * Naming one process returns its own vector or matrix, as `fitted()`,
+    `predict()` and `residuals()` already did.
+
+## Bug fixes
+
+* Fixed `tidy()` on a fit with exactly one free coefficient, which returned a
+  `term`/`value` pair of four rows instead of one row of four statistics.
+* Improved the error when a DyNAM-i model reaches the compiled engine.
+  * It failed with an internal `object 'res' not found`; it now names the
+    model and points at `set_algorithm_newton(backend = "r")`.
+  * DyNAM-i still requires the R backend. The compiled path was never wired
+    for it and no baseline covers it.
+
+## Internal
+
+* Replaced the per-variant model classes with six likelihood classes.
+  * A spec carries `goldfishLik<Axis><Family>` plus its risk-set axis class;
+    the model and sub-model pairing dispatches nothing and stays as
+    provenance.
+  * DyNAM-i shares its DyNAM counterpart's likelihood class, so the three
+    alias methods are deleted rather than re-registered.
+  * Preprocessing dispatches once, on a behavioral descriptor built at spec
+    construction, rather than once per model variant.
+
 # goldfish 1.9.30
 
 Folds the `joint-parameters` and `intercept-only-rate-spec` changes: the shared
