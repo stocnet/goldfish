@@ -64,7 +64,7 @@ test_that("a raw stocnet is accepted as data", {
     data = make_stocnet_fixture()
   )
 
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_true(spec$valid)
 })
 
@@ -317,7 +317,7 @@ test_that("mutually exclusive flavors derive complementary masks", {
   )
   expect_s3_class(
     spec$processes$creation$constraint,
-    "support_constraint_plan"
+    "goldfishSupportPlan"
   )
 })
 
@@ -351,7 +351,7 @@ test_that("a single modeled flavor still derives its mask", {
 
   expect_equal(spec$modeled_flavor, "creation")
   expect_equal(deparse1(spec$derived_constraint), "~!tie(calls)")
-  expect_s3_class(spec$constraint, "support_constraint_plan")
+  expect_s3_class(spec$constraint, "goldfishSupportPlan")
 })
 
 test_that("a redundant layer derives no constraint", {
@@ -491,7 +491,7 @@ test_that("a half-specified flavor set builds and records the gap", {
     model = "DyNAM",
     data = flavored_fixture()
   )
-  expect_s3_class(spec, "specification.goldfish")
+  expect_s3_class(spec, "goldfishSpec")
   expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
   # creation lacks a choice, dissolution lacks a rate.
   gaps <- spec$completion_gaps

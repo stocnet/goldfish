@@ -2,7 +2,7 @@
 # Walk handle: a stateful stepper over the merged single-clock walk.
 #
 # `preprocess_joint()` runs the merged walk in one batch pass and returns one
-# `preprocessed.goldfish` per fid. A *generative* driver (the DyNES augmenter,
+# `goldfishStat` per fid. A *generative* driver (the DyNES augmenter,
 # `simulate()`) instead needs to step the walk: advance the clock, evaluate a
 # fid at the live state and parameters, and inject an event (observed or
 # sampled)
@@ -196,7 +196,7 @@ walk_prepare_engine <- function(engine) {
   recorder <- new_consumer(
     writer_default(),
     gid_lookup = NULL,
-    right_censored = FALSE
+    is_exact_time = FALSE
   )
   engine$consumers <- list(recorder)
   engine$rc_consumers <- list()
@@ -272,13 +272,13 @@ walk_fold_engine <- function(engine) {
 #' it never performs completion itself.
 #'
 #' @param spec a `goldfishJointSpec` from
-#'   [make_joint_specification()] (or a single `specification.goldfish`, wrapped
+#'   [make_joint_specification()] (or a single `goldfishSpec`, wrapped
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
 #' @param call the calling environment, for error reporting.
 #'
-#' @return `walk_open()` returns a `walk_handle.goldfish` object.
+#' @return `walk_open()` returns a `goldfishWalk` object.
 #' @keywords internal
 #' @name walk_handle
 walk_open <- function(
@@ -290,11 +290,11 @@ walk_open <- function(
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
-  } else if (inherits(spec, "specification.goldfish")) {
+  } else if (inherits(spec, "goldfishSpec")) {
     single_process_joint(spec)
   } else {
     cli::cli_abort(
-      "{.fn walk_open} requires a {.cls specification.goldfish} or
+      "{.fn walk_open} requires a {.cls goldfishSpec} or
        {.cls goldfishJointSpec}.",
       call = call
     )
@@ -382,7 +382,7 @@ walk_open <- function(
   handle$exo_cursor <- 0L
   handle$current_time <- start_time
   handle$opened <- TRUE
-  structure(handle, class = "walk_handle.goldfish")
+  structure(handle, class = "goldfishWalk")
 }
 
 # --------------------------------------------------------------------------- #
@@ -427,7 +427,7 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
 # --------------------------------------------------------------------------- #
 
 #' @rdname walk_handle
-#' @param handle a `walk_handle.goldfish` from [walk_open()].
+#' @param handle a `goldfishWalk` from [walk_open()].
 #' @param t the clock time to advance to.
 #' @return `walk_advance()` returns the handle invisibly.
 #' @keywords internal
@@ -696,9 +696,9 @@ walk_engine_of_fid <- function(handle, fid) {
 }
 
 walk_assert_open <- function(handle, call = rlang::caller_env()) {
-  if (!inherits(handle, "walk_handle.goldfish") || !isTRUE(handle$opened)) {
+  if (!inherits(handle, "goldfishWalk") || !isTRUE(handle$opened)) {
     cli::cli_abort(
-      "{.arg handle} must be an open {.cls walk_handle.goldfish} from
+      "{.arg handle} must be an open {.cls goldfishWalk} from
        {.fn walk_open}.",
       call = call,
       class = "goldfish_walk_not_open"

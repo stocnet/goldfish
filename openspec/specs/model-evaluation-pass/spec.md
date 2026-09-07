@@ -46,7 +46,7 @@ rather than `m`.
 to per-event information, and a weighted-information return is what lets a
 caller write a diagnostic the package does not ship. Dispatch SHALL follow the fitted model's
 model/submodel routing. Statistics SHALL come from the attached or supplied
-`preprocessed.goldfish` per the diagnostic-primitives precedence rules.
+`goldfishStat` per the diagnostic-primitives precedence rules.
 
 #### Scenario: weighted information sums the per-event blocks
 - **WHEN** `evaluate_model(fit, return = "weighted_information", weights = w)`

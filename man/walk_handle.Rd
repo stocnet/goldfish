@@ -22,7 +22,7 @@ walk_evaluate(handle, fid, theta, call = rlang::caller_env())
 }
 \arguments{
 \item{spec}{a \code{goldfishJointSpec} from
-\code{\link[=make_joint_specification]{make_joint_specification()}} (or a single \code{specification.goldfish}, wrapped
+\code{\link[=make_joint_specification]{make_joint_specification()}} (or a single \code{goldfishSpec}, wrapped
 as a one-process join).}
 
 \item{control_preprocessing}{preprocessing options, as for
@@ -30,7 +30,7 @@ as a one-process join).}
 
 \item{call}{the calling environment, for error reporting.}
 
-\item{handle}{a \code{walk_handle.goldfish} from \code{\link[=walk_open]{walk_open()}}.}
+\item{handle}{a \code{goldfishWalk} from \code{\link[=walk_open]{walk_open()}}.}
 
 \item{t}{the clock time to advance to.}
 
@@ -46,7 +46,7 @@ handle's current clock).}
 (with a leading intercept for a timed rate).}
 }
 \value{
-\code{walk_open()} returns a \code{walk_handle.goldfish} object.
+\code{walk_open()} returns a \code{goldfishWalk} object.
 
 \code{walk_advance()} returns the handle invisibly.
 

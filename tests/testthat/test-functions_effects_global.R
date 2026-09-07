@@ -107,19 +107,19 @@ test_that("global() is rejected at choice estimation but computable", {
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_s3_class(prepChoice, "preprocessed.goldfish")
+  expect_s3_class(prepChoice, "goldfishStat")
   prepRate <- compute_statistics(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
     model = "DyNAM",
     sub_model = "rate_ordered"
   )
-  expect_s3_class(prepRate, "preprocessed.goldfish")
+  expect_s3_class(prepRate, "goldfishStat")
   prepRem <- compute_statistics(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
     model = "REM",
     sub_model = "rate_ordered"
   )
-  expect_s3_class(prepRem, "preprocessed.goldfish")
+  expect_s3_class(prepRem, "goldfishStat")
 })

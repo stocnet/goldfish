@@ -1,104 +1,61 @@
 #' Preprocess a model given its specification
 #'
-#' S3 generic dispatched on the model specification class.
-#' Model variants converted to the recipe architecture implement a dedicated
-#' method; the remaining variants fall back to the monolithic loop through
-#' `preprocess.model_spec()` until their recipe lands.
+#' Selecting a recipe is a lookup, not a polymorphism: every variant runs the
+#' same two loops, differing only in which one and in the parameters that
+#' distinguish a timed rate from an ordinal sub-model. So the generic carries
+#' one method that reads those facts off the spec's behavioral descriptor,
+#' rather than a method per model variant restating them.
 #'
-#' @param spec a `model_spec` object from `new_model_spec()`.
-#' @param ... arguments passed to the recipe methods, see
-#'   `preprocess_monolith()` and `run_sender_recipe_loop()`.
+#' DyNAM-i is the one difference that is still real: its events arrive as
+#' group interactions and reach a preprocessing loop of their own. That is a
+#' property of the input, not of the model variant, so the descriptor's input
+#' shape carries it and the same method routes on it — until the
+#' effect-registry work closes the gap and the branch goes too.
 #'
-#' @return a list of class preprocessed.goldfish
+#' @param spec a `goldfishKind` object from `new_model_spec()`.
+#' @param ... arguments passed to the recipe loops, see
+#'   `run_sender_recipe_loop()` and `run_dyad_recipe_loop()`.
+#'
+#' @return a list of class goldfishStat
 #' @noRd
 preprocess <- function(spec, ...) {
   UseMethod("preprocess")
 }
 
 #' @noRd
-preprocess.model_spec <- function(spec, ...) {
-  legacy_sub_model <- if (inherits(spec, "sender_spec")) "rate" else "choice"
-  preprocess_monolith(model = spec$model, sub_model = legacy_sub_model, ...)
+preprocess.goldfishKind <- function(spec, ...) {
+  if (identical(behavior_input_shape(spec), "grouped")) {
+    return(run_dynami_monolith(spec, ...))
+  }
+  recipe <- if (identical(risk_set_axis(spec), "sender")) {
+    run_sender_recipe_loop
+  } else {
+    run_dyad_recipe_loop
+  }
+  # A timed rate models the waiting times, so its loop emits the
+  # right-censored intervals and the intercept scalars that multiply them.
+  # An ordinal sub-model models only which event came next and needs neither,
+  # which is why both parameters follow one fact rather than two.
+  timed <- identical(behavior_timing(spec), "timed")
+  recipe(spec, ..., is_exact_time = timed)
 }
 
-#' @noRd
-preprocess.dynam_rate_spec <- function(spec, ...) {
-  run_sender_recipe_loop(
-    spec,
-    ...,
-    right_censored = TRUE,
-    intercept_scalars = TRUE
-  )
-}
-
-#' @noRd
-preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
-  run_sender_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.dynam_choice_spec <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.dynam_choice_coord_spec <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' @noRd
-preprocess.rem_rate_spec <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = TRUE,
-    intercept_scalars = TRUE
-  )
-}
-
-#' @noRd
-preprocess.rem_rate_ordered_spec <- function(spec, ...) {
-  run_dyad_recipe_loop(
-    spec,
-    ...,
-    right_censored = FALSE,
-    intercept_scalars = FALSE
-  )
-}
-
-#' DyNAMi recipe wrappers
+#' DyNAM-i preprocessing delegate
 #'
-#' Thin wrappers delegating to the existing monolithic DyNAMi preprocessing
-#' loop with unchanged arguments. The dedicated DyNAMi recipe
-#' (post-event update order, `sub_type` normalisation) is deferred to the
-#' effects unification change. `preprocess_interaction()` keeps computing its
-#' own start and end times from the event streams, as it did before the
-#' dispatch wiring.
+#' Thin delegate to the existing monolithic DyNAM-i preprocessing loop with
+#' unchanged arguments. The dedicated DyNAM-i recipe (post-event update order,
+#' `sub_type` normalisation) is deferred to the effects unification change.
+#' `preprocess_interaction()` keeps computing its own start and end times from
+#' the event streams, as it did before the dispatch wiring.
 #'
 #' @inheritParams run_sender_recipe_loop
 #' @param groups_network character, name of the groups network object.
-#' @param ... absorbs the recipe arguments that the DyNAMi loop does not
+#' @param ... absorbs the recipe arguments that the DyNAM-i loop does not
 #'   consume (`window_parameters`, `ignore_rep_parameter`, `is_two_mode`,
-#'   `startTime`, `endTime`, `opportunitiesList`).
-#' @name preprocess_dynami
+#'   `startTime`, `endTime`, `opportunitiesList`, `writer`).
 #' @noRd
 run_dynami_monolith <- function(
-  sub_model,
+  spec,
   events,
   effects,
   events_objects_link,
@@ -106,13 +63,22 @@ run_dynami_monolith <- function(
   objects_effects_link,
   nodes,
   nodes2 = nodes,
-  right_censored = FALSE,
+  is_exact_time = FALSE,
   progress = FALSE,
   groups_network = NULL,
-  prep_envir = new.env()
+  prep_envir = new.env(),
+  ...
 ) {
   prep <- preprocess_interaction(
-    sub_model = sub_model,
+    # The interaction loop predates the ordinal split and knows two sub-models
+    # only. Both sender-indexed DyNAM-i variants take its rate path -- they
+    # differ downstream, in the likelihood, not in how the statistics are
+    # gathered -- and the receiver-indexed one takes its choice path.
+    sub_model = if (identical(risk_set_axis(spec), "sender")) {
+      "rate"
+    } else {
+      "choice"
+    },
     events = events,
     effects = effects,
     events_objects_link = events_objects_link,
@@ -120,112 +86,13 @@ run_dynami_monolith <- function(
     objects_effects_link = objects_effects_link,
     nodes = nodes,
     nodes2 = nodes2,
-    right_censored = right_censored,
+    is_exact_time = is_exact_time,
     progress = progress,
     groups_network = groups_network,
     prep_envir = prep_envir
   )
   prep$prep_version <- PREP_VERSION
   prep
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.dynami_rate_spec <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "rate",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.dynami_rate_ordered_spec <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "rate",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
-}
-
-#' @rdname preprocess_dynami
-#' @noRd
-preprocess.dynami_choice_spec <- function(
-  spec,
-  events,
-  effects,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  nodes,
-  nodes2 = nodes,
-  right_censored = FALSE,
-  progress = FALSE,
-  groups_network = NULL,
-  prep_envir = new.env(),
-  ...
-) {
-  run_dynami_monolith(
-    "choice",
-    events,
-    effects,
-    events_objects_link,
-    events_effects_link,
-    objects_effects_link,
-    nodes,
-    nodes2,
-    right_censored,
-    progress,
-    groups_network,
-    prep_envir
-  )
 }
 
 #' Sender-indexed recipe kernel
@@ -271,14 +138,16 @@ preprocess.dynami_choice_spec <- function(
 #'   `sender_spec` class; the effect closures, per-term window parameters, link
 #'   matrices, plan, call templates, and node sets are unpacked from it.
 #' @inheritParams preprocess_monolith
-#' @param right_censored logical, whether right-censored events are stored.
-#' @param intercept_scalars logical, whether `n_dep_events`, `total_time`,
-#'   and `avg_active_entity` are computed and stored.
+#' @param is_exact_time logical, whether the sub-model models the waiting
+#'   times between events rather than only their order. A waiting-time model
+#'   needs the right-censored intervals stored and the intercept scalars
+#'   (`n_dep_events`, `total_time`, `avg_active_entity`) computed; an ordinal
+#'   one needs neither, which is why both follow this one fact.
 #' @param ... absorbs arguments of `preprocess_monolith()` that the kernel
-#'   does not consume (`is_two_mode`, `right_censored`,
-#'   `ignore_rep_parameter`, `opportunitiesList`).
+#'   does not consume (`is_two_mode`, `ignore_rep_parameter`,
+#'   `opportunitiesList`).
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #' @noRd
 # Fold a sender-loop support_constraint into `active_sender`.
 # The per-event effective availability is the row-reduction a sender is at risk
@@ -558,8 +427,7 @@ run_sender_recipe_loop <- function(
   spec,
   startTime = NULL,
   endTime = NULL,
-  right_censored = FALSE,
-  intercept_scalars = FALSE,
+  is_exact_time = FALSE,
   progress = FALSE,
   prep_envir = new.env(),
   writer = writer_default(),
@@ -661,19 +529,19 @@ run_sender_recipe_loop <- function(
   consumers <- init_consumers(
     consumer_specs,
     writer = writer,
-    right_censored = right_censored,
+    is_exact_time = is_exact_time,
     spec = spec,
     dims = list(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
-      is_sender = inherits(spec, "sender_spec"),
+      is_sender = inherits(spec, "goldfishAxisSender"),
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),
     initial_stats_fn = function() initial_stats
   )
-  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
+  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
 
   bcast_kind <- plan$effects$broadcast_kind
 
@@ -1044,7 +912,7 @@ run_sender_recipe_loop <- function(
       active_dyad_changes = active_dyad_changes,
       start_time = startTime,
       end_time = endTime,
-      intercept_scalars = intercept_scalars
+      is_exact_time = is_exact_time
     ),
     default_constraint = plan$support_constraint,
     project_initial_stats = function(stats, effect_map) {
@@ -1136,8 +1004,8 @@ dedup_cells <- function(cells, n1) {
 #' structures but produces dyad-shaped statistics:
 #' `initial_stats` is kept in the engine-native `n1 x n2 x nEffects` (3D)
 #' form and the flat `stat_mat_update` buffer carries `node2` in its second
-#' row. Right-censored events are stored only when the configuration sets
-#' `right_censored = TRUE` (rate models with a time intercept); choice
+#' row. Right-censored events are stored only when the sub-model models
+#' waiting times (`is_exact_time = TRUE`, the rate models); choice
 #' configurations store dependent rows only, so the combined buffer carries
 #' exclusively `is_dependent = 1` rows. Global-attribute events are handled
 #' as in the sender kernel so future choice-model interaction
@@ -1152,7 +1020,7 @@ dedup_cells <- function(cells, n1) {
 #'   plan, call templates, and node sets are unpacked from it.
 #' @inheritParams run_sender_recipe_loop
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #' @noRd
 NULL
 
@@ -1234,7 +1102,7 @@ fold_active_dyad_support <- function(
   # Standard/ordinal REM and DyNAM coordination all fold BOTH presences ∩ their
   # support atoms into a dense point `active_dyad` — the risk-set mask each engine
   # consumes directly, replacing the per-event `active_dyad_mask` snapshot. These families
-  # share a dyadic / two-sided risk set (only the normalizer differs:
+  # share a dyadic / two-sided risk set (only the likelihood family differs:
   # timespan-weighted Poisson, multinomial, or the mutual `getLikelihoodMM`
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
   # symmetrised so `(i, j)` is available iff both directions are
@@ -1458,8 +1326,7 @@ run_dyad_recipe_loop <- function(
   spec,
   startTime = NULL,
   endTime = NULL,
-  right_censored = FALSE,
-  intercept_scalars = FALSE,
+  is_exact_time = FALSE,
   progress = FALSE,
   prep_envir = new.env(),
   writer = writer_default(),
@@ -1564,19 +1431,19 @@ run_dyad_recipe_loop <- function(
   consumers <- init_consumers(
     consumer_specs,
     writer = writer,
-    right_censored = right_censored,
+    is_exact_time = is_exact_time,
     spec = spec,
     dims = list(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
-      is_sender = inherits(spec, "sender_spec"),
+      is_sender = inherits(spec, "goldfishAxisSender"),
       n_dependent = nrow(events[[1L]]),
       max_store = schedule$n + 1L
     ),
     initial_stats_fn = function() initial_stats
   )
-  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
+  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
 
   bcast_kind <- plan$effects$broadcast_kind
 
@@ -1942,7 +1809,7 @@ run_dyad_recipe_loop <- function(
       active_dyad_changes = active_dyad_changes,
       start_time = startTime,
       end_time = endTime,
-      intercept_scalars = intercept_scalars
+      is_exact_time = is_exact_time
     ),
     default_constraint = plan$support_constraint,
     project_initial_stats = function(stats, effect_map) {
@@ -1981,10 +1848,10 @@ run_dyad_recipe_loop <- function(
           opportunitiesList = opportunitiesList
         ))
       }
-      if (
-        !is.null(opportunitiesList) &&
-          spec$sub_model %in% c("choice", "choice_coordination")
-      ) {
+      # An opportunity list names which receivers a sender may reach, so it
+      # is meaningful only to the two choice families: the receiver row, and
+      # coordination's unordered pairs.
+      if (!is.null(opportunitiesList) && is_choice_family(spec)) {
         # The deprecated opportunity list is a point-kind availability
         # contribution: fold it into the `active_dyad` point buffer during the
         # preprocessing pass so estimation reads it through the point accessor
@@ -2032,10 +1899,12 @@ run_dyad_recipe_loop <- function(
 #' @param is_two_mode logical is it a two mode network?
 #' @param startTime numerical start time to preprocess the data
 #' @param endTime numerical end time to preprocess the data
-#' @param right_censored logical does it consider right censored events?
+#' @param is_exact_time logical does the sub-model model waiting times? A
+#'   waiting-time model contributes the right-censored intervals to its
+#'   likelihood; an ordinal one models only which event came next.
 #' @param progress logical should print progress
 #'
-#' @return a list of class preprocessed.goldfish
+#' @return a list of class goldfishStat
 #'
 #' @noRd
 preprocess_monolith <- function(
@@ -2055,7 +1924,7 @@ preprocess_monolith <- function(
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  right_censored = FALSE,
+  is_exact_time = FALSE,
   opportunitiesList = NULL,
   progress = FALSE,
   prep_envir = new.env()
@@ -2185,7 +2054,7 @@ preprocess_monolith <- function(
 
   # calculate total of events
   time <- unique(events[[1]]$time)
-  if (right_censored) {
+  if (is_exact_time) {
     n_right_censored_events <- unique(unlist(lapply(events, function(x) {
       x$time
     })))
@@ -2383,7 +2252,7 @@ preprocess_monolith <- function(
         event_receiver[[event_pos]] <- event$receiver
       }
     } else if (!isDependent) {
-      if (isValidEvent && right_censored && interval > 0) {
+      if (isValidEvent && is_exact_time && interval > 0) {
         stats_change[[event_pos]] <- updates_intervals
         intervals[[event_pos]] <- interval
         is_dependent[[event_pos]] <- 0L
@@ -2695,7 +2564,7 @@ preprocess_monolith <- function(
     close(pb)
   }
 
-  return(structure(
+  new_goldfish_stat(
     list(
       initial_stats = initial_stats,
       stats_change = stats_change,
@@ -2713,8 +2582,8 @@ preprocess_monolith <- function(
       start_time = startTime,
       end_time = endTime
     ),
-    class = "preprocessed.goldfish"
-  ))
+    storage = "pointer"
+  )
 }
 
 #' initialize the cache object or the stat matrices

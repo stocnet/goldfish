@@ -2,12 +2,12 @@
 % Please edit documentation in R/model_evaluate.R
 \name{evaluate_model}
 \alias{evaluate_model}
-\alias{evaluate_model.result.goldfish}
+\alias{evaluate_model.goldfishFit}
 \title{Evaluate a fitted model at a parameter vector}
 \usage{
 evaluate_model(x, ...)
 
-\method{evaluate_model}{result.goldfish}(
+\method{evaluate_model}{goldfishFit}(
   x,
   at = stats::coef(x),
   return = c("loglik", "score"),
@@ -19,7 +19,7 @@ evaluate_model(x, ...)
 )
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"}.}
+\item{x}{a fitted model of class \code{"goldfishFit"}.}
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}
@@ -49,7 +49,7 @@ primitive is a preference, met with a message saying the score rows already
 are those rows, while asking this function \emph{for} the value is a demand, and
 returning nothing under a name the caller supplied would be a lie.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
+\item{preprocessed}{a \code{goldfishStat} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the object attached by
 \code{estimate_*(return_preprocessed = TRUE)}; with neither route available the
 evaluation aborts naming both, rather than silently recomputing statistics

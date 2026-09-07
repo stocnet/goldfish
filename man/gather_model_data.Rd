@@ -60,7 +60,7 @@ It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
 \item{control_preprocessing}{An object of class
-\code{"preprocessing.goldfish"}, usually the result of a call to
+\code{"goldfishPrepCtrl"}, usually the result of a call to
 \code{\link[=set_preprocessing]{set_preprocessing()}}. This object contains parameters that control
 the data preprocessing. See \code{\link[=set_preprocessing]{set_preprocessing()}} for details on
 the available parameters. This function keeps the pre-2.0.0 argument

@@ -306,7 +306,7 @@ parse_and_validate_constraint <- function(
       expr = pc$expr,
       mask_kind = axis_union_kind(atom_kinds)
     ),
-    class = "support_constraint_plan"
+    class = "goldfishSupportPlan"
   )
 }
 

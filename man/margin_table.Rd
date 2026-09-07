@@ -7,8 +7,8 @@
 margin_table(x, ...)
 }
 \arguments{
-\item{x}{a fitted model of class \code{"result.goldfish"} or
-\code{"flavored_result.goldfish"}, estimated with \code{"margins"} among the
+\item{x}{a fitted model of class \code{"goldfishFit"} or
+\code{"goldfishFlavFit"}, estimated with \code{"margins"} among the
 \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics} primitives.}
 
 \item{...}{additional arguments passed to or from other methods (currently
@@ -18,7 +18,7 @@ unused).}
 evaluation pass over the model's statistics. \code{FALSE} by default, so the
 ordinary call stays a read of what estimation already stored.}
 
-\item{preprocessed}{a \code{preprocessed.goldfish} object, as returned by
+\item{preprocessed}{a \code{goldfishStat} object, as returned by
 \code{\link[=compute_statistics]{compute_statistics()}}. Read only when \code{dispersion = TRUE}, and defaulting
 to the object attached by \code{estimate_*(return_preprocessed = TRUE)}.}
 }

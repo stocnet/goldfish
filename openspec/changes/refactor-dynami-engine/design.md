@@ -49,7 +49,7 @@ _To be written when the change is taken up._ Open questions to resolve then:
    (found 2026-08-04 while applying `prep-diag-debug` group 2; deferred to here
    rather than fixed there). `preprocess_interaction()` refuses a window
    outright (`R/model_preprocess_group.R:100-107`, "DyNAMi doesn't support
-   setting the endTime parameter"), but `preprocess.dynami_rate_spec()` and its
+   setting the endTime parameter"), but `preprocess.goldfishKindDniRate()` and its
    siblings absorb `startTime`/`endTime` into `...` and never forward them, so
    the guard is unreachable. Measured on the RFID fixture: an `end_time` at the
    median of the interaction span produces preprocessed output identical to

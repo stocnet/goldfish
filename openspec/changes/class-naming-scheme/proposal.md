@@ -1,5 +1,17 @@
 # Class Naming — goldfish Classes Go camelCase
 
+status: landed (refactor/class-naming-scheme, awaiting fold)
+
+> **Landed 2026-09-06** on `refactor/class-naming-scheme`, 50/50, eleven
+> commits, `NOT_CRAN=true` green at every one (final PASS 7141 / FAIL 0 /
+> SKIP 5; all six frozen baseline files PASS, 156 assertions, none skipped).
+> Not archived here: `/opsx:archive` runs only on the integration branch
+> (ADR-0040), so the deltas stay unfolded and this directory stays in place
+> as the decision memory until the merge. The `NEWS.d/` fragment and the
+> Version bump are merge-time folds. Successors on this branch —
+> `model-spec-descriptor`, then `fit-class-hierarchy` — declare
+> `depends-on: class-naming-scheme` and run against the landed code.
+
 > Revised 2026-08-19: the scheme changed from the `_goldfish` suffix
 > (ADR-0020) to the stocnet-ecosystem `goldfish<Thing>` camelCase prefix
 > (ADR-0031, supersedes ADR-0020), after autograph@develop shipped the
@@ -45,32 +57,40 @@ folds next.
   already dispatches on are adopted verbatim; the rest follow the same
   rule with short identifiers:
   - Fits: `result.goldfish` → `goldfishFit`,
-    `flavored_result.goldfish` → `goldfishFlavoredFit`,
-    `summary.result.goldfish` → `summary.goldfishFit` (base-R/RSiena
-    summary idiom, see design D6).
+    `flavored_result.goldfish` → `goldfishFlavFit`,
+    `summary.result.goldfish` → `goldfishSummFit` (no dot; the base-R
+    `summary.<class>` idiom is deliberately not followed — design D6,
+    reversed 2026-09-05).
   - Diagnostics: `test_gof` → `goldfishGOF`, `test_time` →
     `goldfishTimeTest`, `test_parameter` → `goldfishParamTest`,
     `diagnose_onset` → `goldfishOnset`, `diagnose_outliers` →
     `goldfishOutliers`, `diagnose_changepoints` →
     `goldfishChangepoints`, `margin_table` → `goldfishMargins`,
     `evaluate_model` → `goldfishEval`.
-  - Preprocessing: `preprocessed.goldfish` → `goldfishPrep`,
-    `preprocessed_db.goldfish` → `goldfishPrepDB`,
-    `preprocessing.goldfish` → `goldfishPrepControl`,
-    `flavored_preprocessed.goldfish` → `goldfishFlavoredPrep`,
-    `flavored_statistics.goldfish` → `goldfishFlavoredStats`.
+  - Preprocessing: `preprocessed.goldfish` → `goldfishStat`,
+    `preprocessed_db.goldfish` → `goldfishStatDB`,
+    `preprocessing.goldfish` → `goldfishPrepCtrl`,
+    `flavored_preprocessed.goldfish` → `goldfishFlavPrep`,
+    `flavored_statistics.goldfish` → `goldfishFlavStat`.
   - Specification and algorithm: `specification.goldfish` →
     `goldfishSpec`, `spec_map.goldfish` → `goldfishSpecMap`,
-    `algorithm.goldfish` → `goldfishAlgorithm`,
-    `algorithm_newton.goldfish` → `goldfishAlgorithmNewton`.
+    `algorithm.goldfish` → `goldfishAlgo`,
+    `algorithm_newton.goldfish` → `goldfishAlgoNewton`.
   - Formulae: `goldfish.formulae` → `goldfishFormulae`.
+- Class identifiers are drawn from a fixed short-word vocabulary
+  (design D17): `Dn`/`Dni`/`Rem`/`Mu` for the model families, `Cox` for
+  ordered, `Coord` for choice coordination, plus `Prep`, `Spec`, `Ctrl`,
+  `Algo`, `Flav`, `Summ`. A new class extends that table rather than
+  inventing a synonym. This shortens `goldfishAlgorithmNewton` to
+  `goldfishAlgoNewton`, `goldfishPrepControl` to `goldfishPrepCtrl`, and
+  the three `goldfishFlavored*` names to `goldfishFlav*`.
 - **BREAKING** — The rename is **full**: internal classes that never
   leave the package also move (Alvaro, 2026-08-19) — `writer_*` →
   `goldfishWriter*`, `data_source_envir`/`data_source_stocnet` →
   `goldfishSourceEnvir`/`goldfishSourceStocnet`, the `model_spec`
-  hierarchy → `goldfishModelSpec*`, `support_constraint_plan` →
+  hierarchy → `goldfishKind*`, `support_constraint_plan` →
   `goldfishSupportPlan`, `fixed_spec`/`initial_spec` →
-  `goldfishFixedSpec`/`goldfishInitialSpec`. Exactly two exemptions
+  `goldfishCoefFixed`/`goldfishCoefInit`. Exactly three exemptions
   remain: the ~60 effect dispatch tags (`inertia`, `recip`, …), which
   stop being classes when `effect-term-registry` replaces string-built
   S3 dispatch, and the deprecated path (below).
@@ -119,11 +139,11 @@ text (design D8a).
 - `diagnostic-plot-classes`: replaces the "constructor name, no suffix"
   SHALL in place (an additive delta would leave two contradicting
   rules).
-- `preprocessing-controls`: return classes `goldfishPrepControl` /
-  `goldfishPrep` are the contract.
-- `preprocess-output-writers`: default writer returns `goldfishPrep`.
+- `preprocessing-controls`: return classes `goldfishPrepCtrl` /
+  `goldfishStat` are the contract.
+- `preprocess-output-writers`: default writer returns `goldfishStat`.
 - `model-specification`: `make_specification()` returns `goldfishSpec`.
-- `optimizer-selection`: `goldfishAlgorithm` / `goldfishAlgorithmNewton`.
+- `optimizer-selection`: `goldfishAlgo` / `goldfishAlgoNewton`.
 - `multimode-networks`: clarifies that `data.goldfish` names the legacy
   environment, distinct from the new `goldfishData` stamp.
 

@@ -23,10 +23,10 @@
 #' one estimation warns about the size of, so recomputing rather than storing
 #' is the ordinary case.
 #'
-#' @param object a fitted model of class `"result.goldfish"`.
+#' @param object a fitted model of class `"goldfishFit"`.
 #' @param type the quantity to return, `"outcome"` (default) or
 #'   `"probabilities"`.
-#' @inheritParams residuals.result.goldfish
+#' @inheritParams residuals.goldfishFit
 #'
 #' @return For `"outcome"`, a numeric vector with one value per interval. For
 #'   `"probabilities"`, a list with one per-event vector or dyad grid over the
@@ -42,12 +42,12 @@
 #' # How probable was what actually happened, event by event?
 #' summary(fitted(fit))
 #'
-#' @seealso [predict.result.goldfish()] for the same quantities under the
-#'   prediction vocabulary, [residuals.result.goldfish()] for what the model
+#' @seealso [predict.goldfishFit()] for the same quantities under the
+#'   prediction vocabulary, [residuals.goldfishFit()] for what the model
 #'   got wrong.
-#' @method fitted result.goldfish
+#' @method fitted goldfishFit
 #' @export
-fitted.result.goldfish <- function(
+fitted.goldfishFit <- function(
   object,
   type = c("outcome", "probabilities"),
   preprocessed = NULL,
@@ -116,7 +116,7 @@ fitted_probabilities <- function(
 #' otherwise. Supplying `at` always evaluates, since the stored values belong
 #' to the fitted coefficients.
 #'
-#' @param object a fitted model of class `"result.goldfish"`.
+#' @param object a fitted model of class `"goldfishFit"`.
 #' @param type the quantity to predict, `"probabilities"` (default) or
 #'   `"ranks"`.
 #' @param events an optional index vector selecting the intervals to report,
@@ -124,7 +124,7 @@ fitted_probabilities <- function(
 #'   all of them.
 #' @param at an optional parameter vector to predict at, in the form
 #'   [evaluate_model()] accepts. Defaults to the fitted coefficients.
-#' @inheritParams residuals.result.goldfish
+#' @inheritParams residuals.goldfishFit
 #'
 #' @return For `"ranks"`, an integer vector with the realized alternative's
 #'   rank in each interval, `1` being the most likely one and `NA` on a
@@ -152,12 +152,12 @@ fitted_probabilities <- function(
 #' unless `"probabilities"` was requested, and which is in any case recomputed
 #' at whatever parameter vector is asked for.
 #'
-#' @seealso [fitted.result.goldfish()] for the same quantities under the
+#' @seealso [fitted.goldfishFit()] for the same quantities under the
 #'   fitted-value vocabulary, [evaluate_model()] for evaluation at any
 #'   parameter vector.
-#' @method predict result.goldfish
+#' @method predict goldfishFit
 #' @export
-predict.result.goldfish <- function(
+predict.goldfishFit <- function(
   object,
   type = c("probabilities", "ranks"),
   events = NULL,
@@ -234,9 +234,9 @@ subset_intervals <- function(
 }
 
 #' @export
-#' @method fitted flavored_result.goldfish
+#' @method fitted goldfishFlavFit
 #' @noRd
-fitted.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+fitted.goldfishFlavFit <- function(object, ..., flavor = NULL) {
   flavored_component_apply(
     object,
     flavor,
@@ -246,9 +246,9 @@ fitted.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
 }
 
 #' @export
-#' @method predict flavored_result.goldfish
+#' @method predict goldfishFlavFit
 #' @noRd
-predict.flavored_result.goldfish <- function(object, ..., flavor = NULL) {
+predict.goldfishFlavFit <- function(object, ..., flavor = NULL) {
   flavored_component_apply(
     object,
     flavor,

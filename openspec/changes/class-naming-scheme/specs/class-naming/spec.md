@@ -7,9 +7,12 @@ name plus a short camelCase identifier that compresses the object —
 `goldfish<Thing>` — following the stocnet ecosystem rule (autograph
 CONTRIBUTING; RSiena's `sienaFit`/`sienaGOF`/`sienaAlgorithm`
 precedent). This replaces both prior conventions (bare constructor
-names and the dotted `.goldfish` suffix). The rename table below is
-authoritative package-wide: where any other capability in the living
-spec still spells a class in a retired form, this table governs.
+names and the dotted `.goldfish` suffix). This rule, not the table
+below, is what conformance is measured against: the table records what
+each existing class becomes, and a class created after the table was
+written is governed by the rule whether or not it appears there. Where
+any other capability in the living spec still spells a class in a
+retired form, the table governs the spelling.
 
 | Producer | Retired class | Class |
 | --- | --- | --- |
@@ -22,33 +25,46 @@ spec still spells a class in a retired form, this table governs.
 | `margin_table()` | `margin_table` | `goldfishMargins` |
 | `evaluate_model()` | `evaluate_model` | `goldfishEval` |
 | `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` | `result.goldfish` | `goldfishFit` |
-| a flavored specification fit | `flavored_result.goldfish` | `goldfishFlavoredFit` |
-| `summary()` on a fit | `summary.result.goldfish` | `summary.goldfishFit` |
-| `compute_statistics(output = "preprocessed")` | `preprocessed.goldfish` | `goldfishPrep` |
-| `compute_statistics(output = "db")` | `preprocessed_db.goldfish` | `goldfishPrepDB` |
-| flavored preprocessing | `flavored_preprocessed.goldfish` | `goldfishFlavoredPrep` |
-| flavored statistics | `flavored_statistics.goldfish` | `goldfishFlavoredStats` |
-| `set_preprocessing()` | `preprocessing.goldfish` | `goldfishPrepControl` |
+| a flavored specification fit | `flavored_result.goldfish` | `goldfishFlavFit` |
+| `summary()` on a fit | `summary.result.goldfish` | `goldfishSummFit` |
+| `compute_statistics(output = "preprocessed")` | `preprocessed.goldfish` | `goldfishStat` |
+| `compute_statistics(output = "db")` | `preprocessed_db.goldfish` | `goldfishStatDB` |
+| flavored preprocessing | `flavored_preprocessed.goldfish` | `goldfishFlavPrep` |
+| flavored statistics | `flavored_statistics.goldfish` | `goldfishFlavStat` |
+| `set_preprocessing()` | `preprocessing.goldfish` | `goldfishPrepCtrl` |
 | `make_specification()` | `specification.goldfish` | `goldfishSpec` |
 | the specification process map | `spec_map.goldfish` | `goldfishSpecMap` |
-| `set_algorithm_newton()` | `algorithm_newton.goldfish` | `goldfishAlgorithmNewton` |
-| the algorithm superclass | `algorithm.goldfish` | `goldfishAlgorithm` |
+| `set_algorithm_newton()` | `algorithm_newton.goldfish` | `goldfishAlgoNewton` |
+| the algorithm superclass | `algorithm.goldfish` | `goldfishAlgo` |
 | `as_goldfish()` | `data.goldfish` | `goldfishData` |
 | formula parsing | `goldfish.formulae` | `goldfishFormulae` |
-| preprocess writers (internal) | `writer_*` | `goldfishWriter*` |
+| preprocess writers (internal) | `writer_default`, `writer_gather`, `writer_db` | `goldfishWriterDefault`, `goldfishWriterGather`, `goldfishWriterDB` |
 | data-source seam (internal) | `data_source_envir`, `data_source_stocnet` | `goldfishSourceEnvir`, `goldfishSourceStocnet` |
-| model-spec hierarchy (internal) | `model_spec*` | `goldfishModelSpec*` |
+| model-kind parent (internal) | `model_spec` | `goldfishKind` |
+| model-kind variants (internal) | `dynam_rate_spec`, `dynam_rate_ordered_spec`, `dynam_choice_spec`, `dynam_choice_coord_spec` | `goldfishKindDnRate`, `goldfishKindDnCox`, `goldfishKindDnChoice`, `goldfishKindDnCoord` |
+| model-kind variants (internal) | `dynami_rate_spec`, `dynami_rate_ordered_spec`, `dynami_choice_spec` | `goldfishKindDniRate`, `goldfishKindDniCox`, `goldfishKindDniChoice` |
+| model-kind variants (internal) | `rem_rate_spec`, `rem_rate_ordered_spec` | `goldfishKindRemRate`, `goldfishKindRemCox` |
+| risk-set axis (internal) | `sender_spec`, `dyad_spec` | `goldfishAxisSender`, `goldfishAxisDyad` |
 | support-constraint plan (internal) | `support_constraint_plan` | `goldfishSupportPlan` |
-| fixing/seeding specs (internal) | `fixed_spec`, `initial_spec` | `goldfishFixedSpec`, `goldfishInitialSpec` |
+| fixed / seeded coefficient carriers (internal) | `fixed_spec`, `initial_spec` | `goldfishCoefFixed`, `goldfishCoefInit` |
 | `make_joint_specification()` (`make-multivariate-spec`, archived) | `joint_specification.goldfish` | `goldfishJointSpec` |
 | `set_parameters()` (`joint-parameters`) | `parameters.goldfish` | `goldfishParams` |
+| the pinned intercept-only rate (`intercept-only-rate-spec`) | `intercept_only_rate` | `goldfishCteRate` |
+| `walk_open()` (internal; `make-multivariate-spec`) | `walk_handle.goldfish` | `goldfishWalk` |
+| joint preprocessing output (internal) | `joint_preprocessed.goldfish` | `goldfishJointPrep` |
+| merged compile blocks (internal) | `merged_blocks.goldfish` | `goldfishBlock` |
+| preprocess-writer parent (internal) | `preprocess_writer` | `goldfishWriter` |
+| data-source parent (internal) | `data_source` | `goldfishSource` |
+| DyNAM-i interaction updates (internal) | `interaction.network.updates` | `goldfishInterNet` |
+| DyNAM-i group updates (internal) | `interaction.groups.updates` | `goldfishInterGrp` |
+| DyNAM-i windowed interaction updates (internal) | `windowed.interaction.network.updates` | `goldfishInterWindow` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_is` | `goldfishEstepIS` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_resampling` | `goldfishEstepResampling` |
 | `evaluate_sequence_pool()` (internal; `dynes-augmentation`, not yet landed) | `estep_uniform` | `goldfishEstepUniform` |
 | `evaluate_sequence_pool()`'s shared parent (internal; `dynes-augmentation`, not yet landed) | `dynes_estep` | `goldfishDynesEstep` |
 
-The last six rows were added after this table's initial draft (design
-D16): the first two name classes that were already live in `R/` under
+Rows beyond the first block were added after this table's initial draft
+(design D16, extended 2026-09-05): the first two name classes that were already live in `R/` under
 the retired convention by the time this change's rename inventory
 (task 1.1) runs, so they get the same hand-edited rename as every other
 row above; the last four name a class family proposed by an
@@ -89,31 +105,57 @@ returns moves.
   `diagnose_outliers`, `diagnose_changepoints`, `margin_table` and
   `evaluate_model` are still exported functions under those exact names
 
+### Requirement: Conformance is enumerated from the source, not read from the table
+
+A guard test SHALL enumerate the classes goldfish actually attaches — from the
+`S3method()` registrations, from the literal strings at every
+class-assignment form (`class(x) <-`, `structure(class = )` and
+`attr(x, "class") <-`), and from the literal strings in `inherits()` and
+`is()` calls — subtract the exempt categories, and assert that every remaining class matches
+the `goldfish<Thing>` form. Conformance SHALL NOT be established by checking
+the rename table, because a class minted after the table was written would
+pass by omission. The enumeration is best-effort and cannot be proven
+complete; a non-conforming class discovered outside it SHALL be treated as a
+gap in the exemption list rather than as a table update.
+
+#### Scenario: a newly minted class that breaks the rule fails the guard
+
+- **WHEN** a class not matching `goldfish<Thing>` is attached anywhere in the
+  package and is not in an exempt category
+- **THEN** the guard test fails and names it, whether or not the rename table
+  mentions it
+
+#### Scenario: the table is not the completeness criterion
+
+- **WHEN** the guard test runs
+- **THEN** it derives the class list from the package source, and passing does
+  not depend on the rename table being current
+
 ### Requirement: No goldfish class carries a dot-suffix package qualifier
 
-No class that goldfish attaches on the live path SHALL qualify the
-package with a dot suffix (`<thing>.goldfish`): a dot creates no S3
-inheritance — dispatch is on exact strings — so a dotted suffix is
-convention masquerading as structure, and it produces method-name
-ambiguity (`plot.test_gof.goldfish` parses two ways). The base-R
-summary idiom is the sanctioned dotted form: the object `summary()`
-returns SHALL be classed `summary.goldfishFit`, printed by
-`print.summary.goldfishFit()`, following `summary.lm` and RSiena's
-`summary.sienaFit`. With camelCase classes this is unambiguous, because
-goldfish generics are snake_case and none is named `print.summary`.
+No class that goldfish attaches on the live path SHALL contain a dot at
+all. A dot creates no S3 inheritance — dispatch is on exact strings — so a
+dotted qualifier is convention masquerading as structure, and it produces
+method-name ambiguity (`plot.test_gof.goldfish` parses two ways). The rule
+admits **no exception**, the base-R `summary.<class>` idiom included: the
+object `summary()` returns on a fit SHALL be classed `goldfishSummFit`,
+printed by `print.goldfishSummFit()`. Following base R here would make a
+single class both a method name and the name of the class that method
+returns, and would give `print.summary.goldfishFit` three dots to read
+through, for conformity this package does not need.
 
-#### Scenario: the summary object follows the base idiom
+#### Scenario: the summary object carries no dot
 
 - **WHEN** `summary()` is called on a fitted model
-- **THEN** the returned object inherits `summary.goldfishFit`, and
-  `print()` on it dispatches to `print.summary.goldfishFit`
+- **THEN** the returned object inherits `goldfishSummFit`, and `print()`
+  on it dispatches to `print.goldfishSummFit`
 
 #### Scenario: no live class carries a dotted package suffix
 
 - **WHEN** the class strings goldfish attaches on the live path are
   enumerated
-- **THEN** none ends in `.goldfish`, the deprecated-path classes named
-  in the exemption requirement excepted
+- **THEN** none contains a dot, the deprecated-path classes named in the
+  exemption requirement excepted
 
 ### Requirement: Method names parse uniquely — snake_case generic, camelCase class
 
@@ -132,7 +174,42 @@ method names without per-line suppressions.
   no entry's string admits a second generic/class split at a snake_case
   boundary
 
-### Requirement: Exemptions are the deprecated path and the effect dispatch tags
+### Requirement: One form for stamping a class and one for testing it
+
+Class stamping SHALL use `class(x) <-` when setting the class of an existing
+object and `structure(x, class = )` when creating and classing in one
+expression; `attr(x, "class") <-` SHALL NOT be used, being the same operation
+written longer with no benefit and, more importantly, a form that a source
+enumeration is likely to miss. Class testing SHALL use `inherits()`;
+`methods::is()` SHALL NOT be used for a class test, and `%in% class(x)` SHALL
+NOT be used at all.
+
+This rule exists to make the enumeration above reliable, not for tidiness: a
+class stamped through an unenumerated form is invisible to the guard test, and
+three `result.goldfish` stamps were found in exactly that position.
+
+#### Scenario: no class is stamped through attr
+
+- **WHEN** the package source is searched for `attr(x, "class") <-`
+- **THEN** no occurrence remains, and every class-stamping site uses
+  `class(x) <-` or `structure(x, class = )`
+
+#### Scenario: class tests use one predicate
+
+- **WHEN** the package source is searched for class tests
+- **THEN** each uses `inherits()`, with no `methods::is()` class test and no
+  `%in% class(x)` construction
+
+### Requirement: Exemptions are the deprecated path, the effect tags, and condition classes
+
+Condition classes SHALL keep their `goldfish_<snake_case>` names. A condition
+is matched on its class vector by `tryCatch()` and `expect_error(class = )`
+and is never dispatched on, so it does not compete for the S3 method namespace
+this rule exists to protect; the names are already package-qualified, so the
+collision the scheme prevents cannot arise; and snake_case is the R
+ecosystem's convention for conditions (`rlang_error`, `vctrs_error_cast_lossy`).
+Renaming them would break every caller matching on a class string and buy
+nothing.
 
 Classes on the deprecated path SHALL keep their existing names:
 `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`,
@@ -150,6 +227,13 @@ rename is otherwise full, exported or not.
 - **WHEN** `make_network()` is called
 - **THEN** it warns as deprecated and returns an object classed
   `network.goldfish`, unchanged by this rule
+
+#### Scenario: a condition class keeps its snake_case name
+
+- **WHEN** an error or warning condition goldfish signals is caught by class
+- **THEN** the class string is the `goldfish_<snake_case>` name it has today,
+  unchanged by this rule, so `expect_error(class = )` and `tryCatch()` callers
+  keep working
 
 #### Scenario: an effect tag is unaffected
 

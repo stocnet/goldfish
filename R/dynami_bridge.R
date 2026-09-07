@@ -305,12 +305,12 @@ stocnet_to_dynami_env <- function(
   dependent_events <- dynami_layer_events(
     inter[is_dependent, , drop = FALSE],
     labels,
-    "interaction.groups.updates"
+    "goldfishInterGrp"
   )
   exogenous_events <- dynami_layer_events(
     inter[is_exogenous, , drop = FALSE],
     labels,
-    "interaction.groups.updates"
+    "goldfishInterGrp"
   )
 
   initial <- inter[is_initial, , drop = FALSE]
@@ -355,7 +355,7 @@ stocnet_to_dynami_env <- function(
     past_events <- dynami_layer_events(
       past_rows,
       labels,
-      "interaction.network.updates"
+      "goldfishInterNet"
     )
     past_obj <- make_network(nodes = actors_obj, directed = FALSE)
     past_obj <- link_events(past_obj, past_events, nodes = actors_obj)

@@ -1,39 +1,42 @@
 test_that("constructors return the documented class vectors", {
+  # Nine variants, six class vectors. A DyNAM-i spec and its DyNAM
+  # counterpart carry the SAME one, which is what removes the three alias
+  # methods: they were assignments of one implementation to a second name.
   expect_identical(
     class(dynam_rate_spec(nodes = "actors")),
-    c("dynam_rate_spec", "sender_spec", "model_spec")
+    c("goldfishLikSenderPoisson", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynam_rate_ordered_spec(nodes = "actors")),
-    c("dynam_rate_ordered_spec", "sender_spec", "model_spec")
+    c("goldfishLikSenderMultinom", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynam_choice_spec(nodes = "actors")),
-    c("dynam_choice_spec", "dyad_spec", "model_spec")
+    c("goldfishLikReceiverMultinom", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(dynam_choice_coord_spec(nodes = "actors")),
-    c("dynam_choice_coord_spec", "dyad_spec", "model_spec")
+    c("goldfishLikCoordination", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(dynami_rate_spec(nodes = "actors")),
-    c("dynami_rate_spec", "sender_spec", "model_spec")
+    c("goldfishLikSenderPoisson", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynami_rate_ordered_spec(nodes = "actors")),
-    c("dynami_rate_ordered_spec", "sender_spec", "model_spec")
+    c("goldfishLikSenderMultinom", "goldfishAxisSender", "goldfishKind")
   )
   expect_identical(
     class(dynami_choice_spec(nodes = "actors")),
-    c("dynami_choice_spec", "dyad_spec", "model_spec")
+    c("goldfishLikReceiverMultinom", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(rem_rate_spec(nodes = "actors")),
-    c("rem_rate_spec", "dyad_spec", "model_spec")
+    c("goldfishLikDyadPoisson", "goldfishAxisDyad", "goldfishKind")
   )
   expect_identical(
     class(rem_rate_ordered_spec(nodes = "actors")),
-    c("rem_rate_ordered_spec", "dyad_spec", "model_spec")
+    c("goldfishLikDyadMultinom", "goldfishAxisDyad", "goldfishKind")
   )
 })
 
@@ -53,7 +56,7 @@ test_that("a two-mode sender spec carries its receiver side and the flag", {
     nodes = "actors",
     nodes2 = "events"
   )
-  expect_true(inherits(spec, "sender_spec"))
+  expect_true(inherits(spec, "goldfishAxisSender"))
   expect_true(spec$is_two_mode)
   expect_identical(spec$nodes, "actors")
   expect_identical(spec$nodes2, "events")
@@ -66,19 +69,19 @@ test_that("constructors store extra fields passed through dots", {
 
 test_that("new_model_spec resolves the spec class from model and sub_model", {
   spec <- new_model_spec("DyNAM", "rate", nodes = "actors")
-  expect_identical(class(spec)[1], "dynam_rate_spec")
+  expect_identical(class(spec)[1], "goldfishLikSenderPoisson")
 })
 
 test_that("new_model_spec sender-indexed spec is not dyad-indexed", {
   spec <- new_model_spec("DyNAM", "rate_ordered", nodes = "actors")
-  expect_true(inherits(spec, "sender_spec"))
-  expect_false(inherits(spec, "dyad_spec"))
+  expect_true(inherits(spec, "goldfishAxisSender"))
+  expect_false(inherits(spec, "goldfishAxisDyad"))
 })
 
 test_that("new_model_spec dyad-indexed spec is not sender-indexed", {
   spec <- new_model_spec("REM", "rate", nodes = "actors")
-  expect_true(inherits(spec, "dyad_spec"))
-  expect_false(inherits(spec, "sender_spec"))
+  expect_true(inherits(spec, "goldfishAxisDyad"))
+  expect_false(inherits(spec, "goldfishAxisSender"))
 })
 
 test_that("new_model_spec accepts all 9 valid variant combinations", {
@@ -95,7 +98,7 @@ test_that("new_model_spec accepts all 9 valid variant combinations", {
   )
   for (combination in combinations) {
     spec <- new_model_spec(combination[1], combination[2], nodes = "actors")
-    expect_s3_class(spec, "model_spec")
+    expect_s3_class(spec, "goldfishKind")
   }
 })
 
@@ -142,70 +145,88 @@ test_that("new_model_spec two-mode requires both node sets", {
   expect_identical(spec$nodes2, "clubs")
 })
 
-test_that("every spec class carries the documented risk-set descriptor", {
+test_that("every spec class carries the documented behavioral descriptor", {
   expected <- list(
     dynam_rate = list(
       axis = "sender",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = NA_character_
     ),
     dynam_rate_ordered = list(
       axis = "sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = NA_character_
     ),
     dynam_choice = list(
       axis = "receiver_given_sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "alter",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "alter"
     ),
     dynam_choice_coord = list(
-      axis = "dyad_symmetric",
+      axis = "dyad",
+      timing = "ordinal",
+      likelihood = "coordination",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = TRUE,
-      normalizer = "coordination"
+      encoding = "outer"
     ),
     dynami_rate = list(
       axis = "sender",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = NA_character_
     ),
     dynami_rate_ordered = list(
       axis = "sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_sender",
-      encoding = NA_character_,
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = NA_character_
     ),
     dynami_choice = list(
       axis = "receiver_given_sender",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "grouped",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "alter",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "alter"
     ),
     rem_rate = list(
       axis = "dyad",
+      timing = "timed",
+      likelihood = "poisson",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = FALSE,
-      normalizer = "poisson"
+      encoding = "outer"
     ),
     rem_rate_ordered = list(
       axis = "dyad",
+      timing = "ordinal",
+      likelihood = "multinomial",
+      input_shape = "standard",
+      distribution = "exponential",
       fold_target = "active_dyad",
-      encoding = "outer",
-      symmetrize = FALSE,
-      normalizer = "multinomial"
+      encoding = "outer"
     )
   )
   constructors <- list(
@@ -221,22 +242,59 @@ test_that("every spec class carries the documented risk-set descriptor", {
   )
   for (variant in names(expected)) {
     spec <- constructors[[variant]](nodes = "actors")
-    expect_identical(spec$risk_set, expected[[variant]], info = variant)
-    expect_identical(risk_set_axis(spec), expected[[variant]]$axis)
+    want <- expected[[variant]]
+    expect_identical(spec$behavior, want, info = variant)
+    expect_identical(risk_set_axis(spec), want$axis, info = variant)
+    expect_identical(behavior_timing(spec), want$timing, info = variant)
+    expect_identical(behavior_likelihood(spec), want$likelihood, info = variant)
+    expect_identical(
+      behavior_input_shape(spec),
+      want$input_shape,
+      info = variant
+    )
     expect_identical(
       risk_set_fold_target(spec),
-      expected[[variant]]$fold_target
+      want$fold_target,
+      info = variant
     )
-    expect_identical(risk_set_encoding(spec), expected[[variant]]$encoding)
+    expect_identical(risk_set_encoding(spec), want$encoding, info = variant)
+    # Symmetrization is the coordination likelihood's reduction of the dyad
+    # grid to unordered pairs, so it follows that field and needs no other.
     expect_identical(
       risk_set_symmetrize(spec),
-      expected[[variant]]$symmetrize
-    )
-    expect_identical(
-      risk_set_normalizer(spec),
-      expected[[variant]]$normalizer
+      identical(want$likelihood, "coordination"),
+      info = variant
     )
   }
+})
+
+test_that("a spec carries one behavioral object, not two", {
+  spec <- dynam_choice_spec(nodes = "actors")
+  expect_setequal(
+    names(spec),
+    c("model", "sub_model", "is_two_mode", "nodes", "nodes2", "behavior")
+  )
+  # `model` and `sub_model` survive as provenance -- what the user asked for --
+  # so their presence above is expected; a second descriptor beside `behavior`
+  # is what must not come back.
+  expect_false("risk_set" %in% names(spec))
+})
+
+test_that("an unmapped combination aborts rather than yielding NA fields", {
+  # REM has no choice sub-model: reaching a consumer with a half-filled
+  # descriptor is the failure mode this abort exists to prevent.
+  expect_error(
+    behavior_descriptor("goldfishAxisDyad", "REM", "choice"),
+    "No behavioral descriptor is defined"
+  )
+  expect_error(
+    behavior_descriptor("goldfishAxisSender", "DyNAM", "meeting"),
+    "No behavioral descriptor is defined"
+  )
+  expect_error(
+    behavior_descriptor("goldfishAxisPair", "DyNAM", "rate"),
+    "must be one of"
+  )
 })
 
 test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {
@@ -247,19 +305,22 @@ test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {
   expect_false(risk_set_is_dyadic(dynam_rate_spec(nodes = "actors")))
 })
 
-test_that("coordination symmetrize follows one-mode vs two-mode", {
-  # One-mode coordination symmetrizes the dyad for the mutual likelihood; a
-  # two-mode risk set (rejected before construction elsewhere) would not.
-  one_mode <- dynam_choice_coord_spec(nodes = "actors")
-  expect_identical(risk_set_axis(one_mode), "dyad_symmetric")
-  expect_true(risk_set_symmetrize(one_mode))
-  two_mode <- dynam_choice_coord_spec(
-    is_two_mode = TRUE,
-    nodes = "actors",
-    nodes2 = "clubs"
+test_that("coordination symmetrizes by its likelihood, not by its axis", {
+  # Coordination reads the same dyad grid every dyadic model does -- what
+  # differs is that its likelihood sums each unordered pair once. So it shares
+  # the axis and is told apart by the likelihood, and no consumer needs a
+  # fourth axis value to find it.
+  coordination <- dynam_choice_coord_spec(nodes = "actors")
+  expect_identical(risk_set_axis(coordination), "dyad")
+  expect_identical(
+    risk_set_axis(coordination),
+    risk_set_axis(rem_rate_spec(
+      nodes = "actors"
+    ))
   )
-  expect_identical(risk_set_axis(two_mode), "dyad")
-  expect_false(risk_set_symmetrize(two_mode))
+  expect_identical(behavior_likelihood(coordination), "coordination")
+  expect_true(risk_set_symmetrize(coordination))
+  expect_false(risk_set_symmetrize(rem_rate_spec(nodes = "actors")))
 })
 
 test_that("estimate_dynam constructs and forwards the typed spec", {
@@ -268,21 +329,21 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
     sub_model = "choice",
     data = dataTest
   )
-  expect_s3_class(fitChoice$model_spec, "dynam_choice_spec")
+  expect_s3_class(fitChoice$model_spec, "goldfishLikReceiverMultinom")
   prepCoord <- estimate_dynam(
     depNetwork ~ inertia,
     sub_model = "choice_coordination",
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepCoord$model_spec, "dynam_choice_coord_spec")
+  expect_s3_class(prepCoord$model_spec, "goldfishLikCoordination")
   prepRate <- estimate_dynam(
     depNetwork ~ 1 + indeg,
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
+  expect_s3_class(prepRate$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepRate$model_spec$has_intercept)
   # A no-intercept `rate` formula gets the intercept added (waiting-time model),
   # not the ordinal spec.
@@ -292,7 +353,7 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepRateAdded$model_spec, "dynam_rate_spec")
+  expect_s3_class(prepRateAdded$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepRateAdded$model_spec$has_intercept)
 })
 
@@ -303,7 +364,7 @@ test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
+  expect_s3_class(prepExplicit$model_spec, "goldfishLikSenderMultinom")
   expect_identical(prepExplicit$sub_model, "rate")
   expect_false(isTRUE(prepExplicit$model_spec$has_intercept))
   # Dropping auto-ordinal: a no-intercept `rate` formula is now a waiting-time
@@ -314,7 +375,7 @@ test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepImplicit$model_spec, "dynam_rate_spec")
+  expect_s3_class(prepImplicit$model_spec, "goldfishLikSenderPoisson")
   expect_true(prepImplicit$model_spec$has_intercept)
   expect_warning(
     estimate_dynam(
@@ -334,7 +395,7 @@ test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "rem_rate_spec")
+  expect_s3_class(prepRate$model_spec, "goldfishLikDyadPoisson")
   expect_identical(prepRate$sub_model, "choice")
   prepOrdered <- estimate_rem(
     depNetwork ~ inertia,
@@ -342,12 +403,12 @@ test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepOrdered$model_spec, "rem_rate_ordered_spec")
+  expect_s3_class(prepOrdered$model_spec, "goldfishLikDyadMultinom")
 })
 
 test_that("estimate_rem constructs and forwards the typed spec", {
   fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
-  expect_s3_class(fitRem$model_spec, "rem_rate_spec")
+  expect_s3_class(fitRem$model_spec, "goldfishLikDyadPoisson")
   expect_true(fitRem$model_spec$has_intercept)
   # A no-intercept REM rate formula adds the intercept (waiting times), not the
   # ordinal spec; ordinal requires explicit `rate_ordered`.
@@ -356,7 +417,7 @@ test_that("estimate_rem constructs and forwards the typed spec", {
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_s3_class(prepRemAdded$model_spec, "rem_rate_spec")
+  expect_s3_class(prepRemAdded$model_spec, "goldfishLikDyadPoisson")
   expect_true(prepRemAdded$model_spec$has_intercept)
 })
 
@@ -368,14 +429,14 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
     data = snet,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
+  expect_s3_class(prepRate$model_spec, "goldfishLikSenderPoisson")
   prepChoice <- estimate_dynami(
     interactions ~ inertia(past, weighted = TRUE, sub_type = "count"),
     sub_model = "choice",
     data = snet,
     preprocessing_only = TRUE
   )
-  expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")
+  expect_s3_class(prepChoice$model_spec, "goldfishLikReceiverMultinom")
 })
 
 test_that("new_model_spec sender-indexed specs carry a two-mode receiver", {

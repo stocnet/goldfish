@@ -70,7 +70,7 @@ test_that("an offset term fixes its coefficient by position", {
     calls_dependent ~ inertia + offset(recip) + trans,
     offset_coef = 2
   )
-  expect_s3_class(spec, "fixed_spec")
+  expect_s3_class(spec, "goldfishCoefFixed")
   expect_identical(spec$idx, 2L)
   expect_identical(spec$values, 2)
   expect_identical(spec$names, "recip(call_network)")
@@ -259,7 +259,7 @@ labels_of <- function(formula) {
 test_that("an unnamed full-length vector seeds every coefficient", {
   labels <- c("Intercept", "ideg", "odeg")
   spec <- resolve_initial_parameters(c(-3, 0.1, 0.2), labels, 3L)
-  expect_s3_class(spec, "initial_spec")
+  expect_s3_class(spec, "goldfishCoefInit")
   expect_identical(spec$idx, 1:3)
   expect_identical(spec$values, c(-3, 0.1, 0.2))
   expect_identical(spec$names, labels)
@@ -498,7 +498,7 @@ old_string_column_fit <- function() {
         dimnames = list(c("inertia", "recip"), c("Object", "fixed"))
       )
     ),
-    class = "result.goldfish"
+    class = c("goldfishFit", "goldfishBaseFit")
   )
 }
 

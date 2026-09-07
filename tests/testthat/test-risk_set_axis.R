@@ -74,10 +74,12 @@ test_that("the axis names the geometry, not the model family", {
     verbose = FALSE
   )
 
-  # The ordered dyad grid and the unordered pair list, without the consumer
-  # inspecting model / sub_model.
+  # Both read the same dyad grid, so both name the same axis. Coordination's
+  # reduction to unordered pairs is a property of its likelihood, and a
+  # consumer separates them on that -- still without inspecting model /
+  # sub_model.
   expect_identical(risk_set_axis(rem), "dyad")
-  expect_identical(risk_set_axis(coordination), "dyad_symmetric")
+  expect_identical(risk_set_axis(coordination), "dyad")
 })
 
 test_that("the axis reads off a preprocessed object and a model spec too", {
@@ -98,5 +100,5 @@ test_that("the axis reads off a preprocessed object and a model spec too", {
 test_that("a fit predating the recorded axis reads as NULL, not an error", {
   # The `backend` convention: an old object reports an unknown value rather than
   # failing, so a consumer can branch on it.
-  expect_null(risk_set_axis(structure(list(), class = "result.goldfish")))
+  expect_null(risk_set_axis(structure(list(), class = "goldfishFit")))
 })

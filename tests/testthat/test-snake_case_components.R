@@ -41,8 +41,8 @@ test_that("a fitted object and its derived objects are snake_case throughout", {
   expect_contains(names(fit), "interval_log_lik")
   expect_gt(length(fit$interval_log_lik), 0L)
 
-  expect_snake_case_names(fit, "result.goldfish")
-  expect_snake_case_names(summary(fit), "summary.result.goldfish")
+  expect_snake_case_names(fit, "goldfishFit")
+  expect_snake_case_names(summary(fit), "goldfishSummFit")
   expect_snake_case_names(augment(fit), "augment() tibble")
 
   # The nested convergence report is where the mixed convention was clearest:
@@ -72,5 +72,5 @@ test_that("the export and preprocessed objects follow the same convention", {
   )
   expect_contains(names(prep), c("initial_stats", "start_time", "end_time"))
   expect_gt(length(prep$initial_stats), 0L)
-  expect_snake_case_names(prep, "preprocessed.goldfish")
+  expect_snake_case_names(prep, "goldfishStat")
 })

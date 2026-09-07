@@ -49,7 +49,7 @@
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
 #' @param control_preprocessing An object of class
-#'   `"preprocessing.goldfish"`, usually the result of a call to
+#'   `"goldfishPrepCtrl"`, usually the result of a call to
 #'   [set_preprocessing()]. This object contains parameters that control
 #'   the data preprocessing. See [set_preprocessing()] for details on
 #'   the available parameters. This function keeps the pre-2.0.0 argument
@@ -224,16 +224,19 @@ finalize_gather_output <- function(
   colnames(gathered$stat_all_events) <- names_effects
   gathered$effect_description <- effect_description
   # Reported on every output form so a consumer never has to infer the
-  # likelihood shape from the columns: an exact-time sub-model carries the time
-  # intercept and the right-censored rows, an ordinal one carries neither.
+  # likelihood shape from the columns. The two agree on every reachable
+  # object, but they answer different questions: whether the formula carries
+  # an intercept term, and whether the sub-model models the waiting times
+  # between events -- which is what decides that the right-censored rows are
+  # stored and the exposure denominator exists.
   gathered$has_intercept <- has_intercept
-  gathered$right_censored <- has_intercept
+  gathered$is_exact_time <- has_intercept
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL
   attr(gathered, "is_dependent") <- NULL
   attr(gathered, "timespan") <- NULL
-  gathered
+  new_goldfish_stat(gathered, storage = "stack")
 }
 
 #' Assemble the ready-to-estimate long frame from a gather stack

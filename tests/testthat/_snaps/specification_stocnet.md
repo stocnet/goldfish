@@ -42,7 +42,7 @@
     Code
       print(spec)
     Message
-      -- <specification.goldfish> ----------------------------------------------------
+      -- <goldfishSpec> --------------------------------------------------------------
       Model "DyNAM" · sub-model choice
       
       Dependent
@@ -63,7 +63,7 @@
     Code
       print(spec)
     Message
-      -- <specification.goldfish> ----------------------------------------------------
+      -- <goldfishSpec> --------------------------------------------------------------
       Model "DyNAM" · sub-model choice
       
       Dependent
@@ -83,7 +83,7 @@
     Code
       print(spec)
     Message
-      -- <specification.goldfish> ----------------------------------------------------
+      -- <goldfishSpec> --------------------------------------------------------------
       Model "DyNAM" · sub-model choice
       
       Dependent
@@ -152,7 +152,7 @@
     Code
       print(spec)
     Message
-      -- <specification.goldfish> ----------------------------------------------------
+      -- <goldfishSpec> --------------------------------------------------------------
       Model "DyNAM" · sub-model rate and choice
       
       Dependent

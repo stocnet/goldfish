@@ -40,7 +40,7 @@ test_that("margin_table returns one schema on every family", {
   )
   for (key in names(roles)) {
     mt <- margin_table(margin_table_fit(key))
-    expect_s3_class(mt, "margin_table")
+    expect_s3_class(mt, "goldfishMargins")
     expect_s3_class(mt, "tbl_df")
     expect_named(
       mt,
@@ -175,12 +175,12 @@ test_that("the class and its metadata survive subsetting", {
   skip_on_cran()
   mt <- margin_table(margin_table_fit("se_dynam_choice"))
   head_rows <- mt[1:3, ]
-  expect_s3_class(head_rows, "margin_table")
+  expect_s3_class(head_rows, "goldfishMargins")
   expect_equal(attr(head_rows, "context"), attr(mt, "context"))
-  expect_equal(attr(head_rows, "diagnostic"), "margin_table")
+  expect_equal(attr(head_rows, "diagnostic"), "goldfishMargins")
 
   active <- mt[mt$observed > 0, ]
-  expect_s3_class(active, "margin_table")
+  expect_s3_class(active, "goldfishMargins")
   expect_equal(attr(active, "version"), attr(mt, "version"))
 
   # The observed counts are what every reading of this table compares against,
@@ -188,10 +188,10 @@ test_that("the class and its metadata survive subsetting", {
   # flag-column diagnostics demote on.
   expect_identical(attr(mt, "defining"), "observed")
   dropped <- mt[, c("actor", "role")]
-  expect_false(inherits(dropped, "margin_table"))
+  expect_false(inherits(dropped, "goldfishMargins"))
   expect_s3_class(dropped, "tbl_df")
   expect_null(attr(dropped, "context"))
-  expect_s3_class(mt[, c("actor", "observed")], "margin_table")
+  expect_s3_class(mt[, c("actor", "observed")], "goldfishMargins")
 })
 
 test_that("the conditional component decomposes the exact-time loglik", {
@@ -298,7 +298,7 @@ test_that("a flavored fit gains flavor and family columns", {
   skip_on_cran()
   fit <- margin_flavored_fit()
   mt <- margin_table(fit)
-  expect_s3_class(mt, "margin_table")
+  expect_s3_class(mt, "goldfishMargins")
   expect_named(
     mt,
     c(
@@ -335,7 +335,7 @@ test_that("printing reports the fit and the flavors behind the table", {
   single <- capture_messages(print(
     margin_table(margin_table_fit("se_dynam_choice"))
   ))
-  expect_match(single, "margin_table", all = FALSE)
+  expect_match(single, "goldfishMargins", all = FALSE)
   expect_match(single, "DyNAM", all = FALSE)
   expect_match(single, "receiver", all = FALSE)
   # The documented not-defined scale is announced rather than left as an NA

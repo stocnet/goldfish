@@ -177,7 +177,7 @@ test_that("a missing timed rate completes to a pinned intercept-only rate", {
   expect_true(map$completed[map$fid == fr_rate])
   expect_true(map$pinned[map$fid == fr_rate])
   rate <- cc$completed_rates[[as.character(fr_rate)]]
-  expect_s3_class(rate, "intercept_only_rate")
+  expect_s3_class(rate, "goldfishCteRate")
   # Zero free parameters: the pin contributes the empty theta block.
   expect_length(intercept_only_rate_theta_block(rate), 0L)
   # The per-period pin reproduces its count: exp(intercept_w) * T_w * |R_w| = count_w.
@@ -558,7 +558,7 @@ test_that("an unflavored relational layer's completed rate uses the relational s
   expect_length(calls_rate, 1L)
   expect_true(map$completed[map$fid == calls_rate])
   rate <- cc$completed_rates[[as.character(calls_rate)]]
-  expect_s3_class(rate, "intercept_only_rate")
+  expect_s3_class(rate, "goldfishCteRate")
   rs <- goldfish:::relational_window_risk_set(cc$data, "calls", model = "DyNAM")
   # The pin reproduces the relational scalars, not the panel Hamming derivation.
   expect_equal(exp(rate$intercept), rs$count / rs$duration / rs$risk_set_size)
@@ -1083,7 +1083,7 @@ test_that("process_map$completed marks exactly the auto-supplied fids", {
 })
 
 test_that("a single-process rate-only spec is not completed by estimation", {
-  # The excluded path: estimate_dynam() over a rate-only specification.goldfish
+  # The excluded path: estimate_dynam() over a rate-only goldfishSpec
   # keeps it rate-only (no choice added), so its preprocessed output is unchanged.
   spec <- make_specification(
     rate = ~ 1 + indeg,

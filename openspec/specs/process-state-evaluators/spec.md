@@ -48,7 +48,7 @@ giving residuals and diagnostics the same join keys on every engine path.
 
 #### Scenario: risk set and dyad identity recoverable at any event index
 - **WHEN** the state is materialized at event k from a default-path
-  `preprocessed.goldfish` object
+  `goldfishStat` object
 - **THEN** the active sender/dyad sets at event k are available explicitly
   (matching a from-scratch replay of the availability buffers), every entry
   of the statistics state and of the evaluator returns is identified by its

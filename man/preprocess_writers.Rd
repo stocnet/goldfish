@@ -28,7 +28,7 @@ defaulting to an empty 4 x 0 matrix.}
 recipe-computed assembly inputs (\code{initial_stats},
 \code{active_sender_init} / \code{active_sender_changes},
 \code{active_dyad_init} / \code{active_dyad_changes}, \code{start_time}, \code{end_time},
-\code{intercept_scalars}). Returns the writer's output.}
+\code{is_exact_time}). Returns the writer's output.}
 }
 
 Recipe methods emit output exclusively through these hooks; they never

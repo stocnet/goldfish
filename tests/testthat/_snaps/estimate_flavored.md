@@ -3,7 +3,7 @@
     Code
       print(res)
     Message
-      ── <flavored_result.goldfish> ──────────────────────────────────────────────────
+      ── <goldfishFlavFit> ───────────────────────────────────────────────────────────
       Model "DyNAM" · layer "calls" · 2 flavors
       
       Flavor "creation"
@@ -31,6 +31,16 @@
     Message
       
       Total log-likelihood <num> on 6 parameters
+
+# print reads the fields rather than a class per combination
+
+    Code
+      print(gathered)
+    Message
+      Statistics for 2 processes (stack storage).
+      * "creation" (choice)
+      * "dissolution" (choice)
+      i Index by fid: `x[["1"]]`.
 
 # control-object coefficient values abort on a multi-process spec
 

@@ -211,7 +211,7 @@ joint_spec4 <- make_joint_specification(
   data = friendship_flavored                 # friendship is "panel" here
 )
 tryCatch(
-  goldfish:::complete_generative_spec(joint_spec4, consumer = "estimate_dynes"),
+  goldfish:::complete_generative_spec(joint_spec4, consumer = "simulate"),
   error = function(e) cat(conditionMessage(e))
 )
 

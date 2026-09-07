@@ -7,8 +7,8 @@
 `"newton_raphson"` SHALL preserve the existing damped Newton-Raphson
 estimation path unchanged (interface and, up to floating-point summation
 order, results). The returned object SHALL carry the selected optimizer and
-SHALL have class `c("goldfishAlgorithmNewton", "goldfishAlgorithm",
-"list")`; the `goldfishAlgorithm` superclass is the shared dispatch and
+SHALL have class `c("goldfishAlgoNewton", "goldfishAlgo",
+"list")`; the `goldfishAlgo` superclass is the shared dispatch and
 validation hook for all algorithm objects (the DyNES EM constructor joins it
 later).
 
@@ -23,14 +23,14 @@ later).
 
 #### Scenario: class hierarchy
 - **WHEN** `set_algorithm_newton()` returns
-- **THEN** the object inherits both `goldfishAlgorithmNewton` and
-  `goldfishAlgorithm`, and the `print` method renders under the new class.
+- **THEN** the object inherits both `goldfishAlgoNewton` and
+  `goldfishAlgo`, and the `print` method renders under the new class.
 
 ### Requirement: Estimators accept the algorithm object via control_algo
 `estimate_dynam()`, `estimate_dynami()`, and `estimate_rem()` SHALL accept
 the algorithm object through a `control_algo` argument (default
 `set_algorithm_newton()`), validated with a single
-`inherits(x, "goldfishAlgorithm")` check so future algorithm objects pass
+`inherits(x, "goldfishAlgo")` check so future algorithm objects pass
 the same gate. The internal estimation plumbing SHALL carry the object under
 the same name end to end.
 
@@ -42,6 +42,6 @@ the same name end to end.
 
 #### Scenario: wrong object rejected
 - **WHEN** `control_algo` receives an object that does not inherit
-  `goldfishAlgorithm`
+  `goldfishAlgo`
 - **THEN** estimation aborts with a cli error naming the expected
   constructor.

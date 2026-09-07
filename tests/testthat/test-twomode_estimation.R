@@ -12,7 +12,7 @@ test_that("a two-mode rate model estimates with a sender-side covariate", {
     sub_model = "rate",
     data = as_goldfish(make_stocnet_fixture_twomode_estimable())
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 })
 
@@ -23,7 +23,7 @@ test_that("a two-mode choice model estimates with a receiver-side covariate", {
     sub_model = "choice",
     data = as_goldfish(make_stocnet_fixture_twomode_estimable())
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 })
 
@@ -32,7 +32,7 @@ test_that("a two-mode REM estimates", {
     membership ~ 1 + inertia,
     data = as_goldfish(make_stocnet_fixture_twomode_estimable())
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_false(anyNA(coef(fit)))
 })
 

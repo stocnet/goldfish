@@ -6,7 +6,7 @@ test_that("set_estimation_opt() forwards to set_algorithm_newton()", {
   )
   expect_s3_class(
     set_estimation_opt(),
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
 })
@@ -19,7 +19,7 @@ test_that("set_preprocessing_opt() forwards to set_preprocessing()", {
   )
   expect_s3_class(
     set_preprocessing_opt(),
-    c("preprocessing.goldfish", "list"),
+    c("goldfishPrepCtrl", "list"),
     exact = TRUE
   )
 })

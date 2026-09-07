@@ -126,12 +126,15 @@ resolve_route_fids <- function(route_index, layer, flavor) {
 # Partition every fid of the walk for an event on `(layer, flavor)`, mirroring
 # `route_dependent_event()` / `route_right_censored_event()`:
 #   * `dependent`     -- the fids owning the event (its own (layer, flavor));
-#   * `right_censored` -- every OTHER timed rate fid (`has_intercept`), whose
-#     rate integral this event closes an interval of, regardless of layer;
+#   * `right_censored` -- every OTHER fid whose sub-model models waiting
+#     times, whose rate integral this event closes an interval of, regardless
+#     of layer;
 #   * `state_only`    -- the remaining fids (choice/ordered, untimed rates),
 #     whose state advances but which record nothing for this event.
-# Right-censoring keys on `has_intercept` exactly as the flavored consumer does,
-# so an untimed (ordered) rate is never right-censored.
+# The partition keys on the same fact the flavored consumer does -- whether
+# the sub-model is a waiting-time one -- so an ordinal rate is never
+# right-censored. The process map spells that fact `has_intercept`, which is
+# equal to it on every process.
 route_partition <- function(route_index, layer, flavor) {
   dependent <- resolve_route_fids(route_index, layer, flavor)
   dependent <- dependent[!is.na(dependent)]

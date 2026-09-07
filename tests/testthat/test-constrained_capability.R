@@ -1,28 +1,39 @@
-# Snapshot the map-generated guard text so a change to the engine-capability
-# table (constrained_support_map) surfaces as a deliberate snapshot update, and
-# the "not consumed" message stays in sync with the supported-family list.
+# Snapshot the guard text so a change to the engine capability surfaces as a
+# deliberate snapshot update, and the "not consumed" message stays in sync
+# with the supported-family list.
 
-test_that("constrained_support_map matches the wired families", {
-  supported <- constrained_support_map()
-  expect_identical(
-    names(supported)[!is.na(supported)],
-    c(
-      "dynam_choice_spec",
-      "dynam_choice_coord_spec",
-      "dynam_rate_spec",
-      "rem_rate_spec",
-      "rem_rate_ordered_spec"
-    )
+test_that("the capability rule answers for every supported variant", {
+  # This was a nine-row table keyed by the variant class. The rule replacing
+  # it has two clauses, so the test now enumerates the variants rather than
+  # the table's rows -- the same coverage, asserted against behavior instead
+  # of against a lookup that could disagree with it.
+  wired <- list(
+    c("DyNAM", "choice"),
+    c("DyNAM", "choice_coordination"),
+    c("DyNAM", "rate"),
+    c("REM", "rate"),
+    c("REM", "rate_ordered")
   )
-  expect_identical(
-    names(supported)[is.na(supported)],
-    c(
-      "dynam_rate_ordered_spec",
-      "dynami_rate_spec",
-      "dynami_rate_ordered_spec",
-      "dynami_choice_spec"
-    )
+  unwired <- list(
+    c("DyNAM", "rate_ordered"),
+    c("DyNAMi", "rate"),
+    c("DyNAMi", "rate_ordered"),
+    c("DyNAMi", "choice")
   )
+  for (v in wired) {
+    spec <- new_model_spec(v[1], v[2], nodes = "actors")
+    expect_true(
+      constrained_estimation_supported(spec),
+      info = paste(v, collapse = "/")
+    )
+  }
+  for (v in unwired) {
+    spec <- new_model_spec(v[1], v[2], nodes = "actors")
+    expect_false(
+      constrained_estimation_supported(spec),
+      info = paste(v, collapse = "/")
+    )
+  }
 })
 
 test_that("the unsupported-constraint abort enumerates the supported families", {

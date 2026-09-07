@@ -351,7 +351,7 @@ The returned object SHALL carry the class
 attributes (`diagnostic`, `context`, `params`, `version`), where `context`
 records which expected columns are defined for the family, the event
 totals per side, and — on two-mode fits — the node-set/mode labels. A
-`flavored_result.goldfish` method SHALL return the row-bound per-fid
+`goldfishFlavFit` method SHALL return the row-bound per-fid
 tables with `flavor` and `family` columns from the fit's `process_map`,
 and its print method SHALL reflect the multiple flavors estimated.
 
@@ -374,7 +374,7 @@ and its print method SHALL reflect the multiple flavors estimated.
   `dispersion` departs from one
 
 #### Scenario: flavored fits gain flavor columns
-- **WHEN** `margin_table()` is called on a `flavored_result.goldfish`
+- **WHEN** `margin_table()` is called on a `goldfishFlavFit`
 - **THEN** the result contains each fid's rows tagged with `flavor` and
   `family` columns consistent with the fit's `process_map`, and printing
   the object reports the flavors estimated.
@@ -407,7 +407,7 @@ removed at 2.0.0 without a deprecation cycle (the deprecation-scope audit is
 ### Requirement: return_preprocessed attaches the replay object
 `estimate_dynam()`, `estimate_rem()`, and `estimate_dynami()` SHALL accept
 `return_preprocessed = FALSE`; when `TRUE`, the returned fit SHALL carry the
-`preprocessed.goldfish` object used for estimation, and a cli message SHALL
+`goldfishStat` object used for estimation, and a cli message SHALL
 report its approximate size. Diagnostic consumers requiring a statistics
 replay SHALL accept a `preprocessed =` argument and SHALL use, in order of
 precedence: the supplied `preprocessed`, then the object attached to the

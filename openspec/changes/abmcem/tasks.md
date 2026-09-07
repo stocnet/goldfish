@@ -175,7 +175,13 @@
       `em_trace` carried on the object; `print()`/`summary()` via cli semantic
       elements grouping the flat coefficients per process via `coef_layout()`,
       asymptotic and MC error side by side plus the `converged` status,
-      pinned-context snapshots
+      pinned-context snapshots. **The class carries the shared parent
+      `goldfishBaseFit` and records its verdicts in the `fit-class-hierarchy`
+      capability spec — one per generic, written before the class is, since
+      it is an argument to be made rather than a fixture to fill. The
+      `logLik` verdict is the one to decide rather than copy: a Monte-Carlo
+      estimate reaching `AIC()`/`BIC()` through inheritance is the hazard the
+      contract exists for (design D9, ADR-0052).**
 - [ ] 5.4 Tests: end-to-end toy ascent (stub augmenter + real adapter + real
       SGD, seeded recovery within bounds, skip_on_cran), grow-then-accept,
       retry-abort, and **`max_iterations`-returns-last-accepted-with-warning**

@@ -5,7 +5,7 @@ the living spec (that change archives first; see design D13).
 
 ## MODIFIED Requirements
 
-### Requirement: make_specification constructs a specification.goldfish object
+### Requirement: make_specification constructs a goldfishSpec object
 
 The package SHALL provide `make_specification()` that accepts `rate` and/or `choice`
 formulas with an **empty left-hand side**, a `model`, the relevant sub-model(s), a
@@ -13,7 +13,7 @@ formulas with an **empty left-hand side**, a `model`, the relevant sub-model(s),
 `"weibull"`, `"gompertz"`, `"cox"`; stored on the object and consumed at estimation
 without any estimate-time argument), a `layer` naming the dependent process, an
 optional `support_constraint` formula, and a `data` object,
-and returns an S3 object of class `specification.goldfish`. The object MUST hold the parsed
+and returns an S3 object of class `goldfishSpec`. The object MUST hold the parsed
 rate/choice formula objects that preprocessing consumes (effect descriptors,
 perspective/`type` parameters, interaction structure, intercept flag, and per-effect
 arguments) together with model metadata and validation results. The `rate_sub_model`
@@ -37,7 +37,7 @@ because its v1 surface is expected to evolve.
 #### Scenario: build a DyNAM specification
 - **WHEN** a user calls `make_specification(rate = ~ 1 + indeg, choice = ~ inertia + recip,
   model = "DyNAM", layer = "callsDep", data = d)`
-- **THEN** a `specification.goldfish` object is returned containing the parsed rate and
+- **THEN** a `goldfishSpec` object is returned containing the parsed rate and
   choice components and passing validation for the DyNAM model.
 
 #### Scenario: support_constraint is parsed, validated, and active
@@ -66,7 +66,7 @@ because its v1 surface is expected to evolve.
 - **WHEN** `make_specification(choice = list(creation ~ shared_partners,
   dissolution ~ inertia), model = "DyNAMu", mechanism = "conjunctive",
   layer = "collab", data = d)` is called
-- **THEN** a `specification.goldfish` object is returned carrying the
+- **THEN** a `goldfishSpec` object is returned carrying the
   mechanism and the flavor-keyed coordination choice formulas.
 
 #### Scenario: mechanism outside DyNAMu aborts

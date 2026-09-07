@@ -147,7 +147,7 @@ estimate_flavored <- function(
       flavors = names(spec$processes),
       call = call %||% spec$call
     ),
-    class = "flavored_result.goldfish"
+    class = c("goldfishFlavFit", "goldfishBaseFit")
   )
 }
 
@@ -219,10 +219,24 @@ flavored_statistics_output <- function(
     )
   }
 
+  # One container, one class: what distinguishes it from a single process is
+  # its scope, and what distinguishes a db export from a gather stack is where
+  # the statistics live. Both are attributes here, so a consumer reads them
+  # instead of matching a class string per combination.
+  #
+  # `data.frame` renders each process as a plain frame, and a lone frame is
+  # deliberately left unclassed -- prepending a class to a base type changes
+  # its print and format dispatch for nothing. The container of them is a
+  # goldfish object rather than a base type, so it carries the class like the
+  # others; its statistics live as expanded rows either way, which is what
+  # `stack` names.
   structure(
-    outputs,
-    process_map = process_map,
-    class = "flavored_statistics.goldfish"
+    new_goldfish_stat(
+      outputs,
+      storage = if (is_db) "db" else "stack",
+      scope = "flavored"
+    ),
+    process_map = process_map
   )
 }
 

@@ -28,7 +28,7 @@ p-value near 1 dominates the combination exactly as a tiny one does and can
 mask a significant effect elsewhere. Suppression at the print rather than
 removal from the object is deliberate — the plot-data contract does not move,
 and the study can run against shipped objects. Methods SHALL exist for
-`result.goldfish` (single submodel) and for the specification-based fit
+`goldfishFit` (single submodel) and for the specification-based fit
 (per-block tests plus joint omnibus). On a flavored specification fit the
 blocks are per process (fid) × submodel: each process is tested exactly as a
 single-model fit, the printed report is the **per-block individual tests**,

@@ -168,9 +168,9 @@ and mapped, with one warning naming the new spelling.}
 }
 \value{
 An object of class
-\code{c("algorithm_newton.goldfish", "algorithm.goldfish", "list")},
+\code{c("goldfishAlgoNewton", "goldfishAlgo", "list")},
 where the components values are the default values or the values provided
-to the function. The \code{algorithm.goldfish} superclass is the shared gate
+to the function. The \code{goldfishAlgo} superclass is the shared gate
 estimators validate against, so every algorithm object passes the same
 check. The list object has the following components:
 \item{initial_parameters}{Initial parameter values used during

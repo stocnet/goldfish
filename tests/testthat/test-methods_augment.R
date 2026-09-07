@@ -44,7 +44,7 @@ test_that("augment dispatches like the other broom generics", {
   # Through the re-exported generic, not a bare exported method: the same
   # wiring `tidy()` and `glance()` have.
   expect_equal(augment(fit), generics::augment(fit))
-  expect_false("augment.result.goldfish" %in% getNamespaceExports("goldfish"))
+  expect_false("augment.goldfishFit" %in% getNamespaceExports("goldfish"))
   expect_true("augment" %in% getNamespaceExports("goldfish"))
 })
 

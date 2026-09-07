@@ -14,7 +14,7 @@ both, plus `choice_coordination` in the mixable-process list.
 The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
 `goldfishJointSpec` object — a multivariate specification that portrays their
-co-evolution (design D17 — renamed from `joint_specification.goldfish` under
+co-evolution (design D17 — renamed from `goldfishJointSpec` under
 the retired `<noun>.goldfish` house convention). Construction SHALL NOT
 require a panel-observed layer to be referenced — all viability is consumer-owned. A
 combination that references no panel-observed layer SHALL compose: it is
@@ -146,7 +146,7 @@ Completion is a **single transform** shared by every consumer (`simulate()`,
 non-walk-driven paths carry identical fid sets; it SHALL NOT be performed inside
 `walk_open()`, and it SHALL NOT be applied to the single-process / flavored
 estimation path (`estimate_dynam()` / `estimate_rem()` over one
-`specification.goldfish`), which keeps rate-only and choice-only specifications
+`goldfishSpec`), which keeps rate-only and choice-only specifications
 unchanged. `make_specification()` SHALL NOT abort on a half-specified flavored
 specification (so it can be built and reach a generative consumer); the
 same-flavor-set error is re-imposed by the single-process estimators at estimation
@@ -212,7 +212,7 @@ time on an unfilled gap.
   any completion runs.
 
 #### Scenario: single-process estimation is not completed
-- **WHEN** a rate-only DyNAM `specification.goldfish` (choice `NULL`) is passed to
+- **WHEN** a rate-only DyNAM `goldfishSpec` (choice `NULL`) is passed to
   `estimate_dynam()`
 - **THEN** no choice is added, the specification estimates as rate-only, and the
   preprocessed output is byte-identical to the pre-change path (frozen baselines

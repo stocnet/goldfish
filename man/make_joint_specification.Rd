@@ -7,8 +7,8 @@
 make_joint_specification(..., data = NULL)
 }
 \arguments{
-\item{...}{two or more \code{specification.goldfish} objects (from
-\code{\link[=make_specification]{make_specification()}}) over one shared data object.}
+\item{...}{two or more \code{goldfishSpec} objects (from \code{\link[=make_specification]{make_specification()}})
+over one shared data object.}
 
 \item{data}{the shared \code{stocnet} data object the specifications were built
 over. Defaults to the data carried by the first specification.}
@@ -19,7 +19,7 @@ composed \code{specifications}, the shared \code{data}, and the extended integer
 \code{process_map} (one row per likelihood-producing formula across all
 processes, with the shared \code{constraint_id}s and a \code{coupled} flag marking
 fids that read a modeled panel layer's latent state). It deliberately does
-NOT inherit \code{specification.goldfish}.
+NOT inherit \code{goldfishSpec}.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

@@ -77,27 +77,27 @@
 #' For `estimate_rem()` the valid values are `"rate"` (full dyadic hazard
 #' model, the default) and `"rate_ordered"` (only the order of the events is
 #' modeled); `"choice"` is kept as a deprecated alias of `"rate"`.
-#' @param control_algo An object of class `algorithm.goldfish`
+#' @param control_algo An object of class `goldfishAlgo`
 #'   (typically created by [set_algorithm_newton()]),
 #'   specifying the algorithm and its parameters for the estimation.
 #' @param control_prep An object of class
-#'   `preprocessing.goldfish` (typically created by
+#'   `goldfishPrepCtrl` (typically created by
 #'   [set_preprocessing()]),
 #'   specifying parameters for data preprocessing. This is only used
-#'   if `preprocessed` is not a `preprocessed.goldfish` object or NULL.
+#'   if `preprocessed` is not a `goldfishStat` object or NULL.
 #' @param preprocessed an optional preprocessed object of class
-#'  `preprocessed.goldfish` from a previous estimation. When it is provided,
+#'  `goldfishStat` from a previous estimation. When it is provided,
 #'  the function will skip the preprocessing of the effects that are already
 #'  present in the object and only preprocess the new effects. Default to
 #'  `NULL`.
 #' @param preprocessing_only `r lifecycle::badge("deprecated")` logical. If
 #'  `TRUE`, the function will only run the preprocessing stage and return an
-#'  object of class `preprocessed.goldfish`. Default to `FALSE`. Superseded in
+#'  object of class `goldfishStat`. Default to `FALSE`. Superseded in
 #'  goldfish 2.0.0 by [compute_statistics()] with `output = "preprocessed"`,
 #'  which returns the same object from a function that says what it does; it
 #'  keeps working through 2.x.
 #' @param return_preprocessed logical. If `TRUE`, the returned fit carries the
-#'  `preprocessed.goldfish` object it was estimated from, under `preprocessed`,
+#'  `goldfishStat` object it was estimated from, under `preprocessed`,
 #'  and a message reports its approximate size. Diagnostics that replay the
 #'  change statistics read it from there instead of asking for one. It is much
 #'  larger than the fit itself, so it is opt-in; the alternative is to supply
@@ -109,7 +109,7 @@
 #'  `control_prep` in goldfish 2.0.0.
 #' @param preprocessing_init `r lifecycle::badge("deprecated")` Renamed to
 #'  `preprocessed` in goldfish 2.0.0, the name every diagnostic consumer of a
-#'  `preprocessed.goldfish` object uses.
+#'  `goldfishStat` object uses.
 #' @param support_constraint a one-sided formula restricting the per-event risk
 #'   set, written in the restricted boolean-tree grammar: effect atoms
 #'   (`tie(net)`, `indeg(net)`, ...) combined with `& | !`, comparisons
@@ -117,7 +117,7 @@
 #'   arithmetic `+ - * /`; a bare effect means `effect != 0`. Inside a constraint
 #'   `*` is elementwise arithmetic, never the effects formula's interaction
 #'   expansion; for 0/1 indicators prefer `&` over `*` (`tie(a) & tie(b)`).
-#'   Ignored when `x` is a `specification.goldfish` object (which carries its own
+#'   Ignored when `x` is a `goldfishSpec` object (which carries its own
 #'   constraint). See [make_specification()] for the full grammar. `NULL` by
 #'   default.
 #' @param verbose logical indicating whether should print
@@ -142,12 +142,12 @@
 #' It is an environment that contains the nodesets, networks,
 #' attributes and dependent events objects. Default to `NULL`.
 #'
-#' @return returns an object of [class()] `"result.goldfish"`
+#' @return returns an object of [class()] `"goldfishFit"`
 #' when `preprocessing_only = FALSE` or
-#' a preprocessed statistics object of class `"preprocessed.goldfish"`
+#' a preprocessed statistics object of class `"goldfishStat"`
 #' when `preprocessing_only = TRUE`.
 #'
-#' An object of class `"result.goldfish"` is a list including:
+#' An object of class `"goldfishFit"` is a list including:
 #'   \item{parameters}{a numeric vector with the coefficients estimates.}
 #'   \item{standard_errors}{
 #'    a numeric vector with the standard errors of the coefficients estimates.}
@@ -265,29 +265,30 @@
 #'   consumers treat a missing value as an unknown backend.}
 #'   \item{risk_set_axis}{a character value naming the axis a position in any
 #'   per-event diagnostic component refers to: `"sender"`,
-#'   `"receiver_given_sender"`, `"dyad"` or `"dyad_symmetric"`. Read it with
-#'   [risk_set_axis()], which documents the four values and how each joins to
-#'   `node_lookup`. Absent on objects fitted before goldfish 2.0.0.}
+#'   `"receiver_given_sender"` or `"dyad"`. Read it with [risk_set_axis()],
+#'   which documents the three values and how each joins to `node_lookup`.
+#'   Absent on objects fitted before goldfish 2.0.0.}
 #'   \item{node_lookup}{the `(side, local, global, label)` table documented
 #'   under [compute_statistics()], carried on the fit so a per-event diagnostic
 #'   index resolves to the original node row and its label. It is *the* index
 #'   resolver: join a position to the side [risk_set_axis()] names — side 1 for
 #'   `"sender"`, side 2 for `"receiver_given_sender"` on a two-mode model, and
-#'   side 1 for both dyad axes on a one-mode model, whose sender and receiver
+#'   side 1 for the dyad axis on a one-mode model, whose sender and receiver
 #'   sets are the same nodes. The per-event components deliberately carry no
 #'   `names()` or `dimnames()` of their own: this one table per fit would
 #'   otherwise be repeated once per event, which on a long sequence is exactly
 #'   the size blow-up the per-event primitives are guarded against.}
-#'   \item{preprocessed}{the `preprocessed.goldfish` object the model was
+#'   \item{preprocessed}{the `goldfishStat` object the model was
 #'   estimated from, present only when `return_preprocessed = TRUE`. It is the
 #'   same object [compute_statistics()] returns under
 #'   `output = "preprocessed"`, so a diagnostic reads it from the fit or takes
 #'   an equivalent one through its own `preprocessed` argument.}
-#'   \item{right_censored}{
-#'   a logical value indicating if the estimation process considered
-#'   right-censored events.
-#'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
-#'   REM (`estimate_rem()`), when the model includes the intercept.}
+#'   \item{is_exact_time}{
+#'   a logical value indicating whether the sub-model models the waiting
+#'   times between events rather than only their order. `TRUE` for
+#'   `estimate_dynam(x, sub_model = "rate")` and for REM (`estimate_rem()`)
+#'   with the intercept; it is what makes the right-censored intervals
+#'   contribute to the likelihood and gives it an exposure denominator.}
 #'   \item{right_censored_events}{a logical vector indicating whether or not an
 #'   event is a right censored event. It is the fit's **only** spelling of that
 #'   fact: the preprocessed object carries the same information as
@@ -399,11 +400,11 @@
 NULL
 
 # A joint (multivariate) specification is a distinct class that does NOT inherit
-# specification.goldfish, so it slips past the single-specification dispatch
-# branch and would otherwise fall through to estimate_wrapper. The event-stream
-# estimators reject it by class and point at the multivariate estimator; the
-# check runs before the specification.goldfish branch so a joint object never
-# reaches single-process estimation.
+# goldfishSpec, so it slips past the single-specification dispatch branch and
+# would otherwise fall through to estimate_wrapper. The event-stream estimators
+# reject it by class and point at the multivariate estimator; the check runs
+# before the goldfishSpec branch so a joint object never reaches
+# single-process estimation.
 reject_joint_specification <- function(x, call = rlang::caller_env()) {
   if (inherits(x, "goldfishJointSpec")) {
     cli::cli_abort(
@@ -488,7 +489,7 @@ estimate_dynam <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "DyNAM",
@@ -569,7 +570,7 @@ estimate_dynami <- function(
   # rejected at joint composition, so it cannot appear in a joint object. An
   # explicit rejection is deferred to when DyNAM-i becomes composable.
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "DyNAMi",
@@ -648,7 +649,7 @@ estimate_rem <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = "REM",
@@ -704,11 +705,11 @@ abort_on_completion_gaps <- function(spec, call = rlang::caller_env()) {
   )
 }
 
-# Estimate from a specification.goldfish object. Selects the submodel
-# bundle matching the requested sub_model's family (rate vs choice), reuses its
-# parsed formula bundle so estimation does not re-parse, and forwards to the
-# shared estimator with the bundle's own sub_model. Results are identical to
-# estimating the equivalent `layer ~ rhs` formula.
+# Estimate from a goldfishSpec object. Selects the submodel bundle matching the
+# requested sub_model's family (rate vs choice), reuses its parsed formula
+# bundle so estimation does not re-parse, and forwards to the shared estimator
+# with the bundle's own sub_model. Results are identical to estimating the
+# equivalent `layer ~ rhs` formula.
 estimate_from_specification <- function(
   spec,
   model,
@@ -803,8 +804,8 @@ estimate_from_specification <- function(
 #' @param x a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
-#'   (see `vignette("goldfish_effects")`), or a `specification.goldfish` object
-#'   from [make_specification()] — the same first argument the `estimate_*()`
+#'   (see `vignette("goldfish_effects")`), or a `goldfishSpec` object from
+#'   [make_specification()] — the same first argument the `estimate_*()`
 #'   functions take.
 #' @param model a character string specifying the model. Current options are
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
@@ -818,7 +819,7 @@ estimate_from_specification <- function(
 #' @param data a `data.goldfish` object created with [make_data()].
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
-#'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
+#'   `goldfishStat` object; `"gather"` returns the gather stack (one
 #'   row per event x alternative, the format the deprecated
 #'   [gather_model_data()] produced);
 #'   `"data.frame"` returns the same rows as a ready-to-estimate long frame
@@ -833,7 +834,7 @@ estimate_from_specification <- function(
 #'   events (right-censored ones included, where the model has them) times
 #'   the candidates alive at each. That is where the memory goes on a large
 #'   sequence: use `output = "db"` when the rows do not fit in memory.
-#' @param control_prep an object of class `preprocessing.goldfish` created
+#' @param control_prep an object of class `goldfishPrepCtrl` created
 #'   with [set_preprocessing()].
 #' @param progress logical. Whether to print a progress bar during
 #'   preprocessing.
@@ -844,16 +845,18 @@ estimate_from_specification <- function(
 #'   preserved.
 #' @param ... additional arguments passed to the preprocessing stage.
 #'
-#' @return an object of class `"preprocessed.goldfish"` with the change
+#' @return an object of class `"goldfishStat"` with the change
 #'   statistics of the effects for the event sequence and the information
 #'   of the model variant computed. See the `Value` section of
 #'   [estimate_dynam()] for the `preprocessing_only = TRUE` case.
 #'
 #'   Every output form reports two logical fields describing the likelihood
 #'   shape it was produced under, so a consumer never has to infer it from the
-#'   columns: `has_intercept` (the exact-time time intercept is present) and
-#'   `right_censored` (right-censored rows are stored, carrying `timespan` and
-#'   `is_dependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
+#'   columns: `has_intercept` (the formula carries the time intercept) and
+#'   `is_exact_time` (the sub-model models the waiting times between events,
+#'   so the right-censored rows are stored, carrying `timespan` and
+#'   `is_dependent`). They answer different questions but agree on every
+#'   object: both are `TRUE` for `sub_model = "rate"` and `FALSE` for
 #'   `"rate_ordered"` and the choice sub-models.
 #'
 #' @section The `"data.frame"` output:
@@ -1012,7 +1015,7 @@ compute_statistics <- function(
   output <- match.arg(output)
   # A specification takes the same front door here as at estimation, so the two
   # entry points cannot disagree about what a specification means.
-  if (inherits(x, "specification.goldfish")) {
+  if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
       model = model,
@@ -1186,7 +1189,7 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
 #' printing step). Isolated from the DyNAMi front-end so the shared
 #' estimate path carries no model conditionals in its preprocessing.
 #'
-#' @return a list with `prep` (preprocessed.goldfish) and `spec_map`.
+#' @return a list with `prep` (goldfishStat) and `spec_map`.
 #' @noRd
 preprocess_recipe <- function(
   parsed_formula,
@@ -1263,7 +1266,7 @@ preprocess_recipe <- function(
 #' is deferred to a future DyNAMi engine refactor. Fenced here so the shared
 #' recipe path (`preprocess_recipe()`) is DyNAMi-free.
 #'
-#' @return a preprocessed.goldfish object.
+#' @return a goldfishStat object.
 #' @noRd
 preprocess_dynami <- function(
   model_spec,
@@ -1279,7 +1282,7 @@ preprocess_dynami <- function(
   nodes2,
   is_two_mode,
   ignore_rep_parameter,
-  right_censored,
+  is_exact_time,
   control_prep,
   parsed_formula,
   progress,
@@ -1311,7 +1314,7 @@ preprocess_dynami <- function(
     is_two_mode = is_two_mode,
     startTime = control_prep$start_time,
     endTime = control_prep$end_time,
-    right_censored = right_censored,
+    is_exact_time = is_exact_time,
     opportunitiesList = control_prep$opportunities_list,
     progress = progress,
     groups_network = parsed_formula$default_network_name,
@@ -1397,7 +1400,7 @@ note_conditional_scores_identity <- function(
   if (!"conditional_scores" %in% diagnostics) {
     return(invisible())
   }
-  if (identical(risk_set_normalizer(spec), "poisson")) {
+  if (identical(behavior_likelihood(spec), "poisson")) {
     return(invisible())
   }
   sub_model <- spec$sub_model
@@ -1482,10 +1485,10 @@ resolve_preprocessed <- function(
   call = rlang::caller_env()
 ) {
   if (!is.null(preprocessed)) {
-    if (!inherits(preprocessed, "preprocessed.goldfish")) {
+    if (!inherits(preprocessed, "goldfishStat")) {
       cli::cli_abort(
         c(
-          "{.arg preprocessed} must be a {.cls preprocessed.goldfish} object.",
+          "{.arg preprocessed} must be a {.cls goldfishStat} object.",
           "x" = "You supplied a {.cls {class(preprocessed)[[1]]}} object.",
           "i" = "Build one with {.code compute_statistics(..., output =
                  \"preprocessed\")}."
@@ -1616,9 +1619,9 @@ estimate_wrapper <- function(
     rlang::is_scalar_logical(verbose),
     is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessed) ||
-      inherits(preprocessed, "preprocessed.goldfish"),
-    inherits(control_algo, "algorithm.goldfish"),
-    inherits(control_prep, "preprocessing.goldfish")
+      inherits(preprocessed, "goldfishStat"),
+    inherits(control_algo, "goldfishAlgo"),
+    inherits(control_prep, "goldfishPrepCtrl")
   )
 
   if (is.null(progress)) {
@@ -1747,7 +1750,7 @@ estimate_wrapper <- function(
   # choice submodel, or REM); a rate-only spec rejects them.
   constraint_plan <- NULL
   if (!is.null(support_constraint)) {
-    if (inherits(support_constraint, "support_constraint_plan")) {
+    if (inherits(support_constraint, "goldfishSupportPlan")) {
       constraint_plan <- support_constraint
     } else if (!is.null(flavor_plan)) {
       # A multi-flavor walk supplies the already-parsed per-`(layer, flavor)`
@@ -1775,7 +1778,7 @@ estimate_wrapper <- function(
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
     is.null(preprocessed)
-  # A specification.goldfish object supplies its parsed bundle so estimation
+  # A goldfishSpec object supplies its parsed bundle so estimation
   # reuses it rather than re-parsing; it was parsed with the same
   # recipe-deferred window semantics. Otherwise parse the formula here.
   if (is.null(parsed_formula)) {
@@ -1855,7 +1858,10 @@ estimate_wrapper <- function(
     ))
     parsed_formula$has_intercept <- has_intercept <- TRUE
   }
-  right_censored <- has_intercept
+  # An exact-time sub-model is exactly one carrying the time intercept: the
+  # branches above add it for `rate` and drop it for `rate_ordered`, so by
+  # here the formula's own property answers the sub-model's.
+  is_exact_time <- has_intercept
 
   # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
@@ -2124,7 +2130,7 @@ estimate_wrapper <- function(
           .nodes2,
           is_two_mode,
           ignore_rep_parameter,
-          right_censored,
+          is_exact_time,
           control_prep,
           parsed_formula,
           progress,
@@ -2174,8 +2180,7 @@ estimate_wrapper <- function(
       cat("Removing no longer required effects.\n")
     }
     allprep <- preprocessed
-    is_rate_model <- preprocessed$model == "DyNAM" &&
-      preprocessed$sub_model == "rate"
+    is_rate_model <- identical(risk_set_axis(preprocessed), "sender")
     init_is_flat <- is.null(preprocessed$stats_change)
     has_new_effects <- min(effects_indexes) == 0
     if (has_new_effects && init_is_flat != is.null(newprep$stats_change)) {
@@ -2302,7 +2307,7 @@ estimate_wrapper <- function(
         .nodes2,
         is_two_mode,
         ignore_rep_parameter,
-        right_censored,
+        is_exact_time,
         control_prep,
         parsed_formula,
         progress,
@@ -2773,7 +2778,7 @@ estimate_wrapper <- function(
   # spelling changes, so a fit stays current across ordinary releases. Epoch 2
   # is the snake_case component set.
   result$fit_version <- FIT_VERSION
-  result$right_censored <- has_intercept
+  result$is_exact_time <- has_intercept
   result$n_params <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
   # user's estimate_*() call. On the specification path the estimator is reached

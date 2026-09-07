@@ -77,7 +77,7 @@
 #' use [lmtest::lrtest()] or [lmtest::waldtest()], whose generics goldfish fits
 #' already satisfy.
 #'
-#' @param x a fitted model of class `"result.goldfish"` carrying at least one
+#' @param x a fitted model of class `"goldfishFit"` carrying at least one
 #'   `offset()` term, or a multi-process fit; for the print method, the
 #'   `test_parameter` object it renders.
 #' @param effects an optional selection of the held terms to test, given by any
@@ -118,9 +118,9 @@
 #' @seealso [test_gof()] for whether an estimated effect's contribution is
 #'   spread over the sequence, [test_time()] for whether it is constant, and
 #'   [diagnostic-tables] for the metadata a diagnostic object carries.
-#' @method test_parameter result.goldfish
+#' @method test_parameter goldfishFit
 #' @export
-test_parameter.result.goldfish <- function(
+test_parameter.goldfishFit <- function(
   x,
   effects = NULL,
   preprocessed = NULL,
@@ -158,7 +158,7 @@ test_parameter.result.goldfish <- function(
       df = 1L,
       p_value = stats::pchisq(statistic, df = 1L, lower.tail = FALSE)
     ),
-    "test_parameter",
+    "goldfishParamTest",
     context = list(
       model = x$model,
       sub_model = x$sub_model,
@@ -307,18 +307,18 @@ invert_information_block <- function(
 }
 
 #' @export
-`[.test_parameter` <- function(x, ...) {
+`[.goldfishParamTest` <- function(x, ...) {
   out <- NextMethod()
   demote_if_incomplete(out)
 }
 
 #' @return The object, invisibly.
-#' @rdname test_parameter.result.goldfish
-#' @method print test_parameter
+#' @rdname test_parameter.goldfishFit
+#' @method print goldfishParamTest
 #' @export
-print.test_parameter <- function(x, ...) {
+print.goldfishParamTest <- function(x, ...) {
   context <- attr(x, "context")
-  cli::cli_rule(left = "{.cls test_parameter}")
+  cli::cli_rule(left = "{.cls goldfishParamTest}")
   cli::cli_text(
     "Model {.val {context$model}} ·
      sub-model {.val {context$sub_model}} ·
@@ -335,7 +335,7 @@ print.test_parameter <- function(x, ...) {
      {.field p} = {format.pval(joint$p_value, digits = 3)}"
   )
   body <- x
-  class(body) <- setdiff(class(body), "test_parameter")
+  class(body) <- setdiff(class(body), "goldfishParamTest")
   print(body, ...)
   invisible(x)
 }
@@ -360,17 +360,17 @@ print.test_parameter <- function(x, ...) {
 #' it is not one the specification asks for, and a combination nobody has
 #' asked to interpret is not worth reporting.
 #'
-#' @inheritParams test_parameter.result.goldfish
-#' @param x a multi-process fit of class `"flavored_result.goldfish"`.
+#' @inheritParams test_parameter.goldfishFit
+#' @param x a multi-process fit of class `"goldfishFlavFit"`.
 #'
 #' @return An object of class `test_parameter`, shaped as the single-fit result
-#'   and documented at [test_parameter.result.goldfish()], with `flavor` and
+#'   and documented at [test_parameter.goldfishFit()], with `flavor` and
 #'   `family` columns appended and one joint row per process in the metadata.
 #'
-#' @seealso [test_parameter.result.goldfish()] for what each process's test is.
-#' @method test_parameter flavored_result.goldfish
+#' @seealso [test_parameter.goldfishFit()] for what each process's test is.
+#' @method test_parameter goldfishFlavFit
 #' @export
-test_parameter.flavored_result.goldfish <- function(
+test_parameter.goldfishFlavFit <- function(
   x,
   effects = NULL,
   preprocessed = NULL,
@@ -403,7 +403,7 @@ test_parameter.flavored_result.goldfish <- function(
   }
   new_diagnostic_table(
     do.call(rbind, lapply(per_process, `[[`, "table")),
-    "test_parameter",
+    "goldfishParamTest",
     context = list(
       model = x$model,
       layer = x$layer,

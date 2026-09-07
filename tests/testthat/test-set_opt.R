@@ -17,7 +17,7 @@ test_that("set_algorithm_newton works correctly", {
   default_opts <- set_algorithm_newton()
   expect_s3_class(
     default_opts,
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
   expect_true(is.list(default_opts))
@@ -47,7 +47,7 @@ test_that("set_algorithm_newton works correctly", {
   )
   expect_s3_class(
     custom_opts,
-    c("algorithm_newton.goldfish", "algorithm.goldfish", "list"),
+    c("goldfishAlgoNewton", "goldfishAlgo", "list"),
     exact = TRUE
   )
   expect_true(is.list(custom_opts))
@@ -281,10 +281,19 @@ test_that("set_preprocessing works correctly", {
   default_opts <- set_preprocessing()
   expect_s3_class(
     default_opts,
-    c("preprocessing.goldfish", "list"),
+    c("goldfishPrepCtrl", "list"),
     exact = TRUE
   )
   expect_true(is.list(default_opts))
+  # The control objects print through methods registered on their classes, so
+  # each is checked for dispatch as well as for its class vector: a rename that
+  # moves the class but not the method leaves both inherits() checks passing
+  # and the object printing as a bare list.
+  expect_output(print(default_opts), "Preprocessing Control Options")
+  expect_output(
+    print(set_algorithm_newton()),
+    "Estimation Algorithm Options"
+  )
   # Check that all expected names are present
   expect_true(all(expected_prep_names %in% names(default_opts)))
   expect_null(default_opts$start_time)
@@ -301,7 +310,7 @@ test_that("set_preprocessing works correctly", {
   )
   expect_s3_class(
     custom_opts,
-    c("preprocessing.goldfish", "list"),
+    c("goldfishPrepCtrl", "list"),
     exact = TRUE
   )
   expect_true(is.list(custom_opts))

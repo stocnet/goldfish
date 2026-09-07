@@ -7,7 +7,7 @@ test_that("compute_statistics(output = 'preprocessed') returns a preprocessed ob
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_s3_class(prep, "goldfishStat")
   expect_true(!is.null(prep$stat_mat_update))
   expect_null(prep$stats_change)
 })

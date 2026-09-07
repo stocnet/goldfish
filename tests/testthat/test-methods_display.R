@@ -1,6 +1,6 @@
 test_that("summary goldfish", {
   objSum <- summary(resModObject)
-  expect_s3_class(objSum, "summary.result.goldfish")
+  expect_s3_class(objSum, "goldfishSummFit")
   # The fixture's own components plus the three `summary()` adds (`coef_mat`,
   # `AIC`, `BIC`), so this count moves whenever the fit's layout does -- 21 now
   # that the fixture records `fit_version` and the fit carries both an event

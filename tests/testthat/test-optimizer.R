@@ -138,14 +138,14 @@ test_that("maxLik result supports the standard post-estimation methods", {
     ),
     progress = FALSE
   )
-  expect_s3_class(fit, "result.goldfish")
+  expect_s3_class(fit, "goldfishFit")
   expect_length(fit$parameters, length(nr$parameters))
   expect_true(all(is.finite(fit$standard_errors)))
   expect_true(fit$convergence$is_converged)
   # Fisher-based vcov at the optimum agrees with the NR standard errors.
   expect_equal(fit$standard_errors, nr$standard_errors, tolerance = 1e-2)
   smry <- summary(fit)
-  expect_s3_class(smry, "summary.result.goldfish")
+  expect_s3_class(smry, "goldfishSummFit")
   expect_equal(dim(vcov(fit)), c(3L, 3L))
   expect_equal(as.numeric(logLik(fit)), fit$log_likelihood)
 })

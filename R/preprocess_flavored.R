@@ -4,7 +4,7 @@
 # A multi-flavor specification models K competing processes (flavors) on one
 # focal layer. Preprocessing walks the event sequence ONCE -- the
 # union of all flavors' effects is computed a single time over one shared
-# process state, and one `preprocessed.goldfish` object is emitted per flavor.
+# process state, and one `goldfishStat` object is emitted per flavor.
 # This is the multi-consumer generalization of the recipe loop (one clock, one
 # state, N formula plans reading it) that `simulate()` and the DyNES augmenter
 # also require.
@@ -288,7 +288,7 @@ project_update_block <- function(block, gid_lookup) {
 init_consumers <- function(
   consumer_specs,
   writer,
-  right_censored,
+  is_exact_time,
   spec,
   dims,
   initial_stats_fn
@@ -309,11 +309,11 @@ init_consumers <- function(
     writer$init(
       spec,
       c(
-        writer_dims(dims$nEffects, right_censored),
+        writer_dims(dims$nEffects, is_exact_time),
         list(initial_stats_fn = initial_stats_fn)
       )
     )
-    return(list(new_consumer(writer, right_censored = right_censored)))
+    return(list(new_consumer(writer, is_exact_time = is_exact_time)))
   }
 
   consumers <- lapply(consumer_specs, function(cspec) {
@@ -332,7 +332,7 @@ init_consumers <- function(
     new_consumer(
       cspec$writer,
       gid_lookup = flavor_gid_lookup(effect_map, dims$nEffects),
-      right_censored = cspec$has_intercept
+      is_exact_time = cspec$has_intercept
     )
   })
   names(consumers) <- names(consumer_specs)
@@ -377,11 +377,11 @@ build_consumer_specs <- function(
   specs
 }
 
-new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
+new_consumer <- function(writer, gid_lookup = NULL, is_exact_time = FALSE) {
   e <- new.env(parent = emptyenv())
   e$writer <- writer
   e$gid_lookup <- gid_lookup
-  e$right_censored <- right_censored
+  e$is_exact_time <- is_exact_time
   e$pending_dep <- list()
   e$pending_dep_cols <- 0L
   e$pending_rc <- list()
@@ -394,9 +394,9 @@ new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
 }
 
 # Append one point-buffer block to a consumer's pending buffers (dependent
-# always, right-censored when the consumer stores right-censored events),
-# projecting to the consumer's columns first. A NULL `gid_lookup` stores the
-# block unchanged (single-output fast path).
+# always, right-censored when the consumer's sub-model models waiting times
+# and so stores those rows), projecting to the consumer's columns first. A
+# NULL `gid_lookup` stores the block unchanged (single-output fast path).
 consumer_accumulate_point <- function(cs, block) {
   pb <- if (is.null(cs$gid_lookup)) {
     block
@@ -408,7 +408,7 @@ consumer_accumulate_point <- function(cs, block) {
   }
   cs$pending_dep[[length(cs$pending_dep) + 1L]] <- pb
   cs$pending_dep_cols <- cs$pending_dep_cols + ncol(pb)
-  if (cs$right_censored) {
+  if (cs$is_exact_time) {
     cs$pending_rc[[length(cs$pending_rc) + 1L]] <- pb
     cs$pending_rc_cols <- cs$pending_rc_cols + ncol(pb)
   }
@@ -426,7 +426,7 @@ consumer_accumulate_broadcast <- function(cs, bc_block) {
   }
   cs$pending_dep_bc[[length(cs$pending_dep_bc) + 1L]] <- pb
   cs$pending_dep_bc_cols <- cs$pending_dep_bc_cols + ncol(pb)
-  if (cs$right_censored) {
+  if (cs$is_exact_time) {
     cs$pending_rc_bc[[length(cs$pending_rc_bc) + 1L]] <- pb
     cs$pending_rc_bc_cols <- cs$pending_rc_bc_cols + ncol(pb)
   }
@@ -467,7 +467,7 @@ consumer_write_dependent <- function(cs, event_info) {
 # realizes the plan's support mask exactly as before. A flavored walk finalizes
 # each consumer against its OWN inputs -- the union initial statistics projected
 # to its columns, and its own derived-plus-user constraint -- and returns a
-# flavor-named list of `preprocessed.goldfish` objects.
+# flavor-named list of `goldfishStat` objects.
 #
 # `project_initial_stats` differs per loop (a sender kernel is indexed on its
 # second margin, a dyad array on its third). The support masks are realized in
@@ -750,7 +750,7 @@ render_process_label <- function(process_map, fid) {
 # DyNAM-rate and the same effect in DyNAM-choice resolve to different update
 # functions, so there is nothing to share between them.
 #
-# Returns a list of `preprocessed.goldfish` objects indexed by fid, carrying the
+# Returns a list of `goldfishStat` objects indexed by fid, carrying the
 # `process_map` identity table as an attribute.
 preprocess_flavored <- function(
   spec,
@@ -851,6 +851,6 @@ preprocess_flavored <- function(
   structure(
     outputs,
     process_map = process_map,
-    class = "flavored_preprocessed.goldfish"
+    class = "goldfishFlavPrep"
   )
 }

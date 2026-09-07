@@ -359,7 +359,7 @@ compare_formulas <- function(
 #'   fetches events inside state creation.
 #' @param envir environment where the data objects live.
 #'
-#' @return an S3 object of class `c(class(model_spec), "spec_map.goldfish")`
+#' @return an S3 object of class `c(class(model_spec), "goldfishSpecMap")`
 #'   carrying the `model_spec` fields plus `parsed_terms`, `plan`,
 #'   `effects_template`, `effect_description` (the single source of truth for
 #'   print/naming metadata), and the `effects`/`window_parameters`/
@@ -379,7 +379,11 @@ build_spec_map <- function(
   data = NULL,
   modeled_flavor = NULL
 ) {
-  stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
+  stat_kind <- if (inherits(model_spec, "goldfishAxisSender")) {
+    "sender"
+  } else {
+    "dyad"
+  }
   nodes <- model_spec$nodes
   nodes2 <- model_spec$nodes2
   # Metadata/data boundary: the plan + call templates need
@@ -445,7 +449,7 @@ build_spec_map <- function(
         data = data
       )
     }
-    if (inherits(support_constraint, "support_constraint_plan")) {
+    if (inherits(support_constraint, "goldfishSupportPlan")) {
       plan$support_constraint <- compile_one(support_constraint)
       plan$derivations <- c(
         plan$derivations,
@@ -493,7 +497,7 @@ build_spec_map <- function(
         modeled_flavor = modeled_flavor
       )
     ),
-    class = c(class(model_spec), "spec_map.goldfish")
+    class = c(class(model_spec), "goldfishSpecMap")
   )
 }
 
@@ -838,7 +842,7 @@ create_effects_functions <- function(
     model,
     sub_model
   )
-  structure(effects, class = "goldfish.formulae")
+  structure(effects, class = "goldfishFormulae")
 }
 
 # The declared `is_two_mode` disagrees with what the argument's layer actually

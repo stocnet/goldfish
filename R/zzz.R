@@ -9,9 +9,9 @@
 register_diagnostic_reconstruct <- function() {
   register <- function(...) {
     for (class in c(
-      "diagnose_outliers",
-      "diagnose_changepoints",
-      "margin_table"
+      "goldfishOutliers",
+      "goldfishChangepoints",
+      "goldfishMargins"
     )) {
       registerS3method(
         "dplyr_reconstruct",

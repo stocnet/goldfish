@@ -29,7 +29,7 @@ library(goldfish)
 # and importable while lacking these methods, so `requireNamespace()` alone
 # would pass and then fail at the call.
 has_plots <- requireNamespace("autograph", quietly = TRUE) &&
-  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+  !is.null(getS3method("plot", "goldfishGOF", optional = TRUE))
 knitr::opts_chunk$set(purl = TRUE)
 ```
 

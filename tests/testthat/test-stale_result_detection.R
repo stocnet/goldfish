@@ -38,6 +38,17 @@ old_cran_fit <- function() {
   )
 }
 
+# The same components under the CURRENT class name. No such object exists in
+# the wild -- every stored fit predating 2.0.0 carries the retired class -- but
+# the stale-epoch path is still reachable on `goldfishFit` the next time
+# `FIT_VERSION` moves, so it keeps its own fixture rather than borrowing the
+# retired-class one and testing two things at once.
+stale_current_class_fit <- function() {
+  fit <- old_cran_fit()
+  class(fit) <- c("goldfishFit", "goldfishBaseFit")
+  fit
+}
+
 test_that("an old object is recognized, and a current one is not", {
   old <- old_cran_fit()
   # The evidence is the missing record, not the camelCase components. Those are
@@ -89,7 +100,7 @@ test_that("the two objects are recognized by the same rule", {
   # confirm an absent stamp while the preprocessed object did not. Both now read
   # their own slot against their own epoch and nothing else.
   bare_fit <- structure(list(), class = "result.goldfish")
-  bare_prep <- structure(list(), class = "preprocessed.goldfish")
+  bare_prep <- structure(list(), class = "goldfishStat")
   expect_identical(result_format_status(bare_fit), "outdated")
   expect_identical(preprocessed_format_status(bare_prep), "outdated")
 
@@ -99,7 +110,7 @@ test_that("the two objects are recognized by the same rule", {
   )
   stamped_prep <- structure(
     list(prep_version = PREP_VERSION),
-    class = "preprocessed.goldfish"
+    class = "goldfishStat"
   )
   expect_identical(result_format_status(stamped_fit), "current")
   expect_identical(preprocessed_format_status(stamped_prep), "current")
@@ -153,7 +164,7 @@ test_that("a stale preprocessed object is refused at estimation entry", {
 })
 
 test_that("the computing surfaces refuse rather than return a wrong number", {
-  old <- old_cran_fit()
+  old <- stale_current_class_fit()
   # These are the four that would otherwise compute from components the object
   # does not carry. AIC()/BIC() reach the fit only through logLik(), so guarding
   # logLik() is what stops the silent misreport.
@@ -166,7 +177,7 @@ test_that("the computing surfaces refuse rather than return a wrong number", {
 })
 
 test_that("printing an old object still shows what it can", {
-  old <- old_cran_fit()
+  old <- stale_current_class_fit()
   out <- utils::capture.output(
     expect_message(print(old), "not fitted by this version")
   )
@@ -197,10 +208,100 @@ test_that("a current fit triggers none of it", {
 test_that("the messages name the cause and the fix", {
   withr::local_options(cli.num_colors = 1L, cli.width = 72L)
   local_reproducible_output()
-  old <- old_cran_fit()
+  old <- stale_current_class_fit()
   expect_snapshot(error = TRUE, summary(old))
   expect_snapshot(logLik(old), error = TRUE)
-  newer <- old_cran_fit()
+  newer <- stale_current_class_fit()
   newer$fit_version <- FIT_VERSION + 1L
   expect_snapshot(vcov(newer), error = TRUE)
+})
+
+# The retired class name ------------------------------------------------------
+#
+# `result.goldfish` names no class goldfish attaches any more. It survives as a
+# discriminator: two stubs explain and stop, and every other generic gives R's
+# own dispatch error, which already says the true thing.
+
+test_that("only print() and summary() answer on the retired class", {
+  old <- old_cran_fit()
+  expect_s3_class(old, "result.goldfish")
+
+  # The two stubs: goldfish's own message, so they are rlang conditions.
+  expect_error(print(old), class = "rlang_error")
+  expect_error(summary(old), class = "rlang_error")
+
+  # Generics with no applicable method: R's own dispatch error, a base
+  # condition rather than an rlang one. Registering stubs for these would
+  # replace a correct message with one that has to be maintained.
+  for (call in list(
+    function() stats::logLik(old),
+    function() stats::vcov(old),
+    function() stats::predict(old),
+    function() generics::augment(old),
+    function() generics::tidy(old),
+    function() generics::glance(old)
+  )) {
+    err <- rlang::catch_cnd(call())
+    expect_s3_class(err, "error")
+    expect_false(inherits(err, "rlang_error"))
+  }
+
+  # The diagnostic generics have a goldfish `default` method that names what a
+  # diagnosable object is, so they answer with goldfish's message rather than
+  # R's. That is better than either stub, and needs none.
+  expect_error(test_gof(old), class = "rlang_error")
+  expect_error(diagnose_outliers(old), class = "rlang_error")
+})
+
+test_that("coef/residuals/fitted return NULL on the retired class", {
+  # KNOWN GAP, pinned so it is visible rather than discovered. These three
+  # generics have a base `default` method that reads a component off the list
+  # and returns NULL when it is absent, so no dispatch error is raised and the
+  # retired class produces a silent NULL -- the failure mode the staleness
+  # machinery exists to prevent, in the one place the design assumed R would
+  # raise for us.
+  #
+  # Accepted, not deferred (design D4, amended 2026-09-06): the stub set stays
+  # at two rather than growing a maintained compatibility surface on a name
+  # that exists only as a gravestone. `coef()` returning NULL on a fit the user
+  # must re-fit anyway is the smaller harm. This test keeps the gap visible; if
+  # a later change widens the stub set, it fails and should be deleted.
+  old <- old_cran_fit()
+  expect_null(stats::coef(old))
+  expect_null(stats::residuals(old))
+  expect_null(stats::fitted(old))
+})
+
+test_that("the stub tells the two populations apart", {
+  # A released goldfish (<= 1.7.0) recorded no epoch AND used the old component
+  # names, so it is told both things. A fit saved from the development line
+  # records the current epoch and lost only its class name -- telling that user
+  # their components were renamed would send them hunting for a change that
+  # never happened.
+  released <- old_cran_fit()
+  dev_line <- old_cran_fit()
+  dev_line$fit_version <- FIT_VERSION
+
+  expect_identical(retired_result_class_status(released), "outdated")
+  expect_identical(retired_result_class_status(dev_line), "retired_class")
+
+  released_message <- conditionMessage(rlang::catch_cnd(print(released)))
+  dev_message <- conditionMessage(rlang::catch_cnd(print(dev_line)))
+  expect_false(identical(released_message, dev_message))
+
+  # The load-bearing assertion: the current-epoch object is never told its
+  # components were renamed.
+  expect_match(released_message, "components of a fitted model were renamed")
+  expect_no_match(dev_message, "renamed")
+  expect_match(dev_message, "class .* was retired")
+})
+
+test_that("the retired-class messages name the cause and the fix", {
+  withr::local_options(cli.num_colors = 1L, cli.width = 72L)
+  local_reproducible_output()
+  released <- old_cran_fit()
+  dev_line <- old_cran_fit()
+  dev_line$fit_version <- FIT_VERSION
+  expect_snapshot(print(released), error = TRUE)
+  expect_snapshot(summary(dev_line), error = TRUE)
 })

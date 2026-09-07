@@ -9,18 +9,18 @@
 #'
 #' Printing functions for `goldfish` objects.
 #'
-#' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
+#' @param x an object of class `goldfishFit`, `goldfishSummFit`,
 #' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
-#' `preprocessed.goldfish`.
+#' `goldfishStat`.
 #' @param digits minimal number of significant digits, see [print.default()].
 #' @param width controls the maximum number of columns on a line used in
-#' printing `summary.result.goldfish` and `preprocessed.goldfish`,
+#' printing `goldfishSummFit` and `goldfishStat`,
 #' see  [print.default()].
 #' @param complete logical. Indicates whether the parameter coefficients
 #' of effects held fixed during estimation (via `offset()`) should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
-#' `result.goldfish` and `summary.result.goldfish`.
-#' @param compact logical. For objects of class `summary.result.goldfish`,
+#' `goldfishFit` and `goldfishSummFit`.
+#' @param compact logical. For objects of class `goldfishSummFit`,
 #' when `TRUE` (the default) a single coefficients table is printed whose row
 #' labels are compact term strings and the separate "Effects details" table is
 #' omitted; when `FALSE` the "Effects details" table is printed before the
@@ -39,13 +39,13 @@ NULL
 
 # Print Goldfish results
 # @return prints just the coefficients of the estimated model.
-#   See \code{\link{print.summary.result.goldfish}} for a more
+#   See \code{\link{print.goldfishSummFit}} for a more
 #   comprehensible output.
 #' @importFrom stats coef
 #' @export
 #' @rdname print-method
-#' @method print result.goldfish
-print.result.goldfish <- function(
+#' @method print goldfishBaseFit
+print.goldfishBaseFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -72,10 +72,10 @@ print.result.goldfish <- function(
   invisible(x)
 }
 
-#' @method summary result.goldfish
+#' @method summary goldfishBaseFit
 #' @export
 #' @noRd
-summary.result.goldfish <- function(object, ...) {
+summary.goldfishBaseFit <- function(object, ...) {
   abort_if_stale_result(object, "a summary")
   nParams <- object$n_params
 
@@ -115,17 +115,34 @@ summary.result.goldfish <- function(object, ...) {
   object$coef_mat <- coefmat
   object$AIC <- stats::AIC(object)
   object$BIC <- stats::BIC(object)
-  class(object) <- "summary.result.goldfish"
+  class(object) <- "goldfishSummFit"
   return(object)
   # format.pval()
 }
 
 #' @export
+#' @method summary goldfishFlavFit
+#' @noRd
+summary.goldfishFlavFit <- function(object, ..., flavor = NULL) {
+  # A summary is not a table, so the container answers the way `coef()` and
+  # `vcov()` do: a list named by process label, unwrapped to the ordinary
+  # single-fit shape when `flavor =` leaves one process. Each element is a
+  # `goldfishSummFit`, so printing the list reaches the existing print method
+  # per process rather than needing a summary class of its own.
+  flavored_component_apply(
+    object,
+    flavor,
+    function(fit) summary(fit, ...),
+    "summary"
+  )
+}
+
+#' @export
 #' @rdname print-method
-#' @return For objects of class `result.goldfish` and `summary.result.goldfish`
+#' @return For objects of class `goldfishFit` and `goldfishSummFit`
 #'  print the estimated coefficients when `complete = FALSE`, otherwise it
 #'  includes also the fixed coefficients.
-#' For `summary.result.goldfish` print:
+#' For `goldfishSummFit` print:
 #' \item{Effect details:}{a table with additional information of the effects.
 #' The information corresponds to the  values of the effects arguments when
 #' they are modified and if they where fixed during estimation, see
@@ -140,7 +157,7 @@ summary.result.goldfish <- function(object, ...) {
 #'   in the last iteration. Information criteria as the AIC, BIC and the AIC
 #'   corrected for small sample size AICc are reported.}
 #' \item{Model and sub_model:}{the values set during estimation.}
-print.summary.result.goldfish <- function(
+print.goldfishSummFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -162,7 +179,9 @@ print.summary.result.goldfish <- function(
 
   if (!complete && any(isFixed)) {
     names <- detail_display_table(x$names[!isFixed, , drop = FALSE])
-    coefMat <- x$coef_mat[!isFixed, ]
+    # `drop = FALSE`: a fit left with one free coefficient would otherwise
+    # hand `printCoefmat()` the four statistics as a bare vector.
+    coefMat <- x$coef_mat[!isFixed, , drop = FALSE]
   } else {
     names <- detail_display_table(x$names)
     coefMat <- x$coef_mat
@@ -413,11 +432,11 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
 
 #' @export
 #' @rdname print-method
-#' @return For objects of class `specification.goldfish` print a single-glance
-#'   overview of the model, dependent process, and formulas.
-print.specification.goldfish <- function(x, ...) {
+#' @return For objects of class `goldfishSpec` print a single-glance overview
+#'   of the model, dependent process, and formulas.
+print.goldfishSpec <- function(x, ...) {
   submodels <- names(x$submodels)
-  cli::cli_rule(left = "{.cls specification.goldfish}")
+  cli::cli_rule(left = "{.cls goldfishSpec}")
   cli::cli_text("Model {.val {x$model}} · sub-model{?s} {.field {submodels}}")
 
   dep <- x$dependent
@@ -680,9 +699,9 @@ print_flavor_processes <- function(x) {
 # layer or flavor name containing a dot or colliding with another cannot be
 # mistaken for structure.
 #' @export
-#' @method print flavored_result.goldfish
+#' @method print goldfishFlavFit
 #' @noRd
-print.flavored_result.goldfish <- function(
+print.goldfishFlavFit <- function(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
@@ -690,7 +709,7 @@ print.flavored_result.goldfish <- function(
   complete = FALSE
 ) {
   map <- x$process_map
-  cli::cli_rule(left = "{.cls flavored_result.goldfish}")
+  cli::cli_rule(left = "{.cls goldfishFlavFit}")
   cli::cli_text(
     "Model {.val {x$model}} · layer {.val {x$layer}} ·
      {length(x$flavors)} flavor{?s}"
@@ -729,12 +748,20 @@ print.flavored_result.goldfish <- function(
   invisible(x)
 }
 
+# The two producers print under their own methods rather than through one
+# method branching on `is.environment()`. `as_goldfish()` stamps a stocnet-
+# shaped list with `goldfishData`; `make_data()` and the DyNAM-i path build the
+# legacy environment, which keeps `data.goldfish`. The branch is gone, so
+# neither object can reach the other's rendering.
+#' @export
+#' @rdname print-method
+print.goldfishData <- function(x, ...) {
+  print_data_goldfish_list(x, ...)
+}
+
 #' @export
 #' @rdname print-method
 print.data.goldfish <- function(x, ...) {
-  if (!is.environment(x)) {
-    return(print_data_goldfish_list(x, ...))
-  }
   cat("Goldfish Data Environment\n")
   cat("=========================\n\n")
 
@@ -943,19 +970,33 @@ print.data.goldfish <- function(x, ...) {
   invisible(x)
 }
 
-# print preprocessed.goldfish
+# print goldfishStat
 #
-# @param x a preprocessed.goldfish object
+# @param x a goldfishStat object
 #' @export
 #' @rdname print-method
 #
 # @examples print(
 #   structure(
 #     list(formula = dep ~ inertia, dependentStatistics = numeric(20)),
-#     class = "preprocessed.goldfish"
+#     class = "goldfishStat"
 #   )
 # )
-print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
+print.goldfishStat <- function(x, ..., width = getOption("width")) {
+  # One class, several shapes. `scope` says whether this is one process or a
+  # container of them, and `storage` says where the statistics live; between
+  # them they decide what is worth showing, which is why neither needed a
+  # class string of its own.
+  if (identical(stat_scope(x), "flavored")) {
+    return(print_stat_flavored(x))
+  }
+  storage <- stat_storage(x)
+  if (identical(storage, "stack")) {
+    return(print_stat_stack(x))
+  }
+  if (identical(storage, "db")) {
+    return(print_stat_db(x))
+  }
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
   cat(" dependent events processed: ", sum(x$is_dependent == 1L), "\n")
@@ -1053,13 +1094,76 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-# Print algorithm_newton.goldfish object
+#' Render the non-pointer statistics shapes
+#'
+#' The pointer shape above lists the flat buffers estimation reads. The other
+#' three shapes hold something else -- expanded rows, a database descriptor, or
+#' several processes -- so each says what it is and how big it is, rather than
+#' describing components it does not have.
+#' @name print_stat_shapes
+#' @noRd
+print_stat_stack <- function(x) {
+  # A stack carries one row per alternative in each event's risk set, so its
+  # size is the two numbers a reader needs before joining or modeling it: how
+  # many rows, over how many events.
+  n_rows <- nrow(x$stat_all_events)
+  n_events <- length(x$n_candidates)
+  cli::cli_text("{.strong Gather stack}: statistics as expanded rows.")
+  cli::cli_ul(c(
+    "{n_rows} row{?s} over {n_events} event{?s}",
+    "statistic{?s}: {.val {x$names_effects}}"
+  ))
+  if (isTRUE(x$has_intercept)) {
+    cli::cli_alert_info(
+      "Exact-time sub-model: carries the time intercept and the
+       right-censored rows."
+    )
+  }
+  invisible(NULL)
+}
+
+#' @rdname print_stat_shapes
+#' @noRd
+print_stat_db <- function(x) {
+  cli::cli_text("{.strong Statistics in a database}, not in memory.")
+  cli::cli_ul(c(
+    "table{?s}: {.val {unname(x$db_tables)}}",
+    "{x$n_rows} row{?s} x {x$n_parameters} parameter{?s}"
+  ))
+  cli::cli_alert_info(
+    "Read them with the connection in {.code $db}; this object is a
+     descriptor."
+  )
+  invisible(NULL)
+}
+
+#' @rdname print_stat_shapes
+#' @noRd
+print_stat_flavored <- function(x) {
+  process_map <- attr(x, "process_map")
+  storage <- stat_storage(x)
+  cli::cli_text(
+    "{.strong Statistics for {nrow(process_map)} process{?es}}
+     ({.field {storage}} storage)."
+  )
+  cli::cli_ul(paste0(
+    "{.val ",
+    process_map$flavor,
+    "} ({.field ",
+    process_map$family,
+    "})"
+  ))
+  cli::cli_alert_info("Index by fid: {.code x[[{.val {names(x)[1]}}]]}.")
+  invisible(NULL)
+}
+
+# Print goldfishAlgoNewton object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `algorithm_newton.goldfish`, print a summary
+#' @return For objects of class `goldfishAlgoNewton`, print a summary
 #'   of the estimation algorithm options.
-print.algorithm_newton.goldfish <- function(x, ...) {
-  cat("Estimation Algorithm Options (algorithm_newton.goldfish):\n")
+print.goldfishAlgoNewton <- function(x, ...) {
+  cat("Estimation Algorithm Options (goldfishAlgoNewton):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {
@@ -1086,13 +1190,13 @@ print.algorithm_newton.goldfish <- function(x, ...) {
   invisible(x)
 }
 
-# Print preprocessing.goldfish object
+# Print goldfishPrepCtrl object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `preprocessing.goldfish`, print a summary
+#' @return For objects of class `goldfishPrepCtrl`, print a summary
 #'   of the preprocessing control options.
-print.preprocessing.goldfish <- function(x, ...) {
-  cat("Preprocessing Control Options (preprocessing.goldfish):\n")
+print.goldfishPrepCtrl <- function(x, ...) {
+  cat("Preprocessing Control Options (goldfishPrepCtrl):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {
@@ -1120,9 +1224,9 @@ generics::tidy
 # tidy <- function(x) UseMethod("tidy")
 # # just for testing, don't use because overwrites use in other packages
 
-#' @method tidy result.goldfish
+#' @method tidy goldfishBaseFit
 #' @export
-tidy.result.goldfish <- function(
+tidy.goldfishBaseFit <- function(
   x,
   conf.int = FALSE,
   conf.level = 0.95,
@@ -1131,7 +1235,7 @@ tidy.result.goldfish <- function(
   ...
 ) {
   isFixed <- GetFixed(x)
-  coefMat <- summary.result.goldfish(x)$coef_mat
+  coefMat <- summary(x)$coef_mat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf.int) {
@@ -1180,7 +1284,10 @@ tidy.result.goldfish <- function(
       result <- cbind(result, tibble::as_tibble(confIntervalComplete))
     }
   } else {
-    coefMat <- coefMat[!isFixed, ]
+    # `drop = FALSE`: with one free coefficient the matrix would collapse to a
+    # length-4 vector, and the tibble would come back as a single `value`
+    # column of four rows instead of one row of four statistics.
+    coefMat <- coefMat[!isFixed, , drop = FALSE]
     result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
 
     if (conf.int) result <- cbind(result, tibble::as_tibble(confInterval))
@@ -1189,15 +1296,28 @@ tidy.result.goldfish <- function(
   return(tibble::as_tibble(result))
 }
 
+#' @export
+#' @method tidy goldfishFlavFit
+#' @noRd
+tidy.goldfishFlavFit <- function(x, ...) {
+  # A tidy return, so the identity travels as columns and the coefficient
+  # columns stay positionally stable against a single-process fit's -- the same
+  # convention `augment()` and `model_terms()` follow on this class.
+  tables <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(tidy(process$fit, ...), process)
+  })
+  do.call(rbind, tables)
+}
+
 #' @importFrom generics glance
 #' @export
 generics::glance
 # glance <- function(x) UseMethod("glance")
 # just for testing, don't use because overwrites use in other packages
 
-#' @method glance result.goldfish
+#' @method glance goldfishBaseFit
 #' @export
-glance.result.goldfish <- function(x, ...) {
+glance.goldfishBaseFit <- function(x, ...) {
   with(
     summary(x),
     tibble::tibble(
@@ -1222,6 +1342,20 @@ glance.result.goldfish <- function(x, ...) {
   )
 }
 
+#' @export
+#' @method glance goldfishFlavFit
+#' @noRd
+glance.goldfishFlavFit <- function(x, ...) {
+  # One row per process rather than one row for the container: the fit
+  # statistics are per process, and a single row would have to either pick one
+  # process's or invent a pooled quantity. `logLik()` on the container is where
+  # the joint value lives, since the processes factorize.
+  rows <- lapply(flavored_processes(x), function(process) {
+    append_process_identity(glance(process$fit, ...), process)
+  })
+  do.call(rbind, rows)
+}
+
 #' @importFrom generics augment
 #' @export
 generics::augment
@@ -1241,7 +1375,7 @@ generics::augment
 #' `.resid`: it realizes no outcome, so a fitted outcome probability and its
 #' deviance are not defined there.
 #'
-#' @param x a fitted model of class `"result.goldfish"`.
+#' @param x a fitted model of class `"goldfishFit"`.
 #' @param ... Additional arguments passed to or from other methods
 #'   (currently unused).
 #'
@@ -1262,11 +1396,11 @@ generics::augment
 #' )
 #' augment(fit)
 #'
-#' @seealso [residuals.result.goldfish()] and [fitted.result.goldfish()] for
+#' @seealso [residuals.goldfishFit()] and [fitted.goldfishFit()] for
 #'   the same quantities on their own, and the other types they come in.
-#' @method augment result.goldfish
+#' @method augment goldfishFit
 #' @export
-augment.result.goldfish <- function(x, ...) {
+augment.goldfishFit <- function(x, ...) {
   # Aborts: the per-event column it appends comes from `interval_log_lik`, so on
   # an old object it would hand back a tibble with a column of NULL-turned-NA
   # rather than the per-event log-likelihood it promises.
@@ -1324,9 +1458,9 @@ augment.result.goldfish <- function(x, ...) {
 }
 
 #' @export
-#' @method augment flavored_result.goldfish
+#' @method augment goldfishFlavFit
 #' @noRd
-augment.flavored_result.goldfish <- function(x, ...) {
+augment.goldfishFlavFit <- function(x, ...) {
   # A tidy return, so the identity travels as columns rather than as a list:
   # the per-process tables row-bind and gain `flavor` and `family` appended
   # after the existing columns. That keeps the event columns positionally
@@ -1344,16 +1478,16 @@ augment.flavored_result.goldfish <- function(x, ...) {
 
 #' @return The object, invisibly.
 #' @rdname diagnose
-#' @method print diagnose_outliers
+#' @method print goldfishOutliers
 #' @export
-print.diagnose_outliers <- function(x, ...) {
+print.goldfishOutliers <- function(x, ...) {
   print_diagnose_table(x, x$outlier, "outlier")
 }
 
 #' @rdname diagnose
-#' @method print diagnose_changepoints
+#' @method print goldfishChangepoints
 #' @export
-print.diagnose_changepoints <- function(x, ...) {
+print.goldfishChangepoints <- function(x, ...) {
   print_diagnose_table(x, x$cpt, "changepoint")
 }
 

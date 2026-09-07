@@ -61,9 +61,9 @@ test_that("bridge event streams equal the constructor path", {
   expect_equal(attr(past, "order"), attr(pastupdates_DyNAMi, "order"))
 
   # And the update classes the monolith dispatches on.
-  expect_s3_class(dep, "interaction.groups.updates")
-  expect_s3_class(exo, "interaction.groups.updates")
-  expect_s3_class(past, "interaction.network.updates")
+  expect_s3_class(dep, "goldfishInterGrp")
+  expect_s3_class(exo, "goldfishInterGrp")
+  expect_s3_class(past, "goldfishInterNet")
 })
 
 test_that("the dependent object is a dependent.goldfish on the focal network", {

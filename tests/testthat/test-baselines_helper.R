@@ -31,7 +31,7 @@ test_that("baselines_cores is serial for an unusable TESTTHAT_CPUS", {
 # the fresh-fit path is covered without a full grid refit -- so a rename fails
 # here instead of rotting in a script.
 
-# Classed `result.goldfish` so baselines_build()'s coef() / logLik() calls go
+# Classed `goldfishFit` so baselines_build()'s coef() / logLik() calls go
 # through the package's own methods, which is what the real loop exercises.
 fake_fit <- function(log_lik) {
   structure(
@@ -51,7 +51,7 @@ fake_fit <- function(log_lik) {
         stringsAsFactors = FALSE
       )
     ),
-    class = "result.goldfish"
+    class = c("goldfishFit", "goldfishBaseFit")
   )
 }
 
