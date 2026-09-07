@@ -13,8 +13,10 @@ context: |
     regeneration to a final cleanup task.
   - Folds (DESCRIPTION Version bump, NEWS.md, /opsx:archive, baseline
     refreezes, the versions ledger) happen ONLY at a merge into an
-    integration branch — develop, or main for hotfixes (currently
-    refactor/rate_prep until the branching model normalizes). Work done
+    integration branch — develop, or main for hotfixes. (Until
+    2026-09-07 this read "currently refactor/rate_prep until the
+    branching model normalizes"; rate_prep is now fully contained in
+    develop, so develop is the integration branch.) Work done
     directly on the integration branch keeps the old per-phase-milestone
     bump (precedent: 1.7.2/1.7.3). On any other branch a milestone
     instead writes one fragment file to NEWS.d/ (protocol in

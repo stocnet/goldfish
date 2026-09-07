@@ -44,10 +44,17 @@ ledger + its three tooling scripts. Project-specific notes:
   scenario structure but **not** `##` section placement, so a `## MODIFIED`
   block naming a requirement the living spec does not have validates cleanly and
   then lands as an ADD at archive, leaving the old wording in place beside the
-  new one. The check understands `## RENAMED` blocks (either side resolving is
-  enough), so it neither flags a legitimate rename nor breaks when re-run on an
-  already-archived change via `archive/<date>-<name>`. A non-zero exit is a
-  reason to fix the delta before syncing, not to skip the step.
+  new one. The check understands `## RENAMED` blocks: a `## MODIFIED`/`##
+  REMOVED` header naming either side of a declared rename is satisfied when
+  either side resolves, so a legitimate rename is not flagged. The rename block
+  **itself** is stricter — its `FROM` header must be in the living spec, because
+  that is the side `openspec archive` resolves, and it aborts the entire archive
+  when `FROM` is missing. (Tightened 2026-09-07: the looser rule let
+  `class-naming-scheme` pass this check and then kill the archive, its rename
+  having already been applied to the living spec by hand.) On an
+  `archive/<date>-<name>` re-run `FROM` is gone by construction, so the `TO`
+  side is accepted there and the check still does not cry wolf. A non-zero exit
+  is a reason to fix the delta before syncing, not to skip the step.
 
 - **Workflow disciplines are authoritative in `openspec/config.yaml`**: commit-per-task,
   run `devtools::document()` inline when roxygen/exports/signatures change, bump
