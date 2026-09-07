@@ -763,7 +763,20 @@ coef_layout.goldfishParams <- function(x, ...) {
 #' @method coef_layout goldfishFit
 #' @rdname coef_layout
 coef_layout.goldfishFit <- function(x, ...) {
-  refuse_fit_generic("coef_layout", "goldfishFit")
+  # Refused rather than left without a method: a layout over one process would
+  # be an invented shape, not a smaller one, and "no applicable method" says
+  # nothing about why. The condition class is matched by tests and by callers
+  # that want to tell a refusal from a failure.
+  cli::cli_abort(
+    c(
+      "{.fn coef_layout} is not defined for a {.cls goldfishFit} object.",
+      "x" = "A single-process fit has no per-process blocks: the layout is a
+             coefficient surface over the fids of a joint specification.",
+      "i" = "Use {.fn coef} for the coefficient vector, or {.fn coef_layout}
+             on the joint fit this process belongs to."
+    ),
+    class = "goldfish_generic_refused"
+  )
 }
 
 #' @export

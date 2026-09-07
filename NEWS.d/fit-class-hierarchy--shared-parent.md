@@ -17,7 +17,8 @@
     `logLik()` and `model_terms()` are registered on the parent, so calling
     one by its full method name (`coef.goldfishFit()`) no longer resolves.
   * Which generics a fit class inherits, overrides or refuses is recorded in
-    `inst/fit-class-contract.csv` and enforced by a test.
+    the project's specification; a test enforces that a generic reaching one
+    fit class reaches them all.
 * `coef_layout()` on a single-process fit now aborts with a reason instead of
   giving R's "no applicable method": it describes a coefficient surface over
   the processes of a joint specification, which one process does not have.
