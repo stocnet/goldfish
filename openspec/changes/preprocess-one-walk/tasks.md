@@ -31,9 +31,19 @@
       sites; the C++ engines already mutate in place through
       `src/broadcast_updates.cpp`, and the `cpp-recompile` skill applies to any
       `src/` edit. Measured on the same shape: 3.67 ms/event -> 0.02 ms/event,
-      no copy at all. Argue the mutation hazard explicitly in the commit — a C++
-      write bypasses R's copy semantics, so any other live reference to the
-      matrix would see it. The pure-R alternative, should that hazard prove
+      no copy at all. **Clear the aliasing sites before the write lands**, since
+      a C++ write bypasses R's copy semantics and any other live reference sees
+      it: (i) `ds_impute_missing()` caches an imputed matrix in
+      `src$net_override[[name]]` and `ds_network()` returns that same object on
+      every later call, so two containers from one source share the SEXP — it
+      needs `NA` in a network, so no frozen baseline covers it; (ii)
+      `init_DyNAM_choice.four()` returns `list(cache = network, stat = network)`
+      on an edgeless network, aliasing the effect cache to the state matrix;
+      (iii) confirm the legacy `ds_network.goldfishSourceEnvir()` path really
+      duplicates at its `attributes()<-`, since a write reaching the user's own
+      object is the worst of the three. Each needs its own regression test —
+      the baselines are not the detector, because none of their models reaches
+      these paths. The pure-R alternative, should that hazard prove
       real, is slice-passing (hand the closure only the row/column it needs,
       measured at 0.02 ms/event against 0.48 for the whole matrix), which is
       safe but changes the effect-update contract across every effect in three

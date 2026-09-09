@@ -234,7 +234,33 @@ model families, on the code path the frozen 1e-6 baselines cover.
 
 Task 0.4 takes the C++ route for that reason: it is the one that can land
 without touching the effect contract. Slice-passing is recorded here as the
-pure-R alternative if the mutation hazard turns out to be real.
+pure-R alternative, to be reached for only if the in-place write cannot be made
+safe.
+
+**The safety argument is about aliasing, and two sites already alias.** An
+in-place write is correct exactly when nothing else holds a live reference to
+the matrix expecting it not to change. Two places in the tree do:
+
+- `ds_impute_missing()` stores an imputed matrix in `src$net_override[[name]]`,
+  and `ds_network()` then returns *that same object* on every later call. Two
+  state containers built from one source would share the SEXP, so a write
+  through one would be visible in the other and would corrupt the override
+  itself. It triggers only when a network carries `NA`, which is why neither
+  Social Evolution nor CollegeMsg would surface it.
+- `init_DyNAM_choice.four()` returns `list(cache = network, stat = network)` on
+  an edgeless network, so the effect cache aliases the state matrix. Today the
+  cache holds a frozen snapshot; under an in-place write it would follow the
+  state.
+
+Neither is exercised by the frozen baselines' models, so the baselines are not
+the detector here. Task 0.4 clears both explicitly, and the ordinary path
+(`ds_network()` on a stocnet without `NA`) materializes a fresh matrix per call
+and is safe.
+
+The legacy `ds_network.goldfishSourceEnvir()` path returns `get()` from the
+user's environment and then assigns `attributes()`, which duplicates while the
+object is shared; confirm that rather than assume it, since a write reaching the
+user's own object would be the worst failure of the three.
 
 Fixing it is group 0 work because the gate cannot be re-read until it is done.
 *Rejected as the fix direction:* maintaining the linear predictor incrementally
