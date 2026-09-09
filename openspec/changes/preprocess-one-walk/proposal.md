@@ -37,7 +37,8 @@ above are fixed.
   the writer choice (`default` / `gather` / `db`) that `build_walk_engine()`
   currently hardcodes to the default writer.
 - **The per-event state copy goes, in all four places it appears** (added
-  2026-09-09, design D10). Handing the state's adjacency matrix to the effect
+  2026-09-09, design D10; the in-place write and its aliasing invariant are
+  ADR-0059). Handing the state's adjacency matrix to the effect
   closures marks it shared, so the state write that follows duplicates the whole
   matrix, every event, in the recipe loops and in the merged walk alike; the
   same pattern folds `stat_mat` in the R estimation backend and `live_stats` on

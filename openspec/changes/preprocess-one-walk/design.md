@@ -297,6 +297,11 @@ without touching the effect contract. Slice-passing is recorded here as the
 pure-R alternative, to be reached for only if the in-place write cannot be made
 safe.
 
+Landed 2026-09-09 as task 0.4c. The decision, and the standing invariant it
+rests on -- nothing else may hold a live reference to a state matrix -- are
+recorded as ADR-0059, which also answers the second of ADR-0057's open
+questions.
+
 **The safety argument is about aliasing, and two sites already alias.** An
 in-place write is correct exactly when nothing else holds a live reference to
 the matrix expecting it not to change. Two places in the tree do:
