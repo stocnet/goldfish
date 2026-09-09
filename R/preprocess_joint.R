@@ -610,6 +610,7 @@ build_merged_blocks <- function(
   }
 
   shared_objects <- build_shared_objects(units)
+  abort_merged_window_effects(units)
   for (key in names(units)) {
     units[[key]]$shared_to_local <- shared_objects$shared_to_local[[key]]
     units[[key]]$local_to_shared <- shared_objects$local_to_shared[[key]]
@@ -1121,6 +1122,45 @@ merged_route_rc <- function(engine, event_info) {
 # schedule `prepare_recipe_context()` also builds are discarded: the walk runs
 # over the ONE shared state and schedule, which every unit's effect templates
 # read by object key.
+# Abort on a windowed term BEFORE the shared state is built.
+#
+# `build_walk_engine()` carries the intended message, but it never fired: a
+# windowed term puts its derived object into the shared registry and
+# `build_state_container()` asks the source for it as if it were a real layer,
+# dying on `non-numeric matrix extent` several frames earlier. Both
+# `preprocess_joint()` and `walk_open()` go through `build_merged_blocks()`, so
+# both died there, and the lift this change plans had nothing to remove.
+#
+# The check reads `plan$derivations` rather than the effect flags because that
+# is the registry the window travels through, and it is populated for a
+# constraint atom's window as well as a formula term's.
+abort_merged_window_effects <- function(units, call = rlang::caller_env()) {
+  derived <- unlist(
+    lapply(units, function(unit) {
+      windows <- Filter(
+        function(d) identical(d$kind, "window"),
+        unit$spec_map$plan$derivations %||% list()
+      )
+      vapply(windows, `[[`, character(1), "derived_name")
+    }),
+    use.names = FALSE
+  )
+  if (length(derived) == 0) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(
+    c(
+      "The merged walk does not yet support window effects.",
+      "x" = "Windowed object{?s}: {.val {unique(derived)}}.",
+      "i" = "Preprocess through {.fn compute_statistics} for now; the merged
+             walk gains window effects when the derived objects and their
+             expiry streams enter its shared registry and schedule."
+    ),
+    call = call,
+    class = "goldfish_merged_unsupported"
+  )
+}
+
 build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   spec_map <- unit$spec_map
   loop_sub_model <- if (unit$is_sender) "rate" else "choice"

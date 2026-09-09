@@ -65,16 +65,18 @@ test_that("an unweighted degree stays unweighted over a repeated dyad", {
 })
 
 test_that("the merged walk names window effects rather than crashing", {
-  # FAILS until task 0.7. `build_walk_engine()` carries the message "The merged
-  # walk does not yet support window effects", but a windowed term puts the
-  # derived object into the merged registry and `build_shared_state()` dies
-  # first with `non-numeric matrix extent`, so the abort never fires and task
-  # 1.3 has nothing to lift.
+  # `build_walk_engine()` has always carried the message, but it never fired: a
+  # windowed term puts its derived object into the shared registry and
+  # `build_state_container()` asks the source for it as if it were a real layer,
+  # dying on `non-numeric matrix extent` several frames earlier. The abort now
+  # runs before the shared state is built, so the lift task 1.3 plans has
+  # something to remove.
+  withr::local_options(cli.width = 80, cli.num_colors = 1)
   spec <- parity_toy_spec_windowed()
 
-  expect_error(
-    suppressWarnings(preprocess_joint(single_process_joint(spec))),
-    regexp = "window"
+  expect_snapshot(
+    error = TRUE,
+    suppressWarnings(preprocess_joint(single_process_joint(spec)))
   )
 })
 

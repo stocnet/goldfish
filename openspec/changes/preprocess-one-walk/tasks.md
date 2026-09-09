@@ -366,12 +366,22 @@ step landed proves nothing.
       reconstruct `colSums(A > 0)`), 9 (window derivations deduplicate),
       10 (an unwindowed constraint is unchanged), 12 (one mask snapshot per
       recorded event).
-- [ ] 0.7 Make the window abort reachable. `build_walk_engine()` carries "The
+- [x] 0.7 Make the window abort reachable. `build_walk_engine()` carries "The
       merged walk does not yet support window effects", but a windowed term puts
       the derived object into the merged registry and `build_shared_state()`
       dies first with `non-numeric matrix extent`, so task 1.3 has nothing to
       lift until the abort fires. Test: `expect_snapshot(error = TRUE)` on a
       windowed spec through `preprocess_joint()` names window effects.
+      — done 2026-09-09 (session `goldfish-64`). `abort_merged_window_effects()`
+      runs in `build_merged_blocks()` right after the shared object registry is
+      assembled and before the shared state is built, so it fires several frames
+      ahead of the `non-numeric matrix extent` crash. It reads
+      `plan$derivations` rather than the effect flags, which is the registry a
+      window actually travels through and which now also carries a constraint
+      atom's window (task 0.5b). The message names the derived objects and
+      points at `compute_statistics()`; class
+      `goldfish_merged_unsupported`. The `build_walk_engine()` abort is left in
+      place as the second line of defence; task 1.3 lifts both.
 
 - [x] 0.8 Decide the statistics layout on the task 0.6 fixture (design D12), and
       do it before 0.4 picks where the in-place write lands. The `n1 x n2 x p`
