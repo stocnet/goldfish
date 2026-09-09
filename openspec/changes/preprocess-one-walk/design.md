@@ -490,8 +490,17 @@ decision input.
 
 ## Migration Plan
 
-Internal only. Feature branch `refactor/preprocess-one-walk` off `develop`;
-one commit per task; NEWS.d fragment under Internal; the trunk merge folds
+Internal only. Work lands on **`feature_simulation`** alongside
+`process-simulation` (decided 2026-09-09) rather than on a branch of its own:
+that branch already carries both changes' artifacts, and `process-simulation`
+task 2.0a waits on task 0.5a here, so separate branches would mean folding one
+before the other could start. ADR-0041 covers two changes on one variant branch
+— each flips to `status: landed (feature_simulation, awaiting fold)` when
+complete instead of archiving there, and the trunk merge folds both `NEWS.d/`
+fragments once. The two changes' spec deltas do not overlap, so neither declares
+`depends-on`; the dependency is code sequencing and lives in the tasks.
+
+One commit per task; NEWS.d fragment under Internal; the trunk merge folds
 (ADR-0040). Rollback is per commit; the flip commit (task 3.1) is the one to
 revert if a baseline moves, and it leaves the substrate lifts in place.
 

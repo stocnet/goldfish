@@ -23,7 +23,18 @@ step landed proves nothing.
       D10). **Verdict: no-go** — groups 1 and 2 only; group 3 waits on the
       re-run after 0.4-0.6. Numbers and scripts in
       `.plan/sp/preprocess_timing_2026-09.md`; ADR-0057.
-- [ ] 0.2 Branch `refactor/preprocess-one-walk` off `develop`; confirm no
+- [ ] 0.2 Work on **`feature_simulation`**, alongside `process-simulation`; no
+      new branch (decided 2026-09-09). That branch already carries both changes'
+      artifacts, and `process-simulation` task 2.0a waits on task 0.5a here, so
+      splitting them across branches would mean folding one before the other
+      could start. ADR-0041 covers the shape: two changes on one variant branch,
+      each flipped to `status: landed (feature_simulation, awaiting fold)` when
+      complete rather than archived there, with two `NEWS.d/` fragments the
+      trunk merge folds together. The changes' spec deltas do not overlap
+      (`flavored-processes` / `model-recipe-dispatch` / `multi-process-walk`
+      here against `fit-class-hierarchy` / `process-simulation`), so neither
+      declares `depends-on` — the dependency is code sequencing, recorded in the
+      tasks. Then: confirm no
       incremental `preprocessed=` walk path exists on the recipe loops (a
       supplied `preprocessed` skips the walk); inventory every caller of
       `run_sender_recipe_loop()`, `run_dyad_recipe_loop()` and the helpers

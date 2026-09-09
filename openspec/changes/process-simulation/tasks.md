@@ -35,6 +35,14 @@
       per step, peaking at 4.2 GB over 500 steps
 
 - [ ] 2.0 Walk-handle lifts the driver depends on (added 2026-09-07; each with
+      **(a) waits on `preprocess-one-walk` task 0.5a**, which stores the support
+      mask by its axis-union kind — wiring the mask onto the handle before that
+      would inherit one dense n1 x n2 logical per snapshot, which exhausts 24 GB
+      on a realistic node set. Both changes run on `feature_simulation`, so this
+      is task ordering on one branch, not a cross-branch fold (decided
+      2026-09-09; the two changes' spec deltas do not overlap, so neither
+      declares `depends-on`).
+      Each lift ships with
       the batch-vs-replay equality test in `test-walk_handle.R` extended to
       the lifted case): (a) user support constraints and the derived flavor
       masks maintained live on the handle, replacing the all-active
