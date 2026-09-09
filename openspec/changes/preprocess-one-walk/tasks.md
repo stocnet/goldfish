@@ -114,7 +114,7 @@ step landed proves nothing.
       over it, and it stops being harmless exactly when 0.4c lands. No value
       changes: 401 assertions across nine affected files, frozen baselines and
       C++ goldens PASS.
-- [ ] 0.4c Remove the copy at the two STATE sites (design D10). Both recipe
+- [x] 0.4c Remove the copy at the two STATE sites (design D10). Both recipe
       loops and `merged_apply_state_update()` write
       `state$networks[[key]][sender, receiver] <- replace` after the effect
       closures have bound the matrix. Inlining does not help here: the sharing
@@ -131,6 +131,26 @@ step landed proves nothing.
       repeated-dyad fixture; `bench::bench_memory()` on the CollegeMsg fixture
       falls well below today's 27.53 MB per event; the 0.4b fixtures still pass;
       frozen 1e-6 baselines and C++ goldens PASS, since no value changes.
+      — done 2026-09-09 (session `goldfish-64`), AFTER 0.4d rather than before
+      it: until the merged walk's state write actually persisted there was no
+      copy in it to remove. `src/state_write.cpp` exports `set_matrix_cells()`,
+      an in-place REALSXP writer; `state_set_tie()` in `R/preprocess_builders.R`
+      routes the three sites through it and keeps the R subassignment as the
+      fallback for a non-double matrix. On a 300-actor, 398-event fixture the
+      whole-call allocation drops: recipe rate 281 -> 8.0 MB, recipe choice
+      297 -> 23.6 MB, merged 297 -> 24.1 MB. Before, 398 events times a 0.69 MB
+      matrix was 275 of the 281 MB — the copy was 98 percent of the walk.
+      **A THIRD alias, which the design's enumeration missed.**
+      `init_DyNAM_choice.tie()` (and `inertia`, which delegates to it) returned
+      the state's own matrix as `stat` under the default identity transformer,
+      because `unname()` hands its argument back unchanged when there are no
+      names to strip. Found by auditing every effect initializer against its
+      input by object address rather than by reading them; the same audit now
+      reports no aliases at all. Fixed with an explicit `matrix()`, own test.
+      Tests: `tracemem` prints nothing across a four-event state walk; the
+      undirected write reaches both cells; 1200 assertions across fourteen
+      affected files pass, frozen baselines, C++ goldens and
+      `test-backend_parity.R` included.
 - [x] 0.4d Make the merged walk compute an unweighted degree unweighted
       (design D14). On a layer whose events accumulate, `preprocess_joint()`
       tracks WEIGHTED degree where the recipe loops track unweighted, so the two

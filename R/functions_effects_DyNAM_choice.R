@@ -227,7 +227,11 @@ init_DyNAM_choice.tie <- function(effect_fun, network, window, n1, n2, ...) {
   } else {
     stat <- 1 * (network > 0)
   }
-  return(list(stat = unname(stat)))
+  # `matrix()` rather than `unname()`: with the default identity transformer the
+  # weighted branch returns the state's own matrix, and `unname()` hands back
+  # its argument unchanged when there are no names to strip, so the statistic
+  # would alias the state. Same values, own storage.
+  return(list(stat = matrix(stat, nrow = n1, ncol = n2)))
 }
 
 #' update stat indegree using cache

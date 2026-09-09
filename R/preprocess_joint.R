@@ -824,12 +824,14 @@ merged_apply_state_update <- function(state, oid, shape, event_args, props) {
   } else if (shape == "node") {
     state[[component]][[key]][event_args$node] <- event_args$replace
   } else {
-    state$networks[[key]][event_args$sender, event_args$receiver] <-
-      event_args$replace
-    if (props$is_undirected[oid]) {
-      state$networks[[key]][event_args$receiver, event_args$sender] <-
-        event_args$replace
-    }
+    state <- state_set_tie(
+      state,
+      key,
+      event_args$sender,
+      event_args$receiver,
+      event_args$replace,
+      props$is_undirected[oid]
+    )
   }
   state
 }

@@ -249,6 +249,46 @@ imputation_message <- function(value_type) {
   }
 }
 
+# Write one tie into a state network, without duplicating the matrix.
+#
+# `state$networks[[key]][sender, receiver] <- value` copies the whole adjacency
+# matrix on every event. The effect update closures have just received that
+# matrix as an argument, which binds it to a second name and marks it shared, so
+# the write that follows duplicates it. On a 300-actor fixture the copy is 98
+# percent of the walk's allocation. Inlining the write does not help: the
+# sharing comes from the closure call, not from where the write is written.
+#
+# So the write goes through C++, which mutates the matrix directly. That steps
+# outside R's copy semantics, and is correct only because nothing else holds a
+# live reference to this matrix expecting it not to change -- the three places
+# that did were removed first, each with its own regression test. See
+# `src/state_write.cpp`.
+#
+# A non-double matrix takes the ordinary subassignment. Nothing builds one
+# today, but the fallback costs one type check and keeps a storage change from
+# turning into a silent reinterpretation.
+state_set_tie <- function(state, key, sender, receiver, value, undirected) {
+  network <- state$networks[[key]]
+  if (is.double(network)) {
+    if (undirected) {
+      set_matrix_cells(
+        network,
+        c(sender, receiver),
+        c(receiver, sender),
+        c(value, value)
+      )
+    } else {
+      set_matrix_cells(network, sender, receiver, value)
+    }
+    return(state)
+  }
+  state$networks[[key]][sender, receiver] <- value
+  if (undirected) {
+    state$networks[[key]][receiver, sender] <- value
+  }
+  state
+}
+
 build_state_container <- function(
   object_names,
   nodes,

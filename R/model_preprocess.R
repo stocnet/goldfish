@@ -852,12 +852,14 @@ run_sender_recipe_loop <- function(
         } else if (shape == "node") {
           state[[component]][[key]][event_args$node] <- event_args$replace
         } else {
-          state$networks[[key]][event_args$sender, event_args$receiver] <-
-            event_args$replace
-          if (is_undirected_net) {
-            state$networks[[key]][event_args$receiver, event_args$sender] <-
-              event_args$replace
-          }
+          state <- state_set_tie(
+            state,
+            key,
+            event_args$sender,
+            event_args$receiver,
+            event_args$replace,
+            is_undirected_net
+          )
         }
       }
     }
@@ -1753,12 +1755,14 @@ run_dyad_recipe_loop <- function(
         } else if (shape == "node") {
           state[[component]][[key]][event_args$node] <- event_args$replace
         } else {
-          state$networks[[key]][event_args$sender, event_args$receiver] <-
-            event_args$replace
-          if (is_undirected_net) {
-            state$networks[[key]][event_args$receiver, event_args$sender] <-
-              event_args$replace
-          }
+          state <- state_set_tie(
+            state,
+            key,
+            event_args$sender,
+            event_args$receiver,
+            event_args$replace,
+            is_undirected_net
+          )
         }
       }
     }

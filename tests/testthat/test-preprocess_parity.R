@@ -105,6 +105,80 @@ test_that("the walk handle advances the shared state it injects into", {
   expect_equal(handle$state$networks[["calls"]][1, 2], 2)
 })
 
+test_that("a walk never duplicates the state matrix it writes into", {
+  # The effect closures receive the adjacency matrix as an argument, which marks
+  # it shared, so the state write that follows used to duplicate the whole
+  # matrix on every event. The write goes through C++ now and mutates in place.
+  skip_if_not(capabilities("profmem"))
+
+  spec <- parity_toy_spec()
+  state <- build_state_container(
+    "calls",
+    nodes = "nodes",
+    src = new_data_source(data = parity_toy_data())
+  )
+  network <- state$networks[["calls"]]
+  on.exit(untracemem(network), add = TRUE)
+
+  traced <- capture.output(
+    {
+      invisible(tracemem(network))
+      for (event in seq_len(4L)) {
+        state <- state_set_tie(state, "calls", 1L, 2L, event, FALSE)
+      }
+      untracemem(network)
+    },
+    type = "output"
+  )
+
+  expect_equal(traced, character(0))
+  expect_equal(state$networks[["calls"]][1, 2], 4)
+})
+
+test_that("an undirected write reaches both cells", {
+  state <- build_state_container(
+    "calls",
+    nodes = "nodes",
+    src = new_data_source(data = parity_toy_data())
+  )
+
+  state <- state_set_tie(state, "calls", 2L, 4L, 7, TRUE)
+
+  expect_equal(state$networks[["calls"]][2, 4], 7)
+  expect_equal(state$networks[["calls"]][4, 2], 7)
+})
+
+test_that("an unweighted tie statistic never aliases the state matrix", {
+  # The third aliasing site, found by auditing every effect initializer against
+  # its input rather than by reading them. With the default identity
+  # transformer the weighted branch returns the state's own matrix, and
+  # `unname()` hands back its argument unchanged when there are no names to
+  # strip, so on a matrix without dimnames the statistic was the state.
+  skip_if_not(capabilities("profmem"))
+
+  network <- matrix(0, 5L, 5L)
+  network[1, 2] <- 1
+  effect_fun <- function(
+    network,
+    weighted = TRUE,
+    transformer_fn = identity,
+    is_two_mode = FALSE
+  ) {
+    NULL
+  }
+  initialized <- init_DyNAM_choice.tie(
+    effect_fun = effect_fun,
+    network = network,
+    window = NULL,
+    n1 = 5L,
+    n2 = 5L
+  )
+  on.exit(untracemem(network), add = TRUE)
+
+  expect_false(identical(tracemem(network), tracemem(initialized$stat)))
+  expect_equal(initialized$stat[1, 2], 1)
+})
+
 # ---- (b) Social Evolution, asta Copenhagen shape ---------------------------
 
 test_that("a realistic specification preprocesses identically on real data", {

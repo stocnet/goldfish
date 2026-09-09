@@ -358,6 +358,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// set_matrix_cells
+void set_matrix_cells(SEXP matrix, Rcpp::IntegerVector rows, Rcpp::IntegerVector cols, Rcpp::NumericVector values);
+RcppExport SEXP _goldfish_set_matrix_cells(SEXP matrixSEXP, SEXP rowsSEXP, SEXP colsSEXP, SEXP valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type matrix(matrixSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type rows(rowsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type cols(colsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    set_matrix_cells(matrix, rows, cols, values);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_DyNAM_MM", (DL_FUNC) &_goldfish_estimate_DyNAM_MM, 25},
@@ -373,6 +386,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_convert_composition_change", (DL_FUNC) &_goldfish_convert_composition_change, 2},
     {"_goldfish_convert_change", (DL_FUNC) &_goldfish_convert_change, 1},
     {"_goldfish_event_reductions_probe", (DL_FUNC) &_goldfish_event_reductions_probe, 10},
+    {"_goldfish_set_matrix_cells", (DL_FUNC) &_goldfish_set_matrix_cells, 4},
     {NULL, NULL, 0}
 };
 
