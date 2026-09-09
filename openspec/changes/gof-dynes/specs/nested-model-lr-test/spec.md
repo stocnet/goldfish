@@ -50,6 +50,22 @@ and caching within the call so no sequence is preprocessed twice.
   call, and reuses the cache for the `θ̂₁` and `θ̂₀` evaluations and every bootstrap
   resample
 
+### Requirement: Completed components' likelihood terms are separable
+
+The batched evaluator SHALL record the per-fid log-likelihood contribution by
+regime (modeled / completed / anchored-replay) as read from the specification's
+`process_map`, not only as one total, and the Monte-Carlo deviance and every
+likelihood-based comparison SHALL be computed over the modeled components only,
+reporting the excluded mass; a completed component's parameter-free but
+state-dependent term SHALL never enter a comparison between two fits.
+
+#### Scenario: two fits differing only in a completed flavor compare equal
+
+- **WHEN** two nested fits differ only in that one flavor's choice was completed
+  by the uniform default in one and left out of the specification in the other
+- **THEN** the deviance between them excludes the completed component's term and
+  reports it separately
+
 ### Requirement: Opt-in pool retention on the estimation surface
 
 The estimation control SHALL expose an opt-in `retain_pool` option that defaults to

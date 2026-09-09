@@ -14,8 +14,15 @@
 ## 1. Engine conversion + unification (to be detailed)
 
 - [ ] 1.1 Design the DyNAMi recipe loop (resolve design open questions 1–4).
-- [ ] 1.2 Convert DyNAMi rate preprocessing to the recipe loop; reproduce the
-      rate baseline to 1e-6.
+- [ ] 1.1a Recompute-to-delta effect adapter (design D1): a wrapper that keeps
+      the last recomputed `n1 x n2` statistic in the effect cache, recomputes on
+      the event, diffs, and emits the changed cells as delta rows (`changes` +
+      cache) in the shape the recipe consumers accept. Apply it to every
+      DyNAM-i rate and choice effect unchanged; test that the adapted effect's
+      emitted deltas, folded, reproduce the monolith's per-event statistics
+      byte-for-byte on the RFID fixture. No effect body changes in this task.
+- [ ] 1.2 Convert DyNAMi rate preprocessing to the recipe loop over the adapted
+      effects; reproduce the rate baseline to 1e-6.
 - [ ] 1.3 Convert DyNAMi choice preprocessing to the recipe loop; fold in
       `cleanInteractionEvents` (order correction, windowed-interaction tagging,
       `subType`); reproduce the choice baseline to 1e-6.

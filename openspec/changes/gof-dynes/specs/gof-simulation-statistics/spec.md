@@ -49,9 +49,12 @@ Simulation for the goodness-of-fit SHALL fix every event time — both the obser
 times and the sampled PE times — and redraw only the sender–receiver–flavor tuple at
 each time stamp, constraining the flavor at each stamp to the flavors of the layer
 that owns that stamp (`φ ∈ 𝓕(X₁)` at an RE stamp, `φ ∈ 𝓕(X₂)` at a PE stamp), so
-each layer is simulated in isolation. The constrained augmenters used for estimation
-MUST NOT be used for this simulation, because they only ever reproduce observed
-changes.
+each layer is simulated in isolation. This SHALL be the time-anchored variant of
+the general simulator (`simulate(times = "observed")`) driven with a
+layer-restricted mark step, not a separate simulation mode, and the
+documentation SHALL use the vocabulary "time-anchored" for it. The constrained
+augmenters used for estimation MUST NOT be used for this simulation, because
+they only ever reproduce observed changes.
 
 #### Scenario: Flavor constrained to the owning layer
 
@@ -64,6 +67,28 @@ changes.
 - **WHEN** a sequence is simulated for the goodness-of-fit
 - **THEN** the set of event times equals the fixed input times exactly, and only the
   sender, receiver, and flavor of each event are resampled
+
+### Requirement: Capped replicates and unmodeled components are excluded from the statistics pool
+
+The goodness-of-fit SHALL read, from each simulated sequence, the capped flag
+the explosion guard sets and the per-component regime record (modeled /
+completed / anchored-replay), and SHALL exclude capped replicates from the
+statistics pool by default, reporting their count in aggregate; auxiliary
+statistics that touch a completed or replayed component SHALL be excluded from
+the comparison and named in the result rather than silently included.
+
+#### Scenario: capped replicates are reported, not pooled
+
+- **WHEN** 3 of 200 simulated sequences carry the capped flag
+- **THEN** the statistics pool holds 197 sequences and the result reports
+  "3 of 200 replicates hit the guard"
+
+#### Scenario: a statistic on a completed component is excluded
+
+- **WHEN** a flavor's choice was completed with the uniform default and an
+  auxiliary statistic reads that flavor's receiver structure
+- **THEN** that statistic is excluded from the Mahalanobis comparison and
+  listed on the result with the reason "completed component"
 
 ### Requirement: Built-in auxiliary statistics
 

@@ -22,7 +22,18 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   `walk_advance()` / `walk_evaluate()` (draw the next event) / `walk_inject()`.
   Because the handle evaluates whatever fids the composed spec carries, one
   implementation covers DyNAM, REM, and multivariate/flavored specifications;
-  DyNAM-i joins once `dynami-stocnet-boundary` settles its shape.
+  DyNAM-i joins once `refactor-dynami-engine` lands its recompute-to-delta
+  effect adapter (its D1; the `dynami-stocnet-boundary` change this bullet
+  used to name archived on 2026-07-23).
+- **Four plug points and a parameter provider** (added 2026-09-09, design
+  D11): the loop takes a `goldfishSimSteps` from an exported
+  `set_simulation_steps(parameters, clock, mark, accept)`, every slot
+  defaulting to goldfish's descriptor-keyed step, and `coef` is a provider —
+  a numeric vector, a `goldfishParams`, or `set_parameter_provider(init, at)`
+  — resolving each step to a per-fid vector or per-ego matrix. Parametric
+  clocks, the two-sided mechanisms, the DyNES augmenter and goldfish.latent's
+  random effects and hidden Markov regimes are callers of one loop; the walk
+  handle stays internal. Detail per variant in `.plan/sp/sim_variants.md`.
 - **The `times =` axis** (revised 2026-08-19, ADR-0033): every family gets both
   simulation variants — **free-running** (`times = "generated"`, default: draw
   clock and marks) and **time-anchored** (`times = "observed"`: hold the
@@ -74,15 +85,38 @@ extension); the ABEM loop and augmenters (`abmcem` / `dynes-augmentation`).
   guard, the coordination rejection scheme, flavored competing-process draws, and
   the evaluator-compatible pool output.
 
+### Modified Capabilities
+
+- `fit-class-hierarchy`: the generic-by-class verdict table gains the
+  `simulate` row (`override` on `goldfishFit` and `goldfishFlavFit`; the
+  flavored override is one competing run, the recorded exception to the
+  container fan-out shape).
+
 ## Impact
 
 - **New R surface** (experimental, cli-reported): `simulate()` S3 methods for a
   fitted result and a specification-plus-`coef`, driving the `multi-process-walk`
-  handle; NAMESPACE / roxygen regenerated per task.
-- **Consumes** `make-multivariate-spec`'s `multi-process-walk` handle
-  (`walk_open`/`advance`/`evaluate`/`inject`) and the already-landed
+  handle; the exported constructors `set_simulation_steps()` and
+  `set_parameter_provider()` (classes `goldfishSimSteps`,
+  `goldfishParamProvider`) plus a small accessor surface on the opaque handle
+  for step closures; NAMESPACE / roxygen regenerated per task.
+- **External consumer**: goldfish.latent registers `simulate()` methods on
+  its own fit classes and supplies a provider built from a posterior draw;
+  it depends on the two constructors and the accessors only.
+- **Consumes** the landed `multi-process-walk` handle (`walk_open`/`advance`/
+  `evaluate`/`inject`, class `goldfishWalk`, archived from
+  `make-multivariate-spec` 2026-08-05) and the already-landed
   `process-state-evaluators` rate/probability kernels; no new C++ expected (the
-  handle's evaluators supply rates/choices at a state).
+  handle's evaluators supply rates/choices at a state). One `walk_open()` per
+  replicate serves every fid: simulation never re-preprocesses per sub-model or
+  per flavor (design D10). The handle today refuses window effects, user
+  support constraints, node-composition changes and effect-free sub-models;
+  the first three are lifted here as substrate task 2.0, the fourth is
+  evaluated by the driver (design D4/D5/D8 re-grounding notes, 2026-09-07).
+- **Extends the fit verdict table** (`fit-class-hierarchy` delta): `simulate`
+  is `override` on `goldfishFit` and on `goldfishFlavFit`, the latter as one
+  competing run rather than the container's fan-out. New result class
+  `goldfishSim` (per `class-naming`).
 - **Sequencing**: after `make-multivariate-spec` (owns the walk handle); before
   (and consumed by) `dynes-augmentation` — `augment_seq_sim()` shares this
   change's per-step drawing core — and `gof-dynes`, whose simulation-based
