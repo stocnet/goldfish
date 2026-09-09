@@ -486,6 +486,53 @@ of the loop, the duplication ADR-0045 was written about); making the latent
 variants goldfish's own (the regimes and deviations are goldfish.latent's
 models and its posterior draws, goldfish owns the loop).
 
+### D12 — A DyNAM step evaluates one sender's row, and the evaluators stop building an index nobody reads (added 2026-09-09)
+
+Task 1.2 measured what one replicate costs. On Social Evolution, stepping the
+whole schedule with no evaluation is 0.204 s, close to the 0.130 s the batch
+merged walk pays; adding rate evaluation costs 0.37 ms per event; adding choice
+evaluation costs 4.85 ms per event, which is 89 percent of the replicate. Two
+causes, both avoidable, and neither intrinsic to the model.
+
+**The index nobody reads.** `.pse_eval_choice()` returns its probabilities
+alongside `data.frame(index_i = rep(s, n2), index_j = seq_len(n2))`, and
+`walk_evaluate_choice_matrix()` keeps only `ev$value`. On Social Evolution that
+is 84 discarded frames per event, 36,876 per replay, and a profile puts
+`data.frame` and its internals (`deparse`, `make.names`, `as.data.frame.integer`,
+`pmatch`) at 75 percent of total time; matrix multiplication does not reach the
+top eighteen. Timed directly, the discarded frames are 1.732 s against 0.068 s
+for the row slices and products they accompany. The R estimation backend already
+solved this: it stores parallel integer vectors
+(`index_i_list[[e]] <- i_vec + 1L`). The index is determined by `n1`, `n2` and
+the sender, so it is derivable on demand.
+
+**The n1 - 1 rows.** DyNAM factorizes the intensity as a sender hazard times a
+receiver softmax conditional on that sender. A step therefore draws the waiting
+time from the total rate, draws the sender, and needs one row of the choice
+matrix. `walk_evaluate_choice_matrix()` calls the evaluator once per sender and
+stacks all `n1` rows, so the per-step cost is proportional to `n1` and need not
+be: Social Evolution has 84 senders, CollegeMsg 1899, where one replicate
+extrapolates to about 1.7 hours at 104 ms per step. This is specific to the
+factorized families; REM, REM-ordered and DyNAM-MM put every dyad in one
+competing set and genuinely need all `n1 x n2` values.
+
+The full-matrix path must survive either way: `test-walk_handle.R` compares the
+whole matrix against `materialize_process_state()`, and that is the
+batch-vs-replay oracle. *Open, for task 2.1 to settle:* whether
+`walk_evaluate()` grows a `sender` argument whose absence keeps today's
+full-matrix return, or a separate row-shaped entry point is added beside it and
+`walk_evaluate()` is left as the oracle's function. The first keeps one concept
+and makes the return shape depend on an argument; the second keeps two stable
+contracts at the risk of drift.
+
+*Rejected here:* maintaining the linear predictor incrementally instead of the
+statistics. It is lossy — the statistics cannot be recovered from the projection
+— and simulation output is the event sequence anyway, from which any GOF
+auxiliary statistic is recomputed by re-walking, so nothing downstream needs it.
+It survives only as an optional accelerator carried *in addition to* the
+statistics, for the dyad-competing families, and only while `coef` is fixed for
+the replicate: a per-event parameter provider (D11) invalidates it every step.
+
 ## Risks / Trade-offs
 
 - **Divergence from the batch walk** → `simulate()` is a driver over the *same*

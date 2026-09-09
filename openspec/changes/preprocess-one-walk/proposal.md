@@ -18,6 +18,12 @@ whole suite behind the one walk before `process-simulation` builds on it.
 
 ## What Changes
 
+**Scope note (2026-09-09).** The task 0.1 gate ran and returned 0.31x, but the
+ratio counts per-event matrix copies rather than architecture, so it is recorded
+as a **no-go** under design D6's above-threshold branch (D9, ADR-0057). Groups 1
+and 2 proceed; the deletion in group 3 waits on a re-run after the two defects
+above are fixed.
+
 - **The merged single-clock walk becomes the only batch preprocessing loop
   for DyNAM and REM.** Single-process, flavored, and joint specifications all
   preprocess through `build_merged_blocks()` + `run_merged_walk()`; the two
@@ -30,6 +36,18 @@ whole suite behind the one walk before `process-simulation` builds on it.
   `end_time`, including the closing right-censored row at the end time), and
   the writer choice (`default` / `gather` / `db`) that `build_walk_engine()`
   currently hardcodes to the default writer.
+- **The per-event state copy goes, in all four places it appears** (added
+  2026-09-09, design D10). Handing the state's adjacency matrix to the effect
+  closures marks it shared, so the state write that follows duplicates the whole
+  matrix, every event, in the recipe loops and in the merged walk alike; the
+  same pattern folds `stat_mat` in the R estimation backend and `live_stats` on
+  the walk handle. On CollegeMsg this is 27.5 MB per event and close to the
+  entire batch preprocessing cost.
+- **The support mask stores by its axis-union kind** (added 2026-09-09, design
+  D11). One dense n1 x n2 logical per snapshot time makes any constrained model
+  on a realistic node set exhaust memory, on every substrate. The
+  point / alter / ego / scalar classification already exists; only the storage
+  is missing.
 - **One compile stage.** `compile_recipe_spec_map()`, which mirrors the parse
   and `build_spec_map()` portion of `estimate_wrapper()` by its own comment,
   and that portion converge into one function both callers use;

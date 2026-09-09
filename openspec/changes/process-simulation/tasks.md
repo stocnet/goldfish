@@ -7,7 +7,7 @@
       — done 2026-08-19 (explore session): D2/D3 revised, D6–D9 added,
       ADR-0033/ADR-0034; residual surface items (writer sinks, output class
       name, threshold constants) settle at implementation
-- [ ] 1.2 Measure the preprocessing substrates before any dispatch flips (added
+- [x] 1.2 Measure the preprocessing substrates before any dispatch flips (added
       2026-09-08): time `preprocess_flavored()` / the recipe loops against
       `preprocess_joint()` on (a) Social Evolution with a full model (rate +
       choice, windowed and interaction terms, a support constraint) and (b)
@@ -20,6 +20,19 @@
       whether the recipe loops stay as the batch fast path or the merged walk
       becomes the single loop (design D10's ADR-0045 note); no code moves on
       this task
+      — done 2026-09-09 (session `goldfish-50`), full write-up in
+      `.plan/sp/preprocess_timing_2026-09.md`, scripts beside it. CollegeMsg
+      base model: recipe loops 219.6 s, merged 67.2 s, ratio **0.31**; Social
+      Evolution the other way, merged 1.31x-1.78x. The reversal is a per-event
+      adjacency-matrix copy present in both substrates, so the gate is recorded
+      as a **no-go** and the fixes move to `preprocess-one-walk` group 0
+      (ADR-0057). Four findings land on THIS change instead: one replay
+      replicate is 74% index `data.frame()` construction that
+      `walk_evaluate_choice_matrix()` discards; a DyNAM step needs one sender's
+      row, not the matrix (D12); `walk_open()` refuses user support constraints
+      and both merged entries crash on a windowed term before the intended
+      abort; one CollegeMsg replicate extrapolates to about 1.7 hours at 104 ms
+      per step, peaking at 4.2 GB over 500 steps
 
 - [ ] 2.0 Walk-handle lifts the driver depends on (added 2026-09-07; each with
       the batch-vs-replay equality test in `test-walk_handle.R` extended to

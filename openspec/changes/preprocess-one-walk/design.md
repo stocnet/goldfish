@@ -161,6 +161,86 @@ composition changes, effect-free sub-models) are `process-simulation`'s task
 refused only where the *live* maintenance of a derived object matters, which
 is the breakpoint API of `process-simulation` 2.0c.
 
+### D9 — The 1.10x measurement came back 0.31x and is still a no-go (added 2026-09-09)
+
+`process-simulation` task 1.2 ran on 2026-09-09. CollegeMsg, base model,
+median of three warm runs: two recipe loops 219.6 s, merged walk 67.2 s, ratio
+**0.31** against a 1.10 threshold. Social Evolution reversed it: merged 1.31x
+(windowless) and 1.78x (plain), i.e. slower.
+
+The reversal is explained by allocation. One 1899 x 1899 double matrix is
+27.51 MB; the recipe loops allocate 27.53 MB per event (rate) and 36.56 MB
+(choice), the merged walk 27.67 MB. Two loops copy the shared adjacency matrix
+once each per event because each holds its own state container; one merged walk
+copies it once. The 2-to-1 **is** the 0.31.
+
+So the measurement does not answer the question the rule asks, and this change
+takes D6's above-threshold branch: complete groups 1 and 2, **skip group 3**,
+re-run the gate once D10 and D11 land. Recorded as ADR-0057. *Rejected:* a
+"conditional go" that completes groups 1 and 2 and defers only the deletion —
+identical work, but the word recorded in this change's history is what a later
+reader quotes, and "conditional go" becomes "go".
+
+Two conditions stand beside the ratio. Parity does not hold: the merged walk
+computes weighted degree where the recipe loops compute unweighted degree on an
+accumulating layer, and every fixture in `test-preprocess_joint.R` gives each
+dyad one event, which is why the byte-identity assertions pass. And no
+full-model CollegeMsg cell exists, because a support constraint exhausts 24 GB
+on every substrate (D11).
+
+### D10 — The per-event state copy is this change's defect to fix, not the merged walk's advantage (added 2026-09-09)
+
+`call_effect_template()` hands the state's adjacency matrix to the effect
+closures through `c(list(network = state$networks[[key]], ...), event_args)` and
+`do.call()`, which marks it shared; the state write that follows,
+`state$networks[[key]][sender, receiver] <- replace`, duplicates the whole
+matrix. The cycle repeats every event, in the recipe loops and in
+`merged_apply_state_update()` alike. The sharing is transient rather than a
+saturated reference count — writes with no closure call in between are in place,
+and one call in between costs exactly one copy — so the fix is to break the
+call-then-write cycle, not to avoid saturating.
+
+An `Rcpp::NumericMatrix` in-place setter, benchmarked against the R
+subassignment on a 1899 x 1899 matrix with the same closure call between writes:
+3.67 ms per event versus 0.02 ms, and `tracemem` reports no copy at all for the
+C++ path. Against the measured 1.99 ms per event of the CollegeMsg rate loop,
+the copy is close to all of it.
+
+The same pattern sits in four places: the two recipe loops' state write,
+`merged_apply_state_update()`, the R estimation backend's per-event fold
+(`stat_mat <- .gather_apply_stat(stat_mat, ...)` in `R/cpp_interface.R`), and
+`walk_fold_engine()`'s `live_stats` fold. The C++ likelihood engines already
+mutate in place through `src/broadcast_updates.cpp`, so the fold exists twice,
+once free and once expensive.
+
+Fixing it is group 0 work because the gate cannot be re-read until it is done.
+*Rejected as the fix direction:* maintaining the linear predictor incrementally
+instead of the statistics. It is lossy — the statistics cannot be recovered from
+the projection — and it dies at estimation anyway, because Newton changes the
+parameter vector every iteration and the predictor would be rebuilt per
+iteration. It survives only as a simulation-side accelerator carried *in
+addition to* the statistics, and only for the families where every dyad competes
+(REM, REM-ordered, coordination). That belongs to `process-simulation`, not
+here.
+
+### D11 — The support mask stores by its axis-union kind, and that is a prerequisite (added 2026-09-09)
+
+`R/support_mask_maintain.R` stores one dense n1 x n2 logical per snapshot time.
+Its own header calls the axis-union storage "a memory optimization deferred to a
+later slice". At 59,835 snapshots on 1899 actors that is roughly 860 GB, and
+CollegeMsg with a support constraint exhausts the 24 GB vector limit on **every**
+substrate, the recipe loops included. It is a shipped-behavior defect on any
+realistic node set, not a merged-walk limitation.
+
+The classification already exists: `active_dyad_encoding_decide()` returns point,
+alter, ego or scalar, and `test-active_dyad_fold.R` already asserts that a
+receiver-axis constraint folds to a length-n2 vector with no dense allocation.
+Only the storage is missing — a separable mask is a vector or a scalar per
+snapshot, and its timeline is a sparse update stream like any other statistic.
+
+This lands in group 0, before `process-simulation` task 2.0a wires the mask onto
+the stepping handle, because 2.0a would otherwise inherit the dense form.
+
 ## Risks / Trade-offs
 
 - [A coefficient moves] → it cannot if the port is exact; the baselines are
