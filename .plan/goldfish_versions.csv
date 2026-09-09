@@ -5,37 +5,52 @@ version,source,repo,ref,commit,interface,pushed,notes
 1.7.2,github,stocnet/goldfish,83f4c0b,83f4c0b,new,TRUE,Rate preprocessing refactor: rate statistics stored as n1xnEffects matrix instead of n1xn1xnEffects 3D array (drops reduceMatrixToVector). Unified preprocessing output fields; new effects degree()/triangle()/global(); reserved db/db_table options. New API.
 1.7.3-prechange,github,stocnet/goldfish,b890cd0,b890cd0,new,TRUE,Commit immediately BEFORE refactor-preprocess-estimate began (parent of task 0.1 baseline commit). Pre-refactor baseline; new API with monolith preprocessing and post-hoc C++ gather_().
 1.7.4,github,stocnet/goldfish,f1a187e,f1a187e,new,TRUE,Phase A milestone bump: compute_stats() export + typed model_spec + rate_ordered sub_model + REM sub_model deprecations.
-1.7.5,github,stocnet/goldfish,fe8fc53,fe8fc53,new,FALSE,Recipes milestone bump: flat stat_mat_update buffer + recipe dispatch + preprocessed.goldfish format version. LOCAL ONLY -- push refactor/rate_prep before install.
-1.7.6,github,stocnet/goldfish,9a8363e,9a8363e,new,FALSE,Estimation milestone bump: spec-class estimation dispatch + combined C++ flat buffer. LOCAL ONLY -- push refactor/rate_prep before install.
-1.7.7,github,stocnet/goldfish,f22332b,f22332b,new,FALSE,Writers milestone bump: writer strategy + native R gather (C++ gather_() removed) + DBI streaming writer. LOCAL ONLY -- push refactor/rate_prep before install.
-develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD snapshot. New API + engines (default_c/gather_compute). No rate_ordered sub_model (order via no-intercept formula).
-1.8.0,github,stocnet/goldfish,f3d4db1,f3d4db1,new,FALSE,refactor/rate_prep HEAD: release consolidation. New API + compute_stats(output=gather|db) + rate_ordered sub_model + engines default_c/gather_compute/default. LOCAL ONLY -- push refactor/rate_prep before install.
-1.8.4,local,stocnet/goldfish,38e244e,38e244e,archive,FALSE,Archived OpenSpec change 'refactor-formula-parsing' on 2026-07-02 (version 1.8.4; Stage-2 milestone); see openspec/changes/archive/2026-07-02-refactor-formula-parsing.
-1.8.5,local,stocnet/goldfish,deb3998,deb3998,archive,FALSE,Archived OpenSpec change 'sender-interaction-terms' on 2026-07-02 (version 1.8.5); see openspec/changes/archive/.
-1.8.6,local,stocnet/goldfish,3870653,3870653,archive,FALSE,Archived OpenSpec change 'support-constraint-risk-set' on 2026-07-07 (version 1.8.6); see openspec/changes/archive/2026-07-07-support-constraint-risk-set.
-1.8.7,local,stocnet/goldfish,9148178,9148178,archive,FALSE,Archived OpenSpec change 'support-constraint-as-stat' on 2026-07-10 (version 1.8.7); see openspec/changes/archive/.
-1.8.8,local,stocnet/goldfish,6a4f3b1,6a4f3b1,archive,FALSE,Archived OpenSpec change 'refactor-likelihood-compute' on 2026-07-12 (version 1.8.8); see openspec/changes/archive/.
+1.7.5,github,stocnet/goldfish,fe8fc53,fe8fc53,new,TRUE,Recipes milestone bump: flat stat_mat_update buffer + recipe dispatch + preprocessed.goldfish format version. Since reachable on origin/develop; the earlier local-only note no longer applies.
+1.7.6,github,stocnet/goldfish,9a8363e,9a8363e,new,TRUE,Estimation milestone bump: spec-class estimation dispatch + combined C++ flat buffer. Since reachable on origin/develop; the earlier local-only note no longer applies.
+1.7.7,github,stocnet/goldfish,f22332b,f22332b,new,TRUE,Writers milestone bump: writer strategy + native R gather (C++ gather_() removed) + DBI streaming writer. Since reachable on origin/develop; the earlier local-only note no longer applies.
+1.8.0,github,stocnet/goldfish,f3d4db1,f3d4db1,new,TRUE,refactor/rate_prep HEAD: release consolidation. New API + compute_stats(output=gather|db) + rate_ordered sub_model + engines default_c/gather_compute/default. Since reachable on origin/develop; the earlier local-only note no longer applies.
+1.8.1,github,stocnet/goldfish,e328c0a,e328c0a,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.8.2,github,stocnet/goldfish,cd3cd4e,cd3cd4e,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.8.3,github,stocnet/goldfish,45d5595,45d5595,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.8.4,local,stocnet/goldfish,38e244e,38e244e,archive,TRUE,Archived OpenSpec change 'refactor-formula-parsing' on 2026-07-02 (version 1.8.4; Stage-2 milestone); see openspec/changes/archive/2026-07-02-refactor-formula-parsing.
+1.8.5,local,stocnet/goldfish,deb3998,deb3998,archive,TRUE,Archived OpenSpec change 'sender-interaction-terms' on 2026-07-02 (version 1.8.5); see openspec/changes/archive/.
+1.8.6,local,stocnet/goldfish,3870653,3870653,archive,TRUE,Archived OpenSpec change 'support-constraint-risk-set' on 2026-07-07 (version 1.8.6); see openspec/changes/archive/2026-07-07-support-constraint-risk-set.
+1.8.7,local,stocnet/goldfish,9148178,9148178,archive,TRUE,Archived OpenSpec change 'support-constraint-as-stat' on 2026-07-10 (version 1.8.7); see openspec/changes/archive/.
+1.8.8,local,stocnet/goldfish,6a4f3b1,6a4f3b1,archive,TRUE,Archived OpenSpec change 'refactor-likelihood-compute' on 2026-07-12 (version 1.8.8); see openspec/changes/archive/.
+1.9.0,github,stocnet/goldfish,d99dc98,d99dc98,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
 1.9.1,local,stocnet/goldfish,10ec286,10ec286,archive,FALSE,Archived OpenSpec change 'refactor-single-data-object' on 2026-07-19 (version 1.9.1); see openspec/changes/archive/.
+1.9.2,github,stocnet/goldfish,3d1a126,3d1a126,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
 1.9.3,local,stocnet/goldfish,7a69bc8,7a69bc8,archive,FALSE,Archived OpenSpec change 'flavored-processes' on 2026-07-20 (version 1.9.3); see openspec/changes/archive/.
+1.9.4,github,stocnet/goldfish,fa083e8,fa083e8,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
 1.9.5,local,stocnet/goldfish,cbc9620,cbc9620,archive,FALSE,Archived OpenSpec change 'imputation-contract' on 2026-07-22 (version 1.9.5); see openspec/changes/archive/.
 1.9.6,local,stocnet/goldfish,b8798e1,b8798e1,archive,FALSE,Archived OpenSpec change 'multimode-network-support' on 2026-07-23 (version 1.9.6); see openspec/changes/archive/.
-1.9.7,local,stocnet/goldfish,d27cb3e,d27cb3e,archive,FALSE,Archived OpenSpec change 'formula-drives-focal' on 2026-07-23 (version 1.9.7); see openspec/changes/archive/.
-1.9.8,local,stocnet/goldfish,895cba4,895cba4,archive,FALSE,Archived OpenSpec change 'dynami-stocnet-boundary' on 2026-07-23 (version 1.9.8); see openspec/changes/archive/.
-1.9.9,local,stocnet/goldfish,ec5a9d3,ec5a9d3,archive,FALSE,Archived OpenSpec change 'make-data-always-assembles' on 2026-07-23 (version 1.9.9); see openspec/changes/archive/.
-1.9.10,local,stocnet/goldfish,20a08c8,20a08c8,archive,FALSE,Archived OpenSpec change 'spec-driven-dispatch' on 2026-07-23 (version 1.9.10); see openspec/changes/archive/.
-1.9.11,local,stocnet/goldfish,5ea7beb,5ea7beb,archive,FALSE,Archived OpenSpec change 'algorithm-naming' on 2026-07-24 (version 1.9.11); see openspec/changes/archive/.
-1.9.13,local,stocnet/goldfish,12a55c9,12a55c9,archive,FALSE,Archived OpenSpec change 'backend-vocabulary' on 2026-07-25 (version 1.9.13); see openspec/changes/archive/.
-1.9.14,local,stocnet/goldfish,4468fbd,4468fbd,archive,FALSE,Archived OpenSpec change 'backend-parity' on 2026-07-26 (version 1.9.14); see openspec/changes/archive/.
-1.9.15,local,stocnet/goldfish,96c9c4d,96c9c4d,archive,FALSE,Archived OpenSpec change 'parity-followups' on 2026-07-26 (version 1.9.15); see openspec/changes/archive/.
-1.9.16,local,stocnet/goldfish,9d747ff,9d747ff,archive,FALSE,Archived OpenSpec change 'snake-case-result-components' on 2026-07-27 (version 1.9.16); see openspec/changes/archive/.
-1.9.17,local,stocnet/goldfish,2109e88,2109e88,archive,FALSE,Archived OpenSpec change 'revise-gather-output' on 2026-07-27 (version 1.9.17); see openspec/changes/archive/.
-1.9.18,local,stocnet/goldfish,a0ec963,a0ec963,archive,FALSE,Archived OpenSpec change 'fixed-parameter-contract' on 2026-07-28 (version 1.9.18); see openspec/changes/archive/.
-1.9.23,local,stocnet/goldfish,fa4f371,fa4f371,archive,FALSE,Archived OpenSpec change 'residuals-gof' on 2026-07-31 (version 1.9.23); see openspec/changes/archive/.
-1.9.27,local,stocnet/goldfish,262cbd8,262cbd8,archive,FALSE,Archived OpenSpec change 'fix-panel-rate-time-coercion' on 2026-08-04 (version 1.9.27); see openspec/changes/archive/.
-1.9.27,local,stocnet/goldfish,adc6446,adc6446,archive,FALSE,Archived OpenSpec change 'make-multivariate-spec' on 2026-08-05 (version 1.9.27); see openspec/changes/archive/.
-1.9.28,local,stocnet/goldfish,32d20ed,32d20ed,archive,FALSE,Archived OpenSpec change 'prep-diag-debug' on 2026-08-05 (version 1.9.28); see openspec/changes/archive/.
-1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,FALSE,Archived OpenSpec change 'intercept-only-rate-spec' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
-1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,FALSE,Archived OpenSpec change 'joint-parameters' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
-1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'class-naming-scheme' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
-1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'model-spec-descriptor' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
-1.9.31,local,stocnet/goldfish,951745e,951745e,archive,FALSE,Archived OpenSpec change 'fit-class-hierarchy' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+1.9.7,local,stocnet/goldfish,d27cb3e,d27cb3e,archive,TRUE,Archived OpenSpec change 'formula-drives-focal' on 2026-07-23 (version 1.9.7); see openspec/changes/archive/.
+1.9.8,local,stocnet/goldfish,895cba4,895cba4,archive,TRUE,Archived OpenSpec change 'dynami-stocnet-boundary' on 2026-07-23 (version 1.9.8); see openspec/changes/archive/.
+1.9.9,local,stocnet/goldfish,ec5a9d3,ec5a9d3,archive,TRUE,Archived OpenSpec change 'make-data-always-assembles' on 2026-07-23 (version 1.9.9); see openspec/changes/archive/.
+1.9.10,local,stocnet/goldfish,20a08c8,20a08c8,archive,TRUE,Archived OpenSpec change 'spec-driven-dispatch' on 2026-07-23 (version 1.9.10); see openspec/changes/archive/.
+1.9.11,local,stocnet/goldfish,5ea7beb,5ea7beb,archive,TRUE,Archived OpenSpec change 'algorithm-naming' on 2026-07-24 (version 1.9.11); see openspec/changes/archive/.
+1.9.12,github,stocnet/goldfish,13f3d8c,13f3d8c,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.13,local,stocnet/goldfish,12a55c9,12a55c9,archive,TRUE,Archived OpenSpec change 'backend-vocabulary' on 2026-07-25 (version 1.9.13); see openspec/changes/archive/.
+1.9.14,local,stocnet/goldfish,4468fbd,4468fbd,archive,TRUE,Archived OpenSpec change 'backend-parity' on 2026-07-26 (version 1.9.14); see openspec/changes/archive/.
+1.9.15,local,stocnet/goldfish,96c9c4d,96c9c4d,archive,TRUE,Archived OpenSpec change 'parity-followups' on 2026-07-26 (version 1.9.15); see openspec/changes/archive/.
+1.9.16,local,stocnet/goldfish,9d747ff,9d747ff,archive,TRUE,Archived OpenSpec change 'snake-case-result-components' on 2026-07-27 (version 1.9.16); see openspec/changes/archive/.
+1.9.17,local,stocnet/goldfish,2109e88,2109e88,archive,TRUE,Archived OpenSpec change 'revise-gather-output' on 2026-07-27 (version 1.9.17); see openspec/changes/archive/.
+1.9.18,local,stocnet/goldfish,a0ec963,a0ec963,archive,TRUE,Archived OpenSpec change 'fixed-parameter-contract' on 2026-07-28 (version 1.9.18); see openspec/changes/archive/.
+1.9.19,github,stocnet/goldfish,49e4ebd,49e4ebd,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.20,github,stocnet/goldfish,f0f9e42,f0f9e42,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.21,github,stocnet/goldfish,bb3509d,bb3509d,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.22,github,stocnet/goldfish,f8fc226,f8fc226,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.23,local,stocnet/goldfish,fa4f371,fa4f371,archive,TRUE,Archived OpenSpec change 'residuals-gof' on 2026-07-31 (version 1.9.23); see openspec/changes/archive/.
+1.9.24,github,stocnet/goldfish,7fdfb8c,7fdfb8c,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.25,github,stocnet/goldfish,9be3dbf,9be3dbf,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.26,github,stocnet/goldfish,a903483,a903483,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.27,local,stocnet/goldfish,262cbd8,262cbd8,archive,TRUE,Archived OpenSpec change 'fix-panel-rate-time-coercion' on 2026-08-04 (version 1.9.27); see openspec/changes/archive/.
+1.9.27,local,stocnet/goldfish,adc6446,adc6446,archive,TRUE,Archived OpenSpec change 'make-multivariate-spec' on 2026-08-05 (version 1.9.27); see openspec/changes/archive/.
+1.9.28,local,stocnet/goldfish,32d20ed,32d20ed,archive,TRUE,Archived OpenSpec change 'prep-diag-debug' on 2026-08-05 (version 1.9.28); see openspec/changes/archive/.
+1.9.29,github,stocnet/goldfish,cef56c0,cef56c0,new,TRUE,Backfilled from origin/develop DESCRIPTION history for the Euler benchmark sweep.
+1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,TRUE,Archived OpenSpec change 'intercept-only-rate-spec' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
+1.9.30,local,stocnet/goldfish,f3566b2,f3566b2,archive,TRUE,Archived OpenSpec change 'joint-parameters' on 2026-09-05 (version 1.9.30); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,TRUE,Archived OpenSpec change 'class-naming-scheme' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,TRUE,Archived OpenSpec change 'model-spec-descriptor' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+1.9.31,local,stocnet/goldfish,951745e,951745e,archive,TRUE,Archived OpenSpec change 'fit-class-hierarchy' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
+develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD snapshot. New API + engines (default_c/gather_compute). No rate_ordered sub_model (order via no-intercept formula).
