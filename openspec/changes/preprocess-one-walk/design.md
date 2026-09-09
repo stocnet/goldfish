@@ -365,9 +365,9 @@ snapshot, and its timeline is a sparse update stream like any other statistic.
 This lands in group 0, before `process-simulation` task 2.0a wires the mask onto
 the stepping handle, because 2.0a would otherwise inherit the dense form.
 
-### D12 — Open: the statistics array is not the shape utilities are computed in (added 2026-09-09)
+### D12 — The flattened matrix wins, and the list loses its one advantage to task 0.4a (added 2026-09-09, settled same day)
 
-Not decided; recorded because the answer changes what task 0.4 touches.
+Settled by task 0.8 on the fixture (b) shape and three larger ones.
 
 `initial_stats` for a dyad family is an `n1 x n2 x p` array, and the instinct is
 that this is already the right shape because a choice utility takes all
@@ -393,8 +393,41 @@ product as a single BLAS call, where the list needs `p` passes; that favours the
 matrix as `p` grows and the list when `p` is small, since it avoids the slice
 allocation entirely.
 
-Settle it with a measurement on the complex fixture of task 0.6, which has a
-realistic `p`, before task 0.4 chooses where the in-place write lands.
+**Measured, and the matrix wins on every operation at every size.** Milliseconds
+per call, `p = 14` at 84 and 400 actors, `p = 6` at 1200:
+
+| operation | n=84 | n=400 | n=1200 |
+| --- | --- | --- | --- |
+| full linear predictor, flattened matrix | 0.033 | 0.575 | 2.9 |
+| full linear predictor, list of `p` | 0.093 | 1.75 | 5.8 |
+| one sender's slice, flattened matrix | 0.003 | 0.000 | 0.000 |
+| one sender's slice, list of `p` | 0.007 | 0.000 | 0.000 |
+| one sender's slice, `n1 x n2 x p` array | 0.007 | 0.025 | 0.000 |
+| reshaping the array to the flattened matrix | 0.66 | 23.8 | 65.6 |
+
+The list's stated advantage does not survive task 0.4a. It was that
+copy-on-modify would be localized to the one effect that changed — but with the
+write left to the caller there is no copy to localize: a point update and an
+axis broadcast are both free (0.000 ms) in all three layouts, and the two
+layouts allocate identically (65.9 MB at 1200 actors). What remains is the read,
+where the matrix is twice as fast on the full product and never slower on a
+sender's slice.
+
+The array is the worst of the three and the code already knows it: the reshape
+both consumers perform is 65.6 ms per call at 1200 actors, a per-call constant
+that exists only because the stored shape is not the consumed shape.
+
+*So: the flattened `(n1*n2) x p` matrix.* **Changing what `initial_stats`
+stores is nevertheless out of group 0's scope.** That field is part of the
+`goldfishStat` contract read by estimation, by the diagnostics and by the frozen
+baselines, so restoring the reshape constant is its own change with its own
+migration, not a step inside a defect-fixing group. What this decision settles
+here is the direction, and that the list is rejected rather than deferred.
+
+It also turns out not to gate task 0.4c the way this decision assumed. The state
+write is on `state$networks[[key]]`, an n1 x n2 adjacency matrix, which is a
+different object from the statistics buffer in every candidate layout, so where
+the in-place write lands does not depend on this answer.
 
 ### D13 — A windowed constraint atom registers its derived object in the plan, like any other windowed term (added 2026-09-09, corrected same day)
 

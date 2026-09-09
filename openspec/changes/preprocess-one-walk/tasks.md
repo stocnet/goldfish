@@ -297,7 +297,7 @@ step landed proves nothing.
       lift until the abort fires. Test: `expect_snapshot(error = TRUE)` on a
       windowed spec through `preprocess_joint()` names window effects.
 
-- [ ] 0.8 Decide the statistics layout on the task 0.6 fixture (design D12), and
+- [x] 0.8 Decide the statistics layout on the task 0.6 fixture (design D12), and
       do it before 0.4 picks where the in-place write lands. The `n1 x n2 x p`
       array is not the shape utilities are computed in — both the handle and the
       C++ boundary flatten it to `(n1*n2) x p` first, and R being column-major
@@ -306,6 +306,20 @@ step landed proves nothing.
       localizes copy-on-modify to one effect, the matrix keeps the product as a
       single BLAS call. Measure both on a realistic `p`; record the numbers
       beside the task 1.2 write-up.
+      — done 2026-09-09 (session `goldfish-64`). **The flattened matrix**, and
+      the list is rejected rather than deferred. Its stated advantage does not
+      survive 0.4a: with the write left to the caller there is no
+      copy-on-modify to localize, so a point update and an axis broadcast are
+      free in all three layouts and the two allocate identically. That leaves
+      the read, where the matrix is twice as fast on the full linear predictor
+      (2.9 ms against 5.8 at 1200 actors) and never slower on a sender's slice.
+      The array is worst: reshaping it to what both consumers actually use costs
+      65.6 ms per call at 1200 actors. Numbers in D12.
+      Two scope notes. Changing what `initial_stats` STORES is out of group 0 —
+      it is part of the `goldfishStat` contract estimation, the diagnostics and
+      the frozen baselines read, so it needs its own change. And this does not
+      gate 0.4c after all: the state write is on an n1 x n2 adjacency matrix,
+      a different object from the statistics buffer in every candidate layout.
 - [ ] 0.9 Re-run the gate and record the contrast (design D9). The pre-fix
       numbers are already recorded and are NOT re-measured: CollegeMsg base
       model, recipe loops 219.6 s, merged walk 67.2 s, ratio 0.31; Social
