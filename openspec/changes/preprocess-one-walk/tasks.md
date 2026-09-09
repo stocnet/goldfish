@@ -254,7 +254,7 @@ step landed proves nothing.
       Three tests in `test-support_mask_maintain.R`;
       `test-active_dyad_fold.R`'s from-scratch check reads the vector instead of
       a row of a grid.
-- [ ] 0.5b Register a windowed constraint atom's derived object in
+- [x] 0.5b Register a windowed constraint atom's derived object in
       `plan$derivations`, like any other windowed term (design D13). A
       `window =` inside a `support_constraint` is silently ignored today:
       `~ !tie(call_network, window = 5)` and
@@ -278,6 +278,18 @@ step landed proves nothing.
       formula and a constraint windowing the same object at the same width
       resolve to ONE derived object and one expiry stream; existing unwindowed
       support-constraint fixtures unchanged.
+      — done 2026-09-09 (session `goldfish-64`). `compile_support_constraint()`
+      runs `parse_time_windows()` over the atom names with
+      `realize_windows = FALSE`, which is what both records the derivation AND
+      rewires the atom's object reference to the derived name — the rewrite is
+      the half that binds an atom to its derived object, so registering without
+      it would change nothing. `register_constraint_windows()` folds the
+      results into `plan$derivations`, deduplicated by derived identity against
+      the formula's; the realize step is untouched, which was the point.
+      Verified on the toy fixture: `~ !tie(calls)` gives 139 live cells,
+      `window = 2` gives 141, and `window = 1000` — longer than the whole
+      sequence — returns to 139, the right answer for a window that expires
+      nothing. Bug note marked fixed.
 - [x] 0.6 Parity fixtures, written BEFORE any of 0.4a-0.4e, 0.5b or group 1
       touches code (see the TDD note at the head of this file). They are the
       detector for every later step, so a fixture that does not fail today on
