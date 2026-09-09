@@ -166,11 +166,15 @@ run_dynami_monolith <- function(
 # `avg_active_entity` recomputed as the event-averaged active-sender count.
 fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
   support <- support_mask$support
+  # Stored at its axis-union kind, so a reader expands one snapshot at a time
+  # rather than holding the whole timeline dense.
+  stored_kind <- support_mask$stored_kind %||% 0L
   n_stored <- length(out$event_time)
   if (n_stored == 0L) {
     return(out)
   }
   n1 <- length(out$active_sender_init)
+  n2 <- length(active_dyad_init)
 
   # Walk the presence crossings buffer in event order to recover presence_e,
   # intersect with the per-event sender gate, and record the folded vector.
@@ -186,7 +190,8 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
       presence[upd[1L, cols]] <- as.logical(upd[2L, cols])
     }
     prev_ptr <- this_ptr
-    gate <- rowSums(support[[e]] & rep(active_dyad_init, each = n1)) > 0
+    grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+    gate <- rowSums(grid & rep(active_dyad_init, each = n1)) > 0
     folded[[e]] <- presence & gate
   }
 
@@ -1095,6 +1100,11 @@ fold_active_dyad_support <- function(
   n1 <- length(out$active_sender_init)
   n2 <- length(out$active_dyad_init)
   support <- support_mask$support
+  # Stored at its axis-union kind; expanded one snapshot at a time.
+  stored_kind <- support_mask$stored_kind %||% 0L
+  support_grid <- function(e) {
+    support_to_grid(support[[e]], stored_kind, n1, n2)
+  }
   has_opportunity <- !is.null(opportunitiesList)
   encoding <- active_dyad_encoding_decide(
     risk_set_encoding(spec),
@@ -1115,6 +1125,7 @@ fold_active_dyad_support <- function(
     return(fold_active_dyad_support_rem(
       out,
       support,
+      stored_kind,
       n1,
       n2,
       n_stored,
@@ -1134,7 +1145,7 @@ fold_active_dyad_support <- function(
     # An alter/scalar mask is column-broadcast, so any row is the alter vector.
     folded <- lapply(
       seq_len(n_stored),
-      function(e) recv[[e]] & support[[e]][1L, ]
+      function(e) recv[[e]] & support_grid(e)[1L, ]
     )
     cr <- crossings_from_vectors(folded)
     out$active_dyad_init <- cr$init
@@ -1158,7 +1169,7 @@ fold_active_dyad_support <- function(
     }
     desired <- lapply(
       seq_len(n_stored),
-      function(e) recv[[e]] & support[[e]][senders[[e]], ] & opp_row(e)
+      function(e) recv[[e]] & support_grid(e)[senders[[e]], ] & opp_row(e)
     )
     out <- build_active_dyad_point(out, recv, desired, senders, n1, n2)
   }
@@ -1175,6 +1186,7 @@ fold_active_dyad_support <- function(
 fold_active_dyad_support_rem <- function(
   out,
   support,
+  stored_kind,
   n1,
   n2,
   n_stored,
@@ -1201,7 +1213,8 @@ fold_active_dyad_support_rem <- function(
   masks <- lapply(
     seq_len(n_stored),
     function(e) {
-      m <- outer(p1[[e]], p2[[e]]) & (support[[e]] == 1)
+      m <- outer(p1[[e]], p2[[e]]) &
+        (support_to_grid(support[[e]], stored_kind, n1, n2) == 1)
       if (symmetric) {
         m <- m & t(m)
       }

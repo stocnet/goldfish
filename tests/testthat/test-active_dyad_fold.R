@@ -91,6 +91,9 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
     preprocessing_only = TRUE
   )
   supp <- prep$support_mask$support
+  # An alter-kind mask is stored as the length-n2 receiver vector, so the
+  # from-scratch check reads the vector rather than a row of a dense grid.
+  expect_equal(prep$support_mask$stored_kind, 1L)
   recv0 <- prep$support_mask$receiver_presence_init
   cur <- prep$active_dyad_init
   ptr <- prep$active_dyad_update_pointer
@@ -104,7 +107,7 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
     }
     prev <- hi
     # from-scratch: receiver presence AND the alter-broadcast support row
-    expect_identical(cur, recv0 & supp[[e]][1L, ])
+    expect_identical(cur, recv0 & supp[[e]])
   }
 })
 

@@ -52,6 +52,36 @@ support_to_grid <- function(support, mask_kind, n1, n2) {
   )
 }
 
+#' Reduce a dense support grid to its axis-union kind
+#'
+#' The inverse of [support_to_grid()], and the reason the mask timeline fits in
+#' memory. A constraint separable on one axis carries the same information in a
+#' length-n1 or length-n2 vector, or in one scalar, as it does in an n1 x n2
+#' matrix — and there is one stored mask per snapshot time, so on 1899 actors
+#' and 59,835 snapshots the dense form is about 860 GB while the alter form is
+#' 114 MB.
+#'
+#' The reduction reads one slice rather than checking the grid is really
+#' separable: the kind comes from `active_dyad_encoding_decide()`, which derives
+#' it from the atoms' broadcast kinds, so a mask that reaches here at kind 1 IS
+#' row-constant by construction.
+#'
+#' @param grid an n1 x n2 logical matrix.
+#' @param mask_kind `3` global (scalar), `2` ego (row/sender), `1` alter
+#'   (col/receiver), `0` point (dense, returned unchanged).
+#' @return the support at `mask_kind`.
+#' @noRd
+support_from_grid <- function(grid, mask_kind) {
+  switch(
+    as.character(mask_kind),
+    "3" = grid[[1L]],
+    "2" = grid[, 1L],
+    "1" = grid[1L, ],
+    "0" = grid,
+    cli::cli_abort("Unknown mask kind {.val {mask_kind}}.")
+  )
+}
+
 #' Symmetrise a point-kind mask (`mask & t(mask)`)
 #'
 #' For DyNAM `choice_coordination` and REM on an undirected network a mutual /

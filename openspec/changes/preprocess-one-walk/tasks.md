@@ -230,7 +230,7 @@ step landed proves nothing.
       the update stream; and the nodal-only case is unchanged, which is the
       control for the scope claim. `test-preprocess_parity.R` is down to two
       remaining defects (0.5b and 0.7).
-- [ ] 0.5a Store the support mask by its axis-union kind (design D11).
+- [x] 0.5a Store the support mask by its axis-union kind (design D11).
       `preprocess_support_mask()` returns one dense n1 x n2 logical per snapshot
       time; a separable constraint is a length-n1 or length-n2 vector, or a
       scalar. `active_dyad_encoding_decide()` already classifies point / alter /
@@ -238,6 +238,22 @@ step landed proves nothing.
       allocates no dense matrix, so this is storage only. Tests: existing
       support-constraint fixtures unchanged; a constrained model on a
       1899-actor node set preprocesses without exhausting memory.
+      — done 2026-09-09 (session `goldfish-64`). Storage only, as scoped, and
+      half the machinery was already there: `support_to_grid()` expands a mask
+      held at its kind and `assemble_model_mask()` already takes one, so only
+      the inverse was missing. `support_from_grid()` in `R/support_mask.R`;
+      `eval_constraint_mask()` reduces each snapshot before storing it; the six
+      reader sites expand one snapshot at a time. Measured at 1899 actors and
+      2998 snapshots, alter kind: 7.5 KB per snapshot, 21.9 MB for the timeline,
+      against 40.3 GB dense. **Symmetrising destroys separability** (`m & t(m)`
+      of a row-constant mask is an outer product), so a symmetric mask is stored
+      dense whatever its atoms say. That needed a second field rather than a
+      reinterpretation of the first: the output carries `stored_kind` beside
+      `mask_kind`, readers expand with `stored_kind`, and `mask_kind` keeps
+      meaning what it meant to `render_gather()` and the encoding decision.
+      Three tests in `test-support_mask_maintain.R`;
+      `test-active_dyad_fold.R`'s from-scratch check reads the vector instead of
+      a row of a grid.
 - [ ] 0.5b Register a windowed constraint atom's derived object in
       `plan$derivations`, like any other windowed term (design D13). A
       `window =` inside a `support_constraint` is silently ignored today:

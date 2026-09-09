@@ -147,3 +147,63 @@ test_that("a constrained model attaches support_mask; unconstrained does not", {
   # the statistics output is unchanged by attaching the mask
   expect_equal(prep_c$initial_stats, prep_u$initial_stats)
 })
+
+test_that("a separable constraint stores one vector per snapshot, not a grid", {
+  # There is one stored mask per snapshot time, so the dense form is the memory
+  # ceiling on any realistic node set: 1899 actors and 59,835 snapshots is about
+  # 860 GB dense against 437 MB as receiver vectors. The classification already
+  # existed; only the storage was missing.
+  fx <- make_mask_fixture()
+  prep <- estimate_dynam(
+    calls_dependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) >= 0
+  )
+  mask <- prep$support_mask
+  n1 <- length(mask$sender_presence_init %||% prep$active_sender_init)
+  n2 <- length(mask$receiver_presence_init)
+
+  expect_equal(mask$stored_kind, 1L)
+  expect_null(dim(mask$support[[1]]))
+  expect_length(mask$support[[1]], n2)
+  expect_equal(
+    dim(support_to_grid(mask$support[[1]], mask$stored_kind, n1, n2)),
+    c(n1, n2)
+  )
+})
+
+test_that("a dyadic constraint still stores the dense grid", {
+  # The control: a point-kind mask is not separable and must stay a matrix.
+  fx <- make_mask_fixture()
+  prep <- estimate_dynam(
+    calls_dependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ tie(call_network)
+  )
+  mask <- prep$support_mask
+
+  expect_equal(mask$stored_kind, 0L)
+  expect_equal(length(dim(mask$support[[1]])), 2L)
+})
+
+test_that("a grid round-trips through its axis-union kind", {
+  ego_grid <- matrix(c(TRUE, FALSE, TRUE), 3L, 4L)
+  alter_grid <- matrix(c(TRUE, FALSE, TRUE, TRUE), 3L, 4L, byrow = TRUE)
+
+  expect_identical(
+    support_to_grid(support_from_grid(ego_grid, 2L), 2L, 3L, 4L),
+    ego_grid
+  )
+  expect_identical(
+    support_to_grid(support_from_grid(alter_grid, 1L), 1L, 3L, 4L),
+    alter_grid
+  )
+  expect_identical(
+    support_to_grid(support_from_grid(matrix(TRUE, 3L, 4L), 3L), 3L, 3L, 4L),
+    matrix(TRUE, 3L, 4L)
+  )
+})

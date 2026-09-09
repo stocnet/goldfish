@@ -323,7 +323,13 @@ build_atom_maintainer <- function(
 #' @param symmetric symmetrise the dyad grid (coordination / undirected REM).
 #' @return an n1 x n2 logical support mask.
 #' @noRd
-eval_constraint_mask <- function(maintainer, expr, atom_labels, symmetric) {
+eval_constraint_mask <- function(
+  maintainer,
+  expr,
+  atom_labels,
+  symmetric,
+  stored_kind = 0L
+) {
   atom_values <- stats::setNames(
     lapply(atom_labels, maintainer$atom_matrix),
     paste0(".a", seq_along(atom_labels))
@@ -333,7 +339,12 @@ eval_constraint_mask <- function(maintainer, expr, atom_labels, symmetric) {
   if (symmetric) {
     m <- symmetrize_mask(m)
   }
-  m
+  # Reduced to its kind before it is stored, because there is one of these per
+  # snapshot time. The dense grid above is transient -- one matrix at a time,
+  # rebuilt per snapshot -- while the stored list is as long as the event
+  # sequence, which is what made a constrained model on a realistic node set
+  # exhaust memory on every substrate.
+  support_from_grid(m, stored_kind)
 }
 
 #' Maintain the support-constraint mask across the event sequence
@@ -385,8 +396,12 @@ preprocess_support_mask <- function(
   )
   expr <- sub_plan$expr
   atom_labels <- sub_plan$atom_labels
+  # Symmetrising can destroy separability -- `m & t(m)` of a row-constant mask
+  # is an outer product -- so a symmetric mask is stored dense whatever its
+  # atoms' axis-union says.
+  stored_kind <- if (symmetric) 0L else sub_plan$mask_kind
   eval_here <- function() {
-    eval_constraint_mask(maintainer, expr, atom_labels, symmetric)
+    eval_constraint_mask(maintainer, expr, atom_labels, symmetric, stored_kind)
   }
 
   support_init <- eval_here()
@@ -403,6 +418,10 @@ preprocess_support_mask <- function(
     support = support,
     initial = support_init,
     mask_kind = sub_plan$mask_kind,
+    # The kind the stored snapshots are AT, which the atoms' axis-union only
+    # equals when the mask is not symmetrised. Every reader expands through
+    # `support_to_grid()` with this, never with `mask_kind`.
+    stored_kind = stored_kind,
     n_stored = n_snap,
     symmetric = symmetric
   )
@@ -499,9 +518,23 @@ preprocess_pooled_support_masks <- function(
       slot[i] <- hit
     }
 
+    # Each distinct expression keeps its own stored kind: constraints sharing an
+    # atom pool need not share an axis-union.
+    stored_kinds <- vapply(
+      distinct,
+      function(con) if (symmetric) 0L else as.integer(con$mask_kind),
+      integer(1)
+    )
     eval_distinct <- function() {
-      lapply(distinct, function(con) {
-        eval_constraint_mask(maintainer, con$expr, con$atom_labels, symmetric)
+      lapply(seq_along(distinct), function(di) {
+        con <- distinct[[di]]
+        eval_constraint_mask(
+          maintainer,
+          con$expr,
+          con$atom_labels,
+          symmetric,
+          stored_kinds[[di]]
+        )
       })
     }
 
@@ -527,6 +560,7 @@ preprocess_pooled_support_masks <- function(
         support = masks[[di]][match(times, union_times)],
         initial = initial[[di]],
         mask_kind = constraints[[i]]$mask_kind,
+        stored_kind = stored_kinds[[di]],
         n_stored = length(times),
         symmetric = symmetric
       )

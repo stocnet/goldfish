@@ -1071,6 +1071,7 @@ validate_support_constraint <- function(
   process_label = NULL
 ) {
   support <- support_mask$support
+  stored_kind <- support_mask$stored_kind %||% 0L
   in_process <- if (is.null(process_label)) {
     NULL
   } else {
@@ -1084,7 +1085,8 @@ validate_support_constraint <- function(
   if (family == "choice") {
     ever_candidate <- logical(n2)
     for (e in dep) {
-      allowed <- which(support[[e]][event_sender[[e]], ] & active_2)
+      grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+      allowed <- which(grid[event_sender[[e]], ] & active_2)
       ever_candidate[allowed] <- TRUE
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
@@ -1116,7 +1118,8 @@ validate_support_constraint <- function(
   } else {
     ever_active <- logical(n1)
     for (e in dep) {
-      gate <- rowSums(support[[e]] & rep(active_2, each = n1)) > 0
+      grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+      gate <- rowSums(grid & rep(active_2, each = n1)) > 0
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {
         cli::cli_abort(c(
