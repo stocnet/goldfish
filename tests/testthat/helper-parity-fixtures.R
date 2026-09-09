@@ -377,6 +377,16 @@ parity_missing_data <- function() {
   list(info = info, nodes = nodes, ties = ties)
 }
 
+# The `replace` twin of the fixture above. A replace layer never reaches the
+# sign test that turns a missing cell into a crash, so an unimputed `NA` would
+# travel through the effect closures into the statistics instead of stopping
+# the walk. Same defect, quieter symptom.
+parity_missing_replace_data <- function() {
+  data <- parity_missing_data()
+  data$info$update <- c(calls = "replace")
+  data
+}
+
 parity_missing_spec <- function(data = parity_missing_data()) {
   make_specification(
     rate = ~ 1 + indeg + ego(a),

@@ -342,6 +342,35 @@ test_that("a network carrying NA preprocesses identically on both substrates", {
   }
 })
 
+test_that("a replace layer carrying NA keeps NA out of the statistics", {
+  # The quieter half of the same defect. A replace layer never reaches the sign
+  # test that turns an unimputed cell into a crash, so a missing value would
+  # travel through the effect closures into the statistics instead.
+  spec <- parity_missing_spec(parity_missing_replace_data())
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  for (family in c("rate", "choice")) {
+    prep <- parity_prep_by(merged, family)
+    expect_false(anyNA(prep$initial_stats))
+    expect_false(anyNA(prep$stat_mat_update))
+  }
+})
+
+test_that("a missing nodal covariate alone is unaffected", {
+  # The control for the network fix: nodal values were already recoded at walk
+  # time on the merged side, and the fix must leave that path alone.
+  data <- parity_missing_data()
+  data$ties <- data$ties[!is.na(data$ties$time), ]
+  spec <- parity_missing_spec(data)
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+  solo <- suppressWarnings(compute_statistics(spec, "DyNAM", "rate"))
+
+  expect_equal(
+    parity_strip_deco(parity_prep_by(merged, "rate")),
+    parity_strip_deco(solo)
+  )
+})
+
 test_that("two state containers never share an imputed network matrix", {
   # FAILS until task 0.4b. The first aliasing site an in-place state write
   # would expose: `ds_impute_missing()` caches the imputed matrix in

@@ -627,6 +627,18 @@ build_merged_blocks <- function(
     envir = new.env(),
     focal = units[[1L]]$spec_map$focal
   )
+  # Impute before the container is built, where the recipe path imputes it
+  # (`prepare_recipe_context()`): `ds_impute_missing()` caches the filled matrix
+  # on the source and `ds_network()` reads it back. Skipping this leaves the
+  # source's `NA` cells in the shared state, and an `increment` layer then dies
+  # resolving a replacement against one. The crash is the mild case -- a
+  # `replace` layer never reaches that test and would carry the `NA` through
+  # the effect closures into the statistics.
+  shared_src <- ds_impute_missing(
+    shared_src,
+    data.frame(row.names = shared_objects$registry$name),
+    policy = impute_policy
+  )
   state <- build_shared_state(
     units,
     shared_objects,

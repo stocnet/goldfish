@@ -195,7 +195,7 @@ step landed proves nothing.
       because its fixtures give each dyad one event and its batch-versus-replay
       contract compared two substrates frozen in the same way. Bug note updated
       with the real cause; D14 rewritten.
-- [ ] 0.4e Impute a missing network cell on the merged walk (design D15).
+- [x] 0.4e Impute a missing network cell on the merged walk (design D15).
       Found while writing task 0.6's fixture (e), which the fixture list
       expected to touch `src$net_override` for 0.4b's aliasing test and nothing
       more. A network carrying `NA` does not preprocess on the merged walk at
@@ -221,6 +221,15 @@ step landed proves nothing.
       layer carrying `NA` preprocesses without an `NA` reaching the statistics;
       the nodal-only case stays unchanged; frozen 1e-6 baselines and C++ goldens
       PASS, since no baseline model carries a missing network cell.
+      — done 2026-09-09 (session `goldfish-64`). One call, where the recipe
+      path makes it: `build_merged_blocks()` now runs `ds_impute_missing()` on
+      the shared source between `new_data_source()` and `build_shared_state()`,
+      with the registry's object names as the link and the control's policy.
+      Three tests: fixture (e) goes byte-identical on both families; a
+      `replace` layer carrying `NA` keeps `NA` out of `initial_stats` and out of
+      the update stream; and the nodal-only case is unchanged, which is the
+      control for the scope claim. `test-preprocess_parity.R` is down to two
+      remaining defects (0.5b and 0.7).
 - [ ] 0.5a Store the support mask by its axis-union kind (design D11).
       `preprocess_support_mask()` returns one dense n1 x n2 logical per snapshot
       time; a separable constraint is a length-n1 or length-n2 vector, or a
