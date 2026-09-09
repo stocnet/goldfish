@@ -1,3 +1,11 @@
+**Test-driven, and the order is load-bearing.** Task 0.6 writes every parity
+fixture before 0.4a-0.4d, 0.5b or group 1 touches code. Each fixture must fail
+today on the divergence it targets, otherwise it is not a detector. The frozen
+1e-6 baselines are NOT the detector for this change: none of their models reach
+the imputation path, the edgeless-`four()` cache, a windowed constraint atom, or
+a repeated dyad with unweighted degree. A step whose fixture passed before the
+step landed proves nothing.
+
 ## 0. Gate and baseline
 
 - [x] 0.1 Record the go/no-go rule before measuring (design D6): the recipe
@@ -23,37 +31,75 @@
       `estimate_wrapper()`; note it in `progress.md`.
 - [ ] 0.3 Verification: `NOT_CRAN=true` suite green on the branch start;
       frozen baselines and C++ goldens PASS not SKIP.
-- [ ] 0.4 Remove the per-event state copy (design D10). The state write that
-      follows a closure call duplicates the whole n1 x n2 matrix, in both recipe
-      loops and in `merged_apply_state_update()`; the same pattern folds
-      `stat_mat` in the R estimation backend (`R/cpp_interface.R`) and
-      `live_stats` in `walk_fold_engine()`. Land an in-place write for all four
-      sites; the C++ engines already mutate in place through
-      `src/broadcast_updates.cpp`, and the `cpp-recompile` skill applies to any
-      `src/` edit. Measured on the same shape: 3.67 ms/event -> 0.02 ms/event,
-      no copy at all. **Clear the aliasing sites before the write lands**, since
-      a C++ write bypasses R's copy semantics and any other live reference sees
-      it: (i) `ds_impute_missing()` caches an imputed matrix in
-      `src$net_override[[name]]` and `ds_network()` returns that same object on
-      every later call, so two containers from one source share the SEXP — it
-      needs `NA` in a network, so no frozen baseline covers it; (ii)
-      `init_DyNAM_choice.four()` returns `list(cache = network, stat = network)`
-      on an edgeless network, aliasing the effect cache to the state matrix;
-      (iii) confirm the legacy `ds_network.goldfishSourceEnvir()` path really
-      duplicates at its `attributes()<-`, since a write reaching the user's own
-      object is the worst of the three. Each needs its own regression test —
-      the baselines are not the detector, because none of their models reaches
-      these paths. The pure-R alternative, should that hazard prove
-      real, is slice-passing (hand the closure only the row/column it needs,
-      measured at 0.02 ms/event against 0.48 for the whole matrix), which is
-      safe but changes the effect-update contract across every effect in three
-      model families. Passing the closure the state environment does NOT work:
-      slicing inside it binds the matrix just the same (0.39 ms/event, still
-      copying). Tests: `tracemem` reports no duplication across a multi-event
-      walk on a repeated-dyad fixture; allocation per event falls below one
-      n1 x n2 matrix; frozen 1e-6 baselines and C++ goldens PASS, since no value
-      changes.
-- [ ] 0.5 Store the support mask by its axis-union kind (design D11).
+- [ ] 0.4a Remove the copy at the two FOLD sites (design D10, low risk).
+      `stat_mat <- .gather_apply_stat(stat_mat, ...)` in the R estimation
+      backend (`R/cpp_interface.R`, three call sites) and `live_stats` in
+      `walk_fold_engine()` duplicate their buffer per event only because the
+      helper takes it as an argument. These buffers are engine-local and never
+      reach an effect closure, so there is no aliasing question. Measured: 0.430
+      ms/event through the helper against 0.003 ms/event with the same
+      subassignment inline, identical result. Either remove the binding or write
+      through C++ (`cpp-recompile` skill on any `src/` edit); C++ keeps the
+      helper shared across its callers. Tests: `tracemem` shows no duplication
+      across a multi-event fold; the R backend and the C++ backend still agree
+      to 1e-10 on the timing-ledger fixtures; baselines PASS.
+- [ ] 0.4b Clear the aliases the state write would expose (design D10). An
+      in-place write is correct only where nothing else holds a live reference.
+      Three sites, none reached by the frozen baselines' models, so each needs
+      its own regression test: (i) `ds_impute_missing()` caches an imputed
+      matrix in `src$net_override[[name]]` and `ds_network()` returns that same
+      object on every later call, so two containers from one source share the
+      SEXP — have `ds_network()` copy when it serves an override, one copy per
+      container build rather than per event; needs `NA` in a network to trigger;
+      (ii) `init_DyNAM_choice.four()` returns `list(cache = network, stat =
+      network)` on an edgeless network, so give the cache its own matrix. The
+      legacy `ds_network.goldfishSourceEnvir()` path is deliberately NOT
+      hardened: the environment path retires with `refactor-dynami-engine`, so
+      work there is not worth doing. This lands BEFORE 0.4c so a baseline move
+      is attributable to one step.
+- [ ] 0.4c Remove the copy at the two STATE sites (design D10). Both recipe
+      loops and `merged_apply_state_update()` write
+      `state$networks[[key]][sender, receiver] <- replace` after the effect
+      closures have bound the matrix. Inlining does not help here: the sharing
+      comes from the closure call, and the write is already inline. Write
+      through C++ in place — measured 3.67 ms/event -> 0.02 ms/event on a
+      1899^2 matrix with no copy at all. The pure-R alternative is
+      slice-passing (hand the closure only the row or column it needs, 0.02
+      ms/event against 0.48 for the whole matrix), reached for only if the write
+      cannot be made safe, since it changes the effect-update contract across
+      every effect in three model families. Passing the closure the state
+      environment does NOT work: slicing inside it binds the matrix just the
+      same (0.39 ms/event, still copying). Tests: `tracemem` reports no
+      duplication of the state matrix across a multi-event walk on a
+      repeated-dyad fixture; `bench::bench_memory()` on the CollegeMsg fixture
+      falls well below today's 27.53 MB per event; the 0.4b fixtures still pass;
+      frozen 1e-6 baselines and C++ goldens PASS, since no value changes.
+- [ ] 0.4d Make the merged walk compute an unweighted degree unweighted
+      (design D14). On a layer whose events accumulate, `preprocess_joint()`
+      tracks WEIGHTED degree where the recipe loops track unweighted, so the two
+      substrates do not compute the same statistic and no ratio between them is
+      a decision input (ADR-0057). Minimal reproduction, five nodes and four
+      calls with the dyad `1 -> 2` repeating at t = 3: the recipe loop leaves
+      `indeg(N2)` at 1 and emits no update, the merged walk emits one carrying
+      the value 2. Confirmed against ground truth on Social Evolution, where the
+      recipe loop reproduces `colSums(A > 0)` and the merged walk reproduces
+      `colSums(A)` (`.plan/bug-merged-walk-weighted-degree.md`).
+      **The cause is not yet established** — do not assume one. The single
+      diagnostic clue: writing the effects as `indeg(calls, weighted = TRUE)`
+      makes the rate block agree byte-for-byte, which pins the divergence on how
+      the `weighted` flag reaches the merged engine rather than on the schedule,
+      the shared state or the event-argument resolution (`merged_build_event_
+      args()` resolves increment against the live state exactly as the recipe
+      loop does, so both hand the closure the same `replace`). The choice side
+      diverges differently and needs its own reading: for unweighted `inertia`
+      the merged walk emits a redundant update carrying the SAME value, which is
+      numerically harmless but breaks byte-identity and costs stored work.
+      Starts AFTER 0.6 has written the failing fixtures, and must land BEFORE
+      0.9 re-runs the gate. Tests: task 0.6 fixtures (a) and (b) go green,
+      byte-identical between substrates; the reconstruction assertion on Social
+      Evolution matches `colSums(A > 0)`; frozen 1e-6 baselines and C++ goldens
+      PASS, since the recipe loops are the side that is already right.
+- [ ] 0.5a Store the support mask by its axis-union kind (design D11).
       `preprocess_support_mask()` returns one dense n1 x n2 logical per snapshot
       time; a separable constraint is a length-n1 or length-n2 vector, or a
       scalar. `active_dyad_encoding_decide()` already classifies point / alter /
@@ -61,25 +107,88 @@
       allocates no dense matrix, so this is storage only. Tests: existing
       support-constraint fixtures unchanged; a constrained model on a
       1899-actor node set preprocesses without exhausting memory.
-- [ ] 0.6 Parity fixture for the weighted/unweighted divergence (blocks the
-      re-run). The merged walk computes weighted degree where the recipe loops
-      compute unweighted degree on an accumulating layer
-      (`.plan/bug-merged-walk-weighted-degree.md`); every fixture in
-      `test-preprocess_joint.R` gives each dyad one event, which is why the
-      byte-identity assertions pass. Add both: (a) a five-node four-event toy
-      whose dyad 1 -> 2 repeats, as the cheap unit-level guard, and (b) a
-      complex parity specification in the shape of the asta Copenhagen
-      `rate_1` / `choice_1` (`.plan/bench/euler/PLAN.md`), on Social Evolution —
-      rate `1 + indeg + indeg(weighted) + outdeg(weighted, log1p) +
+- [ ] 0.5b Register a windowed constraint atom's derived object in
+      `plan$derivations`, like any other windowed term (design D13). A
+      `window =` inside a `support_constraint` is silently ignored today:
+      `~ !tie(call_network, window = 5)` and
+      `~ !tie(call_network, window = "365 days")` give masks byte-identical to
+      `~ !tie(call_network)`, and a matching window in the estimated formula
+      does not rescue it (`.plan/bug-constraint-window-ignored.md`). Measured:
+      a windowed formula term puts one `{kind = "window", derived_name =
+      "call_network_5"}` entry in `plan$derivations`, while a windowed
+      constraint atom puts none — the merged units report zero derivations and
+      the shared registry holds only the source layer, so `ds_realize_
+      derivations()` has nothing to build and the atom's reference still names
+      the source. The atoms are plain effects, so give them the same treatment:
+      their windowed terms contribute `kind = "window"` entries beside the
+      `kind = "support_mask"` one, references rewired to the derived names,
+      deduplicated by derived identity against the formula's. The realize step
+      needs no change. Do NOT reach for `parse_time_windows()` as the entry
+      point — it is metadata-only on the recipe path and is the pre-registry
+      framing; the work lands on what enters `plan$derivations`. Starts AFTER
+      0.6 has written the failing test. Tests: task 0.6 fixture (c) goes green,
+      with the two windows differing from each other and from no window; a
+      formula and a constraint windowing the same object at the same width
+      resolve to ONE derived object and one expiry stream; existing unwindowed
+      support-constraint fixtures unchanged.
+- [ ] 0.6 Parity fixtures, written BEFORE any of 0.4a-0.4d, 0.5b or group 1
+      touches code (see the TDD note at the head of this file). They are the
+      detector for every later step, so a fixture that does not fail today on
+      the divergence it targets is not yet a fixture. Five, each with a stated
+      target:
+
+      (a) **Five-node repeated-dyad toy, complex specification.** The cheap
+      unit-level guard for the weighted/unweighted divergence
+      (`.plan/bug-merged-walk-weighted-degree.md`). Small enough to read by eye,
+      but the specification must move EVERY statistic it declares at least once
+      over the sequence, so a silently frozen statistic fails rather than
+      passing vacuously. Assert that: every column of `stat_mat_update` is
+      touched, and every declared effect appears in the update stream.
+      Terms to cover, chosen for the update paths they exercise:
+      `global(x)` and `global(x):inertia` (a global operand feeding an
+      interaction, broadcast kind 3 into the second hop); `ego(a):alter(b)` on
+      the choice side (an ego-axis operand crossed with an alter-axis one, the
+      two broadcast kinds meeting in one product); `mixed_trans(net2, window =
+      ...)` and `mixed_cycle(net2, window = ...)` (a mixed effect whose derived
+      object expires while a second network drives it); the weighted and
+      unweighted twins of `indeg` / `inertia` on the same object, which is the
+      divergence itself.
+
+      (b) **Complex specification on Social Evolution**, asta Copenhagen
+      `rate_1`/`choice_1` shape (`.plan/bench/euler/PLAN.md`) — rate
+      `1 + indeg + indeg(weighted) + outdeg(weighted, log1p) +
       indeg(window = "2 hours") + node_trans + indeg(friendshipNetwork) +
       ego(actors$floor)`; choice `inertia + inertia(weighted) + recip +
       recip(weighted, log1p) + trans + trans(history = "sequential") + cycle +
       common_sender + indeg + indeg(weighted) + inertia(window = "2 hours") +
       tie(friendshipNetwork) + alter(actors$floor) + same(actors$gradeType) +
-      inertia:recip`. The weighted/unweighted twins of the same effect on the
-      same object are the point; the windowed terms need a no-window variant
-      until task 1.3 lands. A parity fixture, not a baseline: it must not touch
-      the frozen 1e-6 set.
+      inertia:recip`. Realistic `p`, so it doubles as task 0.8's benchmark.
+
+      (c) **Windowed support constraint**, e.g. `~ !tie(exoNet, window = 5)`.
+      This one FAILS TODAY and must be written as a failing test first: the
+      window is silently ignored, and a 5-second and a 365-day window give
+      byte-identical masks (`.plan/bug-constraint-window-ignored.md`). The
+      constraint's atoms are parsed separately from the formula, so their window
+      parameters never become derivations. Fixing it means unioning the
+      constraint's derivations into what `compile_support_constraint()`
+      receives, or aborting rather than ignoring.
+
+      (d) **Flavored creation/deletion with a state-forced constraint.** Two
+      flavors on one layer, creation constrained to `~ !tie(net)` and deletion
+      to `~ tie(net)`, so the risk set is exactly complementary and moves with
+      the state. `inertia` is unusable by construction (identically 0 for
+      creation, 1 for deletion), which is the point: it forces the fixture onto
+      the constraint machinery rather than letting a tie-history effect carry
+      the signal. Targets the mask timeline, not the statistics.
+
+      (e) **A missing-data variant of one of the above**, with `NA` in a network
+      and in a nodal covariate, exercising the imputation policies. This is also
+      the only fixture that reaches `src$net_override`, which is 0.4b's first
+      aliasing site, so 0.4b's regression test rides on it.
+
+      Constraint on all five: parity fixtures, not baselines. They must not
+      touch the frozen 1e-6 set. Windowed terms need a no-window variant for the
+      merged walk until task 1.3 lands.
 - [ ] 0.7 Make the window abort reachable. `build_walk_engine()` carries "The
       merged walk does not yet support window effects", but a windowed term puts
       the derived object into the merged registry and `build_shared_state()`
@@ -96,6 +205,17 @@
       localizes copy-on-modify to one effect, the matrix keeps the product as a
       single BLAS call. Measure both on a realistic `p`; record the numbers
       beside the task 1.2 write-up.
+- [ ] 0.9 Re-run the gate and record the contrast (design D9). The pre-fix
+      numbers are already recorded and are NOT re-measured: CollegeMsg base
+      model, recipe loops 219.6 s, merged walk 67.2 s, ratio 0.31; Social
+      Evolution merged 1.31x (windowless) and 1.78x (plain); allocation 27.53 /
+      36.56 / 27.67 MB per event. This task re-runs
+      `.plan/sp/preprocess_timing_2026-09.R` unchanged on the fixed tree and
+      tabulates before against after, adding a **10k-event CollegeMsg subset**
+      (not 20k) so the per-call setup constant is separated from the copy:
+      Social Evolution is setup-dominated and the full 59,835 events are
+      copy-dominated, and neither isolates the architecture on its own. The
+      ratio this produces is the one group 3 reads.
 ## 1. Merged-walk parity with the recipe loops
 
 - [ ] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
@@ -148,12 +268,17 @@
 
 **Closed as of 2026-09-09.** The gate came back 0.31x, but the ratio counts
 per-event matrix copies rather than architecture (design D9), so this group does
-not open on it. It opens when tasks 0.4, 0.5 and 0.6 have landed and
-`.plan/sp/preprocess_timing_2026-09.R` has been re-run on the fixed tree,
-including a CollegeMsg subset at 10k-20k events to separate the per-call setup
-constant from the copy. If the re-run puts the merged walk within 1.10x this
-group proceeds as written; if not it stays closed, and task 4.1's NEWS.d
-fragment records the merged walk's new parity and why the loops stay.
+not open on it. It opens when tasks 0.4a-0.4d, 0.5a, 0.5b and 0.6 have landed and task
+0.9 has re-run the gate on the fixed tree with the 10k-event CollegeMsg subset.
+If the re-run puts the merged walk within 1.10x this group proceeds as written;
+if not it stays closed, and task 4.1's NEWS.d fragment records the merged walk's
+new parity and why the loops stay.
+
+**Deleting the recipe loops needs Alvaro's explicit approval**, separately from
+the measurement passing. A passing ratio is a necessary condition, not the
+decision: the loops are what the frozen 1e-6 baselines have always run through,
+and the whole suite moves with them. Task 3.3 does not start on a green number
+alone.
 
 
 - [ ] 3.1 `preprocess.goldfishKind()` routes every `input_shape = "standard"`
@@ -168,7 +293,9 @@ fragment records the merged walk's new parity and why the loops stay.
       `validate_prep_support()` stamping and `process_map` contract stay.
       Tests: the flavored fixtures and the `estimate_flavored()` container
       tests unchanged.
-- [ ] 3.3 Delete `run_sender_recipe_loop()`, `run_dyad_recipe_loop()` and the
+- [ ] 3.3 **Alvaro's approval required before this task starts** (see the group
+      header): a passing ratio is necessary, not sufficient.
+      Delete `run_sender_recipe_loop()`, `run_dyad_recipe_loop()` and the
       helpers only they called (inventory from task 0.2); keep the finalizer
       helpers the merged walk shares. `air format` the touched files, then
       `lintr::lint()` on them. The descriptor spec's guard test and

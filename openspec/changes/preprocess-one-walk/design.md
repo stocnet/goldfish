@@ -144,6 +144,13 @@ measuring after — the measurement is cheap and the flip touches every test.
 
 ### D7 — Deletion, not deprecation
 
+**Deletion needs Alvaro's explicit approval, separately from the measurement**
+(added 2026-09-09). A ratio inside the threshold is a necessary condition, not
+the decision. The recipe loops are what the frozen 1e-6 baselines have always
+run through and what the whole suite exercises, so retiring them is a judgment
+about confidence in the replacement, not an inference from a number. Task 3.3
+does not start on a green re-run alone.
+
 The recipe loops are internal, unexported, and reached by no user surface, so
 they are deleted in the same commit their last caller leaves. `preprocess()`
 remains the generic; the lifecycle skill is not involved. Helpers that only
@@ -176,7 +183,13 @@ copies it once. The 2-to-1 **is** the 0.31.
 
 So the measurement does not answer the question the rule asks, and this change
 takes D6's above-threshold branch: complete groups 1 and 2, **skip group 3**,
-re-run the gate once D10 and D11 land. Recorded as ADR-0057. *Rejected:* a
+re-run the gate once D10 and D11 land. Recorded as ADR-0057.
+
+The pre-fix numbers above are the recorded contrast and are **not** re-measured;
+task 0.9 re-runs the same script on the fixed tree and tabulates before against
+after. It adds a **10k-event** CollegeMsg subset, because Social Evolution is
+setup-dominated and the full 59,835 events are copy-dominated, so neither
+isolates the architecture alone. *Rejected:* a
 "conditional go" that completes groups 1 and 2 and defers only the deletion —
 identical work, but the word recorded in this change's history is what a later
 reader quotes, and "conditional go" becomes "go".
@@ -213,8 +226,29 @@ The same pattern sits in four places: the two recipe loops' state write,
 mutate in place through `src/broadcast_updates.cpp`, so the fold exists twice,
 once free and once expensive.
 
-**Two ways to stop the copy, measured.** The mechanism is *binding the whole
-object to a name*, not reading from it, which narrows the options:
+**The four sites fall in two risk tiers, and only one of them is hard.** What
+marks an object shared is *binding it to a name*, so where the binding comes
+from decides the fix:
+
+| tier | sites | what binds the buffer | fix |
+| --- | --- | --- | --- |
+| fold | `stat_mat` in the R backend, `live_stats` on the handle | the helper call itself (`.gather_apply_stat(stat_mat, ...)`) | remove the binding, or write through C++ |
+| state | both recipe loops, `merged_apply_state_update()` | the effect closure receiving the matrix | C++ in place, or slice-passing |
+
+The fold tier is the easy one. Those buffers are engine-local and never reach an
+effect closure, so nothing else can alias them, and the copy exists only because
+the helper takes the buffer as an argument. Doing the same subassignment inline
+removes it in pure R: measured 0.430 ms/event through the helper against 0.003
+ms/event inline, identical result. C++ is equally available there and keeps the
+helper shared across its callers; either way the verification burden is small
+because there is no aliasing question.
+
+The state tier is where the care goes. Inlining does not help, because the
+sharing comes from the closure call rather than from where the write is written,
+so the write is already inline and still copies.
+
+**Two ways to stop the state copy, measured.** The mechanism is *binding the
+whole object to a name*, not reading from it, which narrows the options:
 
 | approach | per event | copies |
 | --- | ---: | ---: |
@@ -253,14 +287,29 @@ the matrix expecting it not to change. Two places in the tree do:
   state.
 
 Neither is exercised by the frozen baselines' models, so the baselines are not
-the detector here. Task 0.4 clears both explicitly, and the ordinary path
-(`ds_network()` on a stocnet without `NA`) materializes a fresh matrix per call
-and is safe.
+the detector here. The ordinary path (`ds_network()` on a stocnet without `NA`)
+materializes a fresh matrix per call and is safe.
 
-The legacy `ds_network.goldfishSourceEnvir()` path returns `get()` from the
-user's environment and then assigns `attributes()`, which duplicates while the
-object is shared; confirm that rather than assume it, since a write reaching the
-user's own object would be the worst failure of the three.
+Both aliases are cheap to remove, and removing them is a prerequisite rather
+than part of the write. `ds_network()` can copy when it serves an override,
+which costs one copy per container build rather than one per event; and
+`init_DyNAM_choice.four()`'s edgeless branch can give the cache its own matrix
+instead of the state's. Clear the aliases first, land the write second, so a
+baseline move is attributable to one step.
+
+The legacy `ds_network.goldfishSourceEnvir()` path is deliberately left alone:
+the environment surface retires with `refactor-dynami-engine`, so hardening it
+is work with no future.
+
+Why `four()` and not `trans()` or `cycle()`: all three special-case an edgeless
+network, but they do it in different places. `trans()` and `cycle()` fold the
+empty case into the same branch as the windowed and non-pooled-history cases,
+which allocates a fresh `matrix(0, n1, n2)` for the cache. `four()` returns
+earlier and separately, handing back the input network as both cache and stat
+because it is already all zeros. The values are identical; the difference is
+purely that `four()` reuses the object instead of allocating, which saves two
+allocations and creates the alias. `four()`'s own windowed branch allocates
+fresh matrices, so it is inconsistent with itself as well as with its siblings.
 
 Fixing it is group 0 work because the gate cannot be re-read until it is done.
 *Rejected as the fix direction:* maintaining the linear predictor incrementally
@@ -320,6 +369,102 @@ allocation entirely.
 
 Settle it with a measurement on the complex fixture of task 0.6, which has a
 realistic `p`, before task 0.4 chooses where the in-place write lands.
+
+### D13 — A windowed constraint atom registers its derived object in the plan, like any other windowed term (added 2026-09-09, corrected same day)
+
+Found while specifying task 0.6's fixtures. A `window =` inside a
+`support_constraint` is silently ignored:
+`~ !tie(call_network, window = 5)` and
+`~ !tie(call_network, window = "365 days")` produce masks byte-identical to
+`~ !tie(call_network)`, while the same window in the estimated formula does move
+the statistics.
+
+A window reaches the walk through three stages, and the middle one is the
+registry the current code is organized around:
+
+```
+  parse            parse_formula() records the window as metadata on
+                   parsed_formula$window_derivations, and the effect's object
+                   reference is rewired to the derived name
+     |
+  MAP              build_spec_map() -> build_derivations() puts one
+                   { kind = "window", derived_name = "call_network_5" } entry
+                   in plan$derivations, one row per derived object.
+                   A constraint separately appends { kind = "support_mask" }.
+     |
+  REALIZE          ds_realize_derivations(src, plan$derivations) at state
+                   creation builds the derived network and its expiry stream,
+                   and the object enters the shared registry
+```
+
+Measured on a real spec: a windowed formula term yields
+`plan$derivations` = one entry, `kind = window`, `derived_name =
+call_network_5`. A windowed *constraint* atom yields **no window entry at all** —
+the merged units report zero derivations and the shared object registry holds
+only `call_network`. Nothing is registered, so nothing is realized, and the
+atom's reference still names the source layer, which it reads undecayed.
+
+The failure is uniform: because the reference rewrite is what binds an effect to
+its derived object, a matching window in the estimated formula does **not**
+rescue the constraint. Verified with
+`choice = ~ inertia(call_network, window = 5)` and
+`support_constraint = ~ !tie(call_network, window = 5)` — the mask is still the
+unwindowed one. There is no accidental-pass path.
+
+The constraint's atoms are plain effects, which is the premise the whole
+constraint compiler rests on, so they belong in the same registry: a windowed
+atom contributes its own `kind = "window"` entry to `plan$derivations` beside
+the `kind = "support_mask"` one, and its reference is rewired to the derived
+name. Entries deduplicate by derived identity, so a window shared between
+formula and constraint is one derived object with one expiry stream, not two.
+The realize step then needs no change, which is the point of registering rather
+than special-casing.
+
+*Do not reach for `parse_time_windows()` directly.* It still runs inside
+`parse_formula()`, but on the recipe path it is metadata-only
+(`realize_windows = FALSE`), and treating it as the entry point is the
+pre-registry framing. The work lands on what enters `plan$derivations`.
+
+This is task 0.5b, sequenced beside the mask-storage work because both are
+constraint defects, and after task 0.6 has written the failing test. It belongs
+in group 0 rather than group 1: a constraint decides the risk set, so ignoring
+its window does not crash, it silently estimates a different model, and every
+constrained fixture the later groups rely on would be measuring the wrong risk
+set. *Rejected:* aborting on a windowed constraint atom instead of supporting
+it — the grammar already accepts the argument, so an abort would be a new
+restriction on documented behavior rather than a fix.
+
+### D14 — The merged walk must compute the statistic the recipe loops compute, before any ratio between them means anything (added 2026-09-09)
+
+The divergence that made ADR-0057 a no-go on more than timing grounds. On a
+layer whose events accumulate, `preprocess_joint()` tracks weighted degree where
+the recipe loops track unweighted. Five nodes, four calls, the dyad `1 -> 2`
+repeating: the recipe loop leaves `indeg(N2)` at 1 and emits no update, the
+merged walk emits one carrying 2. On Social Evolution the recipe loop
+reconstructs `colSums(A > 0)` and the merged walk `colSums(A)`.
+
+The recipe loops are the correct side: `indeg` and `outdeg` default to
+`weighted = FALSE`, and the frozen 1e-6 baselines run through them. So this is a
+merged-walk defect, and fixing it cannot move a baseline.
+
+Every fixture in `test-preprocess_joint.R` gives each dyad exactly one event, so
+weighted and unweighted coincide and the byte-identity assertions pass. The
+divergence needs a repeated dyad, which is the normal case in real event data.
+That is why task 0.6 exists before this one.
+
+*The cause is deliberately not asserted here.* One diagnostic clue is recorded:
+writing the effects as `indeg(calls, weighted = TRUE)` makes the rate block
+agree byte-for-byte, which points at how the `weighted` flag reaches the merged
+engine rather than at the schedule, the shared state, or the event-argument
+resolution — `merged_build_event_args()` resolves an increment against the live
+state exactly as the recipe loop does, so both hand the closure the same
+`replace`. The choice side diverges differently: for unweighted `inertia` the
+merged walk emits a redundant update carrying the same value, harmless
+numerically but not byte-identical and not free.
+
+Sequenced as task 0.4d, after 0.6 writes the fixtures and before 0.9 re-runs the
+gate, because a ratio between substrates computing different statistics is not a
+decision input.
 
 ## Risks / Trade-offs
 
