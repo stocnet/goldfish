@@ -213,6 +213,29 @@ The same pattern sits in four places: the two recipe loops' state write,
 mutate in place through `src/broadcast_updates.cpp`, so the fold exists twice,
 once free and once expensive.
 
+**Two ways to stop the copy, measured.** The mechanism is *binding the whole
+object to a name*, not reading from it, which narrows the options:
+
+| approach | per event | copies |
+| --- | ---: | ---: |
+| pass the matrix to the closure (today), 1200^2 | 0.48 ms | yes |
+| pass the closure the state environment and slice inside it | 0.39 ms | yes |
+| pass the closure only the slices it needs | 0.02 ms | none |
+| keep passing the matrix, write through C++ in place, 1899^2 | 0.02 ms | none |
+
+Handing the closure an environment does **not** help: `state$net[i, j]` inside
+the closure binds the matrix just as an argument does. Only two things work, and
+they trade differently. The C++ in-place write changes one function and no
+contract, but it steps outside R's copy semantics, so any other live reference
+to that matrix would see the mutation, and that has to be argued rather than
+assumed. Slice-passing stays in pure R and is safe by construction, but it
+changes what every effect update closure receives, across every effect in three
+model families, on the code path the frozen 1e-6 baselines cover.
+
+Task 0.4 takes the C++ route for that reason: it is the one that can land
+without touching the effect contract. Slice-passing is recorded here as the
+pure-R alternative if the mutation hazard turns out to be real.
+
 Fixing it is group 0 work because the gate cannot be re-read until it is done.
 *Rejected as the fix direction:* maintaining the linear predictor incrementally
 instead of the statistics. It is lossy — the statistics cannot be recovered from
@@ -240,6 +263,37 @@ snapshot, and its timeline is a sparse update stream like any other statistic.
 
 This lands in group 0, before `process-simulation` task 2.0a wires the mask onto
 the stepping handle, because 2.0a would otherwise inherit the dense form.
+
+### D12 — Open: the statistics array is not the shape utilities are computed in (added 2026-09-09)
+
+Not decided; recorded because the answer changes what task 0.4 touches.
+
+`initial_stats` for a dyad family is an `n1 x n2 x p` array, and the instinct is
+that this is already the right shape because a choice utility takes all
+receivers for one sender. It is not the shape either consumer uses.
+`walk_seed_live_stats()` flattens it to `(n1*n2) x p` with dyad `(i, j)` at row
+`(i - 1) * n2 + j`, and `R/cpp_interface.R` does the same at the C++ boundary
+with `stat_mat_init[, i] <- t(initial_stats[,, i])`. Both flatten before any
+product is formed.
+
+R is column-major, so the flattening is not cosmetic:
+
+| layout | sender `i`'s block, one effect | |
+| --- | --- | --- |
+| `(n1*n2) x p` flattened | `n2` contiguous doubles | what both consumers build |
+| `n1 x n2 x p` array | `n2` doubles at stride `n1` | what is stored |
+
+So the array is the worse layout for the utility slice, and the code already
+compensates. That leaves a real question with two live answers: one
+`(n1*n2) x p` matrix, or a length-`p` list of `n2 x n1` matrices. The list gives
+the same contiguous per-sender block and localizes copy-on-modify to the one
+effect that changed, which is why it interacts with D10. The matrix keeps the
+product as a single BLAS call, where the list needs `p` passes; that favours the
+matrix as `p` grows and the list when `p` is small, since it avoids the slice
+allocation entirely.
+
+Settle it with a measurement on the complex fixture of task 0.6, which has a
+realistic `p`, before task 0.4 chooses where the in-place write lands.
 
 ## Risks / Trade-offs
 

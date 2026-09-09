@@ -71,7 +71,12 @@
       dry-runs the closures on a one-actor toy handle; the provider's latent
       path is written per event. Tests: a constant provider reproduces the
       plain `coef` path byte-for-byte; a toy per-actor provider and a toy
-      two-regime provider drive the loop on a seeded fixture. Retirement per
+      two-regime provider drive the loop on a seeded fixture. Evaluation path
+      per D12: `walk_evaluate()` grows a `sender` argument (absent = today's
+      full matrix, so the oracle tests are unchanged; supplied = that sender's
+      row), and `.pse_eval_choice()` stops building the index `data.frame` its
+      only caller discards, using parallel integer vectors as the R estimation
+      backend already does. Retirement per
       ADR-0054: this task lands the consumer `materialize_process_state()`
       was reserved for and does not call it, so the function moves from
       `R/process_state_evaluators.R` to a `tests/testthat/helper-*.R` file

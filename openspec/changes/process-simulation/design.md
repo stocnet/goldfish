@@ -518,20 +518,38 @@ competing set and genuinely need all `n1 x n2` values.
 
 The full-matrix path must survive either way: `test-walk_handle.R` compares the
 whole matrix against `materialize_process_state()`, and that is the
-batch-vs-replay oracle. *Open, for task 2.1 to settle:* whether
-`walk_evaluate()` grows a `sender` argument whose absence keeps today's
-full-matrix return, or a separate row-shaped entry point is added beside it and
-`walk_evaluate()` is left as the oracle's function. The first keeps one concept
-and makes the return shape depend on an argument; the second keeps two stable
-contracts at the risk of drift.
+batch-vs-replay oracle.
 
-*Rejected here:* maintaining the linear predictor incrementally instead of the
-statistics. It is lossy — the statistics cannot be recovered from the projection
-— and simulation output is the event sequence anyway, from which any GOF
-auxiliary statistic is recomputed by re-walking, so nothing downstream needs it.
-It survives only as an optional accelerator carried *in addition to* the
-statistics, for the dyad-competing families, and only while `coef` is fixed for
-the replicate: a per-event parameter provider (D11) invalidates it every step.
+**Settled 2026-09-09: `walk_evaluate()` grows a `sender` argument.** Absent, it
+returns today's full matrix and every existing caller and test is unchanged;
+supplied, it returns that sender's row. A separate row-shaped entry point was
+the alternative, and it was rejected because two functions computing the same
+quantity drift, and the oracle tests are the only thing that would catch the
+drift.
+
+The objection to a defaulted argument is per-call overhead, so it was measured
+before deciding. Two million calls, a three-argument function against the same
+function with a fourth defaulted argument and an `is.null()` branch:
+
+| call | per call |
+| --- | ---: |
+| three arguments | 0.179 us |
+| four, default taken | 0.227 us |
+| four, supplied | 0.235 us |
+
+The overhead is 0.048 us. That is 27 percent of an empty function body and
+0.001 percent of one choice evaluation, which task 1.2 measured at 4.85 ms. The
+argument is free at the scale it is used.
+
+*Rejected here:* maintaining the linear predictor incrementally instead **of**
+the statistics. It is lossy — the statistics cannot be recovered from the
+projection — and it cannot even maintain itself, since a broadcast carries a
+value rather than a delta and the increment needs the previous statistic.
+Simulation output is the event sequence anyway, from which any GOF auxiliary
+statistic is recomputed by re-walking, so nothing downstream needs it. Carried
+*in addition to* the statistics it is a live idea, for the families where every
+alternative competes and only while `coef` is fixed for the replicate: kept as
+an exploration in ADR-0058, not scheduled here.
 
 ## Risks / Trade-offs
 

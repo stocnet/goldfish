@@ -30,7 +30,16 @@
       `live_stats` in `walk_fold_engine()`. Land an in-place write for all four
       sites; the C++ engines already mutate in place through
       `src/broadcast_updates.cpp`, and the `cpp-recompile` skill applies to any
-      `src/` edit. Tests: `tracemem` reports no duplication across a multi-event
+      `src/` edit. Measured on the same shape: 3.67 ms/event -> 0.02 ms/event,
+      no copy at all. Argue the mutation hazard explicitly in the commit — a C++
+      write bypasses R's copy semantics, so any other live reference to the
+      matrix would see it. The pure-R alternative, should that hazard prove
+      real, is slice-passing (hand the closure only the row/column it needs,
+      measured at 0.02 ms/event against 0.48 for the whole matrix), which is
+      safe but changes the effect-update contract across every effect in three
+      model families. Passing the closure the state environment does NOT work:
+      slicing inside it binds the matrix just the same (0.39 ms/event, still
+      copying). Tests: `tracemem` reports no duplication across a multi-event
       walk on a repeated-dyad fixture; allocation per event falls below one
       n1 x n2 matrix; frozen 1e-6 baselines and C++ goldens PASS, since no value
       changes.
@@ -68,6 +77,15 @@
       lift until the abort fires. Test: `expect_snapshot(error = TRUE)` on a
       windowed spec through `preprocess_joint()` names window effects.
 
+- [ ] 0.8 Decide the statistics layout on the task 0.6 fixture (design D12), and
+      do it before 0.4 picks where the in-place write lands. The `n1 x n2 x p`
+      array is not the shape utilities are computed in — both the handle and the
+      C++ boundary flatten it to `(n1*n2) x p` first, and R being column-major
+      that flattening is what makes a sender's block contiguous. Compare the
+      flattened matrix against a length-`p` list of `n2 x n1` matrices: the list
+      localizes copy-on-modify to one effect, the matrix keeps the product as a
+      single BLAS call. Measure both on a realistic `p`; record the numbers
+      beside the task 1.2 write-up.
 ## 1. Merged-walk parity with the recipe loops
 
 - [ ] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
