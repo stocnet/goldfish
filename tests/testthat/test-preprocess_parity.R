@@ -269,3 +269,31 @@ test_that("two state containers never share an imputed network matrix", {
 
   expect_false(identical(tracemem(first), tracemem(second)))
 })
+
+test_that("an edgeless four() cache never aliases the state matrix", {
+  # The second aliasing site (task 0.4b). `init_DyNAM_choice.four()` returned
+  # `list(cache = network, stat = network)` on an edgeless network, so the
+  # effect cache and the statistic were both the state's own matrix. The cache
+  # is meant to hold a frozen snapshot, which an in-place state write would
+  # drag along.
+  skip_if_not(capabilities("profmem"))
+
+  network <- matrix(0, 4L, 4L)
+  initialized <- init_DyNAM_choice.four(
+    effect_fun = function(
+      network,
+      is_two_mode = FALSE,
+      transformer_fn = identity
+    ) {
+      NULL
+    },
+    network = network,
+    window = NULL,
+    n1 = 4L,
+    n2 = 4L
+  )
+  on.exit(untracemem(network), add = TRUE)
+
+  expect_false(identical(tracemem(network), tracemem(initialized$cache)))
+  expect_equal(initialized$stat, matrix(0, 4L, 4L))
+})

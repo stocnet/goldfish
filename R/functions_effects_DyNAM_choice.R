@@ -2640,7 +2640,16 @@ init_DyNAM_choice.four <- function(
 ) {
   # return zero-matrix if network is without edges
   if (all(network == 0)) {
-    return(list(cache = network, stat = network))
+    # Fresh matrices rather than the input, which is the state's own. Handing
+    # the state matrix back as cache and stat makes both alias it, and the
+    # cache is meant to hold a frozen snapshot: an in-place state write would
+    # drag it along. `trans()` and `cycle()` allocate here for their own
+    # reasons; this branch is the one that reused the object. Same values.
+    empty <- matrix(0, nrow = n1, ncol = n2, dimnames = dimnames(network))
+    return(list(
+      cache = empty,
+      stat = matrix(0, nrow = n1, ncol = n2, dimnames = dimnames(network))
+    ))
   }
   # Get arguments
   params <- formals(effect_fun)

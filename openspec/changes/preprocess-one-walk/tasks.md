@@ -88,7 +88,7 @@ step landed proves nothing.
       invisible (0.125 s and 135 MB either way) because the old helpers copied
       only when they wrote, and that model has 83 point updates over 440 events
       on a 0.2 MB buffer; task 0.9 measures it where the buffer is 27 MB.
-- [ ] 0.4b Clear the aliases the state write would expose (design D10). An
+- [x] 0.4b Clear the aliases the state write would expose (design D10). An
       in-place write is correct only where nothing else holds a live reference.
       Three sites, none reached by the frozen baselines' models, so each needs
       its own regression test: (i) `ds_impute_missing()` caches an imputed
@@ -102,6 +102,18 @@ step landed proves nothing.
       hardened: the environment path retires with `refactor-dynami-engine`, so
       work there is not worth doing. This lands BEFORE 0.4c so a baseline move
       is attributable to one step.
+      — done 2026-09-09 (session `goldfish-64`). Two sites, as scoped (the
+      legacy envir path left alone). `ds_network.goldfishSourceStocnet()` now
+      returns a fresh `matrix()` built from the override rather than the cached
+      object; the ordinary branch already materialized per call.
+      `init_DyNAM_choice.four()`'s edgeless branch allocates its own cache and
+      stat with the input's dimnames instead of handing the state matrix back
+      as both. Two regression tests in `test-preprocess_parity.R`, both on
+      object identity via `tracemem` rather than on values: under R's copy
+      semantics the alias is harmless today, so a value comparison would pass
+      over it, and it stops being harmless exactly when 0.4c lands. No value
+      changes: 401 assertions across nine affected files, frozen baselines and
+      C++ goldens PASS.
 - [ ] 0.4c Remove the copy at the two STATE sites (design D10). Both recipe
       loops and `merged_apply_state_update()` write
       `state$networks[[key]][sender, receiver] <- replace` after the effect

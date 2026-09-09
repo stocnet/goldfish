@@ -346,8 +346,20 @@ ds_network.goldfishSourceEnvir <- function(src, name) {
 
 #' @exportS3Method
 ds_network.goldfishSourceStocnet <- function(src, name) {
-  if (!is.null(src$net_override[[name]])) {
-    return(src$net_override[[name]])
+  override <- src$net_override[[name]]
+  if (!is.null(override)) {
+    # A fresh matrix, not the cached one. The override is stored on the source
+    # and handed back on every call, so returning it directly gives every state
+    # container built from this source the same matrix: a write through one
+    # would be visible in the others and in the override itself. The ordinary
+    # branch below materializes per call and is already distinct. One copy per
+    # container build, not per event.
+    return(matrix(
+      override,
+      nrow = nrow(override),
+      ncol = ncol(override),
+      dimnames = dimnames(override)
+    ))
   }
   lm <- ds_layer_map(src, name)
   labels <- src$nodes$label
