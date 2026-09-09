@@ -23,7 +23,7 @@ step landed proves nothing.
       D10). **Verdict: no-go** — groups 1 and 2 only; group 3 waits on the
       re-run after 0.4-0.6. Numbers and scripts in
       `.plan/sp/preprocess_timing_2026-09.md`; ADR-0057.
-- [ ] 0.2 Work on **`feature_simulation`**, alongside `process-simulation`; no
+- [x] 0.2 Work on **`feature_simulation`**, alongside `process-simulation`; no
       new branch (decided 2026-09-09). That branch already carries both changes'
       artifacts, and `process-simulation` task 2.0a waits on task 0.5a here, so
       splitting them across branches would mean folding one before the other
@@ -40,8 +40,22 @@ step landed proves nothing.
       `run_sender_recipe_loop()`, `run_dyad_recipe_loop()` and the helpers
       only they use, and the `writer`/`new_writer` selection in
       `estimate_wrapper()`; note it in `progress.md`.
-- [ ] 0.3 Verification: `NOT_CRAN=true` suite green on the branch start;
+      — done 2026-09-09 (session `goldfish-64`). No new branch. The
+      `preprocessed=` finding CORRECTS the design's Risks bullet: a supplied
+      object skips the walk only when every effect matches; an added effect
+      runs a second full recipe walk over the new effects and column-merges,
+      and that call drops the support constraint and flavor plan positionally.
+      Recipe-loop callers, exclusive helpers (five), shared helpers (ten, all
+      of which must survive the deletion), the dead ~690-line
+      `preprocess_monolith()` and the writer/`new_writer` threading are
+      tabulated in `progress.md`.
+- [x] 0.3 Verification: `NOT_CRAN=true` suite green on the branch start;
       frozen baselines and C++ goldens PASS not SKIP.
+      — done 2026-09-09 (session `goldfish-64`). PASS 7296, FAIL 0, SKIP 5,
+      WARN 1140 (the expected deprecation/dissolve noise). Every
+      `test-coefficient_baselines*.R`, `test-baselines_*.R`,
+      `test-dynami_baselines.R` and `test-twomode_baselines.R` row reports
+      `skipped = FALSE`, so the 1e-6 floor ran.
 - [ ] 0.4a Remove the copy at the two FOLD sites (design D10, low risk).
       `stat_mat <- .gather_apply_stat(stat_mat, ...)` in the R estimation
       backend (`R/cpp_interface.R`, three call sites) and `live_stats` in

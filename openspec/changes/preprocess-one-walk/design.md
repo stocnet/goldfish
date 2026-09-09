@@ -480,9 +480,21 @@ decision input.
   existing windowed baselines (`window-list-*` tests) and a tied-time fixture,
   and the derivation streams take the same stream index the recipe context
   assigns.
-- [The `preprocessed=` incremental path] → none exists on the recipe loops
-  today (`preprocessing_init` is deprecated and a supplied `preprocessed`
-  skips the walk entirely), so nothing to port; verified in task 0.2.
+- [The `preprocessed=` incremental path] → **corrected in task 0.2**: this
+  said "none exists ... so nothing to port", and that is only half true. No
+  incremental *within-walk* path exists — nothing steps a partially built
+  state, and `preprocessing_init` is deprecated. But a supplied `preprocessed`
+  skips the walk only when every effect matches. When `compare_formulas()`
+  leaves a zero in `effects_indexes`, the wrapper runs a **second full recipe
+  walk over the added effects alone** and column-merges it into the stored
+  object. So there is a second entry into the loops, with a reduced effect set,
+  that group 3's flip must keep working — and the merge asserts the layouts
+  agree, so the merged walk owes the same `stat_mat_update` /
+  `stat_mat_pointer` shape rather than merely the same values. Separately, that
+  call passes positionally and so drops `support_constraint`, `writer`,
+  `work_data`, `modeled_flavor` and `flavor_plan`: adding an effect to a stored
+  object from a constrained or flavored model walks the new effects
+  unconstrained. Recorded, not fixed here.
 - [`prepare_recipe_context()` builds a schedule the merged walk discards] →
   kept in this change (its state creation is what realizes derivations);
   trimming its schedule build is a follow-up measured by task 1.2's setup
