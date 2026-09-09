@@ -419,7 +419,13 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
     )
     walk_fold_engine(engine)
   }
-  merged_apply_state_update(handle$state, oid, shape, event_args, props)
+  handle$state <- merged_apply_state_update(
+    handle$state,
+    oid,
+    shape,
+    event_args,
+    props
+  )
   handle$current_time <- t
   invisible(NULL)
 }

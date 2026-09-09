@@ -78,6 +78,33 @@ test_that("the merged walk names window effects rather than crashing", {
   )
 })
 
+test_that("the walk handle advances the shared state it injects into", {
+  # The same defect on the stepping substrate, which `simulate()` will drive.
+  # `walk_apply_object_event()` called the state update and discarded what it
+  # returned, so an injected event never reached the shared adjacency matrix and
+  # every later evaluation read the tie as absent.
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = parity_toy_data()
+  )
+  handle <- walk_open(single_process_joint(spec))
+  event <- list(
+    layer = "calls",
+    sender = 1L,
+    receiver = 2L,
+    increment = 1,
+    time = 7
+  )
+
+  walk_inject(handle, event)
+  walk_inject(handle, modifyList(event, list(time = 8)))
+
+  expect_equal(handle$state$networks[["calls"]][1, 2], 2)
+})
+
 # ---- (b) Social Evolution, asta Copenhagen shape ---------------------------
 
 test_that("a realistic specification preprocesses identically on real data", {

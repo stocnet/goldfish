@@ -131,7 +131,7 @@ step landed proves nothing.
       repeated-dyad fixture; `bench::bench_memory()` on the CollegeMsg fixture
       falls well below today's 27.53 MB per event; the 0.4b fixtures still pass;
       frozen 1e-6 baselines and C++ goldens PASS, since no value changes.
-- [ ] 0.4d Make the merged walk compute an unweighted degree unweighted
+- [x] 0.4d Make the merged walk compute an unweighted degree unweighted
       (design D14). On a layer whose events accumulate, `preprocess_joint()`
       tracks WEIGHTED degree where the recipe loops track unweighted, so the two
       substrates do not compute the same statistic and no ratio between them is
@@ -156,6 +156,25 @@ step landed proves nothing.
       byte-identical between substrates; the reconstruction assertion on Social
       Evolution matches `colSums(A > 0)`; frozen 1e-6 baselines and C++ goldens
       PASS, since the recipe loops are the side that is already right.
+      — done 2026-09-09 (session `goldfish-64`). **The cause is not the
+      `weighted` flag, and the recorded clue pointed the wrong way. The merged
+      walk's shared state never advanced at all.**
+      `merged_apply_state_update()` subassigns into `state$networks[[key]]` and
+      returns `invisible(NULL)`; the state container is a plain list, so the
+      only route back to the caller is a return value that did not exist. Both
+      callers discarded it — `run_merged_walk()` and the stepping handle's
+      `walk_apply_object_event()` — so every effect read every tie as absent
+      however often it had fired. An unweighted `indeg` reading a frozen zero
+      counts events, which on a layer of +1 increments IS `colSums(A)`; and
+      `weighted = TRUE` agreed because a weighted degree adds `replace`
+      whatever the cell held, which made the clue a coincidence. Fix: return the
+      state, both callers bind it. Fixtures (a), (b) and (d) go byte-identical
+      on both families; `test-preprocess_joint.R`'s 120 assertions unchanged;
+      the frozen baselines, the C++ goldens and `test-backend_parity.R` PASS.
+      The handle needed its own detector — its 43 assertions pass either way,
+      because its fixtures give each dyad one event and its batch-versus-replay
+      contract compared two substrates frozen in the same way. Bug note updated
+      with the real cause; D14 rewritten.
 - [ ] 0.4e Impute a missing network cell on the merged walk (design D15).
       Found while writing task 0.6's fixture (e), which the fixture list
       expected to touch `src$net_override` for 0.4b's aliasing test and nothing

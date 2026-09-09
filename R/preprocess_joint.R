@@ -810,6 +810,12 @@ merged_build_event_args <- function(schedule, k, oid, props, state) {
 # Apply one covariate event to the shared state, once, after every referencing
 # unit has read the pre-update state for its own statistics. Mirrors the state
 # write at the tail of the recipe loops' covariate branch.
+#
+# Returns the state, and the caller must bind what it returns. The container is
+# a plain list, so a subassignment here reaches the caller's state only through
+# the return value; discarding it leaves the shared adjacency matrices frozen at
+# their initial values for the whole walk, which is not a slow walk but a wrong
+# one -- every effect then reads a tie as absent however often it has fired.
 merged_apply_state_update <- function(state, oid, shape, event_args, props) {
   component <- props$component[oid]
   key <- props$key[oid]
@@ -825,7 +831,7 @@ merged_apply_state_update <- function(state, oid, shape, event_args, props) {
         event_args$replace
     }
   }
-  invisible(NULL)
+  state
 }
 
 # One effect template evaluation over the SHARED state. A verbatim port of the
@@ -1550,7 +1556,7 @@ run_merged_walk <- function(
       )
     }
 
-    merged_apply_state_update(state, oid, shape, event_args, props)
+    state <- merged_apply_state_update(state, oid, shape, event_args, props)
   }
 
   outputs <- list()

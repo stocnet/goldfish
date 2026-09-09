@@ -511,15 +511,43 @@ weighted and unweighted coincide and the byte-identity assertions pass. The
 divergence needs a repeated dyad, which is the normal case in real event data.
 That is why task 0.6 exists before this one.
 
-*The cause is deliberately not asserted here.* One diagnostic clue is recorded:
-writing the effects as `indeg(calls, weighted = TRUE)` makes the rate block
-agree byte-for-byte, which points at how the `weighted` flag reaches the merged
-engine rather than at the schedule, the shared state, or the event-argument
-resolution — `merged_build_event_args()` resolves an increment against the live
-state exactly as the recipe loop does, so both hand the closure the same
-`replace`. The choice side diverges differently: for unweighted `inertia` the
-merged walk emits a redundant update carrying the same value, harmless
-numerically but not byte-identical and not free.
+*The cause was deliberately not asserted here, and the clue pointed the wrong
+way.* **Established 2026-09-09 in task 0.4d: it has nothing to do with the
+`weighted` flag. The merged walk's shared state never advances at all.**
+
+`merged_apply_state_update()` subassigns into `state$networks[[key]]` and
+returns `invisible(NULL)`. The state container is a plain list, not an
+environment, so the subassignment reaches the caller only through a return
+value that does not exist. Both callers discarded it: `run_merged_walk()` and
+`walk_apply_object_event()` on the stepping handle. The shared adjacency
+matrices therefore stayed at their initial values for the entire walk, and every
+effect read every tie as absent however often it had fired.
+
+That accounts for each symptom, which is how the diagnosis was checked rather
+than guessed:
+
+- **Unweighted degree looks weighted.** Reading a frozen zero cell, an unweighted
+  `indeg` sees the tie appear for the first time on every event and adds one,
+  so it accumulates a count of events — which on a layer whose increments are
+  all +1 is exactly the weighted degree, `colSums(A)`.
+- **`weighted = TRUE` agrees.** A weighted degree adds the resolved `replace`
+  regardless of the previous cell, so the frozen state does not change what it
+  computes. The clue was a coincidence of that layer's increments, not a pointer
+  at the flag.
+- **`inertia` emits a redundant update carrying the same value.** Reading 0 and
+  a resolved `replace` of 1, it reports the same transition every time.
+- **The existing joint fixtures pass.** With one event per dyad the frozen state
+  and the live state are the same state.
+
+Verified by making both callers bind what the function returns: task 0.6's
+fixture (a) goes byte-identical on both families, fixture (b) on Social
+Evolution likewise, and the flavored fixture (d) too, with
+`test-preprocess_joint.R`'s 120 assertions unchanged.
+
+The function now returns the state and documents that the caller must bind it.
+The handle needed its own detector: its 43 existing assertions pass either way,
+because its fixtures have one event per dyad and its batch-vs-replay contract
+compared two substrates that were frozen in the same way.
 
 Sequenced as task 0.4d, after 0.6 writes the fixtures and before 0.9 re-runs the
 gate, because a ratio between substrates computing different statistics is not a
