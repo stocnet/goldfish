@@ -56,7 +56,7 @@ step landed proves nothing.
       `test-coefficient_baselines*.R`, `test-baselines_*.R`,
       `test-dynami_baselines.R` and `test-twomode_baselines.R` row reports
       `skipped = FALSE`, so the 1e-6 floor ran.
-- [ ] 0.4a Remove the copy at the two FOLD sites (design D10, low risk).
+- [x] 0.4a Remove the copy at the two FOLD sites (design D10, low risk).
       `stat_mat <- .gather_apply_stat(stat_mat, ...)` in the R estimation
       backend (`R/cpp_interface.R`, three call sites) and `live_stats` in
       `walk_fold_engine()` duplicate their buffer per event only because the
@@ -68,6 +68,26 @@ step landed proves nothing.
       helper shared across its callers. Tests: `tracemem` shows no duplication
       across a multi-event fold; the R backend and the C++ backend still agree
       to 1e-10 on the timing-ledger fixtures; baselines PASS.
+      — done 2026-09-09 (session `goldfish-64`). Neither route as written: the
+      helpers keep the index arithmetic and return WHAT to write, and only the
+      write moves to the caller. Pure R, no inlining, no C++, one definition
+      instead of five copies. `.gather_apply_stat()` becomes
+      `.gather_stat_cells()` (paired cells) and `.gather_apply_broadcast()`
+      becomes `.gather_broadcast_blocks()` (a row selection, a column, one value
+      to recycle) — the shapes differ because a broadcast is an axis, and paired
+      cells made the full fan-out SLOWER than the copy at 1200 actors
+      (43.5 -> 74 ms; blocks give 5.5). Five call sites updated: three in
+      `R/cpp_interface.R`, one in `R/process_state_evaluators.R`, one in
+      `walk_fold_engine()`. Per fold, old -> new at 400 / 1200 actors: point
+      2.31 -> 0.005 and 9.97 -> 0.033 ms; axis broadcast 1.44 -> 0.02 and
+      6.67 -> 0.067; full fan-out 7.97 -> 0.60 and 43.5 -> 5.5. Three tests in
+      `test-cpp_interface.R`, the first asserting `tracemem` prints nothing
+      across a four-event fold (verified as a detector: the old helper prints
+      four copy lines). `test-backend_parity.R` 273 pass at 1e-10; every
+      baseline and golden file PASS. End to end on Social Evolution it is
+      invisible (0.125 s and 135 MB either way) because the old helpers copied
+      only when they wrote, and that model has 83 point updates over 440 events
+      on a 0.2 MB buffer; task 0.9 measures it where the buffer is 27 MB.
 - [ ] 0.4b Clear the aliases the state write would expose (design D10). An
       in-place write is correct only where nothing else holds a live reference.
       Three sites, none reached by the frozen baselines' models, so each needs

@@ -218,24 +218,23 @@ walk_prepare_engine <- function(engine) {
 # union-gid space by `merged_covariate_step()`) into the engine's live
 # statistics,
 # then reset the buffers. Reuses the estimation-path fold helpers
-# (`.gather_apply_stat` / `.gather_apply_broadcast`), so the live statistics
-# evolve byte-identically to the batch consumers' stored update streams.
+# (`.gather_stat_cells` / `.gather_broadcast_blocks`), so the live statistics
+# evolve byte-identically to the batch consumers' stored update streams. The
+# write stays here rather than inside those helpers so `live_stats` is never
+# bound to a second name, which is what made the old fold duplicate the whole
+# matrix on every event.
 walk_fold_engine <- function(engine) {
   rec <- engine$recorder
   if (rec$pending_dep_cols > 0L) {
     block <- do.call(cbind, rec$pending_dep)
-    engine$live_stats <- .gather_apply_stat(
-      engine$live_stats,
-      block,
-      0L,
-      ncol(block),
-      engine$fold_n2
-    )
+    cells <- .gather_stat_cells(block, 0L, ncol(block), engine$fold_n2)
+    if (!is.null(cells)) {
+      engine$live_stats[cells$idx] <- cells$value
+    }
   }
   if (rec$pending_dep_bc_cols > 0L) {
     bc <- do.call(cbind, rec$pending_dep_bc)
-    engine$live_stats <- .gather_apply_broadcast(
-      engine$live_stats,
+    blocks <- .gather_broadcast_blocks(
       bc,
       0L,
       ncol(bc),
@@ -243,6 +242,9 @@ walk_fold_engine <- function(engine) {
       engine$fold_n2,
       engine$twomode_or_reflexive
     )
+    for (block in blocks) {
+      engine$live_stats[block$rows, block$col] <- block$value
+    }
   }
   rec$pending_dep <- list()
   rec$pending_dep_cols <- 0L

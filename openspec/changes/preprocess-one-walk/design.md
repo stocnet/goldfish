@@ -243,6 +243,32 @@ ms/event inline, identical result. C++ is equally available there and keeps the
 helper shared across its callers; either way the verification burden is small
 because there is no aliasing question.
 
+**Landed 2026-09-09 as task 0.4a, by a third route neither of those two named,
+and the shape of the returned value turned out to matter.** The helpers keep the
+index arithmetic and return what to write; only the write moves to the caller.
+That is pure R, needs no inlining and no C++, and leaves one definition of the
+arithmetic rather than five copies of it. But the two helpers cannot return the
+same shape. `.gather_stat_cells()` returns paired cells, because a point update
+IS a set of cells. `.gather_broadcast_blocks()` returns a row selection, a
+column and one value to recycle, because a broadcast is a whole axis: written as
+paired cells the full fan-out needs an n1*n2 x 2 index matrix and an n1*n2 value
+vector beside it, and on a 1200^2 x 3 buffer that made it *slower* than the copy
+it removed -- 43.5 ms per event before, 74 ms as paired cells, 5.5 ms as blocks.
+
+Measured per fold, old against new: point updates 2.31 -> 0.005 ms at 400
+actors and 9.97 -> 0.033 ms at 1200; an axis broadcast 1.44 -> 0.02 and 6.67 ->
+0.067; the full fan-out 7.97 -> 0.60 and 43.5 -> 5.5. `tracemem` reports no
+duplication at all on the new route, and the old helper four copies over four
+folds.
+
+End to end on Social Evolution the change is invisible, and that is expected
+rather than disappointing. The old helpers returned early without writing when
+an event had no update, so they only copied when they wrote, and that rate model
+carries 83 point updates and one broadcast across 440 events on a 0.2 MB buffer.
+Wall time and allocation are identical before and after (0.125 s, 135 MB). The
+buffer is 27 MB and the updates are dense on CollegeMsg, which is what task 0.9
+measures.
+
 The state tier is where the care goes. Inlining does not help, because the
 sharing comes from the closure call rather than from where the write is written,
 so the write is already inline and still copies.

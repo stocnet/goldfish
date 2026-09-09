@@ -111,17 +111,13 @@ materialize_process_state <- function(
   p2_id <- 0L
   for (e in seq_len(event_index)) {
     ptr <- stat_mat_update_pointer[e]
-    stat_mat <- .gather_apply_stat(
-      stat_mat,
-      stat_mat_update,
-      update_id,
-      ptr,
-      n_actors2
-    )
+    cells <- .gather_stat_cells(stat_mat_update, update_id, ptr, n_actors2)
+    if (!is.null(cells)) {
+      stat_mat[cells$idx] <- cells$value
+    }
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
-    stat_mat <- .gather_apply_broadcast(
-      stat_mat,
+    blocks <- .gather_broadcast_blocks(
       stat_mat_broadcast,
       bc_id,
       bc_ptr,
@@ -129,6 +125,9 @@ materialize_process_state <- function(
       n_actors2,
       twomode_or_reflexive
     )
+    for (block in blocks) {
+      stat_mat[block$rows, block$col] <- block$value
+    }
     bc_id <- bc_ptr
     if (has_cc1) {
       ptr1 <- active_sender_update_pointer[e]
