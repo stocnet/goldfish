@@ -466,6 +466,53 @@ Sequenced as task 0.4d, after 0.6 writes the fixtures and before 0.9 re-runs the
 gate, because a ratio between substrates computing different statistics is not a
 decision input.
 
+### D15 — The merged walk imputes a missing network cell, because its state creation skips the step the recipe path takes (added 2026-09-09)
+
+Found while writing task 0.6's fixture (e), which the fixture list expected to
+exercise `src$net_override` for 0.4b's aliasing regression and nothing more. It
+does more: a network carrying `NA` does not preprocess on the merged walk at
+all.
+
+```
+Error in if (replace_value < 0) : missing value where TRUE/FALSE needed
+  merged_build_event_args()   preprocess_joint.R#1509
+```
+
+The cause is one missing call, and it is not subtle. `prepare_recipe_context()`
+runs `ds_impute_missing()` before it builds its state container
+(`model_preprocess.R:328`), which replaces every `NA` in a network with 0 and
+caches the result in `src$net_override`; `build_state_container()` then reads
+the imputed matrix back through `ds_network()`. `build_merged_blocks()` builds
+its own `new_data_source()` and hands it straight to `build_shared_state()`
+(`preprocess_joint.R:625-635`), with nothing in between. The `NA` survives into
+the shared state, and `merged_build_event_args()` resolves an increment against
+it and tests its sign.
+
+**Networks only.** Nodal imputation is already right on the merged side: the
+per-object policy rides on `build_shared_object_props()` and the recode happens
+at walk time in `impute_nodal_value()`. Measured on a fixture with `NA` in a
+nodal covariate and a complete network, the rate block is byte-identical across
+substrates. So this is one call on one object kind, not a missing subsystem.
+
+**The crash is the benign case.** A `replace` layer never reaches the sign test,
+so there the `NA` would pass through the effect closures into the statistics
+instead of stopping the walk. That is the reason this is group 0 work rather
+than a group 1 parity item: like the constraint window (D13), it is a silent
+wrong answer wearing a crash on one code path.
+
+Sequenced as task 0.4e, after 0.6 writes the fixture and before 0.9 re-runs the
+gate, for D14's reason: a substrate that cannot preprocess the data is not a
+ratio input. It is independent of 0.4b — that task removes the alias so an
+in-place write is safe, this one makes the merged walk reach the override at
+all — but they touch the same two functions, so 0.4b lands first.
+
+*Rejected:* imputing inside `build_shared_state()`. The step belongs to the
+source, not the state: `ds_impute_missing()` returns a modified source and the
+merged walk already threads one, so calling it where the recipe path calls it
+keeps one imputation contract rather than two. Full reproduction in
+`.plan/bug-merged-walk-skips-network-imputation.md`.
+
+
 ## Risks / Trade-offs
 
 - [A coefficient moves] → it cannot if the port is exact; the baselines are

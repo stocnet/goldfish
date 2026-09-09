@@ -1,5 +1,5 @@
 **Test-driven, and the order is load-bearing.** Task 0.6 writes every parity
-fixture before 0.4a-0.4d, 0.5b or group 1 touches code. Each fixture must fail
+fixture before 0.4a-0.4e, 0.5b or group 1 touches code. Each fixture must fail
 today on the divergence it targets, otherwise it is not a detector. The frozen
 1e-6 baselines are NOT the detector for this change: none of their models reach
 the imputation path, the edgeless-`four()` cache, a windowed constraint atom, or
@@ -124,6 +124,32 @@ step landed proves nothing.
       byte-identical between substrates; the reconstruction assertion on Social
       Evolution matches `colSums(A > 0)`; frozen 1e-6 baselines and C++ goldens
       PASS, since the recipe loops are the side that is already right.
+- [ ] 0.4e Impute a missing network cell on the merged walk (design D15).
+      Found while writing task 0.6's fixture (e), which the fixture list
+      expected to touch `src$net_override` for 0.4b's aliasing test and nothing
+      more. A network carrying `NA` does not preprocess on the merged walk at
+      all: `merged_build_event_args()` resolves an increment against an
+      unimputed cell and dies on `if (replace_value < 0)`. The cause is one
+      missing call. `prepare_recipe_context()` runs `ds_impute_missing()` before
+      it builds its state container (`model_preprocess.R:328`);
+      `build_merged_blocks()` builds its own `new_data_source()` and hands it
+      straight to `build_shared_state()` (`preprocess_joint.R:625-635`) with
+      nothing in between, so the `NA` survives into the shared state.
+      **Networks only** — the merged walk already carries the per-object policy
+      on `build_shared_object_props()` and recodes nodal values at walk time in
+      `impute_nodal_value()`, and the initial nodal vector is byte-identical to
+      the recipe loop's on a fixture with a missing covariate and a complete
+      network. The crash is the benign case: a `replace` layer never reaches the
+      sign test, so there the `NA` would pass through the effect closures into
+      the statistics. Call `ds_impute_missing()` where the recipe path calls it,
+      on the source, not inside `build_shared_state()` — the step belongs to the
+      source and the merged walk already threads one. Reproduction in
+      `.plan/bug-merged-walk-skips-network-imputation.md`. Lands AFTER 0.4b,
+      which touches the same two functions, and BEFORE 0.9. Tests: task 0.6
+      fixture (e) goes green, byte-identical between substrates; a `replace`
+      layer carrying `NA` preprocesses without an `NA` reaching the statistics;
+      the nodal-only case stays unchanged; frozen 1e-6 baselines and C++ goldens
+      PASS, since no baseline model carries a missing network cell.
 - [ ] 0.5a Store the support mask by its axis-union kind (design D11).
       `preprocess_support_mask()` returns one dense n1 x n2 logical per snapshot
       time; a separable constraint is a length-n1 or length-n2 vector, or a
@@ -156,7 +182,7 @@ step landed proves nothing.
       formula and a constraint windowing the same object at the same width
       resolve to ONE derived object and one expiry stream; existing unwindowed
       support-constraint fixtures unchanged.
-- [ ] 0.6 Parity fixtures, written BEFORE any of 0.4a-0.4d, 0.5b or group 1
+- [x] 0.6 Parity fixtures, written BEFORE any of 0.4a-0.4e, 0.5b or group 1
       touches code (see the TDD note at the head of this file). They are the
       detector for every later step, so a fixture that does not fail today on
       the divergence it targets is not yet a fixture. Five, each with a stated
@@ -209,11 +235,29 @@ step landed proves nothing.
       (e) **A missing-data variant of one of the above**, with `NA` in a network
       and in a nodal covariate, exercising the imputation policies. This is also
       the only fixture that reaches `src$net_override`, which is 0.4b's first
-      aliasing site, so 0.4b's regression test rides on it.
+      aliasing site, so 0.4b's regression test rides on it. Written 2026-09-09:
+      it fails harder than expected. The merged walk does not preprocess a
+      missing network cell at all, because its state creation skips the
+      imputation step the recipe path takes — a sixth defect, now owned by task
+      0.4e (design D15).
 
       Constraint on all five: parity fixtures, not baselines. They must not
       touch the frozen 1e-6 set. Windowed terms need a no-window variant for the
       merged walk until task 1.3 lands.
+      — done 2026-09-09 (session `goldfish-64`).
+      `tests/testthat/helper-parity-fixtures.R` and
+      `tests/testthat/test-preprocess_parity.R`, 14 tests. All five fixtures
+      fail on arrival, on the divergence each targets:
+      2, 3, 5 and 11 on the weighted/unweighted degree (0.4d); 4 on the
+      unreachable window abort (0.7); 7 and 8 on the ignored constraint window
+      (0.5b); 13 on the merged walk's missing network imputation (0.4e, a
+      defect this task surfaced); 14 on the `net_override` alias (0.4b).
+      Five pass as guards rather than detectors: 1 (every declared effect moves
+      at least once, reading `stat_mat_broadcast` beside `stat_mat_update`
+      because ego/alter/global updates land there), 6 (the recipe loops
+      reconstruct `colSums(A > 0)`), 9 (window derivations deduplicate),
+      10 (an unwindowed constraint is unchanged), 12 (one mask snapshot per
+      recorded event).
 - [ ] 0.7 Make the window abort reachable. `build_walk_engine()` carries "The
       merged walk does not yet support window effects", but a windowed term puts
       the derived object into the merged registry and `build_shared_state()`
@@ -293,8 +337,9 @@ step landed proves nothing.
 
 **Closed as of 2026-09-09.** The gate came back 0.31x, but the ratio counts
 per-event matrix copies rather than architecture (design D9), so this group does
-not open on it. It opens when tasks 0.4a-0.4d, 0.5a, 0.5b and 0.6 have landed and task
-0.9 has re-run the gate on the fixed tree with the 10k-event CollegeMsg subset.
+not open on it. It opens when tasks 0.4a-0.4e, 0.5a, 0.5b and 0.6 have landed
+and task 0.9 has re-run the gate on the fixed tree with the 10k-event CollegeMsg
+subset.
 If the re-run puts the merged walk within 1.10x this group proceeds as written;
 if not it stays closed, and task 4.1's NEWS.d fragment records the merged walk's
 new parity and why the loops stay.
