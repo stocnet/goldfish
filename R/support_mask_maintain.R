@@ -750,6 +750,16 @@ preprocess_pooled_support_masks <- function(
     return(result)
   }
 
+  # A request may carry its own `symmetric`, because a constraint belongs to the
+  # process and its sub-models need not agree: a layer's rate and its
+  # coordination choice share one atom pool and one evaluation, and differ only
+  # in whether the stored mask is symmetrised. Absent one, the caller's applies.
+  request_symmetric <- vapply(
+    requests,
+    function(r) isTRUE(r$symmetric %||% symmetric),
+    logical(1)
+  )
+
   con_idx <- which(has_constraint)
   signature <- vapply(
     con_idx,
@@ -770,33 +780,43 @@ preprocess_pooled_support_masks <- function(
       src = src
     )
 
-    # Distinct constraints (by identity) within the group: creation and
-    # dissolution share atoms but not their expression, so each keeps its own
-    # mask, while several fids sharing one `constraint_id` map to a single one.
-    distinct <- list()
-    slot <- integer(length(group))
-    for (i in seq_along(group)) {
-      hit <- NA_integer_
-      for (j in seq_along(distinct)) {
-        if (identical(distinct[[j]], constraints[[i]])) {
-          hit <- j
-          break
-        }
-      }
-      if (is.na(hit)) {
-        distinct[[length(distinct) + 1L]] <- constraints[[i]]
-        hit <- length(distinct)
-      }
-      slot[i] <- hit
-    }
+    # Distinct MASKS within the group. Two requests read the same mask when they
+    # evaluate the same expression over the same atoms and store it the same
+    # way, which is what this key says. Comparing the compiled sub-plans instead
+    # would answer no for two independent compilations of one constraint --
+    # closures carry their environments -- and a layer's rate and choice compile
+    # theirs separately, which is exactly the case worth sharing.
+    keys <- vapply(
+      seq_along(group),
+      function(i) {
+        paste(
+          paste(deparse(constraints[[i]]$expr), collapse = ""),
+          paste(constraints[[i]]$atom_labels, collapse = "\r"),
+          constraints[[i]]$mask_kind,
+          request_symmetric[[group[i]]],
+          sep = "\v"
+        )
+      },
+      character(1)
+    )
+    distinct_keys <- unique(keys)
+    slot <- match(keys, distinct_keys)
+    distinct <- constraints[match(distinct_keys, keys)]
+    distinct_symmetric <- request_symmetric[group][match(distinct_keys, keys)]
 
     # Each distinct expression keeps its own stored kind: constraints sharing an
     # atom pool need not share an axis-union. Symmetrising destroys separability
     # -- `m & t(m)` of a row-constant mask is an outer product -- so a symmetric
     # mask is stored at point whatever its atoms' axis-union says.
     stored_kinds <- vapply(
-      distinct,
-      function(con) if (symmetric) 0L else as.integer(con$mask_kind),
+      seq_along(distinct),
+      function(di) {
+        if (distinct_symmetric[[di]]) {
+          0L
+        } else {
+          as.integer(distinct[[di]]$mask_kind)
+        }
+      },
       integer(1)
     )
     masks <- lapply(seq_along(distinct), function(di) {
@@ -804,7 +824,7 @@ preprocess_pooled_support_masks <- function(
         atoms,
         distinct[[di]]$expr,
         distinct[[di]]$atom_labels,
-        symmetric,
+        distinct_symmetric[[di]],
         as.integer(distinct[[di]]$mask_kind),
         stored_kinds[[di]]
       )
@@ -823,7 +843,7 @@ preprocess_pooled_support_masks <- function(
         list(
           mask_kind = constraints[[i]]$mask_kind,
           stored_kind = stored_kinds[[slot[i]]],
-          symmetric = symmetric
+          symmetric = distinct_symmetric[[slot[i]]]
         )
       )
     }

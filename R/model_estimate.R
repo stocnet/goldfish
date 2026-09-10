@@ -1121,9 +1121,18 @@ validate_support_constraint <- function(
     }
   } else {
     ever_active <- logical(n1)
+    # The gate is the same per-sender allowed-receiver count the fold
+    # maintains, computed here from the mask's own kind: a separable mask
+    # answers without a grid at all, and only a genuinely dyadic one is reduced
+    # row by row.
     for (e in dep) {
-      grid <- support_to_grid(mask_at(e), stored_kind, n1, n2)
-      gate <- rowSums(grid & rep(active_2, each = n1)) > 0
+      gate <- sender_gate_from_mask(
+        mask_at(e),
+        stored_kind,
+        active_2,
+        n1,
+        n2
+      )
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {
         cli::cli_abort(c(

@@ -491,18 +491,85 @@ finalize_consumers <- function(
   # `render()` produces the writer's product from the folded object. Rendering
   # last is what lets a candidate-enumerating product (the gather stack) expand
   # only the post-fold risk set.
-  if (is.null(consumer_specs)) {
-    writer <- consumers[[1L]]$writer
-    out <- finish_output(writer$finalize(tail), default_constraint)
-    return(writer$render(out, tail$spec))
-  }
-
   # Finalize every consumer's writer first: each output carries its own
   # stored-event timeline, so the mask snapshots cannot be realized until all
   # timelines are known. The masks are then realized in ONE pooled pass over the
   # shared atom stream (`realize_masks`) and each fid's fold consumes its own
   # sliced mask -- the atom maintenance is walked once, not once per output.
-  finalized <- lapply(names(consumers), function(fl) {
+  single <- is.null(consumer_specs)
+  finalized <- if (single) {
+    writer <- consumers[[1L]]$writer
+    list(list(
+      out = writer$finalize(tail),
+      constraint = default_constraint,
+      writer = writer,
+      spec = tail$spec
+    ))
+  } else {
+    finalize_consumer_writers(
+      consumers,
+      consumer_specs,
+      tail,
+      project_initial_stats
+    )
+  }
+
+  masks <- realize_masks(consumer_mask_requests(finalized))
+  render_finalized_consumers(
+    finalized,
+    masks,
+    finish_output,
+    scalar_entity,
+    weight_risk_set = !single,
+    names = if (single) NULL else names(consumers)
+  )
+}
+
+# Fold each finalized consumer's mask in and render it. Split from the
+# finalization so a caller spanning several engines can realize every mask
+# between the two halves.
+#
+# `weight_risk_set` is FALSE for a single-output engine, which averages its
+# intercept scalar per stored event: only competing processes make the intervals
+# uneven enough for the time weighting to differ.
+render_finalized_consumers <- function(
+  finalized,
+  masks,
+  finish_output,
+  scalar_entity,
+  weight_risk_set,
+  names = NULL
+) {
+  outputs <- lapply(seq_along(finalized), function(i) {
+    out <- finish_output(
+      finalized[[i]]$out,
+      finalized[[i]]$constraint,
+      masks[[i]]
+    )
+    if (weight_risk_set && !is.null(out$avg_active_entity)) {
+      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
+    }
+    finalized[[i]]$writer$render(out, finalized[[i]]$spec)
+  })
+  if (is.null(names)) {
+    return(outputs[[1L]])
+  }
+  stats::setNames(outputs, names)
+}
+
+# Finalize each consumer's writer without folding anything, so a caller that
+# spans SEVERAL engines can pool their masks together. A constraint belongs to
+# the `(layer, flavor)` process, not to a sub-model family, so the rate and the
+# choice of one layer are two consumers in two engines that must reach one atom
+# pool; that is only possible once every timeline is known, which is what this
+# split buys.
+finalize_consumer_writers <- function(
+  consumers,
+  consumer_specs,
+  tail,
+  project_initial_stats
+) {
+  lapply(names(consumers), function(fl) {
     cspec <- consumer_specs[[fl]]
     writer <- consumers[[fl]]$writer
     flavor_tail <- tail
@@ -517,24 +584,20 @@ finalize_consumers <- function(
       spec = flavor_tail$spec
     )
   })
+}
 
-  masks <- realize_masks(lapply(finalized, function(f) {
-    list(constraint = f$constraint, snapshot_times = f$out$event_time)
-  }))
-
-  outputs <- lapply(seq_along(finalized), function(i) {
-    out <- finish_output(
-      finalized[[i]]$out,
-      finalized[[i]]$constraint,
-      masks[[i]]
+# The pooled-realization requests a set of finalized consumers implies. Each
+# carries its own `symmetric`, because a layer's rate and its coordination
+# choice share an atom pool and an evaluation and differ only in whether the
+# stored mask is symmetrised.
+consumer_mask_requests <- function(finalized) {
+  lapply(finalized, function(f) {
+    list(
+      constraint = f$constraint,
+      snapshot_times = f$out$event_time,
+      symmetric = identical(f$spec$sub_model, "choice_coordination")
     )
-    if (!is.null(out$avg_active_entity)) {
-      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
-    }
-    finalized[[i]]$writer$render(out, finalized[[i]]$spec)
   })
-  names(outputs) <- names(consumers)
-  outputs
 }
 
 # A flavor's intercept scalar: the average size of its post-constraint risk set

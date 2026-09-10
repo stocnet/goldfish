@@ -1248,8 +1248,7 @@ fold_active_dyad_support <- function(
   if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
-      mask_at,
-      stored_kind,
+      support_mask,
       n1,
       n2,
       n_stored,
@@ -1313,76 +1312,109 @@ fold_active_dyad_support <- function(
 # the default engine consumes it directly as the per-event risk mask, replacing
 # the standalone `active_dyad_mask` snapshot. The raw presences are stashed on
 # `support_mask` for the fail-fast validation, which needs them unfolded.
+#
+# The mask is MAINTAINED, not rebuilt. Its three inputs all arrive as flip
+# streams -- sender presence, receiver presence, and the support mask -- and a
+# flip reaches a bounded set of cells: a sender crossing one row, a receiver
+# crossing one column, a support flip whatever its kind projects onto. Only
+# those cells are recomputed, so the `outer()` product and the expanded grid are
+# built once at the first event rather than at every one. Coordination is
+# additionally symmetrised, which is not elementwise, so its recomputed set is
+# closed under transposition.
 fold_active_dyad_support_rem <- function(
   out,
-  mask_at,
-  stored_kind,
+  support_mask,
   n1,
   n2,
   n_stored,
   symmetric = FALSE
 ) {
-  p1_at <- presence_cursor(
-    out$active_sender_init,
+  stored_kind <- support_mask$stored_kind %||% 0L
+  p1_flips <- flip_reader(
     out$active_sender_update,
     out$active_sender_update_pointer
   )
-  p2_at <- presence_cursor(
-    out$active_dyad_init,
+  p2_flips <- flip_reader(
     out$active_dyad_update,
     out$active_dyad_update_pointer
   )
+  support_flips <- mask_flips(support_mask)
+  p1 <- out$active_sender_init
+  p2 <- out$active_dyad_init
+  support <- support_mask$initial
   out$support_mask$sender_presence_init <- out$active_sender_init
   out$support_mask$receiver_presence_init <- out$active_dyad_init
-  # Coordination: the mutual likelihood needs `(i, j)` active iff
-  # both directions are allowed, so symmetrise the per-event mask. The presence
-  # product `outer(p1, p2)` is symmetric for a one-mode model, so `m & t(m)`
-  # reduces to symmetrising the support atoms.
-  # One risk mask at a time. The list form is n1 x n2 logicals per event, which
-  # at 1899 actors is 3.6 million an event and does not fit for a realistic
-  # sequence -- the reason the coordination cell could only ever be measured on
-  # a tenth of one.
-  build_active_dyad_point_full(
-    out,
-    function(e) {
-      m <- outer(p1_at(e), p2_at(e)) &
-        (support_to_grid(mask_at(e), stored_kind, n1, n2) == 1)
-      if (symmetric) {
-        m <- m & t(m)
-      }
-      m
-    },
-    n1,
-    n2,
-    n_stored
-  )
-}
 
-# Assemble the `active_dyad` point encoding from per-event dense n1 x n2 masks
-# (REM). Unlike the choice point fold (one sender row per event), the REM risk
-# set spans the whole matrix, so every changed cell between consecutive events
-# is emitted as a net `(node1, node2, replace)` flip; the first event's mask
-# seeds the dense init and each later event emits its diff in event order.
-build_active_dyad_point_full <- function(out, mask_at_event, n1, n2, n_stored) {
-  init <- mask_at_event(1L)
-  cur <- init
+  transposed <- function(entries) {
+    rows <- ((entries - 1L) %% n1) + 1L
+    cols <- ((entries - 1L) %/% n1) + 1L
+    (rows - 1L) * n1 + cols
+  }
+  raw_at <- function(entries) {
+    rows <- ((entries - 1L) %% n1) + 1L
+    cols <- ((entries - 1L) %/% n1) + 1L
+    p1[rows] &
+      p2[cols] &
+      read_value_at_entries(support, stored_kind, entries, 0L, n1, n2)
+  }
+  advance_inputs <- function(e) {
+    f1 <- p1_flips(e)
+    f2 <- p2_flips(e)
+    fs <- support_flips(e)
+    p1[f1$entries] <<- f1$values
+    p2[f2$entries] <<- f2$values
+    support[fs$entries] <<- fs$values
+    list(senders = f1$entries, receivers = f2$entries, mask = fs$entries)
+  }
+
+  advance_inputs(1L)
+  current <- outer(p1, p2) &
+    (support_to_grid(support, stored_kind, n1, n2) == 1)
+  if (symmetric) {
+    current <- symmetrize_mask(current)
+  }
+  # `current` is written IN PLACE from here on, so the init has to be its own
+  # object: aliasing it would rewrite the value every emitted flip is a diff
+  # against. `& TRUE` is an elementwise operation, so it allocates.
+  init <- current & TRUE
+
   n_changes <- integer(n_stored)
   node1 <- vector("list", n_stored)
   node2 <- vector("list", n_stored)
   repl <- vector("list", n_stored)
   for (e in seq_len(n_stored)[-1L]) {
-    d <- mask_at_event(e)
-    ch <- which(cur != d)
-    n_changes[e] <- length(ch)
-    node1[[e]] <- ((ch - 1L) %% n1) + 1L
-    node2[[e]] <- ((ch - 1L) %/% n1) + 1L
-    repl[[e]] <- as.numeric(d[ch])
-    cur <- d
+    moved <- advance_inputs(e)
+    reached <- unique(c(
+      if (length(moved$senders) > 0L) {
+        map_entries(moved$senders, 2L, 0L, n1, n2)
+      },
+      if (length(moved$receivers) > 0L) {
+        map_entries(moved$receivers, 1L, 0L, n1, n2)
+      },
+      if (length(moved$mask) > 0L) {
+        map_entries(moved$mask, stored_kind, 0L, n1, n2)
+      }
+    ))
+    if (length(reached) == 0L) {
+      next
+    }
+    if (symmetric) {
+      reached <- unique(c(reached, transposed(reached)))
+      desired <- raw_at(reached) & raw_at(transposed(reached))
+    } else {
+      desired <- raw_at(reached)
+    }
+    flips <- changed_entries(current, reached, desired)
+    n_changes[e] <- length(flips$entries)
+    node1[[e]] <- ((flips$entries - 1L) %% n1) + 1L
+    node2[[e]] <- ((flips$entries - 1L) %/% n1) + 1L
+    repl[[e]] <- as.numeric(flips$values)
+    current <- write_entries(current, flips$entries, flips$values)
   }
+
   n1v <- unlist(node1, use.names = FALSE)
   n2v <- unlist(node2, use.names = FALSE)
   rv <- unlist(repl, use.names = FALSE)
-
   out$active_dyad_init <- init
   out$active_dyad_update <- if (length(n1v) > 0L) {
     rbind(n1v, n2v, rv)

@@ -77,7 +77,7 @@ test_that("a reduction reads past a zeroed diagonal", {
   expect_identical(reduce_value(scalar_grid, 0L, 3L), 7)
 })
 
-test_that("a reduction of a single-node axis has no off-diagonal cell to read", {
+test_that("a single-node axis has no off-diagonal cell to read", {
   # Degenerate but reachable: with one receiver there is no column other than
   # the diagonal one, so the only index there is has to serve.
   expect_identical(reduce_value(matrix(4, 2L, 1L), 0L, 2L), c(4, 4))

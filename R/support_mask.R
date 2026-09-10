@@ -94,6 +94,7 @@ mask_cursor <- function(support_mask) {
   if (is.null(support_mask)) {
     return(function(e) NULL)
   }
+  abort_if_stale_support_mask(support_mask)
   value <- support_mask$initial
   update <- support_mask$update
   pointer <- support_mask$update_pointer
@@ -123,8 +124,60 @@ mask_cursor <- function(support_mask) {
 #'   indices.
 #' @noRd
 mask_flips <- function(support_mask) {
-  update <- support_mask$update
-  pointer <- support_mask$update_pointer
+  abort_if_stale_support_mask(support_mask)
+  flip_reader(support_mask$update, support_mask$update_pointer)
+}
+
+#' Refuse a support mask that predates the update stream
+#'
+#' A preprocessed object built before the mask became a stream carries its
+#' timeline as `support`, one stored value per event, and no update buffer.
+#' Reading it through a cursor would not fail: it would find no flips and hand
+#' back the initial mask at every event, so the model would be estimated on a
+#' constraint frozen at time zero.
+#'
+#' The epoch stamp cannot catch this. `prep_version` moves once per RELEASE
+#' whose layout differs from the previous release's, and both layouts are epoch
+#' 2 within this development line, so the object is current in stamp and stale
+#' in content -- the case `format_version.R` names explicitly and assigns to the
+#' consumer. This is that consumer check: it names the component it needs rather
+#' than guessing at the object's age.
+#'
+#' @param support_mask a preprocessed object's `support_mask`.
+#' @noRd
+abort_if_stale_support_mask <- function(
+  support_mask,
+  call = rlang::caller_env()
+) {
+  if (!is.null(support_mask$update)) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(
+    c(
+      "This preprocessed object's {.field support_mask} predates the mask
+       update stream.",
+      "x" = "It carries a stored mask per event ({.field support}) and no
+             {.field update} buffer, so its constraint cannot be read over
+             time.",
+      "i" = "Preprocess the specification again with this version of
+             {.pkg goldfish}."
+    ),
+    call = call
+  )
+}
+
+#' The per-event slice of any flat `(entry, replace)` buffer
+#'
+#' The support mask's update stream and the two presence crossings buffers are
+#' the same shape -- entries in the first row, replacements in the second, keyed
+#' by a cumulative per-event pointer -- so one reader serves all three.
+#'
+#' @param update a 2-row `(entry, replace)` matrix.
+#' @param pointer the cumulative per-event pointer into its columns.
+#' @return a function of the stored event index, to be called with ascending
+#'   indices.
+#' @noRd
+flip_reader <- function(update, pointer) {
   seen <- 0L
   function(e) {
     hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
@@ -165,6 +218,43 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
     "2" = rep(as.logical(support[[sender]]), n2),
     "1" = as.logical(support),
     "0" = as.logical(matrix(support, n1, n2)[sender, ]),
+    cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
+  )
+}
+
+#' Which senders have at least one allowed, present receiver
+#'
+#' The row reduction the DyNAM-rate gate is defined by, read at the mask's own
+#' kind. A separable mask answers it without a grid: an alter mask gives every
+#' sender the same answer, an ego mask gives each sender its own, and a global
+#' mask gives everyone the same. Only a genuinely dyadic mask is reduced row by
+#' row, and even then the grid is built once for the event rather than as a
+#' `rep()`-broadcast intermediate.
+#'
+#' The preprocessing folds MAINTAIN this as a count rather than recomputing it;
+#' this is the from-scratch form, for a consumer that reads one event at a time
+#' and has no count to carry.
+#'
+#' @param support the mask at `stored_kind`.
+#' @param stored_kind its broadcast kind.
+#' @param active_2 receiver presence.
+#' @param n1,n2 sender and receiver counts.
+#' @return a length-n1 logical vector.
+#' @noRd
+sender_gate_from_mask <- function(support, stored_kind, active_2, n1, n2) {
+  if (is.null(support)) {
+    return(rep(any(active_2), n1))
+  }
+  switch(
+    as.character(stored_kind),
+    "3" = rep(isTRUE(as.logical(support)) && any(active_2), n1),
+    "2" = as.logical(support) & any(active_2),
+    "1" = rep(any(as.logical(support) & active_2), n1),
+    "0" = rowSums(matrix(as.logical(support), n1, n2)[,
+      active_2,
+      drop = FALSE
+    ]) >
+      0,
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
 }

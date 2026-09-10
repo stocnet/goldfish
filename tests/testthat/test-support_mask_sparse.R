@@ -517,3 +517,177 @@ test_that("each flavor's mask is its derived half of the allowed set", {
   # only ever moves for the endogenous reason and the fixture is half a test.
   expect_gt(moved, 0L)
 })
+
+# --- 5.5 the mask as a stream, and the gate as a counter -------------------- #
+
+test_that("a symmetrised mask is stored at point kind whatever its atoms say", {
+  # `m & t(m)` of a row-constant mask is an outer product, so symmetrising
+  # destroys separability: a coordination constraint whose atoms are all
+  # receiver-axis still has to be stored dense. The atoms' axis-union is kept
+  # separately, because it is what the tree is EVALUATED at -- only the storage
+  # is forced.
+  fx <- sparse_mask_data()
+  prep <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia,
+    sub_model = "choice_coordination",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) >= 0
+  )))
+  sm <- prep$support_mask
+  expect_identical(sm$mask_kind, 1L)
+  expect_identical(sm$stored_kind, 0L)
+  expect_identical(dim(sm$initial), c(fx$n_actors, fx$n_actors))
+
+  # The control: the same constraint on a non-symmetric family keeps its
+  # separable storage.
+  plain <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) >= 0
+  )))
+  expect_identical(plain$support_mask$stored_kind, 1L)
+  expect_null(dim(plain$support_mask$initial))
+})
+
+test_that("the mask's update buffer is the size of its own information", {
+  # The motivating contrast: a mask that never moves emits nothing, and one that
+  # moves emits its flips rather than one stored value per event. Under the old
+  # representation both stored n_events values.
+  fx <- sparse_mask_data()
+  never <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) >= 0
+  )))
+  moves <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) < 2
+  )))
+  n_events <- length(never$event_time)
+
+  expect_identical(ncol(never$support_mask$update), 0L)
+  expect_gt(ncol(moves$support_mask$update), 0L)
+  expect_lt(ncol(moves$support_mask$update), n_events)
+  # The pointer is the only per-event storage left, and it is one number each.
+  expect_length(moves$support_mask$update_pointer, n_events)
+})
+
+test_that("the sender gate emits only zero-crossings", {
+  # The counter's whole point: a sender's availability is reported when its
+  # allowed-receiver count reaches or leaves zero, not whenever the mask moves.
+  # A permissive constraint over a static composition never crosses at all.
+  fx <- sparse_mask_data()
+  prep <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ 1 + indeg,
+    sub_model = "rate",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) >= 0
+  )))
+  expect_true(isTRUE(prep$active_sender_folded))
+  expect_identical(ncol(prep$active_sender_update), 0L)
+  expect_true(all(prep$active_sender_init))
+
+  # And a constraint that genuinely closes senders out does cross, but far less
+  # often than the mask moves.
+  binding <- suppressMessages(suppressWarnings(estimate_dynam(
+    calls_dependent ~ 1 + indeg,
+    sub_model = "rate",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ indeg(call_network) < 1
+  )))
+  expect_lt(
+    ncol(binding$active_sender_update),
+    length(binding$event_time)
+  )
+})
+
+# --- 6.2 a sender-axis constraint needs no dyad mask ------------------------ #
+
+test_that("a sender-axis-only constraint allocates no dyad mask", {
+  # The living spec's scenario. An ego-kind constraint varies on the sender axis
+  # alone, so its mask IS the gate: there is nothing dyadic to reduce, and no
+  # sub-model of the process builds a dyad-shaped object for it.
+  fx <- sparse_mask_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "call_network",
+    support_constraint = ~ outdeg(call_network, type = "ego") >= 0,
+    data = fx$data
+  )
+  counts <- suppressMessages(suppressWarnings(
+    mask_call_counts(preprocess_joint(single_process_joint(spec)))
+  ))
+  expect_identical(counts$maintainers, 1L)
+
+  for (out in counts$value) {
+    sm <- out$support_mask
+    expect_identical(sm$mask_kind, 2L)
+    expect_identical(sm$stored_kind, 2L)
+    expect_null(dim(sm$initial))
+    expect_length(sm$initial, fx$n_actors)
+  }
+})
+
+test_that("the shared mask serves sub-models that store it differently", {
+  # A layer's rate and its COORDINATION choice share one atom pool and one
+  # evaluation, and differ only in whether the stored mask is symmetrised. That
+  # is the case the per-request `symmetric` exists for: sharing the pool must
+  # not force one sub-model to store the other's shape.
+  fx <- sparse_mask_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    choice_sub_model = "choice_coordination",
+    layer = "call_network",
+    support_constraint = ~ indeg(call_network) >= 0,
+    data = fx$data
+  )
+  counts <- suppressMessages(suppressWarnings(
+    mask_call_counts(preprocess_joint(single_process_joint(spec)))
+  ))
+  expect_identical(counts$maintainers, 1L)
+
+  kinds <- vapply(
+    counts$value,
+    function(out) out$support_mask$stored_kind,
+    integer(1)
+  )
+  # One sub-model stores the separable mask, the other the symmetrised grid.
+  expect_setequal(kinds, c(0L, 1L))
+})
+
+# --- 8.2 an object from before the stream is refused, not misread ----------- #
+
+test_that("a support_mask predating the update stream is refused", {
+  local_reproducible_output()
+  # The hazard is silence, not failure: a cursor over an absent update buffer
+  # finds no flips and returns the initial mask at every event, so the model is
+  # estimated on a constraint frozen at time zero. The epoch stamp cannot see
+  # it -- both layouts are epoch 2 inside this development line -- so the
+  # consumer names the component it needs.
+  stale <- list(
+    support = list(matrix(TRUE, 2L, 2L), matrix(FALSE, 2L, 2L)),
+    initial = matrix(TRUE, 2L, 2L),
+    stored_kind = 0L,
+    n_stored = 2L
+  )
+  expect_snapshot(error = TRUE, mask_cursor(stale))
+  expect_error(mask_flips(stale), "predates the mask update stream")
+
+  # A mask that legitimately never moves has an EMPTY buffer, not an absent
+  # one, and is read without complaint.
+  empty <- mask_from_timeline(list(matrix(TRUE, 2L, 2L), matrix(TRUE, 2L, 2L)))
+  expect_identical(ncol(empty$update), 0L)
+  expect_silent(mask_cursor(empty))
+})

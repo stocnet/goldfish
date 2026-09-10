@@ -1370,6 +1370,62 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
 # branches reproduce the two recipe loops' `finalize_consumers()` calls
 # (`project_initial_stats` on the second vs third margin, the sender-gate vs
 # dyad fold, and the risk-set entity the intercept scalar counts).
+# Realize every pending engine's masks in one pooled pass, so a layer's
+# sub-models share an atom pool instead of building one apiece. Requests are
+# grouped by the node sides and model they are compiled against -- a
+# multivariate walk spans several layers, and two layers' constraints have
+# nothing to share -- and each group's engines then pool by atom signature as
+# they always did. Returns the masks split back per engine, aligned with its own
+# consumers.
+realize_pending_masks <- function(pending) {
+  lengths <- vapply(pending, function(p) length(p$requests), integer(1))
+  masks <- lapply(lengths, function(n) vector("list", n))
+  owner <- rep(seq_along(pending), lengths)
+  requests <- unlist(lapply(pending, function(p) p$requests), recursive = FALSE)
+  if (length(requests) == 0L) {
+    return(masks)
+  }
+
+  key <- vapply(
+    seq_along(requests),
+    function(i) {
+      ctx <- pending[[owner[[i]]]]$engine$ctx
+      paste(
+        pending[[owner[[i]]]]$engine$model,
+        ctx$nodes,
+        ctx$nodes2,
+        sep = "\v"
+      )
+    },
+    character(1)
+  )
+  for (group in split(seq_along(requests), key)) {
+    engine <- pending[[owner[[group[[1L]]]]]]$engine
+    ctx <- engine$ctx
+    realized <- preprocess_pooled_support_masks(
+      requests[group],
+      model = engine$model,
+      nodes = ctx$nodes,
+      nodes2 = ctx$nodes2,
+      prep_envir = engine$prep_envir,
+      src = ctx$src
+    )
+    for (k in seq_along(group)) {
+      i <- group[[k]]
+      slot <- i -
+        (if (owner[[i]] > 1L) sum(lengths[seq_len(owner[[i]] - 1L)]) else 0L)
+      masks[[owner[[i]]]][[slot]] <- realized[[k]]
+    }
+  }
+  masks
+}
+
+# Phase one of finalizing an engine: build the tail, pick the family's fold, and
+# finalize every consumer's writer WITHOUT realizing a mask. A constraint
+# belongs to the `(layer, flavor)` process rather than to a sub-model family, so
+# a layer's rate engine and its choice engine have to reach one atom pool, and
+# that is only possible once both timelines exist. `run_merged_walk()` realizes
+# them all between this and `render_walk_engine()`.
 finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -1386,101 +1442,81 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   )
 
   if (engine$is_sender) {
-    outputs <- finalize_consumers(
-      engine$consumers,
-      engine$consumer_specs,
-      tail = tail,
-      default_constraint = ctx$plan$support_constraint,
-      project_initial_stats = function(stats, effect_map) {
-        stats[, effect_map, drop = FALSE]
-      },
-      finish_output = function(out, constraint, support_mask = NULL) {
-        if (is.null(constraint)) {
-          return(out)
-        }
-        if (is.null(support_mask)) {
-          support_mask <- preprocess_support_mask(
-            constraint,
-            model = engine$model,
-            nodes = ctx$nodes,
-            nodes2 = ctx$nodes2,
-            symmetric = FALSE,
-            snapshot_times = out$event_time,
-            src = ctx$src,
-            prep_envir = engine$prep_envir
-          )
-        }
+    project_initial_stats <- function(stats, effect_map) {
+      stats[, effect_map, drop = FALSE]
+    }
+    finish_output <- function(out, constraint, support_mask = NULL) {
+      if (is.null(constraint)) {
+        return(out)
+      }
+      out$support_mask <- support_mask
+      fold_active_sender_support(out, out$support_mask, ctx$active_dyad_init)
+    }
+    scalar_entity <- "sender"
+  } else {
+    project_initial_stats <- function(stats, effect_map) {
+      stats[,, effect_map, drop = FALSE]
+    }
+    finish_output <- function(out, constraint, support_mask = NULL) {
+      if (!is.null(constraint)) {
         out$support_mask <- support_mask
-        fold_active_sender_support(
+        return(fold_active_dyad_support(
           out,
           out$support_mask,
-          ctx$active_dyad_init
-        )
-      },
-      realize_masks = function(requests) {
-        preprocess_pooled_support_masks(
-          requests,
-          model = engine$model,
-          nodes = ctx$nodes,
-          nodes2 = ctx$nodes2,
-          symmetric = FALSE,
-          prep_envir = engine$prep_envir,
-          src = ctx$src
-        )
-      },
-      scalar_entity = "sender"
-    )
+          spec_map,
+          constraint$mask_kind,
+          opportunitiesList = opportunities
+        ))
+      }
+      if (!is.null(opportunities) && is_choice_family(spec_map)) {
+        out <- fold_active_dyad_opportunity(out, opportunities)
+      }
+      out
+    }
+    scalar_entity <- "dyad"
+  }
+
+  single <- is.null(engine$consumer_specs)
+  finalized <- if (single) {
+    writer <- engine$consumers[[1L]]$writer
+    list(list(
+      out = writer$finalize(tail),
+      constraint = ctx$plan$support_constraint,
+      writer = writer,
+      spec = tail$spec
+    ))
   } else {
-    outputs <- finalize_consumers(
+    finalize_consumer_writers(
       engine$consumers,
       engine$consumer_specs,
-      tail = tail,
-      default_constraint = ctx$plan$support_constraint,
-      project_initial_stats = function(stats, effect_map) {
-        stats[,, effect_map, drop = FALSE]
-      },
-      finish_output = function(out, constraint, support_mask = NULL) {
-        if (!is.null(constraint)) {
-          if (is.null(support_mask)) {
-            support_mask <- preprocess_support_mask(
-              constraint,
-              model = engine$model,
-              nodes = ctx$nodes,
-              nodes2 = ctx$nodes2,
-              symmetric = identical(spec_map$sub_model, "choice_coordination"),
-              snapshot_times = out$event_time,
-              src = ctx$src,
-              prep_envir = engine$prep_envir
-            )
-          }
-          out$support_mask <- support_mask
-          return(fold_active_dyad_support(
-            out,
-            out$support_mask,
-            spec_map,
-            constraint$mask_kind,
-            opportunitiesList = opportunities
-          ))
-        }
-        if (!is.null(opportunities) && is_choice_family(spec_map)) {
-          out <- fold_active_dyad_opportunity(out, opportunities)
-        }
-        out
-      },
-      realize_masks = function(requests) {
-        preprocess_pooled_support_masks(
-          requests,
-          model = engine$model,
-          nodes = ctx$nodes,
-          nodes2 = ctx$nodes2,
-          symmetric = identical(spec_map$sub_model, "choice_coordination"),
-          prep_envir = engine$prep_envir,
-          src = ctx$src
-        )
-      },
-      scalar_entity = "dyad"
+      tail,
+      project_initial_stats
     )
   }
+
+  list(
+    engine = engine,
+    finalized = finalized,
+    requests = consumer_mask_requests(finalized),
+    finish_output = finish_output,
+    scalar_entity = scalar_entity,
+    single = single
+  )
+}
+
+# Phase two: fold each consumer's realized mask in, render, and decorate.
+render_walk_engine <- function(pending, masks) {
+  engine <- pending$engine
+  ctx <- engine$ctx
+  spec_map <- engine$spec_map
+  outputs <- render_finalized_consumers(
+    pending$finalized,
+    masks,
+    pending$finish_output,
+    pending$scalar_entity,
+    weight_risk_set = !pending$single,
+    names = if (pending$single) NULL else names(engine$consumers)
+  )
 
   # `finalize_consumers()` returns one object for a single output and a
   # fid-named list otherwise; normalize to a fid-keyed list either way.
@@ -1655,14 +1691,24 @@ run_merged_walk <- function(
     state <- merged_apply_state_update(state, oid, shape, event_args, props)
   }
 
+  # Finalize every engine's writers first, then realize ALL their masks in one
+  # pooled pass, then render. A `support_constraint` belongs to the
+  # `(layer, flavor)` process, so a layer's rate engine and its choice engine
+  # read one mask over one atom pool -- which needs both timelines in hand, and
+  # is why the realization sits between the two halves rather than inside
+  # either.
+  pending <- lapply(
+    engines,
+    finalize_walk_engine,
+    start_time = start_time,
+    end_time = end_time,
+    opportunities = control_preprocessing$opportunities_list
+  )
+  masks <- realize_pending_masks(pending)
+
   outputs <- list()
-  for (engine in engines) {
-    engine_outputs <- finalize_walk_engine(
-      engine,
-      start_time,
-      end_time,
-      control_preprocessing$opportunities_list
-    )
+  for (i in seq_along(pending)) {
+    engine_outputs <- render_walk_engine(pending[[i]], masks[[i]])
     outputs[names(engine_outputs)] <- engine_outputs
   }
 
