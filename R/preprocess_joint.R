@@ -1000,10 +1000,25 @@ merged_covariate_step <- function(
               )
             }
           } else {
+            delta <- project_entries(
+              updates[, "node1"],
+              updates[, "node2"],
+              updates[, "replace"],
+              bcast_kind[gid],
+              bcast_kind[gid],
+              n1,
+              n2
+            )
+            assign(
+              as.character(gid),
+              write_entries(
+                get(as.character(gid), envir = engine$op_state),
+                delta$entries,
+                delta$values
+              ),
+              envir = engine$op_state
+            )
             exp <- expand_operand_update(updates, bcast_kind[gid], n1, n2)
-            om <- get(as.character(gid), envir = engine$op_state)
-            om[exp$cells] <- exp$vals
-            assign(as.character(gid), om, envir = engine$op_state)
             for (ig in feeds) {
               igc <- as.character(ig)
               engine$dirty_inter[[igc]] <- rbind(
@@ -1056,9 +1071,17 @@ merged_covariate_step <- function(
         block <- rbind(senders - 1, 0, ig - 1, prodv)
       } else {
         cells <- dedup_cells(engine$dirty_inter[[igc]], n1)
-        prodv <- get(as.character(ops[1]), envir = engine$op_state)[cells]
+        operand_at_cells <- function(o) {
+          read_value_at_cells(
+            get(as.character(o), envir = engine$op_state),
+            bcast_kind[o],
+            cells,
+            drop_diagonal = engine$op_drop_diagonal
+          )
+        }
+        prodv <- operand_at_cells(ops[1])
         for (o in ops[-1]) {
-          prodv <- prodv * get(as.character(o), envir = engine$op_state)[cells]
+          prodv <- prodv * operand_at_cells(o)
         }
         block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
       }
@@ -1207,6 +1230,11 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   stat_cache <- lapply(ctx$stat_cache, "[[", "cache")
 
   if (n_inter > 0) {
+    bcast_kind <- plan$effects$broadcast_kind
+    # A one-mode dyad statistic is a broadcast everywhere EXCEPT on its
+    # diagonal, which its init zeroes. The kind holds the broadcast; the
+    # diagonal rule is re-applied on every dense read.
+    op_drop_diagonal <- identical(ctx$nodes, ctx$nodes2)
     operand_gids <- sort(unique(unlist(plan$interactions)))
     if (unit$is_sender) {
       for (og in operand_gids) {
@@ -1221,14 +1249,31 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
         initial_stats[, ig] <- prod_vec
       }
     } else {
+      # Operands are stored at their own broadcast kind, exactly as the dyad
+      # recipe loop stores them, and widened back to point only for this
+      # one-time product seeding.
       for (og in operand_gids) {
-        assign(as.character(og), initial_stats[,, og], envir = op_state)
+        assign(
+          as.character(og),
+          reduce_value(initial_stats[,, og], 0L, bcast_kind[og]),
+          envir = op_state
+        )
+      }
+      operand_grid <- function(o) {
+        project_value(
+          get(as.character(o), envir = op_state),
+          bcast_kind[o],
+          0L,
+          n1,
+          n2,
+          drop_diagonal = op_drop_diagonal
+        )
       }
       for (ig in inter_ids) {
         ops <- plan$interactions[[as.character(ig)]]
-        prod_mat <- get(as.character(ops[1]), envir = op_state)
+        prod_mat <- operand_grid(ops[1])
         for (o in ops[-1]) {
-          prod_mat <- prod_mat * get(as.character(o), envir = op_state)
+          prod_mat <- prod_mat * operand_grid(o)
         }
         initial_stats[,, ig] <- prod_mat
       }
@@ -1312,6 +1357,7 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   engine$initial_stats <- initial_stats
   engine$stat_cache <- stat_cache
   engine$op_state <- op_state
+  engine$op_drop_diagonal <- n_inter > 0 && identical(ctx$nodes, ctx$nodes2)
   engine$dirty_inter <- list()
   engine$consumers <- consumers
   engine$consumer_specs <- consumer_specs

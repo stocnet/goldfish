@@ -1357,13 +1357,20 @@ run_dyad_recipe_loop <- function(
   )
   stat_cache <- lapply(stat_cache, "[[", "cache")
 
-  # Interaction state. Keep a live full n1 x n2 value for every
-  # operand feeding an interaction, seeded from its initial slice, and updated in
-  # place as its effect emits deltas (per its broadcast kind). Each interaction's
-  # column is the elementwise product of its operands' live matrices; its
-  # initial slice is seeded here and its deltas are emitted as point updates when
-  # any operand changes (second-hop routing).
+  # Interaction state. Keep a live value for every operand feeding an
+  # interaction, stored AT THE OPERAND'S OWN BROADCAST KIND -- a scalar, a
+  # length-n1 or length-n2 vector, and a dense matrix only for a genuinely
+  # dyadic operand -- seeded from its initial slice and written in place at kind
+  # size as its effect emits deltas. Each interaction's column is the
+  # elementwise product of its operands read at the cells they touched; its
+  # initial slice is seeded here and its deltas are emitted as point updates
+  # when any operand changes (second-hop routing).
+  #
+  # A one-mode dyad statistic is a broadcast everywhere EXCEPT on its diagonal,
+  # which its init zeroes because a node has no tie to itself. The kind holds
+  # the broadcast; the diagonal rule is re-applied on every dense read.
   op_kind <- plan$effects$broadcast_kind
+  op_drop_diagonal <- identical(nodes, nodes2)
   op_state <- new.env(parent = emptyenv())
   # Per-event accumulator of interaction operand cells touched, keyed
   # by interaction gid; refilled in the routing loop, emptied after each event's
@@ -1372,13 +1379,30 @@ run_dyad_recipe_loop <- function(
   if (n_inter > 0) {
     operand_gids <- sort(unique(unlist(plan$interactions)))
     for (og in operand_gids) {
-      assign(as.character(og), initial_stats[,, og], envir = op_state)
+      assign(
+        as.character(og),
+        reduce_value(initial_stats[,, og], 0L, op_kind[og]),
+        envir = op_state
+      )
+    }
+    # The initial product is seeded over the whole grid, so each operand is
+    # widened back to point once here. A one-time cost at seeding, not the
+    # per-event densification the walk used to pay.
+    operand_grid <- function(o) {
+      project_value(
+        get(as.character(o), envir = op_state),
+        op_kind[o],
+        0L,
+        n1,
+        n2,
+        drop_diagonal = op_drop_diagonal
+      )
     }
     for (ig in inter_ids) {
       ops <- plan$interactions[[as.character(ig)]]
-      prod_mat <- get(as.character(ops[1]), envir = op_state)
+      prod_mat <- operand_grid(ops[1])
       for (o in ops[-1]) {
-        prod_mat <- prod_mat * get(as.character(o), envir = op_state)
+        prod_mat <- prod_mat * operand_grid(o)
       }
       initial_stats[,, ig] <- prod_mat
     }
@@ -1680,17 +1704,33 @@ run_dyad_recipe_loop <- function(
           }
 
           if (!is.null(updates)) {
-            # Interaction second-hop: if this effect is an operand,
-            # apply its delta to its live matrix and record the touched cells for
-            # each interaction it feeds, so the product columns are refreshed
-            # after the routing loop.
+            # Interaction second-hop: if this effect is an operand, write its
+            # delta into its live value AT ITS OWN KIND and record the touched
+            # cells for each interaction it feeds, so the product columns are
+            # refreshed after the routing loop. The dirty set stays in point
+            # cells because the product's delta is emitted as point updates.
             if (n_inter > 0L && gid <= n_fun) {
               feeds <- plan$operand_of[[as.character(gid)]]
               if (!is.null(feeds)) {
+                delta <- project_entries(
+                  updates[, "node1"],
+                  updates[, "node2"],
+                  updates[, "replace"],
+                  op_kind[gid],
+                  op_kind[gid],
+                  n1,
+                  n2
+                )
+                assign(
+                  as.character(gid),
+                  write_entries(
+                    get(as.character(gid), envir = op_state),
+                    delta$entries,
+                    delta$values
+                  ),
+                  envir = op_state
+                )
                 exp <- expand_operand_update(updates, op_kind[gid], n1, n2)
-                om <- get(as.character(gid), envir = op_state)
-                om[exp$cells] <- exp$vals
-                assign(as.character(gid), om, envir = op_state)
                 for (ig in feeds) {
                   igc <- as.character(ig)
                   dirty_inter[[igc]] <- rbind(dirty_inter[[igc]], exp$cells)
@@ -1735,9 +1775,17 @@ run_dyad_recipe_loop <- function(
             ig <- as.integer(igc)
             cells <- dedup_cells(dirty_inter[[igc]], n1)
             ops <- plan$interactions[[igc]]
-            prodv <- get(as.character(ops[1]), envir = op_state)[cells]
+            operand_at_cells <- function(o) {
+              read_value_at_cells(
+                get(as.character(o), envir = op_state),
+                op_kind[o],
+                cells,
+                drop_diagonal = op_drop_diagonal
+              )
+            }
+            prodv <- operand_at_cells(ops[1])
             for (o in ops[-1]) {
-              prodv <- prodv * get(as.character(o), envir = op_state)[cells]
+              prodv <- prodv * operand_at_cells(o)
             }
             if (hasStartTime && next_event_time < startTime) {
               initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
