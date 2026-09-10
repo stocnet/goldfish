@@ -406,7 +406,7 @@ step landed proves nothing.
       the frozen baselines read, so it needs its own change. And this does not
       gate 0.4c after all: the state write is on an n1 x n2 adjacency matrix,
       a different object from the statistics buffer in every candidate layout.
-- [ ] 0.9 Re-run the gate and record the contrast (design D9). The pre-fix
+- [x] 0.9 Re-run the gate and record the contrast (design D9). The pre-fix
       numbers are already recorded and are NOT re-measured: CollegeMsg base
       model, recipe loops 219.6 s, merged walk 67.2 s, ratio 0.31; Social
       Evolution merged 1.31x (windowless) and 1.78x (plain); allocation 27.53 /
@@ -417,6 +417,31 @@ step landed proves nothing.
       Social Evolution is setup-dominated and the full 59,835 events are
       copy-dominated, and neither isolates the architecture on its own. The
       ratio this produces is the one group 3 reads.
+      — done 2026-09-10 (session `goldfish-64`). **CollegeMsg full, base model:
+      the two recipe loops go 219.6 s -> 24.3 s and the merged walk 67.2 s ->
+      24.1 s, so the ratio moves from 0.31 to 0.99 — parity.** The rate loop is
+      59x faster and the choice loop 4.5x, which is the copy's own shape: the
+      rate loop's per-event work was almost entirely duplication, the choice
+      loop also computes an n1 x n2 statistic per event. The full contrast:
+      Social Evolution 1.78 -> 1.34 (plain) and 1.31 -> 1.26 (no_window);
+      CollegeMsg 10k 1.05 (base) and 1.16 (constrained, which previously
+      errored on the 24 GB limit). Against the 1.10x threshold the answer is now
+      size-dependent and close to the line rather than three times under it.
+      **The verdict is not stated in the write-up**: group 3 needs Alvaro's
+      explicit approval on top of a number (D7, task 3.3), and a result this
+      close is the case judgement exists for.
+      **Second finding, and it needs an owner.** A support constraint now costs
+      three orders of magnitude in TIME where it used to fail on memory: at 10k
+      events on 1899 actors, `batch_rate` is 362 s constrained against 0.349 s
+      unconstrained. 0.5a fixed the storage; the evaluation still builds a dense
+      n1 x n2 grid per snapshot from dense atoms and reduces it only at the end.
+      Reducing the ATOMS to their kinds is the follow-up. This is why the full
+      CollegeMsg re-run is scoped to the base model — at 59,835 events the
+      constrained cells would be hours each and would measure the mask
+      maintainer, not the gate's question.
+      Script changes: a 10k subset, separate `cm10k` / `cmfull` selectors, and
+      an `only_models` filter. Numbers in
+      `.plan/sp/preprocess_timing_2026-09.md`.
 ## 1. Merged-walk parity with the recipe loops
 
 - [ ] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
