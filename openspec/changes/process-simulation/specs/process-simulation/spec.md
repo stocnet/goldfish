@@ -15,6 +15,18 @@ without family-specific branching. Simulating a flavored specification SHALL dra
 the next event across all modeled flavors' total rates with each flavor's derived
 support mask maintained. Free-running simulation past the last observed
 covariate/composition change SHALL freeze the exogenous state and warn once.
+A simulation run SHALL open the walk once per replicate and SHALL NOT
+re-preprocess per sub-model or per flavor: every fid is served from the
+engine compiled at `walk_open()`, and one injected event updates the shared
+state every engine reads.
+
+#### Scenario: one walk serves every fid of a rate-and-choice flavored specification
+
+- **WHEN** a flavored DyNAM specification with K flavors, each carrying a rate
+  and a choice, is simulated for one replicate
+- **THEN** `walk_open()` runs once, each step evaluates the K rate fids and the
+  drawn flavor's choice fid at the same live state, and no per-flavor or
+  per-family preprocessing pass is run inside the loop.
 
 #### Scenario: fixed-count simulation
 
@@ -35,6 +47,47 @@ covariate/composition change SHALL freeze the exogenous state and warn once.
   covariate/composition change
 - **THEN** exogenous state stays frozen at its last observed value and a single
   warning reports the freeze point.
+
+### Requirement: The simulation steps are pluggable and the parameter provider resolves to one known shape
+
+`simulate()` SHALL run one driver loop with four plug points — the parameter
+provider (per-replicate `init` and per-step `at`), the clock, the mark kernel,
+and the acceptance rule — taken from an exported `set_simulation_steps()`
+constructor whose every slot defaults to the package's own step keyed on the
+specification's behavioral descriptor, so that the parametric clocks, the
+two-sided mechanisms, the DyNES sequential augmenter and external
+latent-variable packages are callers of the same loop. The `coef` argument
+SHALL accept a numeric vector, a `goldfishParams`, or a parameter provider
+from an exported `set_parameter_provider(init, at)`, and SHALL resolve every
+form, at every step, to the one shape the walk evaluates per fid: a numeric
+vector of length `p_fid`, or an `n_ego × p_fid` matrix whose row is that
+ego's parameter vector. A provider MAY return a next breakpoint time, which
+the clock SHALL treat as a competing exit that re-invokes the provider and
+injects no event; the provider's realized latent path SHALL be recorded per
+event on the result. The walk handle, the process-state evaluators and the
+default steps SHALL remain internal; step closures SHALL reach the handle
+only through the exported accessor surface.
+
+#### Scenario: a constant provider is the plain path
+
+- **WHEN** `simulate()` runs with a numeric `coef` and with an equivalent
+  provider whose `at()` returns that vector at every step, under one seed
+- **THEN** the two runs produce identical sequences.
+
+#### Scenario: a per-actor provider drives per-ego rates
+
+- **WHEN** a provider's `at()` returns an `n_ego × p` matrix for a rate fid
+  with a nonzero deviation on one actor's intercept
+- **THEN** that actor's simulated rate equals the common rate times
+  `exp(deviation)` at every step, and the other actors' rates are unchanged.
+
+#### Scenario: a regime jump is a breakpoint, not an event
+
+- **WHEN** a continuous-time regime provider reports an exit rate and the
+  clock draws the exit before any event
+- **THEN** the driver advances to the exit time, calls `at()` again, redraws
+  from the new parameters, injects nothing, and the result's latent column
+  records the switch.
 
 ### Requirement: The `times` axis names the two simulation variants
 
@@ -65,15 +118,20 @@ SHALL NOT describe the axis as conditional/unconditional.
 ### Requirement: Free-running clocks are keyed on the distribution axis
 
 Free-running waiting-time draws SHALL be keyed on the specification's
-`distribution`: for `"exponential"`, exact competing-exponential draws from the
-total rate (intercept included), redrawn at every breakpoint (events, exogenous
-changes, window expiries); for `"weibull"` and `"gompertz"` (common shape),
-exact draws by analytic inversion of the integrated intensity
-Σλ_i·[G(t+w) − G(t)] per constant-rate segment, with the same breakpoint
-discipline; for `"cox"` (and choice-only sub-models), no clock is estimated —
-free-running SHALL use pseudo-time from the stored crude rate with output
-documenting that such times are meaningful only up to scale, and time-anchored
-simulation SHALL be documented as the statistically clean variant. The
+behavioral descriptor, read in two steps: first `timing`, then, for a timed
+sub-model, `distribution`. For `timing = "timed"` and `distribution =
+"exponential"`, exact competing-exponential draws from the total rate
+(intercept included), redrawn at every breakpoint (events, exogenous changes,
+window expiries); for `"weibull"` and `"gompertz"` (common shape), exact draws
+by analytic inversion of the integrated intensity Σλ_i·[G(t+w) − G(t)] per
+constant-rate segment, with the same breakpoint discipline; for `timing =
+"ordinal"` — the Cox family a user requests as `distribution = "cox"`, and
+every choice-only sub-model — no clock is estimated: free-running SHALL use
+pseudo-time from the stored crude-rate scalars (`n_dep_events`, `total_time`,
+`avg_active_entity`) with output documenting that such times are meaningful
+only up to scale, and time-anchored simulation SHALL be documented as the
+statistically clean variant. A timed fid SHALL be recognized through
+`is_exact_time` on its preprocessed object. The
 exponential draw's exactness rests on every statistic being piecewise-constant
 between breakpoints; a specification carrying any effect that violates this
 SHALL be rejected with an error naming the effect rather than simulated with a
@@ -245,9 +303,28 @@ SHALL NOT be rate-completed — its timing uses the ordered strategies
 (`times = "observed"` or pseudo-time). REM requires only a rate and is already
 complete. `walk_open()`
 SHALL assert completeness, so the draw loop never opens an incomplete specification.
-Because `simulate()` runs the same completion transform as `estimate_dynes()` and
-the augmenters, a simulated pool and an augmented pool SHALL carry identical fid
-sets into `evaluate_sequence_pool()`.
+The walk handle walks effect-bearing sub-models only, so the driver SHALL
+evaluate a completed fid itself: a completed uniform choice as an equiprobable
+draw over the fid's receiver support, and a completed pinned rate as the
+constant per-actor rate `exp(intercept_w)` of the current period. Because
+`simulate()` runs the same completion transform as `estimate_dynes()` and the
+augmenters, a simulated pool and an augmented pool SHALL carry identical fid
+sets into `evaluate_sequence_pool()`. A flavor named in neither sub-model
+list of a relational layer SHALL NOT be completed: it is unmodeled, and
+`simulate()` SHALL replay its observed events as scheduled state updates
+that right-censor the timed engines, recording the flavor as
+`anchored-replay`; on a modeled panel layer such a flavor SHALL abort as it
+does for `estimate_dynes()`.
+
+#### Scenario: an unmodeled flavor is replayed, not completed
+
+- **WHEN** a flavored treaties specification models `creation` in rate and
+  choice and names `dissolution` in neither, and is simulated free-running
+- **THEN** no completion runs, creation events are drawn, each observed
+  dissolution is replayed at its observed time as a state update that
+  right-censors the creation rate, the regime record shows `dissolution` as
+  `anchored-replay`, and a replayed dissolution of a tie the simulation
+  never created is skipped and counted.
 
 #### Scenario: rate-only DyNAM simulates with a uniform choice
 
@@ -262,6 +339,14 @@ sets into `evaluate_sequence_pool()`.
   specification that skipped the completion transform
 - **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
   simulating events with a missing rate or choice.
+
+#### Scenario: a completed pinned rate is evaluated by the driver, not the handle
+
+- **WHEN** a flavor whose rate was completed with a pinned intercept-only
+  default is simulated free-running
+- **THEN** its per-actor rate is the constant `exp(intercept_w)` of the current
+  period supplied by the driver, the handle is never asked to evaluate the
+  effect-free fid, and the fid is marked `completed` in the regime record.
 
 #### Scenario: choice-only DyNAM keeps ordered timing
 

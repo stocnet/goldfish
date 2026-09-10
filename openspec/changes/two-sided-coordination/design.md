@@ -275,6 +275,17 @@ to lift later: `walk_engine_model_type()` shows coordination is a dyad engine
 whose mark probability is the single mechanism-specific point, and the derivation
 note's §7 gives each mechanism its generative thinning construction.
 
+*Lifted for the simulation engine (noted 2026-09-09; decided in
+`process-simulation` D7 on 2026-08-19).* `simulate()` generates all five
+mechanisms in both `times` variants: time-anchored from the mechanism's
+normalized mark multinomial (no rejection loop), free-running through each
+mechanism's §7 thinning construction with the acceptance rate reported and a
+max-proposals bound. The conjunctive-only gate therefore remains only on
+`estimate_dynes()` and the augmenters until they adopt the same mark kernel
+(`process-simulation` D11's P3 plug point). This change's task 2.5 fixtures
+seed `process-simulation`'s per-mechanism DGP tests; coordinate the two task
+lists when either applies.
+
 ### D16 — Regimes in composition: single-regime for now, ordered is coordination's native home (revised 2026-08-19)
 A joint composition keeps `make_joint_specification()`'s existing
 single-regime rule (mixing timed and ordered processes rejects at join
@@ -330,6 +341,14 @@ owned by the substrate (`multivariate-specification` /
 - Mixed timed+ordered composition ("every model uses what it needs" under
   sequence augmentation) — recorded as the alternative in ADR-0030, to be
   discussed with Maria; single-regime stands for now.
+- **Per-ego parameters on a coordination fid (deferred here from
+  `process-simulation` D11, 2026-09-09).** A simulation parameter provider
+  with actor random effects returns, per fid, a numeric vector or an
+  `n_ego × p` matrix; a two-sided fid has two egos. Decide, when this
+  change's own random-effects or provider work arrives, whether `at()`
+  returns one matrix per side or one two-sided object carrying both sides
+  and the mechanism. Until then `process-simulation` builds the vector case
+  only for coordination.
 - Parametric baselines for coordination await the thinning-coherence question
   (ADR-0023) — deliberately not blocking this change. Note the merged
   substrate sharpens it: the generative walk *simulates* the latent thinning

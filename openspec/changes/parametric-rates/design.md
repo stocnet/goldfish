@@ -256,3 +256,12 @@ No released users are affected (token absent from v1.7.0/CRAN).
 - None blocking. The coordination-side parametric question (thinning of
   rejected proposals under a parametric clock) is deliberately out of scope
   and recorded in ADR-0023 / `two-sided-coordination`.
+- **The per-actor time origin across a breakpoint (from `process-simulation`
+  D11, 2026-09-09).** The free-running Weibull/Gompertz clock inverts the
+  integrated intensity per constant-rate segment and restarts at every
+  breakpoint (event, exogenous change, window expiry, and a latent regime
+  switch when a parameter provider schedules one). Whether the hazard's time
+  origin is the actor's last event, the last breakpoint, or the process start
+  is this change's definition to make, and the simulator can only store it per
+  actor on the walk handle if the definition says so; settle it with task 3.4's
+  DGP so the recovery test and the simulator agree.

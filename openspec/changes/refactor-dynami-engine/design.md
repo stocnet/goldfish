@@ -35,7 +35,37 @@ it does not rebuild them.
 
 ## Decisions
 
-_To be written when the change is taken up._ Open questions to resolve then:
+### D1 — Recompute-style effects join the recipe loop through a delta adapter (added 2026-09-08)
+
+The structural difference between a DyNAM-i effect and a DyNAM effect is
+*where* the statistic is computed, not what it measures. A DyNAM effect
+returns the delta rows one event induces (`changes`, plus a cache); a DyNAM-i
+effect recomputes the full `n1 x n2` statistic from the changed object
+(`update_DyNAMi_choice_inertia()` is a double loop over actors and groups).
+That is the whole reason the monolith exists and why the descriptor carries
+`input_shape = "grouped"`: the recipe loops, the merged walk and the walk
+handle all consume deltas.
+
+Rather than rewrite every DyNAM-i effect into delta form before it can ride
+the recipe architecture — the rewrite this change lists as a non-goal — the
+conversion wraps each recompute-style effect in an **adapter** that keeps the
+previously recomputed matrix in the effect's cache, recomputes on the event,
+diffs the two, and emits the changed cells as delta rows in the shape the
+consumers already accept. The adapter costs what DyNAM-i pays today (one full
+recompute per event) plus one matrix comparison, so it makes nothing slower;
+it makes the effect *look* like a DyNAM effect to every consumer. Once the
+effects ride the recipe loop through the adapter, they also ride the merged
+walk and the walk handle, which is the gate `process-simulation` and
+`make-multivariate-spec` D7 hold DyNAM-i behind.
+
+The adapter is a bridge, not an end state. Any DyNAM-i effect later rewritten
+in delta form drops its adapter and becomes a pure optimization with the
+baselines as the guard; nothing downstream notices. *Rejected:* teaching the
+recipe loop (or the merged walk) a second, recompute-style update protocol —
+that puts a DyNAM-i branch back into the shared loop this change exists to
+remove, and every generative consumer would have to learn it too.
+
+_Remaining decisions to be written when the change is taken up._ Open questions to resolve then:
 
 1. How DyNAMi's post-event update order and group-network (`groupsNetwork`)
    handling map onto the recipe loop's per-event update model.

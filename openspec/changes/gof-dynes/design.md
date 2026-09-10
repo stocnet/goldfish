@@ -271,6 +271,26 @@ interpretable as model+MC variation; the `vcov()` variant is additive later with
 reworking the statistics. *Alternative rejected*: free-running `simulate()` from
 `θ̂` — degeneracy / rate explosion, exactly what the background warns against.
 
+*Groomed 2026-09-09 against `process-simulation` (ADR-0033, ADR-0034, its
+D6/D9/D11).* What this decision calls "fixed-time simulation" is
+`simulate(times = "observed")` — the **time-anchored** variant that change
+makes first-class on every family — with two additions that stay here: the
+per-layer flavor mask at each stamp (a P3 mark-kernel restriction in D11's
+vocabulary) and the sampled PE times. It is therefore not a second simulation
+mode but the general driver with this change's mark step, so the "new sim
+mode" wording above is superseded: this change supplies a `goldfishSimSteps`
+with its own `mark`, and drives the same loop. Two consequences ride along.
+**Vocabulary**: the artifacts of this change say *time-anchored* /
+*free-running*, never conditional/unconditional (ADR-0033's rejected
+namings), and the `lr_test_dynes` → `test_nested()`, `gof_dynes` →
+`test_gof(type =)` sweep recorded on 2026-08-21 remains owed. **Exclusions**:
+a simulated sequence that hit the explosion guard carries a capped flag and
+is excluded from the statistics pool by default and reported in aggregate;
+components the completion transform filled (a uniform choice, a pinned rate)
+or that were replayed rather than modeled are named in the per-component
+regime record, and statistics touching them are excluded from the
+Mahalanobis comparison rather than trusted to user discipline.
+
 ### D8 — Fixed built-in auxiliary statistics, two in v1
 v1 ships two cross-layer statistics, no extension surface: **events-per-panel-
 flavor** `A_{φ,φ',c}` and **2-path closure** `A_{φ,φ',c}`, each a count vector over
@@ -504,6 +524,25 @@ the simulation discrepancy — has **no home change**. The archived
 GOF, auxiliary statistics) waits for DyNES to land", and again under *Out of
 scope*), and no successor was ever created. It needs one, sequenced after
 `process-simulation`.
+
+### D15 — Completed components' likelihood terms are kept separable (added 2026-09-09)
+
+A joint DyNES fit evaluates its Monte-Carlo likelihood over every fid of the
+completed specification, including the fids `complete_generative_spec()`
+filled with zero-free-parameter defaults. Those fids move no parameter, but
+their terms are not constants: a completed uniform choice contributes the log
+of one over the current support size at each of its events, which depends on
+the simulated state, and a pinned rate contributes its fixed exposure term.
+Any quantity that compares two fits or penalizes a fit by its likelihood
+value — the deviance of D3, `test_nested()`, an information criterion — must
+therefore be able to subtract the completed components' contribution, or two
+models that differ only in which flavor was completed will look different for
+a reason that is not a model difference. The batched evaluator records the
+per-fid log-likelihood by regime (modeled / completed / replayed) from the
+`process_map`'s record rather than as one total, and the deviance reads the
+modeled components only, reporting the excluded mass. *Rejected*: a single
+total with a documented caveat — the caveat is exactly the kind of user
+discipline D9 of `process-simulation` was written to remove.
 
 ## Risks / Trade-offs
 
