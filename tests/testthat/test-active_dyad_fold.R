@@ -90,7 +90,7 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
     support_constraint = ~ indeg(call_network) > 0,
     preprocessing_only = TRUE
   )
-  supp <- prep$support_mask$support
+  supp <- mask_timeline(prep$support_mask)
   # An alter-kind mask is stored as the length-n2 receiver vector, so the
   # from-scratch check reads the vector rather than a row of a dense grid.
   expect_equal(prep$support_mask$stored_kind, 1L)

@@ -310,3 +310,93 @@ read_value_at_cells <- function(value, kind, cells, drop_diagonal = FALSE) {
   }
   at_cells
 }
+
+#' Read a value held at `kind` at linear entries of a wider kind
+#'
+#' The same read as [read_value_at_cells()], addressed linearly rather than by
+#' cell, which is what an incremental recompute works in: the entries that could
+#' have moved are a set of positions in the target value, not a set of dyads.
+#'
+#' @param value the stored value.
+#' @param kind its broadcast kind.
+#' @param entries linear positions within a value at `target_kind`.
+#' @param target_kind the kind those entries index.
+#' @param n1,n2 sender and receiver counts.
+#' @noRd
+read_value_at_entries <- function(value, kind, entries, target_kind, n1, n2) {
+  if (kind == target_kind) {
+    return(value[entries])
+  }
+  if (kind == 3L) {
+    return(rep(value, length(entries)))
+  }
+  # `target_kind` is point here: ego and alter are incomparable, and global was
+  # handled above, so nothing else can widen.
+  if (kind == 2L) {
+    return(value[((entries - 1L) %% n1) + 1L])
+  }
+  value[((entries - 1L) %/% n1) + 1L]
+}
+
+#' The entries of a wider value that entries of a narrower one can affect
+#'
+#' The index-only half of [project_entries()], and the licence the incremental
+#' recompute rests on: mask entry `e` depends on entry `e` of each atom, so a
+#' change to an atom entry can move only the entries that entry projects onto.
+#' One ego entry is a whole row of the grid, one alter entry a whole column, and
+#' a global entry is everything.
+#'
+#' @param entries linear positions within a value at `from`.
+#' @param from,to broadcast kinds, `to` at or above `from`.
+#' @param n1,n2 sender and receiver counts.
+#' @noRd
+map_entries <- function(entries, from, to, n1, n2) {
+  if (from == to) {
+    return(entries)
+  }
+  if (from == 3L) {
+    return(seq_len(kind_length(to, n1, n2)))
+  }
+  if (to != 0L) {
+    cli::cli_abort(
+      "Cannot map entries from kind {.val {from}} to {.val {to}}.",
+      .internal = TRUE
+    )
+  }
+  if (from == 2L) {
+    return(as.integer(outer(entries, (seq_len(n2) - 1L) * n1, "+")))
+  }
+  as.integer(outer(seq_len(n1), (entries - 1L) * n1, "+"))
+}
+
+#' Keep one write per entry, the last
+#'
+#' A broadcast effect reports its delta on the dyad grid's terms: an alter-kind
+#' effect emits one row per sender for the one receiver whose value moved, so a
+#' delta that is one entry wide at the effect's own kind arrives n1 rows long.
+#' Only the last write of an entry is observable, so collapsing them is exact,
+#' and it is the difference between writing one entry and writing the same entry
+#' n1 times.
+#'
+#' @param entries,values a delta at one broadcast kind.
+#' @noRd
+collapse_entries <- function(entries, values) {
+  keep <- !duplicated(entries, fromLast = TRUE)
+  list(entries = entries[keep], values = values[keep])
+}
+
+#' Of a set of candidate writes, the ones that actually change the buffer
+#'
+#' The locality primitive: an incremental recompute produces a value for every
+#' entry that COULD have moved, and only the ones that did belong in an update
+#' stream. [emit_crossings()] is the same question asked of two whole values.
+#'
+#' @param buffer the current value.
+#' @param entries linear positions within it.
+#' @param values what those entries would become.
+#' @return `list(entries, values)` naming only the entries that differ.
+#' @noRd
+changed_entries <- function(buffer, entries, values) {
+  moved <- which(buffer[entries] != values)
+  list(entries = entries[moved], values = values[moved])
+}

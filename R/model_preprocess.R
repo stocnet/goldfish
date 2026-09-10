@@ -165,9 +165,10 @@ run_dynami_monolith <- function(
 # object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
 # `avg_active_entity` recomputed as the event-averaged active-sender count.
 fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
-  support <- support_mask$support
-  # Stored at its axis-union kind, so a reader expands one snapshot at a time
-  # rather than holding the whole timeline dense.
+  # The mask arrives as an initial value plus a flat stream of flips, so the
+  # reader advances a cursor with the events it is already walking rather than
+  # indexing a stored timeline.
+  mask_at <- mask_cursor(support_mask)
   stored_kind <- support_mask$stored_kind %||% 0L
   n_stored <- length(out$event_time)
   if (n_stored == 0L) {
@@ -190,7 +191,7 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
       presence[upd[1L, cols]] <- as.logical(upd[2L, cols])
     }
     prev_ptr <- this_ptr
-    grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+    grid <- support_to_grid(mask_at(e), stored_kind, n1, n2)
     gate <- rowSums(grid & rep(active_dyad_init, each = n1)) > 0
     folded[[e]] <- presence & gate
   }
@@ -1087,11 +1088,12 @@ fold_active_dyad_support <- function(
   }
   n1 <- length(out$active_sender_init)
   n2 <- length(out$active_dyad_init)
-  support <- support_mask$support
-  # Stored at its axis-union kind; expanded one snapshot at a time.
+  # As in the sender fold: a cursor over the flip stream, advanced with the
+  # events this loop already walks in order.
   stored_kind <- support_mask$stored_kind %||% 0L
+  mask_at <- mask_cursor(support_mask)
   support_grid <- function(e) {
-    support_to_grid(support[[e]], stored_kind, n1, n2)
+    support_to_grid(mask_at(e), stored_kind, n1, n2)
   }
   has_opportunity <- !is.null(opportunitiesList)
   encoding <- active_dyad_encoding_decide(
@@ -1112,7 +1114,7 @@ fold_active_dyad_support <- function(
   if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
-      support,
+      mask_at,
       stored_kind,
       n1,
       n2,
@@ -1173,7 +1175,7 @@ fold_active_dyad_support <- function(
 # `support_mask` for the fail-fast validation, which needs them unfolded.
 fold_active_dyad_support_rem <- function(
   out,
-  support,
+  mask_at,
   stored_kind,
   n1,
   n2,
@@ -1202,7 +1204,7 @@ fold_active_dyad_support_rem <- function(
     seq_len(n_stored),
     function(e) {
       m <- outer(p1[[e]], p2[[e]]) &
-        (support_to_grid(support[[e]], stored_kind, n1, n2) == 1)
+        (support_to_grid(mask_at(e), stored_kind, n1, n2) == 1)
       if (symmetric) {
         m <- m & t(m)
       }

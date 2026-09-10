@@ -4,9 +4,12 @@
 # context for reproducible conditions.
 
 # A 4x4 fixture: two dependent events, sender 1 -> receiver 2, sender 2 -> 3.
+# The masks are given outright, event by event, and encoded into the flat stream
+# the producer emits, so these stay unit tests of the validation and not of the
+# representation.
 make_validate_inputs <- function(support) {
   list(
-    support_mask = list(support = support),
+    support_mask = mask_from_timeline(support),
     event_sender = c(1L, 2L),
     event_receiver = c(2L, 3L),
     is_dependent = c(1L, 1L),

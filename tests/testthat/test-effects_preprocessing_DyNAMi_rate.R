@@ -270,7 +270,12 @@ test_that("inertia/tie with objects weighted with all possible options", {
         sub_type = "count",
         joining = -1
       ) +
-      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "count", joining = -1) +
+      tie(
+        covnetwork_DyNAMi,
+        weighted = TRUE,
+        sub_type = "count",
+        joining = -1
+      ) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,

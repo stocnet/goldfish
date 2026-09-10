@@ -50,7 +50,11 @@ test_that("DyNAM choice outdeg(type = 'ego') equals the REM-derived expansion", 
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_equal(choice_ego$initial_stats, rem_ego$initial_stats, tolerance = 1e-6)
+  expect_equal(
+    choice_ego$initial_stats,
+    rem_ego$initial_stats,
+    tolerance = 1e-6
+  )
   expect_equal(
     ReducePreprocess(choice_ego),
     ReducePreprocess(rem_ego),

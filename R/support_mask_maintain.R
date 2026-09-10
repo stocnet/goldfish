@@ -111,6 +111,13 @@ build_atom_maintainer <- function(
   # only for a genuinely dyadic one. `atom_kinds` was already computed and until
   # now had exactly one use -- telling the expansion how to blow a kind-shaped
   # delta up into dense cells, which is the expansion this removes.
+  # Which entries of which atom an event moved, accumulated between reads. The
+  # mask recompute needs exactly this and nothing else: mask entry `e` depends
+  # on entry `e` of each atom, so a change to atom `k` at entries `E` can move
+  # only the mask entries `E` projects onto.
+  touched <- new.env(parent = emptyenv())
+  touched$entries <- vector("list", n_atoms)
+
   atom_state <- new.env(parent = emptyenv())
   for (a in seq_len(n_atoms)) {
     assign(
@@ -269,14 +276,18 @@ build_atom_maintainer <- function(
           n1,
           n2
         )
+        buffer <- get(as.character(gid), envir = atom_state)
+        delta <- collapse_entries(
+          linear_entries(buffer, delta$entries),
+          delta$values
+        )
         assign(
           as.character(gid),
-          write_entries(
-            get(as.character(gid), envir = atom_state),
-            delta$entries,
-            delta$values
-          ),
+          write_entries(buffer, delta$entries, delta$values),
           envir = atom_state
+        )
+        touched$entries[[gid]] <- unique(
+          c(touched$entries[[gid]], delta$entries)
         )
       }
     }
@@ -342,14 +353,27 @@ build_atom_maintainer <- function(
     project_value(atom_value(label), atom_kind(label), 0L, n1, n2)
   }
 
+  # The entries touched since the last call, deduplicated, and cleared. Reading
+  # it is what makes an advance step reportable: the caller learns which atom
+  # entries moved without the maintainer knowing what a mask is.
+  take_touched <- function() {
+    moved <- lapply(touched$entries, function(at) {
+      if (is.null(at)) NULL else unique(at)
+    })
+    touched$entries <- vector("list", n_atoms)
+    moved
+  }
+
   list(
     n1 = n1,
     n2 = n2,
     atom_labels = atom_labels,
+    atom_kinds = atom_kinds,
     advance = advance,
     atom_value = atom_value,
     atom_kind = atom_kind,
-    atom_matrix = atom_matrix
+    atom_matrix = atom_matrix,
+    take_touched = take_touched
   )
 }
 
@@ -388,6 +412,241 @@ eval_constraint_mask <- function(
   # sequence, which is what made a constrained model on a realistic node set
   # exhaust memory on every substrate.
   support_from_grid(m, stored_kind)
+}
+
+#' Maintain one constraint's mask incrementally over a shared atom pool
+#'
+#' The mask is a value at its own kind, maintained the way every other
+#' kind-shaped value in the walk is maintained: written in place at the entries
+#' that moved, and emitted as a stream of the entries that flipped.
+#'
+#' The recompute is local and that is exact. `assemble_support_mask()` evaluates
+#' the constraint tree ELEMENTWISE, so mask entry `e` depends only on entry `e`
+#' of each atom. A change to atom `k` at entries `E` can therefore move only the
+#' mask entries `E` projects onto under `map_entries()`, and nothing else in the
+#' mask can have moved. This is the same locality the interaction second hop
+#' already relies on, applied to the same shape of problem.
+#'
+#' Symmetrising is the one place that reasoning needs care, because
+#' `m & t(m)` is not elementwise: entry `(i, j)` of the stored mask reads the
+#' raw mask at `(i, j)` AND at `(j, i)`. A symmetric constraint therefore keeps
+#' two buffers, the raw mask at its own kind and the stored symmetrised mask at
+#' point, and the stored entries recomputed are closed under transposition.
+#'
+#' @param atoms a handle from [build_atom_maintainer()].
+#' @param expr the evaluable mask expression over `.a{k}` placeholders.
+#' @param atom_labels the constraint's atom labels, aligned with `.a{k}`.
+#' @param symmetric symmetrise the dyad grid (coordination / undirected REM).
+#' @param mask_kind the axis-union kind the tree is evaluated at.
+#' @param stored_kind the kind the emitted mask is stored at, which equals
+#'   `mask_kind` unless symmetrising forced it to point.
+#' @return a handle with `initial()`, the mask before any event and never
+#'   written to, `value()`, the current stored mask, and
+#'   `recompute(moved)`, which takes the atom entries an advance step moved (as
+#'   `take_touched()` reports them) and returns the stored-mask entries that
+#'   flipped, as `list(entries, values)` in linear stored-kind addressing.
+#'   The atom walk is driven by the caller, not from here, so several
+#'   constraints over one atom pool each recompute from the same touched set.
+#' @noRd
+build_mask_maintainer <- function(
+  atoms,
+  expr,
+  atom_labels,
+  symmetric,
+  mask_kind,
+  stored_kind
+) {
+  n1 <- atoms$n1
+  n2 <- atoms$n2
+  slots <- match(atom_labels, atoms$atom_labels)
+  kinds <- atoms$atom_kinds[slots]
+
+  # Evaluate the constraint tree at a set of entries of the mask's own kind,
+  # reading each atom through its own projection rather than densifying it.
+  eval_at <- function(entries) {
+    values <- stats::setNames(
+      lapply(seq_along(atom_labels), function(k) {
+        read_value_at_entries(
+          atoms$atom_value(atom_labels[[k]]),
+          kinds[[k]],
+          entries,
+          mask_kind,
+          n1,
+          n2
+        )
+      }),
+      paste0(".a", seq_along(atom_labels))
+    )
+    as.logical(assemble_support_mask(values, expr))
+  }
+
+  raw_length <- kind_length(mask_kind, n1, n2)
+  raw <- eval_at(seq_len(raw_length))
+  if (mask_kind == 0L) {
+    dim(raw) <- c(n1, n2)
+  }
+
+  # The transpose of a set of linear point entries, which is what closes the
+  # symmetrised recompute.
+  transposed <- function(entries) {
+    rows <- ((entries - 1L) %% n1) + 1L
+    cols <- ((entries - 1L) %/% n1) + 1L
+    (rows - 1L) * n1 + cols
+  }
+
+  symmetrized <- function(value) {
+    symmetrize_mask(project_value(value, mask_kind, 0L, n1, n2))
+  }
+  stored <- if (symmetric) symmetrized(raw) else raw
+
+  # The initial value is evaluated a SECOND time rather than aliasing `stored`.
+  # `stored` is written in place from here on, so handing the same object out as
+  # the initial would let the walk rewrite the thing the stream is a diff
+  # against. One extra evaluation at construction against a silently wrong
+  # timeline is not a close call.
+  initial <- eval_at(seq_len(raw_length))
+  if (mask_kind == 0L) {
+    dim(initial) <- c(n1, n2)
+  }
+  if (symmetric) {
+    initial <- symmetrized(initial)
+  }
+
+  recompute <- function(moved) {
+    at_mask <- unlist(
+      lapply(seq_along(atom_labels), function(k) {
+        entries <- moved[[slots[[k]]]]
+        if (is.null(entries)) {
+          return(NULL)
+        }
+        map_entries(entries, kinds[[k]], mask_kind, n1, n2)
+      }),
+      use.names = FALSE
+    )
+    if (length(at_mask) == 0L) {
+      return(list(entries = integer(0), values = logical(0)))
+    }
+    at_mask <- unique(at_mask)
+
+    if (!symmetric) {
+      flips <- changed_entries(raw, at_mask, eval_at(at_mask))
+      raw <<- write_entries(raw, flips$entries, flips$values)
+      stored <<- raw
+      return(flips)
+    }
+
+    # Raw first, at its own kind, then the symmetrised stored mask at the point
+    # entries those raw entries reach and at their transposes.
+    raw_flips <- changed_entries(raw, at_mask, eval_at(at_mask))
+    raw <<- write_entries(raw, raw_flips$entries, raw_flips$values)
+    if (length(raw_flips$entries) == 0L) {
+      return(list(entries = integer(0), values = logical(0)))
+    }
+    reached <- map_entries(raw_flips$entries, mask_kind, 0L, n1, n2)
+    reached <- unique(c(reached, transposed(reached)))
+    grid <- project_value(raw, mask_kind, 0L, n1, n2)
+    flips <- changed_entries(
+      stored,
+      reached,
+      grid[reached] & grid[transposed(reached)]
+    )
+    stored <<- write_entries(stored, flips$entries, flips$values)
+    flips
+  }
+
+  list(
+    initial = function() initial,
+    value = function() stored,
+    recompute = recompute
+  )
+}
+
+# Walk a shared atom pool once and encode each constraint's mask as a stream.
+#
+# `masks` are the DISTINCT mask maintainers over `atoms`; `request_times` gives
+# one timeline per consumer and `slot` says which mask each consumer reads, so
+# two consumers of one expression share its maintainer and its flips. The union
+# of the timelines is walked once, the touched set is read once per union time
+# and handed to every distinct mask, and each consumer's flips are then bucketed
+# into its own requested intervals: a flip emitted while advancing to union time
+# `u` belongs to the first requested time at or after `u`, because `advance()`
+# applies the events strictly before its argument.
+#
+# Requested times must be ascending. The stream encodes a mask as a prefix sum,
+# so out-of-order times would not describe the timeline they claim to.
+walk_mask_streams <- function(atoms, masks, request_times, slot) {
+  for (times in request_times) {
+    if (is.unsorted(times)) {
+      cli::cli_abort(
+        "Support-mask snapshot times must be ascending.",
+        .internal = TRUE
+      )
+    }
+  }
+  initials <- lapply(masks, function(mask) mask$initial())
+  union_times <- sort(unique(unlist(request_times, use.names = FALSE)))
+  # One recompute per DISTINCT mask per union time. Two fids reading the same
+  # expression share a maintainer, and recomputing it twice would find the
+  # buffer already written and report nothing the second time.
+  n_union <- length(union_times)
+
+  per_union <- lapply(masks, function(mask) vector("list", n_union))
+  for (u in seq_len(n_union)) {
+    atoms$advance(union_times[[u]])
+    moved <- atoms$take_touched()
+    for (m in seq_along(masks)) {
+      per_union[[m]][[u]] <- masks[[m]]$recompute(moved)
+    }
+  }
+
+  lapply(seq_along(request_times), function(r) {
+    m <- slot[[r]]
+    times <- request_times[[r]]
+    n_stored <- length(times)
+    flips <- vector("list", n_stored)
+    if (n_stored > 0L && n_union > 0L) {
+      # The requested index each union time's flips land in; a union time past
+      # the last requested one is never read and is dropped.
+      bucket <- findInterval(union_times, times, left.open = TRUE) + 1L
+      for (u in seq_len(n_union)) {
+        k <- bucket[[u]]
+        if (k <= n_stored) {
+          flips[[k]] <- c(flips[[k]], list(per_union[[m]][[u]]))
+        }
+      }
+    }
+    n_changes <- integer(n_stored)
+    entries <- vector("list", n_stored)
+    values <- vector("list", n_stored)
+    for (k in seq_len(n_stored)) {
+      at <- unlist(lapply(flips[[k]], "[[", "entries"), use.names = FALSE)
+      if (is.null(at)) {
+        # `[[<-` with NULL DELETES the element rather than emptying it, which
+        # would shorten the list under the loop that is walking it.
+        next
+      }
+      vv <- unlist(lapply(flips[[k]], "[[", "values"), use.names = FALSE)
+      # One entry may flip twice between two requested times; only its last
+      # value is observable, and emitting both would make the pointer lie about
+      # how many entries changed.
+      collapsed <- collapse_entries(at, vv)
+      entries[[k]] <- collapsed$entries
+      values[[k]] <- collapsed$values
+      n_changes[[k]] <- length(entries[[k]])
+    }
+    at_vec <- unlist(entries, use.names = FALSE)
+    val_vec <- unlist(values, use.names = FALSE)
+    list(
+      initial = initials[[m]],
+      update = if (length(at_vec) > 0L) {
+        rbind(as.numeric(at_vec), as.numeric(val_vec))
+      } else {
+        matrix(0, 2L, 0L)
+      },
+      update_pointer = cumsum(n_changes),
+      n_stored = n_stored
+    )
+  })
 }
 
 #' Maintain the support-constraint mask across the event sequence
@@ -429,45 +688,15 @@ preprocess_support_mask <- function(
   prep_envir = new.env(),
   src = NULL
 ) {
-  maintainer <- build_atom_maintainer(
-    sub_plan,
-    model,
-    nodes,
-    nodes2,
+  preprocess_pooled_support_masks(
+    list(list(constraint = sub_plan, snapshot_times = snapshot_times)),
+    model = model,
+    nodes = nodes,
+    nodes2 = nodes2,
+    symmetric = symmetric,
     prep_envir = prep_envir,
     src = src
-  )
-  expr <- sub_plan$expr
-  atom_labels <- sub_plan$atom_labels
-  # Symmetrising can destroy separability -- `m & t(m)` of a row-constant mask
-  # is an outer product -- so a symmetric mask is stored dense whatever its
-  # atoms' axis-union says.
-  stored_kind <- if (symmetric) 0L else sub_plan$mask_kind
-  eval_here <- function() {
-    eval_constraint_mask(maintainer, expr, atom_labels, symmetric, stored_kind)
-  }
-
-  support_init <- eval_here()
-  # Snapshots are taken in time order (mapping back to the caller's event order)
-  # so the atom stream is advanced once.
-  n_snap <- length(snapshot_times)
-  support <- vector("list", n_snap)
-  for (idx in order(snapshot_times)) {
-    maintainer$advance(snapshot_times[idx])
-    support[[idx]] <- eval_here()
-  }
-
-  list(
-    support = support,
-    initial = support_init,
-    mask_kind = sub_plan$mask_kind,
-    # The kind the stored snapshots are AT, which the atoms' axis-union only
-    # equals when the mask is not symmetrised. Every reader expands through
-    # `support_to_grid()` with this, never with `mask_kind`.
-    stored_kind = stored_kind,
-    n_stored = n_snap,
-    symmetric = symmetric
-  )
+  )[[1L]]
 }
 
 #' Maintain a shared atom pool once, project a per-fid mask from it
@@ -532,7 +761,7 @@ preprocess_pooled_support_masks <- function(
 
   for (group in split(con_idx, signature)) {
     constraints <- lapply(group, function(i) requests[[i]]$constraint)
-    maintainer <- build_atom_maintainer(
+    atoms <- build_atom_maintainer(
       constraints[[1L]],
       model,
       nodes,
@@ -542,8 +771,8 @@ preprocess_pooled_support_masks <- function(
     )
 
     # Distinct constraints (by identity) within the group: creation and
-    # dissolution share atoms but not their expression, so each is evaluated,
-    # while several fids sharing one `constraint_id` map to a single evaluation.
+    # dissolution share atoms but not their expression, so each keeps its own
+    # mask, while several fids sharing one `constraint_id` map to a single one.
     distinct <- list()
     slot <- integer(length(group))
     for (i in seq_along(group)) {
@@ -562,50 +791,40 @@ preprocess_pooled_support_masks <- function(
     }
 
     # Each distinct expression keeps its own stored kind: constraints sharing an
-    # atom pool need not share an axis-union.
+    # atom pool need not share an axis-union. Symmetrising destroys separability
+    # -- `m & t(m)` of a row-constant mask is an outer product -- so a symmetric
+    # mask is stored at point whatever its atoms' axis-union says.
     stored_kinds <- vapply(
       distinct,
       function(con) if (symmetric) 0L else as.integer(con$mask_kind),
       integer(1)
     )
-    eval_distinct <- function() {
-      lapply(seq_along(distinct), function(di) {
-        con <- distinct[[di]]
-        eval_constraint_mask(
-          maintainer,
-          con$expr,
-          con$atom_labels,
-          symmetric,
-          stored_kinds[[di]]
-        )
-      })
-    }
+    masks <- lapply(seq_along(distinct), function(di) {
+      build_mask_maintainer(
+        atoms,
+        distinct[[di]]$expr,
+        distinct[[di]]$atom_labels,
+        symmetric,
+        as.integer(distinct[[di]]$mask_kind),
+        stored_kinds[[di]]
+      )
+    })
 
-    initial <- eval_distinct()
-    union_times <- sort(unique(unlist(
-      lapply(group, function(i) requests[[i]]$snapshot_times)
-    )))
-    n_union <- length(union_times)
-    masks <- replicate(length(distinct), vector("list", n_union), FALSE)
-    for (ti in seq_len(n_union)) {
-      maintainer$advance(union_times[ti])
-      snap <- eval_distinct()
-      for (di in seq_along(distinct)) {
-        masks[[di]][[ti]] <- snap[[di]]
-      }
-    }
+    # One mask maintainer per distinct expression, but one stream per fid: two
+    # fids sharing an expression read it at different times, so each asks for
+    # its own timeline and the walker buckets the shared flips into both.
+    request_times <- lapply(group, function(i) requests[[i]]$snapshot_times)
+    streams <- walk_mask_streams(atoms, masks, request_times, slot)
 
     for (i in seq_along(group)) {
       ri <- group[i]
-      di <- slot[i]
-      times <- requests[[ri]]$snapshot_times
-      result[[ri]] <- list(
-        support = masks[[di]][match(times, union_times)],
-        initial = initial[[di]],
-        mask_kind = constraints[[i]]$mask_kind,
-        stored_kind = stored_kinds[[di]],
-        n_stored = length(times),
-        symmetric = symmetric
+      result[[ri]] <- c(
+        streams[[i]],
+        list(
+          mask_kind = constraints[[i]]$mask_kind,
+          stored_kind = stored_kinds[[slot[i]]],
+          symmetric = symmetric
+        )
       )
     }
   }

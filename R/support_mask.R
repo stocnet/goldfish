@@ -70,6 +70,45 @@ support_from_grid <- function(grid, mask_kind) {
   reduce_value(grid, 0L, mask_kind)
 }
 
+#' A cursor over a support mask's flat update stream
+#'
+#' The mask reaches its consumers as an initial value plus a stream of the
+#' entries that flipped, keyed by a cumulative per-event pointer, instead of one
+#' stored value per event. Every consumer walks the stored events in order, so a
+#' cursor that advances with them reconstructs the value at each without the
+#' timeline ever existing at once. That difference is the whole point: on 1899
+#' actors and 1500 events the stored timeline was 10.95 MB carrying one changed
+#' entry.
+#'
+#' The cursor returns a fresh value rather than mutating one in place, so a
+#' consumer may hold on to what it was given. That costs one kind-sized copy per
+#' event, which for a separable mask is a vector and for a point mask is the
+#' grid the consumer was going to build anyway.
+#'
+#' @param support_mask the `support_mask` list a preprocessing produced, or
+#'   `NULL` for an unconstrained model.
+#' @return a function of the stored event index returning the mask at its stored
+#'   kind, to be called with ascending indices.
+#' @noRd
+mask_cursor <- function(support_mask) {
+  if (is.null(support_mask)) {
+    return(function(e) NULL)
+  }
+  value <- support_mask$initial
+  update <- support_mask$update
+  pointer <- support_mask$update_pointer
+  seen <- 0L
+  function(e) {
+    hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
+    if (hi > seen) {
+      at <- update[1L, (seen + 1L):hi]
+      value[at] <<- as.logical(update[2L, (seen + 1L):hi])
+      seen <<- hi
+    }
+    value
+  }
+}
+
 #' Symmetrise a point-kind mask (`mask & t(mask)`)
 #'
 #' For DyNAM `choice_coordination` and REM on an undirected network a mutual /

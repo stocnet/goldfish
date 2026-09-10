@@ -1070,7 +1070,9 @@ validate_support_constraint <- function(
   family,
   process_label = NULL
 ) {
-  support <- support_mask$support
+  # A cursor over the flip stream: the validation already walks the dependent
+  # events in ascending order, so this is a change of source, not of logic.
+  mask_at <- mask_cursor(support_mask)
   stored_kind <- support_mask$stored_kind %||% 0L
   in_process <- if (is.null(process_label)) {
     NULL
@@ -1085,7 +1087,7 @@ validate_support_constraint <- function(
   if (family == "choice") {
     ever_candidate <- logical(n2)
     for (e in dep) {
-      grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+      grid <- support_to_grid(mask_at(e), stored_kind, n1, n2)
       allowed <- which(grid[event_sender[[e]], ] & active_2)
       ever_candidate[allowed] <- TRUE
       if (length(allowed) == 0L) {
@@ -1118,7 +1120,7 @@ validate_support_constraint <- function(
   } else {
     ever_active <- logical(n1)
     for (e in dep) {
-      grid <- support_to_grid(support[[e]], stored_kind, n1, n2)
+      grid <- support_to_grid(mask_at(e), stored_kind, n1, n2)
       gate <- rowSums(grid & rep(active_2, each = n1)) > 0
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {

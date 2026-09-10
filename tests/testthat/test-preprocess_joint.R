@@ -571,10 +571,17 @@ test_that("each constraint is compiled once into the merged plan, snapshot per f
   choice <- prep_by_flavor(merged, "creation", "choice")
   expect_identical(rate$support_mask$initial, choice$support_mask$initial)
   expect_false(
-    length(rate$support_mask$support) == length(choice$support_mask$support)
+    length(rate$support_mask$update_pointer) ==
+      length(choice$support_mask$update_pointer)
   )
-  expect_equal(length(rate$support_mask$support), length(rate$event_time))
-  expect_equal(length(choice$support_mask$support), length(choice$event_time))
+  expect_equal(
+    length(rate$support_mask$update_pointer),
+    length(rate$event_time)
+  )
+  expect_equal(
+    length(choice$support_mask$update_pointer),
+    length(choice$event_time)
+  )
 })
 
 # ---- Multilevel per-fid focal (D8a) -----------------------------------------

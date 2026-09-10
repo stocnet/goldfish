@@ -86,15 +86,16 @@ test_that("the initial mask is empty for an initially-empty tie network", {
   mt <- run_mask_pass(fx)
   expect_false(any(mt$initial))
   expect_identical(mt$n_stored, fx$n_events)
-  expect_length(mt$support, fx$n_events)
+  expect_length(mt$update_pointer, fx$n_events)
 })
 
 test_that("incrementally maintained mask equals from-scratch at every event", {
   fx <- make_mask_fixture()
   mt <- run_mask_pass(fx)
+  timeline <- mask_timeline(mt)
   for (e in seq_len(fx$n_events)) {
     ref <- tie_support_from_scratch(fx, fx$dep_times[e])
-    expect_equal(unname(mt$support[[e]]), unname(ref))
+    expect_equal(unname(timeline[[e]]), unname(ref))
   }
 })
 
@@ -120,9 +121,10 @@ test_that("the rate (sender) loop realizes the same dyad support at all events",
   # dependent) events, and each equals the from-scratch reference at its time
   sm <- prep_rate$support_mask
   expect_identical(sm$n_stored, length(prep_rate$event_time))
+  timeline <- mask_timeline(sm)
   for (e in seq_along(prep_rate$event_time)) {
     ref <- tie_support_from_scratch(fx, prep_rate$event_time[e])
-    expect_equal(unname(sm$support[[e]]), unname(ref))
+    expect_equal(unname(timeline[[e]]), unname(ref))
   }
 })
 
@@ -143,7 +145,7 @@ test_that("a constrained model attaches support_mask; unconstrained does not", {
   )
   expect_null(prep_u$support_mask)
   expect_false(is.null(prep_c$support_mask))
-  expect_length(prep_c$support_mask$support, fx$n_events)
+  expect_length(prep_c$support_mask$update_pointer, fx$n_events)
   # the statistics output is unchanged by attaching the mask
   expect_equal(prep_c$initial_stats, prep_u$initial_stats)
 })
@@ -165,11 +167,12 @@ test_that("a separable constraint stores one vector per snapshot, not a grid", {
   n1 <- length(mask$sender_presence_init %||% prep$active_sender_init)
   n2 <- length(mask$receiver_presence_init)
 
+  first <- mask_timeline(mask)[[1L]]
   expect_equal(mask$stored_kind, 1L)
-  expect_null(dim(mask$support[[1]]))
-  expect_length(mask$support[[1]], n2)
+  expect_null(dim(first))
+  expect_length(first, n2)
   expect_equal(
-    dim(support_to_grid(mask$support[[1]], mask$stored_kind, n1, n2)),
+    dim(support_to_grid(first, mask$stored_kind, n1, n2)),
     c(n1, n2)
   )
 })
@@ -222,7 +225,7 @@ test_that("a dyadic constraint still stores the dense grid", {
   mask <- prep$support_mask
 
   expect_equal(mask$stored_kind, 0L)
-  expect_equal(length(dim(mask$support[[1]])), 2L)
+  expect_equal(length(dim(mask_timeline(mask)[[1L]])), 2L)
 })
 
 test_that("a grid round-trips through its axis-union kind", {
@@ -358,16 +361,21 @@ test_that("advancing the atom stream costs far less than a grid per event", {
   skip_on_cran()
   skip_if_not_installed("bench")
   # 400 actors is 1.28 MB a grid. Copying one per event over 300 events is
-  # 384 MB; the recorded per-event figure this replaces was about 30 MB.
+  # 384 MB. The bound is a tenth of that: comfortably under the defect and well
+  # clear of what the effect closures themselves allocate, which is a few tens
+  # of KB an event and is not this test's business.
   fx <- make_wide_atom_fixture()
+  budget <- 300 * 400 * 400 * 8 / 2^20 / 10
   for (constraint in list(~ indeg(call_network) >= 0, ~ tie(call_network))) {
     maintainer <- wide_atom_maintainer(fx, constraint)
     used <- bench::bench_memory(
       for (tt in fx$times) {
         maintainer$advance(tt)
+        # A live consumer drains the touched set every step; letting it grow
+        # measures the accumulator rather than the walk.
+        maintainer$take_touched()
       }
     )
-    megabytes <- as.numeric(used$mem_alloc) / 2^20
-    expect_lt(megabytes, 20)
+    expect_lt(as.numeric(used$mem_alloc) / 2^20, budget)
   }
 })

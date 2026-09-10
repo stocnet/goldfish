@@ -245,8 +245,8 @@ test_that("a window inside a support constraint changes the risk set", {
   narrow <- parity_constraint_mask(~ !tie(calls, window = 2))
   wide <- parity_constraint_mask(~ !tie(calls, window = 1000))
 
-  expect_false(identical(narrow$support, unwindowed$support))
-  expect_false(identical(narrow$support, wide$support))
+  expect_false(identical(mask_timeline(narrow), mask_timeline(unwindowed)))
+  expect_false(identical(mask_timeline(narrow), mask_timeline(wide)))
 })
 
 test_that("a windowed constraint atom registers a derived object", {
@@ -288,8 +288,8 @@ test_that("an unwindowed support constraint is unchanged", {
   # produces.
   mask <- parity_constraint_mask(~ !tie(calls))
 
-  expect_true(length(mask$support) > 0)
-  expect_true(all(vapply(mask$support, is.logical, logical(1))))
+  expect_true(length(mask$update_pointer) > 0)
+  expect_true(all(vapply(mask_timeline(mask), is.logical, logical(1))))
 })
 
 # ---- (d) flavored creation / dissolution -----------------------------------
@@ -321,7 +321,10 @@ test_that("each flavor's mask timeline has one snapshot per recorded event", {
 
   for (i in seq_len(nrow(map))) {
     prep <- merged[[as.character(map$fid[i])]]
-    expect_equal(length(prep$support_mask$support), length(prep$event_time))
+    expect_equal(
+      length(prep$support_mask$update_pointer),
+      length(prep$event_time)
+    )
   }
 })
 
