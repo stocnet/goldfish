@@ -433,16 +433,32 @@ step landed proves nothing.
       **Second finding, and it needs an owner.** A support constraint now costs
       three orders of magnitude in TIME where it used to fail on memory: at 10k
       events on 1899 actors, `batch_rate` is 362 s constrained against 0.349 s
-      unconstrained. 0.5a fixed the storage; the evaluation still builds a dense
-      n1 x n2 grid per snapshot from dense atoms and reduces it only at the end.
-      Reducing the ATOMS to their kinds is the follow-up. This is why the full
-      CollegeMsg re-run is scoped to the base model — at 59,835 events the
-      constrained cells would be hours each and would measure the mask
-      maintainer, not the gate's question.
+      unconstrained. **CORRECTED 2026-09-10**: this entry first named the dense
+      grid rebuilt per snapshot as the cause. Profiling says that is secondary.
+      `apply_atom_event` is 64.7 percent, `eval_constraint_mask` 16.0, and
+      `fold_active_sender_support` 18.8, and allocation is 44.3 GB on a
+      600-actor 1498-event call, about eleven matrix-sized allocations per
+      event. The dominant cost is the atom maintenance: the atoms are stored
+      dense, `call_atom_template()` binds the state matrix and the walk then
+      writes it with `<<-`, which is ADR-0057's copy-on-modify pattern surviving
+      in the one file group 0 deliberately skipped. Owned by the successor
+      change `support-mask-sparse-updates` (ADR-0061), which also found that the
+      living spec already requires the fix. This is why the full CollegeMsg
+      re-run is scoped to the base model — at 59,835 events the constrained
+      cells would be hours each and would measure the mask maintainer, not the
+      gate's question.
       Script changes: a 10k subset, separate `cm10k` / `cmfull` selectors, and
       an `only_models` filter. Numbers in
       `.plan/sp/preprocess_timing_2026-09.md`.
 ## 1. Merged-walk parity with the recipe loops
+
+**Ordering against `support-mask-sparse-updates` (added 2026-09-10).** Tasks 1.1,
+1.2 and 1.3 are independent of the constraint and can proceed. **Task 1.4 should
+wait**: it wires the merged walk into the mask machinery that change replaces,
+and it touches `fold_active_sender_support()` / `fold_active_dyad_support()`,
+which that change rewrites. Running both as concurrent sessions on one branch
+would collide in source even though ADR-0036's claim protocol keeps the
+artifacts apart.
 
 - [ ] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
       `new_writer` pair and hands it to `init_consumers()`; `preprocess_joint()`
@@ -494,7 +510,15 @@ step landed proves nothing.
 
 **Closed as of 2026-09-09.** The gate came back 0.31x, but the ratio counts
 per-event matrix copies rather than architecture (design D9), so this group does
-not open on it. It opens when tasks 0.4a-0.4e, 0.5a, 0.5b and 0.6 have landed
+not open on it.
+
+**Second reason to stay closed (added 2026-09-10).** Task 0.9's re-run put the
+unconstrained ratio at 0.99 and the CONSTRAINED one at 1.16, but that 1.16
+measures the support-mask maintainer, not the substrate: a constrained model
+spends 362 s of a 362.4 s cell inside it, and both substrates build two atom
+maintainers rather than one. Reading group 3 on a constrained cell today would
+repeat exactly the error ADR-0057 exists to record. The constrained cell becomes
+a decision input only after `support-mask-sparse-updates` lands. It opens when tasks 0.4a-0.4e, 0.5a, 0.5b and 0.6 have landed
 and task 0.9 has re-run the gate on the fixed tree with the 10k-event CollegeMsg
 subset.
 If the re-run puts the merged walk within 1.10x this group proceeds as written;
