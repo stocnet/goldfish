@@ -174,6 +174,41 @@ test_that("a separable constraint stores one vector per snapshot, not a grid", {
   )
 })
 
+test_that("a separable constraint stores each node's own value", {
+  # Regression: the reduction to a separable kind used to read row or column 1
+  # of the mask grid, which is the DIAGONAL entry for node 1. A dyad statistic
+  # is a broadcast everywhere except on its diagonal, so node 1 came back with
+  # the zeroed value and was silently excluded from every event's risk set.
+  #
+  # The existing constraint tests cannot see this: `indeg(...) >= 0` and
+  # `indeg(...) > 0` agree on a zeroed diagonal and on a genuine zero. It needs
+  # a nodal attribute whose first actor is on the allowed side of the threshold.
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  actors <- get("actors", environment())
+  fx <- make_mask_fixture()
+  expect_gt(actors$floor[1L], 2)
+
+  for (side in c("alter", "ego")) {
+    constraint <- if (side == "alter") {
+      ~ alter(actors$floor) > 2
+    } else {
+      ~ ego(actors$floor) > 2
+    }
+    prep <- estimate_dynam(
+      calls_dependent ~ inertia,
+      sub_model = "choice",
+      data = fx$data,
+      preprocessing_only = TRUE,
+      support_constraint = constraint
+    )
+    expect_identical(
+      as.logical(prep$support_mask$initial),
+      as.logical(actors$floor > 2),
+      info = side
+    )
+  }
+})
+
 test_that("a dyadic constraint still stores the dense grid", {
   # The control: a point-kind mask is not separable and must stay a matrix.
   fx <- make_mask_fixture()

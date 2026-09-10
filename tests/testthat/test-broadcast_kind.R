@@ -58,6 +58,32 @@ test_that("ego and alter are incomparable and neither narrows into the other", {
   expect_error(reduce_value(TRUE, 3L, 0L), "Cannot reduce")
 })
 
+test_that("a reduction reads past a zeroed diagonal", {
+  # A dyad statistic is a broadcast everywhere EXCEPT on its own diagonal, which
+  # is zeroed because a node has no tie to itself. Reading row or column 1
+  # outright therefore returns the diagonal entry for node 1 and the true value
+  # for every other node, which is exactly one wrong node and no visible
+  # breakage. `ego(a)` with a = (1, 2, 3) is the shape.
+  ego_grid <- matrix(c(1, 2, 3), 3L, 3L)
+  alter_grid <- matrix(c(1, 2, 3), 3L, 3L, byrow = TRUE)
+  diag(ego_grid) <- 0
+  diag(alter_grid) <- 0
+
+  expect_identical(reduce_value(ego_grid, 0L, 2L), c(1, 2, 3))
+  expect_identical(reduce_value(alter_grid, 0L, 1L), c(1, 2, 3))
+
+  scalar_grid <- matrix(7, 3L, 3L)
+  diag(scalar_grid) <- 0
+  expect_identical(reduce_value(scalar_grid, 0L, 3L), 7)
+})
+
+test_that("a reduction of a single-node axis has no off-diagonal cell to read", {
+  # Degenerate but reachable: with one receiver there is no column other than
+  # the diagonal one, so the only index there is has to serve.
+  expect_identical(reduce_value(matrix(4, 2L, 1L), 0L, 2L), c(4, 4))
+  expect_identical(reduce_value(matrix(4, 1L, 2L), 0L, 1L), c(4, 4))
+})
+
 test_that("projection to point agrees with the axis it varies on", {
   ego <- c(TRUE, FALSE, TRUE)
   alter <- c(TRUE, FALSE, FALSE, TRUE)

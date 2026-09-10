@@ -73,11 +73,19 @@ project_value <- function(value, from, to, n1, n2) {
 
 #' Read a value held at kind `from` as a value at the narrower kind `to`
 #'
-#' The inverse of [project_value()], and the reason a mask timeline fits in
-#' memory. Like the `support_from_grid()` it generalizes, this reads one slice
-#' rather than checking the value really is constant on the dropped axis: the
-#' kind comes from the atoms' declared kinds, so a value that reaches here at
-#' kind 1 IS row-constant by construction.
+#' The inverse of [project_value()]. This reads one slice rather than checking
+#' the value really is constant on the dropped axis: the kind is declared, so a
+#' value that reaches here at kind 1 IS column-constant by construction.
+#'
+#' **Away from the diagonal.** A dyad statistic is a broadcast everywhere except
+#' on its own diagonal, which is zeroed because a node has no tie to itself. So
+#' `ego(a)` with `a = (1, 2, 3)` is not row-constant: its `[1, 1]` entry is 0,
+#' not `a[1]`. Reading the value for node `k` therefore has to come from a cell
+#' whose OTHER index is not `k`, which is what the donor indices below pick.
+#' Reading row or column 1 outright returns the diagonal entry for node 1 and
+#' nothing else, which is why the defect it caused was one wrong node rather
+#' than a visibly broken result. A two-mode grid has no diagonal, and an
+#' off-diagonal read is equally correct there, so no branch on mode is needed.
 #'
 #' @param value the stored value.
 #' @param from,to broadcast kinds.
@@ -93,15 +101,51 @@ reduce_value <- function(value, from, to) {
     )
   }
   if (from == 0L) {
+    n1 <- nrow(value)
+    n2 <- ncol(value)
     return(switch(
       as.character(to),
-      "3" = value[[1L]],
-      "2" = value[, 1L],
-      "1" = value[1L, ]
+      "3" = value[[off_diagonal_cell(n1, n2)]],
+      "2" = value[cbind(seq_len(n1), donor_index(seq_len(n1), n2))],
+      "1" = value[cbind(donor_index(seq_len(n2), n1), seq_len(n2))]
     ))
   }
-  # ego or alter down to global: every entry is equal, so any of them will do.
+  # ego or alter down to global: the value is already kind-shaped, so it carries
+  # no diagonal and any entry will do.
   value[[1L]]
+}
+
+#' The index to read a broadcast value from, on the axis being dropped
+#'
+#' Anything but `node`, so the read never lands on the diagonal — index 1 for
+#' every node but the first, and 2 for the first. A one-column or one-row grid
+#' has no off-diagonal cell to offer, so it falls back to the only index there
+#' is.
+#'
+#' @param node the node whose value is being read.
+#' @param size the length of the axis being dropped.
+#' @noRd
+donor_index <- function(node, size) {
+  if (size < 2L) {
+    return(rep(1L, length(node)))
+  }
+  ifelse(node == 1L, 2L, 1L)
+}
+
+#' A cell of the grid that is not on its diagonal, as a linear index
+#'
+#' A global value varies on neither axis, so any off-diagonal cell carries it.
+#' `donor_index()` cannot serve here: applied to both indices it picks `(2, 2)`,
+#' which is back on the diagonal.
+#' @noRd
+off_diagonal_cell <- function(n1, n2) {
+  if (n2 >= 2L) {
+    return(1L + n1)
+  }
+  if (n1 >= 2L) {
+    return(2L)
+  }
+  1L
 }
 
 #' Project a set of changed entries from kind `from` into kind `to`
