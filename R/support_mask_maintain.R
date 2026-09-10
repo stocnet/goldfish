@@ -106,11 +106,16 @@ build_atom_maintainer <- function(
     envir = prep_envir,
     src = src
   )
+  # Each atom is stored AT ITS OWN KIND: a scalar for a global atom, a length-n1
+  # or length-n2 vector for a sender- or receiver-axis one, and a dense matrix
+  # only for a genuinely dyadic one. `atom_kinds` was already computed and until
+  # now had exactly one use -- telling the expansion how to blow a kind-shaped
+  # delta up into dense cells, which is the expansion this removes.
   atom_state <- new.env(parent = emptyenv())
   for (a in seq_len(n_atoms)) {
     assign(
       as.character(a),
-      matrix(stat_cache[[a]]$stat, n1, n2),
+      reduce_value(matrix(stat_cache[[a]]$stat, n1, n2), 0L, atom_kinds[a]),
       envir = atom_state
     )
   }
@@ -255,10 +260,24 @@ build_atom_maintainer <- function(
         updates <- rbind(updates, eu2$changes)
       }
       if (!is.null(updates)) {
-        exp <- expand_operand_update(updates, atom_kinds[gid], n1, n2)
-        am <- get(as.character(gid), envir = atom_state)
-        am[exp$cells] <- exp$vals
-        assign(as.character(gid), am, envir = atom_state)
+        delta <- project_entries(
+          updates[, "node1"],
+          updates[, "node2"],
+          updates[, "replace"],
+          atom_kinds[gid],
+          atom_kinds[gid],
+          n1,
+          n2
+        )
+        assign(
+          as.character(gid),
+          write_entries(
+            get(as.character(gid), envir = atom_state),
+            delta$entries,
+            delta$values
+          ),
+          envir = atom_state
+        )
       }
     }
 
@@ -267,12 +286,21 @@ build_atom_maintainer <- function(
     } else if (shape == "node") {
       state[[component]][[key]][event_args$node] <<- event_args$replace
     } else {
-      state$networks[[key]][event_args$sender, event_args$receiver] <<-
-        event_args$replace
-      if (is_undirected_net) {
-        state$networks[[key]][event_args$receiver, event_args$sender] <<-
-          event_args$replace
-      }
+      # The one deep subassignment left in this walk, and the expensive one: the
+      # atom templates receive `state$networks[[key]]` as an argument, which
+      # binds it to a second name, so writing a cell duplicated the whole
+      # adjacency matrix every event. `state_set_tie()` writes it in place under
+      # the same aliasing precondition the main walk's state write meets -- this
+      # container's matrices are materialized fresh by
+      # `build_state_container()` and nothing outside it holds a reference.
+      state <<- state_set_tie(
+        state,
+        key,
+        event_args$sender,
+        event_args$receiver,
+        event_args$replace,
+        is_undirected_net
+      )
     }
   }
 
@@ -297,8 +325,21 @@ build_atom_maintainer <- function(
   # unique within a sub-plan (the parser deduplicates atoms by deparse), and a
   # constraint sharing this maintainer's atoms addresses them the same way, so a
   # by-label lookup decouples evaluation from any one constraint's atom order.
-  atom_matrix <- function(label) {
+  atom_value <- function(label) {
     get(as.character(match(label, atom_labels)), envir = atom_state)
+  }
+
+  atom_kind <- function(label) {
+    atom_kinds[[match(label, atom_labels)]]
+  }
+
+  # Atoms are stored at their kinds now, so the dense view is built on demand
+  # rather than held. The projection deliberately does NOT re-apply the
+  # zeroed diagonal a dyad statistic carries: a mask entry is "is this dyad
+  # allowed", self-dyads are excluded by the engines rather than by the
+  # constraint, and the stored mask is read off the diagonal in any case.
+  atom_matrix <- function(label) {
+    project_value(atom_value(label), atom_kind(label), 0L, n1, n2)
   }
 
   list(
@@ -306,6 +347,8 @@ build_atom_maintainer <- function(
     n2 = n2,
     atom_labels = atom_labels,
     advance = advance,
+    atom_value = atom_value,
+    atom_kind = atom_kind,
     atom_matrix = atom_matrix
   )
 }

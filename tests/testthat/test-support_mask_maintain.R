@@ -242,3 +242,132 @@ test_that("a grid round-trips through its axis-union kind", {
     matrix(TRUE, 3L, 4L)
   )
 })
+
+# --- atoms maintained at their kind, written in place ----------------------- #
+
+# A node set large enough that a copied grid is unmistakable in an allocation
+# figure: 400 actors is 1.28 MB a grid, so copying one per event over 300 events
+# would be 384 MB.
+make_wide_atom_fixture <- function(
+  n_actors = 400L,
+  n_events = 300L,
+  seed = 5L
+) {
+  withr::local_seed(seed)
+  actors <- data.frame(
+    label = paste0("A", seq_len(n_actors)),
+    present = TRUE,
+    stringsAsFactors = FALSE
+  )
+  senders <- sample.int(n_actors, n_events, replace = TRUE)
+  receivers <- (senders +
+    sample.int(n_actors - 1L, n_events, replace = TRUE)) %%
+    n_actors +
+    1L
+  calls <- data.frame(
+    time = seq_len(n_events),
+    sender = actors$label[senders],
+    receiver = actors$label[receivers],
+    increment = 1,
+    stringsAsFactors = FALSE
+  )
+  actors <- make_nodes(actors)
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(call_network, calls, nodes = actors)
+  calls_dependent <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = call_network
+  )
+  env <- new.env()
+  assign("call_network", call_network, envir = env)
+  assign("calls_dependent", calls_dependent, envir = env)
+  assign("calls", calls, envir = env)
+  assign("actors", actors, envir = env)
+  list(env = env, times = calls$time, n_events = n_events)
+}
+
+wide_atom_maintainer <- function(fx, constraint) {
+  plan <- parse_and_validate_constraint(
+    constraint,
+    has_dyad_part = TRUE,
+    envir = fx$env
+  )
+  sub <- compile_support_constraint(
+    plan,
+    model = "DyNAM",
+    dep_name = "calls_dependent",
+    nodes = "actors",
+    nodes2 = "actors",
+    window_derivations = NULL,
+    envir = fx$env
+  )
+  build_atom_maintainer(
+    sub,
+    model = "DyNAM",
+    nodes = "actors",
+    nodes2 = "actors",
+    prep_envir = fx$env
+  )
+}
+
+test_that("an atom is stored at its own kind, not as a dense grid", {
+  fx <- make_wide_atom_fixture()
+  alter <- wide_atom_maintainer(fx, ~ indeg(call_network) >= 0)
+  expect_identical(alter$atom_kind("indeg(call_network)"), 1L)
+  expect_null(dim(alter$atom_value("indeg(call_network)")))
+  expect_length(alter$atom_value("indeg(call_network)"), 400L)
+
+  # The control: a genuinely dyadic atom is still dense.
+  point <- wide_atom_maintainer(fx, ~ tie(call_network))
+  expect_identical(point$atom_kind("tie(call_network)"), 0L)
+  expect_identical(dim(point$atom_value("tie(call_network)")), c(400L, 400L))
+})
+
+test_that("the atom walk duplicates neither its buffers nor its state", {
+  # ADR-0059's invariant applied to the atom pass. The atom templates receive
+  # `state$networks[[key]]` as an argument, which marks it shared, so the state
+  # write used to duplicate the adjacency matrix on every event; the atom
+  # buffers were duplicated the same way. The assertion is on identity --
+  # `tracemem` reports every duplication -- not on the values.
+  skip_if_not(capabilities("profmem"), "R built without memory profiling")
+  fx <- make_wide_atom_fixture()
+  maintainer <- wide_atom_maintainer(fx, ~ tie(call_network))
+  frame <- environment(maintainer$advance)
+
+  buffer <- get("1", envir = frame$atom_state)
+  network <- frame$state$networks[[1L]]
+  invisible(tracemem(buffer))
+  invisible(tracemem(network))
+  # `tracemem` reports on stdout; capturing "message" would observe nothing.
+  copies <- utils::capture.output(
+    for (tt in fx$times) {
+      maintainer$advance(tt)
+    },
+    type = "output"
+  )
+  untracemem(buffer)
+  untracemem(network)
+
+  expect_length(copies, 0L)
+  # And the walk really ran, so the absence of copies is not an absence of work.
+  expect_true(any(frame$state$networks[[1L]] != 0))
+})
+
+test_that("advancing the atom stream costs far less than a grid per event", {
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  # 400 actors is 1.28 MB a grid. Copying one per event over 300 events is
+  # 384 MB; the recorded per-event figure this replaces was about 30 MB.
+  fx <- make_wide_atom_fixture()
+  for (constraint in list(~ indeg(call_network) >= 0, ~ tie(call_network))) {
+    maintainer <- wide_atom_maintainer(fx, constraint)
+    used <- bench::bench_memory(
+      for (tt in fx$times) {
+        maintainer$advance(tt)
+      }
+    )
+    megabytes <- as.numeric(used$mem_alloc) / 2^20
+    expect_lt(megabytes, 20)
+  }
+})
