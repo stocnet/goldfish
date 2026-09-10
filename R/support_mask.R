@@ -109,6 +109,66 @@ mask_cursor <- function(support_mask) {
   }
 }
 
+#' A reader of a support mask's per-event flips
+#'
+#' [mask_cursor()] answers "what is the mask now"; this answers "what just
+#' changed", which is what an incrementally maintained consumer needs. A
+#' consumer that keeps a derived quantity -- a per-sender count of allowed
+#' receivers, say -- adjusts it from the flips and never reconstructs the mask
+#' at all.
+#'
+#' @param support_mask the `support_mask` list a preprocessing produced.
+#' @return a function of the stored event index returning
+#'   `list(entries, values)` for that event, to be called with ascending
+#'   indices.
+#' @noRd
+mask_flips <- function(support_mask) {
+  update <- support_mask$update
+  pointer <- support_mask$update_pointer
+  seen <- 0L
+  function(e) {
+    hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
+    if (hi <= seen) {
+      return(list(entries = integer(0), values = logical(0)))
+    }
+    cols <- (seen + 1L):hi
+    seen <<- hi
+    list(
+      entries = as.integer(update[1L, cols]),
+      values = as.logical(update[2L, cols])
+    )
+  }
+}
+
+#' One sender's row of a support mask, without building the grid
+#'
+#' Every dyad-side consumer reads the mask one row at a time -- the choice risk
+#' set is the event sender's row, and an alter fold reads any row because the
+#' mask is column-broadcast. Going through [support_to_grid()] to take one row
+#' materializes n1 x n2 to use n2 of it, which at 1899 actors and 1500 events is
+#' 41 GB of grids built and discarded.
+#'
+#' @param support the mask at `stored_kind`, or `NULL` for no constraint.
+#' @param stored_kind its broadcast kind.
+#' @param sender the row to read; ignored for a mask that does not vary by
+#'   sender.
+#' @param n1,n2 sender and receiver counts.
+#' @return a length-n2 logical vector.
+#' @noRd
+support_row <- function(support, stored_kind, sender, n1, n2) {
+  if (is.null(support)) {
+    return(rep(TRUE, n2))
+  }
+  switch(
+    as.character(stored_kind),
+    "3" = rep(as.logical(support), n2),
+    "2" = rep(as.logical(support[[sender]]), n2),
+    "1" = as.logical(support),
+    "0" = as.logical(matrix(support, n1, n2)[sender, ]),
+    cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
+  )
+}
+
 #' Symmetrise a point-kind mask (`mask & t(mask)`)
 #'
 #' For DyNAM `choice_coordination` and REM on an undirected network a mutual /

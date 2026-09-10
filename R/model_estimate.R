@@ -1087,8 +1087,10 @@ validate_support_constraint <- function(
   if (family == "choice") {
     ever_candidate <- logical(n2)
     for (e in dep) {
-      grid <- support_to_grid(mask_at(e), stored_kind, n1, n2)
-      allowed <- which(grid[event_sender[[e]], ] & active_2)
+      allowed <- which(
+        support_row(mask_at(e), stored_kind, event_sender[[e]], n1, n2) &
+          active_2
+      )
       ever_candidate[allowed] <- TRUE
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
