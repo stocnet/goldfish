@@ -1378,31 +1378,25 @@ run_dyad_recipe_loop <- function(
   dirty_inter <- list()
   if (n_inter > 0) {
     operand_gids <- sort(unique(unlist(plan$interactions)))
+    # Each operand's dense slice is materialized exactly once: the kind-shaped
+    # store is reduced from it and the initial product is multiplied out of it.
+    slices <- lapply(operand_gids, function(og) initial_stats[,, og])
+    names(slices) <- as.character(operand_gids)
     for (og in operand_gids) {
       assign(
         as.character(og),
-        reduce_value(initial_stats[,, og], 0L, op_kind[og]),
+        reduce_value(slices[[as.character(og)]], 0L, op_kind[og]),
         envir = op_state
       )
     }
-    # The initial product is seeded over the whole grid, so each operand is
-    # widened back to point once here. A one-time cost at seeding, not the
-    # per-event densification the walk used to pay.
-    operand_grid <- function(o) {
-      project_value(
-        get(as.character(o), envir = op_state),
-        op_kind[o],
-        0L,
-        n1,
-        n2,
-        drop_diagonal = op_drop_diagonal
-      )
-    }
+    # The initial product reads the dense slices, not the kind-shaped store:
+    # they are still in hand here, and reducing then re-widening each operand
+    # would allocate two grids apiece to arrive back where it started.
     for (ig in inter_ids) {
       ops <- plan$interactions[[as.character(ig)]]
-      prod_mat <- operand_grid(ops[1])
+      prod_mat <- slices[[as.character(ops[1])]]
       for (o in ops[-1]) {
-        prod_mat <- prod_mat * operand_grid(o)
+        prod_mat <- prod_mat * slices[[as.character(o)]]
       }
       initial_stats[,, ig] <- prod_mat
     }

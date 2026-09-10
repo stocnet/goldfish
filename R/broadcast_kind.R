@@ -50,14 +50,9 @@ kind_length <- function(kind, n1, n2) {
 #' @param value the stored value.
 #' @param from,to broadcast kinds.
 #' @param n1,n2 sender and receiver counts.
-#' @param drop_diagonal zero the self-dyads of the widened grid. A one-mode dyad
-#'   statistic is a broadcast everywhere EXCEPT there -- `init_DyNAM_choice.alter()`
-#'   and its siblings zero the diagonal when the model is one-mode -- so a value
-#'   stored at its kind carries only the broadcast and the diagonal rule is
-#'   re-applied on every dense read. A two-mode grid has no self-dyads.
 #' @noRd
-project_value <- function(value, from, to, n1, n2, drop_diagonal = FALSE) {
-  if (from == to && !(drop_diagonal && to == 0L)) {
+project_value <- function(value, from, to, n1, n2) {
+  if (from == to) {
     return(value)
   }
   if (axis_union_kind(c(from, to)) != to) {
@@ -69,15 +64,7 @@ project_value <- function(value, from, to, n1, n2, drop_diagonal = FALSE) {
   if (to == 0L) {
     # A scalar and an ego vector both recycle down columns; an alter vector
     # fills across rows.
-    grid <- if (from == 0L) {
-      value
-    } else {
-      matrix(value, n1, n2, byrow = identical(as.integer(from), 1L))
-    }
-    if (drop_diagonal) {
-      diag(grid) <- 0
-    }
-    return(grid)
+    return(matrix(value, n1, n2, byrow = identical(as.integer(from), 1L)))
   }
   # `from` is global here: the only remaining widenings are scalar -> ego and
   # scalar -> alter, since ego and alter are incomparable.
