@@ -972,28 +972,16 @@ run_sender_recipe_loop <- function(
 # matrix. Used to keep an operand's live matrix current so interaction products
 # can be recomputed.
 expand_operand_update <- function(updates, kind, n1, n2) {
-  node1 <- updates[, "node1"]
-  node2 <- updates[, "node2"]
-  repl <- updates[, "replace"]
-  if (kind == 0L) {
-    return(list(cells = cbind(node1, node2), vals = repl))
-  }
-  if (kind == 3L) {
-    cells <- cbind(rep(seq_len(n1), times = n2), rep(seq_len(n2), each = n1))
-    return(list(cells = cells, vals = rep(repl[length(repl)], n1 * n2)))
-  }
-  if (kind == 1L) {
-    cells <- cbind(
-      rep(seq_len(n1), times = length(node2)),
-      rep(node2, each = n1)
-    )
-    return(list(cells = cells, vals = rep(repl, each = n1)))
-  }
-  cells <- cbind(
-    rep(node1, each = n2),
-    rep(seq_len(n2), times = length(node1))
+  projected <- project_entries(
+    updates[, "node1"],
+    updates[, "node2"],
+    updates[, "replace"],
+    kind,
+    0L,
+    n1,
+    n2
   )
-  list(cells = cells, vals = rep(repl, each = n2))
+  list(cells = projected$entries, vals = projected$values)
 }
 
 # Deduplicate the accumulated interaction cell matrix (rows are (i, j) pairs)
@@ -1059,10 +1047,10 @@ crossings_from_vectors <- function(vecs) {
   nodes <- vector("list", n_stored)
   repl <- vector("list", n_stored)
   for (e in seq_len(n_stored)[-1L]) {
-    ch <- which(vecs[[e]] != vecs[[e - 1L]])
-    n_changes[e] <- length(ch)
-    nodes[[e]] <- ch
-    repl[[e]] <- as.numeric(vecs[[e]][ch])
+    crossing <- emit_crossings(vecs[[e - 1L]], vecs[[e]])
+    n_changes[e] <- length(crossing$entries)
+    nodes[[e]] <- crossing$entries
+    repl[[e]] <- as.numeric(crossing$values)
   }
   nv <- unlist(nodes, use.names = FALSE)
   rv <- unlist(repl, use.names = FALSE)

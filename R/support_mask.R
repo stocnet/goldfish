@@ -40,15 +40,10 @@ support_to_grid <- function(support, mask_kind, n1, n2) {
   if (is.null(support)) {
     return(matrix(TRUE, n1, n2))
   }
-  switch(
-    as.character(mask_kind),
-    # scalar recycles everywhere; ego recycles down columns (row/sender axis);
-    # alter fills across rows (col/receiver axis); point is already the grid.
-    "3" = matrix(as.logical(support), n1, n2),
-    "2" = matrix(as.logical(support), n1, n2),
-    "1" = matrix(as.logical(support), n1, n2, byrow = TRUE),
-    "0" = matrix(as.logical(support), n1, n2),
-    cli::cli_abort("Unknown mask kind {.val {mask_kind}}.")
+  matrix(
+    as.logical(project_value(support, mask_kind, 0L, n1, n2)),
+    n1,
+    n2
   )
 }
 
@@ -72,14 +67,7 @@ support_to_grid <- function(support, mask_kind, n1, n2) {
 #' @return the support at `mask_kind`.
 #' @noRd
 support_from_grid <- function(grid, mask_kind) {
-  switch(
-    as.character(mask_kind),
-    "3" = grid[[1L]],
-    "2" = grid[, 1L],
-    "1" = grid[1L, ],
-    "0" = grid,
-    cli::cli_abort("Unknown mask kind {.val {mask_kind}}.")
-  )
+  reduce_value(grid, 0L, mask_kind)
 }
 
 #' Symmetrise a point-kind mask (`mask & t(mask)`)

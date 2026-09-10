@@ -26,6 +26,62 @@
 // The caller guarantees the matrix is REALSXP; a non-double matrix takes the
 // ordinary R subassignment instead, so this aborts rather than silently
 // reinterpreting the storage.
+//
+// The same reasoning covers the kind-shaped buffers the preprocessing walk
+// maintains -- interaction operands, constraint atoms, the support mask -- which
+// are vectors and scalars as often as matrices, and logical as often as double.
+// `set_entries()` is that writer: one linear index instead of a (row, col)
+// pair, so it serves every shape, and REALSXP or LGLSXP, so it serves the mask.
+// Its aliasing precondition is the same one and is met the same way: each
+// buffer is materialized fresh at seeding and lives in exactly one environment
+// binding.
+
+namespace {
+
+// Bounds-check one 1-based linear index against a buffer length, aborting with
+// the caller's name rather than writing past the end.
+inline R_xlen_t checked_offset(int index, R_xlen_t length, const char* who) {
+  if (index < 1 || static_cast<R_xlen_t>(index) > length) {
+    Rcpp::stop("%s() index out of bounds.", who);
+  }
+  return static_cast<R_xlen_t>(index) - 1;
+}
+
+}  // namespace
+
+// Write entries of a kind-shaped buffer IN PLACE, addressed by 1-based linear
+// index. Double and logical buffers only, and `values` must already be the
+// buffer's own type: coercing here would allocate the copy this exists to avoid,
+// and silently changing a buffer's storage type is worse than aborting.
+//
+// [[Rcpp::export]]
+void set_entries(SEXP buffer, Rcpp::IntegerVector at, SEXP values) {
+  const int type = TYPEOF(buffer);
+  if (type != REALSXP && type != LGLSXP) {
+    Rcpp::stop("set_entries() needs a double or logical buffer.");
+  }
+  if (TYPEOF(values) != type) {
+    Rcpp::stop("set_entries() needs values of the buffer's own type.");
+  }
+  const R_xlen_t n = at.size();
+  if (XLENGTH(values) != n) {
+    Rcpp::stop("set_entries() needs `at` and `values` of one length.");
+  }
+  const R_xlen_t length = XLENGTH(buffer);
+  if (type == REALSXP) {
+    double* data = REAL(buffer);
+    const double* from = REAL(values);
+    for (R_xlen_t k = 0; k < n; ++k) {
+      data[checked_offset(at[k], length, "set_entries")] = from[k];
+    }
+    return;
+  }
+  int* data = LOGICAL(buffer);
+  const int* from = LOGICAL(values);
+  for (R_xlen_t k = 0; k < n; ++k) {
+    data[checked_offset(at[k], length, "set_entries")] = from[k];
+  }
+}
 
 // [[Rcpp::export]]
 void set_matrix_cells(
