@@ -99,6 +99,26 @@ one place:
 That is the drift the predecessor's D3 existed to prevent, and it would make this
 the third parallel implementation rather than the first shared one.
 
+**Amended 2026-09-10, during implementation (ADR-0063).** The table above assumes
+a dyad statistic's dense value IS its broadcast. It is not: a one-mode dyad
+statistic zeroes its own diagonal (`init_DyNAM_choice.alter()` and its siblings
+end with `if (!is_two_mode) diag(stats) <- 0`), so `ego(a)` is row-constant
+everywhere except at `[i, i]`. A value stored at a kind therefore carries the
+broadcast and nothing else, and the diagonal is a rule re-applied wherever the
+value becomes dense — a `drop_diagonal` argument on `project_value()` and
+`read_value_at_cells()`, threaded from whether the two node sets are the same.
+The reduction needs no flag: reading each node's value from a cell whose other
+index is not that node is correct in both modes.
+
+This is not a refinement. `support_from_grid()` reduced by `grid[, 1L]` /
+`grid[1L, ]`, which is the diagonal entry for node 1, so every shipped
+constrained model with a separable mask was excluding actor 1 from every event's
+risk set. Fixed in its own commit before the operand work resumed. Two more
+functions than the table names, both tiny: `donor_index()` and
+`off_diagonal_cell()`. One more than the design anticipated on the read side:
+`read_value_at_cells()`, which is what `project_entries()` implies and what the
+product recompute needs to read an operand without densifying it.
+
 ### D2 — The core is proven on interaction operands first, then applied to the constraint
 
 Phase order is operands, then atoms, then the mask. Three reasons. The sender
