@@ -447,6 +447,27 @@ step landed proves nothing.
       re-run is scoped to the base model — at 59,835 events the constrained
       cells would be hours each and would measure the mask maintainer, not the
       gate's question.
+      **CORRECTED AGAIN 2026-09-10 by `support-mask-sparse-updates`, which
+      fixed it.** The profile's attribution was right about the largest single
+      LINE and wrong about the largest single COST. Removing the atom
+      maintenance (atoms stored at their kind, the `<<-` state write replaced by
+      the in-place write) took the constrained rate loop from 75.57 s to
+      39.66 s at 1500 events — 47 percent, not 64.7. The other 53 percent was
+      the mask evaluation and the consumers, and the biggest item inside the
+      consumers appeared on NO profile line: every dyad-side reader expanded an
+      n1 x n2 grid per event to read one row of it, inside `support_to_grid()`
+      under several different callers, which was 41 GB of grids built and
+      discarded in the choice loop alone. A profile that names one function
+      cannot see a cost spread across four callers of a fifth.
+      **The constrained gate cell re-read, same script, same 10k subset.** The
+      constrained rate loop is 362 s -> 1.237 s. The ratios move from 1.05 to
+      **0.98** (base) and from 1.16 to **0.93** (constrained), so the
+      constrained cell is now the merged walk's BEST rather than its worst: it
+      builds one atom pool per process where the two recipe loops build one
+      each. Both cells now sit under 1.0 against the 1.10x threshold, where the
+      earlier reading had them straddling it. **The verdict is still not stated
+      here** — D7 and task 3.3 require Alvaro's explicit approval on top of a
+      number — but the number the decision reads is no longer measuring the mask.
       Script changes: a 10k subset, separate `cm10k` / `cmfull` selectors, and
       an `only_models` filter. Numbers in
       `.plan/sp/preprocess_timing_2026-09.md`.
