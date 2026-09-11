@@ -209,6 +209,118 @@ parity_rem_spec_windowed <- function(data = parity_toy_data()) {
   )
 }
 
+# The windowed mixed term with its networks given as a list, which the parser
+# records as one derivation per member.
+parity_toy_spec_window_list <- function(data = parity_toy_data()) {
+  make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + mixed_trans(list(calls, net2), window = 2),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+}
+
+# The recipe loop's event schedule for one family, captured where the recipe
+# context builds it. The walk itself is not wanted, so the capture aborts with
+# a sentinel condition, as `parity_plan()` does one stage earlier.
+parity_recipe_schedule <- function(spec, model = "DyNAM", family = "rate") {
+  captured <- NULL
+  original <- build_event_schedule
+  testthat::with_mocked_bindings(
+    build_event_schedule = function(
+      events,
+      events_objects_link,
+      objects_registry
+    ) {
+      captured <<- list(
+        schedule = original(events, events_objects_link, objects_registry),
+        object_names = objects_registry$name
+      )
+      rlang::abort("captured", class = "parity_schedule_captured")
+    },
+    tryCatch(
+      suppressWarnings(compute_statistics(spec, model, family)),
+      parity_schedule_captured = function(cnd) NULL
+    ),
+    .package = "goldfish"
+  )
+  captured
+}
+
+# A schedule reduced to what an event IS -- when, whether it is evaluated or
+# applied, on which layer, between whom, with what value -- so two schedules
+# built by different builders compare row by row without their indices.
+parity_schedule_rows <- function(schedule, layer) {
+  data.frame(
+    time = schedule$time,
+    dependent = schedule$dependent,
+    layer = layer,
+    sender = schedule$sender,
+    receiver = schedule$receiver,
+    value = vapply(schedule$value, function(v) as.numeric(v)[1L], numeric(1)),
+    stringsAsFactors = FALSE
+  )
+}
+
+# A real two-process join whose two choice formulas window the same source by
+# the same length. `friendship` is event-observed here rather than panel, since
+# a window on a panel layer is rejected by the parser.
+parity_two_process_windowed <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 3L, 4L),
+      to = c(1L, 2L, 3L),
+      time = c(1, 2, 3),
+      layer = "emails"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "event", calls = "event", emails = "event")
+  )
+  data <- list(info = info, nodes = nodes, ties = ties)
+  calls_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(friendship, window = 2),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(friendship, window = 2),
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls_spec, emails_spec, data = data)
+}
+
 # ---- (b) Social Evolution, asta Copenhagen shape ---------------------------
 
 # The stocnet form of the packaged dataset, built here rather than through

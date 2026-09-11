@@ -668,28 +668,122 @@ test_that("a windowed term and a bound compose", {
   }
 })
 
+test_that("a window on a list(net1, net2) term derives every member", {
+  # A windowed mixed term names its networks as a list, and the parser records
+  # one derivation per member of that list. The shared source has to realize
+  # all of them: a walk that realized only the first would read the second
+  # off a missing layer, and the container would refuse to build.
+  spec <- parity_toy_spec_window_list()
+  merged <- build_merged_blocks(single_process_joint(spec))
+  expect_setequal(merged$window_derived, c("calls_2", "net2_2"))
+
+  merged_prep <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
+    expect_equal(
+      parity_strip_deco(parity_prep_by(merged_prep, family)),
+      parity_strip_deco(solo)
+    )
+  }
+})
+
+test_that("a tied expiry follows the dependent event, as in the recipe", {
+  # With a window of 2 on events at 1..6, every expiry from 3 on lands on the
+  # time of a later dependent event. The recipe loop evaluates that event at
+  # the state BEFORE the expiry is applied (its dependent stream sorts first
+  # at a tie), then applies the event's own creation row, then the expiry.
+  # Read both schedules row by row rather than trusting the statistics: a
+  # reversed tie would show up as a different value at the tied events, but
+  # a same-valued coincidence would hide it.
+  spec <- parity_toy_spec_windowed_rate()
+  recipe <- parity_recipe_schedule(spec, "DyNAM", "rate")
+  merged <- build_merged_blocks(single_process_joint(spec))$schedule
+
+  recipe_rows <- parity_schedule_rows(
+    recipe$schedule,
+    ifelse(
+      recipe$schedule$dependent,
+      "calls",
+      recipe$object_names[recipe$schedule$target]
+    )
+  )
+  merged_rows <- parity_schedule_rows(merged, merged$layer)
+  expect_equal(merged_rows, recipe_rows)
+
+  tied <- intersect(
+    merged$time[merged$dependent],
+    merged$time[merged$layer == "calls_2" & merged$value < 0]
+  )
+  expect_equal(tied, c(3, 4, 5, 6))
+  for (t in tied) {
+    at_t <- merged_rows[merged_rows$time == t, ]
+    expect_equal(
+      paste(at_t$layer, at_t$value),
+      c("calls 1", "calls 1", "calls_2 1", "calls_2 -1")
+    )
+    expect_equal(at_t$dependent, c(TRUE, FALSE, FALSE, FALSE))
+  }
+})
+
 test_that("two processes windowing the same source share one derived object", {
   # Deduplication keys on the derived object's identity, so a join whose two
   # processes window the same network by the same length realizes it once and
-  # carries one expiry stream, not two.
-  spec <- parity_toy_spec_windowed()
-  merged <- build_merged_blocks(single_process_joint(spec))
-  derived <- unique(unlist(lapply(merged$units, function(unit) {
-    windows <- Filter(
-      function(d) identical(d$kind, "window"),
-      unit$spec_map$plan$derivations %||% list()
-    )
-    vapply(windows, `[[`, character(1), "derived_name")
-  })))
+  # carries one expiry stream, not two: one registry entry, one stream index,
+  # and creation plus expiry rows for each source event exactly once.
+  joint <- parity_two_process_windowed()
+  merged <- build_merged_blocks(joint)
+  schedule <- merged$schedule
+  derived_rows <- schedule$layer == "friendship_2"
+  n_source_events <- sum(joint$data$ties$layer == "friendship")
 
-  expect_gt(length(derived), 0L)
-  expect_true(all(derived %in% merged$objects$name))
-  # Once each, not once per unit: the registry is the deduplicated union.
-  expect_length(
-    merged$objects$name[merged$objects$name %in% derived],
-    length(derived)
+  expect_equal(merged$window_derived, "friendship_2")
+  expect_equal(sum(merged$objects$name == "friendship_2"), 1L)
+  expect_length(unique(schedule$stream_index[derived_rows]), 1L)
+  expect_equal(sum(derived_rows), 2L * n_source_events)
+  expect_equal(sum(schedule$value[derived_rows] > 0), n_source_events)
+  expect_equal(sum(schedule$value[derived_rows] < 0), n_source_events)
+
+  # The walk runs, and the process whose events set the shared clock's extent
+  # preprocesses as it would alone. The other process's fids differ from
+  # their standalone output by construction: a joint specification bounds
+  # every process on the shared clock and writes cross-process right-censored
+  # rows, which is the joint contract, not a window defect.
+  out <- suppressWarnings(preprocess_joint(joint))
+  calls_spec <- joint$specifications[[1L]]
+  map <- attr(out, "process_map")
+  for (family in c("rate", "choice")) {
+    fid <- map$fid[map$layer == "calls" & map$family == family]
+    solo <- suppressWarnings(compute_statistics(calls_spec, "DyNAM", family))
+    expect_equal(
+      parity_strip_deco(out[[as.character(fid)]]),
+      parity_strip_deco(solo)
+    )
+  }
+})
+
+test_that("the shared schedule is ordered by (time, stream_index)", {
+  # The schedule assigns its own stream indices as it adds each unit's
+  # streams, dependent stream first, then that unit's covariate streams. The
+  # ordering rule is `(time, stream_index)`, so at a tie a process's event is
+  # evaluated before the covariate row that applies it to its own layer.
+  schedule <- build_merged_blocks(parity_two_process_windowed())$schedule
+
+  expect_equal(
+    order(schedule$time, schedule$stream_index, method = "radix"),
+    seq_len(schedule$n)
   )
-  expect_setequal(merged$window_derived, derived)
+  for (focal in unique(schedule$layer[schedule$dependent])) {
+    is_focal <- schedule$layer == focal
+    dependent_index <- unique(schedule$stream_index[
+      is_focal & schedule$dependent
+    ])
+    covariate_index <- unique(schedule$stream_index[
+      is_focal & !schedule$dependent
+    ])
+    expect_length(dependent_index, 1L)
+    expect_length(covariate_index, 1L)
+    expect_lt(dependent_index, covariate_index)
+  }
 })
 
 # ---- (j) opportunity sets and user constraints through the single unit ------

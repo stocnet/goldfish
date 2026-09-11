@@ -318,12 +318,13 @@ walk_open <- function(
 
   merged <- build_merged_blocks(joint_spec, control_preprocessing)
 
-  # The handle's live-state stepping supports the class the merged walk already
-  # restricts (no window effects, no explicit window bounds) plus, for now, no
-  # user support constraints and no node-composition dynamics: under those the
-  # live risk set is the trivial all-active set the evaluators apply, so the
-  # live statistics equal the batch materialization exactly. The augmenter /
-  # simulate consumers extend this later.
+  # The merged walk hosts window effects (their expiry rows are ordinary
+  # covariate rows, exogenous to every process here) and explicit window
+  # bounds; the handle's live-state stepping supports that class minus, for
+  # now, user support constraints and node-composition dynamics: under those
+  # the live risk set is the trivial all-active set the evaluators apply, so
+  # the live statistics equal the batch materialization exactly. The
+  # augmenter / simulate consumers extend this later.
   if (!is.null(merged$support_constraints)) {
     cli::cli_abort(
       "The walk handle does not yet support user support constraints.",
