@@ -78,6 +78,49 @@ event on an observed sender; this is a pattern over the whole sequence, and
 reporting a pattern one event at a time is what makes the current message hard
 to act on.
 
+### D4 — The choice branch reads the receiver presence per event, and the fold has to keep it
+
+`validate_support_constraint()`'s choice branch reduces the mask against an
+`active_2` frozen at time zero, the same defect the rate branch carried until
+`support-mask-sparse-updates` group 10 fixed that half. Every one of the
+branch's four verdicts is defined over "allowed AND present receivers", so all
+four inherit it: the empty-risk-set abort, the observed-dyad abort, the
+forced-choice count, and the never-a-candidate warning.
+
+**Measured exposure, Fisheries, choice, 137 -> 151 receivers.** The receiver
+set only grows in that dataset and no observed sender or receiver is absent at
+time zero, so a frozen presence is a strict subset of the live one and the two
+aborts happen not to fire differently. The warning does:
+
+| constraint | mask kind | receivers named, frozen | live |
+| --- | --- | ---: | ---: |
+| `tie(contignet)` | point | 76 | 90 |
+| `indeg(contignet) < 5` | alter | 35 | 37 |
+| `indeg(contignet) < 2` | alter | 74 | 78 |
+
+So the demonstrated harm today is an **under-reported warning**: a receiver
+that joins mid-sequence and is never an allowed candidate is not counted as
+present and so is never named. The two aborts are reachable by construction in
+the other direction — a dependent event whose receiver joined after time zero
+would be reported as an excluded observed dyad, a hard error on a legitimate
+model — but no fixture in the package exercises it, so the change must build
+one rather than claim it.
+
+**The implementation constraint is the reason this is a decision and not a
+one-line edit.** The rate branch could read `prep$active_dyad_update` because
+the rate fold leaves it alone. `fold_active_dyad_support()` reads that buffer
+and then OVERWRITES it with the folded availability, so by validation time the
+raw receiver crossings are gone from a choice object. The fold already stashes
+`receiver_presence_init`; it must stash the raw crossings beside it, or the
+validation must run before the fold. We stash, because the init is stashed for
+exactly this reason and one mechanism for one need is cheaper to keep true than
+two orderings.
+
+We do NOT widen this to the sender axis in the same breath. `active_1` is
+frozen there too, but the choice branch's verdicts are receiver-side, and the
+sender-side accumulation D3 adds is a new consumer that should be written
+against the live axis from the start rather than retrofitted.
+
 ## Risks / Trade-offs
 
 - [The outer fold changes a number] → the reference fit is the gate, and the

@@ -594,3 +594,28 @@ alone.
 - [ ] 4.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `devtools::document()`; ready for the trunk merge to
       fold.
+- [ ] 4.5 Sweep this change's own OpenSpec references out of source, by hand,
+      one site at a time — the standing rule is that a decision id or task
+      number in code is a dangling pointer once the change is archived, and
+      these are also **stale in content**, which is the sharper reason. Six
+      comments in `tests/testthat/test-preprocess_parity.R` read "FAILS until
+      task 0.4b / 0.4d / 0.5b"; all three tasks are done and all six tests
+      pass, so the comments now assert the opposite of the truth. There are no
+      `skip_if()` gates on them, only prose. Comment the reasoning itself — the
+      defect each fixture was written to catch and why it could not be seen
+      before — so the fixture still explains itself to a reader who cannot open
+      the change. Do not delete the comments; rewrite them.
+
+      Also in this change's files: `R/preprocess_joint.R` carries three
+      `design D` references (line 698's `design D5 / D8a` among them),
+      `R/preprocess_multivariate.R` one, `test-preprocess_flavored.R` one.
+
+      **Residual, NOT this change's to fix, recorded so it is not lost**:
+      roughly eight more sites belong to other archived changes —
+      `R/joint_parameters.R`, `R/intercept_only_rate.R`,
+      `test-model_evaluate.R`, `test-model_terms.R`,
+      `test-diagnostic_primitives.R`, `test-stale_result_detection.R`,
+      `test-flavored_dependent_events.R`, `test-event_reductions.R`. Whoever
+      next opens one of those files sweeps that file, per the same rule. A
+      package-wide sweep in one commit would bury a real diff in noise, which
+      is why this is not that.

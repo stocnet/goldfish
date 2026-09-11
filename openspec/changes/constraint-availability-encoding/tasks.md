@@ -50,6 +50,47 @@ reference fit is the real detector.
       a condition to a function whose other conditions users rely on.
 - [ ] 2.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP.
 
+## 2b. The choice branch's frozen receiver axis (design D4)
+
+The rate half of this defect was fixed in `support-mask-sparse-updates` group
+10; the choice branch of the same function still reduces the mask against an
+`active_2` frozen at time zero. It lands here because group 2 already opens
+that branch and because the fix has to change what the dyad fold keeps.
+
+- [ ] 2b.1 Detector first, and TWO fixtures, because Fisheries alone cannot
+      show the whole defect. (a) The warning: on the Fisheries choice model the
+      never-a-candidate set is 76 receivers read frozen against 90 read live
+      under `~ tie(contignet)`, so a receiver that joins mid-sequence and is
+      never allowed goes unnamed. Assert the named set against a from-scratch
+      per-event reduction. (b) The abort: Fisheries' receiver set only GROWS
+      and no observed receiver is absent at time zero, so neither hard
+      condition fires differently there. Build a fixture whose dependent event
+      has a receiver that joined after time zero and assert it does NOT abort
+      with "the observed dyad is excluded". Both must fail today.
+- [ ] 2b.2 Make `fold_active_dyad_support()` stash the RAW receiver crossings
+      beside `receiver_presence_init` before it overwrites
+      `active_dyad_update` with the folded availability. Without this the
+      stream the validation needs no longer exists on a choice object, which
+      is the difference from the rate branch and the reason this is not a
+      one-line edit.
+- [ ] 2b.3 Read the receiver presence per event in the choice branch through
+      `presence_cursor()`, the way the rate branch now does. All four verdicts
+      are defined over "allowed AND present receivers", so all four move
+      together: the two aborts, the forced-choice count, and the
+      never-a-candidate warning's notion of which receivers are present.
+- [ ] 2b.4 Decide and record what "present" means for the warning's denominator
+      once the axis moves — present at the event, or ever present across the
+      sequence. State it in the message rather than leaving the reader to infer
+      it from a count. `r-lib:cli` applies as in 2.3.
+- [ ] 2b.5 Tests: the four existing fail-fast validations keep their messages
+      and their trigger conditions on a STATIC composition, so the change is
+      visible only where the composition moves. Assert that explicitly.
+- [ ] 2b.6 Verification: `NOT_CRAN=true`, baselines PASS not SKIP. Note in
+      `progress.md` whether the sender axis (`active_1`, also frozen in this
+      branch) turned out to matter for any verdict; D4 scopes it out
+      deliberately and that call should be re-read against what the fixtures
+      show.
+
 ## 3. Close
 
 - [ ] 3.1 Answer the design's open question: does an ego-kind constraint on REM

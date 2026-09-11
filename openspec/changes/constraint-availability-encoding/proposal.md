@@ -58,6 +58,18 @@ functions.
   event**, worded symmetrically to the rate warning that already exists. A
   warning and not an error, because a sender that never appears is legitimate.
 
+**The choice branch of that same validation reduces the mask against a frozen
+receiver presence.** The rate branch did too until `support-mask-sparse-updates`
+group 10 fixed it; the choice half was outside that task's two named sites and
+was handed here. All four of the branch's verdicts are defined over "allowed
+AND present receivers", so all four inherit it. Measured on Fisheries, where
+the receiver set moves 137 -> 151, the never-a-candidate warning names 76
+receivers read frozen against 90 read live under `~ tie(contignet)`. The two
+aborts are reachable in the other direction — an observed receiver that joined
+after time zero would be reported as an excluded dyad, a hard error on a
+legitimate model — but that dataset's receiver set only grows and no observed
+node is absent at time zero, so the fixture for it has to be built.
+
 ## Capabilities
 
 ### New Capabilities
@@ -75,7 +87,9 @@ functions.
   object this reads and for the post-delta wording.
 - **Code**: `R/model_preprocess.R` (`fold_active_dyad_support()`,
   `build_active_dyad_point()`), `R/model_estimate.R`
-  (`validate_support_constraint()`).
+  (`validate_support_constraint()`). The fold also has to stash the raw
+  receiver crossings before it overwrites `active_dyad_update`, or the stream
+  the validation needs is gone by the time it runs.
 - **An existing test pins the defect.** `test-support_constraint_ego_fold.R:65`
   asserts `active_dyad_encoding == "point"` for exactly this model. That
   expectation moves with the code, and the captured reference fit in
