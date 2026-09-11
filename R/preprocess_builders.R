@@ -63,7 +63,7 @@ build_object_keys <- function(
         keys[i] <- entry$object
         next
       }
-      ds_network(src, entry$object)
+      ds_check_network(src, entry$object)
       components[i] <- "networks"
       keys[i] <- entry$object
     } else {

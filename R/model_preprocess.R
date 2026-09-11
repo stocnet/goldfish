@@ -404,13 +404,20 @@ receiver_reach <- function(mask, stored_kind, node, n1) {
 # kernel vs a 3D dyad array) — that shaping stays in each loop. The context is
 # returned as a list the caller splats into its frame; it is also the seam a
 # future multi-consumer walk over one shared state builds on.
+# `build_state = FALSE` skips the per-unit state container, event schedule and
+# their two schedule checks: the merged walk runs every unit over ONE shared
+# state and schedule it builds itself (and checks itself), so a unit's own copy
+# would be materialized -- one full n1 x n2 matrix per network -- only to be
+# discarded. Everything else in the context (streams, cache, initial
+# statistics, lookups) is what the walk engine actually reads.
 prepare_recipe_context <- function(
   spec,
   startTime,
   endTime,
   prep_envir,
   sub_model,
-  progress = FALSE
+  progress = FALSE,
+  build_state = TRUE
 ) {
   # The compiled recipe inputs ride on `spec` (a spec_map): the
   # effect closures, per-term window parameters, link matrices, plan, and call
@@ -536,16 +543,20 @@ prepare_recipe_context <- function(
   active_sender_changes <- composition1$changes
   active_dyad_changes <- composition2$changes
 
-  state <- build_state_container(
-    rownames(objects_effects_link),
-    nodes,
-    nodes2,
-    envir = prep_envir,
-    src = src
-  )
-  schedule <- build_event_schedule(events, events_objects_link, plan$objects)
-  assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
-  assert_globals_defined(state, plan$objects, schedule)
+  state <- NULL
+  schedule <- NULL
+  if (build_state) {
+    state <- build_state_container(
+      rownames(objects_effects_link),
+      nodes,
+      nodes2,
+      envir = prep_envir,
+      src = src
+    )
+    schedule <- build_event_schedule(events, events_objects_link, plan$objects)
+    assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
+    assert_globals_defined(state, plan$objects, schedule)
+  }
 
   net_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
   att_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)

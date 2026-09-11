@@ -329,9 +329,18 @@ init_consumers <- function(
         )
       )
     )
+    # An identity map (every union column, in order) is the single-output case
+    # wearing a consumer spec: projecting through it would copy every update
+    # block per event to change nothing, so it takes the NULL fast path.
+    is_identity <- length(effect_map) == dims$nEffects &&
+      all(effect_map == seq_len(dims$nEffects))
     new_consumer(
       cspec$writer,
-      gid_lookup = flavor_gid_lookup(effect_map, dims$nEffects),
+      gid_lookup = if (is_identity) {
+        NULL
+      } else {
+        flavor_gid_lookup(effect_map, dims$nEffects)
+      },
       is_exact_time = cspec$has_intercept
     )
   })

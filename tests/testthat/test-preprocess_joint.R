@@ -826,3 +826,23 @@ test_that("the merged walk does not regress the single-process hot path", {
   ))
   expect_lt(ratio, 10)
 })
+
+test_that("a plain unit skips the identity projection and its own state", {
+  # A plain unit's consumer reads every union column in order, so its
+  # projection is a copy that changes nothing; and the walk runs over the ONE
+  # shared state and schedule, so the unit's own container is never read.
+  spec <- parity_toy_spec()
+  mb <- suppressWarnings(build_merged_blocks(single_process_joint(spec)))
+  engines <- lapply(
+    mb$units,
+    build_walk_engine,
+    merged = mb,
+    control_preprocessing = set_preprocessing(),
+    progress = FALSE
+  )
+  for (engine in engines) {
+    expect_null(engine$consumers[[1L]]$gid_lookup)
+    expect_null(engine$ctx$state)
+    expect_null(engine$ctx$schedule)
+  }
+})

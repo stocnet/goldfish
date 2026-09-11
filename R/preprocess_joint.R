@@ -1194,7 +1194,8 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
     endTime = NULL,
     prep_envir = prep_envir,
     sub_model = loop_sub_model,
-    progress = progress
+    progress = progress,
+    build_state = FALSE
   )
   if (any(ctx$is_window_effect)) {
     cli::cli_abort(
@@ -1279,8 +1280,10 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   # One consumer per fid the unit owns, over the block union. A flavored unit
   # projects the shared statistics onto each flavor's own columns
   # (`unit$effect_maps`); a plain unit takes the identity projection
-  # (`seq_len(nEffects)`), which leaves its single output unchanged. Every fid
-  # keeps its own right-censoring and its compiled `(layer, flavor)` constraint.
+  # (`seq_len(nEffects)`), which leaves its single output unchanged and which
+  # `init_consumers()` recognizes and stores as the no-projection fast path.
+  # Every fid keeps its own right-censoring and its compiled `(layer, flavor)`
+  # constraint.
   pm <- merged$process_map
   fid_has_intercept <- function(fid) {
     pm$has_intercept[match(fid, pm$fid)]
@@ -1569,6 +1572,15 @@ run_merged_walk <- function(
     merged$objects,
     control_preprocessing$impute
   )
+  # Read once, off the frame: the covariate branch below is the per-event hot
+  # path, and on a cheap kernel (a rate model's degree effects) a handful of
+  # helper calls per event cost as much as the statistics themselves.
+  props_component <- props$component
+  props_key <- props$key
+  props_policy <- props$policy
+  props_value_type <- props$value_type
+  props_is_undirected <- props$is_undirected
+  strata <- attr(state, "strata")
 
   engines <- lapply(
     merged$units,
@@ -1643,18 +1655,76 @@ run_merged_walk <- function(
     # reads the object, all against the pre-update state, then write the state
     # once. A rate fid never takes an RC row here unless its own unit reads the
     # object, keeping a choice-only covariate off the rate fid's timeline.
+    #
+    # The event arguments and the state write are spelled out here rather than
+    # taken from `merged_build_event_args()` / `merged_apply_state_update()`,
+    # which the walk handle uses per injected event: this loop runs them tens
+    # of thousands of times per call, and the two calls (argument matching,
+    # promises, a list per return) were the measurable difference between this
+    # walk and the recipe loop on a degree-only rate model. The three copies
+    # must agree; the parity fixtures hold them together.
     oid <- schedule$target[k]
-    event_args <- merged_build_event_args(schedule, k, oid, props, state)
-    is_undirected <- props$is_undirected[oid]
+    component <- props_component[oid]
+    key <- props_key[oid]
+    is_undirected <- props_is_undirected[oid]
     if (shape == "global") {
+      replace_value <- schedule$value[[k]]
+      if (is.na(replace_value)) {
+        replace_value <- 0
+      }
+      event_args <- list(replace = replace_value)
       ev_sender <- NA_integer_
       ev_receiver <- NA_integer_
     } else if (shape == "node") {
-      ev_sender <- schedule$node[k]
-      ev_receiver <- schedule$node[k]
+      event_node <- schedule$node[k]
+      if (schedule$semantics[k] == "increment") {
+        increment_value <- schedule$value[[k]]
+        if (is.na(increment_value)) {
+          increment_value <- 0
+        }
+        replace_value <- state[[component]][[key]][event_node] + increment_value
+      } else {
+        replace_value <- schedule$value[[k]]
+        if (is.na(replace_value)) {
+          if (identical(props_policy[oid], "as_category")) {
+            replace_value <- IMPUTATION_MISSING_LEVEL
+          } else {
+            replace_value <- impute_nodal_value(
+              state[[component]][[key]],
+              event_node,
+              strata[[component]],
+              props_value_type[oid]
+            )
+          }
+        }
+      }
+      event_args <- list(node = event_node, replace = replace_value)
+      ev_sender <- event_node
+      ev_receiver <- event_node
     } else {
       ev_sender <- schedule$sender[k]
       ev_receiver <- schedule$receiver[k]
+      if (schedule$semantics[k] == "increment") {
+        increment_value <- schedule$value[[k]]
+        if (is.na(increment_value)) {
+          increment_value <- 0
+        }
+        replace_value <-
+          state$networks[[key]][ev_sender, ev_receiver] + increment_value
+      } else {
+        replace_value <- schedule$value[[k]]
+        if (is.na(replace_value)) {
+          replace_value <- 0
+        }
+      }
+      if (replace_value < 0) {
+        warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
+      }
+      event_args <- list(
+        sender = ev_sender,
+        receiver = ev_receiver,
+        replace = replace_value
+      )
     }
 
     for (engine in engines) {
@@ -1688,7 +1758,24 @@ run_merged_walk <- function(
       )
     }
 
-    state <- merged_apply_state_update(state, oid, shape, event_args, props)
+    # The state write, after every reader saw the pre-update state. The
+    # container is a plain list, so the subassignment rebinds `state` here; a
+    # tie goes through `state_set_tie()`, whose in-place cell write keeps the
+    # adjacency matrix from being copied per event.
+    if (shape == "global") {
+      state$globals[[key]] <- replace_value
+    } else if (shape == "node") {
+      state[[component]][[key]][event_node] <- replace_value
+    } else {
+      state <- state_set_tie(
+        state,
+        key,
+        ev_sender,
+        ev_receiver,
+        replace_value,
+        is_undirected
+      )
+    }
   }
 
   # Finalize every engine's writers first, then realize ALL their masks in one
