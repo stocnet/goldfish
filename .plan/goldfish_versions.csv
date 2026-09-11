@@ -54,3 +54,4 @@ version,source,repo,ref,commit,interface,pushed,notes
 1.9.31,local,stocnet/goldfish,951745e,951745e,archive,TRUE,Archived OpenSpec change 'model-spec-descriptor' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
 1.9.31,local,stocnet/goldfish,951745e,951745e,archive,TRUE,Archived OpenSpec change 'fit-class-hierarchy' on 2026-09-07 (version 1.9.31); see openspec/changes/archive/.
 develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD snapshot. New API + engines (default_c/gather_compute). No rate_ordered sub_model (order via no-intercept formula).
+1.9.31,local,stocnet/goldfish,ed73bfb,ed73bfb,archive,FALSE,Archived OpenSpec change 'support-mask-sparse-updates' on 2026-09-11 (version 1.9.31); see openspec/changes/archive/.
