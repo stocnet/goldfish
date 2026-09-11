@@ -916,26 +916,20 @@ merged_covariate_step <- function(
   interval,
   state
 ) {
-  ctx <- engine$ctx
-  plan <- ctx$plan
-  n1 <- ctx$n1
-  n2 <- ctx$n2
-  n_fun <- ctx$n_fun
-  n_inter <- ctx$n_inter
+  n1 <- engine$n1
+  n2 <- engine$n2
+  n_fun <- engine$n_fun
+  n_inter <- engine$n_inter
   is_sender <- engine$is_sender
-  bcast_kind <- plan$effects$broadcast_kind
+  bcast_kind <- engine$bcast_kind
+  consumers <- engine$consumers
   event_order <- engine$i_total - engine$i_dep
 
-  for (gid in plan$routing[[loid]]) {
-    template <- ctx$effects_template[[gid]]
-    net_update_pos <- ctx$net_update_lookup[loid, gid]
-    if (is.na(net_update_pos)) {
-      net_update_pos <- NULL
-    }
-    att_update_pos <- ctx$att_update_lookup[loid, gid]
-    if (is.na(att_update_pos)) {
-      att_update_pos <- NULL
-    }
+  for (entry in engine$route[[loid]]) {
+    gid <- entry$gid
+    template <- entry$template
+    net_update_pos <- entry$net_update
+    att_update_pos <- entry$att_update
 
     effect_update <- merged_call_template(
       template,
@@ -986,7 +980,7 @@ merged_covariate_step <- function(
 
     if (!is.null(updates)) {
       if (n_inter > 0L && gid <= n_fun) {
-        feeds <- plan$operand_of[[as.character(gid)]]
+        feeds <- engine$operand_of[[as.character(gid)]]
         if (!is.null(feeds)) {
           if (is_sender) {
             ov <- get(as.character(gid), envir = engine$op_state)
@@ -1030,13 +1024,13 @@ merged_covariate_step <- function(
         }
       }
 
-      if (bcast_kind[gid] != 0L) {
+      if (entry$broadcast_kind != 0L) {
         bc_block <- broadcast_entries_from_updates(
           updates,
-          bcast_kind[gid],
+          entry$broadcast_kind,
           gid
         )
-        for (cs in engine$consumers) {
+        for (cs in consumers) {
           consumer_accumulate_broadcast(cs, bc_block)
         }
       } else {
@@ -1050,7 +1044,7 @@ merged_covariate_step <- function(
             updates[, "replace"]
           )
         }
-        for (cs in engine$consumers) {
+        for (cs in consumers) {
           consumer_accumulate_point(cs, block)
         }
       }
@@ -1060,7 +1054,7 @@ merged_covariate_step <- function(
   if (n_inter > 0L && length(engine$dirty_inter) > 0L) {
     for (igc in names(engine$dirty_inter)) {
       ig <- as.integer(igc)
-      ops <- plan$interactions[[igc]]
+      ops <- engine$interactions[[igc]]
       if (is_sender) {
         senders <- unique(engine$dirty_inter[[igc]])
         prodv <- get(as.character(ops[1]), envir = engine$op_state)[senders]
@@ -1085,7 +1079,7 @@ merged_covariate_step <- function(
         }
         block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
       }
-      for (cs in engine$consumers) {
+      for (cs in consumers) {
         consumer_accumulate_point(cs, block)
       }
     }
@@ -1351,6 +1345,16 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   engine$own_formulas <- unit$own_formulas
   engine$node_lookup <- ds_node_lookup(ctx$src)
   engine$ctx <- ctx
+  # The covariate step's per-event reads, lifted off `ctx` and its plan so the
+  # step touches the engine and nothing beneath it.
+  engine$route <- ctx$route
+  engine$n1 <- n1
+  engine$n2 <- n2
+  engine$n_fun <- n_fun
+  engine$n_inter <- n_inter
+  engine$bcast_kind <- plan$effects$broadcast_kind
+  engine$operand_of <- plan$operand_of
+  engine$interactions <- plan$interactions
   engine$prep_envir <- prep_envir
   engine$spec_map <- spec_map
   engine$initial_stats <- initial_stats

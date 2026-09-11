@@ -846,3 +846,34 @@ test_that("a plain unit skips the identity projection and its own state", {
     expect_null(engine$ctx$schedule)
   }
 })
+
+test_that("the engine's routing table resolves the plan once per object", {
+  # The covariate step reads its templates, update positions and broadcast
+  # kinds from the table rather than from the plan's lookups per event.
+  spec <- parity_toy_spec()
+  mb <- suppressWarnings(build_merged_blocks(single_process_joint(spec)))
+  engine <- build_walk_engine(
+    mb$units[[1L]],
+    merged = mb,
+    control_preprocessing = set_preprocessing(),
+    progress = FALSE
+  )
+  ctx <- engine$ctx
+  expect_length(engine$route, length(ctx$plan$routing))
+  for (oid in seq_along(ctx$plan$routing)) {
+    entries <- engine$route[[oid]]
+    gids <- vapply(entries, `[[`, integer(1), "gid")
+    expect_equal(gids, ctx$plan$routing[[oid]])
+    for (entry in entries) {
+      net_update <- ctx$net_update_lookup[oid, entry$gid]
+      expect_equal(
+        entry$net_update,
+        if (is.na(net_update)) NULL else net_update
+      )
+      expect_equal(
+        entry$broadcast_kind,
+        ctx$plan$effects$broadcast_kind[entry$gid]
+      )
+    }
+  }
+})

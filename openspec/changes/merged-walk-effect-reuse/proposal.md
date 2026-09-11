@@ -56,6 +56,28 @@ is a clean seam or an accident of two implementations agreeing is the first
 thing this change has to find out, and it is why this change is scoped as
 research first and implementation second.
 
+**Addendum 2026-09-11 (session goldfish-8b).** The constant has now been
+decomposed and mostly removed, ahead of this change's own groups 1 and 2,
+because `preprocess-one-walk` task 0.10b asked the single-family question
+first. The overhead belongs to the RATE family alone: on CollegeMsg subsets
+the rate-only merged/batch ratio ran 2.33 / 1.40 / 1.46 / 1.58 at 500 / 1000
+/ 5000 / 10,000 events while choice-only and REM sat at 1.04 to 1.10, so it
+is a cost per call and per event visible only against the cheapest kernel,
+which is also why the two-family cells above converge to parity. Two causes:
+setup materialized the n1 x n2 adjacency matrix eight times per merged call
+against the loops' five (an existence check and an NA check that discarded
+the grid, a per-unit state container the walk never reads), and the merged
+covariate branch resolved its routing, update positions and broadcast kinds
+from the plan per event. Commit `53add23` (preprocess-one-walk task 0.11)
+removed the setup waste and inlined two helper calls; the routing table
+(ADR-0066, this change's group 2) removed the per-event lookups. Rate-only
+at 10k: 1.58 -> 1.17 -> 1.09; the other single-family cells 0.98 to 1.05.
+Numbers and method in `.plan/sp/preprocess_single_family_2026-09-11.md`.
+What is left is shared by both substrates and is not a ratio driver: the
+effect closures are created fresh per preprocessing call and byte-compiled
+at first use. Groups 1 and 2 are closed on that record; group 3, the
+shared-quantity seam, is the research this change still owns.
+
 ## What Changes
 
 - **The interaction product is maintained at its own broadcast kind.** Its
@@ -67,9 +89,11 @@ research first and implementation second.
 - **The merged walk's overhead against the loops is decomposed and attributed**,
   at three event counts, into per-call setup and per-event work. The ratio is a
   symptom; this change produces the cause, which no measurement has yet.
+  *Done 2026-09-11, four event counts, see the addendum above.*
 - **The per-call constant is reduced where it is reducible**, guided by that
   attribution rather than by guesswork. What is irreducible is recorded as such,
   with its size, so the gate decision reads a floor rather than a hope.
+  *Done 2026-09-11: `53add23` and the routing table (ADR-0066).*
 - **An inventory of what a layer's sub-models recompute independently.** Which
   effects appear in more than one formula of one process, how often, and what
   fraction of the walk's work that duplication is.

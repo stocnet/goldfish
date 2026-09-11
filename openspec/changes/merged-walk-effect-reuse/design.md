@@ -116,6 +116,28 @@ seam is not clean. Any of those is a result, and each leaves
 A research change that cannot fail is not research. Naming the exits before
 measuring is what keeps the answer honest when it is inconvenient.
 
+### D5 — Routing is resolved once at context build, not per event (ADR-0066)
+
+The merged covariate step used to resolve, per effect and per event, the
+routing list, two update-position lookups with an NA-to-NULL conversion, the
+call template and the broadcast kind, plus about ten field reads to unpack
+`engine$ctx$plan`. Every one of those answers is fixed at compile time.
+`prepare_recipe_context()` now builds a per-object routing table holding them,
+the walk engine carries the table and the loop's constants as its own fields,
+and the step reads nothing beneath the engine. Timed loops (not Rprof, which
+drops two thirds of its samples on the development machine and showed parity
+where wall-clock said 1.56x): 30 to 36 µs per covariate event as shipped, 26.9
+inline, 26.6 to 26.8 with the table; the two template calls alone are 16.
+
+*Rejected:* specializing the single-engine case, which reintroduces the second
+loop body this change exists to delete and does not address the cost, since
+the dispatch call reaches the inline figure once the lookups are gone. Also
+rejected: leaving it, because a rate-only model then pays 15 to 20 percent for
+answers it already has.
+
+The recipe loops do not read the table yet. If `preprocess-one-walk` group 3
+stays closed, making them read it is the way to keep one routing reader.
+
 ## Risks / Trade-offs
 
 - [The attribution finds nothing actionable] → that is a permitted outcome (D4),
@@ -143,8 +165,12 @@ and 2 say it can pay.
 
 - Does the effect catalogue have enough shared rate/choice quantities for a
   shared maintainer to matter, or is `indeg` close to the whole list?
-- Is the per-call constant mostly compiling the plan, building the engines, or
-  building the writers? None of the three has been measured separately.
+- ~~Is the per-call constant mostly compiling the plan, building the engines, or
+  building the writers? None of the three has been measured separately.~~
+  Answered 2026-09-11: building the engines (a discarded per-unit state
+  container) and two throwaway materializations of the adjacency matrix in
+  the compile and the imputation pass, plus per-event plan lookups in the
+  covariate branch; see the proposal addendum and D5.
 - Should this land before or after `preprocess-one-walk` group 3? The gate rule
   as written passes on the 10k cell today, so group 3 could proceed without
   this — the question is whether it should.

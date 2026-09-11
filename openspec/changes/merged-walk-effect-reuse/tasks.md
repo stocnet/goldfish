@@ -28,18 +28,33 @@ group invalidates.
 
 ## 1. Decompose the gap (design D1)
 
-- [ ] 1.1 **After group 0**, extend `.plan/sp/substrate_timing.R` to sweep event
+**Closed 2026-09-11 (session goldfish-8b), measured through
+`preprocess-one-walk` task 0.10b rather than through the script named here.**
+The sweep is `.plan/sp/preprocess_single_family_2026-09-11.R` (CollegeMsg
+500 / 1000 / 5000 / 10,000 events, four single-family cells, medians of three
+warm runs) and the decomposition, by timed loops, allocation counts and
+ablation rather than by profiling, is in
+`.plan/sp/preprocess_single_family_2026-09-11.md`. Group 0 had NOT landed
+first; the interaction product is untouched by what was measured (no
+interaction term in the swept models), so the baseline stands for it.
+
+- [x] 1.1 **After group 0**, extend `.plan/sp/substrate_timing.R` to sweep event
       counts rather than take one: Social Evolution at its full 439, and CollegeMsg at 500, 1500,
       5000 and 10,000, unconstrained, merged against the two loops. Medians of
       repeated runs after a discarded warm-up — a single un-warmed run inflated
       a cell by 35 percent during `support-mask-sparse-updates` and read as a
       regression that did not exist.
-- [ ] 1.2 Fit time against event count per substrate and record the intercept
+- [x] 1.2 Fit time against event count per substrate and record the intercept
       (per-call constant) and slope (per-event work) for each, with the
       residuals, in `.plan/sp/substrate_decomposition_2026-09.md`. **State
       whether the fit is linear**: curvature is itself a finding, and the
       constrained choice loop is known to grow faster than linearly.
-- [ ] 1.3 Name the parts of the merged walk's constant by instrumenting the
+      — The rate-only merged/batch ratio was 2.33 / 1.40 / 1.46 / 1.58 across
+      the four sizes and did not amortize; choice-only and REM sat at 1.04 to
+      1.10. The gap was NOT a constant divided by n: setup grew with n through
+      GC (each 27.5 MB throwaway matrix triggers a collection of a heap that
+      grows with the writers' buffers) and a per-event part rode on top.
+- [x] 1.3 Name the parts of the merged walk's constant by instrumenting the
       phases it has and the loops do not — compiling the plan, building one
       engine per unit, the shared schedule, the per-unit writers and consumer
       specs. Instrument, do not profile: during `support-mask-sparse-updates` a
@@ -47,20 +62,54 @@ group invalidates.
       while the largest single item was spread across four callers of a fifth
       and appeared on no line (ADR-0057 is the standing version of this
       lesson).
-- [ ] 1.4 Verification: `NOT_CRAN=true` green, baselines PASS not SKIP. Nothing
+      — Named at 10k, rate-only: `build_merged_blocks()` 0.076 s and
+      `build_walk_engine()` 0.078 s against the loops' `prepare_recipe_context()`
+      0.031 s; allocation 404 MB per call against 303, all of it outside the
+      loop: the n1 x n2 adjacency matrix materialized 8 times against 5
+      (`build_object_keys()` to check a name exists, `ds_impute_missing()` to
+      look for NA, the per-unit context's state container). Per event:
+      `merged_build_event_args()` 3.05 µs against 0.75 inline,
+      `merged_apply_state_update()` 4.75 against 2.1, an identity
+      `gid_lookup` projecting every update block, and the covariate step's
+      per-event plan lookups (30 to 36 µs against 26.9 inline).
+- [x] 1.4 Verification: `NOT_CRAN=true` green, baselines PASS not SKIP. Nothing
       has moved yet; this is the reference point.
+      — Reference tree 44c8a98; the `_before.rds` beside the script.
 
 ## 2. Reduce the constant where it is reducible (design D1, D4)
 
-- [ ] 2.1 From task 1.3's attribution, fix the reducible parts, one commit each,
+- [x] 2.1 From task 1.3's attribution, fix the reducible parts, one commit each,
       each with its own before/after on the task 1.1 sweep. Do not batch them:
       a combined number cannot say which change paid.
-- [ ] 2.2 Record what is NOT reducible and how big it is, so the gate reads a
+      — Two commits, not five: `53add23` (recorded as preprocess-one-walk task
+      0.11) batched the setup fixes and the two inlined helpers because they
+      were measured as one patch in a worktree while the archived tree was
+      under measurement; the ablation inside it is recorded in the note
+      (identity projection 5 percent of the loop, the rest setup). Rate-only
+      10k 1.58 -> 1.17. The routing table (ADR-0066, design D5) is its own
+      commit: 1.17 -> 1.09 at 10k, 1.13 / 1.15 / 1.09 at 500 / 1000 / 5000;
+      choice-only 1.00, REM 1.01, REM ordered 0.98 at 10k.
+- [x] 2.2 Record what is NOT reducible and how big it is, so the gate reads a
       floor rather than a hope. If the floor keeps the unconstrained ratio above
       1.0 at typical sizes, that is design D4's first stop condition — record it
       and go to group 4.
-- [ ] 2.3 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; re-run the
+      — Two items. Per event, the per-engine step call itself, under 1 µs
+      once its lookups are precomputed; removing it means a single-engine
+      loop (rejected, D5). Per call, the effect closures are created fresh by
+      every preprocessing call and byte-compiled at first use
+      (`compiler:::tryCmpfun`, 16 to 24 percent of both substrates' builders
+      under `load_all`); shared by both substrates, so not a ratio driver,
+      but the largest fixed cost either pays at small sizes. Not this
+      change's to fix; `effect-term-registry` D15 (construction-time
+      specialized closures) is where a compile-once-per-spec cache belongs.
+      The rate-only floor is about 1.1 at every size; every other
+      single-family cell is at or under parity.
+- [x] 2.3 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; re-run the
       task 1.1 sweep and tabulate against it.
+      — `_after2.rds` (53add23) and `_after3.rds` (routing table) beside the
+      script; tabulated in the note. The suite's one failure
+      (`test-complete_generative_spec.R:127`, a deprecation warning leaking
+      into a snapshot) fails identically on the unmodified tree.
 
 ## 3. The shared-quantity seam (design D2, D3)
 

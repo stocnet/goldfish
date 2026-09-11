@@ -565,6 +565,27 @@ prepare_recipe_context <- function(
   att_update_lookup[cbind(plan$effect_objects$oid, plan$effect_objects$gid)] <-
     plan$effect_objects$att_update
 
+  # Per-object routing table for the covariate branch of a walk: for each
+  # effect an object's event reaches, its call template, its update positions
+  # (NULL where the effect does not take one) and its broadcast kind, resolved
+  # here once. Read per event, the same answers cost two matrix lookups, an
+  # NA test and three list chains per effect, which on a degree-only rate
+  # model is as much as the effect update itself.
+  broadcast_kind <- plan$effects$broadcast_kind
+  route <- lapply(seq_along(plan$routing), function(oid) {
+    lapply(plan$routing[[oid]], function(gid) {
+      net_update <- net_update_lookup[oid, gid]
+      att_update <- att_update_lookup[oid, gid]
+      list(
+        gid = gid,
+        template = effects_template[[gid]],
+        net_update = if (is.na(net_update)) NULL else net_update,
+        att_update = if (is.na(att_update)) NULL else att_update,
+        broadcast_kind = broadcast_kind[gid]
+      )
+    })
+  })
+
   list(
     effects = effects,
     window_parameters = window_parameters,
@@ -600,7 +621,8 @@ prepare_recipe_context <- function(
     state = state,
     schedule = schedule,
     net_update_lookup = net_update_lookup,
-    att_update_lookup = att_update_lookup
+    att_update_lookup = att_update_lookup,
+    route = route
   )
 }
 
