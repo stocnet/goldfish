@@ -1594,16 +1594,28 @@ render_walk_engine <- function(pending, masks) {
 # not treated as a bound either, and a bound outside the events is an error
 # rather than an empty walk. `has_start` / `has_end` are what the loop branches
 # on, so an unbounded walk pays nothing for this.
+#
+# The one case where an absent end bound still closes the window is a window
+# effect. Its dissolve rows sit one window length after the events they
+# expire, so the schedule keeps running past the last real event; without the
+# bound those rows would be walked as covariate events, and every timed engine
+# reading the derived object would take a right-censored row per expiry. The
+# recipe loop closes the window at the last real event whenever a window
+# effect is present, and the walk does the same.
 resolve_walk_window <- function(
   start_time,
   end_time,
   schedule_min,
-  schedule_max
+  schedule_max,
+  has_window_effect = FALSE
 ) {
   has_start <- FALSE
   has_end <- FALSE
   if (is.null(end_time)) {
     end_time <- schedule_max
+    if (has_window_effect) {
+      has_end <- TRUE
+    }
   } else if (end_time != schedule_max) {
     if (!is.numeric(end_time)) {
       end_time <- as.numeric(end_time)
@@ -1631,6 +1643,34 @@ resolve_walk_window <- function(
     has_end = has_end,
     schedule_min = schedule_min,
     schedule_max = schedule_max
+  )
+}
+
+# The observation window of a merged substrate: the schedule's extent, then
+# the bounds the preprocessing controls apply to it. The extent is read over
+# the schedule's REAL events. A windowed term puts dissolve rows one window
+# length after the events they expire, so the last of them sits beyond the
+# last thing that happened, and taking the extent from them would extend every
+# model's observation period by its longest window. The recipe path reads its
+# extent over the non-window streams for the same reason, and closes the
+# window there, which is why the presence of a window effect is passed on:
+# `merged$window_derived` is what tells an expiry row from a real one. Both
+# the batch walk and the walk handle step this substrate, so the bound lives
+# here rather than in either loop.
+resolve_walk_extent <- function(merged, control_preprocessing) {
+  schedule <- merged$schedule
+  has_window_effect <- length(merged$window_derived) > 0L
+  real_event <- if (has_window_effect) {
+    !(schedule$layer %in% merged$window_derived)
+  } else {
+    rep(TRUE, schedule$n)
+  }
+  resolve_walk_window(
+    control_preprocessing$start_time,
+    control_preprocessing$end_time,
+    if (any(real_event)) min(schedule$time[real_event]) else 0,
+    if (any(real_event)) max(schedule$time[real_event]) else 0,
+    has_window_effect = has_window_effect
   )
 }
 
@@ -1672,23 +1712,7 @@ run_merged_walk <- function(
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
-  # The extent is read over the schedule's REAL events. A windowed term puts
-  # dissolve rows one window length after the events they expire, so the last
-  # of them sits beyond the last thing that happened, and taking the extent
-  # from them would extend every model's observation period by its longest
-  # window. The recipe path reads its extent over the non-window streams for
-  # the same reason.
-  real_event <- if (length(merged$window_derived) > 0L) {
-    !(schedule$layer %in% merged$window_derived)
-  } else {
-    rep(TRUE, schedule$n)
-  }
-  window <- resolve_walk_window(
-    control_preprocessing$start_time,
-    control_preprocessing$end_time,
-    if (any(real_event)) min(schedule$time[real_event]) else 0,
-    if (any(real_event)) max(schedule$time[real_event]) else 0
-  )
+  window <- resolve_walk_extent(merged, control_preprocessing)
   start_time <- window$start
   end_time <- window$end
   bounded <- window$has_start || window$has_end

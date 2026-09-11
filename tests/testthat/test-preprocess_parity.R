@@ -599,6 +599,54 @@ test_that("a windowed term preprocesses identically on both substrates", {
   }
 })
 
+# The fields a right-censored row past the last real event changes. Named
+# before the full-object comparison so a failure says which side of the
+# observation window moved, not only that the objects differ.
+parity_extent_fields <- c(
+  "event_time",
+  "is_dependent",
+  "intervals",
+  "total_time",
+  "end_time"
+)
+
+test_that("a windowed term on a timed engine preprocesses identically", {
+  # A dissolve row sits one window length after the event it expires, so the
+  # last of them is past the last real event. The recipe loop bounds its walk
+  # at the last real event whenever a window effect is present; a merged walk
+  # that instead steps those rows hands every timed engine that reads the
+  # derived object a right-censored row per expiry. The choice-side fixture
+  # above is the control: no timed engine reads a derived object there.
+  spec <- parity_toy_spec_windowed_rate()
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
+    merged_prep <- parity_strip_deco(parity_prep_by(merged, family))
+    expect_equal(
+      merged_prep[parity_extent_fields],
+      parity_strip_deco(solo)[parity_extent_fields]
+    )
+    expect_equal(merged_prep, parity_strip_deco(solo))
+  }
+})
+
+test_that("a windowed REM rate preprocesses identically", {
+  # The same extent rule on the dyad-shaped timed engine.
+  spec <- parity_rem_spec_windowed()
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+  solo <- suppressMessages(suppressWarnings(
+    compute_statistics(spec, "REM", "rate")
+  ))
+
+  merged_prep <- parity_strip_deco(parity_prep_by(merged, "rate"))
+  expect_equal(
+    merged_prep[parity_extent_fields],
+    parity_strip_deco(solo)[parity_extent_fields]
+  )
+  expect_equal(merged_prep, parity_strip_deco(solo))
+})
+
 test_that("a windowed term and a bound compose", {
   # The two lifts of this group meet here: the expiry rows are ordinary
   # covariate rows, so they have to obey the observation window like any other.

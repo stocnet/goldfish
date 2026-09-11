@@ -181,6 +181,34 @@ parity_toy_spec_windowed <- function(data = parity_toy_data()) {
   )
 }
 
+# The windowed twins for a TIMED engine. `parity_toy_spec_windowed()` windows
+# only choice-side terms, so no engine that writes right-censored rows reads a
+# derived object there; these put the windowed term on the rate side, once for
+# DyNAM and once for REM, where a dissolve row walked past the last real event
+# would show up as a stored right-censored row.
+parity_toy_spec_windowed_rate <- function(data = parity_toy_data()) {
+  make_specification(
+    rate = ~ 1 + indeg + indeg(calls, window = 2),
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+}
+
+# The intercept is explicit because the legacy single-process entry adds a
+# time intercept to an REM rate formula that lacks one while the joint entry
+# keeps the formula as written; that pre-existing difference is not the one
+# this fixture detects.
+parity_rem_spec_windowed <- function(data = parity_toy_data()) {
+  make_specification(
+    rate = ~ 1 + inertia(calls, window = 2),
+    layer = "calls",
+    model = "REM",
+    data = data
+  )
+}
+
 # ---- (b) Social Evolution, asta Copenhagen shape ---------------------------
 
 # The stocnet form of the packaged dataset, built here rather than through
