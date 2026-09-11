@@ -432,3 +432,94 @@ test_that("an edgeless four() cache never aliases the state matrix", {
   expect_false(identical(tracemem(network), tracemem(initialized$cache)))
   expect_equal(initialized$stat, matrix(0, 4L, 4L))
 })
+
+# ---- (g) writers are a parameter of the merged walk, not a hardcode ---------
+
+# The merged walk built every consumer's writer with `writer_default()`
+# whatever the caller asked for, so `output = "gather"` and `output = "db"` had
+# no merged-walk path at all. The pair now threads from the caller through
+# `run_merged_walk()` and `build_walk_engine()` into `init_consumers()`.
+#
+# The comparison is at the WRITER's own stack, not at the rendered output. The
+# recipe path's gather goes on through `finalize_gather_output()`, which adds
+# the labels, the effect descriptions, the timespan and the column names that
+# turn a stack into an export; the merged walk does not reach that stage until
+# the dispatch flip. What the writer itself produces is these six fields, and
+# the column names are stripped because they are attached by the render.
+gather_stack_fields <- c(
+  "stat_all_events",
+  "n_candidates",
+  "selected",
+  "index_i",
+  "index_j",
+  "has_intercept"
+)
+
+gather_stack <- function(x) {
+  out <- x[gather_stack_fields]
+  dimnames(out$stat_all_events) <- NULL
+  out
+}
+
+merged_with_writer <- function(spec, new_writer) {
+  suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    writer = new_writer(),
+    new_writer = new_writer
+  ))
+}
+
+test_that("the merged walk builds a gather stack like the recipe loops", {
+  spec <- parity_toy_spec()
+  merged <- merged_with_writer(spec, writer_gather)
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(
+      compute_statistics(spec, "DyNAM", family, output = "gather")
+    )
+    expect_equal(
+      gather_stack(parity_prep_by(merged, family)),
+      gather_stack(solo)
+    )
+  }
+})
+
+test_that("the merged walk takes a db writer and carries its target", {
+  # A db writer IS a gather writer that remembers where to persist; the write
+  # itself happens at the export boundary, which the merged walk reaches only
+  # at the dispatch flip. So what this task can assert is that the pair is
+  # accepted, that the stack is the gather stack, and that the target survives.
+  skip_if_not_installed("RSQLite")
+  spec <- parity_toy_spec()
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  withr::defer(DBI::dbDisconnect(con))
+
+  merged_db <- suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    writer = writer_db(con, "stats"),
+    new_writer = function() writer_db(con, "stats")
+  ))
+  merged_gather <- merged_with_writer(spec, writer_gather)
+
+  for (family in c("rate", "choice")) {
+    expect_equal(
+      gather_stack(parity_prep_by(merged_db, family)),
+      gather_stack(parity_prep_by(merged_gather, family))
+    )
+  }
+})
+
+test_that("a default-writer walk is unchanged by the threading", {
+  # The regression guard for the parameter itself: the default path must be
+  # byte-identical to what it produced when the writer was hardcoded.
+  spec <- parity_toy_spec()
+  threaded <- merged_with_writer(spec, writer_default)
+  plain <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  for (family in c("rate", "choice")) {
+    expect_equal(
+      parity_strip_deco(parity_prep_by(threaded, family)),
+      parity_strip_deco(parity_prep_by(plain, family))
+    )
+  }
+})

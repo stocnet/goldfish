@@ -1178,7 +1178,14 @@ abort_merged_window_effects <- function(units, call = rlang::caller_env()) {
   )
 }
 
-build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
+build_walk_engine <- function(
+  unit,
+  merged,
+  control_preprocessing,
+  progress,
+  writer = writer_default(),
+  new_writer = writer_default
+) {
   spec_map <- unit$spec_map
   loop_sub_model <- if (unit$is_sender) "rate" else "choice"
   prep_envir <- new.env()
@@ -1309,11 +1316,12 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   # reference the SAME sub-plan and each snapshots it against its own timeline.
   consumer_specs <- build_consumer_specs(
     consumer_plan,
-    merged$support_constraints
+    merged$support_constraints,
+    new_writer = new_writer
   )
   consumers <- init_consumers(
     consumer_specs,
-    writer = writer_default(),
+    writer = writer,
     is_exact_time = FALSE,
     spec = spec_map,
     dims = list(
@@ -1558,7 +1566,9 @@ run_merged_walk <- function(
   merged,
   control_preprocessing = set_preprocessing_opt(),
   progress = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  writer = writer_default(),
+  new_writer = writer_default
 ) {
   if (
     !is.null(control_preprocessing$start_time) ||
@@ -1591,7 +1601,9 @@ run_merged_walk <- function(
     build_walk_engine,
     merged = merged,
     control_preprocessing = control_preprocessing,
-    progress = progress
+    progress = progress,
+    writer = writer,
+    new_writer = new_writer
   )
 
   # The shared clock spans every process's events; each unit's per-unit clock
@@ -1832,11 +1844,19 @@ run_merged_walk <- function(
 # walk. Accepts a `goldfishJointSpec` directly, or a single
 # `goldfishSpec` (wrapped as a one-process join) so the same driver
 # serves the frozen-baseline gate.
+#
+# `writer` / `new_writer` are the pair the estimation wrapper selects from the
+# requested output, threaded down to `init_consumers()` unchanged. The factory
+# is the one that matters here: every consumer of a multi-output walk needs its
+# own buffers, so each is built by calling it. `writer` is the single-output
+# instance, used only where a consumer set is absent.
 preprocess_joint <- function(
   spec,
   control_preprocessing = set_preprocessing_opt(),
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  writer = writer_default(),
+  new_writer = writer_default
 ) {
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
@@ -1850,5 +1870,12 @@ preprocess_joint <- function(
     )
   }
   merged <- build_merged_blocks(joint_spec, control_preprocessing)
-  run_merged_walk(merged, control_preprocessing, progress, verbose)
+  run_merged_walk(
+    merged,
+    control_preprocessing,
+    progress,
+    verbose,
+    writer = writer,
+    new_writer = new_writer
+  )
 }
