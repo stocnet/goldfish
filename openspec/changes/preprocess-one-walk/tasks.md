@@ -471,6 +471,132 @@ step landed proves nothing.
       Script changes: a 10k subset, separate `cm10k` / `cmfull` selectors, and
       an `only_models` filter. Numbers in
       `.plan/sp/preprocess_timing_2026-09.md`.
+- [x] 0.10 Re-measure the gate on the archived tree (design D6, D9). Task 0.9's
+      table is not one reading. Its unconstrained cells were taken before
+      `support-mask-sparse-updates` existed, its constrained cell was re-read
+      after that change's group 6 and before its groups 8 and 10, and no cell
+      was measured on the tree that archived it. Re-run
+      `.plan/sp/preprocess_timing_2026-09.R` unchanged, at `b3d54bd` or later,
+      and report THREE columns per cell rather than two: pre-group-0,
+      post-group-0 (task 0.9), post-mask. Wall time and peak memory both — the
+      mask change moved memory by more than it moved time on several cells, and
+      the gate rule is stated on time alone.
+      — done 2026-09-11 (session `goldfish-8f`), at `44c8a98` with a clean
+      working copy; the only commits since the archive are documentation.
+      **Only the constrained cells moved.** Pre-group-0 / post-group-0 /
+      post-mask: Social Evolution plain 1.78 / 1.34 / **1.36**, Social
+      Evolution no_window 1.31 / 1.26 / **1.03**, CollegeMsg 10k base
+      — / 1.05 / **1.02**, CollegeMsg 10k constrained error / 1.16 / **0.97**,
+      CollegeMsg full base 0.31 / 0.99 / **0.96**. The two Social Evolution
+      rows are the control: `no_window` carries a constraint and `plain` does
+      not, and only the first moved. Memory on the constrained 10k cells:
+      merged 1589 -> 1086 MB, batch_choice 1297 -> 826, batch_rate 697 -> 608.
+      A caution recorded with them: `peak_mb` comes from one cold run, and
+      `college_msg_full` `batch_rate` read 513 MB in one run against 288 in
+      another on the same tree, so no memory claim under about 2x survives a
+      re-run without medians. Numbers in
+      `.plan/sp/preprocess_timing_2026-09.md`.
+      — **re-run 2026-09-11 late** on the settled branch (`d049329`; source
+      unchanged since `29c16cb`), two full sweeps at five warm runs per cell, on
+      a quiet machine with the other session holding its R work. Run 1 / run 2:
+      Social Evolution no_window 0.888 / 0.889, plain 1.109 / 1.130, CollegeMsg
+      10k base 0.997 / 1.004, 10k constrained 0.932 / 0.946, full base
+      **1.007 / 1.002**, full constrained 0.956 / 0.934. **Against D6 the
+      measured value on the dataset the rule names is 1.00**, every CollegeMsg
+      cell passes, and the only cell above the line is plain Social Evolution at
+      439 events, 0.071 s against 0.064 s.
+      **The noise caveat above is corrected by this pair.** The 10 percent floor
+      described absolute seconds compared across runs an hour apart under load
+      8. The RATIO reproduces to 2.3 percent worst case and under 1 percent on
+      four of six cells, because both arms are measured seconds apart inside one
+      run. Peak memory also reproduces exactly on five of six merged cells, so
+      the earlier 513-against-288 MB spread was contention rather than a
+      property of the measurement. Read ratios from a quiet machine and a 3
+      percent difference is real.
+- [x] 0.10a Add the constrained cell at full CollegeMsg size. Task 0.9 scoped
+      the full run to the base model because a constrained cell would have been
+      hours and would have measured the mask maintainer rather than the
+      substrate. At 1.237 s for the constrained 10k rate loop that objection is
+      gone, and the hole it left is exactly the cell design D6 names.
+      — done 2026-09-11 (session `goldfish-8f`). Measured for the first time:
+      batch 35.816 s (rate 7.140 + choice 28.676) against merged 33.739 s,
+      **ratio 0.942**, which is the merged walk's best full-size cell. The base
+      model re-measured in the same run gives 26.809 against 25.463, 0.950. The
+      constraint costs the batch path 9.0 s on top of the base model and the
+      merged walk 8.3 s, because a layer's sub-models share one atom pool where
+      the two recipe loops build one each. The script's dispatch now runs both
+      models at both sizes; the constrained cells keep `reps = 1L` so they stay
+      comparable with the recorded before-numbers, and the two comments that
+      justified the old scoping were rewritten rather than dropped.
+- [x] 0.10b Add the single-family cells to the script (rate-only, choice-only,
+      REM, REM ordered), measured the same way as the two-family cells rather
+      than by hand at an R prompt. They carry the decision:
+      `compute_statistics()` and `estimate_dynam()` each take one sub-model, so
+      the two-family cell the threshold is read on describes no user surface.
+      The hand measurement put the single-family overhead at 1.41 to 1.56 and
+      found it does not amortize with size (1.43 / 1.42 / 1.45 at 2k / 10k /
+      60k events); none of it has been re-measured since.
+      — done 2026-09-11 by session `goldfish-8b`, working in a separate git
+      worktree; script `.plan/sp/preprocess_single_family_2026-09-11.R`,
+      write-up alongside it, medians of three warm runs on CollegeMsg
+      first-`n` events. **The overhead was the RATE family alone.** At
+      `44c8a98`, rate_only / choice_only / rem by size: 500 2.33 / 1.10 / 1.21,
+      1k 1.40 / 1.10 / 1.09, 5k 1.46 / 1.05 / 1.06, 10k **1.58** / 1.04 / 1.04.
+      Choice and REM were already at parity; only the rate cell was high, and
+      it got worse with size rather than amortizing. In seconds at 10k it was
+      0.362 batch against 0.573 merged, beside a choice cell costing 4.8.
+      **None of it was in the event loop.** The n1 x n2 adjacency matrix was
+      materialized eight times per merged call against the recipe loop's five
+      (an existence check and an NA check that both discarded the grid, plus a
+      per-unit state container the walk never reads), and two helper calls per
+      covariate event cost more than the degree kernel. Fixed in `53add23`
+      (task 0.11). After it, rate_only / choice_only / rem / rem_ordered: 500
+      1.22 / 1.07 / 1.19 / 1.07, 1k 1.20 / 0.95 / 1.02 / 0.95, 5k
+      1.18 / 1.02 / 1.08 / 1.02, 10k **1.17** / 1.02 / 1.02 / 1.05. Rate-only
+      seconds at 10k 0.364 batch against 0.426 merged; allocation per call 229
+      MB batch against 237 merged, from 303 against 404.
+      What remains is about 6 microseconds per covariate event inside
+      `merged_covariate_step()` itself, 35.4 against 26.9 for the same work
+      inline: one call per engine with seven arguments and `engine$` / `ctx$`
+      reads. That is the price of hosting N engines in one loop, and it was
+      left rather than special-cased for a single engine.
+- [x] 0.10c Report by APPENDING a dated section to
+      `.plan/sp/preprocess_timing_2026-09.md`. Do not edit the earlier
+      sections; they are the recorded contrast. Fold task 0.9's 0.98 / 0.93
+      constrained re-read into that file as its own dated section in the same
+      pass — it currently lives only in this task list, so the write-up the
+      task points at is missing its last reading.
+      — done 2026-09-11 (session `goldfish-8f`). Appended as "Re-run on the
+      archived tree (2026-09-11)"; the earlier sections are untouched. Task
+      0.9's 0.98 / 0.93 re-read is folded in as its own dated section, marked
+      as superseded by the archived-tree columns, which it agrees with to
+      within run-to-run noise.
+- [ ] 0.10d **Open question for Alvaro, to be answered before group 3 reads any
+      number.** D6 fixes the threshold on CollegeMsg, full model, two-family
+      cell. If the single-family path is where users actually are, that rule
+      reads the wrong workflow, and restating it is a decision rather than a
+      measurement. Record the answer as a new design decision (D16) with the
+      rejected alternative, not as a remark inside the write-up.
+- [x] 0.11 Cut the merged walk's setup and per-event overhead on a one-family
+      spec (design D10's argument, applied to setup rather than to the event
+      loop). **Filed after the fact**: the work landed as `53add23` from session
+      `goldfish-8b` while task 0.10b was being measured, and group 0 is its
+      honest home for the same reason 0.4a-0.4e sit here — a ratio measured
+      against an accidental cost does not answer the gate's question. Five
+      sites: `ds_check_network()` checks a layer exists without materializing
+      it, `ds_impute_missing()` reads the initial stream rows for NA before
+      materializing, `prepare_recipe_context(build_state = FALSE)` lets the
+      walk engine skip the per-unit state and schedule it discards,
+      `init_consumers()` takes a no-projection path on an identity effect map,
+      and `run_merged_walk()` inlines the event arguments and the state write
+      (the walk handle keeps the helpers for injected events). Two tests in
+      `test-preprocess_joint.R` and `test-preprocess_builders.R`; `NAMESPACE`
+      gains two S3 registrations for the new internal generic, no new export.
+      Numbers under 0.10b. **One user-visible consequence to keep in view**: a
+      missing stocnet layer now aborts by name instead of failing on
+      `non-numeric matrix extent`, which is an improvement but is a message
+      nothing specified.
+
 ## 1. Merged-walk parity with the recipe loops
 
 **Ordering against `support-mask-sparse-updates` (added 2026-09-10).** Tasks 1.1,
@@ -481,20 +607,56 @@ which that change rewrites. Running both as concurrent sessions on one branch
 would collide in source even though ADR-0036's claim protocol keeps the
 artifacts apart.
 
-- [ ] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
+- [x] 1.1 Writers (design D5): `build_walk_engine()` takes the `writer` /
       `new_writer` pair and hands it to `init_consumers()`; `preprocess_joint()`
       and `run_merged_walk()` thread it from the preprocessing controls. Tests:
       `output = "gather"`, `"data.frame"`, `"db"` on a single-process fixture
       through `preprocess_joint(single_process_joint(spec))` equal the recipe
       loops' rendered output.
-- [ ] 1.2 Observation window (design D4): `start_time` / `end_time` bound the
+      — done 2026-09-11 (`f7b79f4`). The signature mirrors the pair
+      `preprocess_recipe()` already takes; the writer pair comes from the
+      wrapper's `output`, not from the preprocessing controls, which carry only
+      the db target. **"Rendered output" is not what this step can deliver**,
+      and the tests say so rather than working around it: the recipe path
+      continues into `finalize_gather_output()`, which attaches the labels,
+      effect descriptions, timespan and column names that turn a stack into an
+      export, and the merged walk reaches that stage only at task 3.1. So the
+      assertions are at the writer's own stack, six fields with the
+      render-attached column names stripped. A db writer is a gather writer
+      that remembers where to persist, the write happening at the same export
+      boundary, so its assertion is that the pair is accepted, the stack
+      matches gather, and the target survives. `output = "data.frame"`
+      preprocesses as a gather and reshapes at that boundary, so the gather
+      case covers it. Detector confirmed live by ablation: dropping the factory
+      back to the hardcoded default fails both gather assertions.
+      `NOT_CRAN=true` PASS 8282, FAIL 0, SKIP 5, 54 baseline and golden rows
+      none skipped; lint on the touched file unchanged at 29.
+- [x] 1.2 Observation window (design D4): `start_time` / `end_time` bound the
       shared schedule; rows before the start update state unwritten, rows after
       the end are dropped, every timed engine writes the closing right-censored
       row at the end time; lift the `run_merged_walk()` abort. Tests: bounded
       fixtures (start only, end only, both, end past the last event) equal the
       recipe loops byte-for-byte, including `total_time` and
       `avg_active_entity`.
-- [ ] 1.3 Window effects (design D3): each unit's `plan$derivations` realize
+      — done 2026-09-11 (`089f32f`). `resolve_walk_window()` mirrors
+      `prepare_recipe_context()`'s branches, so a bound means the same thing on
+      either substrate. **The task text missed half the work**: a burn-in
+      update is not an unwritten update, it folds into `initial_stats`. The
+      recipe loops do that at four emission sites — plain effects and
+      interaction products, sender and dyad shaped — and without it a
+      start-bounded model begins from the state at time zero rather than the
+      state at the window open, which is a different model, not a smaller one.
+      `merged_covariate_step()` gained an `is_valid_event` argument and mirrors
+      all four; the walk handle's own call keeps the default and is unchanged.
+      The per-engine clock is what does not advance during burn-in, which is
+      how the first written interval comes out measured from the window; the
+      two event counters DO advance, because `event_order` is their difference
+      and a gap there would be visible to an effect reading the event stream.
+      Four detectors, one per branch (start alone, end alone, both, end past
+      the last event), all four erroring on the abort before this and
+      byte-identical after. `NOT_CRAN=true` PASS 8290, FAIL 0, SKIP 5, 54
+      baseline and golden rows none skipped; lint 29 -> 28.
+- [x] 1.3 Window effects (design D3): each unit's `plan$derivations` realize
       the derived windowed network into the shared object registry
       (deduplicated by derived identity) and its expiry streams into
       `build_joint_schedule()` with the stream index the recipe context assigns;
@@ -502,6 +664,24 @@ artifacts apart.
       windowed fixtures and a tied-time expiry fixture through the merged walk
       equal the recipe loops byte-for-byte; a two-process join windowing the
       same source shares one derived object.
+      — done 2026-09-11 (`0bf372a`). Both aborts lifted, the one in
+      `build_merged_blocks()` and the one in `build_walk_engine()`. The shared
+      source realizes every unit's window derivations, deduplicated on the
+      derived name, which IS the derived object's identity since it encodes the
+      source and the length. **The fixture caught what reading the code did
+      not**: dissolve rows sit one window length AFTER the events they expire,
+      so the shared schedule's last row is beyond the last thing that happened,
+      and reading the observation window's extent from it extended the
+      observation period by the longest window — a trailing right-censored row
+      at time 8 on a dataset whose last event is at 6. The recipe path reads
+      its extent over the non-window streams; the walk now does too, which is
+      where 1.2 and 1.3 meet, and `merged$window_derived` is what lets the walk
+      tell an expiry row from a real one.
+      The test that pinned the abort MOVED rather than being deleted: it
+      asserts the walk runs and the derived object is live in the shared state,
+      because a windowed statistic read off a missing layer would be silently
+      zero rather than loud. Its snapshot went with it. `NOT_CRAN=true` PASS
+      8300, FAIL 0, SKIP 5, 54 baseline and golden rows none skipped.
 - [ ] 1.4 Restricted opportunity sets and user support constraints on a
       single-process unit through the merged walk: parity tests against the
       recipe loops on the `active_dyad_fold` and support-constraint fixtures
@@ -527,7 +707,15 @@ artifacts apart.
       tests' compile assertions (one spec_map per process, grouped by block)
       unchanged.
 
-## 3. Dispatch flip and deletion (task 0.1 said NO-GO; opens only on a passing re-run)
+## 3. Dispatch flip and deletion — OPEN (approved 2026-09-11)
+
+**Approved 2026-09-11 by Alvaro**, on task 0.10's re-read: CollegeMsg full at
+1.007 and 1.002 against the 1.10 rule, every CollegeMsg cell passing at both
+sizes with and without a constraint, ratio reproducing to 2.3 percent worst
+case over two sweeps of five warm runs on a quiet branch at `d049329`. Both
+halves of D7 are now satisfied — the number passes and the approval is
+recorded, rather than the second being read off the first. The history below is
+kept because it is why the group was shut twice and what reopened it.
 
 **Closed as of 2026-09-09.** The gate came back 0.31x, but the ratio counts
 per-event matrix copies rather than architecture (design D9), so this group does
@@ -553,6 +741,19 @@ and the whole suite moves with them. Task 3.3 does not start on a green number
 alone.
 
 
+- [ ] 3.0 Freeze the recipe loops' output as serialized goldens BEFORE 3.1, not
+      before 3.3. `test-preprocess_parity.R` compares
+      `preprocess_joint(single_process_joint(spec))` against
+      `compute_statistics(spec, ...)`, and 3.1 routes `compute_statistics()` to
+      the merged walk, so at that moment all seventeen assertions compare the
+      merged walk with itself — silently, with the suite green, one step before
+      the deletion anyone would think to guard. Capture each parity fixture's
+      preprocessed object from the loops while they are still reachable, store
+      it under `tests/testthat/_fixtures/`, and point one side of each assertion
+      at the file. The frozen 1e-6 coefficient baselines do not cover this: they
+      catch numeric drift in estimates, not a statistics object that changed
+      shape. This golden set is also what makes a later resurrection checkable,
+      since recovered loop code reads the contracts of its own era.
 - [ ] 3.1 `preprocess.goldfishKind()` routes every `input_shape = "standard"`
       spec to the merged walk through the one-unit entry (design D1): a
       single-process call unwraps fid 1; a flavored plan returns the fid-keyed

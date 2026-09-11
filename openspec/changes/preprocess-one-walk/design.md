@@ -151,6 +151,24 @@ run through and what the whole suite exercises, so retiring them is a judgment
 about confidence in the replacement, not an inference from a number. Task 3.3
 does not start on a green re-run alone.
 
+**Approval given 2026-09-11**, on the re-read in task 0.10: two sweeps at five
+warm runs per cell on a quiet branch at `d049329` put CollegeMsg full at 1.007
+and 1.002 against the 1.10 rule, every CollegeMsg cell passing at both sizes
+with and without a constraint, and the ratio reproducing to 2.3 percent worst
+case. Group 3 opens. The condition D7 states is met on both halves: the number
+passes, and the approval is recorded here rather than inferred from it.
+
+One consequence of the approval that the group 3 tasks did not anticipate, filed
+as task 3.0: `test-preprocess_parity.R` compares the merged walk against
+`compute_statistics()`, and task 3.1 routes `compute_statistics()` to the merged
+walk. At that moment every parity assertion compares the merged walk with
+itself, silently and with the suite green, one step BEFORE the deletion anyone
+would think to guard. The loops' preprocessed objects are frozen as serialized
+goldens first, so the byte-identity claim survives both the flip and the
+deletion. That golden set is also the only thing that makes a later
+resurrection checkable, since recovered loop code reads the spec-map, plan,
+writer and availability contracts of its own era.
+
 The recipe loops are internal, unexported, and reached by no user surface, so
 they are deleted in the same commit their last caller leaves. `preprocess()`
 remains the generic; the lifecycle skill is not involved. Helpers that only
