@@ -682,14 +682,44 @@ artifacts apart.
       because a windowed statistic read off a missing layer would be silently
       zero rather than loud. Its snapshot went with it. `NOT_CRAN=true` PASS
       8300, FAIL 0, SKIP 5, 54 baseline and golden rows none skipped.
-- [ ] 1.4 Restricted opportunity sets and user support constraints on a
+- [x] 1.4 Restricted opportunity sets and user support constraints on a
       single-process unit through the merged walk: parity tests against the
       recipe loops on the `active_dyad_fold` and support-constraint fixtures
       (both already exist on the joint side; this task proves the single-unit
       entry reaches them).
-- [ ] 1.5 Verification: `NOT_CRAN=true` suite green; baselines PASS; the
+      **Ordering settled 2026-09-11 by Alvaro (`2517ef0`):
+      `constraint-availability-encoding` runs AFTER this task**, not before it.
+      The reason answers the objection rather than overruling it: this task's
+      parity fixtures are RELATIONAL — merged output against the recipe loop's
+      — so they do not name an encoding and survive the later encoding change
+      untouched. The encoding literals live in `test-active_dyad_fold.R`, which
+      that change owns and rewrites with itself. So write the fixtures here as
+      comparisons, never as assertions on `active_dyad_encoding`, or the
+      ordering stops being free.
+      — done 2026-09-11 (`1e67502`). **No source change was needed.** Both
+      restrictions were already wired; the single-unit entry already reached
+      them, which is what this task existed to establish rather than to build.
+      Four relational fixtures, none naming an encoding. An anti-vacuity guard
+      sits beside the opportunity comparison, because two objects that agree
+      because NEITHER applied the restriction would pass a parity test on their
+      own; the restricted run's folded availability must differ from the plain
+      run's. Confirmed live by ablation: disabling
+      `fold_active_dyad_opportunity()` fails three of the four.
+      Two things the fixtures taught. `opportunities_list` is deprecated, and
+      the merged walk still has to reproduce it — a deprecated surface has
+      users until it is removed, and a substrate swap must not be what breaks
+      them. And `~ !tie(calls)` is unusable on the toy: it repeats the dyad
+      1 -> 2, so by the second event the tie exists and the constraint excludes
+      the dyad the data observes; both substrates reject it, correctly. The
+      fixture uses `~ !tie(net2)`, whose ties the focal layer never observes.
+- [x] 1.5 Verification: `NOT_CRAN=true` suite green; baselines PASS; the
       joint test file's byte-identity assertions now cover windowed, bounded,
       writer-varied and constrained single-process fixtures.
+      — done 2026-09-11 (`1e67502`). `NOT_CRAN=true` PASS 8307, FAIL 0, SKIP 5,
+      54 baseline and golden rows none skipped. The parity file now covers all
+      four: writer-varied (gather and db), bounded (four window cases),
+      windowed (plain and composed with a bound), and restricted (opportunity
+      list and user constraint, each composed with a bound).
 
 ## 2. One compile stage
 
