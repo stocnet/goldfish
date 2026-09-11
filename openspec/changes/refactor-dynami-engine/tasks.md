@@ -50,3 +50,15 @@
       distinction, record why in `progress.md` — a marker class nothing reads
       is exactly the over-specification `model-spec-descriptor` was written
       about.
+
+## ADR obligation settled 2026-09-11
+
+- [ ] A1 **Bring the DyNAM-i state under the aliasing invariant, or record why
+      it is not a state matrix** (ADR-0059, accepted 2026-09-11). The invariant
+      — nothing else holds a live reference to a state matrix — binds the
+      package, and the DyNAM-i monolith keeps state that never goes through
+      `state_set_tie()`. Exempting it while it sits on the legacy path was
+      considered and rejected: an invariant with a silent exception is a fact
+      about the code again, which is what the ADR exists to stop. Either bring
+      that state under the invariant as this change converts the engine, or
+      record with evidence why it is not a state matrix in the relevant sense.

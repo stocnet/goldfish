@@ -374,3 +374,37 @@
 - [ ] 11.3 Tests: character window on numeric axis aborts; difftime/duration windows
       equal their numeric-seconds equivalents to machine precision; snapshot the cli
       errors
+
+## ADR obligations settled 2026-09-11
+
+Three ADRs name this change as the place their rule is enforced or their
+question answered. Added here so the obligation travels with the change rather
+than living in a decision record nobody reads at implementation time.
+
+- [ ] R1 **The shared-core conformance test** ([ADR-0061](../../../decisions),
+      accepted 2026-09-11). A new effect, operand, constraint atom or mask must
+      declare a broadcast kind and maintain it through the shared
+      maintain-at-kind core, never by adding its own path. Assert it from the
+      registry: enumerate the maintained values and fail on one that does not
+      reach the shared write. The rule was a review convention until now, and a
+      review convention is exactly what was in place while the dyad operand
+      branch and the constraint atoms each grew their own path.
+- [ ] R2 **The aliasing-invariant conformance test** (ADR-0059, accepted
+      2026-09-11). "Nothing else holds a live reference to a state matrix" is a
+      standing package invariant, not a fact about the code at the time of
+      writing. The audit that established it was a one-off read of every effect
+      initializer; make it a test the registry runs, so a new effect that
+      returns the state matrix as its own cache fails rather than silently
+      breaking the in-place write.
+- [ ] R3 **Review the diagonal rule, and whether estimation already enforces
+      it** (ADR-0063, open — this review is what closes it). A one-mode dyad
+      statistic zeroes its own diagonal in its `init_*`, and the kind-shaped
+      projection depends on that convention holding. Two things to establish,
+      both needing the full catalogue rather than the sample the ADR
+      generalizes from:
+      (a) does any effect zero something other than its diagonal, or leave the
+      diagonal non-zero in a one-mode model;
+      (b) **is the init-level zeroing even needed**, given the risk set excludes
+      self-dyads downstream — if estimation already enforces it, the convention
+      is redundant work at every init and the careful part is naming the cases
+      where it is NOT redundant. Record which those are.
