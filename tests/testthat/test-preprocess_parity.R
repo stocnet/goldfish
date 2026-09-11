@@ -64,18 +64,23 @@ test_that("an unweighted degree stays unweighted over a repeated dyad", {
   )
 })
 
-test_that("the merged walk names window effects rather than crashing", {
-  # `build_walk_engine()` has always carried the message, but it never fired: a
-  # windowed term puts its derived object into the shared registry and
-  # `build_state_container()` asks the source for it as if it were a real layer,
-  # dying on `non-numeric matrix extent` several frames earlier. The abort now
-  # runs before the shared state is built, so the lift task 1.3 plans has
-  # something to remove.
-  withr::local_options(cli.width = 80, cli.num_colors = 1)
+test_that("the merged walk runs a windowed term instead of refusing it", {
+  # This test used to pin the abort. The abort existed because a windowed term
+  # puts its derived object into the shared registry while the shared source
+  # had never been asked to realize it, so `build_state_container()` asked for
+  # a layer that did not exist and died on `non-numeric matrix extent`. The
+  # source now realizes the derivations, so the expectation moves with the
+  # code: what has to hold is that the walk runs and that the derived object is
+  # live in the shared state, since a windowed statistic read off a missing
+  # layer would be silently zero rather than loud.
   spec <- parity_toy_spec_windowed()
+  merged <- build_merged_blocks(single_process_joint(spec))
 
-  expect_snapshot(
-    error = TRUE,
+  expect_gt(length(merged$window_derived), 0L)
+  for (derived in merged$window_derived) {
+    expect_true(!is.null(merged$state$networks[[derived]]))
+  }
+  expect_no_error(
     suppressWarnings(preprocess_joint(single_process_joint(spec)))
   )
 })
@@ -571,3 +576,70 @@ for (case_name in names(parity_window_cases)) {
     })
   })
 }
+
+# ---- (i) window effects on the merged walk ---------------------------------
+
+# A windowed term is not a special kind of effect, it is an ordinary effect
+# over a DERIVED object: the source network plus a dissolve stream of the same
+# events shifted by the window length with negated increments. The recipe path
+# realizes both from `plan$derivations`; the merged walk aborted instead,
+# because the derived object reached the shared registry while the shared
+# source had never been asked to realize it, so the state container died
+# looking for a layer that did not exist.
+test_that("a windowed term preprocesses identically on both substrates", {
+  spec <- parity_toy_spec_windowed()
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
+    expect_equal(
+      parity_strip_deco(parity_prep_by(merged, family)),
+      parity_strip_deco(solo)
+    )
+  }
+})
+
+test_that("a windowed term and a bound compose", {
+  # The two lifts of this group meet here: the expiry rows are ordinary
+  # covariate rows, so they have to obey the observation window like any other.
+  spec <- parity_toy_spec_windowed()
+  control <- set_preprocessing(start_time = 2.5, end_time = 5)
+  merged <- suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    control_preprocessing = control
+  ))
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(
+      compute_statistics(spec, "DyNAM", family, control_prep = control)
+    )
+    expect_equal(
+      parity_strip_deco(parity_prep_by(merged, family)),
+      parity_strip_deco(solo)
+    )
+  }
+})
+
+test_that("two processes windowing the same source share one derived object", {
+  # Deduplication keys on the derived object's identity, so a join whose two
+  # processes window the same network by the same length realizes it once and
+  # carries one expiry stream, not two.
+  spec <- parity_toy_spec_windowed()
+  merged <- build_merged_blocks(single_process_joint(spec))
+  derived <- unique(unlist(lapply(merged$units, function(unit) {
+    windows <- Filter(
+      function(d) identical(d$kind, "window"),
+      unit$spec_map$plan$derivations %||% list()
+    )
+    vapply(windows, `[[`, character(1), "derived_name")
+  })))
+
+  expect_gt(length(derived), 0L)
+  expect_true(all(derived %in% merged$objects$name))
+  # Once each, not once per unit: the registry is the deduplicated union.
+  expect_length(
+    merged$objects$name[merged$objects$name %in% derived],
+    length(derived)
+  )
+  expect_setequal(merged$window_derived, derived)
+})

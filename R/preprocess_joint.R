@@ -610,7 +610,6 @@ build_merged_blocks <- function(
   }
 
   shared_objects <- build_shared_objects(units)
-  abort_merged_window_effects(units)
   for (key in names(units)) {
     units[[key]]$shared_to_local <- shared_objects$shared_to_local[[key]]
     units[[key]]$local_to_shared <- shared_objects$local_to_shared[[key]]
@@ -628,6 +627,15 @@ build_merged_blocks <- function(
     envir = new.env(),
     focal = units[[1L]]$spec_map$focal
   )
+  # A windowed term reads a DERIVED object -- the source network plus a
+  # dissolve stream of the same events shifted by the window length with
+  # negated increments -- and that object is in the shared registry, so the
+  # shared source has to realize it or the container asks for a layer that does
+  # not exist. Deduplicated on the derived name, which is the derived object's
+  # identity, so two processes windowing the same source by the same length
+  # realize one object and carry one expiry stream between them.
+  window_derivations <- merged_window_derivations(units)
+  shared_src <- ds_realize_derivations(shared_src, window_derivations)
   # Impute before the container is built, where the recipe path imputes it
   # (`prepare_recipe_context()`): `ds_impute_missing()` caches the filled matrix
   # on the source and `ds_network()` reads it back. Skipping this leaves the
@@ -673,6 +681,16 @@ build_merged_blocks <- function(
       objects = shared_objects$registry,
       state = state,
       schedule = schedule,
+      # The names of the derived window objects, so the walk can tell an expiry
+      # row from a real one. The observation window's extent is defined by the
+      # events the data carries, not by pseudo-events a window length places
+      # after the last of them.
+      window_derived = vapply(
+        window_derivations,
+        `[[`,
+        character(1),
+        "derived_name"
+      ),
       support_constraints = support_constraints,
       process_map = joint_spec$process_map
     ),
@@ -1167,43 +1185,31 @@ merged_route_rc <- function(engine, event_info) {
 # schedule `prepare_recipe_context()` also builds are discarded: the walk runs
 # over the ONE shared state and schedule, which every unit's effect templates
 # read by object key.
-# Abort on a windowed term BEFORE the shared state is built.
+# Every window derivation the units declare, deduplicated on the derived name.
 #
-# `build_walk_engine()` carries the intended message, but it never fired: a
-# windowed term puts its derived object into the shared registry and
-# `build_state_container()` asks the source for it as if it were a real layer,
-# dying on `non-numeric matrix extent` several frames earlier. Both
-# `preprocess_joint()` and `walk_open()` go through `build_merged_blocks()`, so
-# both died there, and the lift this change plans had nothing to remove.
-#
-# The check reads `plan$derivations` rather than the effect flags because that
-# is the registry the window travels through, and it is populated for a
-# constraint atom's window as well as a formula term's.
-abort_merged_window_effects <- function(units, call = rlang::caller_env()) {
-  derived <- unlist(
-    lapply(units, function(unit) {
-      windows <- Filter(
-        function(d) identical(d$kind, "window"),
-        unit$spec_map$plan$derivations %||% list()
-      )
-      vapply(windows, `[[`, character(1), "derived_name")
-    }),
-    use.names = FALSE
-  )
-  if (length(derived) == 0) {
-    return(invisible(NULL))
+# The derived name IS the derived object's identity: it encodes the source
+# object and the window length, so two processes windowing the same network by
+# the same amount name the same thing and must realize it once. Reading
+# `plan$derivations` rather than the effect flags is deliberate -- that is the
+# registry a window travels through, and it is populated for a constraint
+# atom's window as well as for a formula term's.
+merged_window_derivations <- function(units) {
+  derivations <- list()
+  seen <- character(0)
+  for (unit in units) {
+    windows <- Filter(
+      function(d) identical(d$kind, "window"),
+      unit$spec_map$plan$derivations %||% list()
+    )
+    for (d in windows) {
+      if (d$derived_name %in% seen) {
+        next
+      }
+      seen <- c(seen, d$derived_name)
+      derivations[[length(derivations) + 1L]] <- d
+    }
   }
-  cli::cli_abort(
-    c(
-      "The merged walk does not yet support window effects.",
-      "x" = "Windowed object{?s}: {.val {unique(derived)}}.",
-      "i" = "Preprocess through {.fn compute_statistics} for now; the merged
-             walk gains window effects when the derived objects and their
-             expiry streams enter its shared registry and schedule."
-    ),
-    call = call,
-    class = "goldfish_merged_unsupported"
-  )
+  derivations
 }
 
 build_walk_engine <- function(
@@ -1226,13 +1232,6 @@ build_walk_engine <- function(
     progress = progress,
     build_state = FALSE
   )
-  if (any(ctx$is_window_effect)) {
-    cli::cli_abort(
-      "The merged walk does not yet support window effects.",
-      .internal = TRUE
-    )
-  }
-
   n1 <- ctx$n1
   n2 <- ctx$n2
   n_fun <- ctx$n_fun
@@ -1673,11 +1672,22 @@ run_merged_walk <- function(
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
+  # The extent is read over the schedule's REAL events. A windowed term puts
+  # dissolve rows one window length after the events they expire, so the last
+  # of them sits beyond the last thing that happened, and taking the extent
+  # from them would extend every model's observation period by its longest
+  # window. The recipe path reads its extent over the non-window streams for
+  # the same reason.
+  real_event <- if (length(merged$window_derived) > 0L) {
+    !(schedule$layer %in% merged$window_derived)
+  } else {
+    rep(TRUE, schedule$n)
+  }
   window <- resolve_walk_window(
     control_preprocessing$start_time,
     control_preprocessing$end_time,
-    if (schedule$n > 0L) min(schedule$time) else 0,
-    if (schedule$n > 0L) max(schedule$time) else 0
+    if (any(real_event)) min(schedule$time[real_event]) else 0,
+    if (any(real_event)) max(schedule$time[real_event]) else 0
   )
   start_time <- window$start
   end_time <- window$end
