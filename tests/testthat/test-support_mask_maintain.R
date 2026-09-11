@@ -331,7 +331,9 @@ test_that("an atom is stored at its own kind, not as a dense grid", {
 })
 
 test_that("the atom walk duplicates neither its buffers nor its state", {
-  # ADR-0059's invariant applied to the atom pass. The atom templates receive
+  # The same in-place invariant applied to the atom pass: an atom buffer is
+  # materialized fresh at seeding and lives in exactly one environment binding,
+  # so writing it in place can duplicate nothing. The atom templates receive
   # `state$networks[[key]]` as an argument, which marks it shared, so the state
   # write used to duplicate the adjacency matrix on every event; the atom
   # buffers were duplicated the same way. The assertion is on identity --

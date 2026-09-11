@@ -124,8 +124,9 @@ test_that("a global delta names the whole value at every target kind", {
 })
 
 test_that("write_entries writes every kind-shaped buffer in place", {
-  # ADR-0059's invariant, extended to the buffer shapes the walk maintains: the
-  # C++ write mutates the caller's value, so the assertion is on the ORIGINAL
+  # A buffer the walk maintains is materialized fresh at seeding and lives in
+  # exactly one binding, which is what makes writing it in place safe. The C++
+  # write mutates the caller's value, so the assertion is on the ORIGINAL
   # binding, not on what was returned. A vector and a matrix, a double and a
   # logical, are all the same write behind one linear index.
   point <- matrix(0, 3L, 4L)

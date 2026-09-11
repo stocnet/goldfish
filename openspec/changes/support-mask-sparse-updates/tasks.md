@@ -222,7 +222,7 @@ moment for the artifact half; and no successor change touches
       gates no longer fire. The file header of `R/support_mask_maintain.R` still
       describes dense atoms and a deferred axis-union optimization; rewrite it
       BY HAND, do not delete it.
-- [ ] 10.4 (review gap 9, test) Four OpenSpec and ADR references sit in test
+- [x] 10.4 (review gap 9, test) Four OpenSpec and ADR references sit in test
       source against the standing rule, all introduced here: two `ADR-0059`
       mentions and the two task numbers on the dead gates. Replace the ADR
       mentions with the invariant in code terms — the buffer is materialized
