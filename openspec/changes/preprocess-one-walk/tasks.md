@@ -835,6 +835,20 @@ nothing. Tasks 1.6-1.9 close it; the unit is not done until 1.9 is green.
 
 ## 2. One compile stage
 
+**Unit 1b conformance (2026-09-12, `.plan/develop/preprocess-one-walk-unit1b-conformance.md`):
+conformant, one comment to fix, carried as 2.0 so group 2's agent lands it
+first.** Group 2's agent also reads the report's note on the walk handle: it
+computes no end extent and steps expiry rows past the last real event without
+writing rows (identity recorder, no right-censoring consumers), which is the
+state group 2 must not change.
+
+- [ ] 2.0 Rewrite the comment at `R/walk_handle.R` (around lines 321-327) so
+      it says what the handle does: no explicit window bounds are read
+      (`walk_open()` reads only `control_preprocessing$impute`), the walk
+      opens at the schedule's first time and computes no end extent, and
+      expiry rows past the last real event are stepped but write nothing.
+      Task 1.8's rewrite overstated it ("supports that class"). Comment only;
+      no code.
 - [ ] 2.1 Extract the compile stage of `estimate_wrapper()` (parse, effects,
       links, `new_model_spec()`, `build_spec_map()`, imputation policy stamp)
       into one internal `compile_spec_map()`; `compile_recipe_spec_map()`
@@ -883,6 +897,20 @@ and the whole suite moves with them. Task 3.3 does not start on a green number
 alone.
 
 
+- [ ] 3.0a Decide the REM intercept default at the flip (found 2026-09-12 by
+      the unit 1b conformance check, pre-existing and window-independent).
+      `compute_statistics(spec, "REM", "rate")` on `rate = ~ inertia` reports
+      `has_intercept` / `is_exact_time` TRUE with the timed scalars, because
+      `estimate_wrapper()` raises the flag for a REM rate model; the joint
+      entry keeps the formula as written (`make_specification()` only lowers
+      the flag, the process map copies it, the merged consumer reads the map),
+      so `preprocess_joint(single_process_joint(spec))` reports FALSE with no
+      scalars. The living spec `model-recipe-dispatch` (`estimate_rem`
+      sub_model `rate` = full dyadic hazard with an intercept) sides with the
+      legacy entry, so the flipped dispatch must raise the flag where the
+      wrapper did, and 3.0's goldens will show it on every REM rate baseline
+      that lacks an explicit `1`. Detector first: the unit 1b REM parity
+      fixture with the `1` removed must go red today and green after.
 - [ ] 3.0 Freeze the recipe loops' output as serialized goldens BEFORE 3.1, not
       before 3.3. `test-preprocess_parity.R` compares
       `preprocess_joint(single_process_joint(spec))` against
@@ -938,6 +966,8 @@ alone.
       PASS not SKIP; `devtools::document()`; ready for the trunk merge to
       fold.
 - [ ] 4.5 Sweep this change's own OpenSpec references out of source, by hand,
+      **including `R/walk_handle.R` (lines 38, 54, 579 carry `(D8a)` / `(D9)`;
+      missed by the first inventory, found 2026-09-12),**
       one site at a time — the standing rule is that a decision id or task
       number in code is a dangling pointer once the change is archived, and
       these are also **stale in content**, which is the sharper reason. Six
