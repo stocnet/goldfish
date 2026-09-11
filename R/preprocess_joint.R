@@ -905,8 +905,13 @@ merged_call_template <- function(
 # loops' covariate body (routing loop, undirected mirror, interaction second-hop
 # and product emission, point/broadcast accumulation), shape-branching on
 # `engine$is_sender` exactly as the two loops diverge. Reads the shared state;
-# the state write is the caller's, once per event. The window pre-start branch is
-# intentionally absent -- the merged walk supports the full-window case only.
+# the state write is the caller's, once per event.
+#
+# `is_valid_event` is the observation window's open state. Before the open an
+# update is not a change to report but part of the state the window starts
+# from, so every emission site folds into `engine$initial_stats` instead of
+# reaching a consumer's buffers; the statistics still advance, which is why the
+# step runs at all during the burn-in.
 merged_covariate_step <- function(
   engine,
   loid,
@@ -914,7 +919,8 @@ merged_covariate_step <- function(
   event_args,
   is_undirected,
   interval,
-  state
+  state,
+  is_valid_event = TRUE
 ) {
   n1 <- engine$n1
   n2 <- engine$n2
@@ -1024,7 +1030,21 @@ merged_covariate_step <- function(
         }
       }
 
-      if (entry$broadcast_kind != 0L) {
+      if (!is_valid_event) {
+        # Before the window opens an update is not a change to report, it is
+        # part of the state the window starts from, so it folds into the
+        # initial statistics instead of reaching a consumer's buffers.
+        if (is_sender) {
+          engine$initial_stats[cbind(updates[, "node1"], gid)] <-
+            updates[, "replace"]
+        } else {
+          engine$initial_stats[cbind(
+            updates[, "node1"],
+            updates[, "node2"],
+            gid
+          )] <- updates[, "replace"]
+        }
+      } else if (entry$broadcast_kind != 0L) {
         bc_block <- broadcast_entries_from_updates(
           updates,
           entry$broadcast_kind,
@@ -1062,6 +1082,10 @@ merged_covariate_step <- function(
           prodv <- prodv *
             get(as.character(o), envir = engine$op_state)[senders]
         }
+        if (!is_valid_event) {
+          engine$initial_stats[cbind(senders, ig)] <- prodv
+          next
+        }
         block <- rbind(senders - 1, 0, ig - 1, prodv)
       } else {
         cells <- dedup_cells(engine$dirty_inter[[igc]], n1)
@@ -1076,6 +1100,10 @@ merged_covariate_step <- function(
         prodv <- operand_at_cells(ops[1])
         for (o in ops[-1]) {
           prodv <- prodv * operand_at_cells(o)
+        }
+        if (!is_valid_event) {
+          engine$initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
+          next
         }
         block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
       }
@@ -1560,6 +1588,53 @@ render_walk_engine <- function(pending, masks) {
   )
 }
 
+# Resolve the observation window against the shared schedule, with the same
+# branches `prepare_recipe_context()` applies to a recipe schedule so a bounded
+# model means the same thing on either substrate: an absent bound falls back to
+# the schedule's own extent and sets no flag, a bound equal to that extent is
+# not treated as a bound either, and a bound outside the events is an error
+# rather than an empty walk. `has_start` / `has_end` are what the loop branches
+# on, so an unbounded walk pays nothing for this.
+resolve_walk_window <- function(
+  start_time,
+  end_time,
+  schedule_min,
+  schedule_max
+) {
+  has_start <- FALSE
+  has_end <- FALSE
+  if (is.null(end_time)) {
+    end_time <- schedule_max
+  } else if (end_time != schedule_max) {
+    if (!is.numeric(end_time)) {
+      end_time <- as.numeric(end_time)
+    }
+    if (schedule_min > end_time) {
+      cli::cli_abort("End time smaller than first event time.")
+    }
+    has_end <- TRUE
+  }
+  if (is.null(start_time)) {
+    start_time <- schedule_min
+  } else if (start_time != schedule_min) {
+    if (!is.numeric(start_time)) {
+      start_time <- as.numeric(start_time)
+    }
+    if (schedule_max < start_time) {
+      cli::cli_abort("Start time greater than last event time.")
+    }
+    has_start <- TRUE
+  }
+  list(
+    start = start_time,
+    end = end_time,
+    has_start = has_start,
+    has_end = has_end,
+    schedule_min = schedule_min,
+    schedule_max = schedule_max
+  )
+}
+
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
 # assembled, returning one `goldfishStat` object per fid.
 run_merged_walk <- function(
@@ -1570,16 +1645,6 @@ run_merged_walk <- function(
   writer = writer_default(),
   new_writer = writer_default
 ) {
-  if (
-    !is.null(control_preprocessing$start_time) ||
-      !is.null(control_preprocessing$end_time)
-  ) {
-    cli::cli_abort(
-      "The merged walk does not yet support an explicit start or end time.",
-      .internal = TRUE
-    )
-  }
-
   schedule <- merged$schedule
   state <- merged$state
   props <- build_shared_object_props(
@@ -1608,8 +1673,21 @@ run_merged_walk <- function(
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
-  start_time <- if (schedule$n > 0L) min(schedule$time) else 0
-  end_time <- if (schedule$n > 0L) max(schedule$time) else 0
+  window <- resolve_walk_window(
+    control_preprocessing$start_time,
+    control_preprocessing$end_time,
+    if (schedule$n > 0L) min(schedule$time) else 0,
+    if (schedule$n > 0L) max(schedule$time) else 0
+  )
+  start_time <- window$start
+  end_time <- window$end
+  bounded <- window$has_start || window$has_end
+  # `is_valid_event` is the window's open/closed state, shared by every engine
+  # because the bound is one per walk. Before it opens, an event updates state
+  # and statistics but writes nothing; `final_step` is the one clipped row that
+  # closes a window an event overshoots.
+  is_valid_event <- !(window$has_start && window$schedule_min < start_time)
+  final_step <- FALSE
   for (engine in engines) {
     engine$last_time <- start_time
   }
@@ -1617,6 +1695,39 @@ run_merged_walk <- function(
   for (k in seq_len(schedule$n)) {
     t <- schedule$time[k]
     shape <- schedule$shape[k]
+
+    if (bounded) {
+      if (is_valid_event && t > end_time) {
+        # The overshooting event does not happen inside the window; what is
+        # inside is the exposure up to the end time, so the row is written at
+        # the bound and as right-censored, never as the dependent event it is.
+        t <- end_time
+        final_step <- TRUE
+      } else if (!is_valid_event && t >= start_time) {
+        is_valid_event <- TRUE
+      }
+    }
+
+    if (final_step) {
+      for (engine in engines) {
+        interval <- t - engine$last_time
+        engine$last_time <- t
+        engine$i_total <- engine$i_total + 1L
+        if (engine$is_exact_time && interval > 0) {
+          merged_route_rc(
+            engine,
+            list(
+              is_dependent = 0L,
+              interval = interval,
+              time = t,
+              sender = NA_integer_,
+              receiver = NA_integer_
+            )
+          )
+        }
+      }
+      break
+    }
 
     if (schedule$dependent[k]) {
       layer <- schedule$layer[k]
@@ -1632,35 +1743,46 @@ run_merged_walk <- function(
       for (engine in engines) {
         if (identical(engine$focal, layer)) {
           interval <- t - engine$last_time
-          engine$last_time <- t
           engine$i_total <- engine$i_total + 1L
+          # `event_order` is the difference of these two counters, so a
+          # dependent event advances both whether or not the window has
+          # opened. Skipping the burn-in ones would leave a gap that an effect
+          # reading the event stream, such as consecutive-history transitivity,
+          # would see. The per-engine clock is what does NOT advance before the
+          # open, so the first written interval is measured from the window
+          # rather than from the last burn-in event.
           engine$i_dep <- engine$i_dep + 1L
-          merged_route_dependent(
-            engine,
-            flavor,
-            list(
-              is_dependent = 1L,
-              interval = interval,
-              time = t,
-              sender = ev_sender,
-              receiver = ev_receiver
-            )
-          )
-        } else if (engine$is_exact_time) {
-          interval <- t - engine$last_time
-          engine$last_time <- t
-          engine$i_total <- engine$i_total + 1L
-          if (interval > 0) {
-            merged_route_rc(
+          if (is_valid_event) {
+            engine$last_time <- t
+            merged_route_dependent(
               engine,
+              flavor,
               list(
-                is_dependent = 0L,
+                is_dependent = 1L,
                 interval = interval,
                 time = t,
                 sender = ev_sender,
                 receiver = ev_receiver
               )
             )
+          }
+        } else if (engine$is_exact_time) {
+          interval <- t - engine$last_time
+          engine$i_total <- engine$i_total + 1L
+          if (is_valid_event) {
+            engine$last_time <- t
+            if (interval > 0) {
+              merged_route_rc(
+                engine,
+                list(
+                  is_dependent = 0L,
+                  interval = interval,
+                  time = t,
+                  sender = ev_sender,
+                  receiver = ev_receiver
+                )
+              )
+            }
           }
         }
       }
@@ -1749,19 +1871,24 @@ run_merged_walk <- function(
         next
       }
       interval <- t - engine$last_time
-      engine$last_time <- t
       engine$i_total <- engine$i_total + 1L
-      if (engine$is_exact_time && interval > 0) {
-        merged_route_rc(
-          engine,
-          list(
-            is_dependent = 0L,
-            interval = interval,
-            time = t,
-            sender = ev_sender,
-            receiver = ev_receiver
+      # Before the window opens the statistics still advance -- the state at
+      # the open has to be the state the events produced -- but nothing is
+      # written and the clock does not move.
+      if (is_valid_event) {
+        engine$last_time <- t
+        if (engine$is_exact_time && interval > 0) {
+          merged_route_rc(
+            engine,
+            list(
+              is_dependent = 0L,
+              interval = interval,
+              time = t,
+              sender = ev_sender,
+              receiver = ev_receiver
+            )
           )
-        )
+        }
       }
       merged_covariate_step(
         engine,
@@ -1770,7 +1897,8 @@ run_merged_walk <- function(
         event_args,
         is_undirected,
         interval,
-        state
+        state,
+        is_valid_event
       )
     }
 
@@ -1791,6 +1919,31 @@ run_merged_walk <- function(
         replace_value,
         is_undirected
       )
+    }
+  }
+
+  # The window closes at the end time even when the schedule runs out before
+  # reaching it: the exposure between the last event and the bound is inside
+  # the window and belongs in the likelihood, and leaving it out biases the
+  # baseline rate upward. Whether the row is stored is a property of the
+  # likelihood, so only an engine that keeps a right-censoring consumer takes
+  # one; for the others it would contribute exactly zero while changing the
+  # interval count.
+  if (is_valid_event && !final_step) {
+    for (engine in engines) {
+      trailing_interval <- end_time - engine$last_time
+      if (engine$is_exact_time && trailing_interval > 0) {
+        merged_route_rc(
+          engine,
+          list(
+            is_dependent = 0L,
+            interval = trailing_interval,
+            time = end_time,
+            sender = NA_integer_,
+            receiver = NA_integer_
+          )
+        )
+      }
     }
   }
 

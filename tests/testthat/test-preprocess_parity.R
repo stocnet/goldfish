@@ -523,3 +523,51 @@ test_that("a default-writer walk is unchanged by the threading", {
     )
   }
 })
+
+# ---- (h) the observation window on the shared clock ------------------------
+
+# `run_merged_walk()` aborted on any explicit start or end time, so a bounded
+# model had no merged-walk path. The bound now lands on the shared schedule the
+# way `prepare_recipe_context()` lands it on a recipe schedule: rows before the
+# start update state without being written, rows after the end are dropped
+# after one clipped closing row, and a timed engine writes the closing
+# right-censored row at the end time when the schedule runs out first.
+#
+# The four cases are the ones that exercise different branches: a start alone
+# opens the window mid-sequence, an end alone closes it early, both together
+# compose, and an end past the last event is the case where the closing row
+# comes from the trailing interval rather than from a clipped event.
+parity_window_cases <- list(
+  start_only = list(start_time = 3, end_time = NULL),
+  end_only = list(start_time = NULL, end_time = 4.5),
+  both = list(start_time = 2.5, end_time = 5),
+  end_past_last = list(start_time = NULL, end_time = 8)
+)
+
+for (case_name in names(parity_window_cases)) {
+  local({
+    case <- parity_window_cases[[case_name]]
+    label <- case_name
+    test_that(paste("a bounded window preprocesses identically,", label), {
+      spec <- parity_toy_spec()
+      control <- set_preprocessing(
+        start_time = case$start_time,
+        end_time = case$end_time
+      )
+      merged <- suppressWarnings(preprocess_joint(
+        single_process_joint(spec),
+        control_preprocessing = control
+      ))
+
+      for (family in c("rate", "choice")) {
+        solo <- suppressWarnings(
+          compute_statistics(spec, "DyNAM", family, control_prep = control)
+        )
+        expect_equal(
+          parity_strip_deco(parity_prep_by(merged, family)),
+          parity_strip_deco(solo)
+        )
+      }
+    })
+  })
+}
