@@ -738,21 +738,48 @@ walked as covariate events and hand timed engines right-censored rows. The
 group-1 parity fixture windows only choice-side terms, which is why it saw
 nothing. Tasks 1.6-1.9 close it; the unit is not done until 1.9 is green.
 
-- [ ] 1.6 Detector first: a rate-side windowed parity fixture, and the same
+- [x] 1.6 Detector first: a rate-side windowed parity fixture, and the same
       on REM (`rate = ~ inertia(calls, window = 2)`), asserting the merged
       output equals `compute_statistics()`'s in stored events, `is_dependent`,
       `intervals`, `total_time` and `end_time`. Both must fail on the current
       tree with exactly the divergence above (8 vs 6 stored events). Keep the
       existing choice-side windowed fixture; it is the control that shows the
       defect is timed-engine specific.
-- [ ] 1.7 Fix: the merged walk's extent is bounded the way the recipe loop's
+      — done 2026-09-12 (`e057f48`, together with 1.7 so no commit is red).
+      Both detectors observed red first on `f045791`: `event_time[4:8]` `4 5
+      6 7 8` against `4 5 6`, `is_dependent[4:8]` `1 1 1 0 0` against `1 1
+      1`, `total_time` 7 against 5, on the DyNAM rate and the REM rate
+      alike; four failures, two per fixture. **The REM fixture carries an
+      explicit intercept** (`~ 1 + inertia(calls, window = 2)`): with the
+      task's literal formula the comparison fails on a different,
+      pre-existing difference — the legacy single-process entry auto-adds
+      the REM time intercept (`has_intercept`, `is_exact_time`, the timed
+      scalars) while the joint entry keeps the formula as written — which
+      would have masked the windowed divergence rather than detected it.
+      That intercept difference is recorded, not fixed, here.
+- [x] 1.7 Fix: the merged walk's extent is bounded the way the recipe loop's
       is when a window effect exists — expiry rows past the observation end
       are not walked as covariate events and write no right-censored row. Do
       it in `resolve_walk_window()` / the schedule's extent logic, not by
       filtering rows inside the loop, so the walk handle inherits the same
       bound. `merged$window_derived` is what tells an expiry row from a real
       one; the extent read over non-window streams (task 1.3) stays.
-- [ ] 1.8 The task 1.3 tests that did not land, now with detectors: (a) a
+      — done 2026-09-12 (`e057f48`). `resolve_walk_window()` takes
+      `has_window_effect` and closes the window on it when no end bound is
+      given, the branch `prepare_recipe_context()` has always had; the
+      real-event extent read moved out of `run_merged_walk()` into
+      `resolve_walk_extent(merged, control_preprocessing)`, so the bound is
+      a property of the substrate that either loop asks for. Nothing was
+      filtered inside the loop: with `has_end` set, the first expiry row
+      past the last real event takes the existing clip branch, and the
+      clipped interval is zero there, so no right-censored row is written.
+      The walk handle does not call the extent helper today (it opens at
+      `min(schedule$time)` and computes no end), so it changes nothing; when
+      it needs an end bound, `resolve_walk_extent()` is the one place to
+      take it from. Detectors green after; the choice-side windowed control
+      unchanged. `NOT_CRAN=true` on that tree: 0 failures, 5 skipped (none
+      baseline or golden), about 8317 passes by dot count.
+- [x] 1.8 The task 1.3 tests that did not land, now with detectors: (a) a
       `window-list` fixture (a window given as a list, per the task text) or
       a recorded reason it is not a shape the parser accepts; (b) a dedicated
       tied-time expiry fixture, an expiry at the same time as a dependent
@@ -766,7 +793,32 @@ nothing. Tasks 1.6-1.9 close it; the unit is not done until 1.9 is green.
       builder does — assert what it does. Also rewrite the stale comment in
       `R/walk_handle.R` ("no window effects, no explicit window bounds") to
       what the walk now supports.
-- [ ] 1.9 Verification: `NOT_CRAN=true` suite green on the documented runner
+      — done 2026-09-12 (`4ffd037`). (a) The `window-list-*` name is the
+      living spec's `window-list-network-effects`: a windowed effect whose
+      networks are given as `list(net1, net2)`, one derivation per member,
+      not a window given as a list. The fixture is
+      `mixed_trans(list(calls, net2), window = 2)`; it asserts both derived
+      names and full parity for both families. Ablation: realizing only the
+      first derivation per unit errors on the missing `net2_2` layer. (b)
+      The tied-time fixture captures the recipe loop's own schedule (mocking
+      `build_event_schedule()` the way `parity_plan()` mocks `preprocess()`)
+      and compares it row by row with the merged schedule, then names the
+      order at each of the four ties (dependent, own creation, expiry).
+      Ablation: a reversed tie-break fails nine of its expectations. (c)
+      Rebuilt on a real two-process join (`parity_two_process_windowed()`,
+      `friendship` event-observed because a window on a panel layer is
+      rejected): one registry entry, one stream index, creation and expiry
+      rows once per source event; the calls process, whose events set the
+      shared clock's extent, equals its standalone output, and the emails
+      process is deliberately not compared — the shared clock and
+      cross-process right-censored rows are the joint contract. Ablation:
+      dropping the stream dedup fails four expectations. (d) Asserts what
+      the builder does: `order(time, stream_index)` is the identity and each
+      focal's dependent index sits below its covariate index. Ablation:
+      adding covariate streams before the dependent stream fails it. The
+      walk-handle comment now says the merged walk hosts both. `NOT_CRAN=true`
+      PASS 8337, FAIL 0, SKIP 5, none baseline or golden.
+- [x] 1.9 Verification: `NOT_CRAN=true` suite green on the documented runner
       (`load_all()` + `test_dir()`; `devtools::test()` carries a pre-existing
       unrelated snapshot failure), baselines PASS not SKIP; the two
       detectors from 1.6 green; the walking-time gate re-read on the landed
@@ -774,6 +826,12 @@ nothing. Tasks 1.6-1.9 close it; the unit is not done until 1.9 is green.
       reference in `.plan/develop/coordination.md`. Task 1.1's documented
       test deviations (db compared to merged gather, `output = "data.frame"`
       not exercised, rendered-output equality deferred) stay with task 3.1.
+      — suite half done 2026-09-12 on `4ffd037` with the documented runner:
+      PASS 8337, FAIL 0, SKIP 5 (autograph class names, `estimate_dynes()`,
+      `simulate()`), no baseline or golden row skipped; both 1.6 detectors
+      green. **The walking-time gate is pending**: it is read by the
+      coordinator against the unit-1 reference in
+      `.plan/develop/coordination.md`, not by the applying session.
 
 ## 2. One compile stage
 
