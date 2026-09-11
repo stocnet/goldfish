@@ -13,7 +13,8 @@ first means its parity fixtures (merged against the recipe loop, relational,
 not an encoding literal — the encoding literals live in
 `test-active_dyad_fold.R`, which this change owns) survive the later encoding
 change untouched; this change first means 1.4 wires against the final fold
-but waits for it. Alvaro decides; record the answer here when taken.
+but waits for it. **Decided 2026-09-11 by Alvaro: this change runs AFTER
+task 1.4.**
 
 ## 1. The outer fold for an ego-kind choice constraint (design D1, D2)
 
