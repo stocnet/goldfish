@@ -8,6 +8,15 @@ the predecessor shipped two of those.
 PASS not SKIP at every commit. The interaction path is covered by them, so they
 are a real detector here.
 
+**Sequencing (added 2026-09-11 after the merged-walk commits `53add23` /
+`29c16cb` and preprocess-one-walk group 1).** Runs after preprocess-one-walk
+tasks 1.1-1.3 (landed) and before `merged-walk-effect-reuse` group 0, which
+rewrites the same interaction branch of `merged_covariate_step()` and consumes
+the collapse helper group 2 extracts here. In the merged step the interaction
+registries are engine fields (`engine$operand_of`, `engine$interactions`,
+`engine$bcast_kind`, `engine$route`), read off the engine rather than through
+`engine$ctx$plan`; keep them that way when routing the write.
+
 ## 1. The sender branch joins the shared write
 
 - [ ] 1.1 Detector first: `tracemem` reports zero duplications of the
@@ -15,8 +24,12 @@ are a real detector here.
       deliberate-copy control in the same test. **Capture `type = "output"`**:
       `tracemem` reports on stdout, and a test capturing `"message"` observes
       nothing and passes regardless. Confirm it fails against the current tree.
-- [ ] 1.2 Route `R/model_preprocess.R:872` and `R/preprocess_joint.R:993`
-      through `write_entries()`. The buffers are materialized fresh at seeding
+- [ ] 1.2 Route the sender-branch operand write in both walks through
+      `write_entries()`: the `ov[updates[, "node1"]] <- updates[, "replace"]`
+      site in `run_sender_recipe_loop()` (`R/model_preprocess.R`, line 990 on
+      2026-09-11; was 872) and in `merged_covariate_step()`
+      (`R/preprocess_joint.R`, line 1011; was 993). Find them by the
+      expression, not the number. The buffers are materialized fresh at seeding
       and live in one environment binding, which is the aliasing precondition
       the in-place write needs; state that reasoning in the comment, in code
       terms, not as a pointer to a decision record.

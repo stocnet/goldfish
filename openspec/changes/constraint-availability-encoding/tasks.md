@@ -6,6 +6,15 @@ together.
 baseline model carries a constraint, so here they are a floor and the captured
 reference fit is the real detector.
 
+**Sequencing against preprocess-one-walk task 1.4 (open, 2026-09-11).**
+Group 1 and group 2b rewrite `fold_active_dyad_support()`, the function 1.4
+wires the single-unit merged entry through. Two orders, one rewrite each: 1.4
+first means its parity fixtures (merged against the recipe loop, relational,
+not an encoding literal — the encoding literals live in
+`test-active_dyad_fold.R`, which this change owns) survive the later encoding
+change untouched; this change first means 1.4 wires against the final fold
+but waits for it. Alvaro decides; record the answer here when taken.
+
 ## 1. The outer fold for an ego-kind choice constraint (design D1, D2)
 
 - [ ] 1.1 Detector first: an ego-kind constraint on a DyNAM choice model

@@ -22,6 +22,16 @@ and record the interface delta in `progress.md`.
       differs; a reader of this change should not have to take it on faith.
 - [ ] 1.3 Verification: `NOT_CRAN=true` green at the branch point, baselines
       PASS not SKIP. This is the reference every later task is read against.
+- [ ] 1.4 Prove the detector detects, once per layer, before any code moves.
+      The goldens and the parity tests are inherited, not written for this
+      change, so their sensitivity to THIS defect class is an assumption until
+      shown: on a scratch branch, offset one engine's availability walk by one
+      event (skip the first update, or apply it twice) and confirm that
+      family's C++ golden fails; do the same to one inline apply in
+      `R/estimation_core.R` and confirm a backend-parity test fails; revert
+      both. Record the failing test names in `progress.md`. A layer whose
+      break produces no red gets a targeted test written in this task, before
+      2.x or 3.x touch it.
 
 ## 2. The C++ layer (design D1, D2)
 

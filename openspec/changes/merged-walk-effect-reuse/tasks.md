@@ -13,15 +13,24 @@ here are a real detector and not merely a floor.
 emits.** Measuring before this lands would produce a baseline that the very next
 group invalidates.
 
+- [ ] 0.0 Detector first: an interaction whose operands are all alter-kind
+      emits broadcast entries, not point cells, and its estimated column is
+      byte-identical to the current tree's; a genuinely dyadic product still
+      emits point cells. The first assertion fails today (n1 point cells per
+      event, one unique value), which is the red 0.1 turns green. Runs after
+      `shared-core-operand-conformance` group 2, whose collapse helper is what
+      "keep the dirty set at its kind" is written with, and after
+      preprocess-one-walk tasks 1.1-1.3, which rewrote the loop body around
+      the interaction branch this task edits (`merged_covariate_step()`,
+      the `dirty_inter` / `expand_operand_update()` block).
 - [ ] 0.1 `augment_interactions()` sets a product column's `broadcast_kind` to
       the axis-union of its operands, and the walk then emits every product
       delta as point cells regardless. An alter-by-alter interaction emits one
       point update per sender where a plain alter effect emits a single
       broadcast entry. Maintain the product at its declared kind: keep the dirty
       set at that kind rather than expanding it to cells before the recompute.
-- [ ] 0.2 Tests: an interaction whose operands are all alter-kind emits
-      broadcast entries, not point cells, and its estimated column is
-      byte-identical. A genuinely dyadic product still emits point cells.
+- [ ] 0.2 Confirm 0.0 is green on both of its fixtures, and record in
+      `progress.md` what its failure said against the unfixed tree.
 - [ ] 0.3 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
       not SKIP. The product column reaching the engines is unchanged in value,
       so the baselines are a real detector for this group.
@@ -102,7 +111,14 @@ interaction term in the swept models), so the baseline stands for it.
       substrate building a third data source and fetching the event streams
       a second time in `build_joint_schedule()` (1 + 2 ms at 10k), which the
       engine context could reuse; that is the one reducible item left and it
-      is worth about two thirds of the intercept. The rate-only floor is about 1.1 at
+      is worth about two thirds of the intercept. If taken: preprocess-one-walk
+      task 1.3 (`0bf372a`) made the walk read its observation extent over
+      non-window streams and tag expiry rows through `merged$window_derived`,
+      because dissolve rows sit one window length past the last real event;
+      any reuse of the schedule builder's source and events must keep that
+      field, and the detector is the trailing right-censored row that 1.3
+      removed (a window model whose last event is at 6 must not write a row
+      at 8). The rate-only floor is about 1.1 at
       every size; every other single-family cell is at or under parity.
       **Corrected the same day**: an earlier version of this note said the
       effect closures are created fresh per call and byte-compiled at first
