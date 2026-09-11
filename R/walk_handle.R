@@ -318,13 +318,20 @@ walk_open <- function(
 
   merged <- build_merged_blocks(joint_spec, control_preprocessing)
 
-  # The merged walk hosts window effects (their expiry rows are ordinary
-  # covariate rows, exogenous to every process here) and explicit window
-  # bounds; the handle's live-state stepping supports that class minus, for
-  # now, user support constraints and node-composition dynamics: under those
-  # the live risk set is the trivial all-active set the evaluators apply, so
-  # the live statistics equal the batch materialization exactly. The
-  # augmenter / simulate consumers extend this later.
+  # What the handle does with the substrate: it hosts window effects (their
+  # expiry rows are ordinary covariate rows, exogenous to every process here,
+  # stepped through walk_advance() like any other), but it reads no explicit
+  # window bounds -- `control_preprocessing` reaches only the imputation
+  # policy below. The clock opens at the schedule's first time and no end
+  # extent is computed, so an expiry row past the last real event is stepped
+  # (the state and the live statistics advance to it) but writes nothing:
+  # the engines carry an identity recorder and no right-censoring consumers,
+  # so there is no row to emit there. A driver that needs the handle bounded
+  # takes the bound from resolve_walk_extent(). Still excluded, for now: user
+  # support constraints and node-composition dynamics. Under those the live
+  # risk set is the trivial all-active set the evaluators apply, so the live
+  # statistics equal the batch materialization exactly. The augmenter /
+  # simulate consumers extend this later.
   if (!is.null(merged$support_constraints)) {
     cli::cli_abort(
       "The walk handle does not yet support user support constraints.",
