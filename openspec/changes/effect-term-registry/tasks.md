@@ -116,6 +116,26 @@
 - [ ] 3.3 Implement endogenous `object_default` injection and the exogenous
       missing-object error (D7); set `is_two_mode`/`directed` authoritatively
       from object attributes (replacing the parser inference warning).
+- [ ] 3.3b Bind the update/init functions and every argument to VALUES once at
+      construction (D26). The constructor takes `term_def$update` /
+      `term_def$init` as function objects (no `eval(parse(text = "update_..."))`,
+      no per-spec `formals<-` rewrite); evaluates each non-object argument
+      exactly once in the formula's environment and stores the value; resolves
+      each object argument (network, attribute, window source) to a data-source
+      KEY and stores the key, so the walk keeps supplying the object per event
+      from the state container and the global-environment fallback goes away
+      with the deferral. Retire the deferred `call("eval", parse(text = s))`
+      signature entries, the `type`/`history` `eval(parse(text = v), envir)`
+      in `parse_multiple_effects()` and the window-name eval in the window
+      branch, all onto the same once-at-construction path. Tests per D26: the
+      counting probe evaluates once per construction; `formals()` of a registry
+      update function is unchanged by constructing a spec; a spec built from a
+      global-environment variable survives that variable's removal with
+      identical numbers. Baselines PASS throughout (adapter-first). Land it
+      before 4.1 routes the parser through the constructor, so 4.1 has one
+      resolution path to route to. Write the ADR when it lands (D26 records the
+      design; the vault entry records the decision and the two rejected
+      alternatives).
 - [ ] 3.4 Implement the constructed term's `build_plan` field (D16): move the
       parser's ad-hoc window-object creation into build-time promises the
       preprocessing phase fulfills (window now; `retain`/categorical slots
@@ -135,6 +155,9 @@
       `parse_multiple_effects()` (`R/formula_parser.R`) with
       `get_term_def()` + `construct_term()`; feed the resolved references into
       the existing parser outputs / `build_update_plan()` `effects` registry.
+      The constructor already carries the function objects and the resolved
+      argument values (3.3b, D26), so this task removes the parser's
+      `eval(parse())` sites rather than re-pointing them.
 - [ ] 4.2 Ensure the strict validity declarations (1.3) reproduce current accept/
       reject behaviour: every formula that estimated still constructs, every one
       that errored still errors — **except for the one intended break** below.
