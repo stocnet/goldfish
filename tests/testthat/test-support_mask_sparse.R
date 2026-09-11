@@ -368,6 +368,67 @@ test_that("the maintained availability collapses presence and the constraint", {
   expect_gt(gated_while_allowed, 0L)
 })
 
+composition_rate_prep <- function(data, constraint = NULL) {
+  suppressMessages(suppressWarnings(estimate_dynam(
+    create_bilat ~ 1 + indeg(bilatnet),
+    sub_model = "rate",
+    data = data,
+    preprocessing_only = TRUE,
+    support_constraint = constraint
+  )))
+}
+
+test_that("the rate gate follows receiver departures, not only mask flips", {
+  # The gate is `presence & (rowSums(mask & receiver-presence) > 0)`, and BOTH
+  # of its inner axes move over this sequence. The constraint has to be
+  # POINT-kind for a departure to be visible: a separable mask shares one
+  # allowed set across every sender, so all of it would have to leave before
+  # any gate moved, while a point mask gives sender i its own row, which can
+  # be small enough that a single departure empties it.
+  data <- composition_fixture()
+  # The unconstrained run supplies both raw timelines the constrained run
+  # folds together.
+  raw <- composition_rate_prep(data)
+  con <- composition_rate_prep(data, ~ tie(contignet))
+  n_stored <- length(con$event_time)
+  expect_identical(length(raw$event_time), n_stored)
+
+  sm <- con$support_mask
+  # Point-kind, or the fixture cannot see a departure at all.
+  expect_identical(sm$stored_kind %||% 0L, 0L)
+
+  n1 <- length(raw$active_sender_init)
+  n2 <- length(raw$active_dyad_init)
+  senders <- walk_presence_buffer(
+    raw$active_sender_init,
+    raw$active_sender_update,
+    raw$active_sender_update_pointer,
+    n_stored
+  )
+  receivers <- walk_presence_buffer(
+    raw$active_dyad_init,
+    raw$active_dyad_update,
+    raw$active_dyad_update_pointer,
+    n_stored
+  )
+  gate <- walk_presence_buffer(
+    con$active_sender_init,
+    con$active_sender_update,
+    con$active_sender_update_pointer,
+    n_stored
+  )
+
+  # The receiver composition really moves, otherwise the rest is vacuous.
+  expect_gt(length(unique(vapply(receivers, sum, numeric(1)))), 1L)
+
+  for (e in seq_len(n_stored)) {
+    grid <- mask_grid_at_event(sm, e, n1, n2)
+    ref <- senders[[e]] &
+      (rowSums(grid & rep(receivers[[e]], each = n1)) > 0)
+    expect_identical(unname(gate[[e]]), unname(ref))
+  }
+})
+
 # --- 2.2 two flavors, a derived constraint and an exogenous one ------------- #
 
 # Creation and dissolution on one layer, so the derived complementary

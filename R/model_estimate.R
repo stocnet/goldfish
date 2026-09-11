@@ -1068,7 +1068,9 @@ validate_support_constraint <- function(
   active_1,
   active_2,
   family,
-  process_label = NULL
+  process_label = NULL,
+  active_2_update = NULL,
+  active_2_update_pointer = NULL
 ) {
   # A cursor over the flip stream: the validation already walks the dependent
   # events in ascending order, so this is a change of source, not of logic.
@@ -1124,12 +1126,19 @@ validate_support_constraint <- function(
     # The gate is the same per-sender allowed-receiver count the fold
     # maintains, computed here from the mask's own kind: a separable mask
     # answers without a grid at all, and only a genuinely dyadic one is reduced
-    # row by row.
+    # row by row. Both of its inner axes move, so the receiver presence is read
+    # at the event too; freezing it at time zero would keep a sender whose only
+    # allowed receivers have departed on the allowed side of the check.
+    receivers_at <- presence_cursor(
+      active_2,
+      active_2_update,
+      active_2_update_pointer
+    )
     for (e in dep) {
       gate <- sender_gate_from_mask(
         mask_at(e),
         stored_kind,
-        active_2,
+        receivers_at(e),
         n1,
         n2
       )
@@ -1193,7 +1202,16 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
       prep$active_dyad_init
     },
     family = if (is_rate_family) "rate" else "choice",
-    process_label = process_label
+    process_label = process_label,
+    # The rate fold leaves the raw receiver crossings in place, so the gate can
+    # be checked against the composition as it moves. The dyad fold rewrites
+    # that buffer into the folded availability, which is not the same timeline.
+    active_2_update = if (is_rate_family) prep$active_dyad_update else NULL,
+    active_2_update_pointer = if (is_rate_family) {
+      prep$active_dyad_update_pointer
+    } else {
+      NULL
+    }
   )
 }
 

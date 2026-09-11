@@ -86,3 +86,50 @@ test_that("rate: a non-observed gated-out sender passes silently (warns, no erro
     "never at risk"
   )
 })
+
+# The rate gate reduces the mask over the receivers PRESENT at the event, and
+# the receiver composition moves, so the check has to move with it. Both
+# directions are wrong when the receiver presence is frozen at time zero: a
+# sender whose only allowed receiver has yet to arrive is not gated out, and
+# one whose only allowed receiver has departed is.
+call_validate_rate_moving <- function(support, active_2, update, pointer) {
+  a <- make_validate_inputs(support)
+  validate_support_constraint(
+    a$support_mask,
+    a$event_sender,
+    a$event_receiver,
+    a$is_dependent,
+    a$active_1,
+    active_2,
+    family = "rate",
+    active_2_update = update,
+    active_2_update_pointer = pointer
+  )
+}
+
+test_that("rate: an arriving receiver un-gates the sender it is allowed for", {
+  s <- matrix(FALSE, 4L, 4L)
+  s[1, 2] <- TRUE # sender 1, observed at event 1, keeps receiver 2 throughout
+  s[2, 3] <- TRUE # sender 2, observed at event 2, is allowed receiver 3 only
+  expect_no_error(suppressWarnings(call_validate_rate_moving(
+    list(s, s),
+    c(TRUE, TRUE, FALSE, TRUE), # receiver 3 absent at event 1
+    rbind(3, 1), # and arrives in time for event 2
+    c(0L, 1L)
+  )))
+})
+
+test_that("rate: a departing receiver gates out the sender allowed for it", {
+  s <- matrix(FALSE, 4L, 4L)
+  s[1, 2] <- TRUE
+  s[2, 3] <- TRUE
+  expect_error(
+    suppressWarnings(call_validate_rate_moving(
+      list(s, s),
+      rep(TRUE, 4L),
+      rbind(3, 0), # receiver 3 leaves before sender 2's own event
+      c(0L, 1L)
+    )),
+    "gated out"
+  )
+})

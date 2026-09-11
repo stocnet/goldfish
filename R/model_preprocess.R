@@ -153,7 +153,7 @@ run_dynami_monolith <- function(
 # The per-event effective availability is the row-reduction a sender is at risk
 # iff it has >= 1 allowed, present receiver:
 #   active_sender[i] at event e = presence_e[i] & (rowSums(support_e &
-#     active_dyad_init) > 0)
+#     receiver_presence_e) > 0)
 # — computed here (during preprocessing) and stored on the availability object
 # as net crossings (a flip is emitted only on a 0 <-> positive change of the
 # per-sender available-receiver count, so the buffer stays tiny), REPLACING the
@@ -167,8 +167,16 @@ run_dynami_monolith <- function(
 # produced four crossings and not three thousand snapshots. The grid the old
 # `rowSums()` reduced is never built.
 #
-# `active_dyad_init` is the receiver presence the count is taken over (matching
-# the predecessor's static receiver availability). Returns `out` with
+# BOTH inner axes move. The receiver presence the count is taken over is itself
+# a crossings buffer, and a receiver leaving decrements the count of every
+# sender allowed to reach it — the same locality argument the mask flips use,
+# read off the mask's own kind. Freezing that axis at time zero leaves a sender
+# whose only allowed receivers have departed still at risk. The two factors are
+# updated once each per event, each against the other's current value: mask
+# flips first, against the receiver presence before this event's crossings,
+# then the crossings against the mask after them.
+#
+# `active_dyad_init` seeds that receiver presence. Returns `out` with
 # `active_sender_init`/`_update`/`_update_pointer` rewritten to the folded
 # object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
 # `avg_active_entity` recomputed as the event-averaged active-sender count.
@@ -180,16 +188,29 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
   n1 <- length(out$active_sender_init)
   n2 <- length(active_dyad_init)
   stored_kind <- support_mask$stored_kind %||% 0L
-  n_present_receivers <- sum(active_dyad_init)
+  active_2 <- active_dyad_init
+  n_present_receivers <- sum(active_2)
 
   count <- initial_receiver_count(
     support_mask$initial,
     stored_kind,
-    active_dyad_init,
+    active_2,
     n1,
     n2
   )
   flips_at <- mask_flips(support_mask)
+
+  # Charging a receiver crossing to the counts needs the mask's current value,
+  # not just its flips, so the cursor is opened only when the receiver
+  # composition actually moves: at point kind its value is an n1 x n2 object
+  # and most models never pay for it.
+  receiver_upd <- out$active_dyad_update
+  receiver_ptr <- out$active_dyad_update_pointer
+  tracks_receivers <- !is.null(receiver_upd) &&
+    !is.null(receiver_ptr) &&
+    ncol(receiver_upd) > 0L
+  mask_at <- if (tracks_receivers) mask_cursor(support_mask) else NULL
+  prev_receiver_ptr <- 0L
 
   # Walk the presence crossings buffer in event order to recover presence_e,
   # intersect with the maintained sender gate, and re-encode the result as
@@ -216,10 +237,29 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
       count,
       flips_at(e),
       stored_kind,
-      active_dyad_init,
+      active_2,
       n1,
       n_present_receivers
     )
+    if (tracks_receivers) {
+      this_receiver_ptr <- receiver_ptr[e]
+      if (this_receiver_ptr > prev_receiver_ptr) {
+        cols <- (prev_receiver_ptr + 1L):this_receiver_ptr
+        crossed <- apply_receiver_presence_flips(
+          count,
+          as.integer(receiver_upd[1L, cols]),
+          as.logical(receiver_upd[2L, cols]),
+          active_2,
+          mask_at(e),
+          stored_kind,
+          n1
+        )
+        count <- crossed$count
+        active_2 <- crossed$active_2
+        n_present_receivers <- sum(active_2)
+      }
+      prev_receiver_ptr <- this_receiver_ptr
+    }
     current <- presence & (count > 0L)
     if (e == 1L) {
       folded_init <- current
@@ -308,6 +348,50 @@ apply_receiver_count_flips <- function(
     return(count)
   }
   rep(if (values[[length(values)]]) n_present_receivers else 0L, n1)
+}
+
+# Adjust the per-sender counts for one event's receiver presence crossings, and
+# hand back the moved receiver presence with them. A receiver arriving raises
+# the count of every sender allowed to reach it and a departure lowers it, so
+# only the NET change may be charged: a node that crosses twice within one
+# event has to be applied in order, which is why this walks the crossings one
+# at a time rather than vectorizing over them. There are rarely more than a
+# handful per event.
+apply_receiver_presence_flips <- function(
+  count,
+  nodes,
+  values,
+  active_2,
+  mask,
+  stored_kind,
+  n1
+) {
+  for (k in seq_along(nodes)) {
+    node <- nodes[[k]]
+    delta <- as.integer(values[[k]]) - as.integer(active_2[[node]])
+    if (delta != 0L) {
+      count <- count + delta * receiver_reach(mask, stored_kind, node, n1)
+      active_2[[node]] <- values[[k]]
+    }
+  }
+  list(count = count, active_2 = active_2)
+}
+
+# Which senders one receiver is allowed for, read at the mask's own kind and
+# returned as a 0/1 vector the counts can be shifted by. The reach of a
+# receiver is the mirror of the reach of a mask flip: a point mask answers from
+# the receiver's own column, an alter mask by whether that one receiver is
+# allowed at all, an ego mask by each sender's own bit, a global mask for
+# everyone or no one.
+receiver_reach <- function(mask, stored_kind, node, n1) {
+  switch(
+    as.character(stored_kind),
+    "3" = rep(as.integer(as.logical(mask)), n1),
+    "2" = as.integer(as.logical(mask)),
+    "1" = rep(as.integer(as.logical(mask[[node]])), n1),
+    "0" = as.integer(as.logical(mask[((node - 1L) * n1) + seq_len(n1)])),
+    cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
+  )
 }
 
 # Shared opening for the sender and dyad recipe loops. The two drivers begin

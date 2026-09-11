@@ -201,7 +201,7 @@ moment for the artifact half; and no successor change touches
 - [x] 10.1 (review gap 11, artifact) `proposal.md` claimed no `src/` change and
       the change made one. Corrected in place, with the reasoning that held and
       the part that did not.
-- [ ] 10.2 (review gap 5, code) `fold_active_sender_support()` is handed
+- [x] 10.2 (review gap 5, code) `fold_active_sender_support()` is handed
       `active_dyad_init` and never reads the receiver composition stream, so the
       sender axis is walked per event and the receiver axis is frozen. A sender
       whose only allowed receivers depart stays at risk. **Probed on Fisheries:
