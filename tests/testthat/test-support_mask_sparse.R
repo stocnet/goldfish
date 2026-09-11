@@ -1,32 +1,36 @@
 # Detectors for the sparse support-mask representation.
 #
 # The living spec has required this since `support-constraint-as-stat` was
-# archived; the producer half never conformed. Each target-state assertion here
-# sits behind a `skip_if()` that tests the CURRENT representation and names the
-# task that lifts it, so the suite stays green while the fixture cannot silently
-# pass: the moment the code lands the gate stops firing and the assertion runs.
-# Assertions that already hold are the byte-identity backbone and run
-# unconditionally.
+# archived; the producer half never conformed. Each target-state assertion was
+# written before the code that satisfies it and sat behind a gate testing the
+# representation of the day, so the suite stayed green while the fixture could
+# not silently pass. Every one of those gates has since lifted, so everything
+# here now runs unconditionally: the target-state assertions alongside the
+# byte-identity backbone.
 
 # --- shared helpers --------------------------------------------------------- #
 
 # How many atom maintainers a preprocessing builds and how many times it
-# evaluates a mask. The shared-mask requirement is a statement about these two
-# integers, so they are counted rather than inferred from timings.
+# evaluates a constraint's boolean tree. The shared-mask requirement is a
+# statement about these two integers, so they are counted rather than inferred
+# from timings. `assemble_support_mask()` is where the tree is actually
+# evaluated: twice per mask when it is seeded (once for the buffer written in
+# place, once for the initial value the stream is a diff against) and once more
+# per snapshot time at which any of its atoms moved.
 mask_call_counts <- function(expr) {
   counts <- new.env(parent = emptyenv())
   counts$maintainers <- 0L
   counts$evaluations <- 0L
   orig_build <- build_atom_maintainer
-  orig_eval <- eval_constraint_mask
+  orig_assemble <- assemble_support_mask
   local_mocked_bindings(
     build_atom_maintainer = function(...) {
       counts$maintainers <- counts$maintainers + 1L
       orig_build(...)
     },
-    eval_constraint_mask = function(...) {
+    assemble_support_mask = function(...) {
       counts$evaluations <- counts$evaluations + 1L
-      orig_eval(...)
+      orig_assemble(...)
     }
   )
   value <- force(expr)
@@ -122,14 +126,16 @@ test_that("a rate + choice layer maintains one mask, not one per family", {
     mask_call_counts(preprocess_joint(single_process_joint(spec)))
   ))
 
-  skip_if(
-    counts$maintainers > 1L,
-    "blocked on task 6.1 (one mask per (layer, flavor) process)"
-  )
   # The constraint belongs to the process, so both sub-models read one
-  # maintained mask and its evaluation stream is walked once.
+  # maintained mask and its evaluation stream is walked once. The bound says
+  # the tree is evaluated at most once per stored event on top of its two
+  # seeding passes: a mask per sub-model would evaluate it twice per event.
   expect_identical(counts$maintainers, 1L)
-  expect_lte(counts$evaluations, length(counts$value[[1L]]$event_time) + 1L)
+  # A counter pointed at a function nobody calls reports zero and its upper
+  # bound then holds vacuously, which is how this assertion went quiet once
+  # before. The lower bound is what keeps it honest.
+  expect_gt(counts$evaluations, 0L)
+  expect_lte(counts$evaluations, length(counts$value[[1L]]$event_time) + 2L)
 })
 
 test_that("the rate gate equals the row reduction of the shared mask", {
@@ -224,10 +230,6 @@ test_that("a point-kind constraint carries a stream, not snapshots", {
   )))
   sm <- prep$support_mask
 
-  skip_if(
-    !is.null(sm$support),
-    "blocked on task 5.2 (mask emitted as a flat update stream)"
-  )
   expect_null(sm$support)
   expect_false(is.null(sm$initial))
   expect_false(is.null(sm$update))
@@ -525,10 +527,6 @@ test_that("each flavor keeps its own mask over one shared atom pool", {
   expect_length(unique(map$constraint_id), 2L)
   expect_length(counts$value, 4L)
 
-  skip_if(
-    counts$maintainers > 1L,
-    "blocked on tasks 6.1 / 7.2 (one atom pool for the whole process)"
-  )
   # Both flavors read the same atoms, so the pool is walked once for the layer
   # rather than once per sub-model family.
   expect_identical(counts$maintainers, 1L)

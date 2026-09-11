@@ -229,19 +229,22 @@ test_that("a dyadic constraint still stores the dense grid", {
 })
 
 test_that("a grid round-trips through its axis-union kind", {
+  # Reducing a separable grid to its kind and projecting it back is the
+  # identity, which is what lets a mask be stored at a kind narrower than the
+  # grid it stands for.
   ego_grid <- matrix(c(TRUE, FALSE, TRUE), 3L, 4L)
   alter_grid <- matrix(c(TRUE, FALSE, TRUE, TRUE), 3L, 4L, byrow = TRUE)
 
   expect_identical(
-    support_to_grid(support_from_grid(ego_grid, 2L), 2L, 3L, 4L),
+    support_to_grid(reduce_value(ego_grid, 0L, 2L), 2L, 3L, 4L),
     ego_grid
   )
   expect_identical(
-    support_to_grid(support_from_grid(alter_grid, 1L), 1L, 3L, 4L),
+    support_to_grid(reduce_value(alter_grid, 0L, 1L), 1L, 3L, 4L),
     alter_grid
   )
   expect_identical(
-    support_to_grid(support_from_grid(matrix(TRUE, 3L, 4L), 3L), 3L, 3L, 4L),
+    support_to_grid(reduce_value(matrix(TRUE, 3L, 4L), 0L, 3L), 3L, 3L, 4L),
     matrix(TRUE, 3L, 4L)
   )
 })

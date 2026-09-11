@@ -14,7 +14,8 @@
 # Every function here is an existing function with one hard-coded argument
 # freed. `support_to_grid()` and `expand_operand_update()` were the same
 # function with the target kind pinned to point; making the target a parameter
-# is the whole extraction. `support_from_grid()` was already the reduction.
+# is the whole extraction. The support mask's own reduction back to its kind
+# was already `reduce_value()` with the source pinned to point.
 #
 # Broadcast kinds name the axes a value varies on:
 #   3 global  neither axis   a scalar

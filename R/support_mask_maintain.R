@@ -14,32 +14,37 @@
 # baselines cannot move; the pass only runs when a `support_constraint` is
 # present.
 #
-# The atoms' live per-cell values are kept dense here (one n1 x n2 matrix per
-# atom) and the boolean tree is evaluated over them. The axis-union storage kind
-# (vector/scalar for separable ego/global constraints) is a memory
-# optimization deferred to a later slice; correctness of the mask timeline does
-# not depend on it. Likewise the atoms are re-derived from their update closures
-# per touched cell — the same locality as the interaction second-hop — rather
-# than a whole-matrix recompute.
+# The atoms' live values are kept at their OWN broadcast kinds here — a
+# scalar, a sender vector, a receiver vector or a dense n1 x n2 matrix,
+# whichever axes the atom varies on — and written in place at the entries an
+# event moves. The boolean tree is evaluated at the axis-union of those kinds,
+# so a separable constraint never builds a grid at all. The atoms themselves
+# are re-derived from their update closures per touched entry — the same
+# locality as the interaction second-hop — rather than a whole-value recompute.
 #
-# Atom MAINTENANCE (walking the atom event streams, one dense matrix per atom)
-# is split from mask EVALUATION (projecting the atoms through a constraint's
-# boolean tree). Maintenance is the expensive part and is expressed once, by
-# `build_atom_maintainer()`; evaluation is a cheap per-constraint elementwise
-# pass, `eval_constraint_mask()`. A single constraint runs one maintainer and
-# one expression (`preprocess_support_mask()`); several constraints over the
-# SAME atoms share one maintainer and each keeps its own expression / snapshot
-# times (`preprocess_pooled_support_masks()`), so the atom stream is walked once
-# instead of once per output.
+# Atom MAINTENANCE (walking the atom event streams) is split from mask
+# EVALUATION (projecting the atoms through a constraint's boolean tree).
+# Maintenance is expressed once, by `build_atom_maintainer()`, which reports
+# the atom entries each advance step moved. Evaluation is one maintainer per
+# constraint, `build_mask_maintainer()`, whose `recompute()` takes that moved
+# set and returns the mask entries that flipped: the tree is elementwise, so an
+# atom entry can only move the mask entries it projects onto, and nothing is
+# re-evaluated anywhere else. A single constraint runs one atom maintainer and
+# one mask maintainer (`preprocess_support_mask()`); several constraints over
+# the SAME atoms share the atom maintainer and each keeps its own mask
+# maintainer and snapshot times (`preprocess_pooled_support_masks()`), so the
+# atom stream is walked once instead of once per output.
 
 #' Build the atom-maintenance state for a constraint sub-plan
 #'
-#' Seeds the atoms' dense per-cell matrices from the objects' pre-event state and
-#' returns a handle that advances them over their own event streams. The handle
-#' exposes `advance(t)` (apply every atom event strictly before `t`, so the risk
-#' set is lagged), `atom_matrix(label)` (an atom's current dense value, addressed
-#' by its deparsed label), `n1`/`n2`, and the ordered `atom_labels`. Evaluation
-#' of the boolean tree is a separate concern (`eval_constraint_mask()`); this
+#' Seeds the atoms' values, each at its own broadcast kind, from the objects'
+#' pre-event state and returns a handle that advances them over their own event
+#' streams. The handle exposes `advance(t)` (apply every atom event strictly
+#' before `t`, so the risk set is lagged), `atom_value(label)` and
+#' `atom_kind(label)` (an atom's current value and the kind it is held at,
+#' addressed by its deparsed label), `take_touched()` (the atom entries moved
+#' since the last call), `n1`/`n2`, and the ordered `atom_labels`. Evaluation
+#' of the boolean tree is a separate concern ([build_mask_maintainer()]); this
 #' handle knows nothing about any particular constraint's expression, which is
 #' what lets several constraints over the same atoms share one maintainer.
 #'
@@ -344,15 +349,6 @@ build_atom_maintainer <- function(
     atom_kinds[[match(label, atom_labels)]]
   }
 
-  # Atoms are stored at their kinds now, so the dense view is built on demand
-  # rather than held. The projection deliberately does NOT re-apply the
-  # zeroed diagonal a dyad statistic carries: a mask entry is "is this dyad
-  # allowed", self-dyads are excluded by the engines rather than by the
-  # constraint, and the stored mask is read off the diagonal in any case.
-  atom_matrix <- function(label) {
-    project_value(atom_value(label), atom_kind(label), 0L, n1, n2)
-  }
-
   # The entries touched since the last call, deduplicated, and cleared. Reading
   # it is what makes an advance step reportable: the caller learns which atom
   # entries moved without the maintainer knowing what a mask is.
@@ -372,46 +368,8 @@ build_atom_maintainer <- function(
     advance = advance,
     atom_value = atom_value,
     atom_kind = atom_kind,
-    atom_matrix = atom_matrix,
     take_touched = take_touched
   )
-}
-
-#' Evaluate one constraint's boolean tree over a maintainer's current atom state
-#'
-#' Binds each of the constraint's atoms (addressed by label, in the constraint's
-#' own `.a{k}` order) to the maintainer's current dense value and evaluates the
-#' mask expression, symmetrising a coordination / undirected mask.
-#'
-#' @param maintainer a handle from `build_atom_maintainer()` whose atoms are a
-#'   (super)set of `atom_labels`.
-#' @param expr the evaluable mask expression over `.a{k}` placeholders.
-#' @param atom_labels the constraint's atom labels, aligned with `.a{k}`.
-#' @param symmetric symmetrise the dyad grid (coordination / undirected REM).
-#' @return an n1 x n2 logical support mask.
-#' @noRd
-eval_constraint_mask <- function(
-  maintainer,
-  expr,
-  atom_labels,
-  symmetric,
-  stored_kind = 0L
-) {
-  atom_values <- stats::setNames(
-    lapply(atom_labels, maintainer$atom_matrix),
-    paste0(".a", seq_along(atom_labels))
-  )
-  m <- assemble_support_mask(atom_values, expr)
-  m <- matrix(as.logical(m), maintainer$n1, maintainer$n2)
-  if (symmetric) {
-    m <- symmetrize_mask(m)
-  }
-  # Reduced to its kind before it is stored, because there is one of these per
-  # snapshot time. The dense grid above is transient -- one matrix at a time,
-  # rebuilt per snapshot -- while the stored list is as long as the event
-  # sequence, which is what made a constrained model on a realistic node set
-  # exhaust memory on every substrate.
-  support_from_grid(m, stored_kind)
 }
 
 #' Maintain one constraint's mask incrementally over a shared atom pool
@@ -463,6 +421,10 @@ build_mask_maintainer <- function(
 
   # Evaluate the constraint tree at a set of entries of the mask's own kind,
   # reading each atom through its own projection rather than densifying it.
+  # The projection deliberately does NOT re-apply the zeroed diagonal a dyad
+  # statistic carries: a mask entry is "is this dyad allowed", self-dyads are
+  # excluded by the engines rather than by the constraint, and the stored mask
+  # is read off the diagonal in any case.
   eval_at <- function(entries) {
     values <- stats::setNames(
       lapply(seq_along(atom_labels), function(k) {

@@ -213,7 +213,7 @@ moment for the artifact half; and no successor change touches
       Two sites: `apply_receiver_count_flips()` must consume receiver crossings,
       and `validate_support_constraint()`'s rate branch reads the same frozen
       vector through `sender_gate_from_mask()`.
-- [ ] 10.3 (review gap 8, code and test) `eval_constraint_mask()`,
+- [x] 10.3 (review gap 8, code and test) `eval_constraint_mask()`,
       the maintainer's `atom_matrix()` member and `support_from_grid()` outside
       tests have no production caller — they are alive only because they call
       each other. `mask_call_counts()` counts `eval_constraint_mask`, so its
