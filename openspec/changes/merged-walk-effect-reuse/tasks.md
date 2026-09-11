@@ -7,10 +7,29 @@ throughout**, `NOT_CRAN=true`, PASS not SKIP. This change alters how a statistic
 is computed, never what it equals, so unlike the constraint work the baselines
 here are a real detector and not merely a floor.
 
+## 0. The interaction product is emitted at its own broadcast kind
+
+**First, because task 1.1 measures the walk and this changes what the walk
+emits.** Measuring before this lands would produce a baseline that the very next
+group invalidates.
+
+- [ ] 0.1 `augment_interactions()` sets a product column's `broadcast_kind` to
+      the axis-union of its operands, and the walk then emits every product
+      delta as point cells regardless. An alter-by-alter interaction emits one
+      point update per sender where a plain alter effect emits a single
+      broadcast entry. Maintain the product at its declared kind: keep the dirty
+      set at that kind rather than expanding it to cells before the recompute.
+- [ ] 0.2 Tests: an interaction whose operands are all alter-kind emits
+      broadcast entries, not point cells, and its estimated column is
+      byte-identical. A genuinely dyadic product still emits point cells.
+- [ ] 0.3 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
+      not SKIP. The product column reaching the engines is unchanged in value,
+      so the baselines are a real detector for this group.
+
 ## 1. Decompose the gap (design D1)
 
-- [ ] 1.1 Extend `.plan/sp/substrate_timing.R` to sweep event counts rather than
-      take one: Social Evolution at its full 439, and CollegeMsg at 500, 1500,
+- [ ] 1.1 **After group 0**, extend `.plan/sp/substrate_timing.R` to sweep event
+      counts rather than take one: Social Evolution at its full 439, and CollegeMsg at 500, 1500,
       5000 and 10,000, unconstrained, merged against the two loops. Medians of
       repeated runs after a discarded warm-up — a single un-warmed run inflated
       a cell by 35 percent during `support-mask-sparse-updates` and read as a

@@ -58,6 +58,12 @@ research first and implementation second.
 
 ## What Changes
 
+- **The interaction product is maintained at its own broadcast kind.** Its
+  operands became kind-shaped in `support-mask-sparse-updates`; the thing built
+  from them did not, so an alter-by-alter product still emits one point update
+  per sender where a plain alter effect emits a single broadcast entry. This
+  lands FIRST, because it changes what the walk emits and the measurement below
+  would otherwise be taken against a baseline the next group invalidates.
 - **The merged walk's overhead against the loops is decomposed and attributed**,
   at three event counts, into per-call setup and per-event work. The ratio is a
   symptom; this change produces the cause, which no measurement has yet.
@@ -102,6 +108,11 @@ spec-placement pre-flight is EXPECTED to defer until it folds.
 
 ## Impact
 
+- **Absorbs gap 7 of the post-landing conformance review** (the interaction
+  product's emission kind), folded here rather than into the shared-core
+  successor because both are broadcast-kind locality in the same pipeline and
+  touch the same sites, and because splitting them would have this change
+  measure a walk the other was about to change.
 - **Depends on** `support-mask-sparse-updates` for the shared kind-shaped core
   (`project_value()`, `project_entries()`, `write_entries()`, `emit_crossings()`,
   `read_value_at_entries()`) this would consume, and for the measurement
