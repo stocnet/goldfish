@@ -142,10 +142,17 @@ change.
   operand and finalize paths), `R/formula_parser.R`
   (`compile_support_constraint()` emits operands rather than a sub-plan),
   `R/model_estimate.R` (`validate_support_constraint()` walks the stream).
-- **No `src/` change is expected.** The mask already reaches the compiled engines
-  through the availability objects; this change alters how those objects are
-  produced, not their shape at the boundary. If a `src/` change proves necessary
-  it goes through `cpp-recompile` and the C++ golden baselines.
+- **`src/` gained one function.** This originally read "no `src/` change is
+  expected", on the reasoning that the mask reaches the compiled engines through
+  the availability objects and this change alters how those are produced, not
+  their shape at the boundary. That held for the boundary and not for the write
+  side: the kind-shaped buffers this change maintains are vectors and scalars as
+  often as matrices, and logical as often as double, while `set_matrix_cells()`
+  takes double matrices only, so an in-place write was available to one buffer
+  shape out of four. `set_entries()` was added to `src/state_write.cpp` —
+  one linear index, any shape, REALSXP or LGLSXP — through `cpp-recompile`, with
+  the interface delta inspected and the C++ goldens green. Decided with Alvaro
+  when the choice arose; corrected here because the archive is append-only.
 - **Baselines**: unconstrained models must stay bit-identical, and constrained
   models must produce byte-identical availability objects. The frozen
   coefficient and C++ golden baselines (`NOT_CRAN=true`, PASS not SKIP) are the
