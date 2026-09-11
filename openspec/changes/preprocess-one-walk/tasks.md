@@ -721,6 +721,60 @@ artifacts apart.
       windowed (plain and composed with a bound), and restricted (opportunity
       list and user constraint, each composed with a bound).
 
+
+**Group 1 re-opened 2026-09-12 by the conformance check
+(`.plan/develop/preprocess-one-walk-group1-conformance.md`).** The check's
+document half found the aborts lifted, `window_derived` set and read, the
+three covariate-body copies in agreement, and 1.4's fixtures relational; its
+data half found a divergence no group-1 fixture windows: **a windowed term
+read by a TIMED engine is not byte-identical to the recipe loop.** Reproduced
+on the parity toy with `rate = ~ 1 + indeg + indeg(calls, window = 2)`: the
+merged rate output stores 8 events (`is_dependent` 11111100, `total_time` 7)
+where the recipe loop stores 6 (`total_time` 5); the choice side is
+identical. Cause: `prepare_recipe_context()` sets `hasEndTime` whenever a
+window effect exists, which enables the recipe loop's clip branch, while
+`resolve_walk_window()` has no equivalent, so expiry rows past `end_time` are
+walked as covariate events and hand timed engines right-censored rows. The
+group-1 parity fixture windows only choice-side terms, which is why it saw
+nothing. Tasks 1.6-1.9 close it; the unit is not done until 1.9 is green.
+
+- [ ] 1.6 Detector first: a rate-side windowed parity fixture, and the same
+      on REM (`rate = ~ inertia(calls, window = 2)`), asserting the merged
+      output equals `compute_statistics()`'s in stored events, `is_dependent`,
+      `intervals`, `total_time` and `end_time`. Both must fail on the current
+      tree with exactly the divergence above (8 vs 6 stored events). Keep the
+      existing choice-side windowed fixture; it is the control that shows the
+      defect is timed-engine specific.
+- [ ] 1.7 Fix: the merged walk's extent is bounded the way the recipe loop's
+      is when a window effect exists — expiry rows past the observation end
+      are not walked as covariate events and write no right-censored row. Do
+      it in `resolve_walk_window()` / the schedule's extent logic, not by
+      filtering rows inside the loop, so the walk handle inherits the same
+      bound. `merged$window_derived` is what tells an expiry row from a real
+      one; the extent read over non-window streams (task 1.3) stays.
+- [ ] 1.8 The task 1.3 tests that did not land, now with detectors: (a) a
+      `window-list` fixture (a window given as a list, per the task text) or
+      a recorded reason it is not a shape the parser accepts; (b) a dedicated
+      tied-time expiry fixture, an expiry at the same time as a dependent
+      event, asserting the recipe loop's order; (c) "two processes windowing
+      the same source" on a REAL two-process join, not
+      `single_process_joint()`, asserting one derived stream and one set of
+      expiry rows; (d) an assertion on the schedule's ordering rule
+      (`build_joint_schedule()`'s `(time, stream_index)`, dependent streams
+      before their own covariate stream), since the task text says "the
+      stream index the recipe context assigns" and that is not what the
+      builder does — assert what it does. Also rewrite the stale comment in
+      `R/walk_handle.R` ("no window effects, no explicit window bounds") to
+      what the walk now supports.
+- [ ] 1.9 Verification: `NOT_CRAN=true` suite green on the documented runner
+      (`load_all()` + `test_dir()`; `devtools::test()` carries a pre-existing
+      unrelated snapshot failure), baselines PASS not SKIP; the two
+      detectors from 1.6 green; the walking-time gate re-read on the landed
+      tree (rate-only sweep and cm10k), within 3 percent of the unit-1
+      reference in `.plan/develop/coordination.md`. Task 1.1's documented
+      test deviations (db compared to merged gather, `output = "data.frame"`
+      not exercised, rendered-output equality deferred) stay with task 3.1.
+
 ## 2. One compile stage
 
 - [ ] 2.1 Extract the compile stage of `estimate_wrapper()` (parse, effects,
