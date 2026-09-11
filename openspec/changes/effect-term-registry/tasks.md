@@ -396,6 +396,25 @@ than living in a decision record nobody reads at implementation time.
       initializer; make it a test the registry runs, so a new effect that
       returns the state matrix as its own cache fails rather than silently
       breaking the in-place write.
+- [ ] R4 **Decide the C++ port's scope** (ADR-0060, accepted 2026-09-11 — the
+      ADR supplies background, this change makes the decision). The walk stays
+      in R; which effects are ported, in what order, and whether `consecutive`
+      is worth carrying into C++ are decided here, with measurement of this
+      change's own rather than the ADR's. The background it hands over:
+      the driver is roughly a third of a cheap effect's cost, the callback floor
+      is 5.5 microseconds and irreducible, `trans` is 378 microseconds per
+      effect-event, and `four()` is the most expensive by construction and the
+      least used.
+      One characterization worth not re-deriving: an effect update has **clean
+      algebra** when its increment reads the CURRENT state alone — gather a
+      neighbourhood off the adjacency, scatter-add into the cache, carry nothing
+      between events but the cache. `trans`'s `pooled` and `sequential` branches
+      both have it and port together; `consecutive` does not, because it threads
+      the previous event's sender, receiver and order on a cache attribute and
+      counts a two-path only when the two events were adjacent in the stream. It
+      is the threading rather than the arithmetic that resists a port, so
+      whether C++ carries that attribute is its own question.
+
 - [ ] R3 **Review the diagonal rule, and whether estimation already enforces
       it** (ADR-0063, open — this review is what closes it). A one-mode dyad
       statistic zeroes its own diagonal in its `init_*`, and the kind-shaped
