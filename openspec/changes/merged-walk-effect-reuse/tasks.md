@@ -93,17 +93,29 @@ interaction term in the swept models), so the baseline stands for it.
       floor rather than a hope. If the floor keeps the unconstrained ratio above
       1.0 at typical sizes, that is design D4's first stop condition — record it
       and go to group 4.
-      — Two items. Per event, the per-engine step call itself, under 1 µs
-      once its lookups are precomputed; removing it means a single-engine
-      loop (rejected, D5). Per call, the effect closures are created fresh by
-      every preprocessing call and byte-compiled at first use
-      (`compiler:::tryCmpfun`, 16 to 24 percent of both substrates' builders
-      under `load_all`); shared by both substrates, so not a ratio driver,
-      but the largest fixed cost either pays at small sizes. Not this
-      change's to fix; `effect-term-registry` D15 (construction-time
-      specialized closures) is where a compile-once-per-spec cache belongs.
-      The rate-only floor is about 1.1 at every size; every other
-      single-family cell is at or under parity.
+      — What remains after the routing table, from the `_after3.rds` sweep
+      (rate-only, merged minus batch): about 4.5 ms per call and about
+      2.7 µs per event (5 ms at 500 events, 31 ms at 10,000; slope 2.66 µs, intercept 4.5 ms by least squares). Per event it is
+      the per-engine step call and the walk's own bookkeeping (measured
+      0.45 µs for the engine loop, under 1 µs for the call); removing it
+      means a single-engine loop (rejected, D5). Per call it is the merged
+      substrate building a third data source and fetching the event streams
+      a second time in `build_joint_schedule()` (1 + 2 ms at 10k), which the
+      engine context could reuse; that is the one reducible item left and it
+      is worth about two thirds of the intercept. The rate-only floor is about 1.1 at
+      every size; every other single-family cell is at or under parity.
+      **Corrected the same day**: an earlier version of this note said the
+      effect closures are created fresh per call and byte-compiled at first
+      use. They are not: `create_effects_functions()` looks the update
+      function up by name (`eval(parse(text = "update_<model>_<sub>_<name>"))`
+      resolves the package's own function), and a second `initialize_cache_stat()`
+      on the same closures costs the same as the first (0 to 7 percent
+      apart). The `compiler:::tryCmpfun` samples in the builders' profiles
+      (16 to 24 percent) are unattributed; under `load_all` the package is
+      not byte-compiled and the JIT may be compiling other per-call closures
+      (the writer factory, inner lambdas), which an installed build would not
+      pay. Open: re-measure the small-size cells against an installed,
+      byte-compiled goldfish before quoting a per-call floor to users.
 - [x] 2.3 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; re-run the
       task 1.1 sweep and tabulate against it.
       — `_after2.rds` (53add23) and `_after3.rds` (routing table) beside the

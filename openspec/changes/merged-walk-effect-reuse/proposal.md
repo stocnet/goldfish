@@ -73,10 +73,11 @@ removed the setup waste and inlined two helper calls; the routing table
 (ADR-0066, this change's group 2) removed the per-event lookups. Rate-only
 at 10k: 1.58 -> 1.17 -> 1.09; the other single-family cells 0.98 to 1.05.
 Numbers and method in `.plan/sp/preprocess_single_family_2026-09-11.md`.
-What is left is shared by both substrates and is not a ratio driver: the
-effect closures are created fresh per preprocessing call and byte-compiled
-at first use. Groups 1 and 2 are closed on that record; group 3, the
-shared-quantity seam, is the research this change still owns.
+What is left is about 4.5 ms per call (a third data source and a second
+event fetch in the schedule builder, reusable) and about 2.7 µs per event
+(the per-engine step call, the price of one loop hosting several engines).
+Groups 1 and 2 are closed on that record; group 3, the shared-quantity seam,
+is the research this change still owns.
 
 ## What Changes
 
