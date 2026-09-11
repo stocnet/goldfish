@@ -230,7 +230,7 @@ moment for the artifact half; and no successor change touches
       therefore safe to write in place. `R/preprocess_joint.R:698` carries
       `design D5 / D8a` from an earlier change; sweep it if the file is open,
       otherwise leave it and note it.
-- [ ] 10.5 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
+- [x] 10.5 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
       not SKIP. Then archive.
 
 ## 9. Report
