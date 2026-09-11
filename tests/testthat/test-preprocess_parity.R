@@ -643,3 +643,108 @@ test_that("two processes windowing the same source share one derived object", {
   )
   expect_setequal(merged$window_derived, derived)
 })
+
+# ---- (j) opportunity sets and user constraints through the single unit ------
+
+# Both restrictions were already wired on the joint side; what was unproven is
+# that the SINGLE-process entry reaches them, which is the entry every user
+# path takes once dispatch flips. The fixtures are deliberately relational --
+# merged output against the recipe loop's, never an assertion naming
+# `active_dyad_encoding` -- because the encoding literals live in
+# `test-active_dyad_fold.R`, which `constraint-availability-encoding` owns and
+# rewrites. Naming one here would make that change's ordering expensive for no
+# gain.
+
+# One opportunity set per dependent event, varying with the sender, so the
+# folded receiver availability genuinely moves event to event rather than
+# collapsing to a constant a wrong fold would also reproduce.
+parity_toy_opportunities <- function() {
+  senders <- c(1L, 2L, 1L, 3L, 2L, 4L)
+  n <- 5L
+  lapply(senders, function(s) setdiff(seq_len(n), c(s, (s %% n) + 1L)))
+}
+
+test_that("an opportunity list preprocesses identically on both substrates", {
+  # `opportunities_list` is deprecated, and that is exactly why the merged walk
+  # has to reproduce it: a deprecated surface still has users until it is
+  # removed, and the substrate swap must not be what breaks them.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  spec <- parity_constraint_spec(NULL)
+  control <- set_preprocessing(opportunities_list = parity_toy_opportunities())
+
+  merged <- suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    control_preprocessing = control
+  ))
+  solo <- suppressWarnings(
+    compute_statistics(spec, "DyNAM", "choice", control_prep = control)
+  )
+
+  expect_equal(
+    parity_strip_deco(parity_prep_by(merged, "choice")),
+    parity_strip_deco(solo)
+  )
+})
+
+test_that("an opportunity list actually restricts, on both substrates", {
+  # The guard against a vacuous comparison: two objects that agree because
+  # neither applied the restriction would pass the test above. The candidate
+  # counts have to be smaller than the unrestricted run's.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  spec <- parity_constraint_spec(NULL)
+  control <- set_preprocessing(opportunities_list = parity_toy_opportunities())
+
+  restricted <- suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    control_preprocessing = control
+  ))
+  plain <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  expect_true(isTRUE(parity_prep_by(restricted, "choice")$active_dyad_folded))
+  expect_false(identical(
+    parity_prep_by(restricted, "choice")$active_dyad_init,
+    parity_prep_by(plain, "choice")$active_dyad_init
+  ))
+})
+
+# `~ !tie(calls)` cannot be used here and the reason is worth stating: the toy
+# repeats the dyad 1 -> 2 at t = 1 and t = 3, so by the second event the tie
+# exists and the constraint excludes the dyad the data observes. The validation
+# rejects that, correctly, on either substrate. `net2` carries (3,1), (1,4) and
+# (5,2), none of which the calls layer ever observes, so `~ !tie(net2)` is
+# binding without contradicting the events.
+test_that("a user support constraint preprocesses identically, both families", {
+  spec <- parity_constraint_spec(~ !tie(net2))
+
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
+    expect_equal(
+      parity_strip_deco(parity_prep_by(merged, family)),
+      parity_strip_deco(solo)
+    )
+  }
+})
+
+test_that("a constraint and a bounded window compose on the single unit", {
+  # The three restrictions this group lifted meet here: a user constraint, the
+  # observation window, and the single-unit entry.
+  spec <- parity_constraint_spec(~ !tie(net2))
+  control <- set_preprocessing(start_time = 2.5, end_time = 5)
+
+  merged <- suppressWarnings(preprocess_joint(
+    single_process_joint(spec),
+    control_preprocessing = control
+  ))
+
+  for (family in c("rate", "choice")) {
+    solo <- suppressWarnings(
+      compute_statistics(spec, "DyNAM", family, control_prep = control)
+    )
+    expect_equal(
+      parity_strip_deco(parity_prep_by(merged, family)),
+      parity_strip_deco(solo)
+    )
+  }
+})
