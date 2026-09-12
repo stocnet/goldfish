@@ -417,6 +417,40 @@ collapse_operand_delta <- function(buffer, node1, node2, values, kind, n1, n2) {
   collapse_entries(linear_entries(buffer, delta$entries), delta$values)
 }
 
+#' The dense grid cells a broadcast product delta seeds, with the diagonal rule
+#' reapplied
+#'
+#' The burn-in path seeds a dense `initial_stats`, so a product held at a
+#' broadcast kind is widened back to point exactly as its operands are: one
+#' broadcast entry names a whole row or column of the grid. `drop_diagonal`
+#' rezeroes the self-dyad a one-mode statistic carries no value on, matching the
+#' dense operand reads the point path performs.
+#'
+#' @param kind the product's broadcast kind (1, 2 or 3, never 0).
+#' @param entries the fixed indices the product moved at, at `kind`.
+#' @param values the product value at each entry.
+#' @param n1,n2 sender and receiver counts.
+#' @param drop_diagonal zero the self-dyad, as the dense operands do.
+#' @return `list(node1, node2, values)` naming the grid cells and their values.
+#' @noRd
+broadcast_seed_cells <- function(kind, entries, values, n1, n2, drop_diagonal) {
+  seed <- project_entries(
+    if (kind == 2L) entries else NULL,
+    if (kind == 1L) entries else NULL,
+    values,
+    kind,
+    0L,
+    n1,
+    n2
+  )
+  cells <- seed$entries
+  vals <- seed$values
+  if (drop_diagonal) {
+    vals[cells[, 1L] == cells[, 2L]] <- 0
+  }
+  list(node1 = cells[, 1L], node2 = cells[, 2L], values = vals)
+}
+
 #' Of a set of candidate writes, the ones that actually change the buffer
 #'
 #' The locality primitive: an incremental recompute produces a value for every

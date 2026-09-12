@@ -2049,10 +2049,12 @@ run_dyad_recipe_loop <- function(
 
           if (!is.null(updates)) {
             # Interaction second-hop: if this effect is an operand, write its
-            # delta into its live value AT ITS OWN KIND and record the touched
-            # cells for each interaction it feeds, so the product columns are
-            # refreshed after the routing loop. The dirty set stays in point
-            # cells because the product's delta is emitted as point updates.
+            # delta into its live value AT ITS OWN KIND and record the entries
+            # each interaction it feeds could have moved, so the product columns
+            # are refreshed after the routing loop. A product that varies on
+            # both axes tracks point cells; one that varies on a single axis (or
+            # none) tracks entries at its own broadcast kind, so an alter-kind
+            # product never fans out to a grid.
             if (n_inter > 0L && gid <= n_fun) {
               feeds <- plan$operand_of[[as.character(gid)]]
               if (!is.null(feeds)) {
@@ -2071,10 +2073,31 @@ run_dyad_recipe_loop <- function(
                   write_entries(buffer, delta$entries, delta$values),
                   envir = op_state
                 )
-                exp <- expand_operand_update(updates, op_kind[gid], n1, n2)
+                exp <- NULL
                 for (ig in feeds) {
                   igc <- as.character(ig)
-                  dirty_inter[[igc]] <- rbind(dirty_inter[[igc]], exp$cells)
+                  if (bcast_kind[ig] == 0L) {
+                    if (is.null(exp)) {
+                      exp <- expand_operand_update(
+                        updates,
+                        op_kind[gid],
+                        n1,
+                        n2
+                      )
+                    }
+                    dirty_inter[[igc]] <- rbind(dirty_inter[[igc]], exp$cells)
+                  } else {
+                    dirty_inter[[igc]] <- c(
+                      dirty_inter[[igc]],
+                      map_entries(
+                        delta$entries,
+                        op_kind[gid],
+                        bcast_kind[ig],
+                        n1,
+                        n2
+                      )
+                    )
+                  }
                 }
               }
             }
@@ -2107,33 +2130,71 @@ run_dyad_recipe_loop <- function(
           }
         }
 
-        # Emit each touched interaction's product delta: recompute
-        # the product over its operands at the union of cells changed this event
-        # and route it as a point update (its own column). Emitted after the
-        # routing loop so all operand deltas for the event are applied first.
+        # Emit each touched interaction's product delta: recompute the product
+        # over its operands at the entries changed this event. A product that
+        # varies on both axes recomputes at the touched cells and routes a point
+        # update; one that varies on a single axis (or none) recomputes at the
+        # touched entries of its own kind and routes a broadcast update, like a
+        # plain broadcast effect. Emitted after the routing loop so all operand
+        # deltas for the event are applied first.
         if (n_inter > 0L && length(dirty_inter) > 0L) {
           for (igc in names(dirty_inter)) {
             ig <- as.integer(igc)
-            cells <- dedup_cells(dirty_inter[[igc]], n1)
             ops <- plan$interactions[[igc]]
-            operand_at_cells <- function(o) {
-              read_value_at_cells(
-                get(as.character(o), envir = op_state),
-                op_kind[o],
-                cells,
-                drop_diagonal = op_drop_diagonal
-              )
-            }
-            prodv <- operand_at_cells(ops[1])
-            for (o in ops[-1]) {
-              prodv <- prodv * operand_at_cells(o)
-            }
-            if (hasStartTime && next_event_time < startTime) {
-              initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
+            inter_kind <- bcast_kind[ig]
+            if (inter_kind == 0L) {
+              cells <- dedup_cells(dirty_inter[[igc]], n1)
+              operand_at_cells <- function(o) {
+                read_value_at_cells(
+                  get(as.character(o), envir = op_state),
+                  op_kind[o],
+                  cells,
+                  drop_diagonal = op_drop_diagonal
+                )
+              }
+              prodv <- operand_at_cells(ops[1])
+              for (o in ops[-1]) {
+                prodv <- prodv * operand_at_cells(o)
+              }
+              if (hasStartTime && next_event_time < startTime) {
+                initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
+              } else {
+                block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
+                for (cs in consumers) {
+                  consumer_accumulate_point(cs, block)
+                }
+              }
             } else {
-              block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
-              for (cs in consumers) {
-                consumer_accumulate_point(cs, block)
+              entries <- unique(dirty_inter[[igc]])
+              operand_at_entries <- function(o) {
+                read_value_at_entries(
+                  get(as.character(o), envir = op_state),
+                  op_kind[o],
+                  entries,
+                  inter_kind,
+                  n1,
+                  n2
+                )
+              }
+              prodv <- operand_at_entries(ops[1])
+              for (o in ops[-1]) {
+                prodv <- prodv * operand_at_entries(o)
+              }
+              if (hasStartTime && next_event_time < startTime) {
+                seed <- broadcast_seed_cells(
+                  inter_kind,
+                  entries,
+                  prodv,
+                  n1,
+                  n2,
+                  op_drop_diagonal
+                )
+                initial_stats[cbind(seed$node1, seed$node2, ig)] <- seed$values
+              } else {
+                bc_block <- rbind(inter_kind, entries - 1, ig - 1, prodv)
+                for (cs in consumers) {
+                  consumer_accumulate_broadcast(cs, bc_block)
+                }
               }
             }
           }

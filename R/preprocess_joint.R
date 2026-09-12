@@ -950,13 +950,29 @@ merged_covariate_step <- function(
               write_entries(buffer, delta$entries, delta$values),
               envir = engine$op_state
             )
-            exp <- expand_operand_update(updates, bcast_kind[gid], n1, n2)
+            exp <- NULL
             for (ig in feeds) {
               igc <- as.character(ig)
-              engine$dirty_inter[[igc]] <- rbind(
-                engine$dirty_inter[[igc]],
-                exp$cells
-              )
+              if (bcast_kind[ig] == 0L) {
+                if (is.null(exp)) {
+                  exp <- expand_operand_update(updates, bcast_kind[gid], n1, n2)
+                }
+                engine$dirty_inter[[igc]] <- rbind(
+                  engine$dirty_inter[[igc]],
+                  exp$cells
+                )
+              } else {
+                engine$dirty_inter[[igc]] <- c(
+                  engine$dirty_inter[[igc]],
+                  map_entries(
+                    delta$entries,
+                    bcast_kind[gid],
+                    bcast_kind[ig],
+                    n1,
+                    n2
+                  )
+                )
+              }
             }
           }
         }
@@ -1007,6 +1023,7 @@ merged_covariate_step <- function(
     for (igc in names(engine$dirty_inter)) {
       ig <- as.integer(igc)
       ops <- engine$interactions[[igc]]
+      inter_kind <- bcast_kind[ig]
       if (is_sender) {
         senders <- unique(engine$dirty_inter[[igc]])
         prodv <- get(as.character(ops[1]), envir = engine$op_state)[senders]
@@ -1019,7 +1036,7 @@ merged_covariate_step <- function(
           next
         }
         block <- rbind(senders - 1, 0, ig - 1, prodv)
-      } else {
+      } else if (inter_kind == 0L) {
         cells <- dedup_cells(engine$dirty_inter[[igc]], n1)
         operand_at_cells <- function(o) {
           read_value_at_cells(
@@ -1038,6 +1055,40 @@ merged_covariate_step <- function(
           next
         }
         block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
+      } else {
+        entries <- unique(engine$dirty_inter[[igc]])
+        operand_at_entries <- function(o) {
+          read_value_at_entries(
+            get(as.character(o), envir = engine$op_state),
+            bcast_kind[o],
+            entries,
+            inter_kind,
+            n1,
+            n2
+          )
+        }
+        prodv <- operand_at_entries(ops[1])
+        for (o in ops[-1]) {
+          prodv <- prodv * operand_at_entries(o)
+        }
+        if (!is_valid_event) {
+          seed <- broadcast_seed_cells(
+            inter_kind,
+            entries,
+            prodv,
+            n1,
+            n2,
+            engine$op_drop_diagonal
+          )
+          engine$initial_stats[cbind(seed$node1, seed$node2, ig)] <-
+            seed$values
+          next
+        }
+        bc_block <- rbind(inter_kind, entries - 1, ig - 1, prodv)
+        for (cs in consumers) {
+          consumer_accumulate_broadcast(cs, bc_block)
+        }
+        next
       }
       for (cs in consumers) {
         consumer_accumulate_point(cs, block)
