@@ -953,7 +953,7 @@ alone.
       `validate_prep_support()` stamping and `process_map` contract stay.
       Tests: the flavored fixtures and the `estimate_flavored()` container
       tests unchanged.
-- [ ] 3.3 **Alvaro's approval required before this task starts** (see the group
+- [x] 3.3 **Alvaro's approval required before this task starts** (see the group
       header): a passing ratio is necessary, not sufficient.
       Delete `run_sender_recipe_loop()`, `run_dyad_recipe_loop()` and the
       helpers only they called (inventory from task 0.2); keep the finalizer
