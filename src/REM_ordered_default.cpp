@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "availability_updates.h"
 #include "broadcast_updates.h"
 #include "event_reductions.h"
 #include "flat_updates.h"
@@ -178,25 +179,27 @@ List estimate_REM_ordered(
 
         // update presence
         if (has_composition_change1) {
-            while (active_sender_update_id < active_sender_update_pointer(id_event)) {
-                active_sender(active_sender_update(0, active_sender_update_id) - 1) =
-                  active_sender_update(1, active_sender_update_id);
-                active_sender_update_id++;
-            }
+            apply_availability_updates(
+              active_sender_update_id, active_sender_update_pointer(id_event),
+              [&](int c) {
+                active_sender(active_sender_update(0, c) - 1) =
+                  active_sender_update(1, c);
+              });
         }
         if (has_composition_change2) {
-            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+            apply_availability_updates(
+              active_dyad_update_id, active_dyad_update_pointer(id_event),
+              [&](int c) {
                 if (active_dyad_is_point) {
                     active_dyad(
-                      (active_dyad_update(0, active_dyad_update_id) - 1) * n_actors_2 +
-                      (active_dyad_update(1, active_dyad_update_id) - 1)
-                    ) = active_dyad_update(2, active_dyad_update_id);
+                      (active_dyad_update(0, c) - 1) * n_actors_2 +
+                      (active_dyad_update(1, c) - 1)
+                    ) = active_dyad_update(2, c);
                 } else {
-                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                      active_dyad_update(1, active_dyad_update_id);
+                    active_dyad(active_dyad_update(0, c) - 1) =
+                      active_dyad_update(1, c);
                 }
-                active_dyad_update_id++;
-            }
+              });
         }
 
         // TO check(gutian): handle ignorant
