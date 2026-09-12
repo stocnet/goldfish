@@ -928,7 +928,7 @@ alone.
       wrapper did, and 3.0's goldens will show it on every REM rate baseline
       that lacks an explicit `1`. Detector first: the unit 1b REM parity
       fixture with the `1` removed must go red today and green after.
-- [ ] 3.0 Freeze the recipe loops' output as serialized goldens BEFORE 3.1, not
+- [x] 3.0 Freeze the recipe loops' output as serialized goldens BEFORE 3.1, not
       before 3.3. `test-preprocess_parity.R` compares
       `preprocess_joint(single_process_joint(spec))` against
       `compute_statistics(spec, ...)`, and 3.1 routes `compute_statistics()` to
