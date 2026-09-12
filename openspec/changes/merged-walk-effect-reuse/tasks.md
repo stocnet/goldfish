@@ -13,7 +13,7 @@ here are a real detector and not merely a floor.
 emits.** Measuring before this lands would produce a baseline that the very next
 group invalidates.
 
-- [ ] 0.0 Detector first: an interaction whose operands are all alter-kind
+- [x] 0.0 Detector first: an interaction whose operands are all alter-kind
       emits broadcast entries, not point cells, and its estimated column is
       byte-identical to the current tree's; a genuinely dyadic product still
       emits point cells. The first assertion fails today (n1 point cells per
@@ -23,15 +23,15 @@ group invalidates.
       preprocess-one-walk tasks 1.1-1.3, which rewrote the loop body around
       the interaction branch this task edits (`merged_covariate_step()`,
       the `dirty_inter` / `expand_operand_update()` block).
-- [ ] 0.1 `augment_interactions()` sets a product column's `broadcast_kind` to
+- [x] 0.1 `augment_interactions()` sets a product column's `broadcast_kind` to
       the axis-union of its operands, and the walk then emits every product
       delta as point cells regardless. An alter-by-alter interaction emits one
       point update per sender where a plain alter effect emits a single
       broadcast entry. Maintain the product at its declared kind: keep the dirty
       set at that kind rather than expanding it to cells before the recompute.
-- [ ] 0.2 Confirm 0.0 is green on both of its fixtures, and record in
+- [x] 0.2 Confirm 0.0 is green on both of its fixtures, and record in
       `progress.md` what its failure said against the unfixed tree.
-- [ ] 0.3 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
+- [x] 0.3 Verification: `NOT_CRAN=true`, frozen baselines and C++ goldens PASS
       not SKIP. The product column reaching the engines is unchanged in value,
       so the baselines are a real detector for this group.
 
