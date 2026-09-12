@@ -1,9 +1,12 @@
 # Ego-kind (outer-encoded) DyNAM-choice support_constraint fold equivalence.
-# An ego-kind atom is sender-axis (row-constant), so for a choice model its
-# support row is constant across receivers and the fold reduces to dense point
-# row flips (receiver presence ∩ the sender's support row). This closes the
-# formerly-pending outer fold: the constraint now rides the folded `active_dyad`
-# buffer on every engine, and no standalone mask reaches estimation.
+# An ego-kind atom is sender-axis (row-constant): it gates only the sender axis
+# and leaves the receiver axis untouched, so the choice availability factorizes
+# into two vectors -- receiver presence (f2, `active_dyad`) and sender presence
+# (f1, `active_sender`) -- and no dyad-shaped n1 x n2 object is allocated. This
+# is the `"outer"` encoding the decision function already returns for this case;
+# the fold now produces it instead of the dense `"point"` grid it used to. The
+# constraint rides the folded `active_dyad` buffer on every engine, and no
+# standalone mask reaches estimation.
 #
 # `_fixtures/ego_outer_standalone_ref.rds` freezes the fit from the OLD
 # standalone `mask_to_opportunities` path (captured before the fold landed); the
@@ -52,7 +55,7 @@ fit_ego <- function(fx, backend = "r", constrained = TRUE) {
   suppressWarnings(do.call(estimate_dynam, args))
 }
 
-test_that("an ego-kind choice constraint now folds into active_dyad", {
+test_that("an ego-kind choice constraint folds to the outer encoding", {
   fx <- make_ego_fold_fixture()
   prep <- suppressWarnings(estimate_dynam(
     fx$formula,
@@ -62,7 +65,20 @@ test_that("an ego-kind choice constraint now folds into active_dyad", {
     preprocessing_only = TRUE
   ))
   expect_true(isTRUE(prep$active_dyad_folded))
-  expect_identical(prep$active_dyad_encoding, "point")
+  # The decision function returns "outer" for an ego-kind choice constraint;
+  # the fold now produces it. The availability is two factor vectors, so
+  # `active_dyad` is the length-n2 receiver vector, NOT a dense n1 x n2 grid.
+  expect_identical(prep$active_dyad_encoding, "outer")
+  expect_false(is.matrix(prep$active_dyad_init))
+  expect_length(prep$active_dyad_init, length(prep$active_sender_init))
+
+  # Moving the encoding expectation to match new behavior is how a regression
+  # gets ratified, so the edit is licensed only by the fit holding: the folded
+  # outer path reproduces the frozen standalone-mask reference to 1e-10.
+  ref <- readRDS(test_path("_fixtures", "ego_outer_standalone_ref.rds"))
+  fit <- fit_ego(fx, backend = "r")
+  expect_equal(fit$parameters, ref$parameters, tolerance = 1e-10)
+  expect_equal(fit$interval_log_lik, ref$interval_log_lik, tolerance = 1e-10)
 })
 
 test_that("folded ego fit reproduces the captured standalone-mask reference", {

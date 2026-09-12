@@ -1360,8 +1360,10 @@ fold_active_dyad_support <- function(
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
   # symmetrised so `(i, j)` is available iff both directions are
   # allowed — required for the mutual likelihood. Every DyNAM choice encoding
-  # folds below: alter/scalar as the receiver vector, point (dyadic atom or
-  # opportunity list) and ego-kind (outer) as dense point row flips.
+  # folds below: alter/scalar as the receiver vector, ego-kind as the outer
+  # factorization (receiver presence f2, sender presence f1, no dyad-shaped
+  # object), and point (dyadic atom or opportunity list) as dense point row
+  # flips.
   if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
@@ -1395,12 +1397,32 @@ fold_active_dyad_support <- function(
     out$active_dyad_update_pointer <- cr$pointer
     out$active_dyad_encoding <- "alter"
     out$active_dyad_folded <- TRUE
+  } else if (identical(encoding, "outer")) {
+    # An ego-kind atom gates only the sender axis (its support row is constant
+    # across receivers), so the availability factorizes: the receiver presence
+    # is f2 (`active_dyad`, stored as its own crossings stream) and the sender
+    # presence is f1 (`active_sender`, left as it is), with cell
+    # (i, j) = active_sender[i] & active_dyad[j]. No dyad-shaped object is
+    # allocated. The sender factor is not folded into f1 because the choice risk
+    # set reads only the observed sender's row and the observed sender is always
+    # allowed (the fail-fast validation errors otherwise), so a sender the atom
+    # gates out is never a row the likelihood reads; the sender-side validation
+    # reports it instead.
+    accumulator <- crossings_accumulator(n_stored)
+    for (e in seq_len(n_stored)) {
+      accumulator$push(e, recv_at(e))
+    }
+    cr <- accumulator$finish()
+    out$active_dyad_init <- cr$init
+    out$active_dyad_update <- cr$update
+    out$active_dyad_update_pointer <- cr$pointer
+    out$active_dyad_encoding <- "outer"
+    out$active_dyad_folded <- TRUE
   } else {
-    # point/outer: fold receiver presence ∩ the sender's support row ∩
-    # opportunity into the dense point buffer. Covers a genuinely dyadic (point)
-    # atom, any atom together with a user opportunity list, and an ego-kind
-    # (outer) atom whose support row is sender-constant. The choice risk set
-    # reads only the event sender's row, so only that row is emitted.
+    # point: fold receiver presence ∩ the sender's support row ∩ opportunity
+    # into the dense point buffer. Covers a genuinely dyadic (point) atom and
+    # any atom together with a user opportunity list. The choice risk set reads
+    # only the event sender's row, so only that row is emitted.
     senders <- out$event_sender
     opp_row <- function(e) {
       if (!has_opportunity) {
