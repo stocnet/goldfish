@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "availability_updates.h"
 #include "broadcast_updates.h"
 #include "event_reductions.h"
 #include "flat_updates.h"
@@ -145,19 +146,19 @@ List estimate_DyNAM_choice(
 
         // update presence / availability (applied before this event's likelihood)
         if (has_composition_change) {
-            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+            apply_availability_updates(
+              active_dyad_update_id, active_dyad_update_pointer(id_event),
+              [&](int c) {
                 if (active_dyad_is_point) {
                     active_dyad(
-                      (active_dyad_update(0, active_dyad_update_id) - 1) *
-                        n_actors_2 +
-                      (active_dyad_update(1, active_dyad_update_id) - 1)
-                    ) = active_dyad_update(2, active_dyad_update_id);
+                      (active_dyad_update(0, c) - 1) * n_actors_2 +
+                      (active_dyad_update(1, c) - 1)
+                    ) = active_dyad_update(2, c);
                 } else {
-                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                      active_dyad_update(1, active_dyad_update_id);
+                    active_dyad(active_dyad_update(0, c) - 1) =
+                      active_dyad_update(1, c);
                 }
-                active_dyad_update_id++;
-            }
+              });
         }
 
 
