@@ -968,13 +968,20 @@ alone.
 
 ## 4. Close
 
-- [ ] 4.1 NEWS.d fragment (Internal): one batch preprocessing loop, the recipe
+- [x] 4.1 NEWS.d fragment (Internal): one batch preprocessing loop, the recipe
       loops deleted (or, on a no-go, the merged walk's new parity and the
       recorded reason the loops stay). No `NEWS.md` or Version edit on the
       branch (ADR-0040).
-- [ ] 4.2 `bash .plan/opsx-spec-placement-check.sh preprocess-one-walk`
+      — done 2026-09-12. `NEWS.d/preprocess-one-walk--one-batch-loop.md`, an
+      `## Internal` bullet: the merged single-clock walk is the sole DyNAM/REM
+      batch preprocessing path, `run_sender_recipe_loop()` /
+      `run_dyad_recipe_loop()` removed.
+- [x] 4.2 `bash .plan/opsx-spec-placement-check.sh preprocess-one-walk`
       clean; `openspec validate preprocess-one-walk --strict` clean; on a
       no-go, trim the three MODIFIED deltas to what landed.
+      — done 2026-09-12. placement-check OK (3 requirement placements),
+      validate reports valid. All three MODIFIED deltas landed (the deletion
+      happened), so no trim was needed.
 - [ ] 4.3 Note the consequences on the neighbors in their `progress.md` when
       next claimed: `process-simulation` task 2.0c shrinks to the breakpoint
       API; ADR-0045's inspection records this as its first closed finding
