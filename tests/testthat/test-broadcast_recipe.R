@@ -70,7 +70,7 @@ test_that("models with only cell-specific effects emit no broadcasts", {
   expect_equal(ncol(prep$stat_mat_broadcast), 0L)
 })
 
-test_that("broadcast grouping collapses a fan-out to one column per held index", {
+test_that("broadcast grouping collapses a fan-out to one held column", {
   # A kind-1 (alter) effect emits one row per sender for the single receiver
   # that moved; the grouping keeps one column at that held index, not one per
   # sender.

@@ -94,7 +94,7 @@ test_that("an interaction column is the product of its operands at seeding", {
 # a duplication or a repeated address -- not the value, and each is verified by
 # watching it fail against the unfixed write.
 
-test_that("the sender-branch operand write duplicates no buffer across a walk", {
+test_that("the sender operand write duplicates no buffer across a walk", {
   # The sender kernel keeps a per-sender vector for each interaction operand.
   # An in-place write leaves it untouched in memory; a `get()`-then-subassign
   # copies the whole vector every event, because binding it to a second name
@@ -143,7 +143,7 @@ test_that("the sender-branch operand write duplicates no buffer across a walk", 
   expect_gt(length(deliberate), 0L)
 })
 
-test_that("a dyad-branch operand write addresses each entry once, not n1 times", {
+test_that("a dyad operand write addresses each entry once, not n1 times", {
   # A broadcast operand reports its delta on the grid's terms, so an alter-kind
   # operand whose one receiver moved arrives one row per sender -- n1 identical
   # addresses. Writing them all is behaviorally neutral (last write wins), so
