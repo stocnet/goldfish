@@ -963,7 +963,7 @@ alone.
 - [x] 3.4 Re-run the task 0.1 measurement on the flipped tree and record it
       beside the pre-flip numbers; confirm the ratio is within the recorded
       rule.
-- [ ] 3.5 Verification: full `NOT_CRAN=true` suite green; frozen baselines and
+- [x] 3.5 Verification: full `NOT_CRAN=true` suite green; frozen baselines and
       C++ goldens PASS not SKIP; `devtools::document()` if any roxygen changed.
 
 ## 4. Close
