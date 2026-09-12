@@ -59,7 +59,7 @@ read. Add the field in 2.1's commit.
       families in task 1.2, and that an unconstrained model's output columns and
       `initial_stats` are byte-identical to 1.1's capture. This equivalence is
       the whole reason the walk is kept for one more step.
-- [ ] 2.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; task 1.1's
+- [x] 2.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; task 1.1's
       unconstrained plan assertion still holds.
 
 ## 3. The mask reads the plan's atoms, and the private walk goes
@@ -74,14 +74,14 @@ read. Add the field in 2.1's commit.
 - [ ] 3.2 Verify byte-identity against every reference captured in task 1.2,
       then retire `build_atom_maintainer()`'s state container, schedule and
       event loop.
-- [ ] 3.3 Confirm windowed constraint atoms still resolve. Their derivations
+- [x] 3.3 Confirm windowed constraint atoms still resolve. Their derivations
       already enter `plan$derivations`, so their expiry streams should ride the
       shared schedule with no constraint-specific branch — wiring that exists
       today and is unused. Assert a windowed constraint needs no realization
       step of its own.
 - [x] 3.4 Confirm the task 1.3 DAG detector still passes, now that atoms and
       main effects share one table.
-- [ ] 3.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; a constrained
+- [x] 3.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; a constrained
       model is walked once, asserted by counting the walks rather than inferred
       from a timing.
 
@@ -92,10 +92,10 @@ read. Add the field in 2.1's commit.
       "constraint"` in `plan$effects` is now read and not merely written.
 - [ ] 4.2 ADR on where the two-layer DAG check lives once atoms are plan
       effects. Claim the id in the vault ledger before drafting.
-- [ ] 4.3 Report what this bought, honestly: the walk count, and the time, which
+- [x] 4.3 Report what this bought, honestly: the walk count, and the time, which
       is expected to be small. If it is smaller than 0.13 s, say so.
 - [x] 4.4 `NEWS.d/` fragment under Internal.
 - [x] 4.5 `bash .plan/opsx-spec-placement-check.sh constraint-atoms-as-operands`
       and `openspec validate constraint-atoms-as-operands --strict` clean.
-- [ ] 4.6 Final verification: full `NOT_CRAN=true` suite green, baselines PASS
+- [x] 4.6 Final verification: full `NOT_CRAN=true` suite green, baselines PASS
       not SKIP, `devtools::document()` if any roxygen changed.
