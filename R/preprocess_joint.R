@@ -8,10 +8,9 @@
 # process-state container and ONE shared event schedule spanning the UNION of the
 # processes' objects and events.
 #
-# It is deliberately ADDITIVE: it runs no event loop and touches none of the
-# recipe loops (`run_sender_recipe_loop` / `run_dyad_recipe_loop`) nor
-# `preprocess_flavored`, so the frozen single-process/flavored baselines are
-# provably unaffected. The merged loop that consumes this substrate, its per-fid
+# It is deliberately ADDITIVE: it runs no event loop, it only assembles the
+# substrate the merged walk steps through. The merged loop that consumes this
+# substrate, its per-fid
 # routing, and the walk handle are built on top of it.
 #
 # Two ideas structure the substrate:
@@ -650,10 +649,9 @@ build_merged_blocks <- function(
 # schedule, hosting every statistic block over the one shared state and emitting
 # one preprocessed object per fid.
 #
-# It is the multi-process generalization of the two flavored family walks
-# (`run_sender_recipe_loop` / `run_dyad_recipe_loop`), merged onto one clock.
-# The oracle stays the byte-identical reference: this driver reuses the oracle's
-# per-unit setup (`prepare_recipe_context()`), consumer machinery
+# It is the single batch preprocessing loop for every non-grouped
+# specification, hosting each per-family kernel over one shared clock. It reuses
+# the per-unit setup (`prepare_recipe_context()`), consumer machinery
 # (`init_consumers` / `consumer_accumulate_*` / `finalize_consumers`) and folds,
 # and reimplements ONLY the loop body and its routing.
 #

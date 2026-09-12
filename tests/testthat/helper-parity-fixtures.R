@@ -38,8 +38,8 @@ parity_prep_by <- function(out, family, flavor = NULL) {
 }
 
 # The recipe loops' own output, frozen. `preprocess.goldfishKind()` routes
-# `compute_statistics()` through the merged walk, so a parity assertion that once
-# compared the merged walk against `compute_statistics()` would now compare the
+# `compute_statistics()` through the merged walk, so a parity assertion that
+# once compared the merged walk against `compute_statistics()` would now compare
 # merged walk against itself. These goldens were captured from the two recipe
 # loops while they were still reachable and stored under `_fixtures/parity/`, so
 # each assertion keeps one side anchored to what the loops produced rather than

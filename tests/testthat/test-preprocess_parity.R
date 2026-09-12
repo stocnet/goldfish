@@ -632,7 +632,7 @@ test_that("a windowed REM rate preprocesses identically", {
   expect_equal(merged_prep, frozen)
 })
 
-test_that("a REM rate without an explicit intercept carries one on both entries", {
+test_that("a REM rate without `1` carries an intercept on both entries", {
   # The intercept-default detector. An exact-time rate model force-adds the time
   # intercept, and the legacy estimation entry (`compute_statistics()`) did that
   # while `preprocess_joint()` kept the formula as written, so the flag differed
@@ -703,7 +703,7 @@ test_that("a tied expiry follows the dependent event, as in the recipe", {
   merged <- build_merged_blocks(single_process_joint(spec))$schedule
 
   # The recipe loop's own schedule, frozen: `compute_statistics()` no longer
-  # reaches `build_event_schedule()`, so the mock that captured it lands nowhere.
+  # reaches `build_event_schedule()`, so the mock that captured it never fires.
   recipe_rows <- parity_frozen("tied_recipe_rows")
   merged_rows <- parity_schedule_rows(merged, merged$layer)
   expect_equal(merged_rows, recipe_rows)

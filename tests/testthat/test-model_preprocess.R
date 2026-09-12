@@ -141,7 +141,13 @@ test_that("preprocessing dispatches once, on the descriptor, not per variant", {
   )
 })
 
-test_that("every variant reaches its recipe with the parameters timing sets", {
+test_that("every standard variant routes to the merged single-clock walk", {
+  # The recipe loops are retired: a standard specification of any model variant
+  # now routes through the merged single-clock walk (the one-unit entry), and
+  # the sender/dyad shape and the timing that once picked between two loops are
+  # decided inside the walk from the same descriptor. This guard is that the
+  # descriptor's input shape still reaches the standard substrate for every
+  # variant; the grouped shape is covered by the DyNAM-i routing test below.
   specs <- list(
     dynam_rate = dynam_rate_spec(nodes = "actors"),
     dynam_rate_ordered = dynam_rate_ordered_spec(nodes = "actors"),
@@ -150,39 +156,27 @@ test_that("every variant reaches its recipe with the parameters timing sets", {
     rem_rate = rem_rate_spec(nodes = "actors"),
     rem_rate_ordered = rem_rate_ordered_spec(nodes = "actors")
   )
-  expected <- list(
-    dynam_rate = list(loop = "sender", timed = TRUE),
-    dynam_rate_ordered = list(loop = "sender", timed = FALSE),
-    dynam_choice = list(loop = "dyad", timed = FALSE),
-    dynam_choice_coord = list(loop = "dyad", timed = FALSE),
-    rem_rate = list(loop = "dyad", timed = TRUE),
-    rem_rate_ordered = list(loop = "dyad", timed = FALSE)
-  )
-  seen <- NULL
   # `preprocess` is an internal generic with no S3method() entry, so its
   # methods resolve only from inside the namespace -- which is where the one
   # caller lives. Dispatching from there is what the package actually does.
   dispatch <- function(...) {
     do.call(preprocess, list(...), envir = asNamespace("goldfish"))
   }
-  recorder <- function(loop) {
-    function(spec, ..., is_exact_time) {
-      seen <<- list(loop = loop, is_exact_time = is_exact_time)
-      "recorded"
-    }
-  }
   local_mocked_bindings(
-    run_sender_recipe_loop = recorder("sender"),
-    run_dyad_recipe_loop = recorder("dyad")
+    preprocess_one_unit = function(...) {
+      rlang::abort("merged", class = "route_merged")
+    },
+    run_dynami_monolith = function(...) {
+      rlang::abort("grouped", class = "route_grouped")
+    }
   )
   for (variant in names(specs)) {
-    seen <- NULL
-    expect_identical(dispatch(specs[[variant]]), "recorded", info = variant)
-    want <- expected[[variant]]
-    expect_identical(seen$loop, want$loop, info = variant)
-    # One parameter, read off `timing`. The pair it replaces could disagree
-    # in principle and never did; now it cannot, because there is one name.
-    expect_identical(seen$is_exact_time, want$timed, info = variant)
+    routed <- tryCatch(
+      dispatch(specs[[variant]], recipe_spec = list(), family = "rate"),
+      route_merged = function(cnd) "merged",
+      route_grouped = function(cnd) "grouped"
+    )
+    expect_identical(routed, "merged", info = variant)
   }
 })
 

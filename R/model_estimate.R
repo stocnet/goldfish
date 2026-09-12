@@ -2515,7 +2515,29 @@ estimate_wrapper <- function(
           envir = work_env
         )
         new_spec_map$impute_policy <- control_prep$impute
-        preprocess_recipe(new_spec_map, control_prep, progress, work_env)
+        # The added-effect walk runs on the merged single-clock substrate too,
+        # so it carries the process structure that substrate reads.
+        # `build_spec_map()` stamps no model spec attribute (only the top-level
+        # compile does), so it is attached here, and the reduced formula is
+        # reassembled from the added terms.
+        attr(new_spec_map, "model_spec") <- model_spec
+        new_recipe_spec <- recipe_process_spec(
+          new_spec_map,
+          stats::reformulate(
+            vapply(new_rhs_names, deparse_rhs_term, character(1)),
+            response = dep_name
+          ),
+          family,
+          has_intercept
+        )
+        preprocess_recipe(
+          new_spec_map,
+          control_prep,
+          progress,
+          work_env,
+          recipe_spec = new_recipe_spec,
+          family = family
+        )
       }
 
       if (
