@@ -38,7 +38,7 @@ read off the ROUTING ENTRY (carry `role` / `estimate` on it) so
 `merged_covariate_step()` skips consumer accumulation without a per-event plan
 read. Add the field in 2.1's commit.
 
-- [ ] 2.0 Detector first: for each of the four constrained references captured
+- [x] 2.0 Detector first: for each of the four constrained references captured
       in 1.2, a test asserting that `plan$effects` carries the constraint's
       atoms with `role = "constraint"` and that the plan-maintained atom state
       equals the private walk's at every event. It fails today by
@@ -48,14 +48,14 @@ read. Add the field in 2.1's commit.
       `augment_constraints()` writes `role = "constraint"` into `plan$effects`
       rather than into the sub-plan's own table. The private walk stays and
       stays authoritative.
-- [ ] 2.2 Exclude constraint-role effects from `initialStats` and from the
+- [x] 2.2 Exclude constraint-role effects from `initialStats` and from the
       output statistic columns, while their state stays live across the loop.
       This is the requirement's own wording and the point of the role tag.
-- [ ] 2.3 Resolve the kernel mismatch the design's open question names: atoms
+- [x] 2.3 Resolve the kernel mismatch the design's open question names: atoms
       always use the dyad kernel, chosen by the constraint rather than by the
       estimated sub-model, while a sender-indexed model's plan is sender-shaped.
       Record what you find before changing anything.
-- [ ] 2.4 Confirm 2.0's equivalence test is green for each of the four
+- [x] 2.4 Confirm 2.0's equivalence test is green for each of the four
       families in task 1.2, and that an unconstrained model's output columns and
       `initial_stats` are byte-identical to 1.1's capture. This equivalence is
       the whole reason the walk is kept for one more step.
@@ -64,12 +64,12 @@ read. Add the field in 2.1's commit.
 
 ## 3. The mask reads the plan's atoms, and the private walk goes
 
-- [ ] 3.0 Detector first: a constrained model is walked ONCE, asserted by
+- [x] 3.0 Detector first: a constrained model is walked ONCE, asserted by
       counting walks (a counter on the shared schedule loop and on
       `build_atom_maintainer()`'s loop), with the mask stream byte-identical to
       1.2's capture in the same test. It fails today at two walks; 3.5 later
       reads the same test rather than a timing.
-- [ ] 3.1 Point the mask maintainer at the plan's atom state. The mask stays a
+- [x] 3.1 Point the mask maintainer at the plan's atom state. The mask stays a
       stream; only where it reads its atoms changes.
 - [ ] 3.2 Verify byte-identity against every reference captured in task 1.2,
       then retire `build_atom_maintainer()`'s state container, schedule and
@@ -79,7 +79,7 @@ read. Add the field in 2.1's commit.
       shared schedule with no constraint-specific branch — wiring that exists
       today and is unused. Assert a windowed constraint needs no realization
       step of its own.
-- [ ] 3.4 Confirm the task 1.3 DAG detector still passes, now that atoms and
+- [x] 3.4 Confirm the task 1.3 DAG detector still passes, now that atoms and
       main effects share one table.
 - [ ] 3.5 Verification: `NOT_CRAN=true`, baselines PASS not SKIP; a constrained
       model is walked once, asserted by counting the walks rather than inferred
@@ -87,15 +87,15 @@ read. Add the field in 2.1's commit.
 
 ## 4. Close
 
-- [ ] 4.1 Confirm `support-constraint`'s "Constraint atoms are non-estimated
+- [x] 4.1 Confirm `support-constraint`'s "Constraint atoms are non-estimated
       operands" requirement is met as written, including that `role =
       "constraint"` in `plan$effects` is now read and not merely written.
 - [ ] 4.2 ADR on where the two-layer DAG check lives once atoms are plan
       effects. Claim the id in the vault ledger before drafting.
 - [ ] 4.3 Report what this bought, honestly: the walk count, and the time, which
       is expected to be small. If it is smaller than 0.13 s, say so.
-- [ ] 4.4 `NEWS.d/` fragment under Internal.
-- [ ] 4.5 `bash .plan/opsx-spec-placement-check.sh constraint-atoms-as-operands`
+- [x] 4.4 `NEWS.d/` fragment under Internal.
+- [x] 4.5 `bash .plan/opsx-spec-placement-check.sh constraint-atoms-as-operands`
       and `openspec validate constraint-atoms-as-operands --strict` clean.
 - [ ] 4.6 Final verification: full `NOT_CRAN=true` suite green, baselines PASS
       not SKIP, `devtools::document()` if any roxygen changed.
