@@ -1676,7 +1676,9 @@ preprocess_recipe <- function(
   work_env,
   writer = writer_default(),
   new_writer = writer_default,
-  flavor_plan = NULL
+  flavor_plan = NULL,
+  recipe_spec = NULL,
+  family = NULL
 ) {
   # A multi-flavor walk drives K consumers instead of the single writer. The
   # consumer specs can only be assembled here, after the spec_map has compiled
@@ -1692,6 +1694,10 @@ preprocess_recipe <- function(
       new_writer = new_writer
     )
   }
+  # `recipe_spec` carries the single-process structure the merged walk reads,
+  # reassembled from the compiled map. It is threaded on through `preprocess()`
+  # so the dispatch method (the one dispatch point) routes a single-process spec
+  # to the merged walk; the flavored consumer path keeps its recipe route.
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
   # events (from spec$fetch_plan) inside state creation,
   # so no pre-fetched events list is threaded here.
@@ -1703,7 +1709,62 @@ preprocess_recipe <- function(
     progress = progress,
     prep_envir = work_env,
     writer = writer,
-    consumer_specs = consumer_specs
+    consumer_specs = consumer_specs,
+    recipe_spec = recipe_spec,
+    family = family,
+    control_prep = control_prep,
+    new_writer = new_writer
+  )
+}
+
+# Reassemble the degenerate single-process `goldfishSpec` the merged
+# single-clock walk reads, from a compiled recipe `spec_map` and the formula it
+# was compiled from. The recipe estimation surface compiles a spec_map straight
+# from a formula, so the process structure the joint substrate needs -- the
+# focal layer, the sub-model family bundle, the parsed support constraint, and
+# the intercept flag the recipe compile already settled -- has no goldfishSpec
+# to ride on and is rebuilt here. `has_intercept` is read off the compiled
+# model spec, which the recipe compile has already raised for an exact-time
+# rate model, so the merged walk inherits the same likelihood shape the
+# estimation entry chose.
+recipe_process_spec <- function(
+  spec_map,
+  formula,
+  family,
+  has_intercept,
+  constraint_plan = NULL
+) {
+  one_sided <- if (length(formula) == 3L) {
+    stats::as.formula(
+      call("~", formula[[3L]]),
+      env = environment(formula)
+    )
+  } else {
+    formula
+  }
+  bundle <- list(
+    formula = formula,
+    input_formula = one_sided,
+    sub_model = spec_map$sub_model,
+    has_intercept = has_intercept,
+    parsed = spec_map$parsed_terms
+  )
+  modeled_flavor <- if (length(spec_map$modeled_flavor) > 0) {
+    spec_map$modeled_flavor
+  } else {
+    character(0)
+  }
+  structure(
+    list(
+      data = spec_map$data,
+      focal = spec_map$focal,
+      model = spec_map$model,
+      modeled_flavor = modeled_flavor,
+      submodels = stats::setNames(list(bundle), family),
+      constraint = constraint_plan,
+      processes = NULL
+    ),
+    class = "goldfishSpec"
   )
 }
 
@@ -2372,6 +2433,7 @@ estimate_wrapper <- function(
   # compile adds it for `rate` and drops it for `rate_ordered`, so by
   # here the formula's own property answers the sub-model's.
   is_exact_time <- has_intercept
+  family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
   legacy_sub_model <- legacy_sub_model_of(model, sub_model)
   # Estimation reports on the node sets as supplied, not on the working copies
   # imputation may have filled in; on the stocnet path nothing shadows `nodes`,
@@ -2619,6 +2681,20 @@ estimate_wrapper <- function(
         writer
       )
     } else {
+      # A single-process spec routes through the merged single-clock walk. The
+      # flavored consumer path keeps its recipe route (its per-family union is
+      # not a single-process structure), so `recipe_spec` stays NULL for it.
+      recipe_spec <- if (is.null(flavor_plan)) {
+        recipe_process_spec(
+          spec_map,
+          formula,
+          family,
+          has_intercept,
+          constraint_plan
+        )
+      } else {
+        NULL
+      }
       prep <- preprocess_recipe(
         spec_map,
         control_prep,
@@ -2626,7 +2702,9 @@ estimate_wrapper <- function(
         work_env,
         writer = writer,
         new_writer = new_writer,
-        flavor_plan = flavor_plan
+        flavor_plan = flavor_plan,
+        recipe_spec = recipe_spec,
+        family = family
       )
     }
     if (output %in% c("gather", "data.frame", "db")) {

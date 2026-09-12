@@ -632,6 +632,29 @@ test_that("a windowed REM rate preprocesses identically", {
   expect_equal(merged_prep, frozen)
 })
 
+test_that("a REM rate without an explicit intercept carries one on both entries", {
+  # The intercept-default detector. An exact-time rate model force-adds the time
+  # intercept, and the legacy estimation entry (`compute_statistics()`) did that
+  # while `preprocess_joint()` kept the formula as written, so the flag differed
+  # between the two entries whenever the `1` was omitted. Both must now report a
+  # time intercept and preprocess byte-identically, which is what pins the
+  # merged walk to the likelihood shape estimation chose.
+  spec <- parity_rem_spec_no_intercept()
+  merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+  solo <- suppressMessages(suppressWarnings(
+    compute_statistics(spec, "REM", "rate")
+  ))
+
+  merged_prep <- parity_prep_by(merged, "rate")
+  expect_true(merged_prep$has_intercept)
+  expect_true(merged_prep$is_exact_time)
+  expect_true(solo$has_intercept)
+  expect_equal(
+    parity_strip_deco(merged_prep),
+    parity_strip_deco(solo)
+  )
+})
+
 test_that("a windowed term and a bound compose", {
   # The two lifts of this group meet here: the expiry rows are ordinary
   # covariate rows, so they have to obey the observation window like any other.

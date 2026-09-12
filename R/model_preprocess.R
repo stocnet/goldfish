@@ -23,9 +23,63 @@ preprocess <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.goldfishKind <- function(spec, ...) {
+preprocess.goldfishKind <- function(
+  spec,
+  ...,
+  recipe_spec = NULL,
+  family = NULL,
+  control_prep = NULL,
+  new_writer = writer_default
+) {
   if (identical(behavior_input_shape(spec), "grouped")) {
     return(run_dynami_monolith(spec, ...))
+  }
+  # Standard specifications run through the merged single-clock walk, the
+  # substrate the frozen baselines have always exercised and the one
+  # `simulate()` drives. The recipe estimation surface compiles a spec_map from
+  # a formula rather than a goldfishSpec, so `recipe_spec` carries the
+  # single-process structure the walk reads (focal, family, constraint,
+  # intercept) reassembled from that compiled map. A single-process call unwraps
+  # the one fid the walk emits; the flavored consumer path (`consumer_specs`)
+  # keeps its recipe route until it is replaced by a direct joint walk.
+  if (!is.null(recipe_spec)) {
+    dots <- list(...)
+    out <- preprocess_one_unit(
+      recipe_spec,
+      family,
+      spec,
+      control_preprocessing = control_prep %||% set_preprocessing(),
+      progress = isTRUE(dots$progress),
+      writer = dots$writer %||% writer_default(),
+      new_writer = new_writer,
+      # Defer the support-constraint validation to estimation, as the recipe
+      # loops do: a single-process spec preprocessed on its own must not be
+      # rejected for a constraint only an estimation reads.
+      validate_support = FALSE
+    )
+    map <- attr(out, "process_map")
+    prep <- out[[as.character(map$fid[map$family == family])]]
+    # The merged walk stamps each output with the estimation-re-entry metadata
+    # (formula, model, sub-model, node sides, node lookup, model spec) and the
+    # support-validation flag. The recipe loop returned none of these: the
+    # estimation wrapper adds the re-entry metadata after preprocessing, and the
+    # gather/data.frame/db paths rebuild their stack from the raw statistics. So
+    # strip them here, handing back the same raw object the recipe loop did, and
+    # let the wrapper decorate uniformly for either substrate.
+    deco <- c(
+      "formula",
+      "model",
+      "sub_model",
+      "nodes",
+      "nodes2",
+      "node_lookup",
+      "model_spec",
+      "support_validated"
+    )
+    for (field in deco) {
+      prep[[field]] <- NULL
+    }
+    return(prep)
   }
   recipe <- if (identical(risk_set_axis(spec), "sender")) {
     run_sender_recipe_loop

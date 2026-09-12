@@ -234,6 +234,19 @@ parity_rem_spec_windowed <- function(data = parity_toy_data()) {
   )
 }
 
+# The same windowed REM rate with the explicit `1` removed: an exact-time rate
+# model carries the baseline-hazard time intercept even when the formula omits
+# it. The legacy estimation entry force-adds it; the merged walk raises the same
+# flag where the process map is assembled, so the two entries agree.
+parity_rem_spec_no_intercept <- function(data = parity_toy_data()) {
+  make_specification(
+    rate = ~ inertia(calls, window = 2),
+    layer = "calls",
+    model = "REM",
+    data = data
+  )
+}
+
 # The windowed mixed term with its networks given as a list, which the parser
 # records as one derivation per member.
 parity_toy_spec_window_list <- function(data = parity_toy_data()) {

@@ -436,6 +436,28 @@ build_joint_schedule <- function(units, shared_objects) {
     }
   }
 
+  # A degenerate layer contributes no stream (every event dropped, e.g. all its
+  # times are `NA`): the walk then steps nothing and its engines finalize an
+  # empty timeline (`total_time = 0`), which is what the generative degenerate-
+  # layer guard reads back. An empty `order()` argument would abort first.
+  if (length(parts) == 0L) {
+    return(list(
+      time = numeric(0),
+      shape = character(0),
+      target = integer(0),
+      semantics = character(0),
+      sender = integer(0),
+      receiver = integer(0),
+      node = integer(0),
+      value = list(),
+      layer = character(0),
+      flavor = character(0),
+      dependent = logical(0),
+      stream_index = integer(0),
+      n = 0L
+    ))
+  }
+
   combine <- function(field) {
     unlist(lapply(parts, `[[`, field), use.names = FALSE)
   }
@@ -565,6 +587,18 @@ build_merged_blocks <- function(
     shared_src
   )
   schedule <- build_joint_schedule(units, shared_objects)
+  # The same pre-walk guards `prepare_recipe_context()` runs when it builds its
+  # own state and schedule: a global attribute with a missing initial value or a
+  # missing replace event has nothing to summarize from, and a node whose mode
+  # category has no other member cannot have a missing value imputed. The merged
+  # walk builds the state and schedule here (the per-unit context skips both,
+  # `build_state = FALSE`), so the guards belong here rather than being lost.
+  assert_imputable_schedule(
+    schedule,
+    shared_objects$registry,
+    attr(state, "strata")
+  )
+  assert_globals_defined(state, shared_objects$registry, schedule)
   block_unions <- plan_block_unions(joint_spec)
 
   block_keys <- unique(vapply(units, `[[`, character(1), "stat_block"))
@@ -1512,7 +1546,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
 }
 
 # Phase two: fold each consumer's realized mask in, render, and decorate.
-render_walk_engine <- function(pending, masks) {
+render_walk_engine <- function(pending, masks, weight_risk_set) {
   engine <- pending$engine
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -1521,7 +1555,7 @@ render_walk_engine <- function(pending, masks) {
     masks,
     pending$finish_output,
     pending$scalar_entity,
-    weight_risk_set = !pending$single,
+    weight_risk_set = weight_risk_set,
     names = if (pending$single) NULL else names(engine$consumers)
   )
 
@@ -1647,7 +1681,8 @@ run_merged_walk <- function(
   progress = FALSE,
   verbose = FALSE,
   writer = writer_default(),
-  new_writer = writer_default
+  new_writer = writer_default,
+  validate_support = TRUE
 ) {
   schedule <- merged$schedule
   state <- merged$state
@@ -1689,6 +1724,10 @@ run_merged_walk <- function(
   final_step <- FALSE
   for (engine in engines) {
     engine$last_time <- start_time
+  }
+
+  if (progress) {
+    cat("Preprocessing events.\n", start_time, end_time, schedule$n)
   }
 
   for (k in seq_len(schedule$n)) {
@@ -1961,9 +2000,26 @@ run_merged_walk <- function(
   )
   masks <- realize_pending_masks(pending)
 
+  # The intercept scalar is the time-weighted average risk-set size only when
+  # the walk has more than one dependent (layer, flavor) stream: competing
+  # processes break a fid's intervals at events it does not own, so the sizes
+  # must be weighted by how long each was in force. A single-process walk -- one
+  # dependent stream, whatever its sub-model families -- has even intervals per
+  # event, so it averages per stored event exactly as the single-process recipe
+  # loop does. Keyed on the dependent streams rather than on the per-engine
+  # consumer machinery, which carries a spec even for one output.
+  weight_risk_set <- nrow(unique(
+    merged$process_map[, c("layer", "flavor")]
+  )) >
+    1L
+
   outputs <- list()
   for (i in seq_along(pending)) {
-    engine_outputs <- render_walk_engine(pending[[i]], masks[[i]])
+    engine_outputs <- render_walk_engine(
+      pending[[i]],
+      masks[[i]],
+      weight_risk_set
+    )
     outputs[names(engine_outputs)] <- engine_outputs
   }
 
@@ -1971,15 +2027,22 @@ run_merged_walk <- function(
   # user constraint and leaves an empty risk set -- naming the process the empty
   # set belongs to via the label rendered from the map. The check is stamped so
   # estimation does not re-run it, exactly as the flavored driver does.
+  # `validate_support = FALSE` defers it, as the recipe estimation surface does:
+  # the recipe loops validate at estimation, not at preprocessing, so a
+  # single-process spec preprocessed on its own (`compute_statistics()`) is not
+  # rejected for a constraint an estimation would reject. The stamp is withheld
+  # too, so estimation re-runs the check on the deferred path.
   process_map <- merged$process_map
-  for (i in seq_len(nrow(process_map))) {
-    key <- as.character(process_map$fid[i])
-    validate_prep_support(
-      outputs[[key]],
-      is_rate_family = identical(process_map$family[i], "rate"),
-      process_label = render_process_label(process_map, process_map$fid[i])
-    )
-    outputs[[key]]$support_validated <- TRUE
+  if (validate_support) {
+    for (i in seq_len(nrow(process_map))) {
+      key <- as.character(process_map$fid[i])
+      validate_prep_support(
+        outputs[[key]],
+        is_rate_family = identical(process_map$family[i], "rate"),
+        process_label = render_process_label(process_map, process_map$fid[i])
+      )
+      outputs[[key]]$support_validated <- TRUE
+    }
   }
 
   # Return fid-keyed in canonical fid order, with the process_map attached, so
@@ -2049,7 +2112,8 @@ preprocess_one_unit <- function(
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
   writer = writer_default(),
-  new_writer = writer_default
+  new_writer = writer_default,
+  validate_support = TRUE
 ) {
   joint_spec <- single_process_joint(spec)
   unit <- assemble_process_unit(spec, family, joint_spec, spec_map)
@@ -2065,6 +2129,7 @@ preprocess_one_unit <- function(
     progress,
     verbose,
     writer = writer,
-    new_writer = new_writer
+    new_writer = new_writer,
+    validate_support = validate_support
   )
 }
