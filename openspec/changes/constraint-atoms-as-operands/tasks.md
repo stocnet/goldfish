@@ -90,7 +90,7 @@ read. Add the field in 2.1's commit.
 - [x] 4.1 Confirm `support-constraint`'s "Constraint atoms are non-estimated
       operands" requirement is met as written, including that `role =
       "constraint"` in `plan$effects` is now read and not merely written.
-- [ ] 4.2 ADR on where the two-layer DAG check lives once atoms are plan
+- [x] 4.2 ADR on where the two-layer DAG check lives once atoms are plan — ADR-0068 (coordinator, 2026-09-12): the two-layer DAG check STAYS in the parser (reject_availability_atoms), rejected: validate on the merged plan.
       effects. Claim the id in the vault ledger before drafting.
 - [x] 4.3 Report what this bought, honestly: the walk count, and the time, which
       is expected to be small. If it is smaller than 0.13 s, say so.
