@@ -10,19 +10,19 @@ baseline model carries a constraint, so `test-preprocess_parity.R`,
 
 ## 1. Pin what must not move (design D3)
 
-- [ ] 1.1 Assert an unconstrained model's `plan$effects` is identical before and
+- [x] 1.1 Assert an unconstrained model's `plan$effects` is identical before and
       after this change. Atoms enter the plan only when a constraint is present,
       which is a reasonable expectation and exactly the kind of expectation the
       predecessor found to be false about plan construction.
-- [ ] 1.2 Capture the constrained reference: `active_sender` / `active_dyad` and
+- [x] 1.2 Capture the constrained reference: `active_sender` / `active_dyad` and
       the mask stream for a rate model, a choice model, a REM model and a
       coordination model, each with a constraint. These are the byte-identity
       targets for every later task.
-- [ ] 1.3 Detector for the two-layer DAG (design D2): an atom whose inputs read
+- [x] 1.3 Detector for the two-layer DAG (design D2): an atom whose inputs read
       the availability mask is rejected at parse time, with its current message.
       It passes today; it must still pass when atoms are ordinary plan effects,
       and that is the one invariant this move could quietly lose.
-- [ ] 1.4 Verification: `NOT_CRAN=true` green, baselines PASS not SKIP.
+- [x] 1.4 Verification: `NOT_CRAN=true` green, baselines PASS not SKIP.
 
 ## 2. Atoms enter the plan, beside the private walk (design D4)
 
