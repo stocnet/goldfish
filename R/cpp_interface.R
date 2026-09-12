@@ -1336,10 +1336,10 @@ gather_ <- function(
 # Apply the slice of presence (composition-change) updates for one event.
 # `upd` row 1 is the 1-indexed node, row 2 the replacement value.
 .gather_apply_presence <- function(presence, upd, from, to) {
-  if (to <= from) {
+  cols <- .availability_event_cols(from, to)
+  if (is.null(cols)) {
     return(presence)
   }
-  cols <- (from + 1L):to
   presence[upd[1, cols]] <- upd[2, cols]
   presence
 }
@@ -1348,10 +1348,10 @@ gather_ <- function(
 # n1 x n2 availability matrix. `upd` rows are (node1, node2, replace), all
 # 1-indexed on the node axes; later writes to the same cell win.
 .gather_apply_presence_point <- function(active_dyad, upd, from, to) {
-  if (to <= from) {
+  cols <- .availability_event_cols(from, to)
+  if (is.null(cols)) {
     return(active_dyad)
   }
-  cols <- (from + 1L):to
   active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
   active_dyad
 }
