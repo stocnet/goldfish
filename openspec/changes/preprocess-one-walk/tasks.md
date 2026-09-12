@@ -914,7 +914,7 @@ and the whole suite moves with them. Task 3.3 does not start on a green number
 alone.
 
 
-- [ ] 3.0a Decide the REM intercept default at the flip (found 2026-09-12 by
+- [x] 3.0a Decide the REM intercept default at the flip (found 2026-09-12 by
       the unit 1b conformance check, pre-existing and window-independent).
       `compute_statistics(spec, "REM", "rate")` on `rate = ~ inertia` reports
       `has_intercept` / `is_exact_time` TRUE with the timed scalars, because
@@ -941,7 +941,7 @@ alone.
       catch numeric drift in estimates, not a statistics object that changed
       shape. This golden set is also what makes a later resurrection checkable,
       since recovered loop code reads the contracts of its own era.
-- [ ] 3.1 `preprocess.goldfishKind()` routes every `input_shape = "standard"`
+- [x] 3.1 `preprocess.goldfishKind()` routes every `input_shape = "standard"`
       spec to the merged walk through the one-unit entry (design D1): a
       single-process call unwraps fid 1; a flavored plan returns the fid-keyed
       list with `process_map`. `preprocess_recipe()` passes the compiled
