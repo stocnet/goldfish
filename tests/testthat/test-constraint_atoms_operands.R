@@ -47,6 +47,36 @@ test_that("constrained mask and presence axes match the frozen capture", {
   }
 })
 
+# ---- 2.1 the atoms join the estimated plan's effect registry ---------------
+
+test_that("a constrained model's plan effects carry the atoms as operands", {
+  fx <- constraint_atoms_social_data()
+  spec <- suppressWarnings(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    model = "DyNAM",
+    layer = "dep",
+    support_constraint = ~ tie(call_network),
+    data = fx$data
+  ))
+  for (family in c("rate", "choice")) {
+    plan <- parity_plan(spec, family)
+    atoms <- plan$effects[plan$effects$role == "constraint", , drop = FALSE]
+    # The atoms are the sub-plan's atoms, tagged non-estimated, held at the dyad
+    # kernel whatever the estimated model's is, and placed above the estimated
+    # columns so no estimated indexing reaches them.
+    expect_equal(
+      atoms$effect_name,
+      plan$support_constraint$effects$effect_name,
+      info = family
+    )
+    expect_false(any(atoms$estimate), info = family)
+    expect_equal(unique(atoms$stat_kind), "dyad", info = family)
+    estimated <- plan$effects[plan$effects$role != "constraint", , drop = FALSE]
+    expect_true(all(estimated$gid < min(atoms$gid)), info = family)
+  }
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {

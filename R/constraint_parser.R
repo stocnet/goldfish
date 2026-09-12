@@ -345,6 +345,42 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
   )
 }
 
+#' Append a constraint's atoms to the main plan's effect registry
+#'
+#' Constraint atoms are effects that no one estimates: the same idea as an
+#' interaction operand, which is why `plan$effects` already carries a `role`
+#' column that says so. Recording them beside the main and operand effects puts
+#' the whole data flow — atoms feeding the mask — in one table, where the
+#' two-layer DAG (atoms never read the mask) is a property of a single plan
+#' rather than of two separately parsed ones.
+#'
+#' Only the effect ROWS are appended (the metadata a reader inspects), tagged
+#' `role = "constraint"`; the atoms are seeded, maintained and evaluated through
+#' the compiled sub-plans carried on `plan$support_constraint(s)`, whose kernel is
+#' dyad whatever the estimated model's is. The appended rows therefore take gids
+#' above the estimated columns and are never counted in `nEffects`, seeded into
+#' `initialStats`, routed by the covariate step, or read as estimated columns:
+#' the estimated statistics — and the frozen baselines — stay bit-identical, and
+#' an unconstrained model appends nothing at all.
+#'
+#' @param plan the estimated plan, after `augment_interactions()`.
+#' @param compiled the compiled constraint sub-plans (one per `(layer, flavor)`).
+#' @return `plan` with the atoms' effect rows appended to `plan$effects`.
+#' @noRd
+plan_with_constraint_atoms <- function(plan, compiled) {
+  atom_rows <- do.call(rbind, lapply(compiled, function(sub) sub$effects))
+  if (is.null(atom_rows) || nrow(atom_rows) == 0L) {
+    return(plan)
+  }
+  # Gids above the estimated columns so no estimated indexing (nEffects,
+  # initialStats, routing, broadcast_kind[gid]) ever reaches an atom row.
+  next_gid <- max(plan$effects$gid) + seq_len(nrow(atom_rows))
+  atom_rows$gid <- next_gid
+  atom_rows$lid <- next_gid
+  plan$effects <- rbind(plan$effects, atom_rows)
+  plan
+}
+
 #' Accept dyadic atoms in a sender-indexed-only specification via the
 #' row-reduction, informing about the reduction
 #'

@@ -474,6 +474,11 @@ build_spec_map <- function(
       envir = envir,
       data = data
     )
+    # The atoms join the estimated plan's effect registry as
+    # `role = "constraint"` rows above the estimated columns, so the whole data
+    # flow lives in one table; their kernel and maintenance stay on the compiled
+    # sub-plans carried above.
+    plan <- plan_with_constraint_atoms(plan, compiled)
   }
   effects_template <- build_effects_template(
     effects,
