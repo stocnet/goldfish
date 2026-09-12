@@ -948,7 +948,7 @@ alone.
       `spec_map` and consumer specs through unchanged. The grouped branch is
       untouched. Full `NOT_CRAN=true` suite: baselines PASS. This is the
       bisectable commit.
-- [ ] 3.2 `preprocess_flavored()` drops its per-family loop and calls the
+- [x] 3.2 `preprocess_flavored()` drops its per-family loop and calls the
       merged walk once for all families; its union planning, consumer specs,
       `validate_prep_support()` stamping and `process_map` contract stay.
       Tests: the flavored fixtures and the `estimate_flavored()` container
