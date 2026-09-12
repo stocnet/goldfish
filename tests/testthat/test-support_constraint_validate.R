@@ -107,6 +107,63 @@ test_that("rate: a non-observed gated-out sender passes silently (warns, no erro
   )
 })
 
+# The choice branch's four verdicts are all defined over "allowed AND present
+# receivers", so freezing the receiver presence at time zero is wrong in both
+# directions: a receiver that joins mid-sequence and is never allowed goes
+# unnamed by the never-a-candidate warning, and a dependent event whose receiver
+# joined after time zero is wrongly reported as an excluded observed dyad.
+call_validate_choice_moving <- function(
+  support,
+  active_1,
+  active_2,
+  update,
+  pointer
+) {
+  a <- make_validate_inputs(support)
+  validate_support_constraint(
+    a$support_mask,
+    a$event_sender,
+    a$event_receiver,
+    a$is_dependent,
+    active_1,
+    active_2,
+    family = "choice",
+    active_2_update = update,
+    active_2_update_pointer = pointer
+  )
+}
+
+test_that("choice: a late-arriving never-allowed receiver is named live, not frozen", {
+  s <- matrix(FALSE, 4L, 4L)
+  s[1, c(2L, 3L)] <- TRUE
+  s[2, c(1L, 3L)] <- TRUE
+  a1 <- c(TRUE, TRUE, FALSE, FALSE) # only senders 1, 2 present (and observed)
+  a2 <- c(TRUE, TRUE, TRUE, FALSE) # receiver 4 absent at time zero
+  # Frozen: receiver 4 is never counted present, so it is not named.
+  expect_no_warning(call_validate_choice_moving(list(s, s), a1, a2, NULL, NULL))
+  # Live: receiver 4 joins before event 2 and, never an allowed candidate,
+  # is named.
+  expect_warning(
+    call_validate_choice_moving(list(s, s), a1, a2, rbind(4, 1), c(0L, 1L)),
+    "never an allowed candidate"
+  )
+})
+
+test_that("choice: an observed receiver that joined after time zero does not falsely abort", {
+  # Everything is allowed; the only reason to abort would be the observed
+  # receiver reading absent. Receiver 3 (event 2's observed receiver) is absent
+  # at time zero and joins before event 2.
+  a2 <- c(TRUE, TRUE, FALSE, TRUE)
+  # Frozen presence would report the observed dyad as excluded; live must not.
+  expect_no_error(suppressWarnings(call_validate_choice_moving(
+    list(all_true(), all_true()),
+    rep(TRUE, 4L),
+    a2,
+    rbind(3, 1),
+    c(0L, 1L)
+  )))
+})
+
 # The rate gate reduces the mask over the receivers PRESENT at the event, and
 # the receiver composition moves, so the check has to move with it. Both
 # directions are wrong when the receiver presence is frozen at time zero: a

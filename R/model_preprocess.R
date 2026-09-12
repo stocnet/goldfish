@@ -1380,7 +1380,15 @@ fold_active_dyad_support <- function(
     out$active_dyad_update,
     out$active_dyad_update_pointer
   )
+  # The fold below overwrites `active_dyad_update` with the folded availability,
+  # so the raw receiver crossings are gone by the time the fail-fast validation
+  # runs on a choice object. Stash them beside the init the validation already
+  # reads, so it can walk the receiver presence per event rather than freezing
+  # it at time zero.
   out$support_mask$receiver_presence_init <- out$active_dyad_init
+  out$support_mask$receiver_presence_update <- out$active_dyad_update
+  out$support_mask$receiver_presence_update_pointer <-
+    out$active_dyad_update_pointer
 
   if (identical(encoding, "alter")) {
     # An alter/scalar mask is column-broadcast, so its stored value IS the alter

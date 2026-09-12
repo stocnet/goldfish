@@ -1092,10 +1092,13 @@ validate_support_constraint <- function(
 
   if (family == "choice") {
     ever_candidate <- logical(n2)
+    ever_present <- logical(n2)
     ever_at_risk_sender <- logical(n1)
-    # The gate reads the receiver presence at the event, the way the rate branch
-    # does; a NULL update stream leaves it frozen at time zero, which the
-    # choice caller still passes until the raw crossings are stashed.
+    # All four verdicts below are defined over "allowed AND present receivers",
+    # so the receiver presence is read at the event, the way the rate branch
+    # does. Freezing it at time zero is wrong in both directions: an observed
+    # receiver that joined late reads as an excluded dyad, and a receiver that
+    # joins mid-sequence and is never allowed goes unnamed.
     receivers_at <- presence_cursor(
       active_2,
       active_2_update,
@@ -1104,9 +1107,10 @@ validate_support_constraint <- function(
     for (e in dep) {
       mask_e <- mask_at(e)
       present <- receivers_at(e)
+      ever_present <- ever_present | present
       allowed <- which(
         support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
-          active_2
+          present
       )
       ever_candidate[allowed] <- TRUE
       # Sender-side counterpart of the never-a-candidate warning: which senders
@@ -1133,11 +1137,14 @@ validate_support_constraint <- function(
         forced <- c(forced, e)
       }
     }
-    never <- which(active_2 & !ever_candidate)
+    # "Present" here means present at some event across the sequence, not at
+    # time zero: a receiver that joins mid-sequence and is never allowed is
+    # named, and one absent throughout is not (it is not part of any risk set).
+    never <- which(ever_present & !ever_candidate)
     if (length(never) > 0) {
       cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} present receiver{?s}
-               never an allowed candidate.",
+        "!" = "{.arg support_constraint}: {length(never)} receiver{?s} present
+               at some event, never an allowed candidate.",
         "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
       ))
     }
@@ -1236,14 +1243,19 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
     },
     family = if (is_rate_family) "rate" else "choice",
     process_label = process_label,
-    # The rate fold leaves the raw receiver crossings in place, so the gate can
-    # be checked against the composition as it moves. The dyad fold rewrites
-    # that buffer into the folded availability, which is not the same timeline.
-    active_2_update = if (is_rate_family) prep$active_dyad_update else NULL,
+    # Both branches read the receiver presence as the composition moves. The
+    # rate fold leaves the raw receiver crossings in `active_dyad_update`; the
+    # dyad fold rewrites that buffer into the folded availability, so the choice
+    # branch reads the raw crossings the fold stashed before overwriting it.
+    active_2_update = if (is_rate_family) {
+      prep$active_dyad_update
+    } else {
+      prep$support_mask$receiver_presence_update
+    },
     active_2_update_pointer = if (is_rate_family) {
       prep$active_dyad_update_pointer
     } else {
-      NULL
+      prep$support_mask$receiver_presence_update_pointer
     }
   )
 }
