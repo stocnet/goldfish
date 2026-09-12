@@ -982,10 +982,17 @@ alone.
       — done 2026-09-12. placement-check OK (3 requirement placements),
       validate reports valid. All three MODIFIED deltas landed (the deletion
       happened), so no trim was needed.
-- [ ] 4.3 Note the consequences on the neighbors in their `progress.md` when
+- [x] 4.3 Note the consequences on the neighbors in their `progress.md` when
       next claimed: `process-simulation` task 2.0c shrinks to the breakpoint
       API; ADR-0045's inspection records this as its first closed finding
       and `compile_spec_map()` as its second.
+      — done 2026-09-12. `process-simulation/progress.md` noted (2.0c shrinks
+      to the breakpoint API; recipe-loop-vs-merged question closed), via a
+      transient `_claims/process-simulation--goldfish-8b.md` created then
+      released. ADR-0045's inspection has no standalone change dir — it is
+      realized inside this change — so its two closed findings (recipe compile
+      paths converged into `compile_spec_map()`; the duplicated recipe loops
+      deleted) are recorded in this change's own `progress.md` instead.
 - [ ] 4.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `devtools::document()`; ready for the trunk merge to
       fold.
