@@ -44,7 +44,7 @@ read. Add the field in 2.1's commit.
       equals the private walk's at every event. It fails today by
       construction (the plan carries no atoms), which is the red 2.1-2.3 turn
       green; 2.4 then only records that it did.
-- [ ] 2.1 `compile_support_constraint()` emits the atoms as plan effects and
+- [x] 2.1 `compile_support_constraint()` emits the atoms as plan effects and
       `augment_constraints()` writes `role = "constraint"` into `plan$effects`
       rather than into the sub-plan's own table. The private walk stays and
       stays authoritative.
