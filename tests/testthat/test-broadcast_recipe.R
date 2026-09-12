@@ -69,3 +69,27 @@ test_that("models with only cell-specific effects emit no broadcasts", {
   )
   expect_equal(ncol(prep$stat_mat_broadcast), 0L)
 })
+
+test_that("broadcast grouping collapses a fan-out to one column per held index", {
+  # A kind-1 (alter) effect emits one row per sender for the single receiver
+  # that moved; the grouping keeps one column at that held index, not one per
+  # sender.
+  updates <- cbind(
+    node1 = c(1L, 2L, 4L),
+    node2 = c(3L, 3L, 3L),
+    replace = c(5, 5, 5)
+  )
+  block <- broadcast_entries_from_updates(updates, 1L, 2L)
+  expect_equal(ncol(block), 1L)
+  expect_equal(as.vector(block), c(1, 2, 1, 5))
+})
+
+test_that("broadcast grouping rejects a non-constant fan-out", {
+  # The constant-value abort is broadcast-encoding business and stays at full
+  # strength: one held index carrying two values is not a pure broadcast.
+  updates <- cbind(node1 = c(1L, 2L), node2 = c(3L, 3L), replace = c(1, 2))
+  expect_error(
+    broadcast_entries_from_updates(updates, 1L, 2L),
+    "non-constant fan-out"
+  )
+})

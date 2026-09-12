@@ -386,6 +386,37 @@ collapse_entries <- function(entries, values) {
   list(entries = entries[keep], values = values[keep])
 }
 
+#' An effect's own delta as one write per entry at its kind
+#'
+#' The shared step every path that stores a value at its own kind performs: an
+#' interaction operand, a constraint atom, and a broadcast column each project
+#' the effect's `(node1, node2, replace)` block into their kind and then keep
+#' one write per entry. Projecting with `from == to` names the entries the block
+#' touches, `linear_entries()` folds a point delta's cells to addresses so the
+#' collapse compares addresses rather than rows, and [collapse_entries()] keeps
+#' the last write of each -- exact, since only the last write of an entry is
+#' observable, and the difference between writing one entry and writing the same
+#' entry n1 times.
+#'
+#' `buffer` is consulted only to fold a point delta by its first dimension; a
+#' delta at any other kind carries a vector of addresses and ignores it, so a
+#' caller with no buffer (a value that never varies on both axes) may pass
+#' `NULL`.
+#'
+#' @param buffer the stored value the delta writes into, or `NULL` when the kind
+#'   is never point.
+#' @param node1,node2 the effect's sender / receiver indices.
+#' @param values the delta's replacement values, aligned with `node1`/`node2`.
+#' @param kind the value's broadcast kind.
+#' @param n1,n2 sender and receiver counts, as [project_entries()] takes them.
+#' @return `list(entries, values)` at linear addresses of a value at `kind`,
+#'   one write per address.
+#' @noRd
+collapse_operand_delta <- function(buffer, node1, node2, values, kind, n1, n2) {
+  delta <- project_entries(node1, node2, values, kind, kind, n1, n2)
+  collapse_entries(linear_entries(buffer, delta$entries), delta$values)
+}
+
 #' Of a set of candidate writes, the ones that actually change the buffer
 #'
 #' The locality primitive: an incremental recompute produces a value for every

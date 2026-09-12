@@ -552,15 +552,27 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
     return(rbind(3, 0, gid - 1, reps[1]))
   }
   fixed_col <- if (kind == 1L) "node2" else "node1"
-  fixed_vals <- unique(updates[, fixed_col])
-  blocks <- lapply(fixed_vals, function(fv) {
-    rep_v <- updates[updates[, fixed_col] == fv, "replace"]
-    if (length(unique(rep_v)) != 1L) {
+  # The constant-value check is broadcast-encoding business and stays separate
+  # from the grouping: validate every held index carries a single value before
+  # collapsing, so the collapse never chooses between conflicting writes.
+  for (fixed_val in unique(updates[, fixed_col])) {
+    same_index <- updates[, fixed_col] == fixed_val
+    if (length(unique(updates[same_index, "replace"])) != 1L) {
       abort_mixed()
     }
-    c(kind, fv - 1, gid - 1, rep_v[1])
-  })
-  do.call(cbind, blocks)
+  }
+  node1 <- if (kind == 2L) updates[, "node1"] else NULL
+  node2 <- if (kind == 1L) updates[, "node2"] else NULL
+  grouped <- collapse_operand_delta(
+    NULL,
+    node1,
+    node2,
+    updates[, "replace"],
+    kind,
+    NA_integer_,
+    NA_integer_
+  )
+  rbind(kind, grouped$entries - 1, gid - 1, grouped$values)
 }
 
 #' Build the per-effect call templates

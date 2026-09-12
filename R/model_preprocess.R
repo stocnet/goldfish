@@ -2056,22 +2056,19 @@ run_dyad_recipe_loop <- function(
             if (n_inter > 0L && gid <= n_fun) {
               feeds <- plan$operand_of[[as.character(gid)]]
               if (!is.null(feeds)) {
-                delta <- project_entries(
+                buffer <- get(as.character(gid), envir = op_state)
+                delta <- collapse_operand_delta(
+                  buffer,
                   updates[, "node1"],
                   updates[, "node2"],
                   updates[, "replace"],
-                  op_kind[gid],
                   op_kind[gid],
                   n1,
                   n2
                 )
                 assign(
                   as.character(gid),
-                  write_entries(
-                    get(as.character(gid), envir = op_state),
-                    delta$entries,
-                    delta$values
-                  ),
+                  write_entries(buffer, delta$entries, delta$values),
                   envir = op_state
                 )
                 exp <- expand_operand_update(updates, op_kind[gid], n1, n2)

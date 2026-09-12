@@ -142,3 +142,41 @@ test_that("the sender-branch operand write duplicates no buffer across a walk", 
   )
   expect_gt(length(deliberate), 0L)
 })
+
+test_that("a dyad-branch operand write addresses each entry once, not n1 times", {
+  # A broadcast operand reports its delta on the grid's terms, so an alter-kind
+  # operand whose one receiver moved arrives one row per sender -- n1 identical
+  # addresses. Writing them all is behaviorally neutral (last write wins), so
+  # the detector counts repeated addresses in the entries handed to the writer
+  # rather than trusting the value.
+  data <- parity_toy_data()
+  spec <- make_specification(
+    choice = ~ ego(a):alter(b) + global(x):inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  seen <- new.env(parent = emptyenv())
+  seen$entries <- list()
+  original <- write_entries
+  local_mocked_bindings(
+    write_entries = function(buffer, entries, values) {
+      seen$entries <- c(seen$entries, list(entries))
+      original(buffer, entries, values)
+    }
+  )
+  suppressMessages(suppressWarnings(
+    compute_statistics(spec, "DyNAM", "choice")
+  ))
+  skip_if(length(seen$entries) == 0L, "no write reached the walk")
+
+  repeated <- vapply(
+    seen$entries,
+    function(e) {
+      linear <- if (is.matrix(e)) e[, 1L] + e[, 2L] else e
+      length(linear) - length(unique(linear))
+    },
+    integer(1)
+  )
+  expect_true(all(repeated == 0L))
+})

@@ -272,19 +272,15 @@ build_atom_maintainer <- function(
         updates <- rbind(updates, eu2$changes)
       }
       if (!is.null(updates)) {
-        delta <- project_entries(
+        buffer <- get(as.character(gid), envir = atom_state)
+        delta <- collapse_operand_delta(
+          buffer,
           updates[, "node1"],
           updates[, "node2"],
           updates[, "replace"],
           atom_kinds[gid],
-          atom_kinds[gid],
           n1,
           n2
-        )
-        buffer <- get(as.character(gid), envir = atom_state)
-        delta <- collapse_entries(
-          linear_entries(buffer, delta$entries),
-          delta$values
         )
         assign(
           as.character(gid),

@@ -935,22 +935,19 @@ merged_covariate_step <- function(
               )
             }
           } else {
-            delta <- project_entries(
+            buffer <- get(as.character(gid), envir = engine$op_state)
+            delta <- collapse_operand_delta(
+              buffer,
               updates[, "node1"],
               updates[, "node2"],
               updates[, "replace"],
-              bcast_kind[gid],
               bcast_kind[gid],
               n1,
               n2
             )
             assign(
               as.character(gid),
-              write_entries(
-                get(as.character(gid), envir = engine$op_state),
-                delta$entries,
-                delta$values
-              ),
+              write_entries(buffer, delta$entries, delta$values),
               envir = engine$op_state
             )
             exp <- expand_operand_update(updates, bcast_kind[gid], n1, n2)
