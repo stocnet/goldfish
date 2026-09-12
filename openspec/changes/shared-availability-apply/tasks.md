@@ -39,15 +39,15 @@ and record the interface delta in `progress.md`.
       `broadcast_updates.h`: advance to event `i`, yield this event's columns.
       The WALK is what is shared; each engine keeps its own write, since that is
       the part that genuinely differs by encoding.
-- [ ] 2.2 Route the six engines through it, one commit per engine, each
+- [x] 2.2 Route the six engines through it, one commit per engine, each
       reporting the goldens. Six commits is not ceremony here: a pointer bug in
       one engine moves that family's likelihood and nothing else, so a bisect
       that lands on one engine is worth the extra commits.
-- [ ] 2.3 Tests: the C++ golden tests are the detector and must be byte-identical
+- [x] 2.3 Tests: the C++ golden tests are the detector and must be byte-identical
       throughout. Add a targeted test only where the inventory in 1.2 found an
       engine whose loop differed from the others, since that is the one the
       shared cursor could silently change.
-- [ ] 2.4 Verification: `NOT_CRAN=true`, baselines and goldens PASS not SKIP,
+- [x] 2.4 Verification: `NOT_CRAN=true`, baselines and goldens PASS not SKIP,
       after a `cpp-recompile`. Record the `RcppExports` delta, which should be
       empty: a header shared between existing engines exports nothing new.
 
