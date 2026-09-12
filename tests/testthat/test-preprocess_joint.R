@@ -97,6 +97,98 @@ test_that("build_merged_blocks compiles one spec_map per process, grouped by blo
   )
 })
 
+# The spec_map the estimation wrapper compiles for a specification, captured at
+# the run stage without walking it: the recipe dispatch is replaced by a capture
+# so the compile runs exactly as estimation runs it.
+wrapper_spec_map <- function(spec, model, family) {
+  captured <- NULL
+  local_mocked_bindings(
+    preprocess = function(spec, ...) {
+      captured <<- spec
+      rlang::abort("captured", class = "goldfish_test_captured")
+    }
+  )
+  try(
+    suppressWarnings(suppressMessages(compute_statistics(spec, model, family))),
+    silent = TRUE
+  )
+  captured
+}
+
+# Every field the merged walk reads off a unit's spec_map, so the two compiles
+# have to agree on all of them. The closures are compared by their code, since
+# each compile creates them in its own working environment; `plan` carries
+# `derivations` and `routing`, so a windowed term's derived object and its
+# routing are covered by comparing the whole plan.
+compile_walk_fields <- c(
+  "model",
+  "sub_model",
+  "is_two_mode",
+  "nodes",
+  "nodes2",
+  "behavior",
+  "has_intercept",
+  "parsed_terms",
+  "plan",
+  "effects_template",
+  "effect_description",
+  "effects",
+  "window_parameters",
+  "events_objects_link",
+  "events_effects_link",
+  "objects_effects_link",
+  "fetch_plan",
+  "data",
+  "focal",
+  "modeled_flavor",
+  "impute_policy"
+)
+
+expect_same_compile <- function(spec, model, family) {
+  from_wrapper <- wrapper_spec_map(spec, model, family)
+  bundle <- spec$submodels[[family]]
+  from_joint <- compile_recipe_spec_map(
+    bundle$formula,
+    model,
+    bundle$sub_model,
+    data = spec$data,
+    impute_policy = set_preprocessing()$impute
+  )
+  expect_s3_class(from_wrapper, "goldfishSpecMap")
+  expect_equal(class(from_joint), class(from_wrapper))
+  expect_equal(
+    from_joint[compile_walk_fields],
+    from_wrapper[compile_walk_fields],
+    ignore_function_env = TRUE
+  )
+  expect_s3_class(attr(from_wrapper, "model_spec"), "goldfishKind")
+  expect_equal(
+    attr(from_joint, "model_spec"),
+    attr(from_wrapper, "model_spec")
+  )
+}
+
+test_that("the wrapper and the joint path compile one and the same spec_map", {
+  # The merged walk reads a unit's spec_map where the recipe loops read the
+  # wrapper's, and decorates each fid's output from the `model_spec` attribute
+  # the compile stamps on it. Two compiles of the same specification have to
+  # agree on every field the walk reads, the attribute included.
+  for (family in c("rate", "choice")) {
+    expect_same_compile(parity_toy_spec(), "DyNAM", family)
+  }
+})
+
+test_that("the wrapper and the joint path compile a windowed spec alike", {
+  # A windowed term registers a derived object in `plan$derivations` and rewires
+  # the effect's reference to it; if the two compiles resolved the window
+  # differently the merged walk would read a different derived object than the
+  # recipe loops. The windowed family here is choice; rate is the no-window
+  # control on the same specification.
+  for (family in c("rate", "choice")) {
+    expect_same_compile(parity_toy_spec_windowed(), "DyNAM", family)
+  }
+})
+
 test_that("rate and choice blocks carry the sender (2D) and dyad (3D) shapes", {
   mb <- build_merged_blocks(joint_two_process())
 

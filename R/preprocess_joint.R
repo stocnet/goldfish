@@ -35,13 +35,13 @@
 # --------------------------------------------------------------------------- #
 # Compile-only seam.
 #
-# The parse -> build_spec_map portion of `estimate_wrapper()`, isolated for the
-# joint recipe case (a `stocnet` data object, a DyNAM or REM process, no
-# incremental `preprocessing_init`), with the estimation scaffolding dropped. It
-# returns a compiled `spec_map` WITHOUT running `preprocess()`, so a caller gets
-# the walk-ready compilation without the walk. The primitive calls and their
-# order mirror `estimate_wrapper()` so a process compiled here matches the one
-# the single-process/flavored path compiles.
+# The compile stage of `estimate_wrapper()` -- `compile_spec_map()`, the one
+# function both paths call -- run for the joint recipe case (a `stocnet` data
+# object, a DyNAM or REM process, no incremental `preprocessing_init`) with the
+# estimation scaffolding dropped. It returns a compiled `spec_map` WITHOUT
+# running `preprocess()`, so a caller gets the walk-ready compilation without
+# the walk, and a process compiled here IS the one the single-process/flavored
+# path compiles.
 # --------------------------------------------------------------------------- #
 compile_recipe_spec_map <- function(
   formula,
@@ -52,129 +52,23 @@ compile_recipe_spec_map <- function(
   modeled_flavor = NULL,
   impute_policy = NULL
 ) {
-  work_env <- new.env()
-  work_data <- data
-
-  aliased <- resolve_dependent_alias(formula, work_data, modeled_flavor)
-  formula <- aliased$formula
-  modeled_flavor <- aliased$modeled_flavor
-
-  parsed_formula <- parse_formula(
-    formula,
-    envir = work_env,
-    realize_windows = FALSE,
-    data = work_data
-  )
-  dep_name <- parsed_formula$dep_name
-  has_intercept <- parsed_formula$has_intercept
-  window_parameters <- parsed_formula$window_parameters
-
-  # A compile models exactly ONE focal, so the modeled layer is stamped onto this
-  # PRIVATE per-process working copy (copy-on-modify -- never the caller's
-  # object) so `build_spec_map()`'s internal sources resolve sides/modes against
-  # it. This is not the merged walk's shared state: that state hosts N focals and
-  # threads focal per fid instead, so it never carries a single stamped focal.
-  work_data$info$focal <- dep_name
-
-  abort_if_interactions_unsupported(parsed_formula, model, sub_model)
-
-  # Intercept semantics mirror the recipe path: choice / choice_coordination and
-  # rate_ordered ignore the time intercept; a bare `rate` formula gains it (the
-  # baseline hazard the waiting-time likelihood needs).
-  if (
-    has_intercept &&
-      ((model %in%
-        c("DyNAM", "DyNAMi") &&
-        sub_model %in% c("choice", "choice_coordination")) ||
-        sub_model == "rate_ordered")
-  ) {
-    parsed_formula$has_intercept <- has_intercept <- FALSE
-  }
-  if (sub_model == "rate" && !has_intercept) {
-    parsed_formula$has_intercept <- has_intercept <- TRUE
-  }
-
-  legacy_sub_model <- sub_model
-  if (sub_model == "rate_ordered") {
-    legacy_sub_model <- "rate"
-  }
-  if (model == "REM") {
-    legacy_sub_model <- "choice"
-  }
-
-  work_src <- new_data_source(
-    data = work_data,
-    envir = work_env,
-    focal = dep_name,
-    modeled_flavor = modeled_flavor
-  )
-  # A length-2 answer means the process spans two modes: side one is the sender
-  # set, side two the receiver set.
-  .nodes <- ds_layer_sides(work_src, dep_name)
-  is_two_mode <- FALSE
-  if (length(.nodes) == 2) {
-    .nodes2 <- .nodes[2]
-    .nodes <- .nodes[1]
-    is_two_mode <- TRUE
-  } else {
-    .nodes2 <- .nodes
-  }
-
-  effects <- create_effects_functions(
-    parsed_formula$rhs_names,
+  aliased <- resolve_dependent_alias(formula, data, modeled_flavor)
+  # A compile models exactly ONE focal, so the modeled layer is stamped onto a
+  # PRIVATE per-process working copy of `data` (copy-on-modify -- never the
+  # caller's object) so `build_spec_map()`'s internal sources resolve
+  # sides/modes against it. This is not the merged walk's shared state: that
+  # state hosts N focals and threads focal per fid instead, so it never carries
+  # a single stamped focal.
+  compile_spec_map(
+    aliased$formula,
     model,
-    legacy_sub_model,
-    envir = work_env,
-    derivations = parsed_formula$window_derivations,
-    data = work_data
-  )
-  objects_effects_link <- get_objects_effects_link(parsed_formula$rhs_names)
-  link <- build_events_objects_link(
-    dep_name,
-    parsed_formula$rhs_names,
-    .nodes,
-    .nodes2,
-    envir = work_env,
-    derivations = parsed_formula$window_derivations,
-    data = work_data
-  )
-  events_effects_link <- get_events_effects_link(
-    parsed_formula$rhs_names,
-    link$events_objects_link
-  )
-
-  model_spec <- new_model_spec(
-    model = model,
-    sub_model = sub_model,
-    is_two_mode = is_two_mode,
-    nodes = .nodes,
-    nodes2 = .nodes2,
-    has_intercept = has_intercept
-  )
-
-  spec_map <- build_spec_map(
-    parsed_formula,
-    model_spec,
-    effects,
-    window_parameters,
-    objects_effects_link,
-    link$events_objects_link,
-    events_effects_link,
-    link$fetch_plan,
+    sub_model,
+    work_data = data,
+    work_env = new.env(),
     support_constraint = support_constraint,
-    envir = work_env,
-    data = work_data,
-    modeled_flavor = modeled_flavor
+    modeled_flavor = aliased$modeled_flavor,
+    impute_policy = impute_policy
   )
-  # The per-attribute imputation policy rides on the compiled spec so the walk
-  # reaches it without threading through the loop, exactly as `preprocess_recipe`
-  # attaches it before dispatching `preprocess()`.
-  spec_map$impute_policy <- impute_policy
-  # Keep the pristine model spec reachable so the merged driver can decorate each
-  # fid's output with it (the estimation-re-entry metadata), matching the
-  # single-process/flavored path without rebuilding it.
-  attr(spec_map, "model_spec") <- model_spec
-  spec_map
 }
 
 # --------------------------------------------------------------------------- #
@@ -330,13 +224,7 @@ compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
 
   # The legacy sub-model the output is stamped with mirrors `estimate_wrapper()`:
   # a `rate_ordered` process reports as rate, an REM process as choice.
-  legacy_sub_model <- fp$sub_model
-  if (legacy_sub_model == "rate_ordered") {
-    legacy_sub_model <- "rate"
-  }
-  if (spec$model == "REM") {
-    legacy_sub_model <- "choice"
-  }
+  legacy_sub_model <- legacy_sub_model_of(spec$model, fp$sub_model)
 
   list(
     key = paste(spec$focal, family, sep = ":"),
