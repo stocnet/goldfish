@@ -842,26 +842,43 @@ computes no end extent and steps expiry rows past the last real event without
 writing rows (identity recorder, no right-censoring consumers), which is the
 state group 2 must not change.
 
-- [ ] 2.0 Rewrite the comment at `R/walk_handle.R` (around lines 321-327) so
+- [x] 2.0 Rewrite the comment at `R/walk_handle.R` (around lines 321-327) so
       it says what the handle does: no explicit window bounds are read
       (`walk_open()` reads only `control_preprocessing$impute`), the walk
       opens at the schedule's first time and computes no end extent, and
       expiry rows past the last real event are stepped but write nothing.
       Task 1.8's rewrite overstated it ("supports that class"). Comment only;
       no code.
-- [ ] 2.1 Extract the compile stage of `estimate_wrapper()` (parse, effects,
+      — done, committed before this session at `1abfa85`; box ticked here.
+- [x] 2.1 Extract the compile stage of `estimate_wrapper()` (parse, effects,
       links, `new_model_spec()`, `build_spec_map()`, imputation policy stamp)
       into one internal `compile_spec_map()`; `compile_recipe_spec_map()`
       becomes a call to it with the joint path's per-focal working copy as a
       parameter; `parsed_formula` reuse stays a parameter (design D2).
       Roxygen for the internal function; `devtools::document()`.
-- [ ] 2.2 `build_merged_blocks()` accepts pre-compiled units: the joint path
+      — done 2026-09-12 (`1c482ba`). `compile_spec_map()` +
+      `compile_model_terms()` (the terms stage) + `legacy_sub_model_of()`;
+      `compile_recipe_spec_map()` is a thin call; `preprocess_recipe()` now
+      runs a compiled map; the wrapper branches early (recipe → compile_spec_map,
+      else → compile_model_terms). Detector (plain + windowed) red-then-green on
+      the `model_spec` attribute, the one seam — every list field, windowed
+      derivations included, already agreed.
+- [x] 2.2 `build_merged_blocks()` accepts pre-compiled units: the joint path
       compiles per process with `compile_spec_map()` and hands units in; a
       one-unit entry wraps a single compiled `spec_map` (with its consumer
       specs for a flavored plan) for the single/flavored callers.
-- [ ] 2.3 Verification: `NOT_CRAN=true` suite green; baselines PASS; the joint
+      — done 2026-09-12 (`fb497b7`). `compile_process_unit()` split into compile
+      + `assemble_process_unit()`; `build_merged_blocks(..., units = NULL)`;
+      `preprocess_one_unit(spec, family, spec_map, ...)`. Detectors: pre-compiled
+      units reach the same substrate; the entry equals the joint path on a plain
+      and a flavored spec.
+- [x] 2.3 Verification: `NOT_CRAN=true` suite green; baselines PASS; the joint
       tests' compile assertions (one spec_map per process, grouped by block)
       unchanged.
+      — done 2026-09-12. Documented runner (`load_all()` + `test_dir()`):
+      PASS 9663, FAIL 0, ERROR 0, SKIP 5 (the known autograph/`estimate_dynes()`
+      /`simulate()`/pinned-rate/second-consumer skips); baseline+golden 160 rows
+      none skipped. The grouped-block compile test is unchanged and green.
 
 ## 3. Dispatch flip and deletion — OPEN (approved 2026-09-11)
 
