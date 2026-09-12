@@ -72,7 +72,7 @@ and record the interface delta in `progress.md`.
       `progress.md`: name the shared function each layer's availability apply
       now consumes. If any layer was exempted, its delta is written and its
       reason is in the capability spec, not only in the journal.
-- [ ] 4.2 ADR on what "one shared apply per layer" means when the buffers differ
+- [x] 4.2 ADR on what "one shared apply per layer" means when the buffers differ — ADR-0067 (minted by the coordinator 2026-09-12): the shared apply is the pointer WALK not the write; header template + `.availability_event_cols()`.
       in shape — the question the requirement never answered and the next
       consumer will ask again. Claim the id in the vault ledger before drafting.
 - [x] 4.3 `NEWS.d/` fragment under Internal only if anything user-visible moved.
