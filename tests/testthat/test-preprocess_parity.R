@@ -29,9 +29,12 @@ test_that("the toy specification moves every statistic it declares", {
 })
 
 test_that("a repeated dyad preprocesses identically on both substrates", {
-  # FAILS until task 0.4d. On an accumulating layer the merged walk tracks
-  # weighted degree where the recipe loops track unweighted, so `1 -> 2` firing
-  # twice leaves the two substrates computing different statistics.
+  # A repeated dyad is the cheap detector for a weighted/unweighted degree
+  # divergence. On an accumulating layer `1 -> 2` firing twice moves weighted
+  # degree by two but unweighted by one, so a substrate reading `colSums(A)`
+  # parts from one reading `colSums(A > 0)` exactly here. A single firing hides
+  # it -- the two agree at count one -- which is why the fixture repeats the
+  # dyad and asserts both substrates compute the same statistics.
   spec <- parity_toy_spec()
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
@@ -187,9 +190,10 @@ test_that("an unweighted tie statistic never aliases the state matrix", {
 # ---- (b) Social Evolution, asta Copenhagen shape ---------------------------
 
 test_that("a realistic specification preprocesses identically on real data", {
-  # FAILS until task 0.4d, for the same reason as the toy: Social Evolution
-  # repeats dyads, and there the recipe loop reconstructs `colSums(A > 0)`
-  # while the merged walk reconstructs `colSums(A)`.
+  # The same weighted/unweighted degree divergence as the toy, on real data:
+  # Social Evolution repeats dyads, so a substrate reconstructing `colSums(A)`
+  # parts from one reconstructing `colSums(A > 0)` wherever a dyad recurs.
+  # Realistic `p`, so this fixture doubles as the full parity guard.
   spec <- parity_social_evolution_spec()
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
@@ -238,11 +242,12 @@ test_that("the recipe loops reconstruct the unweighted in-degree", {
 # ---- (c) windowed support constraint ---------------------------------------
 
 test_that("a window inside a support constraint changes the risk set", {
-  # FAILS until task 0.5b. A `window =` on a constraint atom is silently
-  # ignored: the atoms are parsed separately from the estimated formula, so
-  # their windowed terms never reach `plan$derivations` and nothing is
-  # realized for them. A five-second and a thousand-second window on an
-  # accumulating layer cannot describe the same risk set.
+  # A `window =` on a support-constraint atom must narrow the risk set. The
+  # constraint atoms are parsed separately from the estimated formula, so a
+  # windowed atom's term once never reached `plan$derivations` and nothing was
+  # realized for it -- a five-second and a thousand-second window on an
+  # accumulating layer then described one and the same mask. This fixture pins
+  # that a narrow window now differs from both the unwindowed and the wide one.
   unwindowed <- parity_constraint_mask(~ !tie(calls))
   narrow <- parity_constraint_mask(~ !tie(calls, window = 2))
   wide <- parity_constraint_mask(~ !tie(calls, window = 1000))
@@ -252,10 +257,10 @@ test_that("a window inside a support constraint changes the risk set", {
 })
 
 test_that("a windowed constraint atom registers a derived object", {
-  # FAILS until task 0.5b, and this is the cause read directly. A windowed
-  # formula term puts one `kind = "window"` entry in `plan$derivations`; a
-  # windowed constraint atom puts none, so `ds_realize_derivations()` has
-  # nothing to build and the atom's reference still names the source layer.
+  # The cause of that divergence read directly. A windowed formula term puts
+  # one `kind = "window"` entry in `plan$derivations`; a windowed constraint
+  # atom must register the same, or `ds_realize_derivations()` has nothing to
+  # build and the atom's reference still names the un-windowed source layer.
   spec <- make_specification(
     rate = ~ 1 + indeg,
     choice = ~ inertia + recip,
@@ -270,9 +275,9 @@ test_that("a windowed constraint atom registers a derived object", {
 
 test_that("a formula and a constraint sharing a window share one derivation", {
   # Entries deduplicate by derived identity, so the same object windowed at the
-  # same width on both sides is one derived object with one expiry stream. This
-  # passes today only because the constraint contributes nothing; it must still
-  # pass once task 0.5b makes it contribute.
+  # same width on both sides -- `inertia(calls, window = 2)` in the formula and
+  # `!tie(calls, window = 2)` in the constraint -- folds to one derived object
+  # with one expiry stream, not two competing ones.
   spec <- make_specification(
     rate = ~ 1 + indeg,
     choice = ~ inertia(calls, window = 2) + recip,
@@ -297,9 +302,12 @@ test_that("an unwindowed support constraint is unchanged", {
 # ---- (d) flavored creation / dissolution -----------------------------------
 
 test_that("complementary flavor constraints preprocess identically", {
-  # FAILS until task 0.4d. The dyad `1 -> 2` is created, dissolved, created and
-  # dissolved again, so the derived `~ !tie(calls)` / `~ tie(calls)` pair flips
-  # over it four times and the degree effects see a repeated dyad.
+  # A complementary creation/dissolution pair over one recurring dyad. `1 -> 2`
+  # is created, dissolved, created and dissolved again, so the derived
+  # `~ !tie(calls)` / `~ tie(calls)` masks flip over it four times and the
+  # degree effects see a repeated dyad -- the same weighted/unweighted split as
+  # the toy, now carried through the constraint machinery rather than a plain
+  # effect.
   spec <- parity_flavored_spec()
   merged <- suppressWarnings(preprocess_joint(spec))
   map <- parity_frozen("flavored_oracle_map")
@@ -376,16 +384,15 @@ test_that("a missing nodal covariate alone is unaffected", {
 })
 
 test_that("two state containers never share an imputed network matrix", {
-  # FAILS until task 0.4b. The first aliasing site an in-place state write
-  # would expose: `ds_impute_missing()` caches the imputed matrix in
-  # `src$net_override`, and `ds_network()` returns that same object on every
-  # later call, so two containers built from one source hold one SEXP between
-  # them.
+  # The first aliasing site an in-place state write would expose:
+  # `ds_impute_missing()` caches the imputed matrix in `src$net_override`, and
+  # `ds_network()` returns that same object on every later call, so two
+  # containers built from one source would hold one SEXP between them.
   #
   # The assertion is on identity, not on values. Under R's copy semantics the
   # alias is harmless today -- writing through one name duplicates -- so a
-  # value comparison passes over it. It stops being harmless the moment the
-  # state write goes in place, which is what task 0.4c does.
+  # value comparison passes over it. It stops being harmless the moment a
+  # state write goes in place, which is why the guard is on the SEXP itself.
   skip_if_not(capabilities("profmem"))
 
   src <- new_data_source(data = parity_missing_data())
@@ -405,7 +412,7 @@ test_that("two state containers never share an imputed network matrix", {
 })
 
 test_that("an edgeless four() cache never aliases the state matrix", {
-  # The second aliasing site (task 0.4b). `init_DyNAM_choice.four()` returned
+  # The second aliasing site. `init_DyNAM_choice.four()` returned
   # `list(cache = network, stat = network)` on an edgeless network, so the
   # effect cache and the statistic were both the state's own matrix. The cache
   # is meant to hold a frozen snapshot, which an in-place state write would

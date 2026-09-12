@@ -271,8 +271,9 @@ test_that("render_process_label elides a NA flavor instead of printing it", {
     family = c("rate", "rate"),
     stringsAsFactors = FALSE
   )
-  # Non-flavored process: the flavor segment drops out, was "friendship › NA ›
-  # rate" before this fix -- the shift task 1.2b records.
+  # Non-flavored process: the flavor segment drops out. A NA flavor used to
+  # render as a literal "NA" segment ("friendship › NA › rate"); it is now
+  # elided so an unflavored process reads as "friendship › rate".
   expect_snapshot(render_process_label(map, 1L))
   # Flavored process: unaffected, keeps the chevron-segment form.
   expect_snapshot(render_process_label(map, 2L))

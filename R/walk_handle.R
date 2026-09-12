@@ -35,7 +35,7 @@
 #
 # Three contracts carry over from the merged walk:
 #
-#   * PER-FID FOCAL (D8a). Each engine was compiled against its own focal, so a
+#   * PER-FID FOCAL. Each engine was compiled against its own focal, so a
 #     fid's side/mode/dependent-row resolution rides its own compiled spec_map
 #     over the one shared state -- never a stamped shared focal. walk_evaluate
 #     resolves the evaluated fid against that per-fid view.
@@ -51,7 +51,7 @@
 # =========================================================================== #
 
 # --------------------------------------------------------------------------- #
-# Generative-completeness assertion (D9).
+# Generative-completeness assertion.
 # --------------------------------------------------------------------------- #
 
 # Abort unless every process of every specification carries all its expected
@@ -583,7 +583,7 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
 # columns (`effect_map`), the timed baseline hazard prepended as an intercept
 # column of ones, and the trivial all-active risk set attached (the supported
 # class carries no constraint or composition dynamics). Focal-driven side / mode
-# resolution rode the engine's own compiled spec_map (D8a), so `n_actors1/2`
+# resolution rode the engine's own compiled spec_map, so `n_actors1/2`
 # are this fid's own.
 walk_build_state <- function(handle, fid) {
   map <- handle$process_map

@@ -157,7 +157,7 @@ compile_one_joint_constraint <- function(constraint_plan, unit, data) {
 
 # Compile each distinct `(layer, flavor)` support constraint ONCE, keyed by the
 # `constraint_id` the process_map assigns it, into the one merged plan every fid
-# sharing that id reads (design D3b). The compile is family-invariant, so a
+# sharing that id reads. The compile is family-invariant, so a
 # single sub-plan serves a layer's rate and choice fids; each fid still snapshots
 # the mask against its OWN stored `event_time` at finalize (compile once,
 # snapshot per fid). `NULL` when the join declares no constraint.
@@ -547,7 +547,7 @@ build_merged_blocks <- function(
   }
 
   # One compiled sub-plan per `constraint_id`, shared across the families of the
-  # layer that owns it (compile once, snapshot per fid; design D3b).
+  # layer that owns it (compile once, snapshot per fid).
   support_constraints <- build_joint_support_constraints(joint_spec, units)
 
   # One source over the shared data drives the shared state; the cross-process
@@ -655,7 +655,7 @@ build_merged_blocks <- function(
 # (`init_consumers` / `consumer_accumulate_*` / `finalize_consumers`) and folds,
 # and reimplements ONLY the loop body and its routing.
 #
-# Three contracts govern the merge (design D5 / D8a and the pinned RC rule):
+# Three contracts govern the merge:
 #
 #   * PER-UNIT INTERVAL CLOCK. The oracle's global `interval = t - time` is the
 #     gap between consecutive events of ONE walk's schedule. The merged schedule
@@ -674,8 +674,8 @@ build_merged_blocks <- function(
 #     other process, so no cross-process boundaries are injected and the outputs
 #     match the two-walk oracle byte-for-byte.
 #
-#   * PER-FID FOCAL (D8a). Focal is never stamped on the shared state. Each unit
-#     was compiled against its own focal (`compile_recipe_spec_map`, Pattern A),
+#   * PER-FID FOCAL. Focal is never stamped on the shared state. Each unit
+#     was compiled against its own focal (`compile_recipe_spec_map`),
 #     so a fid's dependent-row/side/mode resolution rides its own compiled
 #     spec_map over the one shared state.
 # =========================================================================== #
@@ -1371,7 +1371,8 @@ build_walk_engine <- function(
   engine$flavors <- unit$flavors
   engine$shared_to_local <- unit$shared_to_local
   # Per-fid estimation-re-entry decoration, threaded from the compile. Focal
-  # resolved per fid (Pattern A, D8a), so the node lookup is this unit's own.
+  # resolved per fid against its own compiled spec_map, so the node lookup is
+  # this unit's own.
   engine$legacy_sub_model <- unit$legacy_sub_model
   engine$model_spec <- unit$model_spec
   engine$own_formulas <- unit$own_formulas
@@ -1566,7 +1567,7 @@ render_walk_engine <- function(pending, masks, weight_risk_set) {
   # Decorate each fid's output with the estimation-re-entry metadata the
   # single-process/flavored path stamps (formula, model, sub-model, node sides,
   # node lookup, model spec), each carrying its OWN formula. Side/mode resolution
-  # rode the per-fid compiled spec_map (Pattern A, D8a), so the node sides and
+  # rode the per-fid compiled spec_map, so the node sides and
   # lookup are this unit's own, never a shared stamped focal.
   stats::setNames(
     lapply(names(outputs), function(key) {
