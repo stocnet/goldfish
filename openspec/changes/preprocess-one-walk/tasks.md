@@ -982,7 +982,7 @@ alone.
 - [ ] 4.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `devtools::document()`; ready for the trunk merge to
       fold.
-- [ ] 4.5 Sweep this change's own OpenSpec references out of source, by hand,
+- [x] 4.5 Sweep this change's own OpenSpec references out of source, by hand,
       **including `R/walk_handle.R` (lines 38, 54, 579 carry `(D8a)` / `(D9)`;
       missed by the first inventory, found 2026-09-12),**
       one site at a time — the standing rule is that a decision id or task
@@ -1009,3 +1009,18 @@ alone.
       next opens one of those files sweeps that file, per the same rule. A
       package-wide sweep in one commit would bury a real diff in noise, which
       is why this is not that.
+      — done 2026-09-12 (session `goldfish-76597b`). Rewrote by hand, one site
+      at a time: the six `test-preprocess_parity.R` "FAILS until" comments
+      (each now names the defect its fixture catches and why one firing / a
+      single side hid it), the seventh parity comment ("pass once task 0.5b
+      makes it contribute"), the flavored NA-segment comment, `walk_handle.R`
+      lines 38/54/586, `preprocess_joint.R` (three `design D` plus the bare
+      `(D8a)` / `Pattern A` labels the leaky `design D[0-9]` grep missed at
+      677/1374/1569), and `preprocess_multivariate.R` line 61. `air format` on
+      the five files was a no-op beyond the comment text. Final grep
+      (`\bD[0-9]+\b|task [0-9]|design D|preprocess-one-walk`, plus a broader
+      `D[0-9]+[a-z]?` / `Pattern [A-Z]` pass) is clean across all five. Both
+      touched test files pass (FAIL 0; the `support_constraint` cli warnings
+      are the known-harmless ones). The ~eight residual sites in other archived
+      changes' files are left for their files' next opener, per the standing
+      rule.
