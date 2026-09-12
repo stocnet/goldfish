@@ -11,18 +11,18 @@ and record the interface delta in `progress.md`.
 
 ## 1. Establish what is duplicated
 
-- [ ] 1.1 Inventory the availability apply on all three layers, with file and
+- [x] 1.1 Inventory the availability apply on all three layers, with file and
       line: the two inline subassignments in `R/estimation_core.R`, the two
       `.gather_apply_presence*()` helpers in `R/cpp_interface.R`, and the
       per-engine loop in each of the six `src/*_default.cpp`. Record the buffer
       shape each one walks and the encodings it branches on.
-- [ ] 1.2 Diff the six C++ loops against each other and record where they
+- [x] 1.2 Diff the six C++ loops against each other and record where they
       genuinely differ from one another versus where they are copies. Six
       near-copies and six exact copies are different problems and the fix
       differs; a reader of this change should not have to take it on faith.
-- [ ] 1.3 Verification: `NOT_CRAN=true` green at the branch point, baselines
+- [x] 1.3 Verification: `NOT_CRAN=true` green at the branch point, baselines
       PASS not SKIP. This is the reference every later task is read against.
-- [ ] 1.4 Prove the detector detects, once per layer, before any code moves.
+- [x] 1.4 Prove the detector detects, once per layer, before any code moves.
       The goldens and the parity tests are inherited, not written for this
       change, so their sensitivity to THIS defect class is an assumption until
       shown: on a scratch branch, offset one engine's availability walk by one
