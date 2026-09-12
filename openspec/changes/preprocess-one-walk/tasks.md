@@ -993,9 +993,16 @@ alone.
       realized inside this change — so its two closed findings (recipe compile
       paths converged into `compile_spec_map()`; the duplicated recipe loops
       deleted) are recorded in this change's own `progress.md` instead.
-- [ ] 4.4 Final verification: full `NOT_CRAN=true` suite green; baselines
+- [x] 4.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `devtools::document()`; ready for the trunk merge to
       fold.
+      — done 2026-09-12. `test_dir()` on the documented runner: FAIL 0, SKIP 5,
+      PASS 8402 (WARN 1305 are the known cli / `support_constraint`
+      informational warnings). The 8 baseline/golden files: 0 skipped, 0
+      failed — PASS not SKIP. `devtools::document()` produced no man/ or
+      NAMESPACE drift. Baselines byte-identical to `e2b6557`
+      (`git diff e2b6557 HEAD -- tests/testthat/_baselines` empty). No archive
+      (ADR-0040); the change is ready for the trunk merge to fold.
 - [x] 4.5 Sweep this change's own OpenSpec references out of source, by hand,
       **including `R/walk_handle.R` (lines 38, 54, 579 carry `(D8a)` / `(D9)`;
       missed by the first inventory, found 2026-09-12),**
