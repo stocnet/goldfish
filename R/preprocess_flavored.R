@@ -836,89 +836,45 @@ preprocess_flavored <- function(
       .internal = TRUE
     )
   }
+  # One merged single-clock walk over the whole specification, in place of a
+  # per-family walk each of which drove its own consumer set. The joint
+  # substrate already unions each family's per-flavor effects, projects each
+  # flavor's consumer onto its own columns, snapshots each fid's support mask
+  # and stamps the validation, so the flavored front-end is now that one call.
+  merged <- preprocess_joint(
+    spec,
+    control_preprocessing = control_prep,
+    progress = progress,
+    verbose = verbose
+  )
+  merged_map <- attr(merged, "process_map")
+
+  # Re-key the merged outputs under the family-major fid scheme the flavored
+  # container has always exposed (every family's flavors, family by family),
+  # rather than the joint planner's flavor-major order. The joint `coupled`
+  # separability column is meaningless for a single-layer flavored spec and has
+  # never been part of this contract, so it is dropped. Keyed on (family,
+  # flavor), so the two orderings describe the same processes either way.
   flavors <- names(spec$processes)
   families <- names(spec$processes[[1L]]$submodels)
-  constraints <- assign_constraint_ids(spec$processes)
+  keep_cols <- setdiff(names(merged_map), "coupled")
 
   outputs <- list()
-  map_rows <- vector("list", length(families))
-  next_fid <- 0L
-
-  for (fi in seq_along(families)) {
-    family <- families[[fi]]
-    union <- plan_flavor_union(spec, family)
-    fids <- stats::setNames(next_fid + seq_along(flavors), flavors)
-    next_fid <- next_fid + length(flavors)
-    fid_keys <- as.character(fids)
-
-    # The consumer plan is metadata only (fid, flavor, projection, intercept,
-    # constraint id); the writers and the compiled constraints are attached
-    # downstream, once the family's spec_map has compiled them.
-    consumer_plan <- lapply(flavors, function(fl) {
-      list(
-        fid = fids[[fl]],
-        flavor = fl,
-        effect_map = union$effect_maps[[fl]],
-        has_intercept = unname(union$has_intercept[[fl]]),
-        constraint_id = constraints$ids[[fl]],
-        # This flavor's own two-sided formula: the object's statistics are the
-        # projection onto these effects, so this is what describes it, not the
-        # union formula that drove the shared walk.
-        formula = spec$processes[[fl]]$submodels[[family]]$formula
-      )
-    })
-    names(consumer_plan) <- fid_keys
-
-    preps <- estimate_wrapper(
-      x = union$bundle$formula,
-      model = spec$model,
-      sub_model = union$sub_model,
-      data = spec$data,
-      control_prep = control_prep,
-      preprocessing_only = TRUE,
-      progress = progress,
-      verbose = verbose,
-      support_constraint = if (length(constraints$plans) > 0) {
-        constraints$plans
-      } else {
-        NULL
-      },
-      modeled_flavor = flavors,
-      flavor_plan = list(consumers = consumer_plan)
-    )
-    outputs[fid_keys] <- preps[fid_keys]
-
-    map_rows[[fi]] <- data.frame(
-      fid = unname(fids),
-      layer = spec$focal,
-      flavor = flavors,
-      family = family,
-      # The statistic block a consumer's gids are scoped to: an effect is
-      # deduplicated only among formulas resolving to the same update function.
-      stat_block = paste(spec$model, union$sub_model, sep = ":"),
-      has_intercept = unname(union$has_intercept[flavors]),
-      constraint_id = unname(constraints$ids[flavors]),
-      stringsAsFactors = FALSE
-    )
+  map_rows <- list()
+  new_fid <- 0L
+  for (family in families) {
+    for (flavor in flavors) {
+      new_fid <- new_fid + 1L
+      hit <- merged_map$family == family & merged_map$flavor == flavor
+      old_fid <- merged_map$fid[hit]
+      outputs[[as.character(new_fid)]] <- merged[[as.character(old_fid)]]
+      row <- merged_map[hit, keep_cols, drop = FALSE]
+      row$fid <- new_fid
+      map_rows[[length(map_rows) + 1L]] <- row
+    }
   }
-
   process_map <- do.call(rbind, map_rows)
-
-  # Fail fast, per process: a flavor whose derived mask contradicts the user
-  # constraint leaves an empty risk set, and the message must say WHICH process
-  # is empty -- the label is rendered from the map for that message alone.
-  for (i in seq_len(nrow(process_map))) {
-    key <- as.character(process_map$fid[i])
-    validate_prep_support(
-      outputs[[key]],
-      is_rate_family = identical(process_map$family[i], "rate"),
-      process_label = render_process_label(process_map, process_map$fid[i])
-    )
-    # Stamped so estimation does not re-run the same check and duplicate every
-    # warning it just emitted; the message here is the more useful of the two,
-    # since only this one can name the process.
-    outputs[[key]]$support_validated <- TRUE
-  }
+  rownames(process_map) <- NULL
 
   structure(
     outputs,
