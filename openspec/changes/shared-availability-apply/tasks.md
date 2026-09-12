@@ -35,7 +35,7 @@ and record the interface delta in `progress.md`.
 
 ## 2. The C++ layer (design D1, D2)
 
-- [ ] 2.1 Write the shared cursor as a header beside `flat_updates.h` and
+- [x] 2.1 Write the shared cursor as a header beside `flat_updates.h` and
       `broadcast_updates.h`: advance to event `i`, yield this event's columns.
       The WALK is what is shared; each engine keeps its own write, since that is
       the part that genuinely differs by encoding.
