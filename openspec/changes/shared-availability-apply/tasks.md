@@ -53,18 +53,18 @@ and record the interface delta in `progress.md`.
 
 ## 3. The R layers (design D1, D3)
 
-- [ ] 3.1 Route the R backend's two inline applies in `R/estimation_core.R`
+- [x] 3.1 Route the R backend's two inline applies in `R/estimation_core.R`
       through the same cursor shape. The write stays per-consumer; the pointer
       walk does not.
-- [ ] 3.2 The gather layer: either route `.gather_apply_presence()` and
+- [x] 3.2 The gather layer: either route `.gather_apply_presence()` and
       `.gather_apply_presence_point()` through it, or exempt the layer under
       design D3 with the diff that shows sharing reads worse. **An exemption is
       a spec delta narrowing the requirement for that layer with its reason**,
       not a note in `progress.md`.
-- [ ] 3.3 Tests: the backend-parity tests are the detector — the R backend, the
+- [x] 3.3 Tests: the backend-parity tests are the detector — the R backend, the
       gather stack and the C++ engines must agree as they do today. Assert the
       agreement, not the implementation.
-- [ ] 3.4 Verification: `NOT_CRAN=true`, baselines PASS not SKIP.
+- [x] 3.4 Verification: `NOT_CRAN=true`, baselines PASS not SKIP.
 
 ## 4. Close
 
