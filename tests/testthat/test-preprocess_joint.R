@@ -189,6 +189,121 @@ test_that("the wrapper and the joint path compile a windowed spec alike", {
   }
 })
 
+# A flavored single-family (rate-only) specification: two flavors on one layer,
+# so the one process compiles a union rate map that projects per flavor.
+flavored_rate_data <- function() {
+  nodes <- data.frame(label = c("A", "B", "C", "D"), mode = "p")
+  ties <- data.frame(
+    from = c(1L, 3L, 1L, 2L, 3L),
+    to = c(2L, 4L, 2L, 3L, 4L),
+    time = c(NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, -1, 1, -1)
+  )
+  info <- list(
+    name = "toy4",
+    focal = "calls",
+    update = c(calls = "increment"),
+    directed = c(calls = TRUE),
+    observation = c(calls = "event")
+  )
+  add_flavor(
+    list(info = info, nodes = nodes, ties = ties),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1)
+  )
+}
+
+flavored_rate_spec <- function(data = flavored_rate_data()) {
+  suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
+    model = "DyNAM",
+    data = data
+  ))
+}
+
+test_that("build_merged_blocks accepts pre-compiled units", {
+  # The joint path compiles per process and hands the units in; letting
+  # build_merged_blocks compile them itself has to reach the same substrate.
+  joint <- joint_two_process()
+  ctrl <- set_preprocessing()
+  units <- list()
+  for (spec in joint$specifications) {
+    for (family in names(spec_processes(spec)[[1L]]$submodels)) {
+      u <- compile_process_unit(spec, family, joint, ctrl$impute)
+      units[[u$key]] <- u
+    }
+  }
+  handed <- build_merged_blocks(joint, ctrl, units = units)
+  auto <- build_merged_blocks(joint, ctrl)
+
+  expect_equal(handed$blocks, auto$blocks)
+  expect_equal(handed$schedule, auto$schedule)
+  expect_equal(handed$objects, auto$objects)
+  expect_equal(handed$state$networks, auto$state$networks)
+  for (key in names(auto$units)) {
+    expect_equal(handed$units[[key]]$spec_map, auto$units[[key]]$spec_map)
+  }
+})
+
+test_that("the one-unit entry equals the joint path on a plain spec", {
+  # The estimation entry compiles ONE spec_map and hands it to the merged walk
+  # without compiling again; the output has to equal the joint path's on the
+  # same single-process specification.
+  data <- parity_toy_data()
+  ctrl <- set_preprocessing()
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg + indeg(calls, weighted = TRUE),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  ))
+  spec_map <- compile_recipe_spec_map(
+    spec$submodels$rate$formula,
+    "DyNAM",
+    spec$submodels$rate$sub_model,
+    data = data,
+    impute_policy = ctrl$impute
+  )
+  via_entry <- suppressMessages(preprocess_one_unit(
+    spec,
+    "rate",
+    spec_map,
+    ctrl
+  ))
+  via_joint <- suppressMessages(preprocess_joint(
+    single_process_joint(spec),
+    ctrl
+  ))
+  expect_equal(via_entry, via_joint)
+})
+
+test_that("the one-unit entry equals the joint path on a flavored spec", {
+  # A flavored process routes its per-flavor consumers off the one union
+  # spec_map; the one-unit entry has to reproduce the fid-keyed flavored output.
+  ctrl <- set_preprocessing()
+  spec <- flavored_rate_spec()
+  joint <- single_process_joint(spec)
+  fp <- process_family_plan(spec, "rate")
+  spec_map <- compile_recipe_spec_map(
+    fp$formula,
+    "DyNAM",
+    fp$sub_model,
+    data = joint$data,
+    modeled_flavor = fp$modeled_flavor,
+    impute_policy = ctrl$impute
+  )
+  via_entry <- suppressMessages(preprocess_one_unit(
+    spec,
+    "rate",
+    spec_map,
+    ctrl
+  ))
+  via_joint <- suppressMessages(preprocess_joint(joint, ctrl))
+  expect_named(via_entry, names(via_joint))
+  expect_equal(via_entry, via_joint)
+})
+
 test_that("rate and choice blocks carry the sender (2D) and dyad (3D) shapes", {
   mb <- build_merged_blocks(joint_two_process())
 

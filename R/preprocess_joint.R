@@ -200,7 +200,21 @@ compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
     modeled_flavor = fp$modeled_flavor,
     impute_policy = impute_policy
   )
+  assemble_process_unit(spec, family, joint_spec, spec_map, fp)
+}
 
+# Wrap an already-compiled `spec_map` with the routing facts the block assembly
+# needs, the metadata half of `compile_process_unit()`. Split out so a caller
+# that has compiled its `spec_map` elsewhere -- the estimation wrapper through
+# `compile_spec_map()` -- hands the map in rather than compiling a second time.
+# `fp` defaults to the process family plan the compile derives from.
+assemble_process_unit <- function(
+  spec,
+  family,
+  joint_spec,
+  spec_map,
+  fp = process_family_plan(spec, family)
+) {
   pm <- joint_spec$process_map
   fid_rows <- pm[pm$layer == spec$focal & pm$family == family, , drop = FALSE]
 
@@ -462,6 +476,10 @@ build_joint_schedule <- function(units, shared_objects) {
 #'   [make_joint_specification()].
 #' @param control_preprocessing preprocessing options (for the imputation policy
 #'   carried onto each compiled `spec_map`).
+#' @param units already-compiled process units keyed by `focal:family`
+#'   (from `assemble_process_unit()`), or `NULL` to compile them here from
+#'   `joint_spec`. A caller that has compiled its `spec_map` elsewhere hands the
+#'   units in so the process is not compiled a second time.
 #'
 #' @return a `goldfishBlock` list with: `blocks` (per `stat_block`, its
 #'   model/sub-model/family, `is_sender` shape flag, member fids and per-process
@@ -474,7 +492,8 @@ build_joint_schedule <- function(units, shared_objects) {
 #' @noRd
 build_merged_blocks <- function(
   joint_spec,
-  control_preprocessing = set_preprocessing_opt()
+  control_preprocessing = set_preprocessing_opt(),
+  units = NULL
 ) {
   if (!inherits(joint_spec, "goldfishJointSpec")) {
     cli::cli_abort(
@@ -487,13 +506,16 @@ build_merged_blocks <- function(
 
   # Compile per process (per focal), then per family, in the specification-major
   # order the `process_map` assigns fids, so a unit's fids are exactly its block
-  # rows.
-  units <- list()
-  for (spec in joint_spec$specifications) {
-    families <- names(spec_processes(spec)[[1L]]$submodels)
-    for (family in families) {
-      unit <- compile_process_unit(spec, family, joint_spec, impute_policy)
-      units[[unit$key]] <- unit
+  # rows. A caller that already compiled the units (through the shared
+  # `compile_spec_map()`) hands them in and this loop is skipped.
+  if (is.null(units)) {
+    units <- list()
+    for (spec in joint_spec$specifications) {
+      families <- names(spec_processes(spec)[[1L]]$submodels)
+      for (family in families) {
+        unit <- compile_process_unit(spec, family, joint_spec, impute_policy)
+        units[[unit$key]] <- unit
+      }
     }
   }
 
@@ -1945,6 +1967,43 @@ preprocess_joint <- function(
     )
   }
   merged <- build_merged_blocks(joint_spec, control_preprocessing)
+  run_merged_walk(
+    merged,
+    control_preprocessing,
+    progress,
+    verbose,
+    writer = writer,
+    new_writer = new_writer
+  )
+}
+
+# Preprocess ONE process family whose `spec_map` is already compiled through the
+# merged single-clock walk, without compiling it a second time. This is the
+# entry an estimation takes once it holds its compiled `spec_map`
+# (`compile_spec_map()`): the map is assembled into the one unit of a degenerate
+# one-process join, so a plain spec walks one unit and a flavored spec walks the
+# unit's per-flavor consumers, and the fid-keyed `goldfishJointPrep` it returns
+# is what the joint path returns. `spec` supplies the process structure (the
+# fids, flavors and constraints the unit carries) and `family` names the
+# `spec_map`'s family; the map itself is not compiled here.
+preprocess_one_unit <- function(
+  spec,
+  family,
+  spec_map,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE),
+  writer = writer_default(),
+  new_writer = writer_default
+) {
+  joint_spec <- single_process_joint(spec)
+  unit <- assemble_process_unit(spec, family, joint_spec, spec_map)
+  units <- stats::setNames(list(unit), unit$key)
+  merged <- build_merged_blocks(
+    joint_spec,
+    control_preprocessing,
+    units = units
+  )
   run_merged_walk(
     merged,
     control_preprocessing,
