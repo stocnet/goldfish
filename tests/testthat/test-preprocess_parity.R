@@ -36,10 +36,9 @@ test_that("a repeated dyad preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("repeated_dyad__", family))
     )
   }
 })
@@ -56,11 +55,10 @@ test_that("an unweighted degree stays unweighted over a repeated dyad", {
     data = data
   )
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
-  solo <- suppressWarnings(compute_statistics(spec, "DyNAM", "rate"))
 
   expect_equal(
     parity_prep_by(merged, "rate")$stat_mat_update,
-    solo$stat_mat_update
+    parity_frozen("unweighted_degree_update")
   )
 })
 
@@ -196,10 +194,9 @@ test_that("a realistic specification preprocesses identically on real data", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("se_realistic__", family))
     )
   }
 })
@@ -304,16 +301,15 @@ test_that("complementary flavor constraints preprocess identically", {
   # dissolved again, so the derived `~ !tie(calls)` / `~ tie(calls)` pair flips
   # over it four times and the degree effects see a repeated dyad.
   spec <- parity_flavored_spec()
-  oracle <- suppressWarnings(preprocess_flavored(spec))
   merged <- suppressWarnings(preprocess_joint(spec))
-  map <- attr(oracle, "process_map")
+  map <- parity_frozen("flavored_oracle_map")
 
   for (i in seq_len(nrow(map))) {
     expect_equal(
       parity_strip_deco(
         parity_prep_by(merged, map$family[i], flavor = map$flavor[i])
       ),
-      parity_strip_deco(oracle[[as.character(map$fid[i])]])
+      parity_frozen(paste0("flavored_oracle__", map$fid[i]))
     )
   }
 })
@@ -344,10 +340,9 @@ test_that("a network carrying NA preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("missing_identical__", family))
     )
   }
 })
@@ -373,11 +368,10 @@ test_that("a missing nodal covariate alone is unaffected", {
   data$ties <- data$ties[!is.na(data$ties$time), ]
   spec <- parity_missing_spec(data)
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
-  solo <- suppressWarnings(compute_statistics(spec, "DyNAM", "rate"))
 
   expect_equal(
     parity_strip_deco(parity_prep_by(merged, "rate")),
-    parity_strip_deco(solo)
+    parity_frozen("missing_nodal__rate")
   )
 })
 
@@ -479,12 +473,9 @@ test_that("the merged walk builds a gather stack like the recipe loops", {
   merged <- merged_with_writer(spec, writer_gather)
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(
-      compute_statistics(spec, "DyNAM", family, output = "gather")
-    )
     expect_equal(
       gather_stack(parity_prep_by(merged, family)),
-      gather_stack(solo)
+      parity_frozen(paste0("gather_stack__", family))
     )
   }
 })
@@ -565,12 +556,9 @@ for (case_name in names(parity_window_cases)) {
       ))
 
       for (family in c("rate", "choice")) {
-        solo <- suppressWarnings(
-          compute_statistics(spec, "DyNAM", family, control_prep = control)
-        )
         expect_equal(
           parity_strip_deco(parity_prep_by(merged, family)),
-          parity_strip_deco(solo)
+          parity_frozen(paste0("bounded_", label, "__", family))
         )
       }
     })
@@ -591,10 +579,9 @@ test_that("a windowed term preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("windowed_plain__", family))
     )
   }
 })
@@ -621,13 +608,13 @@ test_that("a windowed term on a timed engine preprocesses identically", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     merged_prep <- parity_strip_deco(parity_prep_by(merged, family))
+    frozen <- parity_frozen(paste0("windowed_timed_rate__", family))
     expect_equal(
       merged_prep[parity_extent_fields],
-      parity_strip_deco(solo)[parity_extent_fields]
+      frozen[parity_extent_fields]
     )
-    expect_equal(merged_prep, parity_strip_deco(solo))
+    expect_equal(merged_prep, frozen)
   }
 })
 
@@ -635,16 +622,14 @@ test_that("a windowed REM rate preprocesses identically", {
   # The same extent rule on the dyad-shaped timed engine.
   spec <- parity_rem_spec_windowed()
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
-  solo <- suppressMessages(suppressWarnings(
-    compute_statistics(spec, "REM", "rate")
-  ))
 
   merged_prep <- parity_strip_deco(parity_prep_by(merged, "rate"))
+  frozen <- parity_frozen("windowed_rem_rate")
   expect_equal(
     merged_prep[parity_extent_fields],
-    parity_strip_deco(solo)[parity_extent_fields]
+    frozen[parity_extent_fields]
   )
-  expect_equal(merged_prep, parity_strip_deco(solo))
+  expect_equal(merged_prep, frozen)
 })
 
 test_that("a windowed term and a bound compose", {
@@ -658,12 +643,9 @@ test_that("a windowed term and a bound compose", {
   ))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(
-      compute_statistics(spec, "DyNAM", family, control_prep = control)
-    )
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("windowed_bound__", family))
     )
   }
 })
@@ -679,10 +661,9 @@ test_that("a window on a list(net1, net2) term derives every member", {
 
   merged_prep <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged_prep, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("window_list__", family))
     )
   }
 })
@@ -696,17 +677,11 @@ test_that("a tied expiry follows the dependent event, as in the recipe", {
   # reversed tie would show up as a different value at the tied events, but
   # a same-valued coincidence would hide it.
   spec <- parity_toy_spec_windowed_rate()
-  recipe <- parity_recipe_schedule(spec, "DyNAM", "rate")
   merged <- build_merged_blocks(single_process_joint(spec))$schedule
 
-  recipe_rows <- parity_schedule_rows(
-    recipe$schedule,
-    ifelse(
-      recipe$schedule$dependent,
-      "calls",
-      recipe$object_names[recipe$schedule$target]
-    )
-  )
+  # The recipe loop's own schedule, frozen: `compute_statistics()` no longer
+  # reaches `build_event_schedule()`, so the mock that captured it lands nowhere.
+  recipe_rows <- parity_frozen("tied_recipe_rows")
   merged_rows <- parity_schedule_rows(merged, merged$layer)
   expect_equal(merged_rows, recipe_rows)
 
@@ -749,14 +724,12 @@ test_that("two processes windowing the same source share one derived object", {
   # every process on the shared clock and writes cross-process right-censored
   # rows, which is the joint contract, not a window defect.
   out <- suppressWarnings(preprocess_joint(joint))
-  calls_spec <- joint$specifications[[1L]]
   map <- attr(out, "process_map")
   for (family in c("rate", "choice")) {
     fid <- map$fid[map$layer == "calls" & map$family == family]
-    solo <- suppressWarnings(compute_statistics(calls_spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(out[[as.character(fid)]]),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("two_proc_calls__", family))
     )
   }
 })
@@ -818,13 +791,10 @@ test_that("an opportunity list preprocesses identically on both substrates", {
     single_process_joint(spec),
     control_preprocessing = control
   ))
-  solo <- suppressWarnings(
-    compute_statistics(spec, "DyNAM", "choice", control_prep = control)
-  )
 
   expect_equal(
     parity_strip_deco(parity_prep_by(merged, "choice")),
-    parity_strip_deco(solo)
+    parity_frozen("opportunity__choice")
   )
 })
 
@@ -861,10 +831,9 @@ test_that("a user support constraint preprocesses identically, both families", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(compute_statistics(spec, "DyNAM", family))
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("user_constraint__", family))
     )
   }
 })
@@ -881,12 +850,9 @@ test_that("a constraint and a bounded window compose on the single unit", {
   ))
 
   for (family in c("rate", "choice")) {
-    solo <- suppressWarnings(
-      compute_statistics(spec, "DyNAM", family, control_prep = control)
-    )
     expect_equal(
       parity_strip_deco(parity_prep_by(merged, family)),
-      parity_strip_deco(solo)
+      parity_frozen(paste0("constraint_bound__", family))
     )
   }
 })

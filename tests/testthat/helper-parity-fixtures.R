@@ -37,6 +37,31 @@ parity_prep_by <- function(out, family, flavor = NULL) {
   out[[as.character(map$fid[sel])]]
 }
 
+# The recipe loops' own output, frozen. `preprocess.goldfishKind()` routes
+# `compute_statistics()` through the merged walk, so a parity assertion that once
+# compared the merged walk against `compute_statistics()` would now compare the
+# merged walk against itself. These goldens were captured from the two recipe
+# loops while they were still reachable and stored under `_fixtures/parity/`, so
+# each assertion keeps one side anchored to what the loops produced rather than
+# to the substrate under test. They are stripped with `parity_strip_deco()`
+# already, so an assertion compares `parity_strip_deco(merged)` against the
+# golden directly. Regenerated only by resurrecting the loops; the frozen 1e-6
+# coefficient baselines do not cover a statistics object that changed shape.
+parity_frozen <- local({
+  cache <- NULL
+  function(key) {
+    if (is.null(cache)) {
+      cache <<- readRDS(
+        testthat::test_path("_fixtures", "parity", "goldens.rds")
+      )
+    }
+    if (!key %in% names(cache)) {
+      stop("no frozen recipe golden for key ", sQuote(key), call. = FALSE)
+    }
+    cache[[key]]
+  }
+})
+
 # The union of the effect indices that appear anywhere in a preprocessed
 # object's update stream. Point updates land in `stat_mat_update`; an effect
 # whose value is constant across an axis (an ego/alter attribute) or across the
