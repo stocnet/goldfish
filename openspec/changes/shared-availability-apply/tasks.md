@@ -68,17 +68,17 @@ and record the interface delta in `progress.md`.
 
 ## 4. Close
 
-- [ ] 4.1 Confirm the requirement is met as written, layer by layer, in
+- [x] 4.1 Confirm the requirement is met as written, layer by layer, in
       `progress.md`: name the shared function each layer's availability apply
       now consumes. If any layer was exempted, its delta is written and its
       reason is in the capability spec, not only in the journal.
 - [ ] 4.2 ADR on what "one shared apply per layer" means when the buffers differ
       in shape — the question the requirement never answered and the next
       consumer will ask again. Claim the id in the vault ledger before drafting.
-- [ ] 4.3 `NEWS.d/` fragment under Internal only if anything user-visible moved.
+- [x] 4.3 `NEWS.d/` fragment under Internal only if anything user-visible moved.
       Nothing should; if something did, that is the finding and it belongs in
       the fragment.
-- [ ] 4.4 `bash .plan/opsx-spec-placement-check.sh shared-availability-apply`
+- [x] 4.4 `bash .plan/opsx-spec-placement-check.sh shared-availability-apply`
       and `openspec validate shared-availability-apply --strict` clean.
-- [ ] 4.5 Final verification: full `NOT_CRAN=true` suite green, baselines and
+- [x] 4.5 Final verification: full `NOT_CRAN=true` suite green, baselines and
       goldens PASS not SKIP, `devtools::document()` if any roxygen changed.
