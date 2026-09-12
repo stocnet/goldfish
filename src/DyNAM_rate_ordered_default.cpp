@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "availability_updates.h"
 #include "broadcast_updates.h"
 #include "event_reductions.h"
 #include "flat_updates.h"
@@ -156,18 +157,20 @@ List estimate_DyNAM_rate_ordered(
 
         // update presence
         if (has_composition_change1) {
-            while (active_sender_update_id < active_sender_update_pointer(id_event)) {
-                active_sender(active_sender_update(0, active_sender_update_id) - 1) =
-                  active_sender_update(1, active_sender_update_id);
-                active_sender_update_id++;
-            }
+            apply_availability_updates(
+              active_sender_update_id, active_sender_update_pointer(id_event),
+              [&](int c) {
+                active_sender(active_sender_update(0, c) - 1) =
+                  active_sender_update(1, c);
+              });
         }
         if (has_composition_change2) {
-            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
-                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                  active_dyad_update(1, active_dyad_update_id);
-                active_dyad_update_id++;
-            }
+            apply_availability_updates(
+              active_dyad_update_id, active_dyad_update_pointer(id_event),
+              [&](int c) {
+                active_dyad(active_dyad_update(0, c) - 1) =
+                  active_dyad_update(1, c);
+              });
         }
 
         // We calculate the derivative, log-Likelihood,
