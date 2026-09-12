@@ -356,7 +356,7 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
 #'
 #' Only the effect ROWS are appended (the metadata a reader inspects), tagged
 #' `role = "constraint"`; the atoms are seeded, maintained and evaluated through
-#' the compiled sub-plans carried on `plan$support_constraint(s)`, whose kernel is
+#' the compiled sub-plans on `plan$support_constraint(s)`, whose kernel is
 #' dyad whatever the estimated model's is. The appended rows therefore take gids
 #' above the estimated columns and are never counted in `nEffects`, seeded into
 #' `initialStats`, routed by the covariate step, or read as estimated columns:
@@ -364,7 +364,7 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
 #' an unconstrained model appends nothing at all.
 #'
 #' @param plan the estimated plan, after `augment_interactions()`.
-#' @param compiled the compiled constraint sub-plans (one per `(layer, flavor)`).
+#' @param compiled the constraint sub-plans (one per `(layer, flavor)`).
 #' @return `plan` with the atoms' effect rows appended to `plan$effects`.
 #' @noRd
 plan_with_constraint_atoms <- function(plan, compiled) {

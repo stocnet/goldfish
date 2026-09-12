@@ -370,8 +370,8 @@ build_atom_maintainer <- function(
 
 # Force an independent copy of an atom buffer. `write_entries()` mutates its
 # buffer in place (via `set_entries()`), so a value that must survive later
-# writes — a stored `initial`, or a per-replay seed — has to be duplicated first.
-# Assigning into a shared vector triggers R's copy-on-write, giving a new SEXP the
+# writes — a stored `initial`, or a per-replay seed — must be copied first.
+# Assigning into a shared vector triggers copy-on-write, giving a new SEXP the
 # in-place writer can no longer reach through the original.
 copy_atom_buffer <- function(x) {
   y <- x
@@ -558,7 +558,7 @@ build_constraint_atom_store <- function(
 }
 
 # Advance a constraint's atoms for one shared covariate event and record the
-# deltas. `key` names the object the event moved; when no atom reads it the store
+# deltas. `key` names the moved object; when no atom reads it the store
 # is untouched. Mirrors `build_atom_maintainer()`'s `apply_atom_event()` routing
 # (undirected mirror, per-atom `collapse_operand_delta` + in-place write), but
 # reads the pre-update SHARED `state` the caller passes, and appends each atom's

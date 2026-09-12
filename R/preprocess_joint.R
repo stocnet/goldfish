@@ -1524,7 +1524,7 @@ advance_recorders_for_event <- function(
   invisible(NULL)
 }
 
-# An atoms factory for `preprocess_pooled_support_masks()` that returns a covered
+# Atoms factory for `preprocess_pooled_support_masks()` that returns a covered
 # constraint's recorded-and-replayed atom pool instead of walking it again;
 # absent a recorder (an uncovered constraint) it defers to the private walk.
 recorder_atoms_factory <- function(recorders) {
@@ -2075,7 +2075,7 @@ run_merged_walk <- function(
 
     # The constraint atoms read the same pre-update state the estimated effects
     # did, so their stores advance here, once per covariate event and before the
-    # write, exactly where the private walk would apply the same event to its own
+    # write, exactly where the private walk applies the same event to its own
     # container.
     advance_recorders_for_event(recorders, key, shape, event_args, state, t)
 

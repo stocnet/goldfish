@@ -47,7 +47,7 @@ test_that("constrained mask and presence axes match the frozen capture", {
   }
 })
 
-# ---- 2.1 the atoms join the estimated plan's effect registry ---------------
+# ---- atoms join the estimated plan's effect registry ----
 
 test_that("a constrained model's plan effects carry the atoms as operands", {
   fx <- constraint_atoms_social_data()
@@ -77,7 +77,7 @@ test_that("a constrained model's plan effects carry the atoms as operands", {
   }
 })
 
-# ---- 3.0 the covered atom pool is maintained once, on the shared walk ------
+# ---- the covered atom pool is maintained once, on the shared walk ----
 
 test_that("a covered constrained model builds no private atom walk", {
   # The payoff of moving the atoms onto the merged walk: a constraint whose
@@ -85,7 +85,7 @@ test_that("a covered constrained model builds no private atom walk", {
   # the private `build_atom_maintainer()` walk is not built at all and the atom
   # store is seeded exactly once for the layer. `constraint_atoms_capture()`
   # already pins that the mask this produces is byte-identical to the private
-  # walk's frozen output (task 1.2), so this is the walk COUNT that removal buys.
+  # walk's frozen output, so this is the walk COUNT that removing it buys.
   private <- 0L
   stores <- 0L
   orig_store <- build_constraint_atom_store
