@@ -133,7 +133,7 @@ call_validate_choice_moving <- function(
   )
 }
 
-test_that("choice: a late-arriving never-allowed receiver is named live, not frozen", {
+test_that("choice: a late never-allowed receiver is named live, not frozen", {
   s <- matrix(FALSE, 4L, 4L)
   s[1, c(2L, 3L)] <- TRUE
   s[2, c(1L, 3L)] <- TRUE
@@ -149,7 +149,7 @@ test_that("choice: a late-arriving never-allowed receiver is named live, not fro
   )
 })
 
-test_that("choice: an observed receiver that joined after time zero does not falsely abort", {
+test_that("choice: an observed receiver that joined after t0 does not abort", {
   # Everything is allowed; the only reason to abort would be the observed
   # receiver reading absent. Receiver 3 (event 2's observed receiver) is absent
   # at time zero and joins before event 2.
