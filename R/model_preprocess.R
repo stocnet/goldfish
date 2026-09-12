@@ -517,7 +517,13 @@ prepare_recipe_context <- function(
     integer(0)
   }
   n_inter <- length(inter_ids)
-  nEffects <- n_fun + n_inter
+  # The output columns are exactly the effects nobody excludes: constraint-role
+  # atoms carry `role = "constraint"` in `plan$effects`, and reading that role
+  # here is what keeps them out of `nEffects`, `initial_stats`, and the output
+  # statistics. They are appended after the estimated effects, so the estimated
+  # columns remain the leading `1..nEffects` and nothing downstream reindexes;
+  # an unconstrained plan has no such row and the count is unchanged.
+  nEffects <- sum(plan$effects$role != "constraint")
 
   composition1 <- ds_composition(src, nodes, n1)
   composition2 <- ds_composition(src, nodes2, n2)
