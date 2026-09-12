@@ -69,6 +69,26 @@ test_that("case E: a never-allowed receiver warns (choice)", {
   )
 })
 
+test_that("choice case E: a never-observed gated-out sender warns", {
+  # An ego-style gate: sender 3 is allowed no receiver at any event and is
+  # never observed. The choice family was silent about this until it gained the
+  # sender-side counterpart of the never-a-candidate warning.
+  s <- all_true()
+  s[3, ] <- FALSE
+  expect_warning(
+    expect_no_error(call_validate(list(s, s), "choice")),
+    "sender.*allowed no receiver at any event"
+  )
+})
+
+test_that("choice case E sender warning names the gated-out node", {
+  withr::local_options(cli.num_colors = 1L)
+  local_reproducible_output()
+  s <- all_true()
+  s[3, ] <- FALSE
+  expect_snapshot(call_validate(list(s, s), "choice"))
+})
+
 test_that("rate case B: an observed sender gated out errors", {
   s1 <- all_true()
   s1[1, ] <- FALSE # sender 1 (observed at event 1) has no allowed receiver

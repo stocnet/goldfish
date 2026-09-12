@@ -1054,7 +1054,11 @@ compute_statistics <- function(
 #   B dependent event's own sender has 0 live receivers                  -> error
 #   D the whole risk set is empty at a dependent event                   -> error
 #   C the risk set has exactly 1 candidate (forced choice)               -> warn
-#   E a node is never live across the whole sequence                     -> warn
+#   E a node is never at risk / never a candidate across the sequence    -> warn
+# Case E is per family: choice warns on a receiver never an allowed candidate
+# AND on a sender allowed no receiver at any event; rate warns on a sender never
+# at risk. A never-observed such node is a legitimate wider-population model, so
+# it warns rather than errors.
 # Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
 # not an error) — only the dependent event's own sender triggers A/B.
 # `process_label` names the process the failing object belongs to when several
@@ -1088,12 +1092,28 @@ validate_support_constraint <- function(
 
   if (family == "choice") {
     ever_candidate <- logical(n2)
+    ever_at_risk_sender <- logical(n1)
+    # The gate reads the receiver presence at the event, the way the rate branch
+    # does; a NULL update stream leaves it frozen at time zero, which the
+    # choice caller still passes until the raw crossings are stashed.
+    receivers_at <- presence_cursor(
+      active_2,
+      active_2_update,
+      active_2_update_pointer
+    )
     for (e in dep) {
+      mask_e <- mask_at(e)
+      present <- receivers_at(e)
       allowed <- which(
-        support_row(mask_at(e), stored_kind, event_sender[[e]], n1, n2) &
+        support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
           active_2
       )
       ever_candidate[allowed] <- TRUE
+      # Sender-side counterpart of the never-a-candidate warning: which senders
+      # ever have an allowed, present receiver. Read at the mask's own kind, so
+      # a separable mask answers for every sender without building a grid.
+      gate <- sender_gate_from_mask(mask_e, stored_kind, present, n1, n2)
+      ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
           "{.arg support_constraint}: empty risk set at event {e}.",
@@ -1119,6 +1139,19 @@ validate_support_constraint <- function(
         "!" = "{.arg support_constraint}: {length(never)} present receiver{?s}
                never an allowed candidate.",
         "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+    # A sender allowed no receiver at any event is a legitimate model -- the
+    # constraint may describe a wider population than the observed events -- so
+    # this is a warning, not an error, and mirrors the rate family's
+    # "never at risk". An observed sender in this set errors above at its own
+    # event; this names the pattern over the whole sequence for the rest.
+    never_sender <- which(active_1 & !ever_at_risk_sender)
+    if (length(never_sender) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never_sender)} present
+               sender{?s} allowed no receiver at any event.",
+        "i" = "{cli::qty(length(never_sender))}Node{?s}: {.val {never_sender}}."
       ))
     }
   } else {
