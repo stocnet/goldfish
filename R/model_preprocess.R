@@ -986,9 +986,20 @@ run_sender_recipe_loop <- function(
             if (n_inter > 0L && gid <= n_fun) {
               feeds <- plan$operand_of[[as.character(gid)]]
               if (!is.null(feeds)) {
-                ov <- get(as.character(gid), envir = op_state)
-                ov[updates[, "node1"]] <- updates[, "replace"]
-                assign(as.character(gid), ov, envir = op_state)
+                # The per-sender vector is written in place: it is materialized
+                # fresh at seeding and lives in exactly one binding here, so the
+                # in-place writer duplicates nothing where a `get()`-then-
+                # subassign would copy the whole vector every event.
+                buffer <- get(as.character(gid), envir = op_state)
+                assign(
+                  as.character(gid),
+                  write_entries(
+                    buffer,
+                    updates[, "node1"],
+                    updates[, "replace"]
+                  ),
+                  envir = op_state
+                )
                 for (ig in feeds) {
                   igc <- as.character(ig)
                   dirty_inter[[igc]] <- c(

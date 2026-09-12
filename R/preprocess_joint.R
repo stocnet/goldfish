@@ -917,9 +917,16 @@ merged_covariate_step <- function(
         feeds <- engine$operand_of[[as.character(gid)]]
         if (!is.null(feeds)) {
           if (is_sender) {
-            ov <- get(as.character(gid), envir = engine$op_state)
-            ov[updates[, "node1"]] <- updates[, "replace"]
-            assign(as.character(gid), ov, envir = engine$op_state)
+            # Written in place: the per-sender vector is materialized fresh at
+            # seeding and held in one binding, so the in-place writer copies
+            # nothing where binding it to a second name and subassigning would
+            # duplicate the whole vector every event.
+            buffer <- get(as.character(gid), envir = engine$op_state)
+            assign(
+              as.character(gid),
+              write_entries(buffer, updates[, "node1"], updates[, "replace"]),
+              envir = engine$op_state
+            )
             for (ig in feeds) {
               igc <- as.character(ig)
               engine$dirty_inter[[igc]] <- c(

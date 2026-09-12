@@ -87,3 +87,58 @@ test_that("an interaction column is the product of its operands at seeding", {
   # would come back as a[i] * b[i] instead of zero.
   expect_true(all(diag(prep$initial_stats[,, 5L]) == 0))
 })
+
+# Every write below is behaviorally neutral: the operand value ends up right
+# whether or not the buffer is copied and whether or not the fan-out is
+# collapsed. So each detector is written to observe the mechanism directly --
+# a duplication or a repeated address -- not the value, and each is verified by
+# watching it fail against the unfixed write.
+
+test_that("the sender-branch operand write duplicates no buffer across a walk", {
+  # The sender kernel keeps a per-sender vector for each interaction operand.
+  # An in-place write leaves it untouched in memory; a `get()`-then-subassign
+  # copies the whole vector every event, because binding it to a second name
+  # marks it shared. `tracemem` reports every such duplication -- on stdout, so
+  # the capture must take "output"; taking "message" would observe nothing and
+  # pass regardless.
+  skip_if_not(capabilities("profmem"), "R built without memory profiling")
+  data <- parity_toy_data()
+  spec <- make_specification(
+    rate = ~ 1 + ego(a):ego(b),
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  handle <- suppressWarnings(walk_open(single_process_joint(spec)))
+  op_state <- handle$engines[[1L]]$op_state
+  buffers <- mget(ls(op_state), envir = op_state)
+  skip_if(length(buffers) == 0L, "no operand buffer was seeded")
+  for (buffer in buffers) {
+    invisible(tracemem(buffer))
+  }
+  on.exit(
+    for (buffer in buffers) {
+      suppressWarnings(untracemem(buffer))
+    },
+    add = TRUE
+  )
+
+  end_time <- max(handle$schedule$time)
+  copies <- utils::capture.output(
+    suppressWarnings(walk_advance(handle, end_time)),
+    type = "output"
+  )
+  expect_length(copies, 0L)
+
+  # The control: a deliberate subassignment of a still-watched buffer must show
+  # up here, or the capture above is blind and its emptiness proves nothing.
+  witness <- buffers[[1L]]
+  deliberate <- utils::capture.output(
+    {
+      witness[1L] <- witness[1L] + 1
+    },
+    type = "output"
+  )
+  expect_gt(length(deliberate), 0L)
+})
