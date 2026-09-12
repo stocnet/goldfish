@@ -1289,10 +1289,9 @@ compute_step.default <- function(spec, state, i, ctx) {
   if (ctx$active_sender_folded) {
     # Maintain the folded `active_sender` by walking its per-event crossings
     # slice: apply this event's flips before its likelihood.
-    hi <- ctx$active_sender_update_pointer[i]
     lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
-    if (hi > lo) {
-      cols <- (lo + 1L):hi
+    cols <- .availability_event_cols(lo, ctx$active_sender_update_pointer[i])
+    if (!is.null(cols)) {
       state$presence[ctx$active_sender_update[1L, cols]] <-
         as.logical(ctx$active_sender_update[2L, cols])
     }
@@ -1311,10 +1310,9 @@ compute_step.default <- function(spec, state, i, ctx) {
     # `state$presence2` is the dense n1 x n2 matrix and the buffer carries
     # (node1, node2, replace); the broadcast encodings maintain a length-n2
     # vector with a (node, replace) buffer.
-    hi <- ctx$active_dyad_update_pointer[i]
     lo <- if (i > 1L) ctx$active_dyad_update_pointer[i - 1L] else 0L
-    if (hi > lo) {
-      cols <- (lo + 1L):hi
+    cols <- .availability_event_cols(lo, ctx$active_dyad_update_pointer[i])
+    if (!is.null(cols)) {
       if (identical(ctx$active_dyad_encoding, "point")) {
         state$presence2[cbind(
           ctx$active_dyad_update[1L, cols],
