@@ -1417,7 +1417,130 @@ build_walk_engine <- function(
 # nothing to share -- and each group's engines then pool by atom signature as
 # they always did. Returns the masks split back per engine, aligned with its own
 # consumers.
-realize_pending_masks <- function(pending) {
+# The constraints an engine's outputs carry, from whichever compilation the
+# finalize path will read: a multi-output unit reads its consumer specs, a
+# single-output unit reads its own compiled plan. Deduplicated by atom signature
+# so a layer's rate and choice, which share an atom pool, seed one store.
+engine_constraints <- function(engine) {
+  raw <- if (is.null(engine$consumer_specs)) {
+    sub <- engine$ctx$plan$support_constraint
+    if (is.null(sub)) list() else list(sub)
+  } else {
+    Filter(Negate(is.null), lapply(engine$consumer_specs, `[[`, "constraint"))
+  }
+  if (length(raw) == 0L) {
+    return(raw)
+  }
+  sig <- vapply(
+    raw,
+    function(s) paste(sort(s$atom_labels), collapse = "\r"),
+    character(1)
+  )
+  raw[!duplicated(sig)]
+}
+
+# The object keys a constraint's atoms read, and whether each carries its own
+# event stream. A key with a stream must be a shared object the merged walk
+# actually visits for the recorder to see its updates; a static object (no
+# stream) is covered by the seed alone.
+constraint_atom_object_keys <- function(sub_plan) {
+  keys <- sub_plan$objects$key
+  stream_names <- sub_plan$events_objects_link$name[-1]
+  dynamic <- sub_plan$objects$name %in% stream_names
+  list(keys = keys, dynamic_keys = keys[dynamic])
+}
+
+# A recorder can maintain a constraint's atoms over the merged walk only when
+# every atom object that CHANGES is one the shared schedule visits. A static
+# atom object never changes, so its seed value is enough; a dynamic one absent
+# from the shared registry (a constraint-only network the units never compiled)
+# is not seen by the walk, and that constraint falls back to the private walk.
+recorder_covers_constraint <- function(sub_plan, shared_object_keys) {
+  dyn <- constraint_atom_object_keys(sub_plan)$dynamic_keys
+  all(dyn %in% shared_object_keys)
+}
+
+# Seed one atom store per (model, node sides, atom signature) the engines carry,
+# for every constraint the merged walk can cover, and index them by the object
+# key whose covariate events advance them. The stores are filled during the walk
+# (`advance_recorders_for_event()`) and read back at mask realization
+# (`recorder_atoms_factory()`), replacing the private atom walk for covered
+# constraints while leaving the uncovered ones to it.
+build_walk_recorders <- function(engines, shared_object_keys) {
+  lookup <- new.env(parent = emptyenv())
+  by_key <- list()
+  stores <- list()
+  for (engine in engines) {
+    ctx <- engine$ctx
+    for (sub_plan in engine_constraints(engine)) {
+      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
+        next
+      }
+      signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
+      key <- paste(engine$model, ctx$nodes, ctx$nodes2, signature, sep = "\v")
+      if (!is.null(lookup[[key]])) {
+        next
+      }
+      store <- build_constraint_atom_store(
+        sub_plan,
+        engine$model,
+        ctx$nodes,
+        ctx$nodes2,
+        prep_envir = engine$prep_envir,
+        src = ctx$src
+      )
+      lookup[[key]] <- store
+      stores[[length(stores) + 1L]] <- store
+      idx <- length(stores)
+      for (ok in constraint_atom_object_keys(sub_plan)$keys) {
+        by_key[[ok]] <- c(by_key[[ok]], idx)
+      }
+    }
+  }
+  list(lookup = lookup, by_key = by_key, stores = stores)
+}
+
+# Advance every recorder that reads the object a covariate event moved, over the
+# pre-update shared state. Called once per covariate event, outside the per-unit
+# loop, because a constraint belongs to the process and not to a sub-model.
+advance_recorders_for_event <- function(
+  recorders,
+  key,
+  shape,
+  event_args,
+  state,
+  time
+) {
+  for (idx in recorders$by_key[[key]]) {
+    advance_constraint_atom_store(
+      recorders$stores[[idx]],
+      key,
+      shape,
+      event_args,
+      state,
+      time
+    )
+  }
+  invisible(NULL)
+}
+
+# An atoms factory for `preprocess_pooled_support_masks()` that returns a covered
+# constraint's recorded-and-replayed atom pool instead of walking it again;
+# absent a recorder (an uncovered constraint) it defers to the private walk.
+recorder_atoms_factory <- function(recorders) {
+  function(sub_plan, model, nodes, nodes2, prep_envir, src) {
+    signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
+    key <- paste(model, nodes, nodes2, signature, sep = "\v")
+    store <- recorders$lookup[[key]]
+    if (is.null(store)) {
+      build_atom_maintainer(sub_plan, model, nodes, nodes2, prep_envir, src)
+    } else {
+      constraint_replay_atoms(store)
+    }
+  }
+}
+
+realize_pending_masks <- function(pending, recorders = NULL) {
   lengths <- vapply(pending, function(p) length(p$requests), integer(1))
   masks <- lapply(lengths, function(n) vector("list", n))
   owner <- rep(seq_along(pending), lengths)
@@ -1442,13 +1565,19 @@ realize_pending_masks <- function(pending) {
   for (group in split(seq_along(requests), key)) {
     engine <- pending[[owner[[group[[1L]]]]]]$engine
     ctx <- engine$ctx
+    atoms_factory <- if (is.null(recorders)) {
+      build_atom_maintainer
+    } else {
+      recorder_atoms_factory(recorders)
+    }
     realized <- preprocess_pooled_support_masks(
       requests[group],
       model = engine$model,
       nodes = ctx$nodes,
       nodes2 = ctx$nodes2,
       prep_envir = engine$prep_envir,
-      src = ctx$src
+      src = ctx$src,
+      atoms_factory = atoms_factory
     )
     for (k in seq_along(group)) {
       i <- group[[k]]
@@ -1709,6 +1838,11 @@ run_merged_walk <- function(
     new_writer = new_writer
   )
 
+  # One atom store per covered constraint, maintained over this walk's shared
+  # state instead of a private walk of its own. A constraint the shared schedule
+  # cannot cover keeps its private walk, so this never regresses one.
+  recorders <- build_walk_recorders(engines, merged$objects$key)
+
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
   window <- resolve_walk_extent(merged, control_preprocessing)
@@ -1939,6 +2073,12 @@ run_merged_walk <- function(
       )
     }
 
+    # The constraint atoms read the same pre-update state the estimated effects
+    # did, so their stores advance here, once per covariate event and before the
+    # write, exactly where the private walk would apply the same event to its own
+    # container.
+    advance_recorders_for_event(recorders, key, shape, event_args, state, t)
+
     # The state write, after every reader saw the pre-update state. The
     # container is a plain list, so the subassignment rebinds `state` here; a
     # tie goes through `state_set_tie()`, whose in-place cell write keeps the
@@ -1997,7 +2137,7 @@ run_merged_walk <- function(
     end_time = end_time,
     opportunities = control_preprocessing$opportunities_list
   )
-  masks <- realize_pending_masks(pending)
+  masks <- realize_pending_masks(pending, recorders)
 
   # The intercept scalar is the time-weighted average risk-set size only when
   # the walk has more than one dependent (layer, flavor) stream: competing

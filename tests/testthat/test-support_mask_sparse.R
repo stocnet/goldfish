@@ -22,11 +22,21 @@ mask_call_counts <- function(expr) {
   counts$maintainers <- 0L
   counts$evaluations <- 0L
   orig_build <- build_atom_maintainer
+  orig_store <- build_constraint_atom_store
   orig_assemble <- assemble_support_mask
+  # The atom pool is built once per layer by WHICHEVER maintainer keeps it: the
+  # merged walk records it inline through `build_constraint_atom_store()` for a
+  # constraint it can cover, and the private `build_atom_maintainer()` walk keeps
+  # the ones it cannot (a flavored derived mask). Counting both is what makes
+  # "one pool for the layer" hold across the two mechanisms.
   local_mocked_bindings(
     build_atom_maintainer = function(...) {
       counts$maintainers <- counts$maintainers + 1L
       orig_build(...)
+    },
+    build_constraint_atom_store = function(...) {
+      counts$maintainers <- counts$maintainers + 1L
+      orig_store(...)
     },
     assemble_support_mask = function(...) {
       counts$evaluations <- counts$evaluations + 1L

@@ -77,6 +77,33 @@ test_that("a constrained model's plan effects carry the atoms as operands", {
   }
 })
 
+# ---- 3.0 the covered atom pool is maintained once, on the shared walk ------
+
+test_that("a covered constrained model builds no private atom walk", {
+  # The payoff of moving the atoms onto the merged walk: a constraint whose
+  # objects the shared schedule visits is maintained inline by the recorder, so
+  # the private `build_atom_maintainer()` walk is not built at all and the atom
+  # store is seeded exactly once for the layer. `constraint_atoms_capture()`
+  # already pins that the mask this produces is byte-identical to the private
+  # walk's frozen output (task 1.2), so this is the walk COUNT that removal buys.
+  private <- 0L
+  stores <- 0L
+  orig_store <- build_constraint_atom_store
+  local_mocked_bindings(
+    build_atom_maintainer = function(...) {
+      private <<- private + 1L
+      cli::cli_abort("a covered constraint must not build a private atom walk")
+    },
+    build_constraint_atom_store = function(...) {
+      stores <<- stores + 1L
+      orig_store(...)
+    }
+  )
+  invisible(constraint_atoms_prep("rate"))
+  expect_identical(private, 0L)
+  expect_identical(stores, 1L)
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {

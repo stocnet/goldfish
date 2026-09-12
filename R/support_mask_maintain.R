@@ -368,6 +368,376 @@ build_atom_maintainer <- function(
   )
 }
 
+# Force an independent copy of an atom buffer. `write_entries()` mutates its
+# buffer in place (via `set_entries()`), so a value that must survive later
+# writes — a stored `initial`, or a per-replay seed — has to be duplicated first.
+# Assigning into a shared vector triggers R's copy-on-write, giving a new SEXP the
+# in-place writer can no longer reach through the original.
+copy_atom_buffer <- function(x) {
+  y <- x
+  if (length(y) > 0L) {
+    y[[1L]] <- y[[1L]]
+  }
+  y
+}
+
+# One constraint-atom effect-template evaluation, reading its data off a shared
+# state container by object key. A standalone twin of the closure inside
+# `build_atom_maintainer()`: it lets the atoms be maintained over the merged
+# walk's ONE shared state instead of the private walk's own container, so the
+# same atom advance runs whether the state is private or shared.
+call_constraint_atom_template <- function(
+  template,
+  state,
+  cache,
+  shape,
+  event_args,
+  net_update,
+  att_update,
+  n1,
+  n2
+) {
+  args <- c(
+    list(
+      network = if (template$n_networks == 1L) {
+        state$networks[[template$net_keys]]
+      } else if (template$n_networks > 1L) {
+        lapply(template$net_keys, function(k) state$networks[[k]])
+      } else {
+        list()
+      },
+      attribute = if (template$n_attributes == 1L) {
+        state[[template$att_components]][[template$att_keys]]
+      } else if (template$n_attributes > 1L) {
+        lapply(
+          seq_len(template$n_attributes),
+          function(j) {
+            state[[template$att_components[j]]][[template$att_keys[j]]]
+          }
+        )
+      } else {
+        list()
+      },
+      cache = cache,
+      n1 = n1,
+      n2 = n2,
+      net_update = net_update,
+      att_update = att_update,
+      event_order = 0L,
+      inter_event_time = 0
+    ),
+    event_args
+  )
+  do.call(template$fun, args[template$args_by_shape[[shape]]])
+}
+
+#' Seed a constraint's atom store for maintenance over a shared walk
+#'
+#' Builds everything `advance_constraint_atom_store()` needs to keep a
+#' constraint's atoms live — their effect templates, live caches, per-atom
+#' kind-shaped values (seeded from the objects' pre-event state), and the
+#' object-key → routing map — WITHOUT the private walk's own state container,
+#' event fetch or schedule. The atoms are advanced by the merged walk as its
+#' shared state moves, and each advance records the atom deltas it produced so a
+#' mask can later be projected from them (`constraint_replay_atoms()`), the same
+#' deltas the private walk would have replayed from its own container.
+#'
+#' @param sub_plan the compiled constraint sub-plan.
+#' @param model the model string (`"DyNAM"` / `"REM"`).
+#' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prep_envir`.
+#' @param prep_envir environment holding the realized data objects.
+#' @param src data source over `prep_envir`; built when `NULL`.
+#' @return a store env carrying the seed and an empty recorded-delta stream.
+#' @noRd
+build_constraint_atom_store <- function(
+  sub_plan,
+  model,
+  nodes,
+  nodes2,
+  prep_envir = new.env(),
+  src = NULL
+) {
+  effects <- sub_plan$effect_functions
+  objects_effects_link <- sub_plan$objects_effects_link
+  atom_kinds <- sub_plan$atom_kinds
+  atom_labels <- sub_plan$atom_labels
+  n_atoms <- length(effects)
+
+  if (is.null(src)) {
+    src <- new_data_source(envir = prep_envir)
+  }
+  n1 <- ds_n_nodes(src, nodes)
+  n2 <- ds_n_nodes(src, nodes2)
+
+  # A container built only to seed: it gives the templates their object-key
+  # structure and `initialize_cache_stat()` the pre-event values. The advance
+  # reads its data off the shared state the caller passes, never this one.
+  seed_state <- build_state_container(
+    rownames(objects_effects_link),
+    nodes,
+    nodes2,
+    envir = prep_envir,
+    src = src
+  )
+  effects_template <- build_effects_template(
+    effects,
+    objects_effects_link,
+    seed_state
+  )
+  stat_cache <- initialize_cache_stat(
+    objects_effects_link = objects_effects_link,
+    effects = effects,
+    groups_network = NULL,
+    window_parameters = vector("list", n_atoms),
+    n1 = n1,
+    n2 = n2,
+    model = model,
+    sub_model = sub_plan$atom_sub_model,
+    envir = prep_envir,
+    src = src
+  )
+
+  net_update_lookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
+  att_update_lookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
+  net_update_lookup[cbind(
+    sub_plan$effect_objects$oid,
+    sub_plan$effect_objects$gid
+  )] <- sub_plan$effect_objects$net_update
+  att_update_lookup[cbind(
+    sub_plan$effect_objects$oid,
+    sub_plan$effect_objects$gid
+  )] <- sub_plan$effect_objects$att_update
+
+  store <- new.env(parent = emptyenv())
+  store$templates <- effects_template
+  store$stat_cache <- lapply(stat_cache, "[[", "cache")
+  store$atom_kinds <- atom_kinds
+  store$atom_labels <- atom_labels
+  store$n_atoms <- n_atoms
+  store$n1 <- n1
+  store$n2 <- n2
+  store$routing <- sub_plan$routing
+  store$net_update_lookup <- net_update_lookup
+  store$att_update_lookup <- att_update_lookup
+  # Which local oid an object key resolves to, and whether that object is
+  # undirected, so the merged walk can route a shared covariate event by key.
+  store$key_to_oid <- stats::setNames(
+    sub_plan$objects$oid,
+    sub_plan$objects$key
+  )
+  store$is_undirected <- stats::setNames(
+    sub_plan$objects$is_undirected,
+    sub_plan$objects$key
+  )
+
+  # Each atom stored at its own kind, seeded from the pre-event state. `initial`
+  # is a SEPARATE copy kept aside so a replay starts where the private walk did:
+  # `write_entries()` mutates the live buffer in place, so an aliased initial
+  # would be overwritten to the final value as the walk advances.
+  atom_state <- new.env(parent = emptyenv())
+  initial <- vector("list", n_atoms)
+  for (a in seq_len(n_atoms)) {
+    seeded <- reduce_value(
+      matrix(stat_cache[[a]]$stat, n1, n2),
+      0L,
+      atom_kinds[a]
+    )
+    assign(as.character(a), seeded, envir = atom_state)
+    initial[[a]] <- copy_atom_buffer(seeded)
+  }
+  store$atom_state <- atom_state
+  store$initial <- initial
+
+  # The recorded atom-delta stream: one entry per (event, atom) the advance
+  # touches, in walk order. `constraint_replay_atoms()` replays it.
+  store$record_time <- numeric(0)
+  store$record_gid <- integer(0)
+  store$record_entries <- list()
+  store$record_values <- list()
+  store
+}
+
+# Advance a constraint's atoms for one shared covariate event and record the
+# deltas. `key` names the object the event moved; when no atom reads it the store
+# is untouched. Mirrors `build_atom_maintainer()`'s `apply_atom_event()` routing
+# (undirected mirror, per-atom `collapse_operand_delta` + in-place write), but
+# reads the pre-update SHARED `state` the caller passes, and appends each atom's
+# `(time, gid, entries, values)` delta to the store's stream instead of only
+# accumulating a touched set. `event_args` are the walk's already-resolved
+# arguments (increment folded to a replace).
+advance_constraint_atom_store <- function(
+  store,
+  key,
+  shape,
+  event_args,
+  state,
+  time
+) {
+  oid <- store$key_to_oid[[key]]
+  if (is.null(oid) || is.na(oid)) {
+    return(invisible(NULL))
+  }
+  is_undirected <- isTRUE(store$is_undirected[[key]])
+  n1 <- store$n1
+  n2 <- store$n2
+
+  for (gid in store$routing[[oid]]) {
+    net_update_pos <- store$net_update_lookup[oid, gid]
+    if (is.na(net_update_pos)) {
+      net_update_pos <- NULL
+    }
+    att_update_pos <- store$att_update_lookup[oid, gid]
+    if (is.na(att_update_pos)) {
+      att_update_pos <- NULL
+    }
+
+    effect_update <- call_constraint_atom_template(
+      store$templates[[gid]],
+      state,
+      store$stat_cache[[gid]],
+      shape,
+      event_args,
+      net_update_pos,
+      att_update_pos,
+      n1,
+      n2
+    )
+    if (!is.null(effect_update$cache)) {
+      store$stat_cache[[gid]] <- effect_update$cache
+    }
+    updates <- effect_update$changes
+    if (is_undirected) {
+      ea2 <- event_args
+      ea2$sender <- event_args$receiver
+      ea2$receiver <- event_args$sender
+      eu2 <- call_constraint_atom_template(
+        store$templates[[gid]],
+        state,
+        store$stat_cache[[gid]],
+        shape,
+        ea2,
+        net_update_pos,
+        att_update_pos,
+        n1,
+        n2
+      )
+      if (!is.null(eu2$cache)) {
+        store$stat_cache[[gid]] <- eu2$cache
+      }
+      updates <- rbind(updates, eu2$changes)
+    }
+    if (!is.null(updates)) {
+      buffer <- get(as.character(gid), envir = store$atom_state)
+      delta <- collapse_operand_delta(
+        buffer,
+        updates[, "node1"],
+        updates[, "node2"],
+        updates[, "replace"],
+        store$atom_kinds[gid],
+        n1,
+        n2
+      )
+      assign(
+        as.character(gid),
+        write_entries(buffer, delta$entries, delta$values),
+        envir = store$atom_state
+      )
+      pos <- length(store$record_time) + 1L
+      store$record_time[[pos]] <- time
+      store$record_gid[[pos]] <- gid
+      store$record_entries[[pos]] <- delta$entries
+      store$record_values[[pos]] <- delta$values
+    }
+  }
+  invisible(NULL)
+}
+
+#' Replay a recorded atom-delta stream as a `build_mask_maintainer()` handle
+#'
+#' The merged walk computed each atom's deltas once, off the shared state, and
+#' `build_constraint_atom_store()` recorded them. This exposes that record with
+#' the exact interface `build_mask_maintainer()` / `walk_mask_streams()` expect
+#' from `build_atom_maintainer()` — `advance(t)`, `atom_value`, `atom_kind`,
+#' `take_touched`, `n1`, `n2`, `atom_labels`, `atom_kinds` — but its `advance()`
+#' only WRITES the recorded values (no state read, no template call, no second
+#' container), so the atom pool is walked once and projected here cheaply.
+#'
+#' @param store a store from `build_constraint_atom_store()` whose stream the
+#'   merged walk has filled.
+#' @return a maintainer handle equivalent to `build_atom_maintainer()`'s.
+#' @noRd
+constraint_replay_atoms <- function(store) {
+  n_atoms <- store$n_atoms
+  atom_labels <- store$atom_labels
+  atom_kinds <- store$atom_kinds
+  n1 <- store$n1
+  n2 <- store$n2
+
+  atom_state <- new.env(parent = emptyenv())
+  for (a in seq_len(n_atoms)) {
+    # A fresh copy per replay: `write_entries()` mutates in place, so replaying
+    # must not scribble on the store's pristine `initial` (several fids replay
+    # the same store).
+    assign(
+      as.character(a),
+      copy_atom_buffer(store$initial[[a]]),
+      envir = atom_state
+    )
+  }
+
+  touched <- new.env(parent = emptyenv())
+  touched$entries <- vector("list", n_atoms)
+
+  times <- store$record_time
+  order_idx <- order(times)
+  ordered_time <- times[order_idx]
+  n_rec <- length(order_idx)
+  cursor <- new.env(parent = emptyenv())
+  cursor$next_rec <- 1L
+
+  advance <- function(tt) {
+    while (cursor$next_rec <= n_rec && ordered_time[cursor$next_rec] < tt) {
+      r <- order_idx[cursor$next_rec]
+      gid <- store$record_gid[[r]]
+      entries <- store$record_entries[[r]]
+      buffer <- get(as.character(gid), envir = atom_state)
+      assign(
+        as.character(gid),
+        write_entries(buffer, entries, store$record_values[[r]]),
+        envir = atom_state
+      )
+      touched$entries[[gid]] <- unique(c(touched$entries[[gid]], entries))
+      cursor$next_rec <- cursor$next_rec + 1L
+    }
+    invisible(NULL)
+  }
+
+  atom_value <- function(label) {
+    get(as.character(match(label, atom_labels)), envir = atom_state)
+  }
+  atom_kind <- function(label) {
+    atom_kinds[[match(label, atom_labels)]]
+  }
+  take_touched <- function() {
+    moved <- lapply(touched$entries, function(at) {
+      if (is.null(at)) NULL else unique(at)
+    })
+    touched$entries <- vector("list", n_atoms)
+    moved
+  }
+
+  list(
+    n1 = n1,
+    n2 = n2,
+    atom_labels = atom_labels,
+    atom_kinds = atom_kinds,
+    advance = advance,
+    atom_value = atom_value,
+    atom_kind = atom_kind,
+    take_touched = take_touched
+  )
+}
+
 #' Maintain one constraint's mask incrementally over a shared atom pool
 #'
 #' The mask is a value at its own kind, maintained the way every other
@@ -696,7 +1066,8 @@ preprocess_pooled_support_masks <- function(
   nodes2,
   symmetric = FALSE,
   prep_envir = new.env(),
-  src = NULL
+  src = NULL,
+  atoms_factory = build_atom_maintainer
 ) {
   result <- vector("list", length(requests))
   has_constraint <- vapply(
@@ -729,13 +1100,17 @@ preprocess_pooled_support_masks <- function(
 
   for (group in split(con_idx, signature)) {
     constraints <- lapply(group, function(i) requests[[i]]$constraint)
-    atoms <- build_atom_maintainer(
+    # The atom pool is built by the factory: the default private walk maintains
+    # it over its own state container, but the merged walk passes a factory that
+    # replays the atom deltas it already recorded off the shared state, so the
+    # pool is not walked a second time.
+    atoms <- atoms_factory(
       constraints[[1L]],
       model,
       nodes,
       nodes2,
-      prep_envir = prep_envir,
-      src = src
+      prep_envir,
+      src
     )
 
     # Distinct MASKS within the group. Two requests read the same mask when they
