@@ -42,7 +42,7 @@ make_sender_crossing_fixture <- function(n_events = 120L, n_cross = 5L) {
 
     allowed <- matrix(1, n, n, dimnames = list(lab, lab))
     diag(allowed) <- 0
-    allowedNet <- make_network(
+    allowed_net <- make_network(
       matrix = allowed,
       nodes = actors,
       directed = TRUE
@@ -65,9 +65,13 @@ make_sender_crossing_fixture <- function(n_events = 120L, n_cross = 5L) {
         )
       })
     )
-    allowedNet <- link_events(allowedNet, change_event = change, nodes = actors)
+    allowed_net <- link_events(
+      allowed_net,
+      change_event = change,
+      nodes = actors
+    )
 
-    data <- make_data(calls_dependent, call_network, calls, actors, allowedNet)
+    data <- make_data(calls_dependent, call_network, calls, actors, allowed_net)
   })
   list(data = data, n_cross = n_cross)
 }
@@ -79,7 +83,7 @@ fit_sender_crossing <- function(fx, backend) {
       choice = ~inertia,
       model = "DyNAM",
       layer = "calls_dependent",
-      support_constraint = ~ tie(allowedNet),
+      support_constraint = ~ tie(allowed_net),
       data = fx$data
     )
     estimate_dynam(
@@ -100,7 +104,7 @@ test_that("the time-varying gate emits active_sender crossings", {
     choice = ~inertia,
     model = "DyNAM",
     layer = "calls_dependent",
-    support_constraint = ~ tie(allowedNet),
+    support_constraint = ~ tie(allowed_net),
     data = fx$data
   ))
   prep <- suppressWarnings(estimate_dynam(
