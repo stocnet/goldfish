@@ -960,7 +960,7 @@ alone.
       helpers the merged walk shares. `air format` the touched files, then
       `lintr::lint()` on them. The descriptor spec's guard test and
       `grep -n "eval(parse\|assign(" R/model_preprocess.R` stay clean.
-- [ ] 3.4 Re-run the task 0.1 measurement on the flipped tree and record it
+- [x] 3.4 Re-run the task 0.1 measurement on the flipped tree and record it
       beside the pre-flip numbers; confirm the ratio is within the recorded
       rule.
 - [ ] 3.5 Verification: full `NOT_CRAN=true` suite green; frozen baselines and
