@@ -633,8 +633,10 @@ walk_build_state <- function(handle, fid) {
 #' @rdname walk_handle
 #' @param fid the integer formula id to evaluate (a row of the specification's
 #'   `process_map`).
-#' @param theta the parameter vector for the fid, matching its effect columns
-#'   (with a leading intercept for a timed rate).
+#' @param theta the parameters for the fid, matching its effect columns (with a
+#'   leading intercept for a timed rate): one vector shared by every actor, or
+#'   an `n_actors1 x p` matrix whose row `i` is actor `i`'s parameter vector,
+#'   applied to the statistics rows actor `i` sends from.
 #' @return `walk_evaluate()` returns the process-state evaluator result for the
 #'   fid: an `index` data frame and the per-alternative `value` (a rate vector
 #'   for a sender-block fid, a choice matrix's probabilities for a dyad-block
@@ -654,12 +656,24 @@ walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
     )
   }
   state <- walk_build_state(handle, fid)
-  if (length(theta) != state$n_parameters) {
+  n_parameters <- state$n_parameters
+  n_actors <- state$n_actors1
+  theta_fits <- if (is.matrix(theta)) {
+    nrow(theta) == n_actors && ncol(theta) == n_parameters
+  } else {
+    length(theta) == n_parameters
+  }
+  if (!theta_fits) {
+    got <- if (is.matrix(theta)) {
+      paste(dim(theta), collapse = " x ")
+    } else {
+      length(theta)
+    }
     cli::cli_abort(
       c(
-        "{.arg theta} has the wrong length for fid {.val {fid}}.",
-        "x" = "Expected {.val {state$n_parameters}} parameter{?s}, got
-               {.val {length(theta)}}."
+        "{.arg theta} has the wrong shape for fid {.val {fid}}.",
+        "x" = "Expected {.val {n_parameters}} parameter{?s}, or a per-actor
+               {n_actors} x {n_parameters} matrix; got {.val {got}}."
       ),
       call = call,
       class = "goldfish_walk_bad_theta"

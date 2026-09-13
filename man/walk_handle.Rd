@@ -42,8 +42,10 @@ handle's current clock).}
 \item{fid}{the integer formula id to evaluate (a row of the specification's
 \code{process_map}).}
 
-\item{theta}{the parameter vector for the fid, matching its effect columns
-(with a leading intercept for a timed rate).}
+\item{theta}{the parameters for the fid, matching its effect columns (with a
+leading intercept for a timed rate): one vector shared by every actor, or
+an \verb{n_actors1 x p} matrix whose row \code{i} is actor \code{i}'s parameter vector,
+applied to the statistics rows actor \code{i} sends from.}
 }
 \value{
 \code{walk_open()} returns a \code{goldfishWalk} object.
