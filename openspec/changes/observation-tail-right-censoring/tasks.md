@@ -86,10 +86,17 @@ warning is not a failure.
 
 ## 3. Settle D2 and fold the result
 
-- [ ] 3.1 Put D2 to Alvaro with group 1.3's number. Record the answer as an ADR
-      (claim the id in the vault `decisions/_id-ledger.md` before drafting), with
-      the rejected side, and cite the ADR id here and in `proposal.md`.
-- [ ] 3.2 If D2 changes today's behavior (close at the last dependent event):
+- [x] 3.1 D2 answered by Alvaro (2026-09-13): a real exogenous tail extends the
+      window — keep the current behavior. Recorded as ADR-0069 (minted by the
+      coordinator) with the rejected side (close at the last dependent event),
+      cited in `design.md` D2 and `proposal.md`. Group 1.3 still measures the
+      size of the difference for the record, but it feeds no decision.
+- [x] 3.2 D2 is "keep" (ADR-0069), so today's behavior does not change and NO
+      baseline moves for the exogenous-tail case — record that, and confirm the
+      exposed exact-time rate baselines (those with a trailing real exogenous
+      event) are untouched. The full instruction below is retained for the record
+      but does not fire under "keep":
+      If D2 changes today's behavior (close at the last dependent event):
       implement it, and re-freeze every exact-time rate baseline whose formula
       has a trailing real exogenous event — under ADR-0021, deriving the moved
       `Intercept` from the dropped exposure first and committing the derivation

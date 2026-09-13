@@ -623,6 +623,35 @@ keeps one imputation contract rather than two. Full reproduction in
 `.plan/bug-merged-walk-skips-network-imputation.md`.
 
 
+### D16 — The gate reads the two-family cell; the single-family overhead was reduced, not gated (decided 2026-09-13, closing task 0.10d)
+
+Task 0.10d asked whether the 1.10x deletion gate (D6, fixed on the CollegeMsg
+full two-family cell) reads the wrong workflow, since `compute_statistics()` and
+`estimate_dynam()` each take one sub-model, so the single-family path is where
+users actually are while the two-family cell describes no user surface.
+
+**Decision: the gate reads the two-family CollegeMsg full cell as D6 states, and
+the single-family overhead was addressed by REDUCING it rather than by
+re-pointing the gate.** The single-family cells were measured (rate-only ran
+1.41-1.58 against a two-family 0.98) and then driven to about 1.1 at every size
+by removing the accidental cost — the setup that materialized the adjacency
+matrix eight times per call against the loops' five, and the per-event routing
+lookups (ADR-0066, and the `53add23` setup fixes). The deletion's real safety is
+not the ratio at all: it is byte-identity of the frozen 1e-6 baselines through
+the merged walk, proven at the flip, which no ratio can stand in for.
+
+*Rejected:* re-pointing the gate at the single-family cell. That would have
+blocked the deletion on an overhead that was reducible and was reduced, and it
+would still not be the decisive check — the byte-identity is. The single-family
+number is worth reading (it is where users are), which is why it was reduced;
+it is not the gate the deletion turns on.
+
+**Now moot.** The recipe loops are deleted, so `compute_statistics()` IS the
+merged walk and there is no merged-vs-loops ratio left to gate. This decision is
+the historical record of why the deletion proceeded on the two-family cell; it
+does not gate anything going forward. The standing guarantee is baseline
+byte-identity through the sole remaining walk.
+
 ## Risks / Trade-offs
 
 - [A coefficient moves] → it cannot if the port is exact; the baselines are

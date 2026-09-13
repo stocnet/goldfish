@@ -75,7 +75,7 @@ drop legitimate exposure past a real exogenous event on an exact-time family,
 which the observation-window capability deliberately counts, and would move
 correct baselines.
 
-### D2 — Open, and Alvaro's to settle: does a real exogenous tail extend the window?
+### D2 — Decided (Alvaro, 2026-09-13): a real exogenous tail DOES extend the window (ADR-0069)
 
 Today the resolved end is the span of the non-window streams, so a real covariate
 or composition change after the last dependent event extends the exact-time
@@ -92,9 +92,17 @@ exposure and writes a right-censored boundary. Two readings:
   likelihood and would move exact-time rate baselines that have a trailing
   exogenous event.
 
-The detectors in group 1 measure the size of the difference on a real fixture
-before the question is put, so the decision reads a number. Recorded as an ADR
-(id claimed in the vault ledger) when answered, with the rejected side.
+**Decision: keep.** A real exogenous event (a covariate or composition change)
+after the last dependent event legitimately extends the resolved observation
+window, and an exact-time family counts the compensator's exposure to it, exactly
+as it counts exposure to an explicit `end_time`. This is the current behavior, so
+it moves no baseline. The rejected alternative — closing the window at the last
+dependent event — is recorded in ADR-0069 with its reasoning. Consequences for
+this change: group 1.3 still MEASURES the size of the exogenous tail (it is worth
+recording), but it no longer feeds a decision; and no baseline moves for the
+exogenous case, so the change's remaining work is purely the D1 invariant — that
+WINDOW-DERIVED rows never extend the tail — audited across substrates and
+families.
 
 ### D3 — Detectors are a product matrix, built and run red first
 

@@ -571,7 +571,7 @@ step landed proves nothing.
       0.9's 0.98 / 0.93 re-read is folded in as its own dated section, marked
       as superseded by the archived-tree columns, which it agrees with to
       within run-to-run noise.
-- [ ] 0.10d **Open question for Alvaro, to be answered before group 3 reads any
+- [x] 0.10d **Answered 2026-09-13 (design D16): to be answered before group 3 reads any
       number.** D6 fixes the threshold on CollegeMsg, full model, two-family
       cell. If the single-family path is where users actually are, that rule
       reads the wrong workflow, and restating it is a decision rather than a

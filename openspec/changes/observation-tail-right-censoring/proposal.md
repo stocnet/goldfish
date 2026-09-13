@@ -78,13 +78,14 @@ likelihood.
   receiver axis, insofar as either lets a composition change at the tail be
   read wrong. Whether each is fixed here or handed to a dedicated composition
   change is decided by what the detectors show, not in advance.
-- **The modeling question is settled and recorded**: does a genuinely exogenous
-  real event (a covariate or composition change) after the last dependent event
-  legitimately extend the observation window and its right-censored exposure, or
-  should the window close at the last dependent event? The living spec's current
-  answer is the former (the end defaults to the span of the non-window streams);
-  this change confirms it or changes it, with the rejected alternative and, if it
-  changes, the baseline derivation ADR-0021 requires.
+- **The modeling question is settled (Alvaro, 2026-09-13, ADR-0069): a real
+  exogenous event after the last dependent event DOES extend the exact-time
+  exposure window.** This is the living spec's current behavior (the end defaults
+  to the span of the non-window streams), so the decision confirms it and moves no
+  baseline. The rejected alternative (close at the last dependent event) is in
+  ADR-0069. The change's remaining work is therefore purely the D1 invariant —
+  window-DERIVED rows never extend the tail — audited across every substrate and
+  family.
 
 **This change may find nothing to fix beyond pinning.** Design D-stop names the
 conditions under which the review concludes "the invariant already holds" and
