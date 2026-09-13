@@ -417,3 +417,179 @@ test_that("walk_open defers effect-free completed defaults to the consumers", {
     class = "goldfish_walk_unsupported"
   )
 })
+# Replay a specification's observed schedule through the handle, injecting
+# every non-dependent row, and compare each fid's live evaluation at its own
+# dependent events against the batch materialization. Returns the number of
+# comparisons and the live choice values seen, so a test can confirm the risk
+# set it compared actually excluded something.
+walk_replay_against_batch <- function(spec) {
+  batch <- suppressWarnings(preprocess_joint(spec))
+  map <- attr(batch, "process_map")
+  handle <- suppressWarnings(walk_open(spec))
+  schedule <- handle$schedule
+  dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
+  n_checked <- 0L
+  n_excluded <- 0L
+  for (k in seq_len(schedule$n)) {
+    # Driven by schedule position, not by time alone: a dependent row is
+    # evaluated before the covariate rows sharing its stamp. An exogenous row is
+    # reached through walk_advance(), which owns its cursor; a focal covariate
+    # row is the realization of a dependent event, which the driver injects.
+    if (
+      !schedule$dependent[k] && !(schedule$layer[k] %in% handle$focal_layers)
+    ) {
+      walk_advance(handle, schedule$time[k])
+      next
+    }
+    if (!schedule$dependent[k]) {
+      event <- list(
+        layer = schedule$layer[k],
+        sender = schedule$sender[k],
+        receiver = schedule$receiver[k],
+        time = schedule$time[k]
+      )
+      event[[schedule$semantics[k]]] <- schedule$value[[k]]
+      walk_inject(handle, event)
+      next
+    }
+    own <- map$fid[
+      map$layer == schedule$layer[k] &
+        (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
+    ]
+    for (fid in own) {
+      key <- as.character(fid)
+      dep_count[[key]] <- dep_count[[key]] + 1L
+      row <- map[map$fid == fid, ]
+      is_rate <- identical(row$family, "rate")
+      out <- batch[[key]]
+      n_parameters <- if (is_rate) {
+        ncol(out$initial_stats) + row$has_intercept
+      } else {
+        dim(out$initial_stats)[3]
+      }
+      theta <- rep_len(c(0.4, -0.3, 0.25), n_parameters)
+      live <- walk_evaluate(handle, fid, theta)
+      state <- materialize_process_state(
+        out,
+        model_type = if (is_rate) "DyNAM-M-Rate" else "DyNAM-M",
+        event_index = which(out$is_dependent == 1L)[dep_count[[key]]],
+        has_intercept = row$has_intercept
+      )
+      reference <- evaluate_process_state(state, theta)$value
+      if (is_rate) {
+        expect_equal(live$value, reference)
+      } else {
+        sender <- schedule$sender[k]
+        n2 <- state$n_actors2
+        live_row <- live$value[(sender - 1L) * n2 + seq_len(n2)]
+        expect_equal(live_row, reference)
+        n_excluded <- n_excluded + sum(live_row[-sender] == 0)
+      }
+      n_checked <- n_checked + 1L
+    }
+  }
+  list(n_checked = n_checked, n_excluded = n_excluded)
+}
+
+# calls is the modeled layer; emails is an exogenous layer the choice reads, so
+# a constraint on it is stepped by the shared walk. Email stamps sit between the
+# call stamps: a support mask reads the atoms strictly before an event's time,
+# and a tie would make the batch and the live read differ by definition.
+walk_constrained_data <- function(emails) {
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    cbind(emails, layer = "emails")
+  )
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+}
+
+test_that("a dyadic support constraint is maintained live on the handle", {
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a receiver-axis support constraint is maintained live", {
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(6L, 6L, 2L, 3L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ indeg(emails) < 1
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a flavored layer's derived masks are maintained live", {
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    layer = "calls",
+    model = "DyNAM",
+    data = flavored_fixture_data()
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a constraint on an object no formula reads is refused", {
+  local_cli_context()
+  # The deprecated preprocessing default warns once per session, so whether it
+  # reaches this snapshot depends on test order; the snapshot is the abort.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L),
+    to = c(1L, 2L),
+    time = c(1.5, 2.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  expect_snapshot(walk_open(spec), error = TRUE)
+})
