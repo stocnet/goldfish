@@ -34,7 +34,7 @@
       abort; one CollegeMsg replicate extrapolates to about 1.7 hours at 104 ms
       per step, peaking at 4.2 GB over 500 steps
 
-- [ ] 2.0 Walk-handle lifts the driver depends on (added 2026-09-07; each with
+- [x] 2.0 Walk-handle lifts the driver depends on (added 2026-09-07; each with
       **(a) waits on `preprocess-one-walk` task 0.5a**, which stores the support
       mask by its axis-union kind — wiring the mask onto the handle before that
       would inherit one dense n1 x n2 logical per snapshot, which exhausts 24 GB
@@ -57,6 +57,20 @@
       side (D11). Land (a), (b) and (d) before 2.1; (c) before 2.7. Frozen
       baselines untouched: the lifts are on the stepping handle and the
       evaluators' matrix branch, not the batch loops
+      — done 2026-09-13 (session `goldfish-23`), frozen baselines PASS in
+      every full run. (d) `9a56835`: vector or `n_ego x p` matrix; a
+      coordination fid takes ONE per-actor matrix (each directed half uses its
+      sender's row), the per-side shape left to `two-sided-coordination`.
+      (a) `8641656`: the handle advances the batch walk's own atom stores and
+      recomputes masks with `build_mask_maintainer()`; flavored derived masks
+      ride the same path; replay matches batch exactly on dyadic,
+      receiver-axis and flavored fixtures. **Gap:** a constraint on a changing
+      object no formula term reads is not stepped by the shared schedule, so
+      the handle aborts on it (`goldfish_walk_unsupported`). (b)+(c)
+      `a21b20c`: presence cursors, `walk_schedule()`,
+      `walk_next_breakpoint()`; windows already ran on the merged walk
+      (`preprocess-one-walk`), so (c) added the breakpoint API and the windowed
+      replay tests
 - [ ] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
