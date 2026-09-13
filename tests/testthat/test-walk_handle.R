@@ -417,10 +417,11 @@ test_that("walk_open defers effect-free completed defaults to the consumers", {
     class = "goldfish_walk_unsupported"
   )
 })
-# Replay a specification's observed schedule through the handle, injecting
-# every non-dependent row, and compare each fid's live evaluation at its own
-# dependent events against the batch materialization. Returns the number of
-# comparisons and the live choice values seen, so a test can confirm the risk
+
+# Replay a specification's observed schedule through the handle and compare
+# each fid's live evaluation at its own dependent events against the batch
+# materialization. Returns the number of comparisons and of excluded
+# alternatives among the compared choice rows, so a test can confirm the risk
 # set it compared actually excluded something.
 walk_replay_against_batch <- function(spec) {
   batch <- suppressWarnings(preprocess_joint(spec))
@@ -452,6 +453,9 @@ walk_replay_against_batch <- function(spec) {
       walk_inject(handle, event)
       next
     }
+    # The composition in force at a dependent event includes changes at its
+    # own stamp; the exogenous rows sharing that stamp come after it.
+    walk_advance_presence(handle, schedule$time[k])
     own <- map$fid[
       map$layer == schedule$layer[k] &
         (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
@@ -592,4 +596,107 @@ test_that("a constraint on an object no formula reads is refused", {
     support_constraint = ~ !tie(emails)
   )
   expect_snapshot(walk_open(spec), error = TRUE)
+})
+
+test_that("node-composition changes advance with the handle's clock", {
+  data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
+  # N6 is never called and N1 is called only after it returns, so no observed
+  # event reaches an absent node; N1 is also an absent sender at t = 3 and 4.
+  changes <- data.frame(
+    time = c(1.5, 2.5, 3.5, 4.5),
+    node = c(6L, 1L, 6L, 1L),
+    var = "active"
+  )
+  changes$value <- list(list(FALSE), list(FALSE), list(TRUE), list(TRUE))
+  data$changes <- changes
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+
+  handle <- suppressWarnings(walk_open(spec))
+  expect_equal(walk_next_breakpoint(handle), 1.5)
+  walk_advance(handle, 2.5)
+  expect_equal(walk_evaluate(handle, 1L, c(0, 0))$value[c(1L, 6L)], c(0, 0))
+})
+
+test_that("window effects replay against the batch walk", {
+  for (spec in list(
+    parity_toy_spec_windowed(),
+    parity_toy_spec_windowed_rate()
+  )) {
+    replay <- walk_replay_against_batch(spec)
+    expect_gt(replay$n_checked, 0L)
+  }
+})
+
+test_that("a scheduled event applies when the clock reaches it", {
+  js <- walk_two_process()
+  event <- list(
+    layer = "friendship",
+    sender = 5L,
+    receiver = 6L,
+    increment = 1,
+    time = 1.25
+  )
+
+  scheduled <- walk_open(js)
+  walk_schedule(scheduled, event)
+  expect_equal(walk_next_breakpoint(scheduled), 1)
+  walk_advance(scheduled, 1)
+  expect_equal(walk_next_breakpoint(scheduled), 1.25)
+  expect_equal(scheduled$state$networks[["friendship"]][5, 6], 0)
+  walk_advance(scheduled, 1.5)
+  expect_equal(walk_next_breakpoint(scheduled), 2)
+  expect_equal(scheduled$state$networks[["friendship"]][5, 6], 1)
+
+  injected <- walk_open(js)
+  walk_advance(injected, 1)
+  walk_inject(injected, event)
+  walk_advance(injected, 1.5)
+  expect_equal(
+    walk_evaluate(scheduled, 2L, c(0, 2))$value,
+    walk_evaluate(injected, 2L, c(0, 2))$value
+  )
+})
+
+test_that("scheduled events apply in time order, ties in scheduling order", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  replace_at <- function(value, time) {
+    list(
+      layer = "friendship",
+      sender = 5L,
+      receiver = 6L,
+      replace = value,
+      time = time
+    )
+  }
+  walk_schedule(handle, replace_at(9, 1.75))
+  walk_schedule(handle, replace_at(3, 1.25))
+  walk_schedule(handle, replace_at(7, 1.25))
+
+  walk_advance(handle, 1.5)
+  expect_equal(handle$state$networks[["friendship"]][5, 6], 7)
+  walk_advance(handle, 1.8)
+  expect_equal(handle$state$networks[["friendship"]][5, 6], 9)
+  expect_equal(walk_next_breakpoint(handle), 2)
+})
+
+test_that("scheduling misuse aborts with cli errors", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  walk_advance(handle, 3)
+  event <- list(layer = "friendship", sender = 5L, receiver = 6L, increment = 1)
+  expect_error(walk_schedule(handle, event), class = "goldfish_walk_bad_event")
+  expect_error(
+    walk_schedule(handle, c(event, time = 2)),
+    class = "goldfish_walk_out_of_order"
+  )
 })

@@ -18,7 +18,12 @@
 #   * walk_advance(handle, t)  applies the EXOGENOUS covariate events (a layer
 #     no process models) up to t, folding their statistics deltas into every
 #     engine
-#     that reads them and advancing the shared clock.
+#     that reads them and advancing the shared clock. Driver-scheduled events
+#     and node-composition changes up to t are applied on the same pass.
+#   * walk_schedule(handle, event)  queues an event for a later time; it is
+#     applied when walk_advance() reaches it, merged with the exogenous rows.
+#     walk_next_breakpoint(handle) names the next time the handle changes
+#     state on its own, between which rates are constant.
 #   * walk_evaluate(handle, fid, theta)  builds the process-state evaluator's
 #     `state` from the fid's engine live statistics (projected to the fid's own
 #     columns, intercept prepended for a timed rate) and returns that fid's rate
@@ -215,6 +220,14 @@ walk_prepare_engine <- function(engine) {
   # its receiver side too: a constrained sender gate counts present receivers.
   engine$presence1 <- as.logical(engine$ctx$active_sender_init)
   engine$presence2 <- as.logical(engine$ctx$active_dyad_init)
+  engine$presence1_changes <- walk_presence_changes(
+    engine$ctx$active_sender_changes
+  )
+  engine$presence2_changes <- walk_presence_changes(
+    engine$ctx$active_dyad_changes
+  )
+  engine$presence1_cursor <- 0L
+  engine$presence2_cursor <- 0L
   engine
 }
 
@@ -331,10 +344,9 @@ walk_open <- function(
   # (the state and the live statistics advance to it) but writes nothing:
   # the engines carry an identity recorder and no right-censoring consumers,
   # so there is no row to emit there. A driver that needs the handle bounded
-  # takes the bound from resolve_walk_extent(). Still excluded, for now:
-  # node-composition dynamics. Under that exclusion presence is the initial
-  # presence throughout, so the live risk set equals the batch materialization
-  # exactly. The augmenter / simulate consumers extend this later.
+  # takes the bound from resolve_walk_extent(). Node-composition changes are
+  # not schedule rows: they are presence cursors each engine advances with the
+  # clock, in walk_advance() and before an injected event is applied.
 
   props <- build_shared_object_props(
     merged$objects,
@@ -350,16 +362,6 @@ walk_open <- function(
         control_preprocessing,
         progress = FALSE
       )
-      if (
-        length(engine$ctx$active_sender_changes) > 0L ||
-          length(engine$ctx$active_dyad_changes) > 0L
-      ) {
-        cli::cli_abort(
-          "The walk handle does not yet support node-composition changes.",
-          call = call,
-          class = "goldfish_walk_unsupported"
-        )
-      }
       walk_prepare_engine(engine)
     }
   )
@@ -397,6 +399,9 @@ walk_open <- function(
   handle$focal_layers <- focal_layers
   handle$exo_rows <- exo_rows
   handle$exo_cursor <- 0L
+  # Driver-scheduled events (walk_schedule()), resolved and kept in time order.
+  handle$queue <- list()
+  handle$queue_time <- numeric(0)
   handle$current_time <- start_time
   handle$opened <- TRUE
   structure(handle, class = "goldfishWalk")
@@ -479,25 +484,117 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
     )
   }
   schedule <- handle$schedule
-  while (handle$exo_cursor < length(handle$exo_rows)) {
-    k <- handle$exo_rows[handle$exo_cursor + 1L]
-    if (schedule$time[k] > t) {
+  repeat {
+    exo_time <- if (handle$exo_cursor < length(handle$exo_rows)) {
+      schedule$time[handle$exo_rows[handle$exo_cursor + 1L]]
+    } else {
+      Inf
+    }
+    queued_time <- if (length(handle$queue_time) > 0L) {
+      handle$queue_time[[1L]]
+    } else {
+      Inf
+    }
+    next_time <- min(exo_time, queued_time)
+    if (!is.finite(next_time) || next_time > t) {
       break
     }
-    oid <- schedule$target[k]
-    shape <- schedule$shape[k]
-    event_args <- merged_build_event_args(
-      schedule,
-      k,
-      oid,
-      handle$props,
-      handle$state
-    )
-    walk_apply_object_event(handle, oid, shape, event_args, schedule$time[k])
-    handle$exo_cursor <- handle$exo_cursor + 1L
+    # An observed exogenous row goes before a driver-scheduled event sharing
+    # its stamp: the observed schedule is fixed at open, and the driver
+    # schedules against it.
+    if (exo_time <= queued_time) {
+      k <- handle$exo_rows[handle$exo_cursor + 1L]
+      oid <- schedule$target[k]
+      walk_advance_presence(handle, exo_time)
+      event_args <- merged_build_event_args(
+        schedule,
+        k,
+        oid,
+        handle$props,
+        handle$state
+      )
+      walk_apply_object_event(
+        handle,
+        oid,
+        schedule$shape[k],
+        event_args,
+        exo_time
+      )
+      handle$exo_cursor <- handle$exo_cursor + 1L
+    } else {
+      resolved <- handle$queue[[1L]]
+      handle$queue <- handle$queue[-1L]
+      handle$queue_time <- handle$queue_time[-1L]
+      walk_apply_resolved(handle, resolved)
+    }
   }
+  walk_advance_presence(handle, t)
   handle$current_time <- max(handle$current_time, t)
   invisible(handle)
+}
+
+# --------------------------------------------------------------------------- #
+# walk_schedule / walk_next_breakpoint
+# --------------------------------------------------------------------------- #
+
+#' @rdname walk_handle
+#' @return `walk_schedule()` queues `event` (which must carry a `time`) to be
+#'   applied by a later `walk_advance()` reaching its time, as if it were a row
+#'   of the observed schedule, and returns the handle invisibly. Its value
+#'   resolves against the state at the time it is applied, not when queued.
+#' @keywords internal
+walk_schedule <- function(handle, event, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  if (is.null(event$time)) {
+    cli::cli_abort(
+      "A scheduled {.arg event} must carry a {.field time}.",
+      call = call,
+      class = "goldfish_walk_bad_event"
+    )
+  }
+  resolved <- walk_resolve_event(handle, event, "walk_schedule", call)
+  # Insert after every queued event at or before this time, so events sharing
+  # a stamp apply in the order they were scheduled.
+  position <- findInterval(resolved$time, handle$queue_time)
+  handle$queue <- append(handle$queue, list(resolved), after = position)
+  handle$queue_time <- append(
+    handle$queue_time,
+    resolved$time,
+    after = position
+  )
+  invisible(handle)
+}
+
+#' @rdname walk_handle
+#' @return `walk_next_breakpoint()` returns the time of the next change the
+#'   handle applies on its own clock -- an exogenous row, a scheduled event, or
+#'   a node-composition change -- or `Inf` when none remains. Between the
+#'   current time and that breakpoint every rate is constant unless the driver
+#'   injects an event.
+#' @keywords internal
+walk_next_breakpoint <- function(handle, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  exo_time <- if (handle$exo_cursor < length(handle$exo_rows)) {
+    handle$schedule$time[handle$exo_rows[handle$exo_cursor + 1L]]
+  } else {
+    Inf
+  }
+  queued_time <- if (length(handle$queue_time) > 0L) {
+    handle$queue_time[[1L]]
+  } else {
+    Inf
+  }
+  presence_time <- vapply(
+    handle$engines,
+    function(engine) {
+      min(
+        walk_pending_presence_time(engine, "presence1"),
+        walk_pending_presence_time(engine, "presence2")
+      )
+    },
+    numeric(1)
+  )
+  min(exo_time, queued_time, presence_time, Inf)
 }
 
 # --------------------------------------------------------------------------- #
@@ -513,6 +610,15 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
 #' @keywords internal
 walk_inject <- function(handle, event, call = rlang::caller_env()) {
   walk_assert_open(handle, call)
+  resolved <- walk_resolve_event(handle, event, "walk_inject", call)
+  walk_apply_resolved(handle, resolved)
+  invisible(handle)
+}
+
+# Validate an event against the handle and stage it as the one-row schedule the
+# merged walk's argument builder reads. Returns the target object id, the
+# event time and the staged row; its value is resolved only when applied.
+walk_resolve_event <- function(handle, event, fn, call = rlang::caller_env()) {
   if (is.null(event$layer)) {
     cli::cli_abort(
       "{.arg event} must name a {.field layer}.",
@@ -524,7 +630,7 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
   if (is.na(oid)) {
     cli::cli_abort(
       c(
-        "{.fn walk_inject} cannot resolve layer {.val {event$layer}}.",
+        "{.fn {fn}} cannot resolve layer {.val {event$layer}}.",
         "i" = "The walk knows layers {.val {handle$merged$objects$name}}."
       ),
       call = call,
@@ -535,7 +641,7 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
   if (t < handle$current_time) {
     cli::cli_abort(
       c(
-        "{.fn walk_inject} cannot apply an event before the current clock.",
+        "{.fn {fn}} cannot apply an event before the current clock.",
         "x" = "Current time is {.val {handle$current_time}}; event time is
                {.val {t}}."
       ),
@@ -581,15 +687,75 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
       NA_integer_
     }
   )
+  list(oid = oid, time = t, staged = staged)
+}
+
+# Apply a resolved event at its time: composition first, so the event lands on
+# the presence in force at its stamp, then the value against the live state.
+walk_apply_resolved <- function(handle, resolved) {
+  walk_advance_presence(handle, resolved$time)
   event_args <- merged_build_event_args(
-    staged,
+    resolved$staged,
     1L,
-    oid,
+    resolved$oid,
     handle$props,
     handle$state
   )
-  walk_apply_object_event(handle, oid, shape, event_args, t)
-  invisible(handle)
+  walk_apply_object_event(
+    handle,
+    resolved$oid,
+    resolved$staged$shape,
+    event_args,
+    resolved$time
+  )
+  invisible(NULL)
+}
+
+# --------------------------------------------------------------------------- #
+# Node composition.
+# --------------------------------------------------------------------------- #
+
+# A composition change list as parallel vectors in time order. `order()` is
+# stable, so changes sharing a stamp keep their recorded order.
+walk_presence_changes <- function(changes) {
+  if (length(changes) == 0L) {
+    return(list(time = numeric(0), node = integer(0), replace = logical(0)))
+  }
+  time <- vapply(changes, `[[`, double(1), "time")
+  ordering <- order(time)
+  list(
+    time = time[ordering],
+    node = vapply(changes, `[[`, integer(1), "node")[ordering],
+    replace = vapply(changes, `[[`, logical(1), "replace")[ordering]
+  )
+}
+
+# Apply every composition change stamped at or before `t`, on both node sides
+# of every engine. A change at an event's own stamp is in force for that event,
+# as in the batch presence stream, which applies every change not after the
+# event time.
+walk_advance_presence <- function(handle, t) {
+  for (engine in handle$engines) {
+    for (side in c("presence1", "presence2")) {
+      changes <- engine[[paste0(side, "_changes")]]
+      cursor_name <- paste0(side, "_cursor")
+      cursor <- engine[[cursor_name]]
+      n_changes <- length(changes$time)
+      while (cursor < n_changes && changes$time[[cursor + 1L]] <= t) {
+        cursor <- cursor + 1L
+        engine[[side]][changes$node[[cursor]]] <- changes$replace[[cursor]]
+      }
+      engine[[cursor_name]] <- cursor
+    }
+  }
+  invisible(NULL)
+}
+
+# The stamp of one side's next unapplied composition change, or `Inf`.
+walk_pending_presence_time <- function(engine, side) {
+  changes <- engine[[paste0(side, "_changes")]]
+  cursor <- engine[[paste0(side, "_cursor")]]
+  if (cursor < length(changes$time)) changes$time[[cursor + 1L]] else Inf
 }
 
 # --------------------------------------------------------------------------- #

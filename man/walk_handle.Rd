@@ -4,6 +4,8 @@
 \alias{walk_handle}
 \alias{walk_open}
 \alias{walk_advance}
+\alias{walk_schedule}
+\alias{walk_next_breakpoint}
 \alias{walk_inject}
 \alias{walk_evaluate}
 \title{Open, step, evaluate, and inject over the merged single-clock walk}
@@ -15,6 +17,10 @@ walk_open(
 )
 
 walk_advance(handle, t, call = rlang::caller_env())
+
+walk_schedule(handle, event, call = rlang::caller_env())
+
+walk_next_breakpoint(handle, call = rlang::caller_env())
 
 walk_inject(handle, event, call = rlang::caller_env())
 
@@ -51,6 +57,17 @@ applied to the statistics rows actor \code{i} sends from.}
 \code{walk_open()} returns a \code{goldfishWalk} object.
 
 \code{walk_advance()} returns the handle invisibly.
+
+\code{walk_schedule()} queues \code{event} (which must carry a \code{time}) to be
+applied by a later \code{walk_advance()} reaching its time, as if it were a row
+of the observed schedule, and returns the handle invisibly. Its value
+resolves against the state at the time it is applied, not when queued.
+
+\code{walk_next_breakpoint()} returns the time of the next change the
+handle applies on its own clock -- an exogenous row, a scheduled event, or
+a node-composition change -- or \code{Inf} when none remains. Between the
+current time and that breakpoint every rate is constant unless the driver
+injects an event.
 
 \code{walk_inject()} returns the handle invisibly.
 
