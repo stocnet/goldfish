@@ -61,6 +61,8 @@
       every full run. (d) `9a56835`: vector or `n_ego x p` matrix; a
       coordination fid takes ONE per-actor matrix (each directed half uses its
       sender's row), the per-side shape left to `two-sided-coordination`.
+      **Reverted 2026-09-15 (ADR-0074, task 2.0e):** the matrix branch is not
+      goldfish's; the variant is the `evaluate` plug point.
       (a) `8641656`: the handle advances the batch walk's own atom stores and
       recomputes masks with `build_mask_maintainer()`; flavored derived masks
       ride the same path; replay matches batch exactly on dyadic,
@@ -71,6 +73,20 @@
       `walk_next_breakpoint()`; windows already ran on the merged walk
       (`preprocess-one-walk`), so (c) added the breakpoint API and the windowed
       replay tests
+- [ ] 2.0e Substrate corrections before 2.1 (added 2026-09-15): (i)
+      `git revert 9a56835` — the evaluators and `walk_evaluate()` take a
+      vector only; the reverted diff saved as `.plan/per_actor_evaluate.patch`
+      and handed to goldfish.latent as its evaluate step (its
+      `randomEffects-actor.R`); the three matrix tests go with it. (ii)
+      `.pse_eval_choice()` stops building the index `data.frame` its only
+      caller discards (parallel integer vectors, as the R estimation backend
+      does) and `walk_evaluate()` grows the `sender` argument (D12; absent =
+      today's full matrix, so `test-walk_handle.R`'s oracle is unchanged).
+      (iii) Re-measure D12's three numbers on the current tree and date them
+      in the design. (iv) Correct `preprocess_flavored()`'s header comment
+      (two walks per family) or retire the function if
+      `printing-homogenization` task 1.1 has landed. Verification:
+      `NOT_CRAN=true` green, baselines PASS not SKIP.
 - [ ] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
@@ -84,16 +100,22 @@
       `goldfishFlavFit` override as one competing run, not a fan-out); the
       result class is `goldfishSim` (confirm against the class-naming guard
       test). The loop is written against the four plug points of D11 from
-      the start: exported `set_simulation_steps()` → `goldfishSimSteps` and
-      `set_parameter_provider(init, at)` → `goldfishParamProvider`, each
-      slot defaulting to the descriptor-keyed step; `coef` resolves (numeric
-      / `goldfishParams` / provider) to the per-fid vector-or-matrix shape
-      before the loop; the handle reaches the closures as an opaque object
+      the start: exported `set_simulation_steps(parameters, evaluate, clock, mark,
+      accept)` → `goldfishSimSteps` and `set_parameter_provider(init, at)` →
+      `goldfishParamProvider`, each slot defaulting to the descriptor-keyed
+      step, the `evaluate` step receiving the narrow (stats rows, θ, risk
+      set, meta) contract and returning the fid's values (D11, ADR-0074);
+      `coef` resolves (numeric / `goldfishParams` / provider) to whatever the
+      evaluate step accepts — a per-fid vector for the default — before the
+      loop; the handle reaches the closures as an opaque object
       through the exported accessors only; construction validates arity and
       dry-runs the closures on a one-actor toy handle; the provider's latent
       path is written per event. Tests: a constant provider reproduces the
-      plain `coef` path byte-for-byte; a toy per-actor provider and a toy
-      two-regime provider drive the loop on a seeded fixture. Evaluation path
+      plain `coef` path byte-for-byte; a toy two-regime provider (P1 only)
+      and a toy evaluate step forming a per-actor row-wise product (PE, the
+      goldfish.latent shape, defined inside the test) drive the loop on a
+      seeded fixture, proving both hooks without goldfish carrying either
+      variant. Evaluation path
       per D12: `walk_evaluate()` grows a `sender` argument (absent = today's
       full matrix, so the oracle tests are unchanged; supplied = that sender's
       row), and `.pse_eval_choice()` stops building the index `data.frame` its
@@ -114,23 +136,29 @@
 - [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record
-- [ ] 2.4 Weibull/Gompertz free-running clocks by analytic inversion of
-      Σλ_i·[G(t+w) − G(t)] per constant-rate segment (common-shape closure);
-      seeded shape-recovery fixtures (the `parametric-rates` task 3.4 DGP)
+- [ ] 2.4 ~~Weibull/Gompertz free-running clocks~~ **Moved 2026-09-15 to
+      `parametric-rates` task 3.4a** (ADR-0074): the clocks are `clock`
+      steps owned by the change that owns the distribution axis; this
+      change ships the exponential clock and the `clock` plug point they
+      plug into, and 2.2's breakpoint contract is what they honor.
 - [ ] 2.5 Cox/ordered strategies, keyed on `behavior$timing == "ordinal"`:
       crude-rate pseudo-time reusing the `goldfishStat` scalars
       (`n_dep_events`, `total_time`, `avg_active_entity`) with the up-to-scale
       labeling; anchored documented as the clean variant
-- [ ] 2.6 Coordination per mechanism: anchored mark-multinomial draws for all
-      five mechanisms; free-running generative thinning per mechanism
-      (conjunctive mutual-choice rejection first, then forcing / confirmation /
-      disjunctive / compensatory), rejected proposals consuming clock time,
-      acceptance-rate diagnostic, max-proposals bound; seeded from
-      `two-sided-coordination` task 2.5 fixtures
-- [ ] 2.7 FIFO self-scheduled window expiry (after 2.0c): per-window
-      insertion-order queue, expiries as schedule-visible breakpoint events
-      replayable from the simulated stream through the handle's breakpoint
-      API; eager-recompute agreement test on a windowed fixture
+- [ ] 2.6 Coordination: the conjunctive mutual-choice draw only (anchored
+      mark-multinomial and free-running rejection), through the `mark` plug
+      point. ~~The other four mechanisms~~ **Moved 2026-09-15 to
+      `two-sided-coordination` task 2.5a** (ADR-0074): per-mechanism mark
+      kernels are `mark` steps owned by the change that defines the
+      mechanisms; its 2.5 fixtures seed them.
+- [ ] 2.7 Windowed effects in free-running simulation (after 2.0c; revised
+      2026-09-15, D8): the handle fans an injected source-layer event out to
+      each derived `layer_ω` (entry row now, expiry scheduled through
+      `walk_schedule()` at `t + ω`, lengths from the unit's plan
+      derivations), so a driver injects once; no FIFO structure. Tests:
+      eager-recompute agreement on a windowed fixture; two window lengths on
+      one layer expire in time order regardless of entry order; an expiry is
+      a breakpoint for the clock.
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp; incoherence flag past the documented threshold). Unmodeled
@@ -157,6 +185,22 @@
       `findInterval(t, wave_times, rightmost.closed = TRUE)` convention. Tests: a
       multi-period relational fixture reproduces each period's `count_w`; single-window
       reduction matches the upstream value byte-for-byte
+
+- [ ] 2.11 Exposure integral on the merged walk (added 2026-09-15, D5): the
+      walk accumulates, per timed fid, `∫|R_w(t)| dt` — the sum over
+      intervals of `dt × |active ∩ gated senders|`, presence changes applied
+      at their stamps — and stores it beside `total_time` on the
+      `goldfishStat` (`exposure_actor_time`); `avg_active_entity` for an
+      exact-time family becomes `exposure_actor_time / total_time` (the
+      time-weighted value the `intercept-only-rate` and
+      `multivariate-specification` living specs already require, in place of
+      `assemble_default_output()`'s event-averaged count); the pinned
+      completion `log(count_w / exposure_w)` and the intercept seed read it;
+      the panel path keeps its period average. Spec delta: MODIFIED
+      `active-availability-stat` "avg_active_entity declared by the recipe
+      constructor". Frozen baselines PASS (the scalar seeds the intercept
+      only); the completion-warning snapshots on composition-changing
+      fixtures re-recorded and reviewed.
 
 ## 3. Tests and documentation
 

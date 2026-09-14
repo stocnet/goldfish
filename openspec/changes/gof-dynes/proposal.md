@@ -7,7 +7,15 @@ decision log, and the `ADR-00NN` ids below are lookup keys for that log only —
 **nothing in them is needed to implement this change.**
 
 1. **`lr_test_dynes(m1, m0)` becomes `test_nested(m1, m0)`, a method on a new
-   S3 generic** (ADR-0037). goldfish already asks three questions of a fit
+   S3 generic** (ADR-0037). *Revised again 2026-09-14 (ADR-0072, supersedes
+   ADR-0037): the surface is `test_parameter(m1, type = "lr", null = m0)` —
+   the DyNES method of the existing `test_parameter()` generic, which
+   `printing-homogenization` extends with `type = c("score", "wald", "lr")`
+   and `null =`. No `test_nested()` generic is created; the
+   `nested-model-lr-test` capability keeps its scope, and the owed rename
+   sweep now targets that spelling. The safety argument below holds
+   unchanged: the generic has no parent default, so the DyNES method decides
+   each type itself. Original 2026-08-21 text follows.* goldfish already asks three questions of a fit
    through a `test_*` family — `test_gof()`, `test_parameter()`, `test_time()` —
    and nested comparison is the fourth. Rationale in brief: a survey of the
    installed REM ecosystem (relevent, amorem, dream, remstats, remify,

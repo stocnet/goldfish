@@ -40,7 +40,8 @@ DyNAM-i has no flavor-keyed choice by construction and is unaffected.
   completion transform.
 - ADR-0002's "every sub-model as blocks" and the `sub_model` retirement; only
   the selector spelling is shared and it is decided there first.
-- Printer homogenization (ADR-0051), beyond not assuming symmetric families.
+- Printer homogenization (ADR-0051): `printing-homogenization` lands first and
+  this change only renders the asymmetric map through its renderer.
 
 ## Decisions
 

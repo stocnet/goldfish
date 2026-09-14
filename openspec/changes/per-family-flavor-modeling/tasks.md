@@ -45,9 +45,11 @@
       silently change a model family it was never reachable for: a flavored REM
       specification carries zero `completion_gaps`, and a DyNAMi specification
       with a flavor-keyed `choice` is still refused at construction.
-- [ ] 2.2 `print.goldfishFlavFit` (and the summary printer) group by flavor
-      with the families present; snapshot under a pinned cli context for an
-      asymmetric container; `coef()`, `vcov()`, `tidy()`, `glance()` and the
+- [ ] 2.2 The asymmetric container renders through
+      `printing-homogenization`'s shared renderer (a flavor with one family
+      renders one family section; `print.goldfishFlavFit` and
+      `print.goldfishSummFlavFit` need no new layout); snapshot under the
+      shared `local_cli_context()` for an asymmetric container; `coef()`, `vcov()`, `tidy()`, `glance()` and the
       `test_*` fan-outs verified on the asymmetric container.
 - [ ] 2.3 Verification: `NOT_CRAN=true` suite green; baselines PASS;
       `devtools::document()` if any roxygen changed.

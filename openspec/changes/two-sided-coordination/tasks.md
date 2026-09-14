@@ -34,6 +34,14 @@
 - [ ] 2.5 Simulation fixtures for the five constant-rate mechanisms
       (extend the `.plan/datasets/Simulation.R` approach; DGP matches each
       mechanism's own thinning construction) as testthat fixtures
+- [ ] 2.5a Per-mechanism mark kernels as `mark` steps for `simulate()` (moved
+      here 2026-09-15 from `process-simulation` 2.6, ADR-0074): anchored
+      mark-multinomial draws for forcing / confirmation / disjunctive /
+      compensatory, and their free-running §7 thinning constructions with
+      rejected proposals consuming clock time, an acceptance-rate diagnostic
+      and a max-proposals bound, plugged into `set_simulation_steps(mark = )`;
+      `process-simulation` keeps the conjunctive draw as the default. 2.5's
+      fixtures drive them. Depends on `process-simulation` 2.1.
 - [ ] 2.6 Recovery tests per mechanism; mechanism-comparison test
       (log-likelihood ranking favors the generating mechanism on average);
       verify with not-cran-test; bump DESCRIPTION + NEWS (phase milestone)
@@ -78,10 +86,12 @@
       conjunctive draw (byte-equivalent behavior test); regime behavior per
       D16 (ordered composition = Cox-native, timed = opportunity clock or
       pinned completion, single-regime rule unchanged)
-- [ ] 5.3 Consumer mechanism gates: walk-driven consumers and
-      `estimate_dynes()` abort on non-conjunctive mechanisms with a cli
-      error naming the mechanism; composition itself never rejects a
-      mechanism (tests for both sides of the gate)
+- [ ] 5.3 Consumer mechanism gates: `estimate_dynes()` and the augmenters
+      abort on non-conjunctive mechanisms with a cli error naming the
+      mechanism (corrected 2026-09-15 to match D15's lift: `simulate()` is
+      not gated — it takes the mechanism's `mark` step from 2.5a);
+      composition itself never rejects a mechanism (tests for both sides of
+      the gate)
 - [ ] 5.4 Verify group: not-cran-test PASS (the merged-walk byte-identity
       and frozen baselines untouched), `devtools::document()`, bump
       DESCRIPTION + NEWS (phase milestone)

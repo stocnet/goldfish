@@ -141,7 +141,7 @@ labels below follow it):
 - **Cox / ordered sub-models** (`distribution = "cox"`, choice-only): no
   estimated clock. Time-anchored (`times = "observed"`, D6) is the
   statistically clean variant; free-running uses **pseudo-time from the
-  crude rate** `log(n_dep_events / total_time / avg_active_actors)` carried
+  crude rate** `log(n_dep_events / total_time / avg_active_entity)` carried
   per flavor by every preprocessed object, with output documenting that such
   times are meaningful only up to scale.
 - **Coordination**: per-mechanism, D7.
@@ -214,6 +214,15 @@ already maintains them incrementally on the batch side), user constraints
 compiled per `constraint_id`, and composition changes advancing through
 `walk_advance()` — is substrate work this change owns as task 2.0, with the
 batch-vs-replay equality test extended to each lift.
+
+*Corrected 2026-09-15 — the lifts landed.* Task 2.0a/2.0b (`8641656`,
+`a21b20c`) put derived flavor masks, user constraints and presence cursors
+on the handle, so the paragraph above describes the state before 2026-09-13.
+The one residual gap — a constraint on a changing object no formula term
+reads — is owned by `constraint-objects-on-shared-walk`. Nothing else must
+land before a flavored specification with node-composition change
+simulates; `per-family-flavor-modeling` disclaims any effect on
+`simulate()`, and a flavor carrying one family is completed at entry (D5).
 
 ### D5 — Simulation requires a generatively-complete spec (see `make-multivariate-spec` D9)
 Drawing a DyNAM event needs a rate (who acts, when) **and** a choice (whom), so
@@ -353,6 +362,27 @@ driver-inserted breakpoints (an insertion API on the handle, or a merge of the
 FIFO heads with the exogenous cursor inside `walk_advance()`). Both belong to
 task 2.0.
 
+*Revised 2026-09-15 — no FIFO; `walk_schedule()` is the queue, and the
+handle fans an injected event out to its windowed copies.* Both
+prerequisites landed with 2.0c: windows run on the merged walk
+(`preprocess-one-walk`) and `walk_schedule()` inserts a driver event
+time-ordered. Two facts then replace the FIFO. Each `(layer, ω)` is its own
+derived object `layer_ω` with its own stream, so two window lengths on one
+layer are two queues, and a short window entered later legitimately expires
+before a long one entered earlier — the "per-window FIFO" phrase was only
+ever correct read per `(layer, ω)`. And a time-ordered queue makes the
+question moot: the driver schedules each expiry at `t + ω` and any mix of
+lengths orders itself; a separate FIFO structure would be a second queue
+for one clock. The real gap is elsewhere: `walk_inject()` on the source
+layer does not move a windowed statistic, because the effect reads
+`layer_ω`, and nothing on the handle derives the entry row on `layer_ω` plus
+its expiry at `t + ω` from an injected source event. Task 2.7 becomes that
+fan-out on the handle (the window lengths are on
+`merged$units[[k]]$spec_map$plan$derivations`), with `walk_schedule()` as
+the expiry mechanism; the eager-recompute agreement test stands.
+*Rejected:* a per-window FIFO beside the queue (redundant); making every
+driver inject `layer_ω` rows itself (each driver reimplements the window).
+
 ### D9 — Per-component regime record and the replay coherence guard (added 2026-08-19)
 
 Every simulation records, per component (sub-model or flavor), which of
@@ -398,7 +428,7 @@ decision settles is which one `simulate()` rides and why:
 | Entry | What one call preprocesses | Walks per call |
 | --- | --- | --- |
 | `estimate_dynam()` / `estimate_rem()` on a `goldfishSpec` | the one family `sub_model` selects (`estimate_from_specification()` picks the bundle) | 1 recipe loop; rate + choice = 2 calls = 2 walks |
-| `estimate_dynam()` on a flavored `goldfishSpec` (K flavors, F families) | `preprocess_flavored()`: one union walk **per family**, K consumers routed by fid inside it | F (2 for rate + choice), never K × F |
+| `estimate_dynam()` on a flavored `goldfishSpec` (K flavors, F families) | `preprocess_flavored()`: since `preprocess-one-walk`, one call to `preprocess_joint()` — the merged single-clock walk — re-keyed family-major (the re-key goes with `printing-homogenization` D2, which retires the wrapper) | **1** (corrected 2026-09-15; was "F, never K × F") |
 | `preprocess_joint()` / `walk_open()` on a `goldfishJointSpec` (a single or flavored `goldfishSpec` is wrapped by `single_process_joint()`) | the merged single-clock walk: one engine per `(focal, family)` unit over one shared state and one schedule, every fid served from its engine's block | **1** |
 
 `simulate()` drives the third. One `walk_open()` per replicate; at each
@@ -413,7 +443,15 @@ exactly what the batch merged walk pays. The rate and choice halves of one
 flavor are separate engines (a sender block and a dyad block) because their
 statistics have different shapes, not because they are walked separately.
 
-Two consequences follow. First, a flavored `goldfishSpec` simulates through
+Two consequences follow — the first corrected 2026-09-15: a flavored
+`goldfishSpec` now estimates and simulates through the same merged walk
+(`preprocess_flavored()` is a front-end over `preprocess_joint()` and
+`walk_open()` builds from `build_merged_blocks()`), so the F-pass duplication
+below no longer exists; what remains duplicated is the plain rate + choice
+`goldfishSpec`, whose two `estimate_dynam()` calls run two walks because
+`sub_model` selects one bundle — the one-call container fit is ADR-0002's
+block selector, and the list-shaped-output objection to it is gone under
+ADR-0071. Original text: a flavored `goldfishSpec` simulates through
 the merged walk although it *estimates* through `preprocess_flavored()`'s
 F-pass path; the `multi-process-walk` frozen-baseline gate ("single-process
 and flavored specifications preprocess byte-identically to their pre-merge
@@ -444,7 +482,8 @@ walk (`.plan/sp/sim_variants.md` carries the per-variant detail):
 ```
 per replicate:  P0  params$init(r, handle)          replicate-level draws (u_i, z_0, a posterior draw)
 per step:       P1  params$at(k, t, handle, latent) parameters per fid for THIS step
-                    walk_evaluate(handle, fid, θ)
+                PE  evaluate(stats, θ, risk, meta)  the model variant: values over the fid's candidate space
+                                                    (default: goldfish's evaluator, vector θ, exp / softmax)
                 P2  clock(rates, t, handle)         exponential | Weibull/Gompertz | pseudo-time | anchored
                 P3  mark(fid, evaluation, handle)   sender→receiver | REM pair | mechanism kernel | completed defaults
                 P4  accept(event, handle)           always | DyNES endpoint conditioning
@@ -460,12 +499,29 @@ callers of one loop rather than forks of it. `coef` is a **provider**: a
 numeric vector (constant, single process), a `goldfishParams` (constant,
 joint, D1 unchanged), or a `goldfishParamProvider` from
 `set_parameter_provider(init, at)`. Whatever the input form, `at()` resolves
-each step to the **one known shape** `walk_evaluate()` accepts per fid: a
-numeric vector of length `p_fid`, or an `n_ego × p_fid` matrix whose row is
-the ego's parameter vector (the per-ego case is the one substrate extension
-the latent variants need on `evaluate_process_state()`: a row-wise product
-in place of `stat_mat %*% theta`, byte-identical in the vector case; task
-2.0d). `at()` may also return a next `breakpoint` time, which the clock
+each step to a numeric vector of length `p_fid` — the one shape goldfish's
+own evaluator accepts. *Revised 2026-09-15 (ADR-0074):* the model variant
+is not a parameter shape but a fifth plug point, **PE**, an `evaluate`
+step in `set_simulation_steps()`. It receives the narrow contract — the
+fid's statistics rows (sender-major), `θ` as the provider returned it, the
+live risk set (`active_sender`, `active_dyad` with its encoding), and a
+small `meta` (family token, `n_actors1`, `n_actors2`, the sender for a
+choice row) — and returns the values over the fid's candidate space
+(hazards for a timed family, probabilities for a multinomial one, exact
+zeros outside the risk set) that P2 and P3 consume. The default is
+`evaluate_process_state()` on a vector `θ`. A per-actor random effect is
+then an evaluate step that takes `θ` as an `n_ego × p` matrix and forms the
+row-wise product; a discrete- or continuous-time regime is P1 returning the
+regime's vector (plus a breakpoint), needing no evaluate step; a regime
+*mixture* marginalizing over the latent state is an evaluate step; the
+DyNES augmenter is P1 plus P4 and never touches PE; a non-log-linear hazard
+is an evaluate step. What the narrow contract does not cover is a variant
+that reads the raw network state rather than the fid's statistics, or one
+coupling fids inside a single evaluation; those would need the walk itself,
+which stays internal. The `n_ego × p` matrix branch task 2.0d added to the
+evaluators is therefore reverted from goldfish (its diff kept as a patch
+under `.plan/` and re-homed as goldfish.latent's evaluate step), so the six
+evaluator sites carry the vector case only. `at()` may also return a next `breakpoint` time, which the clock
 treats as a competing exponential exit (a continuous-time regime jump
 switches parameters and injects nothing), keeping D2's piecewise-constant
 exactness intact; and the provider's realized latent path is written to the
@@ -484,14 +540,23 @@ driver knowing it. *Rejected:* exporting the walk handle (freezes an internal
 substrate as an API); a per-variant `simulate_*()` function each (four copies
 of the loop, the duplication ADR-0045 was written about); making the latent
 variants goldfish's own (the regimes and deviations are goldfish.latent's
-models and its posterior draws, goldfish owns the loop).
+models and its posterior draws, goldfish owns the loop). *Rejected 2026-09-15:* keeping the
+matrix branch as the variant mechanism — it hard-codes one variant into six
+internal sites and invites the next (a mixture, a different link) to do the
+same; passing the whole materialized state to PE — freezes an internal shape
+as the contract, where the narrow triple is what every named variant
+actually reads.
 
 ### D12 — A DyNAM step evaluates one sender's row, and the evaluators stop building an index nobody reads (added 2026-09-09)
 
 Task 1.2 measured what one replicate costs. On Social Evolution, stepping the
 whole schedule with no evaluation is 0.204 s, close to the 0.130 s the batch
 merged walk pays; adding rate evaluation costs 0.37 ms per event; adding choice
-evaluation costs 4.85 ms per event, which is 89 percent of the replicate. Two
+evaluation costs 4.85 ms per event, which is 89 percent of the replicate.
+*(Measured 2026-09-09, before `preprocess-one-walk` removed the per-event
+adjacency copy from both substrates; the ratios are the argument, the
+absolute numbers are stale and are re-measured at task 2.0e before 2.1
+leans on them. The two diagnoses below and the `sender` argument stand.)* Two
 causes, both avoidable, and neither intrinsic to the model.
 
 **The index nobody reads.** `.pse_eval_choice()` returns its probabilities
@@ -642,10 +707,14 @@ untouched — simulation adds no estimation path).
   skipped, D9) and the trajectory-trigger multiple (D3) — settle against
   fixtures during implementation (ADR-0034 open questions).
 - **[D11]** The exact accessor surface the step closures get on the opaque
-  handle, and whether a provider's `at()` for a coordination fid returns one
-  matrix per side or a single two-sided object — settle with
-  goldfish.latent's first provider and `two-sided-coordination`'s random
-  effects, whichever comes first.
+  handle. The per-side question for a coordination fid moved with the
+  matrix branch: it is now a question for goldfish.latent's evaluate step
+  and `two-sided-coordination`'s random effects, not for goldfish's
+  contract (2026-09-15).
+- **[D5 / 2.11]** Whether a free-running run whose composition drifts from
+  the observed period average should re-pin a completed intercept from the
+  live exposure, or keep the observed pin (2026-09-15; the exposure
+  integral makes the live value available either way).
 - **[D11 / parametric-rates]** The per-actor time origin of the Weibull
   hazard across a regime switch or a window breakpoint; per-segment
   inversion handles it only if the origin is stored per actor on the handle.

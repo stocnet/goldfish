@@ -52,16 +52,24 @@ state every engine reads.
 
 `simulate()` SHALL run one driver loop with four plug points — the parameter
 provider (per-replicate `init` and per-step `at`), the clock, the mark kernel,
-and the acceptance rule — taken from an exported `set_simulation_steps()`
+the evaluation of a fid's values, and the acceptance rule — taken from an
+exported `set_simulation_steps()`
 constructor whose every slot defaults to the package's own step keyed on the
 specification's behavioral descriptor, so that the parametric clocks, the
 two-sided mechanisms, the DyNES sequential augmenter and external
 latent-variable packages are callers of the same loop. The `coef` argument
 SHALL accept a numeric vector, a `goldfishParams`, or a parameter provider
 from an exported `set_parameter_provider(init, at)`, and SHALL resolve every
-form, at every step, to the one shape the walk evaluates per fid: a numeric
-vector of length `p_fid`, or an `n_ego × p_fid` matrix whose row is that
-ego's parameter vector. A provider MAY return a next breakpoint time, which
+form, at every step, to the parameters the `evaluate` step receives — a
+numeric vector of length `p_fid` for the package's own evaluator. The
+`evaluate` step SHALL receive the fid's statistics rows in sender-major
+order, the parameters as the provider returned them, the live risk set, and
+a `meta` list (family token, `n_actors1`, `n_actors2`, the sender for a
+choice row), and SHALL return the values over the fid's candidate space —
+hazards for a timed family, probabilities for a multinomial one, exact zeros
+outside the risk set; the package's default evaluate step SHALL be the
+internal process-state evaluator on a vector, and the package SHALL NOT
+carry any other model variant in its evaluators. A provider MAY return a next breakpoint time, which
 the clock SHALL treat as a competing exit that re-invokes the provider and
 injects no event; the provider's realized latent path SHALL be recorded per
 event on the result. The walk handle, the process-state evaluators and the
@@ -74,12 +82,14 @@ only through the exported accessor surface.
   provider whose `at()` returns that vector at every step, under one seed
 - **THEN** the two runs produce identical sequences.
 
-#### Scenario: a per-actor provider drives per-ego rates
+#### Scenario: a supplied evaluate step drives per-ego rates
 
-- **WHEN** a provider's `at()` returns an `n_ego × p` matrix for a rate fid
-  with a nonzero deviation on one actor's intercept
+- **WHEN** `set_simulation_steps(evaluate = )` supplies a step forming a
+  row-wise product with an `n_ego × p` matrix the provider returned, with a
+  nonzero deviation on one actor's intercept for a rate fid
 - **THEN** that actor's simulated rate equals the common rate times
-  `exp(deviation)` at every step, and the other actors' rates are unchanged.
+  `exp(deviation)` at every step, the other actors' rates are unchanged, and
+  the package's own evaluator was never handed a matrix.
 
 #### Scenario: a regime jump is a breakpoint, not an event
 
