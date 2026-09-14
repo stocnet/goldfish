@@ -73,7 +73,7 @@
       `walk_next_breakpoint()`; windows already ran on the merged walk
       (`preprocess-one-walk`), so (c) added the breakpoint API and the windowed
       replay tests
-- [ ] 2.0e Substrate corrections before 2.1 (added 2026-09-15): (i)
+- [x] 2.0e Substrate corrections before 2.1 (added 2026-09-15): (i)
       `git revert 9a56835` — the evaluators and `walk_evaluate()` take a
       vector only; the reverted diff saved as `.plan/per_actor_evaluate.patch`
       and handed to goldfish.latent as its evaluate step (its
@@ -87,6 +87,19 @@
       (two walks per family) or retire the function if
       `printing-homogenization` task 1.1 has landed. Verification:
       `NOT_CRAN=true` green, baselines PASS not SKIP.
+      — done 2026-09-15 (session `goldfish-23`), one commit per item, the full
+      `NOT_CRAN=true` suite green at each (8670 PASS / 0 FAIL / 5 SKIP, all six
+      baseline files PASS not SKIP). (i) `8d77ba4`: the revert applied cleanly,
+      nothing resolved by hand; the diff is `.plan/per_actor_evaluate.patch`
+      (gitignored) for goldfish.latent. (ii) `4ae35b2`: `.pse_eval_choice()`
+      returns parallel integer vectors — column access (`index$index_i`) reads
+      the same as the frame did, so only the one test counting `nrow()`
+      adapted; `walk_evaluate(sender =)` slices the per-sender model from the
+      same evaluator and aborts `goldfish_walk_bad_sender` on a fid that has no
+      sender's row to give. (iii) `8519207`: D12 dated —
+      `.plan/sp/replay_split_2026-09-15.R`. (iv) `5ae1362`: header corrected,
+      `preprocess_flavored()` NOT retired (`printing-homogenization` 1.1 has
+      not landed)
 - [ ] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
