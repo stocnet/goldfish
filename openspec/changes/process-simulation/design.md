@@ -555,9 +555,23 @@ merged walk pays; adding rate evaluation costs 0.37 ms per event; adding choice
 evaluation costs 4.85 ms per event, which is 89 percent of the replicate.
 *(Measured 2026-09-09, before `preprocess-one-walk` removed the per-event
 adjacency copy from both substrates; the ratios are the argument, the
-absolute numbers are stale and are re-measured at task 2.0e before 2.1
-leans on them. The two diagnoses below and the `sender` argument stand.)* Two
-causes, both avoidable, and neither intrinsic to the model.
+absolute numbers are stale. The two diagnoses below and the `sender`
+argument stand.)*
+
+*Re-measured 2026-09-15 at task 2.0e, same method and same model
+(`.plan/sp/replay_split_2026-09-15.R`): stepping the whole schedule with no
+evaluation is **0.110 s**, rate evaluation costs **0.10 ms per event**, and
+choice evaluation costs **4.45 ms per event** before this task's index-frame
+removal and **0.67 ms** after it. That 85 percent drop confirms the first
+diagnosis below rather than assuming it. A whole replicate falls from 2.401 s
+to 0.447 s stacking the full matrix, and to 0.184 s (0.17 ms per event)
+evaluating only the drawn sender's row — the second diagnosis. On CollegeMsg
+a step falls from 104 ms to 77.9 ms with the full matrix and to 9.2 ms at the
+drawn sender, putting one replicate near nine minutes rather than 1.7 hours.
+Choice evaluation is no longer the replicate: at 0.17 ms per event against
+0.25 ms of stepping, the substrate is now the larger half.*
+
+Two causes, both avoidable, and neither intrinsic to the model.
 
 **The index nobody reads.** `.pse_eval_choice()` returns its probabilities
 alongside `data.frame(index_i = rep(s, n2), index_j = seq_len(n2))`, and
