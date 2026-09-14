@@ -257,55 +257,6 @@ test_that("walk_inject makes an event visible to every reading fid", {
   expect_equal(walk_evaluate(handle, 2L, theta_choice)$value, calls_after)
 })
 
-test_that("a per-actor parameter matrix of identical rows matches the vector", {
-  js <- walk_two_process()
-  handle <- walk_open(js)
-  walk_advance(handle, 2.5)
-  theta <- list("1" = c(0.3, -0.2), "2" = c(0.5, -0.4))
-  for (fid in 1:2) {
-    vector_theta <- theta[[as.character(fid)]]
-    per_actor <- matrix(vector_theta, 6L, 2L, byrow = TRUE)
-    expect_equal(
-      walk_evaluate(handle, fid, per_actor)$value,
-      walk_evaluate(handle, fid, vector_theta)$value
-    )
-  }
-})
-
-test_that("a per-actor intercept deviation scales only that actor's rate", {
-  js <- walk_two_process()
-  handle <- walk_open(js)
-  walk_advance(handle, 2.5)
-  common <- c(0.3, -0.2)
-  deviation <- 0.7
-  per_actor <- matrix(common, 6L, 2L, byrow = TRUE)
-  per_actor[4L, 1L] <- per_actor[4L, 1L] + deviation
-
-  shared_rate <- walk_evaluate(handle, 1L, common)$value
-  actor_rate <- walk_evaluate(handle, 1L, per_actor)$value
-
-  expect_equal(actor_rate[4L], shared_rate[4L] * exp(deviation))
-  expect_equal(actor_rate[-4L], shared_rate[-4L])
-})
-
-test_that("a per-actor choice matrix gives each sender its own parameters", {
-  js <- walk_two_process()
-  handle <- walk_open(js)
-  walk_advance(handle, 4.5)
-  per_actor <- matrix(c(0, 2), 6L, 2L, byrow = TRUE)
-  per_actor[1L, ] <- c(0, 0)
-
-  mixed <- walk_evaluate(handle, 2L, per_actor)$value
-  shared <- walk_evaluate(handle, 2L, c(0, 2))$value
-  uniform <- walk_evaluate(handle, 2L, c(0, 0))$value
-  sender_block <- function(value, s) value[(s - 1L) * 6L + seq_len(6L)]
-
-  expect_equal(sender_block(mixed, 1L), sender_block(uniform, 1L))
-  for (s in 2:6) {
-    expect_equal(sender_block(mixed, s), sender_block(shared, s))
-  }
-})
-
 test_that("handle misuse aborts with cli errors", {
   local_cli_context()
   js <- walk_two_process()
@@ -344,10 +295,6 @@ test_that("handle misuse aborts with cli errors", {
   )
   expect_error(
     walk_evaluate(handle, 1L, c(0, 0, 0)),
-    class = "goldfish_walk_bad_theta"
-  )
-  expect_error(
-    walk_evaluate(handle, 1L, matrix(0, 5L, 2L)),
     class = "goldfish_walk_bad_theta"
   )
   expect_error(

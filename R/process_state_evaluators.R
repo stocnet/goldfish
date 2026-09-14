@@ -203,24 +203,8 @@ materialize_process_state <- function(
   allowed
 }
 
-# The linear predictor over sender-major statistics rows. `parameters` is either
-# one vector shared by every ego, or an `n_ego x p` matrix whose row `i` is ego
-# `i`'s parameter vector (a per-actor random effect, a regime-specific
-# parameter), in which case each statistics row is multiplied by its sender's
-# row. `rows_per_ego` is the number of statistics rows each ego owns: 1 for a
-# sender-block state, `n2` for a dyad grid. The vector case keeps the matrix
-# product unchanged, so a shared-parameter evaluation is byte-identical.
-.pse_linear_predictor <- function(stat_mat, parameters, rows_per_ego = 1L) {
-  if (is.null(dim(parameters))) {
-    return(as.numeric(stat_mat %*% parameters))
-  }
-  ego_rows <- rep(seq_len(nrow(parameters)), each = rows_per_ego)
-  rowSums(stat_mat * parameters[ego_rows, , drop = FALSE])
-}
-
 # Evaluate the per-event probability / rate for a materialized state and
-# parameters, dispatching on the state's model type. `parameters` is a vector
-# or a per-ego matrix (see `.pse_linear_predictor()`). Returns a list with an
+# parameters, dispatching on the state's model type. Returns a list with an
 # `index` data frame (`index_i` / `index_j` in the shared vocabulary), the
 # per-alternative `value` (probability for the multinomial sub-models, hazard
 # for the timed sub-models; exact zero for excluded alternatives), and observed
@@ -242,12 +226,7 @@ evaluate_process_state <- function(state, parameters) {
   n2 <- state$n_actors2
   s <- state$event_sender
   rows <- state$stat_mat[(s - 1L) * n2 + seq_len(n2), , drop = FALSE]
-  ego_parameters <- if (is.null(dim(parameters))) {
-    parameters
-  } else {
-    parameters[s, ]
-  }
-  lin_pred <- as.numeric(rows %*% ego_parameters)
+  lin_pred <- as.numeric(rows %*% parameters)
   is_point <- identical(state$active_dyad_encoding, "point")
   avail <- if (is_point) state$active_dyad[s, ] == 1 else state$active_dyad == 1
   if (!state$twomode_or_reflexive) {
@@ -273,11 +252,7 @@ evaluate_process_state <- function(state, parameters) {
 # scale; excluded senders get exact-zero hazard.
 .pse_eval_rate <- function(state, parameters) {
   n1 <- state$n_actors1
-  lin_pred <- .pse_linear_predictor(
-    state$stat_mat,
-    parameters,
-    state$n_actors2
-  )
+  lin_pred <- as.numeric(state$stat_mat %*% parameters)
   active <- state$active_sender == 1
   hazard <- numeric(n1)
   hazard[active] <- exp(lin_pred[active])
@@ -298,11 +273,7 @@ evaluate_process_state <- function(state, parameters) {
 # senders.
 .pse_eval_rate_ordered <- function(state, parameters) {
   n1 <- state$n_actors1
-  lin_pred <- .pse_linear_predictor(
-    state$stat_mat,
-    parameters,
-    state$n_actors2
-  )
+  lin_pred <- as.numeric(state$stat_mat %*% parameters)
   active <- state$active_sender == 1
   lin_pred[!active] <- -Inf
   sm <- stable_softmax(lin_pred)
@@ -333,11 +304,7 @@ evaluate_process_state <- function(state, parameters) {
 .pse_eval_rem <- function(state, parameters) {
   n1 <- state$n_actors1
   n2 <- state$n_actors2
-  lin_pred <- .pse_linear_predictor(
-    state$stat_mat,
-    parameters,
-    state$n_actors2
-  )
+  lin_pred <- as.numeric(state$stat_mat %*% parameters)
   allowed <- .pse_allowed_dyads(state)
   hazard <- numeric(n1 * n2)
   hazard[allowed] <- exp(lin_pred[allowed])
@@ -359,11 +326,7 @@ evaluate_process_state <- function(state, parameters) {
 .pse_eval_rem_ordered <- function(state, parameters) {
   n1 <- state$n_actors1
   n2 <- state$n_actors2
-  lin_pred <- .pse_linear_predictor(
-    state$stat_mat,
-    parameters,
-    state$n_actors2
-  )
+  lin_pred <- as.numeric(state$stat_mat %*% parameters)
   allowed <- .pse_allowed_dyads(state)
   lin_pred[!allowed] <- -Inf
   sm <- stable_softmax(lin_pred)
@@ -389,11 +352,7 @@ evaluate_process_state <- function(state, parameters) {
 .pse_eval_coordination <- function(state, parameters) {
   n1 <- state$n_actors1
   n2 <- state$n_actors2
-  lin_pred <- .pse_linear_predictor(
-    state$stat_mat,
-    parameters,
-    state$n_actors2
-  )
+  lin_pred <- as.numeric(state$stat_mat %*% parameters)
   allowed <- .pse_allowed_dyads(state)
 
   # Per-sender log-probabilities log p(i -> j); excluded receivers are -Inf.
