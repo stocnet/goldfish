@@ -815,12 +815,14 @@ render_process_label <- function(process_map, fid) {
 
 # Preprocess a multi-flavor specification in one call.
 #
-# Each sub-model family (rate, choice) runs ONE walk over the event sequence:
-# the union of that family's per-flavor effects is computed once and each
-# flavor's consumer projects it onto its own columns. The two families keep
-# separate walks -- gids are scoped per statistic block, and an effect in
-# DyNAM-rate and the same effect in DyNAM-choice resolve to different update
-# functions, so there is nothing to share between them.
+# ONE walk over the event sequence covers the whole specification, both
+# sub-model families together: the body is a single `preprocess_joint()`
+# call, which unions every family's per-flavor effects, projects each
+# flavor's consumer onto its own columns and snapshots each fid's support
+# mask. (The families walked separately until the merged substrate landed,
+# on the ground that gids are scoped per statistic block; sharing the clock
+# and the state does not require sharing them.) What is left here is the
+# re-keying.
 #
 # Returns a list of `goldfishStat` objects indexed by fid, carrying the
 # `process_map` identity table as an attribute.
