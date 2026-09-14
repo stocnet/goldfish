@@ -820,12 +820,25 @@ walk_build_state <- function(handle, fid) {
 #'   `process_map`).
 #' @param theta the parameter vector for the fid, matching its effect columns
 #'   (with a leading intercept for a timed rate).
+#' @param sender optionally the integer sender whose alternatives to evaluate,
+#'   for a fid whose model is defined per sender (DyNAM-choice). Absent, the
+#'   result covers the fid's whole candidate space; supplied, it covers that
+#'   sender's receivers alone, which is what one generative step needs once the
+#'   sender has been drawn. Supplying it for any other fid is an error: those
+#'   models put every alternative in one competing set.
 #' @return `walk_evaluate()` returns the process-state evaluator result for the
-#'   fid: an `index` data frame and the per-alternative `value` (a rate vector
-#'   for a sender-block fid, a choice matrix's probabilities for a dyad-block
-#'   fid), the fid's support applied.
+#'   fid: an `index` naming the candidate rows and the per-alternative `value`
+#'   (a rate vector for a sender-block fid, a choice matrix's probabilities for
+#'   a dyad-block fid, one sender's receiver distribution under `sender`), the
+#'   fid's support applied.
 #' @keywords internal
-walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
+walk_evaluate <- function(
+  handle,
+  fid,
+  theta,
+  sender = NULL,
+  call = rlang::caller_env()
+) {
   walk_assert_open(handle, call)
   map <- handle$process_map
   if (!fid %in% map$fid) {
@@ -855,10 +868,54 @@ walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
   # observed sender's receiver block). A generative walk needs the whole choice
   # matrix, so that model is evaluated once per sender and the rows stacked -- a
   # faithful application of the same evaluator, not a reimplementation.
+  #
+  # Stacking is what the batch-vs-replay oracle compares, but it is not what a
+  # step costs: DyNAM factorizes the intensity into a sender hazard and a
+  # receiver softmax conditional on that sender, so a step that has already
+  # drawn its sender needs one row and pays for n1 of them. `sender` asks for
+  # the row, from the same evaluator, so the two paths cannot drift.
   if (identical(state$model_type, "DyNAM-M")) {
-    return(walk_evaluate_choice_matrix(state, theta))
+    if (is.null(sender)) {
+      return(walk_evaluate_choice_matrix(state, theta))
+    }
+    state$event_sender <- walk_assert_sender(state, fid, sender, call)
+    return(evaluate_process_state(state, theta))
+  }
+  if (!is.null(sender)) {
+    cli::cli_abort(
+      c(
+        "{.arg sender} does not apply to fid {.val {fid}}.",
+        "i" = "Only a per-sender model ({.val DyNAM-M}) has a sender's row to
+               return; {.val {state$model_type}} puts every alternative in one
+               competing set.",
+        "i" = "Drop {.arg sender} to evaluate the whole candidate space."
+      ),
+      call = call,
+      class = "goldfish_walk_bad_sender"
+    )
   }
   evaluate_process_state(state, theta)
+}
+
+# A `sender` argument for a per-sender fid, as a 1-based actor index into the
+# fid's sender set. Returns it coerced to integer.
+walk_assert_sender <- function(state, fid, sender, call) {
+  ok <- length(sender) == 1L &&
+    !is.na(sender) &&
+    sender >= 1L &&
+    sender <= state$n_actors1
+  if (!ok) {
+    cli::cli_abort(
+      c(
+        "{.arg sender} is not an actor of fid {.val {fid}}.",
+        "x" = "Expected one index in {.val {1L}}:{.val {state$n_actors1}}, got
+               {.val {sender}}."
+      ),
+      call = call,
+      class = "goldfish_walk_bad_sender"
+    )
+  }
+  as.integer(sender)
 }
 
 # The full n1 x n2 choice-probability matrix at the live state, one row per

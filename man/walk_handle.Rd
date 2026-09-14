@@ -24,7 +24,7 @@ walk_next_breakpoint(handle, call = rlang::caller_env())
 
 walk_inject(handle, event, call = rlang::caller_env())
 
-walk_evaluate(handle, fid, theta, call = rlang::caller_env())
+walk_evaluate(handle, fid, theta, sender = NULL, call = rlang::caller_env())
 }
 \arguments{
 \item{spec}{a \code{goldfishJointSpec} from
@@ -50,6 +50,13 @@ handle's current clock).}
 
 \item{theta}{the parameter vector for the fid, matching its effect columns
 (with a leading intercept for a timed rate).}
+
+\item{sender}{optionally the integer sender whose alternatives to evaluate,
+for a fid whose model is defined per sender (DyNAM-choice). Absent, the
+result covers the fid's whole candidate space; supplied, it covers that
+sender's receivers alone, which is what one generative step needs once the
+sender has been drawn. Supplying it for any other fid is an error: those
+models put every alternative in one competing set.}
 }
 \value{
 \code{walk_open()} returns a \code{goldfishWalk} object.
@@ -70,9 +77,10 @@ injects an event.
 \code{walk_inject()} returns the handle invisibly.
 
 \code{walk_evaluate()} returns the process-state evaluator result for the
-fid: an \code{index} data frame and the per-alternative \code{value} (a rate vector
-for a sender-block fid, a choice matrix's probabilities for a dyad-block
-fid), the fid's support applied.
+fid: an \code{index} naming the candidate rows and the per-alternative \code{value}
+(a rate vector for a sender-block fid, a choice matrix's probabilities for
+a dyad-block fid, one sender's receiver distribution under \code{sender}), the
+fid's support applied.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

@@ -205,10 +205,12 @@ materialize_process_state <- function(
 
 # Evaluate the per-event probability / rate for a materialized state and
 # parameters, dispatching on the state's model type. Returns a list with an
-# `index` data frame (`index_i` / `index_j` in the shared vocabulary), the
-# per-alternative `value` (probability for the multinomial sub-models, hazard
-# for the timed sub-models; exact zero for excluded alternatives), and observed
-# event's `interval_logL` reconstructed with the estimator's stable formula.
+# `index` naming the candidate rows (`index_i` / `index_j` in the shared
+# vocabulary), the per-alternative `value` (probability for the multinomial
+# sub-models, hazard for the timed sub-models; exact zero for excluded
+# alternatives), and observed event's `interval_logL` reconstructed with the
+# estimator's stable formula. The `index` is a data frame everywhere except
+# DyNAM-choice, which pays for one per sender (see `.pse_eval_choice()`).
 evaluate_process_state <- function(state, parameters) {
   switch(
     state$model_type,
@@ -222,6 +224,17 @@ evaluate_process_state <- function(state, parameters) {
 }
 
 # DyNAM-choice: P(sender -> j) over the sender's active receivers.
+#
+# Its `index` is parallel integer vectors rather than a `data.frame`, unlike
+# every other evaluator here. This is the one evaluator called in a loop --
+# the model is defined per sender, so stacking the full choice matrix calls it
+# once for each of the n1 senders -- and building one frame per call dominated
+# that loop: at 84 senders the discarded frames were 1.7 s against 0.07 s for
+# the row slices and products they accompanied, and `data.frame`'s name and
+# row-name machinery took 75 percent of a replay replicate's profile. The
+# estimation backend stores the same quantity as parallel integer vectors for
+# the same reason. Column access (`index$index_i`) reads identically either
+# way; only `nrow()` does not apply.
 .pse_eval_choice <- function(state, parameters) {
   n2 <- state$n_actors2
   s <- state$event_sender
@@ -238,7 +251,7 @@ evaluate_process_state <- function(state, parameters) {
   prob[!avail] <- 0
   list(
     model_type = state$model_type,
-    index = data.frame(index_i = rep(s, n2), index_j = seq_len(n2)),
+    index = list(index_i = rep(s, n2), index_j = seq_len(n2)),
     value = prob,
     interval_logL = if (state$is_dependent) {
       sm$logProbabilities[state$event_receiver]

@@ -257,6 +257,22 @@ test_that("walk_inject makes an event visible to every reading fid", {
   expect_equal(walk_evaluate(handle, 2L, theta_choice)$value, calls_after)
 })
 
+test_that("a sender's row equals its block of the full choice matrix", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  walk_advance(handle, 4.5)
+  theta_choice <- c(0, 2)
+  n2 <- 6L
+
+  full <- walk_evaluate(handle, 2L, theta_choice)$value
+  for (s in seq_len(6L)) {
+    row <- walk_evaluate(handle, 2L, theta_choice, sender = s)
+    expect_equal(row$value, full[(s - 1L) * n2 + seq_len(n2)])
+    expect_identical(row$index$index_i, rep(s, n2))
+    expect_identical(row$index$index_j, seq_len(n2))
+  }
+})
+
 test_that("handle misuse aborts with cli errors", {
   local_cli_context()
   js <- walk_two_process()
@@ -296,6 +312,17 @@ test_that("handle misuse aborts with cli errors", {
   expect_error(
     walk_evaluate(handle, 1L, c(0, 0, 0)),
     class = "goldfish_walk_bad_theta"
+  )
+
+  # A sender out of range, and a sender asked of a fid that has no per-sender
+  # row to give (fid 1 is the rate model).
+  expect_error(
+    walk_evaluate(handle, 2L, c(0, 0), sender = 99L),
+    class = "goldfish_walk_bad_sender"
+  )
+  expect_error(
+    walk_evaluate(handle, 1L, c(0, 0), sender = 1L),
+    class = "goldfish_walk_bad_sender"
   )
   expect_error(
     walk_inject(

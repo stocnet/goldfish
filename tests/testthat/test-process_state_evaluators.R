@@ -139,7 +139,9 @@ test_that("multinomial evaluators return exact-zero excluded probabilities", {
       label = paste0("prob sum [", cell[[1]], "]")
     )
     expect_true(all(out$value[!active] == 0))
-    expect_identical(nrow(out$index), length(out$value))
+    # DyNAM-choice names its candidates with parallel vectors rather than a
+    # data frame, so count the index column both shapes carry.
+    expect_identical(length(out$index$index_i), length(out$value))
   }
 })
 
