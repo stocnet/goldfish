@@ -282,21 +282,42 @@ evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
 # deferred fid has no engine, because its whole family carries no effect, so
 # its state is the degenerate one its formula reduces to -- a column of ones
 # for an intercept-only rate, no columns at all for an effect-free choice --
-# over the node sets of its same-process sibling, which the walk did compile.
+# over the risk set of its same-process sibling, which the walk did compile.
+#
+# A process's rate and choice share one support constraint, and the sibling's
+# live mask survives the deferral, so the deferred fid draws inside the same
+# support the modeled one does: senders gated by the mask's rows, receivers
+# by the drawing sender's row of the mask. Presence alone would let a
+# completed choice pick a receiver the constraint excludes.
 simulation_fid_state <- function(handle, fid) {
   if (!fid %in% handle$deferred$fid) {
     return(walk_build_state(handle, fid))
   }
   map <- handle$process_map
   row <- match(fid, map$fid)
-  engine <- walk_engine_of_fid(handle, sibling_fid(map, fid))
+  sibling <- sibling_fid(map, fid)
+  engine <- walk_engine_of_fid(handle, sibling)
   n1 <- engine$n1
   n2 <- engine$n2
+  present1 <- engine$presence1
+  present2 <- engine$presence2
+  support <- walk_live_support(handle, sibling)
   if (identical(map$family[row], "rate")) {
+    gate <- if (is.null(support)) {
+      TRUE
+    } else {
+      sender_gate_from_mask(
+        support$value,
+        support$stored_kind,
+        present2,
+        n1,
+        n2
+      )
+    }
     return(list(
       model_type = "DyNAM-M-Rate",
       stat_mat = matrix(1, n1, 1L),
-      active_sender = engine$presence1,
+      active_sender = present1 & gate,
       active_dyad = rep(TRUE, n1),
       active_dyad_encoding = "alter",
       n_actors1 = n1,
@@ -304,12 +325,21 @@ simulation_fid_state <- function(handle, fid) {
       twomode_or_reflexive = TRUE
     ))
   }
+  receivers <- if (is.null(support)) {
+    list(dyad = present2, encoding = "alter")
+  } else {
+    grid <- support_to_grid(support$value, support$stored_kind, n1, n2)
+    list(
+      dyad = matrix(present2, n1, n2, byrow = TRUE) & grid,
+      encoding = "point"
+    )
+  }
   list(
     model_type = "DyNAM-M",
     stat_mat = matrix(0, n1 * n2, 0L),
-    active_sender = engine$presence1,
-    active_dyad = engine$presence2,
-    active_dyad_encoding = "alter",
+    active_sender = present1,
+    active_dyad = receivers$dyad,
+    active_dyad_encoding = receivers$encoding,
     n_actors1 = n1,
     n_actors2 = n2,
     # Whether the two sides are different node sets, so a self-loop is a legal

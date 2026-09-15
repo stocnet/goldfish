@@ -446,6 +446,67 @@ test_that("an intercept-only rate with no choice is refused at entry", {
   )
 })
 
+test_that("a flavored gap's completed choice draws only existing ties", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2,
+    `calls › dissolution › rate` = c(-3, 0.1)
+  )
+  out <- suppressWarnings(
+    simulate(js, seed = 8, coef = parameters, n_events = 60)
+  )
+  events <- out$events
+
+  expect_contains(events$flavor, "dissolution")
+  expect_identical(
+    out$process_map$regime[out$process_map$flavor == "dissolution"],
+    c("modeled", "completed")
+  )
+  ties <- as.data.frame(data$ties)
+  history <- ties[is.na(ties$time), ]
+  state <- matrix(0, 12L, 12L)
+  state[cbind(history$from, history$to)] <- 1
+  tie_held <- logical(nrow(events))
+  for (k in seq_len(nrow(events))) {
+    cell <- cbind(events$sender[k], events$receiver[k])
+    tie_held[k] <- state[cell] == 1
+    state[cell] <- state[cell] + events$increment[k]
+  }
+  expect_identical(tie_held, events$flavor == "dissolution")
+})
+
+test_that("a deferred choice draws inside its process's support mask", {
+  data <- sim_fixture_data()
+  # The walk registers only the objects a formula term reads, so both the
+  # constraint's object and the focal layer the run writes to need a term:
+  # `outdeg(friendship)` steps the mask, `indeg` gives `calls` a place.
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg + outdeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ tie(friendship)
+  ))
+
+  out <- suppressMessages(suppressWarnings(
+    simulate(spec, seed = 9, coef = c(-1, 0.1, 0.1), n_events = 40)
+  ))
+
+  # friendship holds 1 -> 2, 2 -> 3, 3 -> 4 and 4 -> 5, so the mask allows each
+  # sender exactly one receiver and leaves senders 5 and 6 out of the rate.
+  expect_equal(nrow(out$events), 40)
+  expect_in(out$events$sender, 1:4)
+  expect_identical(out$events$receiver, out$events$sender + 1L)
+})
+
 test_that("a choice-only DyNAM has no clock to run free", {
   local_cli_context()
   data <- sim_fixture_data()
