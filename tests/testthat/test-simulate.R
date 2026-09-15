@@ -206,6 +206,75 @@ test_that("a supplied evaluate step replaces the package's own", {
   expect_true(all(out$events$sender != out$events$receiver))
 })
 
+test_that("a supplied evaluate step replaces only the modeled processes'", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  families_seen <- character(0)
+  rate_only_evaluate <- function(stats, theta, risk, meta) {
+    families_seen <<- c(families_seen, meta$family)
+    linear <- as.numeric(stats %*% theta)
+    values <- numeric(length(linear))
+    values[risk$active_sender] <- exp(linear[risk$active_sender])
+    values
+  }
+  steps <- set_simulation_steps(evaluate = rate_only_evaluate)
+  # Construction dry-runs the step once; only the run's calls count.
+  families_seen <- character(0)
+
+  out <- suppressWarnings(
+    simulate(spec, seed = 5, coef = c(-1, 0.1), steps = steps, n_events = 10)
+  )
+
+  # The completed uniform choice is the package's to draw, never the step's.
+  expect_identical(unique(families_seen), "rate")
+  expect_equal(nrow(out$events), 10)
+  expect_true(all(out$events$sender != out$events$receiver))
+})
+
+test_that("an authored intercept-only rate reads its intercept from coef", {
+  data <- sim_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = ~1,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › rate` = -1.5,
+    `calls › choice` = c(0.2, 0.3)
+  )
+  totals <- numeric(0)
+  recording_clock <- function(rates, t, handle) {
+    totals <<- c(totals, sum(rates))
+    list(wait = stats::rexp(1L, sum(rates)), fid = 1L, kind = "event")
+  }
+  steps <- set_simulation_steps(clock = recording_clock)
+  totals <- numeric(0)
+
+  expect_no_warning(
+    out <- simulate(
+      js,
+      seed = 2,
+      coef = parameters,
+      steps = steps,
+      n_events = 3
+    ),
+    class = "goldfish_pinned_rate_warning"
+  )
+
+  expect_equal(nrow(out$events), 3)
+  expect_identical(out$process_map$regime, c("modeled", "modeled"))
+  # Six present senders at the authored intercept, before any event.
+  expect_equal(totals[[1L]], 6 * exp(-1.5))
+})
+
 test_that("a per-actor intercept deviation scales only that actor's rate", {
   js <- sim_two_process()
   handle <- walk_open(js)

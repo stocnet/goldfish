@@ -258,7 +258,7 @@ default_accept <- function(event, handle) TRUE
 # space in one known order, so a step that needs one ego's block takes it
 # (`n_actors2` rows per ego) and a step that couples egos still sees them all.
 evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
-  state <- walk_build_state(handle, fid)
+  state <- simulation_fid_state(handle, fid)
   map <- handle$process_map
   row <- match(fid, map$fid)
   stats_rows <- state$stat_mat
@@ -278,10 +278,75 @@ evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
   evaluate(stats_rows, theta, risk, meta)
 }
 
-# Every rate process's values at the live state, named by the specification's
-# fid. A modeled rate is evaluated on the walk; a completed one is the pinned
-# constant `exp(intercept_w)` of the current period, which the walk never sees
-# because it carries no effects to compile.
+# A fid's state at the live walk. A fid the walk compiled reads its engine. A
+# deferred fid has no engine, because its whole family carries no effect, so
+# its state is the degenerate one its formula reduces to -- a column of ones
+# for an intercept-only rate, no columns at all for an effect-free choice --
+# over the node sets of its same-process sibling, which the walk did compile.
+simulation_fid_state <- function(handle, fid) {
+  if (!fid %in% handle$deferred$fid) {
+    return(walk_build_state(handle, fid))
+  }
+  map <- handle$process_map
+  row <- match(fid, map$fid)
+  engine <- walk_engine_of_fid(handle, sibling_fid(map, fid))
+  n1 <- engine$n1
+  n2 <- engine$n2
+  if (identical(map$family[row], "rate")) {
+    return(list(
+      model_type = "DyNAM-M-Rate",
+      stat_mat = matrix(1, n1, 1L),
+      active_sender = engine$presence1,
+      active_dyad = rep(TRUE, n1),
+      active_dyad_encoding = "alter",
+      n_actors1 = n1,
+      n_actors2 = 1L,
+      twomode_or_reflexive = TRUE
+    ))
+  }
+  list(
+    model_type = "DyNAM-M",
+    stat_mat = matrix(0, n1 * n2, 0L),
+    active_sender = engine$presence1,
+    active_dyad = engine$presence2,
+    active_dyad_encoding = "alter",
+    n_actors1 = n1,
+    n_actors2 = n2,
+    # Whether the two sides are different node sets, so a self-loop is a legal
+    # alternative rather than the one cell to drop.
+    twomode_or_reflexive = isTRUE(engine$model_spec$is_two_mode)
+  )
+}
+
+# The step and the parameters one fid is evaluated with, by its regime. A
+# modeled fid takes the evaluate step -- the caller's if supplied -- at the
+# provider's parameters. A completed default is never the caller's to replace:
+# a pinned rate is the package's evaluator at the intercept completion fixed
+# for the current period, a uniform choice the package's evaluator at no
+# parameter at all, and neither reads the provider.
+fid_evaluation_inputs <- function(routing, fid, evaluate, theta, pinned, t) {
+  key <- as.character(fid)
+  switch(
+    routing$step[match(fid, routing$map$fid)],
+    default = list(step = evaluate, theta = theta[[key]]),
+    constant = list(
+      step = default_evaluate,
+      theta = pinned_intercept(pinned[[key]], t)
+    ),
+    uniform = list(step = default_evaluate, theta = numeric(0))
+  )
+}
+
+# The pinned intercept in force at `t`. A completed rate completion could not
+# pin has no level to be evaluated at, so it can never fire.
+pinned_intercept <- function(rate, t) {
+  if (is.null(rate)) {
+    return(-Inf)
+  }
+  rate$intercept[intercept_only_rate_period(rate, t)]
+}
+
+# Every rate process's values at the live state, named by fid.
 rate_values <- function(
   handle,
   rate_fids,
@@ -292,37 +357,15 @@ rate_values <- function(
   t
 ) {
   values <- lapply(rate_fids, function(fid) {
-    walk_fid <- routing$walk_fid[match(fid, routing$map$fid)]
-    if (is.na(walk_fid)) {
-      return(pinned_rate_values(handle, routing, fid, pinned, t))
-    }
-    evaluate_fid(handle, walk_fid, theta[[as.character(fid)]], evaluate)
+    inputs <- fid_evaluation_inputs(routing, fid, evaluate, theta, pinned, t)
+    evaluate_fid(handle, fid, inputs$theta, inputs$step)
   })
   stats::setNames(values, as.character(rate_fids))
-}
-
-# A completed rate: one constant per present actor, zero for the rest. The
-# intercept was pinned from observed counts at completion, so it reads no
-# parameter and the run cannot be asked to supply one.
-pinned_rate_values <- function(handle, routing, fid, pinned, t) {
-  present <- routing$presence(handle)
-  rate <- pinned[[as.character(fid)]]
-  if (is.null(rate)) {
-    # A completed rate with no pinned constant can never fire: it has neither
-    # an effect to evaluate nor a level to evaluate at.
-    return(numeric(length(present)))
-  }
-  intensity <- intercept_only_rate_intensity(rate, time = t)
-  values <- numeric(length(present))
-  values[present] <- intensity[[1L]]
-  values
 }
 
 # What the mark step reads for the fid that fired: its own values, the paired
 # choice evaluation as a function of the drawn sender (so only the drawn
 # sender's row is ever computed), and the identity it needs to name the event.
-# A completed uniform choice is drawn here for the same reason a pinned rate
-# is: it carries no effects, so the walk never compiled it.
 mark_evaluation <- function(
   handle,
   fid,
@@ -350,56 +393,29 @@ mark_evaluation <- function(
   if (is.na(choice_fid)) {
     return(evaluation)
   }
-  choice_walk_fid <- routing$walk_fid[match(choice_fid, map$fid)]
-  evaluation$choice <- if (is.na(choice_walk_fid)) {
-    function(sender) uniform_choice_values(routing, evaluation, handle, sender)
-  } else {
-    function(sender) {
-      evaluate_fid(
-        handle,
-        choice_walk_fid,
-        theta[[as.character(choice_fid)]],
-        evaluate,
-        sender = sender
-      )
-    }
+  # A choice step never reads the clock, so the pinned table and time are not
+  # needed to resolve its inputs.
+  inputs <- fid_evaluation_inputs(
+    routing,
+    choice_fid,
+    evaluate,
+    theta,
+    pinned = list(),
+    t = NA_real_
+  )
+  evaluation$choice <- function(sender) {
+    evaluate_fid(handle, choice_fid, inputs$theta, inputs$step, sender = sender)
   }
   evaluation
 }
 
-# A completed uniform choice: equiprobable over the sender's receiver support.
-# Support here is presence, with the self-loop dropped on a one-mode process --
-# the default carries no formula, so it has no constraint of its own beyond the
-# risk set the process already has.
-uniform_choice_values <- function(routing, evaluation, handle, sender) {
-  # The receiver count comes from the node set, NOT from the firing fid: the
-  # fid that fired is a sender block, whose own `n_actors2` is 1.
-  n2 <- n_actors(handle, 2L)
-  present <- routing$presence(handle)
-  values <- numeric(n2)
-  shared <- seq_len(min(n2, length(present)))
-  values[shared] <- as.numeric(present[shared])
-  if (!routing$twomode && sender <= n2) {
-    values[sender] <- 0
-  }
-  values
-}
-
 # The per-fid shapes, read once at open: they are fixed by the compiled engines
 # and a step needs them to decode a dyad cell, so rebuilding a state per step
-# to recover two integers would be waste. A deferred fid has no engine and
-# takes the node counts the walk reports.
+# to recover two integers would be waste.
 simulation_fid_dims <- function(handle, routing) {
   map <- routing$map
-  dims <- lapply(seq_len(nrow(map)), function(i) {
-    walk_fid <- routing$walk_fid[i]
-    if (is.na(walk_fid)) {
-      return(list(
-        n_actors1 = n_actors(handle, 1L),
-        n_actors2 = n_actors(handle, 2L)
-      ))
-    }
-    state <- walk_build_state(handle, walk_fid)
+  dims <- lapply(map$fid, function(fid) {
+    state <- simulation_fid_state(handle, fid)
     list(n_actors1 = state$n_actors1, n_actors2 = state$n_actors2)
   })
   stats::setNames(dims, as.character(map$fid))
@@ -425,32 +441,29 @@ simulation_mark_updates <- function(spec) {
   stats::setNames(updates, as.character(map$fid))
 }
 
-# Which of the specification's processes the walk compiled an engine for. The
-# walk keeps the specification's fid numbers, so a process's walk fid is its
-# own fid, or NA when the walk deferred it for carrying no effects.
+# Each process's regime and the evaluate step it resolves to, read from the
+# completion record and never from the formula's shape: an authored
+# `rate = ~ 1` has a completed rate's shape but is modeled, and reads its
+# intercept from the parameters.
 simulation_routing <- function(spec, handle) {
   map <- spec$process_map
-  walk_fid <- ifelse(map$fid %in% handle$deferred$fid, NA_integer_, map$fid)
-  map$regime <- ifelse(is.na(walk_fid), "completed", "modeled")
-  # Presence is read off the walk's first engine: a deferred fid has no engine
-  # of its own, and the node universe is shared across the walk.
-  presence <- function(h) {
-    if (length(h$engines %||% list()) == 0L) {
-      return(rep(TRUE, n_actors(h, 1L)))
-    }
-    h$engines[[1L]]$presence1
-  }
-  list(
-    map = map,
-    walk_fid = walk_fid,
-    modeled = map$fid[!is.na(walk_fid)],
-    # NOT the engine's `twomode_or_reflexive`, which is TRUE for every sender
-    # block: what a uniform choice needs is whether the two sides are different
-    # node sets, so that a self-loop is a legal alternative rather than the one
-    # cell to drop.
-    twomode = isTRUE(handle$engines[[1L]]$model_spec$is_two_mode),
-    presence = presence
+  completed <- map$completed %||% rep(FALSE, nrow(map))
+  map$regime <- ifelse(completed, "completed", "modeled")
+  step <- ifelse(
+    !completed,
+    "default",
+    ifelse(map$family == "rate", "constant", "uniform")
   )
+  list(map = map, step = step, modeled = map$fid[!completed])
+}
+
+# The other sub-model of `fid`'s process: same layer, same flavor.
+sibling_fid <- function(map, fid) {
+  row <- match(fid, map$fid)
+  same <- map$layer == map$layer[row] &
+    identical_flavor(map$flavor, map$flavor[row]) &
+    map$family != map$family[row]
+  map$fid[which(same)[1L]]
 }
 
 # The choice fid of the same process as `fid`: same layer, same flavor.
