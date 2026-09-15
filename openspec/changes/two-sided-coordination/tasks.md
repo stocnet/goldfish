@@ -37,9 +37,9 @@
 - [ ] 2.5a Per-mechanism mark kernels as `mark` steps for `simulate()` (moved
       here 2026-09-15 from `process-simulation` 2.6, ADR-0074): anchored
       mark-multinomial draws for forcing / confirmation / disjunctive /
-      compensatory, and their free-running §7 thinning constructions with
-      rejected proposals consuming clock time, an acceptance-rate diagnostic
-      and a max-proposals bound, plugged into `set_simulation_steps(mark = )`;
+      compensatory (free-running thinning withdrawn 2026-09-16,
+      `process-simulation` ADR-0079: coordination simulates time-anchored
+      only), plugged into `set_simulation_steps(mark = )`;
       `process-simulation` keeps the conjunctive draw as the default. 2.5's
       fixtures drive them. Depends on `process-simulation` 2.1.
 - [ ] 2.6 Recovery tests per mechanism; mechanism-comparison test

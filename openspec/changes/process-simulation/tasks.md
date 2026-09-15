@@ -177,6 +177,80 @@
       `capped` and reports `stop_reason`; the trajectory trigger needs the
       threshold constants D3 leaves to fixtures and is carried into 2.8 with
       the regime record
+- [ ] 2.1b ~~`simulate()` on a `goldfishFlavFit`~~ **Moved 2026-09-15 to
+      `printing-homogenization` task 6.2a**: the one-competing-run method
+      reassembles the flavored specification and its parameters through the
+      flat, fid-ordered container surface that change lands
+- [ ] 2.2a One evaluate seam for every fid (added 2026-09-15, D11 amendment):
+      each fid resolves its evaluate step by regime, read from
+      `process_map$completed` and never from formula shape — `default`
+      (log-linear, modeled), `constant` (a completed pinned rate,
+      `exp(intercept_w)` over the risk set, reads no θ), `uniform` (a completed
+      choice, equal weight over the risk set given the sender, reads no θ). The
+      built-ins are the process-state evaluator on a degenerate zero-column
+      state, not new samplers. Removes 2.1's walked/deferred branches in
+      `rate_values()` / `mark_evaluation()`, `pinned_rate_values()` and
+      `uniform_choice_values()`. Tests: an authored `rate = ~ 1` with a modeled
+      choice simulates reading its intercept from `coef` (today it is looked up
+      in `completed_rates`, evaluated at zero, and the run stops `no_rate`); a
+      supplied `evaluate` still replaces `default` only
+- [ ] 2.2b A completed default's candidate space is its process's live support
+      mask, not presence (D5 amendment 4): in a flavored gap the completed fid
+      reads its own mask as a member of its family's unit; in the whole-family
+      case the deferred fid reads its same-process sibling's live mask through
+      the shared `constraint_id` (senders by the rowSums gate, receivers by the
+      mask row and presence, self dropped on a one-mode layer). Tests: a
+      flavored gap's completed dissolution choice draws only existing ties; a
+      constrained rate-only process's completed choice never draws a receiver
+      the mask excludes
+- [ ] 2.2c `default_mark()` carries the flavor's update value from
+      `info$values_equivalence[[layer]]` (bug found 2026-09-15: the mark
+      hardcodes `increment = 1`, so every simulated dissolution creates a tie).
+      Test: a two-flavor creation/dissolution run where each dissolution
+      removes an existing tie and the dissolution mask is honored
+- [ ] 2.2d Remove `walk_open(completed =)` and the refusal (D5 amendment 1;
+      pre-2.0.0, no lifecycle). A flavored gap opens with nothing deferred. A
+      whole effect-free family is stripped, the completed process_map is kept
+      so fids keep their numbers, and `build_effect_union()` and every other
+      map consumer skip rows no unit owns; the deferred fid stays on the
+      handle's map and `walk_evaluate()` on it aborts naming it as a completed
+      default. The driver's label routing and renumbering go
+- [ ] 2.2e `times` derived from the specification (ADR-0076; D2 and D6
+      amendments): `simulate(..., times = times_of(object))` with the
+      exported accessor on specifications and fits, returning `"generated"`
+      for a timed rate and `"observed"` for an ordered rate or no rate, with a
+      `reason`. An explicit value equal to the default is silent; an override
+      to `"observed"` messages; an override to `"generated"` on a choice-only
+      DyNAM fires the completion warning naming the override and completes a
+      constant exponential rate pinned at the crude rate (2.11's exposure once
+      it lands); an override to `"generated"` on an ordered rate or a coordination process
+      aborts saying why (ADR-0079). The result carries `times` and
+      `times_source` and prints them. The accessor is `times_of()`
+- [ ] 2.2f Refuse the effect-free model and stop reading completion from shape
+      (D5 amendments 2 and 3): `simulate()` aborts at entry on a DyNAM whose
+      authored rate is `~ 1` and which carries no choice (today it reaches the
+      walk and fails with an internal "argument must be coercible to
+      non-negative integer"); `mark_pinned_rates()` marks only `completed`
+      rates, so an authored intercept-only rate is no longer warned "pinned,
+      not estimated"
+- [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
+      `process_map` and print; replay coherence guard (skip-and-count, never
+      clamp). Unmodeled flavors of a relational layer take `anchored-replay`
+      by default (ADR-0055): their observed events enter the walk schedule as
+      rows the driver never draws, right-censoring the timed engines; the
+      per-flavor override keeps the explicit flag. Test: the Fisheries shape
+      (creation modeled, dissolution in neither list) simulates with no
+      completion warning, replays every dissolution, and reports the skip count
+      — *moved ahead of 2.3 on 2026-09-15*: 2.3 anchors per flavor through this
+      record, and the interim abort 2.2g is dropped. The replayed rows are the
+      focal layer's update rows whose value `info$values_equivalence[[layer]]`
+      maps to an unmodeled flavor (the mapping 2.2c adds to the mark); as
+      exogenous rows they are breakpoints, so the clock redraws at each one,
+      which is the right-censoring with no mechanism of its own. The regime
+      reads `process_map$completed` (2.2a)
+- [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
+      events (split from 2.8 on 2026-09-15): the threshold constant is the
+      design's open `[surface]` question, settled against fixtures
 - [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record
@@ -185,13 +259,16 @@
       steps owned by the change that owns the distribution axis; this
       change ships the exponential clock and the `clock` plug point they
       plug into, and 2.2's breakpoint contract is what they honor.
-- [ ] 2.5 Cox/ordered strategies, keyed on `behavior$timing == "ordinal"`:
-      crude-rate pseudo-time reusing the `goldfishStat` scalars
-      (`n_dep_events`, `total_time`, `avg_active_entity`) with the up-to-scale
-      labeling; anchored documented as the clean variant
-- [ ] 2.6 Coordination: the conjunctive mutual-choice draw only (anchored
-      mark-multinomial and free-running rejection), through the `mark` plug
-      point. ~~The other four mechanisms~~ **Moved 2026-09-15 to
+- [ ] 2.5 Cox/ordered strategies, keyed on `behavior$timing == "ordinal"`
+      (rewritten 2026-09-16, ADR-0079): time-anchored only, no pseudo-time.
+      `times = "generated"` on an ordered rate aborts stating that the ordered
+      rate estimates no clock; the default resolves to `"observed"` through
+      `times_of()`. Test: a Cox specification simulates at its observed stamps
+      without a `times` argument and aborts, naming the ordered rate, with
+      `times = "generated"`
+- [ ] 2.6 Coordination: the conjunctive mutual-choice draw only, time-anchored
+      from the mark multinomial (free-running rejection withdrawn 2026-09-16,
+      ADR-0079), through the `mark` plug point. ~~The other four mechanisms~~ **Moved 2026-09-15 to
       `two-sided-coordination` task 2.5a** (ADR-0074): per-mechanism mark
       kernels are `mark` steps owned by the change that defines the
       mechanisms; its 2.5 fixtures seed them.
@@ -203,15 +280,6 @@
       eager-recompute agreement on a windowed fixture; two window lengths on
       one layer expire in time order regardless of entry order; an expiry is
       a breakpoint for the clock.
-- [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
-      `process_map` and print; replay coherence guard (skip-and-count, never
-      clamp; incoherence flag past the documented threshold). Unmodeled
-      flavors of a relational layer take `anchored-replay` by default
-      (ADR-0055): their observed events enter the walk schedule as rows the
-      driver never draws, right-censoring the timed engines; the per-flavor
-      override keeps the explicit flag. Test: the Fisheries shape (creation
-      modeled, dissolution in neither list) simulates with no completion
-      warning, replays every dissolution, and reports the skip count
 - [ ] 2.9 Flavored/multivariate competing-flavor draws under the live derived
       masks from 2.0a; evaluator-compatible pool output carrying capped flags +
       regime record (a plain list of `goldfishSim` until the
@@ -245,6 +313,13 @@
       constructor". Frozen baselines PASS (the scalar seeds the intercept
       only); the completion-warning snapshots on composition-changing
       fixtures re-recorded and reviewed.
+      *Note 2026-09-15 (explore):* the walk accumulates exposure per timed fid,
+      and a flavored layer's fids are per flavor, so this is also the
+      flavor-aware relational risk set `pin_completed_rates()` lacks — it
+      routes a flavored relational layer to the panel wave-Hamming path as a
+      stopgap, and `per-family-flavor-modeling`'s delta pins such a gap to a
+      zero hazard. When this lands the flavored relational pin reads it;
+      coordinate that delta's wording with its owner
 
 ## 3. Tests and documentation
 

@@ -286,6 +286,18 @@ max-proposals bound. The conjunctive-only gate therefore remains only on
 seed `process-simulation`'s per-mechanism DGP tests; coordinate the two task
 lists when either applies.
 
+*Narrowed 2026-09-16 (`process-simulation` ADR-0079) — simulation is
+time-anchored only.* All five mechanisms keep the anchored draw from their mark
+multinomial; the free-running thinning constructions are withdrawn. The constant
+coordination rate in this change's derivations is a device that cancels in
+estimation exactly as a nonparametric baseline does, and every derivation here is
+under Cox. The thinning runs on the rate of proposals, realized and rejected, while
+a crude rate counts realized events only; the proposal rate depends on an
+acceptance probability those events do not identify. The argument below that
+"generation simulates the latent proposal process directly" holds for the
+construction but not for its rate. Whether coordination inside a timed composition
+may run on the pinned opportunity clock of D16 is this change's open question.
+
 ### D16 — Regimes in composition: single-regime for now, ordered is coordination's native home (revised 2026-08-19)
 A joint composition keeps `make_joint_specification()`'s existing
 single-regime rule (mixing timed and ordered processes rejects at join

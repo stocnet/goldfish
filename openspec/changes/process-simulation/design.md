@@ -186,6 +186,32 @@ reads them per period); "intercept scalars" was the retired name. A timed
 fid is recognized by `is_exact_time` on the preprocessed object, never by
 `right_censored`, which no longer exists.
 
+
+*Amended 2026-09-15 (explore, ADR-0076) — the crude rate is also a
+completion.* A choice-only DyNAM has no clock, and `resolve_default_sub_model()`
+declines to complete its rate in the ordered regime, which is right for the
+default. But the three scalars pseudo-time reads — `n_dep_events`,
+`total_time`, `avg_active_entity` — are exactly the pin of a constant
+exponential rate, `log(n_dep_events / (total_time · avg_active_entity))`. So
+"pseudo-time, meaningful up to scale" and "a completed constant exponential
+rate at the crude MLE" are one object under two labels, and the second is the
+honest one: it is warned, recorded `completed`, and draws from a stated hazard.
+A choice-only DyNAM therefore defaults to `times = "observed"` (D6 amendment)
+and, when the user asks for `"generated"`, completion installs that pinned rate.
+The value comes from preprocessing — and from 2.11's exposure integral once it
+replaces the event-averaged `avg_active_entity`. What an ordinal process does instead is the next amendment.
+
+*Superseded in part 2026-09-16 (ADR-0079) — no pseudo-time.* The Cox/ordered
+bullet above is withdrawn. The Cox partial likelihood leaves the baseline hazard
+nonparametric and unestimated, so a constant crude-rate clock imposes a shape the
+model never assumed while the marks come from estimated effects: output that looks
+timed and is not. D2's own rejection of a Breslow recovery applies with more force
+to a constant one. A Cox/ordered specification therefore simulates time-anchored
+only, and `times = "generated"` on it aborts stating that the ordered rate
+estimates no clock. A choice-only DyNAM is the one process without an estimated
+rate that runs free, and only on request: an intercept-only exponential rate paired
+with a choice model is a complete Poisson process specification — RSiena's default
+constant rate function — not a reinterpreted ordinal fit (ADR-0076).
 ### D3 — Stopping targets are not the explosion guard (revised 2026-08-19)
 
 Free-running stopping is a **statistical target**: `horizon =` (calendar
@@ -310,6 +336,60 @@ layer with an unmodeled flavor stays an abort
 (`abort_on_unmodeled_panel_flavor()`), since the augmenter must place every
 change between waves.
 
+
+*Amended 2026-09-15 (explore, goldfish-f8) — four corrections to the deferral
+2.1 implemented, each checked against the tree.*
+
+1. **No `completed =` argument, and in most cases nothing to defer.** No caller
+   should abort instead of complete: `walk_open()` has one production caller,
+   and every generative consumer completes before opening. Two cases, checked
+   on the flavored fixture with the refusal patched out:
+   - *Flavored gap* (a flavor lacks one family while other flavors of that
+     family carry effects): the completed fid is an ordinary member of its
+     family's compiled unit, with an empty effect map and its own derived mask.
+     The pinned dissolution rate evaluated to exactly `exp(intercept_w)` over
+     its active senders; the uniform dissolution choice, with zero statistic
+     columns and `θ = numeric(0)`, gave probability 1 to sender 1's only
+     existing tie and 0 to self. Nothing is deferred; the refusal was the only
+     obstacle.
+   - *Whole family effect-free* (a single-process rate-only DyNAM, or every
+     flavor of a family completed): no unit can compile, since the merged
+     compile rejects a `~ 1` choice at parse. The walk strips that family,
+     keeps the completed process_map so every fid keeps its number (a unit's
+     fids are looked up by layer and family, not counted), and skips map rows
+     no unit owns — today keeping the map fails in `build_effect_union()` on
+     the missing formula. The deferred fid stays on the handle's map, and
+     asking the walk to evaluate it aborts naming it as a completed default.
+2. **Regime reads `process_map$completed`, never formula shape.**
+   `is_intercept_only_rate_bundle()` tests shape only, so `mark_pinned_rates()`
+   marks an *authored* `rate = ~ 1` as pinned (verified). With a modeled choice
+   that rate is warned "pinned, not estimated", and the 2.1 driver looks it up
+   in `completed_rates`, finds nothing, and evaluates it at zero, so a
+   single-process run stops `no_rate` before its first event. An authored
+   intercept-only rate is modeled and reads its intercept from `coef`.
+3. **An authored `rate = ~ 1` with no choice aborts at entry.** Completion would
+   add a uniform choice and leave a DyNAM process with no effect anywhere; today
+   it reaches the walk and fails with an internal error (verified).
+4. **A completed default draws over its process's support mask, not presence.**
+   A process's rate and choice share one `constraint_id` and one live mask: on
+   the flavored fixture every fid's support grid is identical, and the rate's
+   `active_sender` already equals `rowSums(mask) > 0 & presence` through
+   `sender_gate_from_mask()` — the rate state's `active_dyad = rep(TRUE, n1)`
+   is an unread placeholder on a sender block, not its gate. In a flavored gap
+   the completed fid reads its own mask. In the whole-family case it reads its
+   same-process sibling's live mask through the shared `constraint_id`, which
+   survives deferral (verified): senders by the rowSums gate, receivers by the
+   mask row and presence, self dropped on a one-mode layer. A sibling always
+   exists there, because completion fills one family per process and an
+   authored `rate = ~ 1` with no choice aborts (amendment 3). Either way there
+   is one evaluation path: the process-state evaluator on a zero-column (or
+   intercept-only) state is the uniform (or constant) draw over that set.
+
+A partially modeled flavored DyNAM layer follows ADR-0056 as implemented: a
+flavor named in one list completes the missing family with the timing of the
+existing model (a pinned rate when the process is timed, nothing when it is
+ordered), and a flavor named in neither list completes nothing (verified). The
+second half is only correct once D9's replay runs; see D9's amendment.
 ### D6 — The `times =` axis: free-running and time-anchored, first-class on every family (added 2026-08-19)
 
 One argument on `simulate()`, `times = c("generated", "observed")`, default
@@ -335,6 +415,39 @@ the clock, and collides with the conditional-residuals vocabulary);
 "resampled" (suggests bootstrap resampling of observed marks); "fixed/random
 times" (reads as a frailty statement). (ADR-0033.)
 
+
+*Amended 2026-09-15 (explore, ADR-0076) — `times` is derived, not defaulted.*
+The specification already says which variants it can honor, so `times`
+defaults to an expression that resolves from the specification: `"generated"`
+when every process carries a timed rate, `"observed"` when any process is
+ordinal or a DyNAM process is choice-only. An explicit value is validated
+against that and aborts stating why when it cannot be honored — with the one
+deliberate exception that `"generated"` on a choice-only DyNAM is honored by
+completing a constant exponential rate (D2 amendment), with the completion
+warning. Completion therefore receives the requested variant, since whether to
+install that rate is the request. The result records whether `times` was
+derived or requested. In the relational family the one-regime-per-join rule
+costs nothing here: a DyNAM or REM specification is at most flavored and every
+flavor shares the model and sub-model, so a completion changes every flavor's
+timing together. The default is an expression that names its source: `simulate(object, …,
+times = times_of(object))`, an exported accessor that documents the rule on
+one help page and works on a specification or a fit (a fit reads its
+`sub_model` and `model_spec$behavior`). An attribute was rejected: a fit has no
+specification to carry one, and list operations drop attributes. The accessor
+returns the value with a `reason` ("timed rate", "ordered rate", "no rate"). An
+explicit value equal to the default is silent; an override is announced by what
+it costs:
+
+| specification | argument | condition |
+| --- | --- | --- |
+| `"generated"` | `"observed"` | message: the observed stamps are held, the marks redrawn |
+| `"observed"`, no rate | `"generated"` | the completion warning, naming the override |
+| `"observed"`, ordered rate or coordination | `"generated"` | abort: no clock is estimated (ADR-0079) |
+
+The result carries `times` and `times_source`, and the print shows either
+`times: "observed" — from the specification (no rate)` or
+`times: "generated" — requested; the specification's default is "observed"`.
+The accessor is `times_of()` (ADR-0076).
 ### D7 — Coordination simulates per mechanism: all five, both variants (added 2026-08-19)
 
 Keyed by `two-sided-coordination`'s `mechanism =`. **Time-anchored**: at
@@ -359,6 +472,21 @@ aborts on the other four (leaves the new mechanisms without any GOF
 counterpart for no structural saving — the anchored path needs only φ_kl,
 which every mechanism already defines).
 
+
+*Superseded in part 2026-09-16 (ADR-0079) — coordination simulates time-anchored
+only.* The free-running half above is withdrawn. The constant coordination rate in
+the `two-sided-coordination` derivations is a device that cancels in estimation,
+exactly as a nonparametric baseline does, and every one of those derivations is
+under Cox. The thinning construction also runs on the rate of proposals, realized
+and rejected, while a crude rate counts realized events only; the proposal rate
+depends on an acceptance probability those events do not identify, so the
+free-running clock would be unknown, not merely up to scale. All five mechanisms
+keep the time-anchored draw from their mark multinomial, which needs no latent
+process; `times = "generated"` on a coordination specification aborts saying why.
+The rejection loop, its acceptance-rate diagnostic and its max-proposals bound have
+no use in simulation. Whether coordination inside a timed composition may run on
+the pinned opportunity clock of `two-sided-coordination` D16 — a completion-style
+pinned rate, not pseudo-time — is left to that change.
 ### D8 — Windowed effects free-run via FIFO self-scheduled expiry (added 2026-08-19)
 
 The eager window architecture materializes expiry pseudo-events from the
@@ -449,6 +577,24 @@ that default (replaying a modeled flavor's own events, per-flavor clock
 anchoring), not the unmodeled case. Unmodeled flavors on a modeled panel
 layer are not replayed; they abort (D5).
 
+
+*Amended 2026-09-15 (explore) — the 2.1 driver does not replay yet, and what
+replay needs is already on the schedule.* On a flavored layer modeling only
+`creation`, completion correctly adds nothing, but free-running simulation never
+applies an observed dissolution: the handle excludes the focal layer's update
+rows from `exo_rows` wholesale, because the driver injects the modeled flavor's
+events, and the unmodeled flavor's rows go with them — the simulated network
+only grows. The rows to replay are identifiable. The focal update rows carry
+`flavor = NA`, but their `value` is the flavor's update value, and
+`info$values_equivalence[[layer]]` maps it back (`c(creation = 1,
+dissolution = -1)` on the fixture, 40 rows each). Replay applies, as scheduled
+rows, the focal update rows whose mapped flavor is unmodeled, under the
+skip-and-count guard. Task 2.8 therefore moves ahead of 2.3, which reads its regime record anyway,
+and no interim guard is needed. Once the replayed rows are exogenous,
+`walk_next_breakpoint()` reports them and the clock redraws at each one — which
+is exactly the right-censoring estimation applies, with no mechanism of its
+own. The same mapping is what the mark
+must carry: a drawn dissolution is an `increment = -1` event (task 2.2c).
 ### D10 — One preprocessing pass keyed by fid, never a cycle per sub-model (added 2026-09-07)
 
 The package carries three preprocessing substrates, and the question this
@@ -576,6 +722,27 @@ same; passing the whole materialized state to PE — freezes an internal shape
 as the contract, where the narrow triple is what every named variant
 actually reads.
 
+
+*Amended 2026-09-15 (explore) — every fid goes through the evaluate seam, and
+the completed defaults are built-in steps.* 2.1 evaluated a completed default
+beside the seam: `rate_values()` and `mark_evaluation()` branch on whether a fid
+was walked, and `pinned_rate_values()` / `uniform_choice_values()` compute
+values the evaluate step never sees. That is two mechanisms for one quantity,
+and it is where the authored `~ 1` rate fell through (D5 amendment 2). Each fid
+now resolves an evaluate step by regime, with PE's one signature and one
+output: `default` (log-linear, a modeled fid), `constant` (a completed pinned
+rate, `exp(intercept_w)` over the risk set), `uniform` (a completed choice,
+equal weight over the risk set given the sender). The built-ins need no sampler
+of their own: the process-state evaluator on a degenerate zero-column state is
+exactly uniform over the available alternatives, which is how
+`intercept_only_rate_state()` already evaluates the pinned rate. The draw stays
+in the mark and the clock, which consume the same shape whichever step produced
+it — so a per-actor random effect and an HMM mixture are further entries in the
+same table rather than further branches. A supplied `evaluate` replaces `default` only (settled 2026-09-15). A variant
+that wants to act on a fid means the fid carries information, so the fid is
+authored — and an authored `rate = ~ 1` is modeled after D5 amendment 2, which
+lands it in `default` anyway. Replacing the built-ins as well would make every
+variant author re-implement the uniform and constant draws.
 ### D12 — A DyNAM step evaluates one sender's row, and the evaluators stop building an index nobody reads (added 2026-09-09)
 
 Task 1.2 measured what one replicate costs. On Social Evolution, stepping the
@@ -761,3 +928,18 @@ untouched — simulation adds no estimation path).
 - **[D11 / parametric-rates]** The per-actor time origin of the Weibull
   hazard across a regime switch or a window breakpoint; per-segment
   inversion handles it only if the origin is stored per actor on the handle.
+
+- ~~**[D5 / 2.2b]** How a completed default reaches its process's support
+  mask~~ Resolved 2026-09-15: its own mask in a flavored gap, the same-process
+  sibling's in the whole-family case (D5 amendment 4).
+- ~~**[D6 / ADR-0076]** How the derived `times` is signaled~~ Resolved
+  2026-09-15: `times = times_of(object)`, overrides announced by cost,
+  `times_source` and a print line (D6 amendment).
+- ~~**[D2 / ADR-0033]** Whether the Cox family and coordination generate at
+  all~~ Resolved 2026-09-16 (ADR-0079): time-anchored only, no pseudo-time; a
+  choice-only DyNAM keeps ADR-0076's requested completion.
+- ~~**[D11 / built-ins]** Whether a caller may replace a built-in evaluate step
+  per regime~~ Resolved 2026-09-15: `default` only (D11 amendment).
+- **[D7 / ADR-0079]** Whether coordination inside a timed joint composition may
+  run free on the pinned opportunity clock ρ̃_k + ρ̃_l (`two-sided-coordination`
+  D16); left to that change.

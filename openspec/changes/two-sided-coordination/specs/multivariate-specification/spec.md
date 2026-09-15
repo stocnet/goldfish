@@ -104,8 +104,9 @@ composed processes, never at a single-process `make_specification()`). In the
 **timed** regime a modeled flavor missing its rate
 (including a flavor that would otherwise be **choice-only**) SHALL be completed with
 the pinned intercept-only rate so its events land on the shared clock; in the
-**ordered** regime a **choice-only DyNAM** flavor SHALL NOT be rate-completed (its
-timing is supplied by the `process-simulation` pseudo-time modes). The pinned
+**ordered** regime a **choice-only DyNAM** flavor SHALL NOT be rate-completed (it simulates
+time-anchored by default, and gains a constant exponential rate only when
+free-running simulation is requested). The pinned
 per-actor intercept `intercept_w = log(count_w / (T_w · |R_w|))` (for a modeled panel
 flavor `count_w` is the net wave Hamming diff — a net-change floor, not a directly
 observed micro-count) is a **per-actor constant hazard** — identical for every

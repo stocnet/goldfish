@@ -18,7 +18,9 @@ covariate/composition change SHALL freeze the exogenous state and warn once.
 Simulating from a fitted result SHALL take the data as an argument and rebuild
 the specification from the fit's stored formula, model and sub-model: a fit
 carries neither its specification nor the stocnet it was fitted on, and SHALL
-say so rather than failing inside the walk.
+say so rather than failing inside the walk. The mark of an event
+on a flavored layer SHALL carry that flavor's update value, so a simulated
+dissolution removes the tie a creation made.
 A simulation run SHALL open the walk once per replicate and SHALL NOT
 re-preprocess per sub-model or per flavor: every fid is served from the
 engine compiled at `walk_open()`, and one injected event updates the shared
@@ -31,6 +33,13 @@ state every engine reads.
 - **THEN** `walk_open()` runs once, each step evaluates the K rate fids and the
   drawn flavor's choice fid at the same live state, and no per-flavor or
   per-family preprocessing pass is run inside the loop.
+
+#### Scenario: a simulated dissolution removes a tie
+
+- **WHEN** a flavored layer with `values_equivalence = c(creation = 1,
+  dissolution = -1)` is simulated free-running
+- **THEN** every drawn dissolution carries the update value `-1` and removes an
+  existing tie, and no dissolution targets a tie the state does not hold.
 
 #### Scenario: fixed-count simulation
 
@@ -105,13 +114,23 @@ only through the exported accessor surface.
 
 ### Requirement: The `times` axis names the two simulation variants
 
-`simulate()` SHALL accept `times = c("generated", "observed")`, default
-`"generated"`. Under `times = "generated"` (free-running) the clock and the marks
+`simulate()` SHALL accept `times = c("generated", "observed")`, its default given by the exported accessor
+`times_of(object)`, read from the specification: `"generated"` when every process carries a timed
+rate, `"observed"` when any process is ordinal or a DyNAM process is
+choice-only. An explicit value SHALL be validated against what the
+specification makes possible and SHALL abort stating why when it cannot be
+honored; `"generated"` on a choice-only DyNAM SHALL be honored by completing a
+constant exponential rate pinned at the process's crude rate, with a warning.
+The result SHALL record whether `times` was derived or requested. Under `times = "generated"` (free-running) the clock and the marks
 are both drawn from the model, holding nothing from the observed stream except
 the initial state. Under `times = "observed"` (time-anchored) the observed event
 times are held and the marks (sender, receiver, flavor, or pair as the family
 dictates) are redrawn from the fitted conditional distributions at each observed
-stamp. Both variants SHALL be available for every simulable family; anchored
+stamp. Free-running simulation SHALL be available only where the
+specification carries a clock — a timed rate, or the constant exponential rate a
+choice-only DyNAM gains on request — and an ordered (Cox) rate or a coordination
+process SHALL simulate time-anchored only, `times = "generated"` on it aborting
+stating why; anchored
 runs are bounded by the observed stream and take no stopping arguments.
 Documentation SHALL use the vocabulary "free-running" and "time-anchored" and
 SHALL NOT describe the axis as conditional/unconditional.
@@ -129,6 +148,27 @@ SHALL NOT describe the axis as conditional/unconditional.
 - **THEN** the clock is generated from the fitted rates (a new draw from the
   model, matching `stats::simulate` semantics).
 
+#### Scenario: a choice-only specification defaults to time-anchored
+
+- **WHEN** a choice-only DyNAM specification is simulated without a `times`
+  argument
+- **THEN** `times` resolves to `"observed"`, no rate is fabricated, and the
+  result records `times` as derived.
+
+#### Scenario: a choice-only specification generates only when asked
+
+- **WHEN** the same specification is simulated with `times = "generated"`
+- **THEN** completion installs a constant exponential rate pinned at the
+  process's crude rate, a warning reports it, the rate's regime is `completed`,
+  and the result records `times` as requested.
+
+#### Scenario: an override of the specification's times is announced
+
+- **WHEN** a timed specification is simulated with `times = "observed"`
+- **THEN** a message states that the specification's default is `"generated"`
+  and that the observed stamps are held, and the result records `times` as
+  requested.
+
 ### Requirement: Free-running clocks are keyed on the distribution axis
 
 Free-running waiting-time draws SHALL be keyed on the specification's
@@ -138,13 +178,10 @@ sub-model, `distribution`. For `timing = "timed"` and `distribution =
 (intercept included), redrawn at every breakpoint (events, exogenous changes,
 window expiries); for `"weibull"` and `"gompertz"` (common shape), exact draws
 by analytic inversion of the integrated intensity Σλ_i·[G(t+w) − G(t)] per
-constant-rate segment, with the same breakpoint discipline; for `timing =
-"ordinal"` — the Cox family a user requests as `distribution = "cox"`, and
-every choice-only sub-model — no clock is estimated: free-running SHALL use
-pseudo-time from the stored crude-rate scalars (`n_dep_events`, `total_time`,
-`avg_active_entity`) with output documenting that such times are meaningful
-only up to scale, and time-anchored simulation SHALL be documented as the
-statistically clean variant. A timed fid SHALL be recognized through
+constant-rate segment, with the same breakpoint discipline; for `timing = "ordinal"` — the Cox family a user requests as
+`distribution = "cox"` — no clock is estimated and none SHALL be invented: no
+pseudo-time SHALL be drawn, and such a specification SHALL simulate time-anchored
+only. A timed fid SHALL be recognized through
 `is_exact_time` on its preprocessed object. The
 exponential draw's exactness rests on every statistic being piecewise-constant
 between breakpoints; a specification carrying any effect that violates this
@@ -164,44 +201,35 @@ silently frozen approximation.
 - **THEN** the recovered shape concentrates around the generating k on seeded
   fixtures (the DGP for the parametric-rates recovery tests).
 
-#### Scenario: pseudo-time output is labeled
+#### Scenario: an ordered specification is time-anchored only
 
-- **WHEN** a Cox/ordered specification is simulated free-running
-- **THEN** the output identifies its times as crude-rate pseudo-time meaningful
-  only up to scale.
+- **WHEN** a Cox/ordered specification is simulated with `times = "generated"`
+- **THEN** `simulate()` aborts stating that the ordered rate estimates no clock,
+  and without a `times` argument the same specification simulates time-anchored.
 
-### Requirement: Coordination simulates per mechanism, both variants
+### Requirement: Coordination simulates per mechanism, time-anchored
 
 Coordination simulation SHALL be keyed by the specification's `mechanism`
-(conjunctive, forcing, confirmation, disjunctive, compensatory). Under
-`times = "observed"`, the realized pair at each observed stamp SHALL be drawn
-from the mechanism's normalized mark multinomial q_kl = φ_kl/Σφ_ab with no
-rejection loop for any mechanism. Under `times = "generated"`, each mechanism
-SHALL simulate its latent proposal/rejection process by its generative thinning
-construction (the mutual-choice rejection loop being the conjunctive instance),
-with rejected proposals consuming clock time on the crude-rate pseudo-time
-clock; the realized output SHALL report the acceptance rate, and the rejection
-loop SHALL carry a max-proposals bound whose abort message names the acceptance
-rate reached.
-
-#### Scenario: only reciprocated proposals realize under conjunctive
-
-- **WHEN** a conjunctive coordination specification is simulated free-running
-- **THEN** every emitted event corresponds to a proposal chosen by both sides, and
-  the result records the proportion of proposals accepted.
+(conjunctive, forcing, confirmation, disjunctive, compensatory) and SHALL be
+time-anchored only: at each observed stamp the realized pair SHALL be drawn from
+the mechanism's normalized mark multinomial q_kl = φ_kl/Σφ_ab, with no rejection
+loop for any mechanism. `times = "generated"` on a coordination specification
+SHALL abort stating that coordination timing is estimated under Cox and that its
+proposal rate is not identified from the realized events.
 
 #### Scenario: anchored coordination needs no rejection loop
 
-- **WHEN** a coordination specification of any mechanism is simulated with
-  `times = "observed"`
-- **THEN** each observed stamp's pair is drawn directly from that mechanism's
-  normalized pair probabilities, with no latent proposals simulated.
+- **WHEN** a coordination specification is simulated under any of the five
+  mechanisms
+- **THEN** each observed stamp carries a pair drawn from that mechanism's
+  normalized mark multinomial, no proposal is rejected, and the observed
+  timestamps are unchanged.
 
-#### Scenario: polarized choices cannot loop forever
+#### Scenario: a coordination specification cannot run free
 
-- **WHEN** a free-running coordination run's acceptance rate approaches zero
-- **THEN** the max-proposals bound aborts the run with a diagnostic naming the
-  acceptance rate, rather than looping unbounded.
+- **WHEN** a coordination specification is simulated with `times = "generated"`
+- **THEN** `simulate()` aborts naming the coordination process and stating that
+  its proposal rate is not identified, before any walk opens.
 
 ### Requirement: Stopping targets are separate from the explosion guard
 
@@ -312,15 +340,15 @@ extra `coef`); a missing **timed** rate SHALL gain an intercept-only baseline ha
 whose per-actor intercept SHALL be **pinned** (zero free parameters, never read from
 `coef`) — from observed counts as `log(count_w / (T_w · |R_w|))` for a mixed
 process, or from the requested event count / time window for a fully rate-less
-process. A **choice-only** (ordered) DyNAM
-SHALL NOT be rate-completed — its timing uses the ordered strategies
-(`times = "observed"` or pseudo-time). REM requires only a rate and is already
+process. A **choice-only** DyNAM SHALL NOT be rate-completed by default — its default
+timing is time-anchored — and SHALL gain a constant exponential rate only when
+`times = "generated"` is requested. REM requires only a rate and is already
 complete. `walk_open()`
 SHALL assert completeness, so the draw loop never opens an incomplete specification.
-The walk handle walks effect-bearing sub-models only, so the driver SHALL
-evaluate a completed fid itself: a completed uniform choice as an equiprobable
-draw over the fid's receiver support, and a completed pinned rate as the
-constant per-actor rate `exp(intercept_w)` of the current period. Because
+A completed fid SHALL be evaluated through its built-in evaluate step: a
+completed uniform choice as an equiprobable draw over the fid's receiver
+support, and a completed pinned rate as the constant per-actor rate
+`exp(intercept_w)` of the current period. Because
 `simulate()` runs the same completion transform as `estimate_dynes()` and the
 augmenters, a simulated pool and an augmented pool SHALL carry identical fid
 sets into `evaluate_sequence_pool()`. A flavor named in neither sub-model
@@ -329,6 +357,27 @@ list of a relational layer SHALL NOT be completed: it is unmodeled, and
 that right-censor the timed engines, recording the flavor as
 `anchored-replay`; on a modeled panel layer such a flavor SHALL abort as it
 does for `estimate_dynes()`.
+
+Completion and each process's regime SHALL be read from the specification's
+recorded completion (`process_map$completed`), never from a formula's shape: an
+authored intercept-only rate is modeled and reads its intercept from `coef`. A
+DyNAM process whose authored rate is intercept-only and which carries no choice
+SHALL abort at entry, since completion would leave it with no effect to draw
+from. A completed default's candidate space SHALL be its process's support
+mask, the mask the process's modeled sub-model reads.
+
+#### Scenario: an authored intercept-only rate is modeled, not pinned
+
+- **WHEN** a DyNAM specification with `rate = ~ 1` and a modeled choice is
+  simulated
+- **THEN** no pinned-rate warning fires, the rate's regime is `modeled`, and
+  its intercept is read from `coef`.
+
+#### Scenario: an intercept-only rate with no choice is refused
+
+- **WHEN** a DyNAM specification with `rate = ~ 1` and no choice is simulated
+- **THEN** `simulate()` aborts at entry naming the process, before completion
+  would add a uniform choice to a model with no effect.
 
 #### Scenario: an unmodeled flavor is replayed, not completed
 
@@ -354,26 +403,33 @@ does for `estimate_dynes()`.
 - **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
   simulating events with a missing rate or choice.
 
-#### Scenario: the walk defers a completed default rather than refusing it
+#### Scenario: a flavored gap needs no deferral
 
-- **WHEN** a generative consumer opens the walk on a completed specification
-  carrying an auto-supplied uniform choice or pinned rate
-- **THEN** the walk carries the effect-bearing sub-models only, returns the
-  effect-free ones to the consumer to evaluate, and every other caller still
-  gets the refusal; the consumer matches the walk's processes to the
-  specification's on the rendered process label, since deferring renumbers the
-  walk's formula ids.
+- **WHEN** a flavored specification whose `dissolution` flavor lacks the rate
+  its `creation` flavor carries is completed and simulated
+- **THEN** the walk opens with the completed rate as a member of the rate unit,
+  reading its own derived mask, and it evaluates to the pinned constant.
 
-#### Scenario: a completed pinned rate is evaluated by the driver, not the handle
+#### Scenario: a whole effect-free family is deferred without renumbering
+
+- **WHEN** a rate-only DyNAM specification is completed with a uniform choice
+  and simulated
+- **THEN** the walk opens without the choice family, every fid keeps the
+  number the completed specification gave it, the completed choice draws over
+  its process's support mask, and asking the walk to evaluate it directly
+  aborts naming it.
+
+#### Scenario: a completed pinned rate evaluates to its pinned constant
 
 - **WHEN** a flavor whose rate was completed with a pinned intercept-only
   default is simulated free-running
 - **THEN** its per-actor rate is the constant `exp(intercept_w)` of the current
-  period supplied by the driver, the handle is never asked to evaluate the
-  effect-free fid, and the fid is marked `completed` in the regime record.
+  period, evaluated through the built-in `constant` step and reading no
+  coefficient, and the fid is marked `completed` in the regime record.
 
-#### Scenario: choice-only DyNAM keeps ordered timing
+#### Scenario: choice-only DyNAM keeps ordered timing unless asked
 
-- **WHEN** a choice-only (ordered) DyNAM specification is simulated
-- **THEN** no baseline rate is fabricated; timing comes from the anchored or
-  pseudo-time strategy, and only the choice marks are drawn from the model.
+- **WHEN** a choice-only (ordered) DyNAM specification is simulated without
+  `times = "generated"`
+- **THEN** no baseline rate is fabricated; timing comes from the anchored
+  strategy, and only the choice marks are drawn from the model.

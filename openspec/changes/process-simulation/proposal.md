@@ -40,21 +40,20 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   basic and flavored families, and the conjunctive coordination mark. The
   DyNES augmenter and goldfish.latent's variants are callers of one loop; the
   walk handle stays internal. Detail per variant in `.plan/sp/sim_variants.md`.
-- **The `times =` axis** (revised 2026-08-19, ADR-0033): every family gets both
-  simulation variants — **free-running** (`times = "generated"`, default: draw
+- **The `times =` axis** (revised 2026-08-19, ADR-0033): each family gets the
+  simulation variants its specification can honor — **free-running** (`times = "generated"`, default: draw
   clock and marks) and **time-anchored** (`times = "observed"`: hold the
   observed times, redraw the marks) — the anchored variant being the honest
   mode for Cox-family fits and the cheap GOF workhorse everywhere.
 - **Distribution-keyed timing strategies**: exponential draws exact
   competing-exponential waiting times (intercept included); Weibull/Gompertz
   (common shape) draw exactly by analytic inversion per constant-rate segment
-  — also the DGP for `parametric-rates`' recovery tests; Cox/choice-only has
-  no estimated clock — anchored is the clean variant, free-running uses
-  crude-rate pseudo-time (labeled up-to-scale); coordination simulates
-  per mechanism (all five): anchored from the mechanism's mark multinomial (no
-  rejection loop), free-running via each mechanism's generative thinning
-  construction (the mutual-choice rejection loop is the conjunctive instance),
-  acceptance rate reported.
+  — also the DGP for `parametric-rates`' recovery tests; Cox and coordination have
+  no estimated clock and simulate time-anchored only — no pseudo-time
+  (ADR-0079); a choice-only DyNAM runs free only on request, through a completed
+  constant exponential rate (ADR-0076); coordination simulates per mechanism
+  (all five) from the mechanism's mark multinomial at the observed stamps, with
+  no rejection loop.
 - **Windowed effects free-run correctly**: simulated events self-schedule their
   window expiries in a per-window FIFO (constant window ⇒ insertion-order
   expiry) treated as breakpoints, keeping the exponential draw exact with

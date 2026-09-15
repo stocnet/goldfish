@@ -173,6 +173,18 @@
       `set_parameters(spec, coef(fit))` accepts the flat vector matched by
       `f<fid>_<short>` (bare names on a single-process spec); the
       round-trip test on all three specification kinds.
+- [ ] 6.2a `simulate()` on a `goldfishFlavFit` (added 2026-09-15, moved here
+      from `process-simulation` 2.1b; vault ADR-0075): one competing-flavor run
+      over one clock, never a per-flavor fan-out, per the
+      `fit-class-hierarchy` verdict `process-simulation` records. The method
+      rebuilds the flavored specification from the container's `process_map`
+      and component formulas plus `data =`, and its parameters through
+      `set_parameters(spec, fit)` (6.2): the flat, fid-ordered container that
+      1.2 and 1.3 leave is what makes that reassembly one call rather than a
+      reordering against `flavored_row_order()`. Replaces the
+      `goldfish_sim_unsupported` abort `process-simulation` 2.1 left. Test: a
+      two-flavor container simulates one sequence with both flavors competing
+      on one clock, at the parameters `set_parameters(spec, fit)` returns
 - [ ] 6.3 `initial_parameters` on `estimate_dynam()`, `estimate_rem()`,
       `estimate_dynami()` and the flavored path accepts a `goldfishParams`
       (pinned free slots are the warm start; `NA` slots start at zero as
