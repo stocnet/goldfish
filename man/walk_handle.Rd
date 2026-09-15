@@ -13,6 +13,7 @@
 walk_open(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  completed = c("abort", "defer"),
   call = rlang::caller_env()
 )
 
@@ -33,6 +34,14 @@ as a one-process join).}
 
 \item{control_preprocessing}{preprocessing options, as for
 \code{\link[=preprocess_joint]{preprocess_joint()}}.}
+
+\item{completed}{what to do with a sub-model carrying no effects — an
+auto-supplied uniform choice or pinned intercept-only rate. \code{"abort"}
+refuses it, which is the boundary every caller but a generative consumer
+wants; \code{"defer"} leaves it out of the walk and records it on the handle as
+\code{deferred}, for the caller to evaluate itself. Deferring renumbers the
+walk's fids relative to the specification's, so a caller holding both
+matches them on the rendered process label.}
 
 \item{call}{the calling environment, for error reporting.}
 

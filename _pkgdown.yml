@@ -50,6 +50,10 @@ reference:
       - starts_with("set")
       - update-method
       - print-method
+  - title: "Simulate"
+    contents:
+      - simulate
+      - simulation-handle
   - title: "Diagnostics"
     contents:
       - logLik.result.goldfish

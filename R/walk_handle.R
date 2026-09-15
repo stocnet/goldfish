@@ -106,32 +106,73 @@ assert_generatively_complete <- function(
   )
 }
 
-# Abort when a sub-model carries no effects (a completion-supplied uniform
-# choice or pinned intercept-only rate). The merged compile parses
-# effect-bearing formulas; an effect-free `~ 1` block is walked by the consumers
-# (simulate() / estimate_dynes()), not this substrate. Detected on the term
-# labels so it is independent of the bundle's internal shape.
-assert_walkable_submodels <- function(joint_spec, call = rlang::caller_env()) {
-  empty <- character(0)
+# The sub-models carrying no effects: a completion-supplied uniform choice or
+# pinned intercept-only rate. The merged compile parses effect-bearing
+# formulas, so a `~ 1` block has nothing for it to compile; it is the
+# generative consumers' to evaluate. Detected on the term labels, so it is
+# independent of the bundle's internal shape. Returns one row per such
+# sub-model, in specification order.
+effect_free_submodels <- function(joint_spec) {
+  rows <- list()
   for (spec in joint_spec$specifications) {
     for (proc in spec_processes(spec)) {
       for (family in names(proc$submodels)) {
         formula <- proc$submodels[[family]]$formula
         labels <- attr(stats::terms(formula), "term.labels")
         if (length(labels) == 0L) {
-          flavor <- if (is.na(proc$flavor)) {
-            NULL
-          } else {
-            paste0(" (", proc$flavor, ")")
-          }
-          empty <- c(empty, paste0(spec$focal, flavor, " › ", family))
+          rows[[length(rows) + 1L]] <- data.frame(
+            layer = spec$focal,
+            flavor = proc$flavor,
+            family = family,
+            model = spec$model,
+            stringsAsFactors = FALSE
+          )
         }
       }
     }
   }
-  if (length(empty) == 0L) {
+  if (length(rows) == 0L) {
+    return(data.frame(
+      layer = character(0),
+      flavor = character(0),
+      family = character(0),
+      model = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+  do.call(rbind, rows)
+}
+
+# The label a deferred sub-model is known by on both sides of the partition.
+# `render_process_label()` reads a process_map row; the deferred sub-models are
+# gone from the walk's map by construction, so their label is assembled from
+# the same three fields in the same order.
+effect_free_labels <- function(deferred) {
+  vapply(
+    seq_len(nrow(deferred)),
+    function(i) {
+      paste(
+        c(
+          deferred$layer[i],
+          if (!is.na(deferred$flavor[i])) deferred$flavor[i],
+          deferred$family[i]
+        ),
+        collapse = " › "
+      )
+    },
+    character(1)
+  )
+}
+
+# Abort when any sub-model carries no effects. This is the refusal every caller
+# but a generative consumer gets: a clear boundary rather than the cryptic parse
+# error the merged compile would raise.
+assert_walkable_submodels <- function(joint_spec, call = rlang::caller_env()) {
+  deferred <- effect_free_submodels(joint_spec)
+  if (nrow(deferred) == 0L) {
     return(invisible(NULL))
   }
+  empty <- effect_free_labels(deferred)
   cli::cli_abort(
     c(
       "The walk handle does not yet walk effect-free sub-models.",
@@ -144,6 +185,61 @@ assert_walkable_submodels <- function(joint_spec, call = rlang::caller_env()) {
     call = call,
     class = "goldfish_walk_unsupported"
   )
+}
+
+# The same specification with its effect-free sub-models removed, so the merged
+# compile sees only what it can parse. A process left with no sub-model at all
+# is dropped, and the process_map is rebuilt -- which RENUMBERS the fids, so the
+# walk's fids are not the completed specification's. The rendered process label
+# is the identity across that boundary, exactly as it is for a parameter object
+# built before completion.
+drop_effect_free_submodels <- function(joint_spec) {
+  specs <- lapply(joint_spec$specifications, function(spec) {
+    keep_bearing <- function(submodels) {
+      bearing <- vapply(
+        submodels,
+        function(bundle) {
+          length(attr(stats::terms(bundle$formula), "term.labels")) > 0L
+        },
+        logical(1)
+      )
+      submodels[bearing]
+    }
+    if (!is.null(spec$processes)) {
+      for (fl in names(spec$processes)) {
+        spec$processes[[fl]]$submodels <- keep_bearing(
+          spec$processes[[fl]]$submodels
+        )
+      }
+      empty <- vapply(
+        spec$processes,
+        function(p) length(p$submodels) == 0L,
+        logical(1)
+      )
+      spec$processes <- spec$processes[!empty]
+    } else {
+      spec$submodels <- keep_bearing(spec$submodels)
+    }
+    spec
+  })
+  carries <- vapply(
+    specs,
+    function(spec) {
+      if (!is.null(spec$processes)) {
+        length(spec$processes) > 0L
+      } else {
+        length(spec$submodels) > 0L
+      }
+    },
+    logical(1)
+  )
+  specs <- specs[carries]
+  joint_spec$specifications <- specs
+  joint_spec$process_map <- build_joint_process_map(
+    specs,
+    joint_spec$modeled_panel %||% character(0)
+  )
+  joint_spec
 }
 
 # --------------------------------------------------------------------------- #
@@ -295,6 +391,13 @@ walk_fold_engine <- function(engine) {
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
+#' @param completed what to do with a sub-model carrying no effects — an
+#'   auto-supplied uniform choice or pinned intercept-only rate. `"abort"`
+#'   refuses it, which is the boundary every caller but a generative consumer
+#'   wants; `"defer"` leaves it out of the walk and records it on the handle as
+#'   `deferred`, for the caller to evaluate itself. Deferring renumbers the
+#'   walk's fids relative to the specification's, so a caller holding both
+#'   matches them on the rendered process label.
 #' @param call the calling environment, for error reporting.
 #'
 #' @return `walk_open()` returns a `goldfishWalk` object.
@@ -303,8 +406,10 @@ walk_fold_engine <- function(engine) {
 walk_open <- function(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  completed = c("abort", "defer"),
   call = rlang::caller_env()
 ) {
+  completed <- match.arg(completed)
   lifecycle::signal_stage("experimental", "walk_open()")
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
@@ -328,12 +433,22 @@ walk_open <- function(
   # (a uniform choice, a pinned intercept-only rate). Those effect-free
   # sub-models are the generative consumers' (simulate() / estimate_dynes())
   # domain: the merged compile parses effect-bearing formulas, so evaluating a
-  # `~ 1` block on the live walk is deferred to them. The handle here walks
-  # effect-bearing sub-models; a completed default is a clear boundary, not a
-  # cryptic parse error.
-  assert_walkable_submodels(joint_spec, call)
+  # `~ 1` block on the live walk is deferred to them. `completed = "abort"` is
+  # the refusal every other caller gets -- a clear boundary rather than a
+  # cryptic parse error. A generative consumer passes `"defer"` and takes the
+  # deferred sub-models back on the handle to evaluate itself; the walk then
+  # carries only the effect-bearing ones, which is what it could compile all
+  # along.
+  deferred <- effect_free_submodels(joint_spec)
+  walk_spec <- joint_spec
+  if (nrow(deferred) > 0L) {
+    if (identical(completed, "abort")) {
+      assert_walkable_submodels(joint_spec, call)
+    }
+    walk_spec <- drop_effect_free_submodels(joint_spec)
+  }
 
-  merged <- build_merged_blocks(joint_spec, control_preprocessing)
+  merged <- build_merged_blocks(walk_spec, control_preprocessing)
 
   # What the handle does with the substrate: it hosts window effects (their
   # expiry rows are ordinary covariate rows, exogenous to every process here,
@@ -403,6 +518,9 @@ walk_open <- function(
   handle$queue <- list()
   handle$queue_time <- numeric(0)
   handle$current_time <- start_time
+  # The sub-models the driver evaluates rather than the walk: one row each,
+  # labelled the way the completed specification names them.
+  handle$deferred <- deferred
   handle$opened <- TRUE
   structure(handle, class = "goldfishWalk")
 }

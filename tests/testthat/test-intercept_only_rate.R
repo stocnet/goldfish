@@ -1000,15 +1000,41 @@ test_that("estimate_dynes() warns at entry with its own wording", {
 })
 
 test_that("simulate() warns at entry with its own wording", {
-  skip_if_not(
-    exists("simulate.goldfishJointSpec", mode = "function"),
-    "simulate() method for goldfishJointSpec not yet implemented"
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  # `emails` is keyed in choice only: a timed regime completes its missing rate
+  # with the pinned intercept-only default, which is what must be announced.
+  emails <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  js <- make_joint_specification(calls, emails, data = data)
+  # Authored over the specification as written: the completed rate is pinned,
+  # carries no free slot, and is reconciled in at the consumer's entry.
+  parameters <- set_parameters(
+    js,
+    `calls › rate` = c(-1, 0.1),
+    `calls › choice` = c(0.2, 0.3),
+    `emails › choice` = c(0.2)
   )
 
-  # When the simulate() method lands: simulate from a joint spec carrying a
-  # pinned rate and assert the observed-count/no-SE-language warning fires at
-  # entry, matching warn_pinned_rate(fid, "simulate")'s snapshot above.
-  expect_true(FALSE)
+  # The pin's provenance is consumer-specific, so simulate() fires its own
+  # wording rather than estimate_dynes()'s Hamming-diff sentence.
+  expect_warning(
+    simulate(js, coef = parameters, n_events = 2, seed = 1),
+    class = "goldfish_pinned_rate_warning"
+  )
+  expect_snapshot(
+    out <- simulate(js, coef = parameters, n_events = 2, seed = 1)
+  )
 })
 
 test_that("the same spec re-fires when routed through a second consumer", {
