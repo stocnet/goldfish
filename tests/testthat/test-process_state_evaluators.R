@@ -175,7 +175,6 @@ test_that("timed evaluators return exact-zero excluded hazards", {
 test_that("no process-state evaluator or materializer is exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
-    "materialize_process_state",
     "evaluate_process_state",
     ".pse_allowed_dyads",
     ".pse_eval_choice",

@@ -94,6 +94,20 @@ recipe-loop callback (the walk handle is the general substrate; a callback bolte
 into the batch loop invites divergence between the simulate path and the batch
 path — the risk `make-multivariate-spec` D6 already names).
 
+*Corrected 2026-09-15 at task 2.1 (ADR-0075) — a fit carries neither its
+specification nor its data.* The paragraph below read that `goldfishFit`
+overrides `simulate` because "it reads the fit's stored specification, data and
+θ̂". It stores none of the first two: a fit carries `parameters`, `formula`
+(two-sided, the response naming the focal layer), `model`, `sub_model`,
+`model_spec`, `names` and `call`, and nothing that reaches a stocnet. So
+`simulate.goldfishFit()` takes **`data =`** and rebuilds the specification from
+the stored formula; the estimates stay the default `coef`. *Rejected:*
+attaching the specification — and with it the whole stocnet — to every fitted
+object at estimation time so that `simulate(fit)` works argument-free; it grows
+every fit for one consumer and moves an estimation-path object for a
+simulation-path convenience. The verdict `override` is unchanged; only its
+reason is, and the sentence below is corrected in place.
+
 *Re-grounded 2026-09-07 — fit classes and the verdict table.* The fitted
 result is `goldfishFit` (single process) or `goldfishFlavFit` (the
 competing-flavor container), both under the parent `goldfishBaseFit`; the
@@ -101,8 +115,9 @@ joint DyNES fit has no class yet (`estimate_dynes()` is unbuilt). The
 `fit-class-hierarchy` living spec requires that a change adding a generic
 dispatching on fit classes record a verdict per concrete class **before
 implementing**, so this change carries a `fit-class-hierarchy` spec delta with
-the `simulate` row: `goldfishFit` → `override` (it reads the fit's stored
-specification, data and θ̂, which the parent surface does not carry);
+the `simulate` row: `goldfishFit` → `override` (it rebuilds a specification
+from the fit's formula, model and sub-model, which the parent surface does not
+carry, and takes the data as an argument);
 `goldfishFlavFit` → `override`, **and not the container's usual fan-out** —
 the flavors compete on one clock, so the container simulates as one process
 family under D4, which is the one generic where a container answers with a
@@ -263,6 +278,20 @@ receiver support, and a completed pinned rate is the constant per-actor rate
 evaluations in the driver, and the handle keeps walking effect-bearing
 sub-models only; the alternative — teaching `build_walk_engine()` to compile
 a zero-column engine — is not worth a `spec_map` for a constant.
+
+*Implemented 2026-09-15 at task 2.1.* Deferring had to become something
+`walk_open()` does, not something the driver arranges around it. The refusal
+fires before any build, so a completed specification could not open a walk at
+all; and stripping the effect-free sub-models beforehand made the spec fail the
+*completeness* assert instead — a DyNAM process missing a family. `walk_open()`
+therefore takes `completed = c("abort", "defer")`. `"abort"` stays the default
+and every other caller's boundary. `"defer"` builds the merged blocks from the
+effect-bearing sub-models only and returns the rest on the handle as
+`deferred`. Dropping sub-models rebuilds the process_map, which **renumbers the
+walk's fids**, so the driver keeps the completed specification's map as
+authoritative and matches the two numberings on the rendered process label —
+the identity `reconcile_joint_parameters()` already matches on across
+completion, and the reason that label has exactly one renderer.
 
 *Confirmed 2026-09-09 (ADR-0056, closing the ADR-0053 → 0055 → 0056
 chain).* This decision stands as written, and the shape vocabulary it rests

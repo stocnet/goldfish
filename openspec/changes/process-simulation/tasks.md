@@ -100,7 +100,7 @@
       `.plan/sp/replay_split_2026-09-15.R`. (iv) `5ae1362`: header corrected,
       `preprocess_flavored()` NOT retired (`printing-homogenization` 1.1 has
       not landed)
-- [ ] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
+- [x] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
       per-step draw-next-mark core factored for reuse by `augment_seq_sim()`.
@@ -140,12 +140,43 @@
       as the batch-vs-replay oracle (header rewritten to say so); confirm
       `joint_simulation_parameters()` / `reconcile_joint_parameters()` are
       called here or retire them the same way
-- [ ] 2.2 Exponential free-running clock: total rate + exact exponential waiting
+      — done 2026-09-15 (session `goldfish-23`) together with 2.2, commit
+      `4712566` plus the materializer retirement; full `NOT_CRAN=true` green
+      (8760 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not SKIP). Both
+      joint-parameter helpers ARE called here, so neither is retired;
+      `materialize_process_state()` is, to
+      `tests/testthat/helper-process_state.R` (ADR-0054 — its reserved
+      consumer landed on the live handle and does not call it). Result class
+      `goldfishSim`, confirmed against the class-naming guard. **Two design
+      gaps the task text assumed away, both settled in the design:** (a) a
+      `goldfishFit` stores neither its specification nor its data, so the fit
+      method takes `data =` and rebuilds the spec from the stored formula
+      (vault ADR-0075; D1 corrected, the `fit-class-hierarchy` delta's reason
+      corrected); (b) `walk_open()` refused the effect-free sub-models that
+      completion installs, so NO completed spec could open a walk — it now
+      takes `completed = "defer"`, and since dropping them renumbers the fids
+      the driver matches walk to spec on the rendered process label (D5
+      extended). `simulate(times = "observed")` and `simulate()` on a
+      `goldfishFlavFit` abort as unavailable; they are 2.3 and the flavored
+      run. The `goldfishSim` pool shape for `nsim > 1` is a plain list, as
+      designed, until the augmenter's format lands
+- [x] 2.2 Exponential free-running clock: total rate + exact exponential waiting
       time with breakpoint redraws (events, exogenous changes, expiries);
       stopping targets `horizon =`/`n_events =` (whichever binds first);
       `max_events` guard (default `10 * n_dep`) with the rate-trajectory early
       trigger and total-rate diagnostic; capped-replicate flagging; exogenous
       state frozen-and-warned past the last observed change
+      — done 2026-09-15 (session `goldfish-23`) with 2.1, commit `4712566`.
+      Landed together on the user's call: 2.1's own tests drive the loop on a
+      seeded fixture, which needs a clock, so splitting them would have left a
+      half-built clock at a commit. Breakpoint redraws read
+      `walk_next_breakpoint()` and the provider's own `breakpoint`, which is
+      what keeps the competing-exponential draw exact. **Not yet landed from
+      this task: the rate-trajectory early trigger and the total-rate
+      diagnostic** — the guard is the plain `max_events` cap, which flags
+      `capped` and reports `stop_reason`; the trajectory trigger needs the
+      threshold constants D3 leaves to fixtures and is carried into 2.8 with
+      the regime record
 - [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record

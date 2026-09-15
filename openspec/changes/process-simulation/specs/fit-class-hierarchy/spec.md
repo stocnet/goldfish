@@ -22,7 +22,10 @@ The verdicts in force are:
   `diagnose_outliers`, `diagnose_changepoints`, `diagnose_onset`,
   `margin_table`, `simulate`. Withholding a parent default is deliberate: a
   class that omits one gets a dispatch error rather than a method reading
-  fields it does not have.
+  fields it does not have. `simulate` reads the fit's formula, model and
+  sub-model to rebuild a specification and takes the data as an argument,
+  because a fit stores neither its specification nor the stocnet it was fitted
+  on.
 - **Container — `override` on every generic.** A class that holds fits rather
   than being one answers by fanning out over its components, so no cell of its
   column can be `inherit`. `simulate` is the one recorded exception to the
@@ -48,6 +51,12 @@ The verdicts in force are:
   through the parent's, and a class that cannot is a defect rather than an
   omission — including a class deliberately excused, which registers a
   refusing method rather than no method
+
+#### Scenario: simulating a fit needs the data the fit does not carry
+
+- **WHEN** `simulate()` is called on a `goldfishFit` with no `data`
+- **THEN** it aborts saying the fit stores its formula and estimates but not
+  the data it was fitted on, rather than failing later inside the walk
 
 #### Scenario: simulating a flavored fit is one run, not a fan-out
 

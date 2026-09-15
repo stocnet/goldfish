@@ -15,6 +15,10 @@ without family-specific branching. Simulating a flavored specification SHALL dra
 the next event across all modeled flavors' total rates with each flavor's derived
 support mask maintained. Free-running simulation past the last observed
 covariate/composition change SHALL freeze the exogenous state and warn once.
+Simulating from a fitted result SHALL take the data as an argument and rebuild
+the specification from the fit's stored formula, model and sub-model: a fit
+carries neither its specification nor the stocnet it was fitted on, and SHALL
+say so rather than failing inside the walk.
 A simulation run SHALL open the walk once per replicate and SHALL NOT
 re-preprocess per sub-model or per flavor: every fid is served from the
 engine compiled at `walk_open()`, and one injected event updates the shared
@@ -349,6 +353,16 @@ does for `estimate_dynes()`.
   specification that skipped the completion transform
 - **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
   simulating events with a missing rate or choice.
+
+#### Scenario: the walk defers a completed default rather than refusing it
+
+- **WHEN** a generative consumer opens the walk on a completed specification
+  carrying an auto-supplied uniform choice or pinned rate
+- **THEN** the walk carries the effect-bearing sub-models only, returns the
+  effect-free ones to the consumer to evaluate, and every other caller still
+  gets the refusal; the consumer matches the walk's processes to the
+  specification's on the rendered process label, since deferring renumbers the
+  walk's formula ids.
 
 #### Scenario: a completed pinned rate is evaluated by the driver, not the handle
 
