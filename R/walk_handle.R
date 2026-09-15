@@ -106,140 +106,76 @@ assert_generatively_complete <- function(
   )
 }
 
-# The sub-models carrying no effects: a completion-supplied uniform choice or
-# pinned intercept-only rate. The merged compile parses effect-bearing
-# formulas, so a `~ 1` block has nothing for it to compile; it is the
-# generative consumers' to evaluate. Detected on the term labels, so it is
-# independent of the bundle's internal shape. Returns one row per such
-# sub-model, in specification order.
-effect_free_submodels <- function(joint_spec) {
-  rows <- list()
+# The fids the walk compiles no engine for: every fid of a (layer, family)
+# whose sub-models all carry no effects -- a rate-only DyNAM's completed
+# uniform choice, or an authored `rate = ~ 1` beside a modeled choice. The
+# merged compile parses effect terms, and such a family has none to parse. A
+# flavored gap is NOT deferred: its completed sub-model rides its family's
+# unit with an empty effect map, beside the flavors carrying effects, and reads
+# its own support mask there. Detected on the term labels, so it is
+# independent of the bundle's internal shape. Returns the deferred fids'
+# process_map rows; they keep the numbers the specification gave them.
+walk_deferred_fids <- function(joint_spec) {
+  map <- joint_spec$process_map
+  deferred <- rep(FALSE, nrow(map))
   for (spec in joint_spec$specifications) {
-    for (proc in spec_processes(spec)) {
-      for (family in names(proc$submodels)) {
-        formula <- proc$submodels[[family]]$formula
-        labels <- attr(stats::terms(formula), "term.labels")
-        if (length(labels) == 0L) {
-          rows[[length(rows) + 1L]] <- data.frame(
-            layer = spec$focal,
-            flavor = proc$flavor,
-            family = family,
-            model = spec$model,
-            stringsAsFactors = FALSE
-          )
-        }
-      }
-    }
-  }
-  if (length(rows) == 0L) {
-    return(data.frame(
-      layer = character(0),
-      flavor = character(0),
-      family = character(0),
-      model = character(0),
-      stringsAsFactors = FALSE
-    ))
-  }
-  do.call(rbind, rows)
-}
-
-# The label a deferred sub-model is known by on both sides of the partition.
-# `render_process_label()` reads a process_map row; the deferred sub-models are
-# gone from the walk's map by construction, so their label is assembled from
-# the same three fields in the same order.
-effect_free_labels <- function(deferred) {
-  vapply(
-    seq_len(nrow(deferred)),
-    function(i) {
-      paste(
-        c(
-          deferred$layer[i],
-          if (!is.na(deferred$flavor[i])) deferred$flavor[i],
-          deferred$family[i]
-        ),
-        collapse = " › "
-      )
-    },
-    character(1)
-  )
-}
-
-# Abort when any sub-model carries no effects. This is the refusal every caller
-# but a generative consumer gets: a clear boundary rather than the cryptic parse
-# error the merged compile would raise.
-assert_walkable_submodels <- function(joint_spec, call = rlang::caller_env()) {
-  deferred <- effect_free_submodels(joint_spec)
-  if (nrow(deferred) == 0L) {
-    return(invisible(NULL))
-  }
-  empty <- effect_free_labels(deferred)
-  cli::cli_abort(
-    c(
-      "The walk handle does not yet walk effect-free sub-models.",
-      "x" = "Zero-effect sub-model{?s}: {.val {empty}}.",
-      "i" = "Auto-supplied uniform / pinned defaults are walked by the
-             generative consumers ({.fn simulate}, {.fn estimate_dynes}); the
-             handle here
-             steps effect-bearing sub-models."
-    ),
-    call = call,
-    class = "goldfish_walk_unsupported"
-  )
-}
-
-# The same specification with its effect-free sub-models removed, so the merged
-# compile sees only what it can parse. A process left with no sub-model at all
-# is dropped, and the process_map is rebuilt -- which RENUMBERS the fids, so the
-# walk's fids are not the completed specification's. The rendered process label
-# is the identity across that boundary, exactly as it is for a parameter object
-# built before completion.
-drop_effect_free_submodels <- function(joint_spec) {
-  specs <- lapply(joint_spec$specifications, function(spec) {
-    keep_bearing <- function(submodels) {
+    processes <- spec_processes(spec)
+    for (family in names(processes[[1L]]$submodels)) {
       bearing <- vapply(
-        submodels,
-        function(bundle) {
-          length(attr(stats::terms(bundle$formula), "term.labels")) > 0L
+        processes,
+        function(proc) {
+          formula <- proc$submodels[[family]]$formula
+          length(attr(stats::terms(formula), "term.labels")) > 0L
         },
         logical(1)
       )
-      submodels[bearing]
-    }
-    if (!is.null(spec$processes)) {
-      for (fl in names(spec$processes)) {
-        spec$processes[[fl]]$submodels <- keep_bearing(
-          spec$processes[[fl]]$submodels
-        )
+      if (!any(bearing)) {
+        deferred <- deferred | (map$layer == spec$focal & map$family == family)
       }
-      empty <- vapply(
-        spec$processes,
-        function(p) length(p$submodels) == 0L,
-        logical(1)
-      )
-      spec$processes <- spec$processes[!empty]
-    } else {
-      spec$submodels <- keep_bearing(spec$submodels)
     }
-    spec
-  })
-  carries <- vapply(
-    specs,
-    function(spec) {
-      if (!is.null(spec$processes)) {
-        length(spec$processes) > 0L
-      } else {
-        length(spec$submodels) > 0L
-      }
-    },
-    logical(1)
-  )
-  specs <- specs[carries]
-  joint_spec$specifications <- specs
-  joint_spec$process_map <- build_joint_process_map(
-    specs,
-    joint_spec$modeled_panel %||% character(0)
-  )
-  joint_spec
+  }
+  map[deferred, , drop = FALSE]
+}
+
+# Compile one unit per (layer, family) the walk steps, in the order
+# `build_merged_blocks()` compiles them, leaving out the deferred families.
+# A layer left with no family at all has nothing for the walk to step, which
+# is refused here rather than surfacing as an empty substrate further down.
+walk_compile_units <- function(
+  joint_spec,
+  deferred,
+  impute_policy,
+  call = rlang::caller_env()
+) {
+  units <- list()
+  empty_layers <- character(0)
+  for (spec in joint_spec$specifications) {
+    families <- names(spec_processes(spec)[[1L]]$submodels)
+    walked <- setdiff(families, deferred$family[deferred$layer == spec$focal])
+    if (length(walked) == 0L) {
+      empty_layers <- c(empty_layers, spec$focal)
+    }
+    for (family in walked) {
+      unit <- compile_process_unit(spec, family, joint_spec, impute_policy)
+      units[[unit$key]] <- unit
+    }
+  }
+  n_empty <- length(empty_layers)
+  if (n_empty > 0L) {
+    cli::cli_abort(
+      c(
+        "The walk has nothing to step on {cli::qty(n_empty)}layer{?s}
+         {.val {empty_layers}}.",
+        "x" = "No sub-model of {cli::qty(n_empty)}{?this layer/these layers}
+               carries an effect.",
+        "i" = "A process needs at least one effect term for the walk to
+               compile it."
+      ),
+      call = call,
+      class = "goldfish_walk_unsupported"
+    )
+  }
+  units
 }
 
 # --------------------------------------------------------------------------- #
@@ -386,18 +322,19 @@ walk_fold_engine <- function(engine) {
 #' choice) and aborts pointing to [simulate()] / `estimate_dynes()` otherwise;
 #' it never performs completion itself.
 #'
+#' A family whose sub-models all carry no effects — the uniform choice
+#' completion gives a rate-only DyNAM, or an authored `rate = ~ 1` — has
+#' nothing for the merged compile to parse, so the walk compiles no engine for
+#' it. Its fids stay on the handle's `process_map` under the numbers the
+#' specification gave them and are listed in `deferred`; `walk_evaluate()`
+#' refuses them, since their values come from the driver's built-in evaluate
+#' steps over the sibling sub-model's live support.
+#'
 #' @param spec a `goldfishJointSpec` from
 #'   [make_joint_specification()] (or a single `goldfishSpec`, wrapped
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
-#' @param completed what to do with a sub-model carrying no effects — an
-#'   auto-supplied uniform choice or pinned intercept-only rate. `"abort"`
-#'   refuses it, which is the boundary every caller but a generative consumer
-#'   wants; `"defer"` leaves it out of the walk and records it on the handle as
-#'   `deferred`, for the caller to evaluate itself. Deferring renumbers the
-#'   walk's fids relative to the specification's, so a caller holding both
-#'   matches them on the rendered process label.
 #' @param call the calling environment, for error reporting.
 #'
 #' @return `walk_open()` returns a `goldfishWalk` object.
@@ -406,10 +343,8 @@ walk_fold_engine <- function(engine) {
 walk_open <- function(
   spec,
   control_preprocessing = set_preprocessing_opt(),
-  completed = c("abort", "defer"),
   call = rlang::caller_env()
 ) {
-  completed <- match.arg(completed)
   lifecycle::signal_stage("experimental", "walk_open()")
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
@@ -429,26 +364,22 @@ walk_open <- function(
   # a mismatched fid set.
   assert_generatively_complete(joint_spec, call)
 
-  # A generatively complete spec MAY carry auto-supplied zero-parameter defaults
-  # (a uniform choice, a pinned intercept-only rate). Those effect-free
-  # sub-models are the generative consumers' (simulate() / estimate_dynes())
-  # domain: the merged compile parses effect-bearing formulas, so evaluating a
-  # `~ 1` block on the live walk is deferred to them. `completed = "abort"` is
-  # the refusal every other caller gets -- a clear boundary rather than a
-  # cryptic parse error. A generative consumer passes `"defer"` and takes the
-  # deferred sub-models back on the handle to evaluate itself; the walk then
-  # carries only the effect-bearing ones, which is what it could compile all
-  # along.
-  deferred <- effect_free_submodels(joint_spec)
-  walk_spec <- joint_spec
-  if (nrow(deferred) > 0L) {
-    if (identical(completed, "abort")) {
-      assert_walkable_submodels(joint_spec, call)
-    }
-    walk_spec <- drop_effect_free_submodels(joint_spec)
-  }
-
-  merged <- build_merged_blocks(walk_spec, control_preprocessing)
+  # Only a family with no effect anywhere is left out of the compile. The
+  # specification and its process_map are kept whole, so every fid keeps its
+  # number: a unit looks its fids up by layer and family, never by counting,
+  # and the block unions are planned over the fids the compiled units own.
+  deferred <- walk_deferred_fids(joint_spec)
+  units <- walk_compile_units(
+    joint_spec,
+    deferred,
+    control_preprocessing$impute,
+    call = call
+  )
+  merged <- build_merged_blocks(
+    joint_spec,
+    control_preprocessing,
+    units = units
+  )
 
   # What the handle does with the substrate: it hosts window effects (their
   # expiry rows are ordinary covariate rows, exogenous to every process here,
@@ -518,8 +449,8 @@ walk_open <- function(
   handle$queue <- list()
   handle$queue_time <- numeric(0)
   handle$current_time <- start_time
-  # The sub-models the driver evaluates rather than the walk: one row each,
-  # labelled the way the completed specification names them.
+  # The fids with no engine: their process_map rows, under the specification's
+  # own fid numbers.
   handle$deferred <- deferred
   handle$opened <- TRUE
   structure(handle, class = "goldfishWalk")
@@ -967,6 +898,24 @@ walk_evaluate <- function(
       ),
       call = call,
       class = "goldfish_walk_bad_fid"
+    )
+  }
+  if (fid %in% handle$deferred$fid) {
+    label <- render_process_label(map, fid)
+    kind <- if (isTRUE(map$completed[match(fid, map$fid)])) {
+      "a completed default"
+    } else {
+      "an effect-free sub-model"
+    }
+    cli::cli_abort(
+      c(
+        "{.fn walk_evaluate} does not evaluate {.val {label}}.",
+        "x" = "It is {kind}, so the walk compiled no engine for it.",
+        "i" = "Its values come from the simulation's built-in evaluate step
+               over its process's support."
+      ),
+      call = call,
+      class = "goldfish_walk_deferred_fid"
     )
   }
   state <- walk_build_state(handle, fid)

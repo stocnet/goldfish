@@ -42,7 +42,14 @@ simulate_replicate <- function(
   control_prep,
   call = rlang::caller_env()
 ) {
-  handle <- walk_open(spec, control_prep, completed = "defer", call = call)
+  handle <- walk_open(spec, control_prep, call = call)
+  # The defaults count the events the walk itself steps, so a run with no
+  # target generates as many events as were observed on the same processes.
+  n_observed <- sum(handle$schedule$dependent)
+  if (is.null(n_events) && is.null(horizon)) {
+    n_events <- n_observed
+  }
+  max_events <- max_events %||% (10L * n_observed)
   routing <- simulation_routing(spec, handle)
   map <- routing$map
   rate_fids <- map$fid[map$family == "rate"]
@@ -418,30 +425,24 @@ simulation_mark_updates <- function(spec) {
   stats::setNames(updates, as.character(map$fid))
 }
 
-# The correspondence between the specification's processes and the walk's.
-# Deferring the effect-free sub-models renumbers the walk's fids, so the two
-# numberings are matched on the rendered process label -- the same identity
-# `reconcile_joint_parameters()` matches on across completion, and the reason
-# that label has one canonical renderer.
+# Which of the specification's processes the walk compiled an engine for. The
+# walk keeps the specification's fid numbers, so a process's walk fid is its
+# own fid, or NA when the walk deferred it for carrying no effects.
 simulation_routing <- function(spec, handle) {
   map <- spec$process_map
-  labels <- render_process_label(map, map$fid)
-  walk_map <- handle$process_map
-  walk_labels <- render_process_label(walk_map, walk_map$fid)
-  walk_fid <- walk_map$fid[match(labels, walk_labels)]
+  walk_fid <- ifelse(map$fid %in% handle$deferred$fid, NA_integer_, map$fid)
   map$regime <- ifelse(is.na(walk_fid), "completed", "modeled")
-  # Presence is read off the walk's first sender block: a deferred fid has no
-  # engine of its own, and the node universe is shared across the walk.
+  # Presence is read off the walk's first engine: a deferred fid has no engine
+  # of its own, and the node universe is shared across the walk.
   presence <- function(h) {
     if (length(h$engines %||% list()) == 0L) {
       return(rep(TRUE, n_actors(h, 1L)))
     }
-    walk_build_state(h, h$process_map$fid[1L])$active_sender == 1
+    h$engines[[1L]]$presence1
   }
   list(
     map = map,
     walk_fid = walk_fid,
-    labels = labels,
     modeled = map$fid[!is.na(walk_fid)],
     # NOT the engine's `twomode_or_reflexive`, which is TRUE for every sender
     # block: what a uniform choice needs is whether the two sides are different

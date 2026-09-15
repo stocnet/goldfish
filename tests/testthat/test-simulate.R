@@ -394,28 +394,15 @@ test_that("a choice-only DyNAM has no clock to run free", {
   )
 })
 
-test_that("the walk still refuses an effect-free sub-model by default", {
-  local_cli_context()
-  data <- sim_fixture_data()
-  spec <- make_specification(
-    rate = ~ 1 + indeg,
-    layer = "calls",
-    model = "DyNAM",
-    data = data
-  )
-  completed <- suppressWarnings(
-    complete_generative_spec(single_process_joint(spec), consumer = "simulate")
+test_that("a run with no target generates the observed event count", {
+  js <- sim_two_process()
+  out <- suppressWarnings(
+    simulate(js, nsim = 1, seed = 6, coef = sim_two_process_parameters(js))
   )
 
-  # Deferring is the generative consumer's mode, not the handle's default.
-  expect_error(
-    walk_open(completed),
-    class = "goldfish_walk_unsupported"
-  )
-  handle <- walk_open(completed, completed = "defer")
-  expect_equal(nrow(handle$process_map), 1)
-  expect_equal(nrow(handle$deferred), 1)
-  expect_identical(handle$deferred$family, "choice")
+  # Five observed calls and three observed emails.
+  expect_equal(nrow(out$events), 8)
+  expect_identical(out$diagnostics$stop_reason, "target")
 })
 
 test_that("a fitted model simulates on the data it is given", {

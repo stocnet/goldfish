@@ -150,12 +150,6 @@ simulate.goldfishJointSpec <- function(
     )
   }
   provider <- resolve_coef_provider(coef, completed, call)
-  if (is.null(n_events) && is.null(horizon)) {
-    n_events <- observed_dependent_count(object)
-  }
-  if (is.null(max_events)) {
-    max_events <- 10L * observed_dependent_count(object)
-  }
 
   if (!is.null(seed)) {
     set.seed(seed)
@@ -332,12 +326,4 @@ specification_from_fit <- function(fit, data, call) {
   args <- list(layer = layer, model = fit$model, data = data)
   args[[if (identical(fit$sub_model, "choice")) "choice" else "rate"]] <- rhs
   do.call(make_specification, args)
-}
-
-# The observed dependent-event count, which sets the default stopping target
-# and the explosion guard. Read off the schedule the merged walk would step,
-# so it counts the same events the run generates.
-observed_dependent_count <- function(joint_spec) {
-  merged <- build_merged_blocks(joint_spec, set_preprocessing())
-  sum(merged$schedule$dependent)
 }

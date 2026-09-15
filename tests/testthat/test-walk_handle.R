@@ -361,7 +361,7 @@ test_that("walk_open aborts on an incomplete specification", {
   expect_snapshot(walk_open(js), error = TRUE)
 })
 
-test_that("walk_open defers effect-free completed defaults to the consumers", {
+test_that("walk_open defers a whole effect-free family without renumbering", {
   local_cli_context()
   data <- walk_fixture_data()
   calls_rate_only <- make_specification(
@@ -380,15 +380,27 @@ test_that("walk_open defers effect-free completed defaults to the consumers", {
   js <- suppressWarnings(
     make_joint_specification(calls_rate_only, emails_spec, data = data)
   )
-  # Completion supplies a uniform (effect-free) calls choice; that block passes
-  # the completeness assert but is walked by simulate() / estimate_dynes(), not
-  # this substrate -- a clear boundary, not the incomplete-spec abort.
+  # Completion supplies an effect-free calls choice. Nothing can compile it,
+  # so the walk defers it and keeps every fid the specification numbered.
   completed <- suppressWarnings(
     complete_generative_spec(js, consumer = "simulate")
   )
-  expect_error(
-    walk_open(completed),
-    class = "goldfish_walk_unsupported"
+  handle <- walk_open(completed)
+
+  expect_identical(handle$process_map$fid, completed$process_map$fid)
+  expect_identical(handle$deferred$fid, 2L)
+  expect_setequal(
+    unlist(lapply(handle$engines, `[[`, "fids")),
+    c(1L, 3L, 4L)
+  )
+  expect_snapshot(walk_evaluate(handle, 2L, numeric(0)), error = TRUE)
+
+  # The fids after the deferred one still mean what they meant: emails'
+  # choice evaluates exactly as it does with calls absent.
+  alone <- walk_open(emails_spec)
+  expect_equal(
+    walk_evaluate(handle, 4L, c(0.2, 0.3), sender = 1L)$value,
+    walk_evaluate(alone, 2L, c(0.2, 0.3), sender = 1L)$value
   )
 })
 

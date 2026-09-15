@@ -598,7 +598,11 @@ build_merged_blocks <- function(
     attr(state, "strata")
   )
   assert_globals_defined(state, shared_objects$registry, schedule)
-  block_unions <- plan_block_unions(joint_spec)
+  # Planned over the fids a compiled unit owns. Every fid has one when this
+  # function compiles the units itself; a caller handing units in may have
+  # left out a family with no effects, whose fids have no formula to union.
+  unit_fids <- unlist(lapply(units, `[[`, "fids"), use.names = FALSE)
+  block_unions <- plan_block_unions(joint_spec, fids = unit_fids)
 
   block_keys <- unique(vapply(units, `[[`, character(1), "stat_block"))
   blocks <- lapply(block_keys, function(bk) {

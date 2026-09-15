@@ -13,7 +13,6 @@
 walk_open(
   spec,
   control_preprocessing = set_preprocessing_opt(),
-  completed = c("abort", "defer"),
   call = rlang::caller_env()
 )
 
@@ -34,14 +33,6 @@ as a one-process join).}
 
 \item{control_preprocessing}{preprocessing options, as for
 \code{\link[=preprocess_joint]{preprocess_joint()}}.}
-
-\item{completed}{what to do with a sub-model carrying no effects — an
-auto-supplied uniform choice or pinned intercept-only rate. \code{"abort"}
-refuses it, which is the boundary every caller but a generative consumer
-wants; \code{"defer"} leaves it out of the walk and records it on the handle as
-\code{deferred}, for the caller to evaluate itself. Deferring renumbers the
-walk's fids relative to the specification's, so a caller holding both
-matches them on the rendered process label.}
 
 \item{call}{the calling environment, for error reporting.}
 
@@ -108,5 +99,13 @@ user-facing signature. \code{walk_open()} \strong{asserts} its specification is
 generatively complete (every modeled DyNAM flavor carrying both a rate and a
 choice) and aborts pointing to \code{\link[=simulate]{simulate()}} / \code{estimate_dynes()} otherwise;
 it never performs completion itself.
+
+A family whose sub-models all carry no effects — the uniform choice
+completion gives a rate-only DyNAM, or an authored \code{rate = ~ 1} — has
+nothing for the merged compile to parse, so the walk compiles no engine for
+it. Its fids stay on the handle's \code{process_map} under the numbers the
+specification gave them and are listed in \code{deferred}; \code{walk_evaluate()}
+refuses them, since their values come from the driver's built-in evaluate
+steps over the sibling sub-model's live support.
 }
 \keyword{internal}
