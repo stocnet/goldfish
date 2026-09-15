@@ -673,7 +673,8 @@ completion_rate_bundle <- function() {
     input_formula = ~1,
     sub_model = "rate",
     parsed = list(rhs_names = list(), has_intercept = TRUE),
-    has_intercept = TRUE
+    has_intercept = TRUE,
+    completed = TRUE
   )
 }
 
@@ -785,6 +786,25 @@ test_that("mark_pinned_rates pins an intercept-only rate in a joint spec", {
   expect_identical(desc$n_free_parameters, 0L)
   expect_true(desc$pinned)
   expect_identical(desc$model_type, "DyNAM-M-Rate")
+})
+
+test_that("an authored intercept-only rate is modeled, not pinned", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~1,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  # Same bundle shape as a completed rate, but the user wrote it.
+  expect_true(is_intercept_only_rate_bundle(calls$submodels$rate))
+
+  marked <- mark_pinned_rates(single_process_joint(calls))
+
+  expect_identical(marked$process_map$pinned, c(FALSE, FALSE))
+  expect_length(marked$pinned_rates, 0L)
+  expect_no_warning(warn_pinned_rates(marked, consumer = "simulate"))
 })
 
 # Single-process path untouched (Session 5.2): the reinterpretation is scoped by

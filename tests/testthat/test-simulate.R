@@ -360,6 +360,23 @@ test_that("a rate-only DyNAM gains a uniform choice it draws from", {
   expect_gt(length(unique(out$events$receiver)), 1)
 })
 
+test_that("an intercept-only rate with no choice is refused at entry", {
+  local_cli_context()
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~1,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  # Refused before completion, so no uniform-choice warning fires first.
+  expect_snapshot(
+    simulate(spec, coef = -1, n_events = 2),
+    error = TRUE
+  )
+})
+
 test_that("a choice-only DyNAM has no clock to run free", {
   local_cli_context()
   data <- sim_fixture_data()

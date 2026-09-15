@@ -102,6 +102,7 @@ simulate.goldfishJointSpec <- function(
       class = "goldfish_sim_unsupported"
     )
   }
+  abort_on_effect_free_process(object, call)
   steps <- resolve_simulation_steps(steps, call)
   if (is.null(coef)) {
     coef <- steps$parameters
@@ -249,6 +250,53 @@ resolve_simulation_steps <- function(steps, call) {
     )
   }
   steps
+}
+
+# Refuse a DyNAM process whose authored rate is intercept-only and which has
+# no choice. Completion would add a uniform choice, and the process would then
+# carry no effect anywhere: every sender at one constant rate, every receiver
+# equally likely. That is a specification with nothing to simulate from, so it
+# is refused before completion rather than walked.
+abort_on_effect_free_process <- function(joint_spec, call) {
+  rows <- list()
+  for (spec in joint_spec$specifications) {
+    if (!identical(spec$model, "DyNAM")) {
+      next
+    }
+    for (proc in spec_processes(spec)) {
+      rate <- proc$submodels$rate
+      if (
+        is.null(proc$submodels$choice) &&
+          !isTRUE(rate$completed) &&
+          is_intercept_only_rate_bundle(rate)
+      ) {
+        rows[[length(rows) + 1L]] <- data.frame(
+          layer = spec$focal,
+          flavor = proc$flavor,
+          family = "rate",
+          stringsAsFactors = FALSE
+        )
+      }
+    }
+  }
+  if (length(rows) == 0L) {
+    return(invisible(NULL))
+  }
+  refused <- do.call(rbind, rows)
+  refused$fid <- seq_len(nrow(refused))
+  labels <- render_process_label(refused, refused$fid)
+  cli::cli_abort(
+    c(
+      "Cannot simulate a process with no effect to draw from.",
+      "x" = "{.val {labels}} {?is an/are} intercept-only rate{?s} with no
+             choice.",
+      "i" = "Completion would add a uniform choice, so every draw would be a
+             constant rate and an equiprobable receiver.",
+      "i" = "Add an effect to the rate, or model a choice."
+    ),
+    call = call,
+    class = "goldfish_sim_no_effect"
+  )
 }
 
 # Rebuild the specification a fit was estimated from. A `goldfishFit` stores
