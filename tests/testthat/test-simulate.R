@@ -45,6 +45,44 @@ test_that("drawn marks stay inside the risk set", {
   expect_true(all(out$events$sender != out$events$receiver))
 })
 
+test_that("a drawn dissolution removes an existing tie", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2,
+    `calls › dissolution › rate` = c(-3, 0.1),
+    `calls › dissolution › choice` = 0.2
+  )
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters, n_events = 60)
+  events <- out$events
+
+  expect_setequal(events$flavor, c("creation", "dissolution"))
+  expect_identical(
+    events$increment,
+    ifelse(events$flavor == "creation", 1, -1)
+  )
+  # Replayed over the observed history, each creation lands where no tie is
+  # and each dissolution where one is: the value and the masks agree.
+  ties <- as.data.frame(data$ties)
+  history <- ties[is.na(ties$time), ]
+  state <- matrix(0, 12L, 12L)
+  state[cbind(history$from, history$to)] <- 1
+  tie_held <- logical(nrow(events))
+  for (k in seq_len(nrow(events))) {
+    cell <- cbind(events$sender[k], events$receiver[k])
+    tie_held[k] <- state[cell] == 1
+    state[cell] <- state[cell] + events$increment[k]
+  }
+  expect_identical(tie_held, events$flavor == "dissolution")
+})
+
 test_that("a seed makes a run reproducible", {
   js <- sim_two_process()
   pars <- sim_two_process_parameters(js)

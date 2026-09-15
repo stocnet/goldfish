@@ -64,6 +64,7 @@ simulate_replicate <- function(
   evaluate <- steps$evaluate %||% default_evaluate
 
   dims <- simulation_fid_dims(handle, routing)
+  updates <- simulation_mark_updates(spec)
   pinned <- spec$completed_rates %||% list()
   latent <- provider$init(replicate, handle)
   collector <- new_event_collector()
@@ -137,7 +138,8 @@ simulate_replicate <- function(
       evaluate,
       dims,
       rates,
-      routing
+      routing,
+      updates
     )
     event <- mark(fid, evaluation, handle)
     n_drawn <- n_drawn + 1L
@@ -218,23 +220,21 @@ default_mark <- function(fid, evaluation, handle) {
   if (!is.null(evaluation$choice)) {
     sender <- sample_index(evaluation$rate)
     receiver <- sample_index(evaluation$choice(sender))
-    return(list(
-      layer = evaluation$layer,
-      sender = sender,
-      receiver = receiver,
-      increment = 1,
-      flavor = evaluation$flavor
-    ))
+  } else {
+    cell <- sample_index(evaluation$rate)
+    n2 <- evaluation$n_actors2
+    sender <- ((cell - 1L) %/% n2) + 1L
+    receiver <- ((cell - 1L) %% n2) + 1L
   }
-  cell <- sample_index(evaluation$rate)
-  n2 <- evaluation$n_actors2
-  list(
+  event <- list(
     layer = evaluation$layer,
-    sender = ((cell - 1L) %/% n2) + 1L,
-    receiver = ((cell - 1L) %% n2) + 1L,
-    increment = 1,
+    sender = sender,
+    receiver = receiver,
     flavor = evaluation$flavor
   )
+  update <- evaluation$update %||% list(semantics = "increment", value = 1)
+  event[[update$semantics]] <- update$value
+  event
 }
 
 # P4. Accept every drawn event. An endpoint-conditioned augmenter replaces this.
@@ -323,7 +323,8 @@ mark_evaluation <- function(
   evaluate,
   dims,
   rates,
-  routing
+  routing,
+  updates
 ) {
   map <- routing$map
   row <- match(fid, map$fid)
@@ -336,7 +337,8 @@ mark_evaluation <- function(
     n_actors1 = dims[[as.character(fid)]]$n_actors1,
     n_actors2 = dims[[as.character(fid)]]$n_actors2,
     rate = rates[[as.character(fid)]],
-    choice = NULL
+    choice = NULL,
+    update = updates[[as.character(fid)]]
   )
   if (is.na(choice_fid)) {
     return(evaluation)
@@ -394,6 +396,26 @@ simulation_fid_dims <- function(handle, routing) {
     list(n_actors1 = state$n_actors1, n_actors2 = state$n_actors2)
   })
   stats::setNames(dims, as.character(map$fid))
+}
+
+# The update a drawn event applies, per fid. A flavor's value comes from its
+# layer's `values_equivalence`, under the layer's own update semantics, so a
+# drawn dissolution removes the tie a creation made instead of adding another.
+# An unflavored process adds one on its layer.
+simulation_mark_updates <- function(spec) {
+  map <- spec$process_map
+  info <- spec$data$info %||% list()
+  updates <- lapply(seq_len(nrow(map)), function(i) {
+    layer <- map$layer[i]
+    mapping <- info$values_equivalence[[layer]]
+    flavor <- map$flavor[i]
+    if (is.na(flavor) || is.null(mapping)) {
+      return(list(semantics = "increment", value = 1))
+    }
+    semantics <- unname(info$update[layer])
+    list(semantics = semantics, value = unname(mapping[[flavor]]))
+  })
+  stats::setNames(updates, as.character(map$fid))
 }
 
 # The correspondence between the specification's processes and the walk's.
