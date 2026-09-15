@@ -63,6 +63,7 @@ class(provider)
 Other simulation:
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
 \code{\link{simulate}},
-\code{\link{simulation-handle}}
+\code{\link{simulation-handle}},
+\code{\link[=times_of]{times_of()}}
 }
 \concept{simulation}

@@ -13,7 +13,7 @@
   nsim = 1,
   seed = NULL,
   coef = NULL,
-  times = c("generated", "observed"),
+  times = times_of(object),
   n_events = NULL,
   horizon = NULL,
   max_events = NULL,
@@ -42,8 +42,10 @@ single-process specification, a \code{\link[=set_parameters]{set_parameters()}} 
 or a \code{\link[=set_parameter_provider]{set_parameter_provider()}}. A fitted model supplies its own estimates
 and needs none.}
 
-\item{times}{\code{"generated"} for a free-running run (default) or \code{"observed"}
-for a time-anchored one.}
+\item{times}{\code{"generated"} for a free-running run or \code{"observed"} for a
+time-anchored one. Defaults to \code{\link[=times_of]{times_of()}}, which reads the variant from
+what the model can honor; an explicit value it cannot honor is refused
+with the reason.}
 
 \item{n_events}{stop after this many events.}
 
@@ -64,8 +66,9 @@ stores its formula and estimates but not the data it was fitted on.}
 }
 \value{
 For \code{nsim = 1} a \code{goldfishSim}: the simulated \code{events}, the
-\code{process_map} with each process's regime, the \code{times} variant, the
-\code{capped} flag and run \code{diagnostics}. For \code{nsim > 1} a list of them.
+\code{process_map} with each process's regime, the \code{times} variant and its
+\code{times_source} (\code{"specification"} or \code{"requested"}), the \code{capped} flag and
+run \code{diagnostics}. For \code{nsim > 1} a list of them.
 }
 \description{
 Generates event sequences from a goldfish model: the waiting time and the
@@ -74,11 +77,13 @@ so the simulated sequence feeds back into its own statistics exactly as an
 observed one does.
 }
 \details{
-Two variants, named by \code{times}. \strong{Free-running} (\code{"generated"}, the
-default) draws the clock and the marks from the model, holding nothing from
-the observed stream but the initial state — this is what tests the clock.
-\strong{Time-anchored} (\code{"observed"}) holds the observed event times and redraws
-only the marks.
+Two variants, named by \code{times}. \strong{Free-running} (\code{"generated"}) draws the
+clock and the marks from the model, holding nothing from the observed stream
+but the initial state — this is what tests the clock. \strong{Time-anchored}
+(\code{"observed"}) holds the observed event times and redraws only the marks.
+The default is read from the model by \code{\link[=times_of]{times_of()}}: free-running when it
+carries a timed rate, time-anchored when its rate is ordered, it coordinates,
+or it has no rate.
 
 Observed exogenous streams — covariate changes and node composition — march
 along with the simulated clock. A free-running run that passes the last
@@ -107,6 +112,7 @@ data("Social_Evolution", package = "goldfish")
 Other simulation:
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
-\code{\link{simulation-handle}}
+\code{\link{simulation-handle}},
+\code{\link[=times_of]{times_of()}}
 }
 \concept{simulation}

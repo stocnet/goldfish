@@ -48,6 +48,7 @@ clock <- function(rates, t, handle) {
 Other simulation:
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
-\code{\link{simulate}}
+\code{\link{simulate}},
+\code{\link[=times_of]{times_of()}}
 }
 \concept{simulation}

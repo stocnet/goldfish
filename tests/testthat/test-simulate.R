@@ -362,18 +362,71 @@ test_that("a provider leaving a process unparameterized aborts", {
   )
 })
 
-test_that("time-anchored simulation is refused until it exists", {
+test_that("anchoring a timed model is announced, then refused for now", {
   local_cli_context()
   js <- sim_two_process()
 
-  expect_error(
+  expect_snapshot(
     simulate(
       js,
       coef = sim_two_process_parameters(js),
       times = "observed",
       n_events = 2
     ),
-    class = "goldfish_sim_unsupported"
+    error = TRUE
+  )
+})
+
+test_that("an explicit times equal to the default is silent and recorded", {
+  js <- sim_two_process()
+  parameters <- sim_two_process_parameters(js)
+
+  expect_no_message(
+    requested <- suppressWarnings(simulate(
+      js,
+      seed = 1,
+      coef = parameters,
+      times = "generated",
+      n_events = 2
+    ))
+  )
+  derived <- suppressWarnings(
+    simulate(js, seed = 1, coef = parameters, n_events = 2)
+  )
+
+  expect_identical(requested$times, "generated")
+  expect_identical(requested$times_source, "requested")
+  expect_identical(derived$times, "generated")
+  expect_identical(derived$times_source, "specification")
+  expect_equal(requested$events, derived$events)
+})
+
+test_that("a model with no estimated clock cannot generate times", {
+  local_cli_context()
+  data <- sim_fixture_data()
+  ordered <- make_specification(
+    rate = ~indeg,
+    rate_sub_model = "rate_ordered",
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  coordination <- make_specification(
+    choice = ~inertia,
+    choice_sub_model = "choice_coordination",
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  expect_snapshot(
+    simulate(ordered, coef = 1, times = "generated", n_events = 2),
+    error = TRUE
+  )
+  expect_snapshot(
+    simulate(coordination, coef = 1, times = "generated", n_events = 2),
+    error = TRUE
   )
 })
 
@@ -507,7 +560,7 @@ test_that("a deferred choice draws inside its process's support mask", {
   expect_identical(out$events$receiver, out$events$sender + 1L)
 })
 
-test_that("a choice-only DyNAM has no clock to run free", {
+test_that("a choice-only DyNAM defaults to time-anchored", {
   local_cli_context()
   data <- sim_fixture_data()
   spec <- make_specification(
@@ -517,11 +570,41 @@ test_that("a choice-only DyNAM has no clock to run free", {
     data = data
   )
 
-  # Deliberately not rate-completed: no baseline hazard is fabricated.
-  expect_error(
+  # No rate is fabricated: no completion warning precedes the refusal of the
+  # time-anchored run, which does not exist yet.
+  expect_snapshot(
     simulate(spec, coef = c(0.2, 0.3), n_events = 2),
-    class = "goldfish_sim_no_clock"
+    error = TRUE
   )
+})
+
+test_that("a choice-only DyNAM generates only when asked", {
+  local_cli_context()
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  # The warning names the override, and the completed rate is pinned at the
+  # crude rate of the observed events.
+  expect_snapshot(
+    out <- simulate(
+      spec,
+      seed = 3,
+      coef = c(0.2, 0.3),
+      times = "generated",
+      n_events = 6
+    )
+  )
+
+  expect_equal(nrow(out$events), 6)
+  expect_identical(out$process_map$regime, c("completed", "modeled"))
+  expect_identical(out$times, "generated")
+  expect_identical(out$times_source, "requested")
+  expect_snapshot(print(out))
 })
 
 test_that("a run with no target generates the observed event count", {

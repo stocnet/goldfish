@@ -12,3 +12,11 @@
   variant is a function you supply rather than a branch inside goldfish.
   `n_actors()`, `current_time()`, `process_map()` and `regime_of()` read the
   handle those steps receive.
+* Added `times_of()`, which reports the `times` variant a specification or
+  fitted model supports and is `simulate()`'s default: `"generated"` for a
+  timed rate, `"observed"` for an ordered rate, a coordination process or no
+  rate, with the reason attached. An explicit `times` the model cannot honor
+  is refused with that reason; `times = "generated"` on a choice-only DyNAM
+  completes a constant rate at the observed crude rate, with a warning. The
+  result records `times` and whether it came from the specification or was
+  requested.

@@ -54,6 +54,7 @@ reference:
     contents:
       - simulate
       - simulation-handle
+      - times_of
   - title: "Diagnostics"
     contents:
       - logLik.result.goldfish

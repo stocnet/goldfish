@@ -16,11 +16,13 @@
 #' so the simulated sequence feeds back into its own statistics exactly as an
 #' observed one does.
 #'
-#' Two variants, named by `times`. **Free-running** (`"generated"`, the
-#' default) draws the clock and the marks from the model, holding nothing from
-#' the observed stream but the initial state — this is what tests the clock.
-#' **Time-anchored** (`"observed"`) holds the observed event times and redraws
-#' only the marks.
+#' Two variants, named by `times`. **Free-running** (`"generated"`) draws the
+#' clock and the marks from the model, holding nothing from the observed stream
+#' but the initial state — this is what tests the clock. **Time-anchored**
+#' (`"observed"`) holds the observed event times and redraws only the marks.
+#' The default is read from the model by [times_of()]: free-running when it
+#' carries a timed rate, time-anchored when its rate is ordered, it coordinates,
+#' or it has no rate.
 #'
 #' Observed exogenous streams — covariate changes and node composition — march
 #' along with the simulated clock. A free-running run that passes the last
@@ -46,8 +48,10 @@
 #'   and needs none.
 #' @param data the stocnet to simulate on. Required on a fitted model, which
 #'   stores its formula and estimates but not the data it was fitted on.
-#' @param times `"generated"` for a free-running run (default) or `"observed"`
-#'   for a time-anchored one.
+#' @param times `"generated"` for a free-running run or `"observed"` for a
+#'   time-anchored one. Defaults to [times_of()], which reads the variant from
+#'   what the model can honor; an explicit value it cannot honor is refused
+#'   with the reason.
 #' @param n_events stop after this many events.
 #' @param horizon stop at this time.
 #' @param max_events the explosion guard; defaults to ten times the number of
@@ -58,8 +62,9 @@
 #' @param ... passed between methods.
 #'
 #' @return For `nsim = 1` a `goldfishSim`: the simulated `events`, the
-#'   `process_map` with each process's regime, the `times` variant, the
-#'   `capped` flag and run `diagnostics`. For `nsim > 1` a list of them.
+#'   `process_map` with each process's regime, the `times` variant and its
+#'   `times_source` (`"specification"` or `"requested"`), the `capped` flag and
+#'   run `diagnostics`. For `nsim > 1` a list of them.
 #'
 #' @seealso [set_simulation_steps()], [set_parameter_provider()],
 #'   [simulation-handle].
@@ -82,7 +87,7 @@ simulate.goldfishJointSpec <- function(
   nsim = 1,
   seed = NULL,
   coef = NULL,
-  times = c("generated", "observed"),
+  times = times_of(object),
   n_events = NULL,
   horizon = NULL,
   max_events = NULL,
@@ -91,7 +96,15 @@ simulate.goldfishJointSpec <- function(
   ...
 ) {
   call <- rlang::current_env()
-  times <- match.arg(times)
+  # Settled before anything else, so what an explicit `times` costs -- a
+  # message, or an abort when the model estimates no clock -- is said first.
+  resolved_times <- resolve_simulation_times(
+    object,
+    times,
+    requested = !missing(times),
+    call = call
+  )
+  times <- resolved_times$times
   if (identical(times, "observed")) {
     cli::cli_abort(
       c(
@@ -122,9 +135,13 @@ simulate.goldfishJointSpec <- function(
   # Completion runs ONCE here, before any walk opens: a half-specified flavor
   # gains its zero-parameter default and the parameters are reconciled against
   # the completed fid set, so every replicate walks the same processes.
+  # Completion receives the variant because, for a choice-only DyNAM, whether
+  # to install a rate IS the request: generated times complete a constant
+  # exponential rate, and the default completes none.
   completed <- complete_generative_spec(
     object,
     consumer = "simulate",
+    times = times,
     call = call
   )
   # A pinned rate reads no coefficient and carries no standard error, and the
@@ -132,23 +149,6 @@ simulate.goldfishJointSpec <- function(
   # wave Hamming diff for joint estimation -- so the warning is the consumer's
   # to fire, at its own entry, in its own wording.
   warn_pinned_rates(completed, consumer = "simulate", call = call)
-  # A choice-only DyNAM is deliberately NOT rate-completed -- its timing is the
-  # ordered strategy, not a fabricated baseline hazard -- so it has no clock to
-  # run free. Said here, where the specification is still in view, rather than
-  # letting the walk report a missing sub-model.
-  if (!any(completed$process_map$family == "rate")) {
-    cli::cli_abort(
-      c(
-        "Free-running simulation needs a process with a rate.",
-        "i" = "A choice-only specification has no clock of its own: no
-               baseline hazard is fabricated for it.",
-        "i" = "Simulate its marks at the observed stamps with
-               {.code times = \"observed\"}."
-      ),
-      call = call,
-      class = "goldfish_sim_no_clock"
-    )
-  }
   provider <- resolve_coef_provider(coef, completed, call)
 
   if (!is.null(seed)) {
@@ -160,7 +160,7 @@ simulate.goldfishJointSpec <- function(
       provider = provider,
       steps = steps,
       replicate = replicate,
-      times = times,
+      times = resolved_times,
       horizon = horizon,
       n_events = n_events,
       max_events = max_events,
@@ -323,7 +323,14 @@ specification_from_fit <- function(fit, data, call) {
     attr(stats::terms(formula), "term.labels"),
     intercept = attr(stats::terms(formula), "intercept") == 1L
   )
+  # The family is read off the fit's descriptor, not the legacy
+  # `fit$sub_model`, which reports an REM rate as "choice". The resolved
+  # sub-model travels with the formula: rebuilt without it, an ordered rate
+  # would come back timed and simulate a clock the fit never estimated.
+  family <- if (is_choice_family(fit$model_spec)) "choice" else "rate"
+  sub_model <- fit$model_spec$sub_model %||% fit$sub_model
   args <- list(layer = layer, model = fit$model, data = data)
-  args[[if (identical(fit$sub_model, "choice")) "choice" else "rate"]] <- rhs
+  args[[family]] <- rhs
+  args[[paste0(family, "_sub_model")]] <- sub_model
   do.call(make_specification, args)
 }

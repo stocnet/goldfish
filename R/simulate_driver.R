@@ -691,6 +691,8 @@ collector_frame <- function(collector) {
 # The result
 # --------------------------------------------------------------------------- #
 
+# `times` is the resolved variant from `resolve_simulation_times()`: the
+# `times` run, its `source`, and the specification's `default` and `reason`.
 new_goldfish_sim <- function(
   events,
   process_map,
@@ -709,7 +711,10 @@ new_goldfish_sim <- function(
     list(
       events = events,
       process_map = process_map,
-      times = times,
+      times = times$times,
+      times_source = times$source,
+      times_default = times$default,
+      times_reason = times$reason,
       capped = capped,
       diagnostics = list(
         stop_reason = stop_reason,
@@ -733,10 +738,22 @@ new_goldfish_sim <- function(
 #' @rdname print-method
 #' @export
 print.goldfishSim <- function(x, ...) {
-  cli::cli_text(
-    "{.cls goldfishSim}: {nrow(x$events)} event{?s},
-     {.field times} = {.val {x$times}}"
-  )
+  cli::cli_text("{.cls goldfishSim}: {nrow(x$events)} event{?s}")
+  # Where the variant came from, so a reader can tell a derived default from
+  # an override of it.
+  if (identical(x$times_source, "specification")) {
+    cli::cli_text(
+      "{.field times}: {.val {x$times}} — from the specification
+       ({x$times_reason})"
+    )
+  } else if (identical(x$times, x$times_default)) {
+    cli::cli_text("{.field times}: {.val {x$times}} — requested")
+  } else {
+    cli::cli_text(
+      "{.field times}: {.val {x$times}} — requested; the specification's
+       default is {.val {x$times_default}}"
+    )
+  }
   map <- x$process_map
   regime <- map$regime %||% rep("modeled", nrow(map))
   labels <- render_process_label(map, map$fid)
