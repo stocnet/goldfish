@@ -181,7 +181,7 @@
       `printing-homogenization` task 6.2a**: the one-competing-run method
       reassembles the flavored specification and its parameters through the
       flat, fid-ordered container surface that change lands
-- [ ] 2.2a One evaluate seam for every fid (added 2026-09-15, D11 amendment):
+- [x] 2.2a One evaluate seam for every fid (added 2026-09-15, D11 amendment):
       each fid resolves its evaluate step by regime, read from
       `process_map$completed` and never from formula shape — `default`
       (log-linear, modeled), `constant` (a completed pinned rate,
@@ -194,7 +194,21 @@
       choice simulates reading its intercept from `coef` (today it is looked up
       in `completed_rates`, evaluated at zero, and the run stops `no_rate`); a
       supplied `evaluate` still replaces `default` only
-- [ ] 2.2b A completed default's candidate space is its process's live support
+      — done 2026-09-16 (session `goldfish-f8`), commit `2bed81f`; full
+      `NOT_CRAN=true` 8777 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. `simulation_routing()` records the regime from `completed` and a
+      step key per fid; `fid_evaluation_inputs()` resolves step and θ by it
+      (`constant` reads the pinned intercept of the current period, `-Inf`
+      when nothing is pinned); `simulation_fid_state()` gives every fid one
+      path — its engine's state, or for a deferred fid the degenerate state
+      (one intercept column / zero columns) beside its same-process sibling.
+      Verified in a scratch run: a completed rate in a flavored gap, which
+      the walk DOES compile, evaluates to exactly `exp(-4.274)` over its 12
+      active senders under `constant`. Found on the way: before this task a
+      flavored gap's walked completed choice already simulated correctly by
+      accident (the parameter resolver handed it `numeric(0)`), but its
+      regime read `modeled`
+- [x] 2.2b A completed default's candidate space is its process's live support
       mask, not presence (D5 amendment 4): in a flavored gap the completed fid
       reads its own mask as a member of its family's unit; in the whole-family
       case the deferred fid reads its same-process sibling's live mask through
@@ -203,19 +217,58 @@
       flavored gap's completed dissolution choice draws only existing ties; a
       constrained rate-only process's completed choice never draws a receiver
       the mask excludes
-- [ ] 2.2c `default_mark()` carries the flavor's update value from
+      — done 2026-09-16 (session `goldfish-f8`), commit `43d52e4`; full
+      `NOT_CRAN=true` 8783 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. The flavored-gap half needed no code (the walked completed fid
+      already reads its own mask through `walk_build_state()`); the
+      whole-family half reads `walk_live_support()` on the sibling. Red check:
+      with the previous presence-only state, 28 of 40 receivers fell outside
+      the friendship mask; with this task, none. **Finding:** the walk
+      registers only objects some formula term reads, so a rate reading only
+      `outdeg(friendship)` left the focal `calls` layer unregistered and
+      `walk_inject()` aborted `goldfish_walk_bad_event`. The test fixture
+      adds `indeg` to give `calls` a term; the gap itself is the same class
+      as `constraint-objects-on-shared-walk`'s and is not fixed here
+- [x] 2.2c `default_mark()` carries the flavor's update value from
       `info$values_equivalence[[layer]]` (bug found 2026-09-15: the mark
       hardcodes `increment = 1`, so every simulated dissolution creates a tie).
       Test: a two-flavor creation/dissolution run where each dissolution
       removes an existing tie and the dissolution mask is honored
-- [ ] 2.2d Remove `walk_open(completed =)` and the refusal (D5 amendment 1;
+      — done 2026-09-15 (session `goldfish-f8`), commit `b2f0495`; full
+      `NOT_CRAN=true` 8763 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. `simulation_mark_updates()` builds a per-fid update once per
+      replicate and the mark writes it under the layer's own semantics
+      (`increment` ±1, `replace` 1/0). Confirmed first on the fixture: before
+      the fix `8 → 9` was "dissolved" twice. An unflavored process keeps
+      `increment = 1` exactly as before, which is still wrong for an
+      unflavored `replace` layer; left out of scope and noted in progress.md
+- [x] 2.2d Remove `walk_open(completed =)` and the refusal (D5 amendment 1;
       pre-2.0.0, no lifecycle). A flavored gap opens with nothing deferred. A
       whole effect-free family is stripped, the completed process_map is kept
       so fids keep their numbers, and `build_effect_union()` and every other
       map consumer skip rows no unit owns; the deferred fid stays on the
       handle's map and `walk_evaluate()` on it aborts naming it as a completed
       default. The driver's label routing and renumbering go
-- [ ] 2.2e `times` derived from the specification (ADR-0076; D2 and D6
+      — done 2026-09-16 (session `goldfish-f8`), commit `cb67ea7`; full
+      `NOT_CRAN=true` 8770 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. **The specification is not stripped at all**, contrary to the task
+      text: `joint_fid_bundles()` numbers fids by position, so stripping
+      bundles while keeping the map would have misnumbered every fid after
+      the stripped family in a join (the explore check ran on a single
+      process, where nothing follows). `walk_open()` instead compiles units
+      for the walked families (`walk_compile_units()`) and hands them to
+      `build_merged_blocks(units =)`, whose `plan_block_unions(fids =)` plans
+      over the fids a unit owns; the batch path is unchanged. A layer left
+      with no walked family aborts (`goldfish_walk_unsupported`), which is
+      what an effect-free REM process reaches. `walk_evaluate()` on a
+      deferred fid aborts `goldfish_walk_deferred_fid`. Also here: the
+      default `n_events` / `max_events` now come from the opened walk's
+      schedule, because `observed_dependent_count()` compiled the
+      uncompleted specification and aborted on an authored `rate = ~ 1`
+      before the run began. Tests: the join case keeps fids 1–4 and defers 2,
+      and emails' choice (fid 4) evaluates exactly as it does with calls
+      absent
+- [x] 2.2e `times` derived from the specification (ADR-0076; D2 and D6
       amendments): `simulate(..., times = times_of(object))` with the
       exported accessor on specifications and fits, returning `"generated"`
       for a timed rate and `"observed"` for an ordered rate or no rate, with a
@@ -226,13 +279,46 @@
       it lands); an override to `"generated"` on an ordered rate or a coordination process
       aborts saying why (ADR-0079). The result carries `times` and
       `times_source` and prints them. The accessor is `times_of()`
-- [ ] 2.2f Refuse the effect-free model and stop reading completion from shape
+      — done 2026-09-16 (session `goldfish-f8`), commit `d4f4335`; full
+      `NOT_CRAN=true` 8806 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. `R/simulation_times.R`: `times_of()` with methods on
+      `goldfishSpec`, `goldfishJointSpec`, `goldfishFit`, `goldfishFlavFit`
+      and a refusing default; `resolve_simulation_times()` applies the D6
+      table at entry (`goldfish_sim_times_override` message,
+      `goldfish_sim_no_clock` abort); `complete_generative_spec(times =)`
+      installs the pinned crude rate for a choice-only composition asked for
+      `"generated"`, its warning naming the override. **The first full run
+      failed two package guards** (8803 / 2 / 4): `test-descriptor_guards.R`
+      caught the fit rebuild choosing its family with `sub_model %in%`, and
+      `test-fit_class_reachability.R` caught `times_of()` missing on
+      `goldfishFlavFit`. Both fixed: a fit's reason and family now come from
+      its descriptor (`behavior_timing()`, `behavior_likelihood()`,
+      `is_choice_family()`), and the flavored fit combines its processes'
+      reasons. Two readings taken and flagged, not settled: "no rate" only
+      when no rate exists anywhere (a timed join completes a choice-only
+      process's rate, as the pinned-warning test already simulates), and a
+      fourth reason `"coordination"` beside the three D6 names. Also here:
+      `specification_from_fit()` carries the fit's resolved sub-model, so an
+      ordered rate is not rebuilt timed and an REM fit is not routed to
+      `choice =`. `pkgdown::check_pkgdown()` fails on a pre-existing stale
+      topic (`logLik.result.goldfish`), not on `times_of`
+- [x] 2.2f Refuse the effect-free model and stop reading completion from shape
       (D5 amendments 2 and 3): `simulate()` aborts at entry on a DyNAM whose
       authored rate is `~ 1` and which carries no choice (today it reaches the
       walk and fails with an internal "argument must be coercible to
       non-negative integer"); `mark_pinned_rates()` marks only `completed`
       rates, so an authored intercept-only rate is no longer warned "pinned,
       not estimated"
+      — done 2026-09-15 (session `goldfish-f8`), commit `608eb8e`; full
+      `NOT_CRAN=true` 8768 PASS / 0 FAIL / 4 SKIP, six baseline files PASS not
+      SKIP. Abort class `goldfish_sim_no_effect`, snapshotted. The rule change
+      moved exactly four tests in `test-intercept_only_rate.R`, all through
+      the `completion_rate_bundle()` stand-in, which now carries the
+      `completed = TRUE` mark it stands in for; nothing else changed there.
+      **Both failure modes quoted above reproduce only when `max_events` is
+      supplied**: left at its default, both authored-`~ 1` shapes died earlier
+      in `observed_dependent_count()` with the parser's "A model needs at
+      least one effect term" (fixed in 2.2d)
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
