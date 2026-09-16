@@ -367,24 +367,39 @@
       test gains that assertion, so it bites); a fit with an interaction
       written before a main effect simulates with its coefficients on the
       same terms
+      — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
+      2.2j. Independent of 2.8's replay; ahead of it so 2.8's tests run
+      against the rebuilt fits, the horizon default and the flag-only guard
 - [ ] 2.2i With no target, a free-running run stops at the observed horizon
-      (added 2026-09-16, D3 amendment, ADR-0083): when neither `n_events`
-      nor `horizon` is given and `times = "generated"`, `horizon` defaults to
-      `resolve_walk_extent(handle$merged, control_prep)$end`, replacing the
-      observed-count default in `simulate_replicate()`; explicit `n_events`
-      unchanged. `max_events` stays `10 * n_dep` over proposals, `capped`
-      flagged. Lands the rate-trajectory early trigger and total-rate
-      diagnostic 2.2 left unlanded (its "carried into 2.8" never reached
-      2.8's text), plus the degenerate case: a wait with `t + wait == t` stops
-      the run with that diagnostic. Update the `simulate()` roxygen,
-      `NEWS.d/process-simulation--simulate.md`, and the test "a run with no
-      target generates the observed event count". Tests: a timed fixture with
-      no target stops at the window end with a count that differs across
-      seeds, and `stop_reason` names the horizon (today both targets report
-      `"target"`, so it splits into `"horizon"` / `"n_events"`); the REM fit of `~ 1 + indeg` on `social_evolution` (`ideg`
-      1.15, which today reaches `max_events` 4390 on five of five seeds with
-      3951 events at one instant) is diagnosed rather than stamped; explicit
-      `n_events` still returns exactly that count
+      (added 2026-09-16, D3 amendments, ADR-0083 and ADR-0084): when neither
+      `n_events` nor `horizon` is given and `times = "generated"`, `horizon`
+      defaults to `resolve_walk_extent(handle$merged, control_prep)$end` — the
+      window end rate estimation uses: the last observed event, dependent or
+      exogenous, window-expiry rows excluded, an explicit `end_time` taking
+      precedence — replacing the observed-count default in
+      `simulate_replicate()`; explicit `n_events` unchanged. `max_events` stays
+      `10 * n_dep` over proposals. Lands the rate-trajectory early trigger and
+      total-rate diagnostic 2.2 left unlanded (its "carried into 2.8" never
+      reached 2.8's text), plus the clock-resolution case
+      (`t + wait == t`). **No guard stop aborts** (ADR-0084): each ends its
+      replicate only, keeps the events drawn, sets `capped = TRUE`, names the
+      guard in `stop_reason` (`"max_events"` / `"rate_trajectory"` /
+      `"clock_resolution"`) with the trajectory in `diagnostics`; targets
+      report `"horizon"` / `"n_events"` (today both report `"target"`). One
+      cli warning per call reports the guard stops in aggregate. Update the
+      `simulate()` roxygen, `NEWS.d/process-simulation--simulate.md`, and the
+      test "a run with no target generates the observed event count". Tests:
+      a timed fixture with no target stops at its last observed event (a
+      fixture whose windowed effect places an expiry row past that event
+      still stops at the event) with a count that differs across seeds; the
+      REM fit of `~ 1 + indeg` on `social_evolution` (`ideg` 1.15, which today
+      reaches `max_events` 4390 on five of five seeds with 3951 events at one
+      instant) returns flagged replicates instead of stamped ones; an
+      `nsim > 1` call with one runaway replicate returns every replicate and
+      warns once; explicit `n_events` still returns exactly that count
+      — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
+      2.2j. Independent of 2.8's replay; ahead of it so 2.8's tests run
+      against the rebuilt fits, the horizon default and the flag-only guard
 - [ ] 2.2j Collect simulated events into pre-allocated columns (added
       2026-09-16, D1 amendment): replace the per-event one-row `data.frame`
       and final `rbind` (about 130 us per event, 10% of a 439-event run) with
@@ -397,6 +412,9 @@
       identical (`expect_identical`) to the current collector's on a seeded
       run; a zero-event run returns the typed empty frame; a run stopping
       short of capacity is cut to its count
+      — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
+      2.2j. Independent of 2.8's replay; ahead of it so 2.8's tests run
+      against the rebuilt fits, the horizon default and the flag-only guard
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
@@ -417,6 +435,8 @@
       stream's rows, so 2.8 selects which of them to apply rather than
       inventing a stream for them; what stays 2.8's own is `exo_rows`, which
       today excludes every focal layer wholesale
+      — *re-scheduled 2026-09-16 (later)*: after **2.2h → 2.2i → 2.2j**.
+      Queue: 2.2h → 2.2i → 2.2j → 2.8 → 2.8b → 2.3
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures

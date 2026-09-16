@@ -255,24 +255,26 @@ Free-running simulation SHALL stop at a statistical target — `horizon =`
 (calendar time) or `n_events =` (event count), whichever binds first when both
 are given — and SHALL carry a separate `max_events` safety guard defaulting to a
 single documented, overridable value. With no target given, a free-running run
-SHALL stop at the end of the observation window the fit's likelihood
-integrates over, so the number of events it generates is random rather than
-fixed at the observed count. A drawn waiting time that does not advance the
-clock SHALL trigger the guard's diagnostic rather than stamp later events at
-one instant. The guard SHALL trigger early on the rate
-trajectory (total rate exceeding a large multiple of its start-of-run value, or
-median waiting time collapsing below a resolvable scale), aborting with the
-total-rate trajectory in the condition message; the count cap SHALL remain as
-the backstop. A replicate that hits the guard SHALL be flagged on the returned
-object, excluded from `gof_*` summaries by default, and reported in aggregate —
-never silently pooled. Time-anchored runs SHALL take neither targets nor guard
+SHALL stop at the end of the observation window as rate estimation defines it:
+the last observed event, dependent or exogenous, excluding window-expiry rows,
+unless an explicit end time is set. The number of events it generates is then
+random rather than fixed at the observed count. The guard SHALL trigger early
+on the rate trajectory (total rate exceeding a large multiple of its
+start-of-run value, or median waiting time collapsing below a resolvable
+scale) and when a drawn waiting time does not advance the clock; the count cap
+SHALL remain as the backstop. Every guard stop SHALL end that replicate only,
+never the call: the replicate keeps the events drawn so far, is flagged on the
+returned object with the guard that fired and the total-rate trajectory in its
+diagnostics, is excluded from `gof_*` summaries by default, and is reported in
+aggregate — never silently pooled. Time-anchored runs SHALL take neither targets nor guard
 (the observed stream bounds them).
 
 #### Scenario: a run with no target stops at the observed horizon
 
 - **WHEN** a timed DyNAM or REM model is simulated with `times = "generated"`
   and neither `n_events` nor `horizon` is given
-- **THEN** the run stops at the end of the observation window, its event count
+- **THEN** the run stops at the last observed event of the window, dependent
+  or exogenous, not at a window-expiry row placed after it; its event count
   varies across seeds, and `stop_reason` reports the horizon rather than an
   event count.
 
@@ -280,16 +282,25 @@ never silently pooled. Time-anchored runs SHALL take neither targets nor guard
 
 - **WHEN** the total rate grows until a drawn waiting time no longer changes
   the clock's value
-- **THEN** the run stops with the total-rate trajectory in its diagnostic
-  instead of drawing further events at the same timestamp.
+- **THEN** the replicate stops, is flagged with the clock-resolution guard and
+  the total-rate trajectory in its diagnostics, and draws no further events at
+  the same timestamp.
 
 #### Scenario: explosion diagnosed, not just bounded
 
 - **WHEN** a horizon simulation's parameterization drives the total rate to a
   large multiple of its starting value before the horizon
-- **THEN** the run aborts early with a diagnostic reporting the total-rate
-  trajectory, rather than spending the full event budget in a vanishing sliver
-  of simulated time.
+- **THEN** the replicate stops early and is flagged with the rate-trajectory
+  guard and the total-rate trajectory in its diagnostics, rather than spending
+  the full event budget in a vanishing sliver of simulated time, and the call
+  does not abort.
+
+#### Scenario: one runaway replicate does not end the pool
+
+- **WHEN** `nsim = 100` free-running replicates are simulated and one of them
+  trips the rate-trajectory guard
+- **THEN** the call returns all 100 replicates, the runaway one flagged, and
+  warns once reporting how many replicates stopped at a guard and which.
 
 #### Scenario: capped replicates are flagged and reported
 

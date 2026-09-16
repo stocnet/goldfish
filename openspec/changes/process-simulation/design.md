@@ -282,8 +282,12 @@ run given no target always returned exactly that many events (439 on
 `times = "generated"` alike). That hides the one thing a free-running run
 exists to test (D6): how many events the clock produces. The default target
 for `times = "generated"` is therefore `horizon =` the end of the observation
-window, taken from `resolve_walk_extent()` with the run's own `control_prep`,
-so it is the same end the fit's likelihood integrated exposure to. The count
+window, defined exactly as rate estimation defines it: the last observed
+event on the schedule, dependent or exogenous, with window-expiry rows
+excluded (an expiry placed past that event does not extend the window), and
+an explicit `control_prep$end_time` taking precedence. That is
+`resolve_walk_extent()` with the run's own `control_prep`, so the simulated
+run covers the same period the fit's likelihood integrated exposure over. The count
 is then random, and at the fitted estimates of a timed rate with an intercept
 its expectation over the observed trajectory equals the observed count (the
 intercept's score equation); a completed crude rate satisfies the same
@@ -301,9 +305,24 @@ clock near 1.2e9, so `t + wait == t`. The `max_events` cap stays (`10 * n_dep`,
 counting proposals, `capped` flagged). The rate-trajectory early trigger that
 2.2 left unlanded and noted as "carried into 2.8", which 2.8's text never
 picked up, lands with the default instead, together with its sharpest case: a
-drawn wait that does not advance the clock (`t + wait == t`) aborts
-immediately with the total-rate trajectory, since every later event would
-share one timestamp. Task 2.2i.
+drawn wait that does not advance the clock (`t + wait == t`), since every
+later event would share one timestamp. Task 2.2i.
+
+*Every guard stop flags the replicate; none aborts the call (2026-09-16,
+ADR-0084).* D3 above has the trajectory trigger *abort* with the trajectory
+in the condition message, while a `max_events` stop flags the replicate. Under
+the horizon default that difference decides whether a GOF pool survives:
+with `nsim = 100`, one runaway replicate would abort the call and discard the
+99 others. So all three guard stops behave like the cap. The replicate
+stops, keeps the events drawn so far, is flagged `capped`, and records which
+guard fired in `stop_reason` (`"max_events"`, `"rate_trajectory"`,
+`"clock_resolution"`) with the total-rate trajectory in its `diagnostics`.
+The pool excludes flagged replicates from GOF summaries by default, and the
+call reports them once, in aggregate ("7 of 100 replicates stopped at a
+guard: 5 rate_trajectory, 2 max_events"), as a warning. Targets report
+`"horizon"` or `"n_events"`. What stays an abort is a run that cannot start:
+a malformed parameter, an unsupported `times`, a specification with no
+effect. Those are errors in the call, not draws from the model.
 
 ### D4 — Flavored/multivariate draws and evaluator-compatible output
 
