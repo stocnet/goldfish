@@ -100,7 +100,7 @@
       `.plan/sp/replay_split_2026-09-15.R`. (iv) `5ae1362`: header corrected,
       `preprocess_flavored()` NOT retired (`printing-homogenization` 1.1 has
       not landed)
-- [ ] 2.0f The walk carries the focal layer of every compiled unit (added
+- [x] 2.0f The walk carries the focal layer of every compiled unit (added
       2026-09-16, D13): `build_merged_blocks()` appends each unit's focal
       layer to the shared object registry **after** the units' own objects
       (no existing oid moves) and appends that layer's event stream to the
@@ -126,6 +126,14 @@
       rows whose value maps to an unmodeled flavor) instead of building the
       plumbing itself; `exo_rows`' wholesale exclusion of focal layers is the
       one piece 2.8 still owns
+      — *done 2026-09-16* `2822625` (goldfish-f0), 8825 / 0 / 4, six baseline
+      files PASS. `build_shared_objects()` appends the focal network row after
+      the terms' objects (deduped on network key); `build_joint_schedule()`
+      appends its streams after every planned stream, from the unit's own
+      source. `preprocess_joint()` output compared with waldo before/after on
+      four fixtures (endogenous single process, two-process join, flavored,
+      and exogenous-only): identical on all four, the exogenous-only one too,
+      since no engine reads the new rows
 - [x] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
@@ -447,7 +455,7 @@
       misfitting replay fixture, simulate→evaluate round trip at generating vs
       perturbed parameters, batch-vs-replay consistency against the walk handle
       (including a windowed fixture)
-- [ ] 3.1a Fitted-model round trip for the families no test simulates (added
+- [x] 3.1a Fitted-model round trip for the families no test simulates (added
       2026-09-16): `simulate()` on a fitted model rebuilds the specification
       from the fit's stored formula, and 2.2e made that rebuild read the
       family from the descriptor and carry the fit's resolved `sub_model`.
@@ -466,6 +474,12 @@
       — *scheduled 2026-09-16*: **first**. It depends on nothing, touches only
       tests, and guards a fix that shipped in 2.2e with no test behind it, so
       it rides the next `NOT_CRAN=true` run rather than earning one of its own
+      — *done 2026-09-16* `6e21357` (goldfish-f0), 8813 / 0 / 4, six baseline
+      files PASS. The ordered test bites: with the rebuild reverted to the
+      legacy `fit$sub_model` reading it errors. The REM test does not — no
+      reachable REM fit reports `"choice"` today (a deprecated
+      `estimate_rem(sub_model = "choice")` is rewritten to `"rate"`), so it
+      guards the REM round trip rather than that regression
 - [ ] 3.2 `simulate()` reference + a simulation section in the model-usage
       vignette (the `times` axis, per-distribution clocks, per-mechanism
       coordination, which GOF statistics need which variant);
