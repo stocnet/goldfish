@@ -100,6 +100,24 @@
       `.plan/sp/replay_split_2026-09-15.R`. (iv) `5ae1362`: header corrected,
       `preprocess_flavored()` NOT retired (`printing-homogenization` 1.1 has
       not landed)
+- [ ] 2.0f The walk carries the focal layer of every compiled unit (added
+      2026-09-16, D13): `build_merged_blocks()` appends each unit's focal
+      layer to the shared object registry **after** the units' own objects
+      (no existing oid moves) and appends that layer's event stream to the
+      joint schedule as a covariate stream, so the state it materializes is
+      also advanced. Batch included: byte-identical wherever a formula reads
+      its own focal layer, which is every frozen baseline. Fixes two
+      refusals a specification of only exogenous covariates hits today —
+      `walk_inject()`'s `goldfish_walk_bad_event` on the layer it writes, and
+      `walk_assert_covered_constraints()`'s `goldfish_walk_unsupported` when a
+      derived flavor mask's atoms read that layer. Tests: an exogenous-only
+      DyNAM (`rate = ~ 1 + ego(floor)`, `choice = ~ alter(floor)` on
+      `social_evolution`) simulates and its drawn events land on the focal
+      network; a flavored specification whose effects read only another layer
+      opens and draws under its derived masks; `preprocess_joint()` output is
+      unchanged on a fixture that reads its own focal layer, and the frozen
+      baselines PASS. Storage (dense vs sparse state) is out of scope — vault
+      ADR-0081
 - [x] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
@@ -416,6 +434,22 @@
       misfitting replay fixture, simulate→evaluate round trip at generating vs
       perturbed parameters, batch-vs-replay consistency against the walk handle
       (including a windowed fixture)
+- [ ] 3.1a Fitted-model round trip for the families no test simulates (added
+      2026-09-16): `simulate()` on a fitted model rebuilds the specification
+      from the fit's stored formula, and 2.2e made that rebuild read the
+      family from the descriptor and carry the fit's resolved `sub_model`.
+      Before it, an **REM** fit was rebuilt with `choice =` (the legacy
+      `fit$sub_model` reports an REM rate as `"choice"`), which
+      `make_specification()` refuses; an **ordered** rate was rebuilt as a
+      timed one and would have simulated a clock the fit never estimated.
+      Both paths are unguarded — the only fitted-model test simulates a
+      DyNAM rate-only fit. Tests: `estimate_rem()` then `simulate(fit,
+      data =)` draws events on the focal layer (verified by hand 2026-09-16,
+      4 events on the walk fixture, `times_of(fit)` = `"generated"`); a
+      `rate_sub_model = "rate_ordered"` fit rebuilds ordered, so
+      `times_of(fit)` is `"observed"` with reason `"ordered rate"` and
+      `simulate(fit, times = "generated")` aborts `goldfish_sim_no_clock`
+      rather than generating one
 - [ ] 3.2 `simulate()` reference + a simulation section in the model-usage
       vignette (the `times` axis, per-distribution clocks, per-mechanism
       coordination, which GOF statistics need which variant);

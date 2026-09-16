@@ -61,6 +61,15 @@ state every engine reads.
 - **THEN** exogenous state stays frozen at its last observed value and a single
   warning reports the freeze point.
 
+#### Scenario: a specification of only exogenous covariates simulates
+
+- **WHEN** a DyNAM specification whose rate and choice read only nodal or
+  global covariates — so no formula term reads its own focal layer — is
+  simulated
+- **THEN** the walk carries that focal layer as a shared object anyway, each
+  drawn event is applied to it, and the run draws events rather than failing
+  to resolve the layer it writes to.
+
 ### Requirement: The simulation steps are pluggable and the parameter provider resolves to one known shape
 
 `simulate()` SHALL run one driver loop with four plug points — the parameter

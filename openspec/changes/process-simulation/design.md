@@ -826,6 +826,73 @@ statistic is recomputed by re-walking, so nothing downstream needs it. Carried
 alternative competes and only while `coef` is fixed for the replicate: kept as
 an exploration in ADR-0058, not scheduled here.
 
+### D13 — The walk registers the focal layer of every compiled unit, batch included (added 2026-09-16, ADR-0082)
+
+A specification whose formulas read only exogenous covariates
+(`rate = ~ 1 + ego(floor)`, `choice = ~ alter(floor)`) estimates on both
+paths but cannot simulate. The shared object registry is the union of the
+units' `plan$objects`, so a focal layer no effect term reads is not in it:
+`walk_inject()` fails to resolve the layer it is asked to write
+(`goldfish_walk_bad_event`), and a derived flavor mask whose atoms read that
+layer is refused as uncovered (`goldfish_walk_unsupported`). Measured on
+`social_evolution` 2026-09-16: the exogenous-only specification's registry
+holds `nodes$floor` alone, its state container carries no network at all,
+while its schedule carries all 439 dependent rows — the dependent stream is
+added by layer name, never through the registry, so only the state side is
+missing.
+
+The walk therefore registers the focal layer of every compiled unit,
+appended **after** the units' objects so no existing oid moves, and appends
+that layer's own event stream to the joint schedule as a covariate stream.
+The stream matters as much as the row: the focal network's state write rides
+its covariate stream (`events_objects_link`), which today exists only
+because some effect registered the object — on the endogenous model the
+schedule carries 439 dependent plus 439 covariate rows on `calls`, on the
+exogenous-only one zero. Registering the object without its stream would
+materialize a matrix the batch never updates.
+
+This lands in `build_merged_blocks()`, so the **batch path gets it too**. It
+is byte-identical for every model that reads its own focal layer, which is
+every frozen baseline: their formulas all carry `indeg`, `outdeg`,
+`inertia`, `recip`, `trans`, `tie(contignet)` or an absolute-layer degree,
+and the nearest miss (`~ 1 + indeg + global(seasons$winter)`) still reads
+`calls`. Only an exogenous-only model — of which there is none in the
+baselines — sees a new registry row, at the end.
+
+*Which layers.* The focal of every compiled unit, which today is exactly the
+set the driver injects into: a unit is one `(layer, family)` pair, so the
+focals are the modeled layers, and every modeled process can fire. Taking
+the rule from the units rather than from "what the driver will inject" keeps
+it computable at open time and stays right when a process is scheduled
+rather than drawn — an `anchored-replay` flavor (D9) writes its observed
+events into the same state without the driver ever drawing it.
+
+*Rejected:* letting `walk_inject()` no-op on an unregistered layer — within
+such a run nothing can observe the difference, since nothing reads the
+layer, but the handle would then hold a network the run pretends to update,
+and every later consumer (replay, GOF, an augmenter) would have to rebuild
+the state from the events instead of reading it. *Rejected:* waiting for
+`constraint-objects-on-shared-walk` — its D1 threads *constraint sub-plan*
+objects with exactly this append rule, but the injection case has no
+constraint at all, so it is a third category that change does not cover as
+written; the shared rule is deliberately the same, so that change
+generalizes rather than collides.
+
+*What it means for GOF (Alvaro, 2026-09-16).* Nothing, and that is the
+correct expectation. A Boschi-Wit style check — whether a parameter moves
+over the sequence — reads the same on an exogenous-only model. An
+Amati-Snijders-Lomi style check asks whether auxiliary statistics (the
+distribution of closing reciprocal events, say) are reflected, and a model
+with no endogenous effects should *not* reproduce them. The value of the
+exogenous-only model is elsewhere: it is the first rung of a taxonomy of
+increasing complexity, where what matters is how the coefficients move as
+endogenous terms are added.
+
+*Storage.* Registering one more dense `n1 x n2` double per unread focal
+layer is the cost (about 28.8 MB at 1899 actors). Whether the state should
+be sparse at all is a separate question, and not this change's:
+vault ADR-0081.
+
 ## Risks / Trade-offs
 
 - **Divergence from the batch walk** → `simulate()` is a driver over the *same*
