@@ -20,3 +20,8 @@
   completes a constant rate at the observed crude rate, with a warning. The
   result records `times` and whether it came from the specification or was
   requested.
+* `simulate()` now runs a model whose effects read only exogenous covariates,
+  such as `rate = ~ 1 + ego(floor)` with `choice = ~ alter(floor)`. The
+  simulated events are written into the modeled network even though no effect
+  reads it, and a flavored layer's creation and dissolution masks stay current.
+  Estimation results are unchanged.

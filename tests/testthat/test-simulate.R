@@ -538,9 +538,9 @@ test_that("a flavored gap's completed choice draws only existing ties", {
 
 test_that("a deferred choice draws inside its process's support mask", {
   data <- sim_fixture_data()
-  # The walk registers only the objects a formula term reads, so both the
-  # constraint's object and the focal layer the run writes to need a term:
-  # `outdeg(friendship)` steps the mask, `indeg` gives `calls` a place.
+  # The walk registers the objects a formula term reads, plus the focal layer
+  # the run writes to, so the constraint's object still needs a term:
+  # `outdeg(friendship)` steps the mask.
   spec <- suppressMessages(make_specification(
     rate = ~ 1 + indeg + outdeg(friendship),
     layer = "calls",
@@ -558,6 +558,83 @@ test_that("a deferred choice draws inside its process's support mask", {
   expect_equal(nrow(out$events), 40)
   expect_in(out$events$sender, 1:4)
   expect_identical(out$events$receiver, out$events$sender + 1L)
+})
+
+test_that("a specification of only exogenous covariates simulates", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + ego(floor),
+    choice = ~ alter(floor),
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  coef <- set_parameters(
+    single_process_joint(spec),
+    `calls › rate` = c(-5, 0.1),
+    `calls › choice` = 0.2
+  )
+
+  out <- simulate(spec, nsim = 1, seed = 4, coef = coef, n_events = 6)
+
+  expect_equal(nrow(out$events), 6)
+  expect_true(all(out$events$layer == "calls"))
+})
+
+test_that("drawn events land on a focal layer no term reads", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + ego(floor),
+    choice = ~ alter(floor),
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  handle <- walk_open(spec)
+  before <- handle$state$networks$calls[1, 2]
+
+  walk_inject(
+    handle,
+    list(layer = "calls", sender = 1L, receiver = 2L, increment = 1)
+  )
+
+  expect_equal(handle$state$networks$calls[1, 2], before + 1)
+})
+
+test_that("a flavored layer read by no term draws under its derived masks", {
+  data <- flavored_fixture_data()
+  data$nodes$score <- rep(c(0, 1), length.out = nrow(data$nodes))
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + ego(score), dissolution ~ 1 + ego(score)),
+    choice = list(creation ~ alter(score), dissolution ~ alter(score)),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2,
+    `calls › dissolution › rate` = c(-3, 0.1),
+    `calls › dissolution › choice` = 0.2
+  )
+
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters, n_events = 40)
+  events <- out$events
+
+  expect_setequal(events$flavor, c("creation", "dissolution"))
+  # The masks are derived from `calls`, which only the drawn events update:
+  # each creation lands where no tie is and each dissolution where one is.
+  ties <- as.data.frame(data$ties)
+  history <- ties[is.na(ties$time), ]
+  state <- matrix(0, 12L, 12L)
+  state[cbind(history$from, history$to)] <- 1
+  tie_held <- logical(nrow(events))
+  for (k in seq_len(nrow(events))) {
+    cell <- cbind(events$sender[k], events$receiver[k])
+    tie_held[k] <- state[cell] == 1
+    state[cell] <- state[cell] + events$increment[k]
+  }
+  expect_identical(tie_held, events$flavor == "dissolution")
 })
 
 test_that("a choice-only DyNAM defaults to time-anchored", {

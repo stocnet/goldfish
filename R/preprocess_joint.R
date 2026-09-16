@@ -268,6 +268,12 @@ assemble_process_unit <- function(
 # `shared_to_local[[key]][s]` is that unit's own object index for shared oid `s`,
 # or `NA` where the unit does not read it. The reverse `local_to_shared` maps a
 # unit's own oid to the shared oid.
+#
+# Each unit's focal layer is registered too, after every object a term reads,
+# even when no term reads it: the dependent events are written into that layer,
+# so a walk that draws them needs its state. Appending keeps every oid a term
+# resolved to where it was, so a model that reads its own focal layer gets the
+# same registry as before.
 build_shared_objects <- function(units) {
   registry_rows <- list()
   keys <- character(0)
@@ -281,6 +287,20 @@ build_shared_objects <- function(units) {
       keys <- c(keys, key)
       registry_rows[[length(registry_rows) + 1L]] <- objs[i, , drop = FALSE]
     }
+  }
+  network_keys <- unlist(
+    lapply(registry_rows, function(row) row$key[row$component == "networks"]),
+    use.names = FALSE
+  )
+  for (unit in units) {
+    focal <- unit$spec_map$focal
+    if (focal %in% network_keys) {
+      next
+    }
+    network_keys <- c(network_keys, focal)
+    registry_rows[[length(registry_rows) + 1L]] <- focal_object_row(
+      unit$spec_map
+    )
   }
   registry <- do.call(rbind, registry_rows)
   registry$oid <- seq_len(nrow(registry))
@@ -302,6 +322,43 @@ build_shared_objects <- function(units) {
     shared_to_local = shared_to_local,
     local_to_shared = local_to_shared
   )
+}
+
+# A registry row for a focal layer no term reads, in the shape
+# `build_update_plan()` gives a network a term does read. A network carries no
+# value type and no missingness flag there either.
+focal_object_row <- function(spec_map) {
+  src <- new_data_source(
+    data = spec_map$data,
+    envir = new.env(),
+    focal = spec_map$focal
+  )
+  data.frame(
+    oid = NA_integer_,
+    name = spec_map$focal,
+    component = "networks",
+    key = spec_map$focal,
+    shape = "dyad",
+    is_undirected = !ds_is_directed(src, spec_map$focal),
+    value_type = NA_character_,
+    has_missing = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
+# The fetch plan for a focal layer's own event streams, entry for entry what
+# `build_events_objects_link()` plans when a term reads the layer.
+focal_stream_fetch_plan <- function(src, focal) {
+  sides <- ds_layer_sides(src, focal)
+  sanitize <- ds_needs_sanitize(src)
+  lapply(ds_object_streams(src, focal), function(stream) {
+    list(
+      stream = stream,
+      sanitize = sanitize,
+      s_nodes = sides[1L],
+      s_nodes2 = sides[length(sides)]
+    )
+  })
 }
 
 # --------------------------------------------------------------------------- #
@@ -391,12 +448,16 @@ schedule_stream_part <- function(
 # exogenous covariate, or a focal network another process reads -- is fetched and
 # added once. Ordering is `(time, stream_index)`, dependent streams indexed
 # before their own covariate stream so an event is evaluated at the state before
-# it is applied.
+# it is applied. A focal layer registered only because events are written into
+# it has no term to plan its stream, so the stream is added after every other,
+# without moving the ones a term planned.
 build_joint_schedule <- function(units, shared_objects) {
   parts <- list()
   next_index <- 0L
   dep_seen <- character(0)
   stream_seen <- character(0)
+  targets_seen <- integer(0)
+  focal_sources <- list()
 
   add_part <- function(events, target, layer, dependent) {
     next_index <<- next_index + 1L
@@ -417,6 +478,7 @@ build_joint_schedule <- function(units, shared_objects) {
     src <- ds_realize_derivations(src, spec_map$plan$derivations)
     events <- fetch_events(spec_map$fetch_plan, src = src)
     eol <- spec_map$events_objects_link
+    focal_sources[[unit$focal]] <- focal_sources[[unit$focal]] %||% src
 
     dep_stream <- spec_map$fetch_plan[[1]]$stream
     if (!(unit$focal %in% dep_seen)) {
@@ -431,7 +493,21 @@ build_joint_schedule <- function(units, shared_objects) {
       }
       stream_seen <- c(stream_seen, stream_key)
       oid <- match(eol$name[r], shared_objects$registry$name)
+      targets_seen <- c(targets_seen, oid)
       add_part(events[[stream_key]], oid, eol$name[r], FALSE)
+    }
+  }
+
+  for (focal in names(focal_sources)) {
+    oid <- match(focal, shared_objects$registry$name)
+    if (oid %in% targets_seen) {
+      next
+    }
+    src <- focal_sources[[focal]]
+    fetch_plan <- focal_stream_fetch_plan(src, focal)
+    events <- fetch_events(fetch_plan, src = src)
+    for (stream_key in names(events)) {
+      add_part(events[[stream_key]], oid, focal, FALSE)
     }
   }
 

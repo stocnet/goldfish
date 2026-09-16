@@ -222,6 +222,43 @@ flavored_rate_spec <- function(data = flavored_rate_data()) {
   ))
 }
 
+test_that("an unread focal layer is registered last with its stream", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + ego(floor),
+    choice = ~ alter(floor),
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  mb <- build_merged_blocks(single_process_joint(spec))
+
+  # No term reads `calls`, yet the dependent events are drawn into it: the
+  # layer follows the objects the terms read, so none of their oids move.
+  expect_identical(mb$objects$name, c("nodes$floor", "calls"))
+  expect_true("calls" %in% names(mb$state$networks))
+  # Without its covariate stream the matrix would never be updated.
+  on_calls <- mb$schedule$layer == "calls"
+  expect_equal(sum(on_calls & mb$schedule$dependent), 439)
+  expect_equal(sum(on_calls & !mb$schedule$dependent), 439)
+  expect_in(mb$schedule$target[on_calls & !mb$schedule$dependent], 2L)
+})
+
+test_that("a focal layer a term already reads is registered once", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  mb <- build_merged_blocks(single_process_joint(spec))
+
+  expect_identical(mb$objects$name, "calls")
+  expect_equal(mb$schedule$n, 878)
+})
+
 test_that("build_merged_blocks accepts pre-compiled units", {
   # The joint path compiles per process and hands the units in; letting
   # build_merged_blocks compile them itself has to reach the same substrate.
