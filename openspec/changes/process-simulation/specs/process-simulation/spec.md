@@ -13,8 +13,9 @@ changes) merge into the walk through `walk_advance()` unchanged. One
 implementation SHALL cover DyNAM, REM, and multivariate/flavored specifications
 without family-specific branching. Simulating a flavored specification SHALL draw
 the next event across all modeled flavors' total rates with each flavor's derived
-support mask maintained. Free-running simulation past the last observed
-covariate/composition change SHALL freeze the exogenous state and warn once.
+support mask maintained. Free-running simulation past the end of the
+observation window (the same end the horizon default uses) SHALL freeze the
+exogenous state, and SHALL NOT warn about a run that stays inside it.
 Simulating from a fitted result SHALL take the data as an argument and rebuild
 the specification from the fit's stored formula, model and sub-model: a fit
 carries neither its specification nor the stocnet it was fitted on, and SHALL
@@ -58,10 +59,18 @@ state every engine reads.
 
 #### Scenario: exogenous horizon is frozen, not invented
 
-- **WHEN** a free-running simulation continues past the last observed
-  covariate/composition change
-- **THEN** exogenous state stays frozen at its last observed value and a single
-  warning reports the freeze point.
+- **WHEN** a free-running simulation given an explicit `n_events` continues
+  past the end of the observation window
+- **THEN** exogenous state stays frozen at its value at the window end, and the
+  call's single warning reports the freeze point.
+
+#### Scenario: a run inside the observation window is not warned about frozen covariates
+
+- **WHEN** a free-running simulation stays inside the observation window,
+  including past the last covariate change and past a window-expiry row placed
+  after the last event
+- **THEN** no frozen-state warning is emitted, since the state it runs on is
+  the observed state estimation used.
 
 #### Scenario: a fitted timed rate rebuilds with its intercept
 
@@ -265,8 +274,10 @@ scale) and when a drawn waiting time does not advance the clock; the count cap
 SHALL remain as the backstop. Every guard stop SHALL end that replicate only,
 never the call: the replicate keeps the events drawn so far, is flagged on the
 returned object with the guard that fired and the total-rate trajectory in its
-diagnostics, is excluded from `gof_*` summaries by default, and is reported in
-aggregate — never silently pooled. Time-anchored runs SHALL take neither targets nor guard
+diagnostics, stays in the pool and in `gof_*` summaries unless the user filters
+it out, and is reported in aggregate — never silently pooled. A call SHALL
+emit at most one warning, reporting guard stops and frozen-state runs across
+all of its replicates. Time-anchored runs SHALL take neither targets nor guard
 (the observed stream bounds them).
 
 #### Scenario: a run with no target stops at the observed horizon
@@ -306,7 +317,34 @@ aggregate — never silently pooled. Time-anchored runs SHALL take neither targe
 
 - **WHEN** 7 of 100 free-running replicates hit `max_events`
 - **THEN** those replicates carry a capped flag, the pool result reports the
-  count, and default GOF summaries exclude them.
+  count, and GOF summaries include them unless the pool is filtered.
+
+### Requirement: A replicate pool summarizes and filters its replicates
+
+`simulate()` with `nsim > 1` SHALL return a `goldfishSimPool`: a list of
+`goldfishSim` replicates that indexes and iterates as a list, carries a
+per-replicate summary (replicate number, event count, end time, stop reason,
+capped flag, proposals, acceptance rate) returned by `summary()`, and prints
+that summary in aggregate — the process map and `times` once, the distribution
+of event counts, and the count of each stop reason — rather than every
+replicate. Excluding replicates SHALL be an explicit filter whose condition is
+evaluated against the per-replicate summary and which returns a pool of the
+kept replicates with their original replicate numbers; no replicate SHALL be
+excluded by default.
+
+#### Scenario: a pool prints its aggregate, not its replicates
+
+- **WHEN** a specification is simulated with `nsim = 100`
+- **THEN** the print shows one header, the processes and `times` once, the
+  minimum, median, mean and maximum event count, and the count per stop
+  reason, and `pool[[3]]` still prints the third replicate in full.
+
+#### Scenario: a filter removes replicates by a stated criterion
+
+- **WHEN** a pool of 100 replicates, 7 of them stopped at a guard, is filtered
+  to replicates whose stop reason is the horizon
+- **THEN** the result is a pool of the 93 kept replicates, each keeping its
+  original replicate number, and the unfiltered pool is unchanged.
 
 ### Requirement: Windowed effects self-schedule expiry during free-running simulation
 

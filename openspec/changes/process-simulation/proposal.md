@@ -62,7 +62,8 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   `horizon =` / `n_events =` are statistical targets (whichever binds first); a
   separate `max_events` guard (default `10 * n_dep`) trips early on the
   total-rate trajectory with a diagnosis, capped replicates are flagged and
-  excluded from GOF pools by default.
+  kept in GOF pools unless the user filters them out (amended 2026-09-16,
+  ADR-0085).
 - **Per-component regime record**: every result records modeled / completed /
   anchored-replay per component; replayed events whose precondition fails in
   the simulated state are skipped and counted, with an incoherence flag past a

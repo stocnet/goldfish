@@ -170,6 +170,51 @@ is the rule unless the columns would exceed a documented byte budget, in which
 case the collector starts at the observed dependent count and doubles. The
 output keeps its columns and types. Task 2.2j.
 
+*Amended 2026-09-16 (explore, goldfish-f0; ADR-0086, ADR-0085) — `nsim > 1`
+returns a `goldfishSimPool`.* The open-question entry below kept the pool a
+plain list until `dynes-augmentation`'s pool format lands. A plain list
+cannot dispatch, so `print()` rendered every replicate in full: three
+identical headers and process lists for `nsim = 3`, a hundred for a GOF pool.
+The pool is therefore classed now, `c("goldfishSimPool", "list")`, so `[[`,
+`length()` and `lapply()` keep working, and `[` keeps the class. Whatever the
+augmenter's format becomes can extend or replace the class; reversing the
+deferral costs only a class string.
+
+A pool carries a per-replicate summary — one row per replicate with
+`replicate`, `n_events`, `end_time` (the clock when the run stopped),
+`stop_reason`, `capped`, `n_proposals` and `acceptance_rate` — built from
+each `goldfishSim`'s own fields, and returned by `summary()` on the pool.
+The print reads that table and shows only what is shared or aggregated,
+in the layout the joint specification's print uses (a `cli_rule()` header
+naming the class, a count line joined with `·`, process lines labeled by
+`render_process_label()` with the fid, a closing `i` hint):
+
+```
+-- <goldfishSimPool> ----------------------------------------------
+100 replicates · times "generated" (from the specification) · 2 processes
+* calls › rate [fid 1] (modeled)
+* calls › choice [fid 2] (modeled)
+Events per replicate: min 402 · median 438 · mean 441.3 · max 489
+Stop reasons: horizon 93 · rate_trajectory 5 · max_events 2
+! 7 replicates stopped at a guard.
+i Select replicates by their summary with `subset()`.
+```
+
+The processes and `times` lines print once because they are properties of
+the completed specification, not of a draw. A single replicate keeps its
+full print (`pool[[3]]`). When `printing-homogenization` lands its shared
+renderer, this print becomes a renderer call like every other
+multi-process surface: a header, process sections, the lengths and reasons
+as the footer. Until then it follows the joint specification's print by
+hand, which is the layout that renderer is extracted from.
+
+Exclusion is an explicit filter over the same summary, never a default
+(ADR-0085, D3 amendment): `subset(pool, stop_reason == "horizon")` or
+`subset(pool, !capped & n_events > 100)` evaluates the condition against the
+per-replicate summary and returns the pool of the replicates it keeps, with
+their original replicate numbers. The surface name is confirmed at task
+2.2k (ADR-0085 open question). Task 2.2k.
+
 ### D2 — Timing strategies keyed on the distribution axis (revised 2026-08-19)
 
 Free-running clocks are keyed on `parametric-rates`' `distribution` axis
@@ -317,12 +362,26 @@ with `nsim = 100`, one runaway replicate would abort the call and discard the
 stops, keeps the events drawn so far, is flagged `capped`, and records which
 guard fired in `stop_reason` (`"max_events"`, `"rate_trajectory"`,
 `"clock_resolution"`) with the total-rate trajectory in its `diagnostics`.
-The pool excludes flagged replicates from GOF summaries by default, and the
-call reports them once, in aggregate ("7 of 100 replicates stopped at a
-guard: 5 rate_trajectory, 2 max_events"), as a warning. Targets report
+The call reports them once, in aggregate ("7 of 100 replicates stopped at a
+guard: 5 rate_trajectory, 2 max_events"), in its single warning (D6
+amendment). Targets report
 `"horizon"` or `"n_events"`. What stays an abort is a run that cannot start:
 a malformed parameter, an unsupported `times`, a specification with no
 effect. Those are errors in the call, not draws from the model.
+
+*Guard-stopped replicates stay in GOF (2026-09-16, ADR-0085).* D3 above and
+ADR-0034 exclude a capped replicate from `gof_*` summaries by default. For a
+rate model with endogenous feedback, a runaway is not a rare accident but a
+property of the fitted model: the REM fit of `~ 1 + indeg` ran away on five
+of five seeds. Excluding those replicates by default would summarize only
+the draws that happened not to explode, and a GOF built on them would report
+a better fit than the model has. So flagged replicates stay in the pool and
+in every GOF summary unless the user removes them. Removal is explicit and
+criterion-based: a filter over the pool's per-replicate summary (stop
+reason, capped, event count, end time; D1 amendment), so what was left out
+is stated in the call that left it out. The flag, the per-replicate
+`stop_reason` and the aggregate warning are unchanged; only the default
+exclusion goes.
 
 ### D4 — Flavored/multivariate draws and evaluator-compatible output
 
@@ -539,6 +598,35 @@ The result carries `times` and `times_source`, and the print shows either
 `times: "observed" — from the specification (no rate)` or
 `times: "generated" — requested; the specification's default is "observed"`.
 The accessor is `times_of()` (ADR-0076).
+*Amended 2026-09-16 (explore, goldfish-f0) — the freeze point is the
+observation window's end, and a call warns once.* The driver froze at the
+last covariate row (`last_exogenous_time()`: the latest non-dependent row on a
+non-focal layer, `-Inf` when there is none). That reference is wrong in both
+directions. Before the window end, the state after the last covariate change
+is observed data, not an extrapolation: the event record is complete, so no
+change is what was observed, and estimation used exactly that state. A run
+there was warned about a frozen state the data supports. Past the window end,
+a model with no covariate rows (`-Inf`) was never warned. And a windowed
+effect's expiry rows count as covariate rows while lying past the last event
+(`indeg(calls, window = 3600)` put the reference 3600 s past the window end on
+`social_evolution`), so a slow run warned or not depending on the window
+length. The freeze point is therefore the same window end the horizon default
+uses (D3 amendment): the last observed event, dependent or exogenous,
+window-expiry rows excluded, an explicit `end_time` taking precedence. Under
+the default horizon a run cannot pass it, so the default never warns; an
+explicit `n_events` or `horizon` that carries a run past it does. There is no
+case for warning earlier: panel layers are held between waves in estimation
+too, and composition is observed over the same window.
+
+Warnings are per call, not per replicate. The frozen-state warning fired
+once per replicate, so `nsim = 100` could emit a hundred copies beside the
+guard-stop report. A call emits at most one warning, whose bullets report
+each condition across the pool: how many replicates stopped at a guard, by
+guard, and how many ran past the window end and from which time the state was
+held. Its condition classes name the conditions present
+(`goldfish_sim_guard_stop`, `goldfish_sim_frozen_exogenous`), so a test or a
+caller can still match either. Task 2.2i.
+
 ### D7 — Coordination simulates per mechanism: all five, both variants (added 2026-08-19)
 
 Keyed by `two-sided-coordination`'s `mechanism =`. **Time-anchored**: at
@@ -991,7 +1079,7 @@ vault ADR-0081.
   tests (owned by `make-multivariate-spec`) protect the shared substrate.
 - **Explosion under feedback terms** → the trajectory trigger diagnoses early,
   the `max_events` cap backstops, and capped replicates are flagged and
-  excluded from GOF pools by default (D3).
+  kept in GOF pools unless filtered out explicitly (D3, amended 2026-09-16).
 - **Ordinal timing is only up-to-scale** → the pseudo-time output documents the
   caveat; `times = "observed"` is the first-class variant for users who have
   observed timings (D6).
