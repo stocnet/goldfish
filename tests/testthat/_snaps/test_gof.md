@@ -30,10 +30,30 @@
 # the replication count is checked before anything is computed
 
     Code
-      test_gof(gof_fixture(), n_sim = 0)
+      test_gof(gof_fixture(), nsim = 0)
     Condition
       Error in `test_gof()`:
-      ! `n_sim` must be a single positive number.
+      ! `nsim` must be a single positive number.
+
+# a leftover n_sim is refused, not swallowed by the dots
+
+    Code
+      test_gof(fit, clock = "information", n_sim = 100)
+    Condition
+      Error in `test_gof()`:
+      ! `...` must be empty.
+      x Problematic argument:
+      * n_sim = 100
+
+---
+
+    Code
+      test_gof(flavored_container_fit(), n_sim = 100)
+    Condition
+      Error in `test_gof()`:
+      ! `...` must be empty.
+      x Problematic argument:
+      * n_sim = 100
 
 # an effect contributing no score at all is named, not divided by
 
@@ -61,7 +81,7 @@
 ---
 
     Code
-      header(test_gof(fit, clock = "information", n_sim = 100))
+      header(test_gof(fit, clock = "information", nsim = 100))
     Message
       -- <goldfishGOF> ---------------------------------------------------------------
       Model "DyNAM" · sub-model "rate" · backend "cpp"

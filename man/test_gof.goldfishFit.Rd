@@ -9,7 +9,7 @@
   object,
   effects = NULL,
   clock = c("event", "information"),
-  n_sim = 1000,
+  nsim = 1000,
   ...
 )
 
@@ -31,11 +31,11 @@ Defaults to every free coefficient.}
 \code{"information"} — see the section above. The statistic is the same under
 both.}
 
-\item{n_sim}{the number of replications of the simulated reference on the
+\item{nsim}{the number of replications of the simulated reference on the
 information clock. Ignored on the event clock, whose p-value is analytic.}
 
-\item{...}{additional arguments passed to or from other methods (currently
-unused).}
+\item{...}{must be empty: an argument the method does not take is refused
+rather than silently ignored.}
 
 \item{x}{the \code{test_gof} object the print method renders. It is a separate
 argument because \code{print()}'s own first formal is \code{x}, where this test's

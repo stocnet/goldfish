@@ -179,10 +179,10 @@
 #' @param clock which reference the p-values come from, `"event"` (default) or
 #'   `"information"` — see the section above. The statistic is the same under
 #'   both.
-#' @param n_sim the number of replications of the simulated reference on the
+#' @param nsim the number of replications of the simulated reference on the
 #'   information clock. Ignored on the event clock, whose p-value is analytic.
-#' @param ... additional arguments passed to or from other methods (currently
-#'   unused).
+#' @param ... must be empty: an argument the method does not take is refused
+#'   rather than silently ignored.
 #'
 #' @return An object of class `test_gof`: a list of three
 #'   [tibble::tibble()]s, carrying the metadata described in
@@ -248,9 +248,10 @@ test_gof.goldfishFit <- function(
   object,
   effects = NULL,
   clock = c("event", "information"),
-  n_sim = 1000,
+  nsim = 1000,
   ...
 ) {
+  rlang::check_dots_empty()
   abort_if_stale_result(object, "goodness-of-fit tests")
   abort_if_not_diagnosable(
     object,
@@ -259,7 +260,7 @@ test_gof.goldfishFit <- function(
     primitive = "scores"
   )
   clock <- match.arg(clock)
-  n_sim <- check_replication_count(n_sim)
+  nsim <- check_replication_count(nsim)
 
   tested <- gof_tested_effects(object, effects)
   # Accumulated to one row per dependent event before anything is standardized.
@@ -283,7 +284,7 @@ test_gof.goldfishFit <- function(
   p_value <- if (identical(clock, "event")) {
     kolmogorov_p(statistic)
   } else {
-    gof_simulated_p(columns, paths, statistic, n_sim)
+    gof_simulated_p(columns, paths, statistic, nsim)
   }
 
   labels <- gof_term_labels(object, tested)
@@ -308,7 +309,7 @@ test_gof.goldfishFit <- function(
       n_intervals = nrow(object$event_scores),
       n_events = object$n_events
     ),
-    params = list(clock = clock, n_sim = n_sim)
+    params = list(clock = clock, nsim = nsim)
   )
 }
 
@@ -428,9 +429,9 @@ gof_processes <- function(columns, clock, tested, call = rlang::caller_env()) {
 # is the right centering only when `u` is that same variance profile
 # normalized -- the information axis, which is why this is the information
 # clock's reference and not a general one. Chunked over replications because
-# the raw draw is an n x n_sim matrix and only the per-replication supremum
+# the raw draw is an n x nsim matrix and only the per-replication supremum
 # survives it.
-gof_simulated_p <- function(columns, paths, statistic, n_sim, chunk = 200L) {
+gof_simulated_p <- function(columns, paths, statistic, nsim, chunk = 200L) {
   n <- nrow(columns)
   vapply(
     seq_along(statistic),
@@ -438,7 +439,7 @@ gof_simulated_p <- function(columns, paths, statistic, n_sim, chunk = 200L) {
       increment_sd <- abs(columns[, d]) / paths$scale[d]
       u <- paths$axis[-1L, d]
       exceed <- 0L
-      remaining <- n_sim
+      remaining <- nsim
       while (remaining > 0) {
         size <- min(chunk, remaining)
         draws <- matrix(stats::rnorm(n * size), nrow = n, ncol = size)
@@ -448,8 +449,8 @@ gof_simulated_p <- function(columns, paths, statistic, n_sim, chunk = 200L) {
         remaining <- remaining - size
       }
       # The plus-one form: a p-value of exactly zero would claim more than
-      # `n_sim` replications can support.
-      (1 + exceed) / (1 + n_sim)
+      # `nsim` replications can support.
+      (1 + exceed) / (1 + nsim)
     },
     numeric(1)
   )
@@ -480,7 +481,7 @@ kolmogorov_p <- function(t, terms = 100L) {
 cauchy_omnibus <- function(p_value, n_blocks = NULL) {
   # The transform has poles at 0 and 1, and both are reachable: the Kolmogorov
   # series is clamped into the unit interval, and the simulated p-value is
-  # `(1 + exceed) / (1 + n_sim)`, which is exactly 1 when every replication
+  # `(1 + exceed) / (1 + nsim)`, which is exactly 1 when every replication
   # exceeds. Nudging off the pole keeps the value finite and deterministic
   # rather than whatever `tan()` returns a machine epsilon from pi/2.
   #
@@ -533,14 +534,14 @@ gof_term_labels <- function(object, tested) {
   )
 }
 
-check_replication_count <- function(n_sim, call = rlang::caller_env()) {
-  if (!is.numeric(n_sim) || length(n_sim) != 1L || is.na(n_sim) || n_sim < 1) {
+check_replication_count <- function(nsim, call = rlang::caller_env()) {
+  if (!is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1) {
     cli::cli_abort(
-      "{.arg n_sim} must be a single positive number.",
+      "{.arg nsim} must be a single positive number.",
       call = call
     )
   }
-  as.integer(n_sim)
+  as.integer(nsim)
 }
 
 # The specification (multi-process) fit ---------------------------------------
@@ -607,11 +608,14 @@ test_gof.goldfishFlavFit <- function(
   object,
   effects = NULL,
   clock = c("event", "information"),
-  n_sim = 1000,
+  nsim = 1000,
   ...
 ) {
+  # The components are tested with the named arguments alone, so anything in
+  # the dots would be dropped without a word.
+  rlang::check_dots_empty()
   clock <- match.arg(clock)
-  n_sim <- check_replication_count(n_sim)
+  nsim <- check_replication_count(nsim)
   map <- object$process_map
   # Flavor-major, the order the container itself prints in, so a reader
   # comparing the two tables never has to reorder one of them.
@@ -620,7 +624,7 @@ test_gof.goldfishFlavFit <- function(
   per_block <- lapply(rows, function(i) {
     fit <- object$results[[as.character(map$fid[i])]]
     label <- render_process_label(map, map$fid[i])
-    block <- gof_block(fit, label, effects, clock, n_sim)
+    block <- gof_block(fit, label, effects, clock, nsim)
     lapply(block, function(component) {
       component$flavor <- map$flavor[i]
       component$family <- map$family[i]
@@ -643,7 +647,7 @@ test_gof.goldfishFlavFit <- function(
     components,
     "goldfishGOF",
     context = gof_flavored_context(object, map, rows, components$effects),
-    params = list(clock = clock, n_sim = n_sim)
+    params = list(clock = clock, nsim = nsim)
   )
 }
 
@@ -656,11 +660,11 @@ gof_block <- function(
   label,
   effects,
   clock,
-  n_sim,
+  nsim,
   call = rlang::caller_env()
 ) {
   tryCatch(
-    test_gof(fit, effects = effects, clock = clock, n_sim = n_sim),
+    test_gof(fit, effects = effects, clock = clock, nsim = nsim),
     error = function(e) {
       cli::cli_abort(
         "{.fn test_gof} could not test process {.val {label}}.",
@@ -768,7 +772,7 @@ gof_reference_label <- function(params) {
     "the Kolmogorov distribution on the event clock"
   } else {
     cli::format_inline(
-      "{params$n_sim} simulated bridges on the information clock"
+      "{params$nsim} simulated bridges on the information clock"
     )
   }
 }

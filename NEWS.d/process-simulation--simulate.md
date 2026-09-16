@@ -45,3 +45,6 @@
 * Added `filter_simulation()`, which keeps the replicates of a pool whose
   summary meets every condition, such as `stop_reason == "horizon"`. No
   replicate is excluded unless a filter removes it.
+* Renamed `test_gof()`'s `n_sim` argument to `nsim`, the name `simulate()`
+  uses for its replicate count. `test_gof()` now refuses arguments it does
+  not take, so a leftover `n_sim` is an error rather than silently ignored.
