@@ -91,6 +91,7 @@ class(steps)
 \code{\link[=set_parameter_provider]{set_parameter_provider()}}, \code{\link[=simulate]{simulate()}}.
 
 Other simulation:
+\code{\link[=filter_simulation]{filter_simulation()}},
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
 \code{\link{simulate}},
 \code{\link{simulation-handle}},

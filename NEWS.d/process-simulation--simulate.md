@@ -38,3 +38,10 @@
   end of the observation window, where covariate state is held. A run that
   stays inside the window is no longer warned about a frozen covariate state
   after the last covariate change.
+* `simulate()` with `nsim > 1` returns a `goldfishSimPool`, a list of
+  replicates that prints once in aggregate: the processes, the spread of
+  event counts, and how many replicates stopped at each reason. `summary()`
+  gives one row per replicate.
+* Added `filter_simulation()`, which keeps the replicates of a pool whose
+  summary meets every condition, such as `stop_reason == "horizon"`. No
+  replicate is excluded unless a filter removes it.

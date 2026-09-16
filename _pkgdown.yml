@@ -53,6 +53,7 @@ reference:
   - title: "Simulate"
     contents:
       - simulate
+      - filter_simulation
       - simulation-handle
       - times_of
   - title: "Diagnostics"

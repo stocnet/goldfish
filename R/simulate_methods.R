@@ -82,7 +82,9 @@
 #'   target; `"max_events"`, `"rate_trajectory"` or `"clock_resolution"` for a
 #'   guard), the counts of events and proposals, the `end_time` the clock
 #'   reached, the `window_end`, and the total-rate `trajectory`. For
-#'   `nsim > 1` a list of them.
+#'   `nsim > 1` a `goldfishSimPool`: a list of them that prints in aggregate,
+#'   whose `summary()` gives one row per replicate, and whose replicates are
+#'   selected with [filter_simulation()].
 #'
 #' @seealso [set_simulation_steps()], [set_parameter_provider()],
 #'   [simulation-handle].
@@ -187,7 +189,10 @@ simulate.goldfishJointSpec <- function(
     )
   })
   warn_simulation_conditions(runs, call)
-  if (identical(as.integer(nsim), 1L)) runs[[1L]] else runs
+  if (identical(as.integer(nsim), 1L)) {
+    return(runs[[1L]])
+  }
+  new_goldfish_sim_pool(runs)
 }
 
 #' @rdname simulate

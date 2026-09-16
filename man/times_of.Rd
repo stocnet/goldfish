@@ -83,6 +83,7 @@ times_of(timed)
 \code{\link[=simulate]{simulate()}}
 
 Other simulation:
+\code{\link[=filter_simulation]{filter_simulation()}},
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
 \code{\link{simulate}},

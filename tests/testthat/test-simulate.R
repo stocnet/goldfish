@@ -92,7 +92,7 @@ test_that("a seed makes a run reproducible", {
   expect_equal(first$events, second$events)
 })
 
-test_that("nsim > 1 returns one result per replicate", {
+test_that("nsim > 1 returns a pool of replicates", {
   js <- sim_two_process()
   out <- simulate(
     js,
@@ -102,11 +102,159 @@ test_that("nsim > 1 returns one result per replicate", {
     n_events = 5
   )
 
+  expect_s3_class(out, "goldfishSimPool")
   expect_length(out, 3)
   expect_true(all(vapply(out, inherits, logical(1), "goldfishSim")))
-  expect_equal(vapply(out, function(x) nrow(x$events), integer(1)), rep(5L, 3))
+  expect_equal(
+    unlist(lapply(out, function(x) nrow(x$events))),
+    rep(5L, 3)
+  )
   # Independent draws, not the same sequence three times.
   expect_false(isTRUE(all.equal(out[[1]]$events, out[[2]]$events)))
+  expect_s3_class(out[2:3], "goldfishSimPool")
+  expect_s3_class(out[[2]], "goldfishSim")
+})
+
+test_that("a pool prints its aggregate, not its replicates", {
+  local_cli_context()
+  js <- sim_two_process()
+  pool <- simulate(
+    js,
+    nsim = 3,
+    seed = 3,
+    coef = sim_two_process_parameters(js)
+  )
+
+  expect_snapshot(print(pool))
+  expect_snapshot(print(pool[[2]]))
+
+  guarded <- suppressWarnings(simulate(
+    js,
+    nsim = 6,
+    seed = 2,
+    coef = sim_two_process_parameters(js),
+    max_events = 20
+  ))
+  expect_snapshot(print(guarded))
+})
+
+test_that("a pool summarizes each replicate", {
+  js <- sim_two_process()
+  pool <- simulate(
+    js,
+    nsim = 3,
+    seed = 3,
+    coef = sim_two_process_parameters(js)
+  )
+
+  summary <- summary(pool)
+
+  expect_identical(
+    vapply(summary, typeof, character(1)),
+    c(
+      replicate = "integer",
+      n_events = "integer",
+      end_time = "double",
+      stop_reason = "character",
+      capped = "logical",
+      n_proposals = "integer",
+      acceptance_rate = "double"
+    )
+  )
+  expect_identical(summary$replicate, 1:3)
+  expect_identical(
+    summary$n_events,
+    unlist(lapply(pool, function(x) nrow(x$events)))
+  )
+  expect_identical(summary$stop_reason, rep("horizon", 3))
+})
+
+test_that("filter_simulation() keeps replicates by their summary", {
+  js <- sim_two_process()
+  parameters <- sim_two_process_parameters(js)
+  # Run to the window end, a guard of 20 proposals sits inside the spread of
+  # the drawn counts, so some replicates stop at it and others at the horizon.
+  pool <- suppressWarnings(simulate(
+    js,
+    nsim = 6,
+    seed = 2,
+    coef = parameters,
+    max_events = 20
+  ))
+  summary <- summary(pool)
+  capped <- summary$replicate[summary$capped]
+  expect_gt(length(capped), 0)
+  expect_lt(length(capped), 6)
+
+  kept <- filter_simulation(pool, stop_reason == "max_events")
+  expect_s3_class(kept, "goldfishSimPool")
+  expect_identical(summary(kept)$replicate, capped)
+  expect_length(pool, 6)
+
+  # A variable of the calling environment is read alongside the columns.
+  threshold <- 15L
+  by_count <- filter_simulation(pool, n_events < threshold)
+  expect_identical(
+    summary(by_count)$replicate,
+    summary$replicate[summary$n_events < threshold]
+  )
+})
+
+test_that("filter_simulation() combines its conditions with AND", {
+  js <- sim_two_process()
+  pool <- simulate(
+    js,
+    nsim = 4,
+    seed = 5,
+    coef = sim_two_process_parameters(js)
+  )
+  summary <- summary(pool)
+  cut <- stats::median(summary$n_events)
+
+  kept <- filter_simulation(pool, !capped, n_events > cut)
+
+  expect_identical(
+    summary(kept)$replicate,
+    summary$replicate[!summary$capped & summary$n_events > cut]
+  )
+})
+
+test_that("filter_simulation() refuses a condition outside the summary", {
+  local_cli_context()
+  js <- sim_two_process()
+  pool <- simulate(
+    js,
+    nsim = 2,
+    seed = 1,
+    coef = sim_two_process_parameters(js)
+  )
+
+  expect_snapshot(
+    filter_simulation(pool, stop_reasn == "horizon"),
+    error = TRUE
+  )
+  expect_snapshot(
+    filter_simulation(pool, n_events[1] > 0),
+    error = TRUE
+  )
+})
+
+test_that("a filter keeping nothing returns an empty pool that prints", {
+  local_cli_context()
+  js <- sim_two_process()
+  pool <- simulate(
+    js,
+    nsim = 2,
+    seed = 1,
+    coef = sim_two_process_parameters(js)
+  )
+
+  empty <- filter_simulation(pool, n_events < 0)
+
+  expect_s3_class(empty, "goldfishSimPool")
+  expect_length(empty, 0)
+  expect_identical(nrow(summary(empty)), 0L)
+  expect_snapshot(print(empty))
 })
 
 test_that("a constant provider reproduces the plain coef path", {

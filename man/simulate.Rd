@@ -74,7 +74,9 @@ run \code{diagnostics}: the \code{stop_reason} (\code{"n_events"} or \code{"hori
 target; \code{"max_events"}, \code{"rate_trajectory"} or \code{"clock_resolution"} for a
 guard), the counts of events and proposals, the \code{end_time} the clock
 reached, the \code{window_end}, and the total-rate \code{trajectory}. For
-\code{nsim > 1} a list of them.
+\code{nsim > 1} a \code{goldfishSimPool}: a list of them that prints in aggregate,
+whose \code{summary()} gives one row per replicate, and whose replicates are
+selected with \code{\link[=filter_simulation]{filter_simulation()}}.
 }
 \description{
 Generates event sequences from a goldfish model: the waiting time and the
@@ -128,6 +130,7 @@ data("Social_Evolution", package = "goldfish")
 \link{simulation-handle}.
 
 Other simulation:
+\code{\link[=filter_simulation]{filter_simulation()}},
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
 \code{\link{simulation-handle}},

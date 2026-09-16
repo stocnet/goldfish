@@ -1,3 +1,73 @@
+# a pool prints its aggregate, not its replicates
+
+    Code
+      print(pool)
+    Message
+      -- <goldfishSimPool> -----------------------------------------------------------
+      3 replicates · times "generated" (from the specification) · 4 processes
+      * calls › rate [fid 1] (modeled)
+      * calls › choice [fid 2] (modeled)
+      * emails › rate [fid 3] (modeled)
+      * emails › choice [fid 4] (modeled)
+      Events per replicate: min 14 · median 18 · mean 18.0 · max 22
+      Stop reasons: horizon 3
+      i Select replicates by their summary with `filter_simulation()`.
+
+---
+
+    Code
+      print(pool[[2]])
+    Message
+      <goldfishSim>: 14 events
+      times: "generated" — from the specification (timed rate)
+      * calls › rate (modeled)
+      * calls › choice (modeled)
+      * emails › rate (modeled)
+      * emails › choice (modeled)
+
+---
+
+    Code
+      print(guarded)
+    Message
+      -- <goldfishSimPool> -----------------------------------------------------------
+      6 replicates · times "generated" (from the specification) · 4 processes
+      * calls › rate [fid 1] (modeled)
+      * calls › choice [fid 2] (modeled)
+      * emails › rate [fid 3] (modeled)
+      * emails › choice [fid 4] (modeled)
+      Events per replicate: min 14 · median 18 · mean 17.3 · max 20
+      Stop reasons: horizon 3 · max_events 3
+      ! 3 replicates stopped at a guard.
+      i Select replicates by their summary with `filter_simulation()`.
+
+# filter_simulation() refuses a condition outside the summary
+
+    Code
+      filter_simulation(pool, stop_reasn == "horizon")
+    Condition
+      Error in `filter_simulation()`:
+      ! Cannot filter on stop_reasn: not a column of the pool's summary.
+      i The summary has replicate, n_events, end_time, stop_reason, capped, n_proposals, and acceptance_rate.
+
+---
+
+    Code
+      filter_simulation(pool, n_events[1] > 0)
+    Condition
+      Error in `filter_simulation()`:
+      ! `n_events[1] > 0` must give one logical per replicate.
+      x It gave a <logical> of length 1 for 2 replicates.
+
+# a filter keeping nothing returns an empty pool that prints
+
+    Code
+      print(empty)
+    Message
+      -- <goldfishSimPool> -----------------------------------------------------------
+      0 replicates
+      i Select replicates by their summary with `filter_simulation()`.
+
 # anchoring a timed model is announced, then refused for now
 
     Code
