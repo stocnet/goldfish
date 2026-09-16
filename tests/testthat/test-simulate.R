@@ -651,3 +651,45 @@ test_that("a fitted model without data says so", {
   # A goldfishFit stores its formula and estimates, never the stocnet.
   expect_error(simulate(fit, n_events = 2), class = "goldfish_sim_no_data")
 })
+
+test_that("a fitted REM model simulates on its focal layer", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "REM",
+    data = data
+  )
+  fit <- suppressMessages(estimate_rem(spec, sub_model = "rate"))
+
+  expect_identical(as.character(times_of(fit)), "generated")
+  # The rebuilt REM specification announces its time intercept again.
+  out <- suppressMessages(
+    simulate(fit, nsim = 1, seed = 3, data = data, n_events = 4)
+  )
+  expect_s3_class(out, "goldfishSim")
+  expect_equal(nrow(out$events), 4)
+  expect_true(all(out$events$layer == "calls"))
+})
+
+test_that("a fitted ordered rate rebuilds ordered and refuses a clock", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~indeg,
+    rate_sub_model = "rate_ordered",
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  fit <- estimate_dynam(spec, sub_model = "rate")
+
+  times <- times_of(fit)
+  expect_identical(as.character(times), "observed")
+  expect_identical(attr(times, "reason"), "ordered rate")
+  # Rebuilt timed, the rate would draw waiting times from a clock the fit
+  # never estimated.
+  expect_error(
+    simulate(fit, data = data, times = "generated", n_events = 2),
+    class = "goldfish_sim_no_clock"
+  )
+})
