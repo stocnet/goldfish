@@ -79,7 +79,12 @@ simulate_replicate <- function(
   updates <- simulation_mark_updates(spec)
   pinned <- spec$completed_rates %||% list()
   latent <- provider$init(replicate, handle)
-  collector <- new_event_collector()
+  # A run never accepts more events than it proposes, and `max_events` bounds
+  # the proposals, so the run's size is known before its first draw.
+  collector <- new_event_collector(
+    capacity = min(n_events %||% max_events, max_events),
+    observed = n_observed
+  )
   trajectory <- new_rate_trajectory(
     observed_wait = (window$end - window$start) / n_observed
   )
@@ -182,7 +187,7 @@ simulate_replicate <- function(
     end_time = t,
     window_end = window_end,
     trajectory = rate_trajectory_frame(trajectory),
-    latent = collector$latent,
+    latent = collector_latent(collector),
     spec = spec,
     replicate = replicate
   )
@@ -791,43 +796,94 @@ provider_parameters <- function(resolved, routing, call) {
 # Collecting the sequence
 # --------------------------------------------------------------------------- #
 
-new_event_collector <- function() {
+# One typed vector per output column plus the latent path, allocated once at
+# the run's capacity and written by index, so an event costs a few element
+# writes rather than a data frame. A capacity whose columns would pass the
+# byte budget starts at the observed dependent count instead and doubles.
+new_event_collector <- function(capacity, observed) {
+  if (capacity * SIM_EVENT_BYTES > sim_collector_byte_budget()) {
+    capacity <- max(observed, 1L)
+  }
   env <- new.env(parent = emptyenv())
-  env$rows <- list()
-  env$latent <- list()
+  allocate_event_columns(env, capacity)
+  env$n <- 0L
   env
 }
 
-collect_event <- function(collector, event, fid, map, latent) {
-  row <- match(fid, map$fid)
-  collector$rows[[length(collector$rows) + 1L]] <- data.frame(
-    time = event$time,
-    layer = event$layer,
-    flavor = map$flavor[row],
-    sender = event$sender %||% NA_integer_,
-    receiver = event$receiver %||% NA_integer_,
-    increment = event$increment %||% NA_real_,
-    fid = fid,
-    stringsAsFactors = FALSE
-  )
-  collector$latent[[length(collector$latent) + 1L]] <- latent
+# Bytes one collected event occupies: three doubles, three integers, and the
+# pointers of two strings and a latent entry.
+SIM_EVENT_BYTES <- 3L * 8L + 3L * 4L + 3L * 8L
+
+# The largest columns a run allocates up front, 64 MB: about 1.1 million
+# events, beyond the default guard of any data set this package fits.
+sim_collector_byte_budget <- function() 64 * 1024^2
+
+allocate_event_columns <- function(env, capacity) {
+  env$time <- numeric(capacity)
+  env$layer <- character(capacity)
+  env$flavor <- character(capacity)
+  env$sender <- integer(capacity)
+  env$receiver <- integer(capacity)
+  env$increment <- numeric(capacity)
+  env$fid <- integer(capacity)
+  env$latent <- vector("list", capacity)
   invisible(NULL)
 }
 
-collector_frame <- function(collector) {
-  if (length(collector$rows) == 0L) {
-    return(data.frame(
-      time = numeric(0),
-      layer = character(0),
-      flavor = character(0),
-      sender = integer(0),
-      receiver = integer(0),
-      increment = numeric(0),
-      fid = integer(0),
-      stringsAsFactors = FALSE
-    ))
+grow_event_columns <- function(collector) {
+  size <- max(2L * length(collector$time), 1L)
+  for (column in c(SIM_EVENT_COLUMNS, "latent")) {
+    length(collector[[column]]) <- size
   }
-  do.call(rbind, collector$rows)
+  invisible(NULL)
+}
+
+SIM_EVENT_COLUMNS <- c(
+  "time",
+  "layer",
+  "flavor",
+  "sender",
+  "receiver",
+  "increment",
+  "fid"
+)
+
+collect_event <- function(collector, event, fid, map, latent) {
+  k <- collector$n + 1L
+  if (k > length(collector$time)) {
+    grow_event_columns(collector)
+  }
+  collector$time[k] <- event$time
+  collector$layer[k] <- event$layer
+  collector$flavor[k] <- map$flavor[match(fid, map$fid)]
+  collector$sender[k] <- event$sender %||% NA_integer_
+  collector$receiver[k] <- event$receiver %||% NA_integer_
+  collector$increment[k] <- event$increment %||% NA_real_
+  collector$fid[k] <- fid
+  # `[<-` with a list, not `[[<-`: assigning NULL through `[[` would delete
+  # the slot rather than record a step without latent state.
+  collector$latent[k] <- list(latent)
+  collector$n <- k
+  invisible(NULL)
+}
+
+# The columns cut to the events drawn, set as a data frame in place: no
+# `data.frame()` call and no bind.
+collector_frame <- function(collector) {
+  keep <- seq_len(collector$n)
+  columns <- lapply(
+    stats::setNames(SIM_EVENT_COLUMNS, SIM_EVENT_COLUMNS),
+    function(column) collector[[column]][keep]
+  )
+  structure(
+    columns,
+    class = "data.frame",
+    row.names = .set_row_names(collector$n)
+  )
+}
+
+collector_latent <- function(collector) {
+  collector$latent[seq_len(collector$n)]
 }
 
 # --------------------------------------------------------------------------- #

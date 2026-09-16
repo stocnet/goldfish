@@ -863,6 +863,71 @@ test_that("a call warns once about guard stops and the frozen state", {
   )
 })
 
+test_that("the collected events are identical to the per-event frames", {
+  frozen <- readRDS(test_path("fixtures", "simulated_events.rds"))
+
+  runs <- suppressWarnings(simulated_events_runs())
+
+  expect_identical(runs, frozen)
+})
+
+test_that("the collector grows from the observed count above its budget", {
+  frozen <- readRDS(test_path("fixtures", "simulated_events.rds"))
+  # A budget no run fits under: capacity starts at the observed count and
+  # doubles as the run outgrows it.
+  local_mocked_bindings(sim_collector_byte_budget = function() 0)
+
+  runs <- suppressWarnings(simulated_events_runs())
+
+  expect_identical(runs, frozen)
+})
+
+test_that("a run that draws no event returns the typed empty frame", {
+  js <- sim_two_process()
+
+  out <- simulate(
+    js,
+    nsim = 1,
+    seed = 1,
+    coef = sim_two_process_parameters(js),
+    n_events = 0
+  )
+
+  expect_identical(
+    out$events,
+    data.frame(
+      time = numeric(0),
+      layer = character(0),
+      flavor = character(0),
+      sender = integer(0),
+      receiver = integer(0),
+      increment = numeric(0),
+      fid = integer(0)
+    )
+  )
+})
+
+test_that("a run stopping short of its capacity is cut to its events", {
+  js <- sim_two_process()
+
+  out <- simulate(
+    js,
+    nsim = 1,
+    seed = 3,
+    coef = sim_two_process_parameters(js),
+    horizon = 3,
+    max_events = 500
+  )
+
+  expect_lt(nrow(out$events), 500)
+  expect_identical(
+    lengths(unclass(out$events)),
+    rep(nrow(out$events), 7) |> stats::setNames(names(out$events))
+  )
+  expect_false(anyNA(out$events[c("time", "sender", "receiver", "fid")]))
+  expect_identical(attr(out$events, "row.names"), seq_len(nrow(out$events)))
+})
+
 test_that("a fitted model simulates on the data it is given", {
   data <- sim_fixture_data()
   spec <- make_specification(
