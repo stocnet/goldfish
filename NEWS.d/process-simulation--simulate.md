@@ -25,3 +25,8 @@
   simulated events are written into the modeled network even though no effect
   reads it, and a flavored layer's creation and dissolution masks stay current.
   Estimation results are unchanged.
+* Fixed `simulate()` on a fitted model rebuilding its formula in a different
+  term order: a fit whose interaction was written before a main effect
+  simulated with its estimates on the wrong statistics. The rebuild now keeps
+  the fit's terms as written and the intercept estimation added, so
+  simulating a timed rate no longer announces a time intercept.

@@ -714,6 +714,54 @@ test_that("a fitted model simulates on the data it is given", {
   expect_true(all(out$events$layer == "calls"))
 })
 
+test_that("a fitted timed rate rebuilds with the intercept it estimated", {
+  data <- sim_fixture_data()
+  spec <- suppressMessages(make_specification(
+    rate = ~indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  ))
+  fit <- suppressMessages(estimate_dynam(spec, sub_model = "rate"))
+
+  # Estimation added the intercept; the stored formula does not write it.
+  expect_identical(deparse1(fit$formula), "calls ~ indeg")
+  expect_no_message(
+    out <- suppressWarnings(
+      simulate(fit, nsim = 1, seed = 8, data = data, n_events = 5)
+    )
+  )
+  expect_equal(nrow(out$events), 5)
+})
+
+test_that("a fit with an interaction before a main effect keeps its terms", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + indeg:ego(floor) + outdeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  fit <- estimate_dynam(spec, sub_model = "rate")
+
+  # Simulating the fit is simulating its specification at its estimates: each
+  # coefficient reaches the statistic it was estimated on.
+  from_fit <- suppressWarnings(simulate(
+    fit,
+    seed = 1,
+    data = social_evolution,
+    n_events = 30
+  ))
+  from_spec <- suppressWarnings(simulate(
+    spec,
+    seed = 1,
+    coef = fit$parameters,
+    n_events = 30
+  ))
+
+  expect_identical(from_fit$events, from_spec$events)
+})
+
 test_that("a fitted model without data says so", {
   local_cli_context()
   data <- sim_fixture_data()
@@ -740,9 +788,10 @@ test_that("a fitted REM model simulates on its focal layer", {
   fit <- suppressMessages(estimate_rem(spec, sub_model = "rate"))
 
   expect_identical(as.character(times_of(fit)), "generated")
-  # The rebuilt REM specification announces its time intercept again.
-  out <- suppressMessages(
-    simulate(fit, nsim = 1, seed = 3, data = data, n_events = 4)
+  # The rebuilt specification keeps the fit's intercept, so the walk has no
+  # intercept to add and nothing to announce.
+  expect_no_message(
+    out <- simulate(fit, nsim = 1, seed = 3, data = data, n_events = 4)
   )
   expect_s3_class(out, "goldfishSim")
   expect_equal(nrow(out$events), 4)

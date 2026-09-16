@@ -319,18 +319,40 @@ specification_from_fit <- function(fit, data, call) {
     )
   }
   layer <- deparse1(formula[[2L]])
-  rhs <- stats::reformulate(
-    attr(stats::terms(formula), "term.labels"),
-    intercept = attr(stats::terms(formula), "intercept") == 1L
-  )
-  # The family is read off the fit's descriptor, not the legacy
-  # `fit$sub_model`, which reports an REM rate as "choice". The resolved
-  # sub-model travels with the formula: rebuilt without it, an ordered rate
-  # would come back timed and simulate a clock the fit never estimated.
+  rhs <- fit_right_hand_side(formula, fit$model_spec)
+  # The family is read off the fit's descriptor because that is where the
+  # family lives. The resolved sub-model travels with the formula: rebuilt
+  # without it, an ordered rate would come back timed and simulate a clock the
+  # fit never estimated.
   family <- if (is_choice_family(fit$model_spec)) "choice" else "rate"
   sub_model <- fit$model_spec$sub_model %||% fit$sub_model
   args <- list(layer = layer, model = fit$model, data = data)
   args[[family]] <- rhs
   args[[paste0(family, "_sub_model")]] <- sub_model
   do.call(make_specification, args)
+}
+
+# The one-sided formula a fit was estimated on, its terms kept as written.
+# Rebuilding through `terms()` would reorder them and drop a written `1`: the
+# fit's coefficient vector follows the written order, operand-only columns
+# included, so a reordered formula hands estimates to the wrong statistics.
+# An intercept estimation added itself is recorded only on the descriptor --
+# the stored formula of a fit of `~ indeg` is `calls ~ indeg` -- so it is
+# written back here, or the walk would add it again and announce it.
+fit_right_hand_side <- function(formula, model_spec) {
+  rhs <- formula[[3L]]
+  if (isTRUE(model_spec$has_intercept) && !has_explicit_intercept(rhs)) {
+    rhs <- prepend_intercept(rhs)
+  }
+  stats::as.formula(call("~", rhs), env = environment(formula))
+}
+
+# `a + b` becomes `1 + a + b`, not `1 + (a + b)`: the `1` goes on the leftmost
+# operand, where the intercept parser looks for it.
+prepend_intercept <- function(rhs) {
+  if (is.call(rhs) && length(rhs) == 3L && identical(rhs[[1L]], as.name("+"))) {
+    rhs[[2L]] <- prepend_intercept(rhs[[2L]])
+    return(rhs)
+  }
+  call("+", 1, rhs)
 }
