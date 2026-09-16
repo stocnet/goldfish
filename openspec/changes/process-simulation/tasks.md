@@ -118,6 +118,14 @@
       unchanged on a fixture that reads its own focal layer, and the frozen
       baselines PASS. Storage (dense vs sparse state) is out of scope — vault
       ADR-0081
+      — *scheduled 2026-09-16*: **second, after 3.1a and before 2.8**. It is
+      2.8's prerequisite, not merely tidier first: 2.8 replays an unmodeled
+      flavor's observed events as *exogenous rows*, and a focal layer's rows
+      can only be applied that way once the layer is a registered object with
+      a covariate stream. With 2.0f landed, 2.8 filters that stream (apply the
+      rows whose value maps to an unmodeled flavor) instead of building the
+      plumbing itself; `exo_rows`' wholesale exclusion of focal layers is the
+      one piece 2.8 still owns
 - [x] 2.1 `simulate()` S3 generic + methods (fitted result → θ̂; specification →
       explicit `coef`) with the `times = c("generated", "observed")` axis,
       driving `walk_open`/`walk_advance`/`walk_evaluate`/`walk_inject`; the
@@ -352,6 +360,11 @@
       exogenous rows they are breakpoints, so the clock redraws at each one,
       which is the right-censoring with no mechanism of its own. The regime
       reads `process_map$completed` (2.2a)
+      — *scheduled 2026-09-16*: **after 2.0f**, which registers the focal
+      layer and appends its covariate stream. The replayed rows are that
+      stream's rows, so 2.8 selects which of them to apply rather than
+      inventing a stream for them; what stays 2.8's own is `exo_rows`, which
+      today excludes every focal layer wholesale
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
@@ -450,6 +463,9 @@
       `times_of(fit)` is `"observed"` with reason `"ordered rate"` and
       `simulate(fit, times = "generated")` aborts `goldfish_sim_no_clock`
       rather than generating one
+      — *scheduled 2026-09-16*: **first**. It depends on nothing, touches only
+      tests, and guards a fix that shipped in 2.2e with no test behind it, so
+      it rides the next `NOT_CRAN=true` run rather than earning one of its own
 - [ ] 3.2 `simulate()` reference + a simulation section in the model-usage
       vignette (the `times` axis, per-distribution clocks, per-mechanism
       coordination, which GOF statistics need which variant);
