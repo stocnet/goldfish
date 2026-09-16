@@ -327,9 +327,10 @@ per-replicate summary (replicate number, event count, end time, stop reason,
 capped flag, proposals, acceptance rate) returned by `summary()`, and prints
 that summary in aggregate — the process map and `times` once, the distribution
 of event counts, and the count of each stop reason — rather than every
-replicate. Excluding replicates SHALL be an explicit filter whose condition is
-evaluated against the per-replicate summary and which returns a pool of the
-kept replicates with their original replicate numbers; no replicate SHALL be
+replicate. Excluding replicates SHALL be an explicit call to
+`filter_simulation()`, whose conditions are evaluated against the
+per-replicate summary, combined with AND, and which returns a pool of the kept
+replicates with their original replicate numbers; no replicate SHALL be
 excluded by default.
 
 #### Scenario: a pool prints its aggregate, not its replicates
@@ -341,10 +342,17 @@ excluded by default.
 
 #### Scenario: a filter removes replicates by a stated criterion
 
-- **WHEN** a pool of 100 replicates, 7 of them stopped at a guard, is filtered
-  to replicates whose stop reason is the horizon
+- **WHEN** a pool of 100 replicates, 7 of them stopped at a guard, is passed
+  to `filter_simulation(pool, stop_reason == "horizon")`
 - **THEN** the result is a pool of the 93 kept replicates, each keeping its
   original replicate number, and the unfiltered pool is unchanged.
+
+#### Scenario: a filter condition outside the summary is refused
+
+- **WHEN** `filter_simulation()` is given a condition naming a column the
+  per-replicate summary does not have
+- **THEN** it aborts, naming the unknown column and listing the summary's
+  columns, and returns no pool.
 
 ### Requirement: Windowed effects self-schedule expiry during free-running simulation
 

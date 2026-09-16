@@ -368,9 +368,9 @@
       written before a main effect simulates with its coefficients on the
       same terms
       — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
-      2.2j → 2.2k. Independent of 2.8's replay; ahead of it so 2.8's tests
-      run against the rebuilt fits, the horizon default, the flag-only guard
-      and the pool
+      2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
+      tests run against the rebuilt fits, the horizon default, the
+      flag-only guard and the pool
 - [ ] 2.2i With no target, a free-running run stops at the observed horizon
       (added 2026-09-16, D3 amendments, ADR-0083 and ADR-0084): when neither
       `n_events` nor `horizon` is given and `times = "generated"`, `horizon`
@@ -410,9 +410,9 @@
       an `n_events` run past the window end on `nsim = 3` emits exactly one
       warning naming both conditions when both occur
       — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
-      2.2j → 2.2k. Independent of 2.8's replay; ahead of it so 2.8's tests
-      run against the rebuilt fits, the horizon default, the flag-only guard
-      and the pool
+      2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
+      tests run against the rebuilt fits, the horizon default, the
+      flag-only guard and the pool
 - [ ] 2.2j Collect simulated events into pre-allocated columns (added
       2026-09-16, D1 amendment): replace the per-event one-row `data.frame`
       and final `rbind` (about 130 us per event, 10% of a 439-event run) with
@@ -426,9 +426,9 @@
       run; a zero-event run returns the typed empty frame; a run stopping
       short of capacity is cut to its count
       — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
-      2.2j → 2.2k. Independent of 2.8's replay; ahead of it so 2.8's tests
-      run against the rebuilt fits, the horizon default, the flag-only guard
-      and the pool
+      2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
+      tests run against the rebuilt fits, the horizon default, the
+      flag-only guard and the pool
 - [ ] 2.2k `nsim > 1` returns a `goldfishSimPool` (added 2026-09-16, D1
       amendment, ADR-0086 and ADR-0085): class `c("goldfishSimPool",
       "list")` with `[` keeping the class; a per-replicate summary
@@ -438,19 +438,44 @@
       process lines with `render_process_label()` and fid, events-per-replicate
       min / median / mean / max, stop-reason counts, guard alert, closing `i`
       hint), rendered with cli and pinned by a snapshot under a reproducible
-      cli context; the explicit filter over the summary (`subset()` method
-      proposed, name confirmed here per ADR-0085) returning the kept
-      replicates' pool with original replicate numbers. `@return` of
+      cli context; the exported `filter_simulation(pool, ...)` (ADR-0087):
+      conditions evaluated against the summary and combined with AND,
+      returning the kept replicates' pool with original replicate numbers,
+      aborting on an unknown column (listing the summary's columns) or a
+      condition that is not one logical per replicate. `@return` of
       `simulate()`, roxygen, `devtools::document()`, a
       `NEWS.d/process-simulation--simulate.md` bullet. Tests: print snapshot
       for `nsim = 3`; `pool[[2]]` prints one replicate; `lapply()` and
       `length()` work; `summary()` columns and types; a filter keeping
       replicates by stop reason and by event count, the source pool unchanged;
-      a filter keeping nothing returns an empty pool that prints
+      two conditions combine with AND; an unknown column aborts with its
+      snapshot; a filter keeping nothing returns an empty pool that prints
       — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
-      2.2j → 2.2k. Independent of 2.8's replay; ahead of it so 2.8's tests
-      run against the rebuilt fits, the horizon default, the flag-only guard
-      and the pool
+      2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
+      tests run against the rebuilt fits, the horizon default, the
+      flag-only guard and the pool
+- [ ] 2.2l `test_gof()` names its replicate count `nsim` (added 2026-09-16,
+      ADR-0087): rename the `n_sim` argument of `test_gof.goldfishFit()` and
+      `test_gof.goldfishFlavFit()` to `nsim`, matching `stats::simulate()`,
+      whose argument goldfish's `simulate()` methods must keep. `test_gof()`
+      is post-v1.7.0 and in no tag, so the rename is outright, with no
+      lifecycle deprecation. Covers the `check_replication_count()` message
+      (`{.arg nsim}`), the stored `params$n_sim`, internal helpers
+      (`gof_simulated_p()`, `gof_block()`), the roxygen `@param`,
+      `devtools::document()`, `tests/testthat/test-test_gof.R` and its
+      snapshot (re-accept the three changed blocks, review the diff),
+      `vignettes/diagnostics.Rmd.orig` then regenerate the precompiled
+      `.Rmd`, and a NEWS.d bullet. Both methods take `...` and never check it
+      (`R/test_gof.R`), so a leftover `n_sim = 200` would be swallowed and the
+      test would run silently at the default 1000: the methods check their
+      dots (`rlang::check_dots_empty()` on `goldfishFit`; on
+      `goldfishFlavFit`, whatever it forwards to the components, checked
+      there). Tests: `test_gof(fit, nsim = 100)` runs with 100 replications;
+      `test_gof(fit, n_sim = 100)` aborts naming `n_sim`, pinned by a snapshot
+      — *scheduled 2026-09-16*: **before 2.8**, in the order 2.2h → 2.2i →
+      2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
+      tests run against the rebuilt fits, the horizon default, the
+      flag-only guard and the pool
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
@@ -472,7 +497,8 @@
       inventing a stream for them; what stays 2.8's own is `exo_rows`, which
       today excludes every focal layer wholesale
       — *re-scheduled 2026-09-16 (later)*: after **2.2h → 2.2i → 2.2j →
-      2.2k**. Queue: 2.2h → 2.2i → 2.2j → 2.2k → 2.8 → 2.8b → 2.3
+      2.2k → 2.2l**. Queue: 2.2h → 2.2i → 2.2j → 2.2k → 2.2l → 2.8 → 2.8b
+      → 2.3
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures

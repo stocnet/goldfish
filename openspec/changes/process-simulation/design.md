@@ -197,7 +197,7 @@ naming the class, a count line joined with `·`, process lines labeled by
 Events per replicate: min 402 · median 438 · mean 441.3 · max 489
 Stop reasons: horizon 93 · rate_trajectory 5 · max_events 2
 ! 7 replicates stopped at a guard.
-i Select replicates by their summary with `subset()`.
+i Select replicates by their summary with `filter_simulation()`.
 ```
 
 The processes and `times` lines print once because they are properties of
@@ -209,11 +209,25 @@ as the footer. Until then it follows the joint specification's print by
 hand, which is the layout that renderer is extracted from.
 
 Exclusion is an explicit filter over the same summary, never a default
-(ADR-0085, D3 amendment): `subset(pool, stop_reason == "horizon")` or
-`subset(pool, !capped & n_events > 100)` evaluates the condition against the
-per-replicate summary and returns the pool of the replicates it keeps, with
-their original replicate numbers. The surface name is confirmed at task
-2.2k (ADR-0085 open question). Task 2.2k.
+(ADR-0085, D3 amendment), through an exported `filter_simulation(pool, ...)`
+(ADR-0087): each condition in `...` is evaluated against the per-replicate
+summary, several are combined with AND, and the result is a
+`goldfishSimPool` of the kept replicates with their original replicate
+numbers, the source pool unchanged. `filter_simulation(pool, stop_reason ==
+"horizon")` keeps the runs that reached the horizon;
+`filter_simulation(pool, !capped, n_events > 100)` keeps the uncapped runs
+with more than 100 events. A condition naming a column the summary does not
+have aborts, listing the columns it does have; a condition that is not one
+logical per replicate aborts too. A named verb rather than an S3 `subset()`
+method, so the function is discoverable beside `simulate()` and says what
+it filters. Task 2.2k.
+
+The replicate count keeps the name `stats::simulate()` gives it, `nsim`
+(ADR-0087). goldfish's methods register on that generic, and R CMD check
+requires a method to keep the generic's argument names, so `n_sim` could only
+be added as a second spelling beside `nsim`. `test_gof()` takes the other
+side of that consistency and renames its `n_sim` to `nsim`, so both
+functions that draw replicates name the count the same way. Task 2.2l.
 
 ### D2 — Timing strategies keyed on the distribution axis (revised 2026-08-19)
 
