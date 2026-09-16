@@ -353,7 +353,7 @@
       supplied**: left at its default, both authored-`~ 1` shapes died earlier
       in `observed_dependent_count()` with the parser's "A model needs at
       least one effect term" (fixed in 2.2d)
-- [ ] 2.2h The fit rebuild keeps the fit's right-hand side verbatim (added
+- [x] 2.2h The fit rebuild keeps the fit's right-hand side verbatim (added
       2026-09-16, D1 amendment): `specification_from_fit()` drops the
       response and keeps every term as written instead of rebuilding through
       `terms()` + `reformulate()`, which never writes an explicit `1`, and
@@ -371,7 +371,16 @@
       2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
       tests run against the rebuilt fits, the horizon default, the
       flag-only guard and the pool
-- [ ] 2.2i With no target, a free-running run stops at the observed horizon
+      — *done 2026-09-16* `469b79d` (goldfish-f0), 8830 / 0 / 4, six baseline
+      files PASS. **Contradicts the verified fact** that no misalignment
+      exists today: `fit$parameters` carries operand-only columns in written
+      order (`Intercept, indeg, ego, outdeg, indeg:ego`) while the
+      `reformulate()` rebuild compiled `Intercept, outdeg, indeg, ego,
+      indeg:ego`, so `~ 1 + indeg:ego(floor) + outdeg` simulated with the
+      `outdeg` estimate on `ego(floor)`. The interaction test (fit events ==
+      specification events at `fit$parameters`, same seed) failed before the
+      change for that reason. `1` is prepended on the leftmost operand
+- [x] 2.2i With no target, a free-running run stops at the observed horizon
       (added 2026-09-16, D3 amendments, ADR-0083 and ADR-0084): when neither
       `n_events` nor `horizon` is given and `times = "generated"`, `horizon`
       defaults to `resolve_walk_extent(handle$merged, control_prep)$end` — the
@@ -413,7 +422,18 @@
       2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
       tests run against the rebuilt fits, the horizon default, the
       flag-only guard and the pool
-- [ ] 2.2j Collect simulated events into pre-allocated columns (added
+      — *done 2026-09-16* `878e267` (goldfish-f0), 8874 / 0 / 4, six baseline
+      files PASS. Trajectory thresholds (ADR-0088, proposed): total rate >
+      1000 x its value at the first drawn event, or median of the last 50
+      waits < observed mean wait / 1000. Measured on `social_evolution`,
+      six seeds to the window end: bounded fits peak at 22.6x and keep the
+      median wait >= 0.041 of the observed mean; every degree-effect rate fit
+      (REM `indeg`, `outdeg`; DyNAM `indeg`, `outdeg`, `indeg + outdeg`) hits
+      `max_events` on every seed and crosses both by its 1500th event. The
+      REM `~ 1 + indeg` run now stops at `rate_trajectory` after ~30 events.
+      `diagnostics` gains `end_time`, `window_end`, `trajectory`; the capped
+      print names the guard and stop time
+- [x] 2.2j Collect simulated events into pre-allocated columns (added
       2026-09-16, D1 amendment): replace the per-event one-row `data.frame`
       and final `rbind` (about 130 us per event, 10% of a 439-event run) with
       one typed vector per output column plus a latent list, allocated once
@@ -429,7 +449,13 @@
       2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
       tests run against the rebuilt fits, the horizon default, the
       flag-only guard and the pool
-- [ ] 2.2k `nsim > 1` returns a `goldfishSimPool` (added 2026-09-16, D1
+      — *done 2026-09-16* `e520894` (goldfish-f0), 8881 / 0 / 4, six baseline
+      files PASS. Characterization fixture `fixtures/simulated_events.rds`
+      (from `make-simulated-events.R`, captured on the per-row collector)
+      reproduced identically on the default and the doubling path; the budget
+      is 64 MB (`sim_collector_byte_budget()`). A 439-event DyNAM run: median
+      0.239 s -> 0.188 s
+- [x] 2.2k `nsim > 1` returns a `goldfishSimPool` (added 2026-09-16, D1
       amendment, ADR-0086 and ADR-0085): class `c("goldfishSimPool",
       "list")` with `[` keeping the class; a per-replicate summary
       (`replicate`, `n_events`, `end_time`, `stop_reason`, `capped`,
@@ -454,7 +480,13 @@
       2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
       tests run against the rebuilt fits, the horizon default, the
       flag-only guard and the pool
-- [ ] 2.2l `test_gof()` names its replicate count `nsim` (added 2026-09-16,
+      — *done 2026-09-16* `496a702` (goldfish-f0), 8904 / 0 / 4, six baseline
+      files PASS. New `R/simulate_pool.R`; the summary is computed from the
+      replicates, not stored. A condition's `NA` drops the replicate; a name
+      that is neither a column nor visible from the caller aborts
+      (`goldfish_sim_bad_filter`). ADR-0086's open question (end time on the
+      events line) left open: not printed
+- [x] 2.2l `test_gof()` names its replicate count `nsim` (added 2026-09-16,
       ADR-0087): rename the `n_sim` argument of `test_gof.goldfishFit()` and
       `test_gof.goldfishFlavFit()` to `nsim`, matching `stats::simulate()`,
       whose argument goldfish's `simulate()` methods must keep. `test_gof()`
@@ -476,6 +508,11 @@
       2.2j → 2.2k → 2.2l. Independent of 2.8's replay; ahead of it so 2.8's
       tests run against the rebuilt fits, the horizon default, the
       flag-only guard and the pool
+      — *done 2026-09-16* `c9a31e3` (goldfish-f0), 8907 / 0 / 4, six baseline
+      files PASS. Both methods call `rlang::check_dots_empty()`; the snapshot
+      names `n_sim = 100`. Regenerating `diagnostics.Rmd` also redrew its
+      unseeded information-clock p-values (recip 0.0199 -> 0.0348) and the
+      fit-size notes; the prose quotes none of them
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
