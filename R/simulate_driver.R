@@ -43,11 +43,16 @@ simulate_replicate <- function(
   call = rlang::caller_env()
 ) {
   handle <- walk_open(spec, control_prep, call = call)
-  # The defaults count the events the walk itself steps, so a run with no
-  # target generates as many events as were observed on the same processes.
   n_observed <- sum(handle$schedule$dependent)
+  # The window rate estimation integrates exposure over: the last observed
+  # event, dependent or exogenous, window expiries excluded, unless the
+  # controls set an end. With no target a run covers that same period, so the
+  # event count it draws is what the clock produces, not a number fixed in
+  # advance. Past it, nothing observed can change the exogenous state.
+  window <- resolve_walk_extent(handle$merged, control_prep)
+  window_end <- window$end
   if (is.null(n_events) && is.null(horizon)) {
-    n_events <- n_observed
+    horizon <- window_end
   }
   max_events <- max_events %||% (10L * n_observed)
   routing <- simulation_routing(spec, handle)
@@ -75,17 +80,19 @@ simulate_replicate <- function(
   pinned <- spec$completed_rates %||% list()
   latent <- provider$init(replicate, handle)
   collector <- new_event_collector()
-  freeze_time <- last_exogenous_time(handle)
-  frozen_warned <- FALSE
+  trajectory <- new_rate_trajectory(
+    observed_wait = (window$end - window$start) / n_observed
+  )
 
   t <- handle$current_time
   k <- 0L
   n_drawn <- 0L
-  stop_reason <- "target"
+  stop_reason <- NULL
   provider_breakpoint <- Inf
 
   repeat {
-    if (reached_target(k, t, n_events, horizon)) {
+    stop_reason <- reached_target(k, t, n_events, horizon)
+    if (!is.null(stop_reason)) {
       break
     }
     if (n_drawn >= max_events) {
@@ -98,11 +105,6 @@ simulate_replicate <- function(
     theta <- provider_parameters(resolved, routing, call)
     latent <- resolved$latent %||% latent
     provider_breakpoint <- resolved$breakpoint %||% Inf
-
-    if (!frozen_warned && t > freeze_time && is.finite(freeze_time)) {
-      warn_frozen_exogenous(freeze_time, call)
-      frozen_warned <- TRUE
-    }
 
     rates <- rate_values(handle, rate_fids, theta, evaluate, routing, pinned, t)
     total <- sum(vapply(rates, sum, numeric(1)))
@@ -130,10 +132,21 @@ simulate_replicate <- function(
       next
     }
 
+    # A wait too small to move a clock this far from zero would stamp every
+    # later event with one timestamp, which no continuous-time process draws.
+    if (!(t + wait > t)) {
+      stop_reason <- "clock_resolution"
+      break
+    }
     t <- t + wait
     if (!is.null(horizon) && t > horizon) {
       t <- horizon
-      stop_reason <- "target"
+      stop_reason <- "horizon"
+      break
+    }
+    record_total_rate(trajectory, t, total, wait)
+    if (rate_has_run_away(trajectory)) {
+      stop_reason <- "rate_trajectory"
       break
     }
 
@@ -163,9 +176,12 @@ simulate_replicate <- function(
     events = collector_frame(collector),
     process_map = map,
     times = times,
-    capped = identical(stop_reason, "max_events"),
+    capped = stop_reason %in% SIM_GUARD_STOPS,
     stop_reason = stop_reason,
     n_proposals = n_drawn,
+    end_time = t,
+    window_end = window_end,
+    trajectory = rate_trajectory_frame(trajectory),
     latent = collector$latent,
     spec = spec,
     replicate = replicate
@@ -526,35 +542,162 @@ sample_index <- function(weights) {
   which(stats::runif(1L) * total <= cumsum(weights))[1L]
 }
 
+# The target that binds, named as `stop_reason` reports it, or NULL.
 reached_target <- function(k, t, n_events, horizon) {
   if (!is.null(n_events) && k >= n_events) {
-    return(TRUE)
+    return("n_events")
   }
   if (!is.null(horizon) && t >= horizon) {
+    return("horizon")
+  }
+  NULL
+}
+
+# --------------------------------------------------------------------------- #
+# The explosion guard
+# --------------------------------------------------------------------------- #
+
+# The stops that end a replicate as a guard rather than a target. Each flags
+# the replicate and keeps the events drawn; none ends the call.
+SIM_GUARD_STOPS <- c("max_events", "rate_trajectory", "clock_resolution")
+
+# The rate-trajectory trigger. A run stops at a guard when its total rate
+# exceeds SIM_RATE_MULTIPLE times its value at the first event, or when the
+# median of its last SIM_WAIT_WINDOW waiting times falls below the observed
+# mean waiting time (window length over observed events) divided by
+# SIM_WAIT_COLLAPSE.
+#
+# Both factors sit where a run is already committed to the count guard: at a
+# thousand times the observed pace the window would hold a thousand times the
+# observed events, a hundred times `max_events`. Measured on
+# `social_evolution` at the fitted estimates, six seeds each, run to the window
+# end: the fits that stay bounded (REM `inertia`, `recip`, `inertia + recip`,
+# `inertia + trans`; DyNAM rate `ego(floor)`) peak at 23 times their starting
+# rate and keep the median wait above 0.04 of the observed mean. The fits
+# that reach `max_events` (4390) on every seed -- REM `indeg` and `outdeg`,
+# DyNAM rate `indeg`, `outdeg` and `indeg + outdeg` -- cross both thresholds
+# by their 1500th event, REM `indeg` by its 62nd.
+SIM_RATE_MULTIPLE <- 1e3
+SIM_WAIT_COLLAPSE <- 1e3
+SIM_WAIT_WINDOW <- 50L
+
+# The total rate at each drawn event, kept so a guard stop can show how the
+# rate got there. Grown by doubling: a run's length is unknown until it stops.
+# `observed_wait` is the scale the waiting times are judged against; it is not
+# finite when nothing was observed, and the wait criterion is then off.
+new_rate_trajectory <- function(observed_wait) {
+  env <- new.env(parent = emptyenv())
+  env$time <- numeric(64L)
+  env$total_rate <- numeric(64L)
+  env$wait <- numeric(64L)
+  env$n <- 0L
+  env$observed_wait <- observed_wait
+  env
+}
+
+record_total_rate <- function(trajectory, t, total, wait) {
+  n <- trajectory$n + 1L
+  if (n > length(trajectory$time)) {
+    size <- 2L * length(trajectory$time)
+    length(trajectory$time) <- size
+    length(trajectory$total_rate) <- size
+    length(trajectory$wait) <- size
+  }
+  trajectory$time[n] <- t
+  trajectory$total_rate[n] <- total
+  trajectory$wait[n] <- wait
+  trajectory$n <- n
+  invisible(NULL)
+}
+
+rate_trajectory_frame <- function(trajectory) {
+  keep <- seq_len(trajectory$n)
+  data.frame(
+    time = trajectory$time[keep],
+    total_rate = trajectory$total_rate[keep]
+  )
+}
+
+rate_has_run_away <- function(trajectory) {
+  n <- trajectory$n
+  if (n == 0L) {
+    return(FALSE)
+  }
+  if (
+    trajectory$total_rate[n] > SIM_RATE_MULTIPLE * trajectory$total_rate[1L]
+  ) {
     return(TRUE)
   }
-  FALSE
-}
-
-# The last time the observed data can still change the exogenous state. Past
-# it a free-running run holds that state rather than inventing its continuation.
-last_exogenous_time <- function(handle) {
-  rows <- handle$exo_rows
-  if (length(rows) == 0L) {
-    return(-Inf)
+  scale <- trajectory$observed_wait
+  if (n < SIM_WAIT_WINDOW || !is.finite(scale) || !(scale > 0)) {
+    return(FALSE)
   }
-  max(handle$schedule$time[rows])
+  recent <- trajectory$wait[(n - SIM_WAIT_WINDOW + 1L):n]
+  stats::median(recent) < scale / SIM_WAIT_COLLAPSE
 }
 
-warn_frozen_exogenous <- function(freeze_time, call) {
+# One warning per call, whatever happened across its replicates: how many
+# stopped at a guard, and which, and how many ran past the end of the
+# observation window, where the exogenous state is held rather than invented.
+warn_simulation_conditions <- function(runs, call) {
+  n_runs <- length(runs)
+  reasons <- vapply(runs, function(run) run$diagnostics$stop_reason, "")
+  guarded <- reasons %in% SIM_GUARD_STOPS
+  past_end <- vapply(
+    runs,
+    function(run) run$diagnostics$end_time > run$diagnostics$window_end,
+    logical(1)
+  )
+  n_flagged <- sum(guarded | past_end)
+  if (n_flagged == 0L) {
+    return(invisible(NULL))
+  }
+  bullets <- character(0)
+  classes <- character(0)
+  if (any(guarded)) {
+    counts <- table(factor(reasons[guarded], levels = SIM_GUARD_STOPS))
+    counts <- counts[counts > 0L]
+    by_guard <- vapply(
+      names(counts),
+      function(guard) {
+        n <- counts[[guard]]
+        cli::format_inline("{n} at {.val {guard}}")
+      },
+      character(1)
+    )
+    n_guarded <- sum(guarded)
+    bullets <- c(
+      bullets,
+      "!" = cli::format_inline(
+        "{n_guarded} stopped at a guard ({by_guard}); each keeps the events
+         drawn before the stop and is flagged {.field capped}."
+      )
+    )
+    classes <- c(classes, "goldfish_sim_guard_stop")
+  }
+  if (any(past_end)) {
+    n_past <- sum(past_end)
+    window_end <- runs[[which(past_end)[1L]]]$diagnostics$window_end
+    bullets <- c(
+      bullets,
+      "!" = cli::format_inline(
+        "{n_past} ran past the end of the observation window at
+         {.val {window_end}}; covariate and composition state is held at its
+         value there."
+      )
+    )
+    classes <- c(classes, "goldfish_sim_frozen_exogenous")
+  }
   cli::cli_warn(
     c(
-      "Simulating past the last observed exogenous change.",
-      "i" = "Covariate and composition state is held at its value from
-             {.val {freeze_time}} for the rest of the run."
+      "Simulation flagged {n_flagged} of {n_runs} replicate{?s}.",
+      bullets,
+      "i" = "Flagged replicates stay in the result; each one's
+             {.field diagnostics} holds its stop reason and total-rate
+             trajectory."
     ),
     call = call,
-    class = "goldfish_sim_frozen_exogenous"
+    class = classes
   )
 }
 
@@ -700,6 +843,9 @@ new_goldfish_sim <- function(
   capped,
   stop_reason,
   n_proposals,
+  end_time,
+  window_end,
+  trajectory,
   latent,
   spec,
   replicate
@@ -724,7 +870,10 @@ new_goldfish_sim <- function(
           nrow(events) / n_proposals
         } else {
           NA_real_
-        }
+        },
+        end_time = end_time,
+        window_end = window_end,
+        trajectory = trajectory
       ),
       latent = latent_path,
       replicate = replicate
@@ -763,8 +912,11 @@ print.goldfishSim <- function(x, ...) {
   }
   cli::cli_end()
   if (isTRUE(x$capped)) {
+    reason <- x$diagnostics$stop_reason
+    end_time <- x$diagnostics$end_time
     cli::cli_alert_warning(
-      "Run stopped at the {.arg max_events} guard; flagged as capped."
+      "Run stopped at the {.val {reason}} guard at time {.val {end_time}};
+       flagged as capped."
     )
   }
   invisible(x)

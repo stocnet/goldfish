@@ -49,10 +49,12 @@ with the reason.}
 
 \item{n_events}{stop after this many events.}
 
-\item{horizon}{stop at this time.}
+\item{horizon}{stop at this time. With neither \code{n_events} nor \code{horizon},
+the end of the observation window.}
 
-\item{max_events}{the explosion guard; defaults to ten times the number of
-observed dependent events. A run reaching it stops and is flagged.}
+\item{max_events}{the count guard, over proposed events; defaults to ten
+times the number of observed dependent events. A run reaching it stops
+and is flagged.}
 
 \item{steps}{a \code{\link[=set_simulation_steps]{set_simulation_steps()}} object replacing any of the driver's
 own steps.}
@@ -68,7 +70,11 @@ stores its formula and estimates but not the data it was fitted on.}
 For \code{nsim = 1} a \code{goldfishSim}: the simulated \code{events}, the
 \code{process_map} with each process's regime, the \code{times} variant and its
 \code{times_source} (\code{"specification"} or \code{"requested"}), the \code{capped} flag and
-run \code{diagnostics}. For \code{nsim > 1} a list of them.
+run \code{diagnostics}: the \code{stop_reason} (\code{"n_events"} or \code{"horizon"} for a
+target; \code{"max_events"}, \code{"rate_trajectory"} or \code{"clock_resolution"} for a
+guard), the counts of events and proposals, the \code{end_time} the clock
+reached, the \code{window_end}, and the total-rate \code{trajectory}. For
+\code{nsim > 1} a list of them.
 }
 \description{
 Generates event sequences from a goldfish model: the waiting time and the
@@ -86,13 +92,25 @@ carries a timed rate, time-anchored when its rate is ordered, it coordinates,
 or it has no rate.
 
 Observed exogenous streams — covariate changes and node composition — march
-along with the simulated clock. A free-running run that passes the last
-observed change holds that state and warns once rather than inventing its
-continuation.
+along with the simulated clock. A free-running run that passes the end of
+the observation window holds that state rather than inventing its
+continuation, and the call says so.
 
-A run stops at whichever target binds first, \code{n_events} or \code{horizon}. The
-\code{max_events} guard is not a target: it is the explosion backstop, and a run
-that reaches it is flagged \code{capped} so a pool can exclude it.
+A run stops at whichever target binds first, \code{n_events} or \code{horizon}. With
+neither, a free-running run stops at the end of the observation window as
+rate estimation defines it: the last observed event, dependent or
+exogenous, not counting a windowed effect's expiries, unless
+\code{\link[=set_preprocessing]{set_preprocessing()}} sets an \code{end_time}. The number of events is then drawn
+by the model rather than fixed.
+
+The explosion guards are not targets. A run stops early when its total rate
+grows past a large multiple of its starting value, when a drawn waiting
+time no longer moves the clock, or at \code{max_events}. A guard ends only its
+own replicate: the events drawn so far are kept, the replicate is flagged
+\code{capped} with the guard in \code{diagnostics$stop_reason} and the total rate at
+each event in \code{diagnostics$trajectory}, and it stays in the result. A call
+warns at most once, counting the replicates that stopped at a guard and
+those that ran past the observation window.
 
 Every step of the loop is replaceable — see \code{\link[=set_simulation_steps]{set_simulation_steps()}} for the
 plug points and \code{\link[=set_parameter_provider]{set_parameter_provider()}} for parameters that change during

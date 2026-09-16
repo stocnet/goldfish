@@ -3,7 +3,10 @@
   model at the state the previous event left behind. One loop covers DyNAM,
   REM and multivariate specifications, with competing processes drawn on a
   single clock. Free-running runs stop at `n_events` or `horizon`, whichever
-  binds first, and a `max_events` guard flags a run that runs away. Simulating
+  binds first, and with neither at the end of the observation window, so the
+  number of events is drawn rather than fixed. Guards stop a replicate whose
+  rate runs away, whose clock stops advancing, or that reaches `max_events`,
+  flagging it rather than ending the call. Simulating
   a fitted model takes the `data` it was fitted on, which the fit does not
   store.
 * Added `set_simulation_steps()` and `set_parameter_provider()`, which replace
@@ -30,3 +33,8 @@
   simulated with its estimates on the wrong statistics. The rebuild now keeps
   the fit's terms as written and the intercept estimation added, so
   simulating a timed rate no longer announces a time intercept.
+* `simulate()` warns at most once per call. The warning counts the
+  replicates that stopped at a guard, by guard, and those that ran past the
+  end of the observation window, where covariate state is held. A run that
+  stays inside the window is no longer warned about a frozen covariate state
+  after the last covariate change.

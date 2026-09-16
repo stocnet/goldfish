@@ -65,8 +65,9 @@
       ! Rate 1 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
       i The pin comes from the observed event count over the relevant period.
       Warning in `simulate()`:
-      Simulating past the last observed exogenous change.
-      i Covariate and composition state is held at its value from 4 for the rest of the run.
+      Simulation flagged 1 of 1 replicate.
+      ! 1 ran past the end of the observation window at 5; covariate and composition state is held at its value there.
+      i Flagged replicates stay in the result; each one's diagnostics holds its stop reason and total-rate trajectory.
 
 ---
 
@@ -77,4 +78,30 @@
       times: "generated" — requested; the specification's default is "observed"
       * calls › rate (completed)
       * calls › choice (modeled)
+
+# a clock that cannot advance stops and flags the replicate
+
+    Code
+      print(out)
+    Message
+      <goldfishSim>: 3 events
+      times: "generated" — from the specification (timed rate)
+      * calls › rate (modeled)
+      * calls › choice (modeled)
+      * emails › rate (modeled)
+      * emails › choice (modeled)
+      ! Run stopped at the "clock_resolution" guard at time 1.03;
+      flagged as capped.
+
+# a call warns once about guard stops and the frozen state
+
+    Code
+      invisible(simulate(js, nsim = 3, seed = 4, coef = parameters, n_events = 200,
+        max_events = 30))
+    Condition
+      Warning in `simulate()`:
+      Simulation flagged 3 of 3 replicates.
+      ! 3 stopped at a guard (3 at "max_events"); each keeps the events drawn before the stop and is flagged capped.
+      ! 3 ran past the end of the observation window at 5; covariate and composition state is held at its value there.
+      i Flagged replicates stay in the result; each one's diagnostics holds its stop reason and total-rate trajectory.
 

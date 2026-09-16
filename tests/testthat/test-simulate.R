@@ -22,7 +22,7 @@ test_that("a fixed-count run generates exactly that many events", {
   expect_s3_class(out, "goldfishSim")
   expect_equal(nrow(out$events), 12)
   expect_false(out$capped)
-  expect_identical(out$diagnostics$stop_reason, "target")
+  expect_identical(out$diagnostics$stop_reason, "n_events")
   # Drawn from a clock, so the sequence is strictly ordered in time.
   expect_false(is.unsorted(out$events$time))
   # Both processes compete on the one clock.
@@ -139,18 +139,22 @@ test_that("a horizon stops the run at its time", {
   )
 
   expect_true(all(out$events$time <= 3))
-  expect_identical(out$diagnostics$stop_reason, "target")
+  expect_identical(out$diagnostics$stop_reason, "horizon")
+  expect_identical(out$diagnostics$end_time, 3)
 })
 
 test_that("the max_events guard caps and flags the run", {
   js <- sim_two_process()
-  out <- simulate(
-    js,
-    nsim = 1,
-    seed = 5,
-    coef = sim_two_process_parameters(js),
-    n_events = 500,
-    max_events = 20
+  expect_warning(
+    out <- simulate(
+      js,
+      nsim = 1,
+      seed = 5,
+      coef = sim_two_process_parameters(js),
+      n_events = 500,
+      max_events = 20
+    ),
+    class = "goldfish_sim_guard_stop"
   )
 
   expect_true(out$capped)
@@ -684,15 +688,179 @@ test_that("a choice-only DyNAM generates only when asked", {
   expect_snapshot(print(out))
 })
 
-test_that("a run with no target generates the observed event count", {
+test_that("a run with no target stops at the observed horizon", {
   js <- sim_two_process()
-  out <- suppressWarnings(
-    simulate(js, nsim = 1, seed = 6, coef = sim_two_process_parameters(js))
+  parameters <- sim_two_process_parameters(js)
+
+  # The calls end at 5, after the last friendship change at 4: running on past
+  # that change is running on observed state, so nothing warns.
+  expect_no_warning(
+    runs <- lapply(1:4, function(seed) {
+      simulate(js, nsim = 1, seed = seed, coef = parameters)
+    })
   )
 
-  # Five observed calls and three observed emails.
-  expect_equal(nrow(out$events), 8)
-  expect_identical(out$diagnostics$stop_reason, "target")
+  for (out in runs) {
+    expect_identical(out$diagnostics$stop_reason, "horizon")
+    expect_false(out$capped)
+    expect_identical(out$diagnostics$end_time, 5)
+    expect_lte(max(out$events$time), 5)
+  }
+  # The count is drawn, not fixed at the eight observed events.
+  counts <- vapply(runs, function(out) nrow(out$events), integer(1))
+  expect_gt(length(unique(counts)), 1)
+})
+
+test_that("a window's expiry rows do not extend the default horizon", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg(calls, window = 2),
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  parameters <- set_parameters(
+    single_process_joint(spec),
+    `calls › rate` = c(-1, 0.1),
+    `calls › choice` = c(0.2, 0.3)
+  )
+
+  # The last call at 5 expires at 7; the window still ends at 5.
+  expect_no_warning(
+    out <- simulate(spec, nsim = 1, seed = 2, coef = parameters)
+  )
+
+  expect_identical(out$diagnostics$stop_reason, "horizon")
+  expect_identical(out$diagnostics$end_time, 5)
+  expect_lte(max(out$events$time), 5)
+})
+
+test_that("a clock that cannot advance stops and flags the replicate", {
+  local_cli_context()
+  js <- sim_two_process()
+  draws <- 0L
+  stalling_clock <- function(rates, t, handle) {
+    draws <<- draws + 1L
+    # Three ordinary waits, then one too small to move the clock.
+    wait <- if (draws <= 3L) 0.01 else 0
+    list(wait = wait, fid = 1L, kind = "event")
+  }
+  steps <- set_simulation_steps(clock = stalling_clock)
+  # Construction dry-runs the step once; only the run's draws count.
+  draws <- 0L
+
+  expect_warning(
+    out <- simulate(
+      js,
+      nsim = 1,
+      seed = 1,
+      coef = sim_two_process_parameters(js),
+      steps = steps,
+      n_events = 50
+    ),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_true(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "clock_resolution")
+  # No event is recorded at the stalled timestamp.
+  expect_equal(nrow(out$events), 3)
+  expect_false(anyDuplicated(out$events$time) > 0)
+  expect_s3_class(out$diagnostics$trajectory, "data.frame")
+  expect_named(out$diagnostics$trajectory, c("time", "total_rate"))
+  expect_snapshot(print(out))
+})
+
+test_that("a runaway REM fit is flagged at a guard, not stamped", {
+  data("social_evolution", envir = environment())
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "REM",
+    data = social_evolution
+  ))
+
+  # The estimates of this model on these data: every call raises the
+  # receiver's rate by a factor of three, and the total rate runs away.
+  expect_warning(
+    out <- simulate(spec, nsim = 1, seed = 1, coef = c(-18.657, 1.150)),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_true(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "rate_trajectory")
+  expect_lt(nrow(out$events), 4390)
+  expect_false(anyDuplicated(out$events$time) > 0)
+  trajectory <- out$diagnostics$trajectory
+  expect_gt(max(trajectory$total_rate), trajectory$total_rate[1])
+})
+
+test_that("one runaway replicate does not end the call", {
+  js <- sim_two_process()
+  calm <- sim_two_process_theta()
+  runaway <- calm
+  runaway[["1"]] <- c(-1, 3)
+  # The second replicate's calls feed back on their own rate.
+  provider <- set_parameter_provider(
+    init = function(replicate, handle) list(runaway = replicate == 2L),
+    at = function(k, t, handle, latent) {
+      list(parameters = if (latent$runaway) runaway else calm)
+    }
+  )
+  warnings <- list()
+
+  out <- withCallingHandlers(
+    simulate(js, nsim = 3, seed = 1, coef = provider, horizon = 4),
+    warning = function(w) {
+      warnings[[length(warnings) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+
+  expect_length(out, 3)
+  capped <- vapply(out, function(run) run$capped, logical(1))
+  expect_identical(capped, c(FALSE, TRUE, FALSE))
+  expect_length(warnings, 1)
+  expect_s3_class(warnings[[1]], "goldfish_sim_guard_stop")
+})
+
+test_that("a call warns once about guard stops and the frozen state", {
+  local_cli_context()
+  js <- sim_two_process()
+  parameters <- sim_two_process_parameters(js)
+  warnings <- list()
+
+  # Thirty events outrun the window, which ends at 5, and the guard.
+  out <- withCallingHandlers(
+    simulate(
+      js,
+      nsim = 3,
+      seed = 4,
+      coef = parameters,
+      n_events = 200,
+      max_events = 30
+    ),
+    warning = function(w) {
+      warnings[[length(warnings) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+
+  expect_length(warnings, 1)
+  expect_s3_class(warnings[[1]], "goldfish_sim_guard_stop")
+  expect_s3_class(warnings[[1]], "goldfish_sim_frozen_exogenous")
+  expect_snapshot(
+    simulate(
+      js,
+      nsim = 3,
+      seed = 4,
+      coef = parameters,
+      n_events = 200,
+      max_events = 30
+    ) |>
+      invisible()
+  )
 })
 
 test_that("a fitted model simulates on the data it is given", {

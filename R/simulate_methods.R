@@ -25,13 +25,25 @@
 #' or it has no rate.
 #'
 #' Observed exogenous streams — covariate changes and node composition — march
-#' along with the simulated clock. A free-running run that passes the last
-#' observed change holds that state and warns once rather than inventing its
-#' continuation.
+#' along with the simulated clock. A free-running run that passes the end of
+#' the observation window holds that state rather than inventing its
+#' continuation, and the call says so.
 #'
-#' A run stops at whichever target binds first, `n_events` or `horizon`. The
-#' `max_events` guard is not a target: it is the explosion backstop, and a run
-#' that reaches it is flagged `capped` so a pool can exclude it.
+#' A run stops at whichever target binds first, `n_events` or `horizon`. With
+#' neither, a free-running run stops at the end of the observation window as
+#' rate estimation defines it: the last observed event, dependent or
+#' exogenous, not counting a windowed effect's expiries, unless
+#' [set_preprocessing()] sets an `end_time`. The number of events is then drawn
+#' by the model rather than fixed.
+#'
+#' The explosion guards are not targets. A run stops early when its total rate
+#' grows past a large multiple of its starting value, when a drawn waiting
+#' time no longer moves the clock, or at `max_events`. A guard ends only its
+#' own replicate: the events drawn so far are kept, the replicate is flagged
+#' `capped` with the guard in `diagnostics$stop_reason` and the total rate at
+#' each event in `diagnostics$trajectory`, and it stays in the result. A call
+#' warns at most once, counting the replicates that stopped at a guard and
+#' those that ran past the observation window.
 #'
 #' Every step of the loop is replaceable — see [set_simulation_steps()] for the
 #' plug points and [set_parameter_provider()] for parameters that change during
@@ -53,9 +65,11 @@
 #'   what the model can honor; an explicit value it cannot honor is refused
 #'   with the reason.
 #' @param n_events stop after this many events.
-#' @param horizon stop at this time.
-#' @param max_events the explosion guard; defaults to ten times the number of
-#'   observed dependent events. A run reaching it stops and is flagged.
+#' @param horizon stop at this time. With neither `n_events` nor `horizon`,
+#'   the end of the observation window.
+#' @param max_events the count guard, over proposed events; defaults to ten
+#'   times the number of observed dependent events. A run reaching it stops
+#'   and is flagged.
 #' @param steps a [set_simulation_steps()] object replacing any of the driver's
 #'   own steps.
 #' @param control_prep preprocessing options, from [set_preprocessing()].
@@ -64,7 +78,11 @@
 #' @return For `nsim = 1` a `goldfishSim`: the simulated `events`, the
 #'   `process_map` with each process's regime, the `times` variant and its
 #'   `times_source` (`"specification"` or `"requested"`), the `capped` flag and
-#'   run `diagnostics`. For `nsim > 1` a list of them.
+#'   run `diagnostics`: the `stop_reason` (`"n_events"` or `"horizon"` for a
+#'   target; `"max_events"`, `"rate_trajectory"` or `"clock_resolution"` for a
+#'   guard), the counts of events and proposals, the `end_time` the clock
+#'   reached, the `window_end`, and the total-rate `trajectory`. For
+#'   `nsim > 1` a list of them.
 #'
 #' @seealso [set_simulation_steps()], [set_parameter_provider()],
 #'   [simulation-handle].
@@ -168,6 +186,7 @@ simulate.goldfishJointSpec <- function(
       call = call
     )
   })
+  warn_simulation_conditions(runs, call)
   if (identical(as.integer(nsim), 1L)) runs[[1L]] else runs
 }
 
