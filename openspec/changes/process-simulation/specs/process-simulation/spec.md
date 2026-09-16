@@ -18,7 +18,9 @@ covariate/composition change SHALL freeze the exogenous state and warn once.
 Simulating from a fitted result SHALL take the data as an argument and rebuild
 the specification from the fit's stored formula, model and sub-model: a fit
 carries neither its specification nor the stocnet it was fitted on, and SHALL
-say so rather than failing inside the walk. The mark of an event
+say so rather than failing inside the walk. The rebuild SHALL keep the fit's
+terms as written and the intercept the fit estimated, so simulating a fit
+compiles the model that was estimated without re-announcing an intercept. The mark of an event
 on a flavored layer SHALL carry that flavor's update value, so a simulated
 dissolution removes the tie a creation made.
 A simulation run SHALL open the walk once per replicate and SHALL NOT
@@ -60,6 +62,13 @@ state every engine reads.
   covariate/composition change
 - **THEN** exogenous state stays frozen at its last observed value and a single
   warning reports the freeze point.
+
+#### Scenario: a fitted timed rate rebuilds with its intercept
+
+- **WHEN** a timed rate fitted from `~ indeg`, whose intercept estimation
+  added, is simulated with `simulate(fit, data =)`
+- **THEN** the rebuilt specification carries the intercept, the run emits no
+  intercept message, and the fit's coefficients apply to the same terms.
 
 #### Scenario: a specification of only exogenous covariates simulates
 
@@ -245,7 +254,12 @@ proposal rate is not identified from the realized events.
 Free-running simulation SHALL stop at a statistical target — `horizon =`
 (calendar time) or `n_events =` (event count), whichever binds first when both
 are given — and SHALL carry a separate `max_events` safety guard defaulting to a
-single documented, overridable value. The guard SHALL trigger early on the rate
+single documented, overridable value. With no target given, a free-running run
+SHALL stop at the end of the observation window the fit's likelihood
+integrates over, so the number of events it generates is random rather than
+fixed at the observed count. A drawn waiting time that does not advance the
+clock SHALL trigger the guard's diagnostic rather than stamp later events at
+one instant. The guard SHALL trigger early on the rate
 trajectory (total rate exceeding a large multiple of its start-of-run value, or
 median waiting time collapsing below a resolvable scale), aborting with the
 total-rate trajectory in the condition message; the count cap SHALL remain as
@@ -253,6 +267,21 @@ the backstop. A replicate that hits the guard SHALL be flagged on the returned
 object, excluded from `gof_*` summaries by default, and reported in aggregate —
 never silently pooled. Time-anchored runs SHALL take neither targets nor guard
 (the observed stream bounds them).
+
+#### Scenario: a run with no target stops at the observed horizon
+
+- **WHEN** a timed DyNAM or REM model is simulated with `times = "generated"`
+  and neither `n_events` nor `horizon` is given
+- **THEN** the run stops at the end of the observation window, its event count
+  varies across seeds, and `stop_reason` reports the horizon rather than an
+  event count.
+
+#### Scenario: a clock that cannot advance is diagnosed
+
+- **WHEN** the total rate grows until a drawn waiting time no longer changes
+  the clock's value
+- **THEN** the run stops with the total-rate trajectory in its diagnostic
+  instead of drawing further events at the same timestamp.
 
 #### Scenario: explosion diagnosed, not just bounded
 

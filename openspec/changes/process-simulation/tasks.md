@@ -353,6 +353,50 @@
       supplied**: left at its default, both authored-`~ 1` shapes died earlier
       in `observed_dependent_count()` with the parser's "A model needs at
       least one effect term" (fixed in 2.2d)
+- [ ] 2.2h The fit rebuild keeps the fit's right-hand side verbatim (added
+      2026-09-16, D1 amendment): `specification_from_fit()` drops the
+      response and keeps every term as written instead of rebuilding through
+      `terms()` + `reformulate()`, which never writes an explicit `1`, and
+      prepends `1` when `model_spec$has_intercept` is `TRUE` and the stored
+      formula does not write it (a fit of `~ indeg` stores `calls ~ indeg`).
+      Rewrite the stale comment claiming the legacy `fit$sub_model` reports an
+      REM rate as `"choice"`: the family is read from the descriptor because
+      that is where it lives, not to dodge a label no current fit carries.
+      Tests: `simulate(fit, data =)` on a timed rate fitted from `~ indeg` and
+      on an REM fit of `~ 1 + indeg` emits no intercept message (the 3.1a REM
+      test gains that assertion, so it bites); a fit with an interaction
+      written before a main effect simulates with its coefficients on the
+      same terms
+- [ ] 2.2i With no target, a free-running run stops at the observed horizon
+      (added 2026-09-16, D3 amendment, ADR-0083): when neither `n_events`
+      nor `horizon` is given and `times = "generated"`, `horizon` defaults to
+      `resolve_walk_extent(handle$merged, control_prep)$end`, replacing the
+      observed-count default in `simulate_replicate()`; explicit `n_events`
+      unchanged. `max_events` stays `10 * n_dep` over proposals, `capped`
+      flagged. Lands the rate-trajectory early trigger and total-rate
+      diagnostic 2.2 left unlanded (its "carried into 2.8" never reached
+      2.8's text), plus the degenerate case: a wait with `t + wait == t` stops
+      the run with that diagnostic. Update the `simulate()` roxygen,
+      `NEWS.d/process-simulation--simulate.md`, and the test "a run with no
+      target generates the observed event count". Tests: a timed fixture with
+      no target stops at the window end with a count that differs across
+      seeds, and `stop_reason` names the horizon (today both targets report
+      `"target"`, so it splits into `"horizon"` / `"n_events"`); the REM fit of `~ 1 + indeg` on `social_evolution` (`ideg`
+      1.15, which today reaches `max_events` 4390 on five of five seeds with
+      3951 events at one instant) is diagnosed rather than stamped; explicit
+      `n_events` still returns exactly that count
+- [ ] 2.2j Collect simulated events into pre-allocated columns (added
+      2026-09-16, D1 amendment): replace the per-event one-row `data.frame`
+      and final `rbind` (about 130 us per event, 10% of a 439-event run) with
+      one typed vector per output column plus a latent list, allocated once
+      at capacity `min(n_events, max_events)` when `n_events` is the target,
+      else `max_events`; write by index; at the end cut to the drawn count and
+      set class `data.frame` and compact row names on the list. Above a
+      documented byte budget, start at the observed dependent count and
+      double. Output columns and types unchanged. Tests: the frame is
+      identical (`expect_identical`) to the current collector's on a seeded
+      run; a zero-event run returns the typed empty frame; a run stopping
+      short of capacity is cut to its count
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`

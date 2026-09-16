@@ -129,6 +129,47 @@ pinned by the delta's scenario rather than by any verdict cell — the same
 boundary ADR-0051 (proposed) meets from the printing side, where the contract
 governs dispatch and not presentation.
 
+*Amended 2026-09-16 (explore, goldfish-f0) — the rebuild keeps the fit's
+right-hand side verbatim.* `specification_from_fit()` rebuilt the formula
+through `stats::terms()` + `stats::reformulate()`, which never writes an
+explicit `1`. goldfish reads an intercept only from a written `1`, so every
+fitted timed rate came back intercept-less, and `walk_open()`'s compile
+re-added the intercept with the message *"a time intercept has been added …
+Use `sub_model = "rate_ordered"`"* — on every `simulate(fit)` of a rate model,
+never on the specification path (verified on an REM fit of `calls ~ 1 +
+indeg`). The coefficients stayed aligned only by luck: estimation adds the
+same intercept, and it also orders main effects before interactions, as
+`reformulate()` does (checked on `~ 1 + indeg:ego(floor) + outdeg`: both give
+`Intercept, odeg, ideg:ego`). The stored formula alone is not enough either:
+a fit whose intercept estimation *added* stores `calls ~ indeg` with
+`model_spec$has_intercept = TRUE`. So the rebuild takes the stored right-hand
+side verbatim (drop the response, keep every term as written) and prepends an
+explicit `1` when the descriptor says the fit carried an intercept the formula
+does not write. The code comment claiming the legacy `fit$sub_model` reports
+an REM rate as `"choice"` is stale — no fit this version produces carries it (a
+deprecated `sub_model = "choice"` is rewritten to `"rate"`, and pre-2.0.0 fits
+are refused by `abort_if_stale_result()`) — so it is rewritten to the reason
+that does hold: the family belongs to the descriptor. Task 2.2h.
+
+*Amended 2026-09-16 (explore, goldfish-f0) — simulated events are collected
+into pre-allocated columns.* The 2.1 collector appends a one-row
+`data.frame` per event to a list and binds them once at the end. That is not
+quadratic (a list append is amortized constant), but building a data frame
+costs about 130 us per event, roughly 10% of a 439-event DyNAM run (66 ms of
+0.65 s), paid on every replicate of a GOF pool. The run's size is bounded
+before its first draw: a run never accepts more events than it proposes, and
+`max_events` bounds the proposals, so the capacity is `n_events` when that
+is the target and smaller than the guard, otherwise `max_events`. The
+collector allocates one typed vector per column at that capacity once (and a
+list of the same length for the provider's latent state), writes event `k`
+by index, and at the end cuts each column to the `k` events drawn and sets
+the class and compact row names on the list — no per-event frame, no bind,
+no `data.frame()` call. The cut is one vector copy per column when the run
+stops short of capacity; nothing cheaper exists in R. Allocation at capacity
+is the rule unless the columns would exceed a documented byte budget, in which
+case the collector starts at the observed dependent count and doubles. The
+output keeps its columns and types. Task 2.2j.
+
 ### D2 — Timing strategies keyed on the distribution axis (revised 2026-08-19)
 
 Free-running clocks are keyed on `parametric-rates`' `distribution` axis
@@ -232,6 +273,37 @@ excluded from `gof_*` summaries by default, and reported in aggregate
 Time-anchored runs need none of this: N is fixed by the data. Reference
 points: remulate has no runtime guard; redeem's flat `max_events = 4e5` is
 count-only with no diagnostic — this design goes past both. (ADR-0034.)
+
+*Amended 2026-09-16 (explore, goldfish-f0; ADR-0083) — with no target, a
+free-running run stops at the observed horizon.* D3 called `n_events` "the
+cheap default", and 2.2d implemented it as the observed dependent count, so a
+run given no target always returned exactly that many events (439 on
+`social_evolution`, for an REM fit and for a choice-only model completed at
+`times = "generated"` alike). That hides the one thing a free-running run
+exists to test (D6): how many events the clock produces. The default target
+for `times = "generated"` is therefore `horizon =` the end of the observation
+window, taken from `resolve_walk_extent()` with the run's own `control_prep`,
+so it is the same end the fit's likelihood integrated exposure to. The count
+is then random, and at the fitted estimates of a timed rate with an intercept
+its expectation over the observed trajectory equals the observed count (the
+intercept's score equation); a completed crude rate satisfies the same
+identity by construction. An explicit `n_events` keeps its meaning, alone or
+whichever-binds-first with an explicit `horizon`. Time-anchored runs take no
+target, as above.
+
+*The guard is no longer a formality.* Under a count target a runaway run
+ended at the observed count and looked healthy. Under the horizon default it
+meets the guard, and it does so on real fits: an REM fit of `~ 1 + indeg` on
+`social_evolution` (`ideg` 1.15) hit `max_events` (4390) on five of five
+seeds, accepting 439 events in the first 7% of the window and then 3951 more
+at one instant, all to actor 42 — the total rate outgrew the resolution of a
+clock near 1.2e9, so `t + wait == t`. The `max_events` cap stays (`10 * n_dep`,
+counting proposals, `capped` flagged). The rate-trajectory early trigger that
+2.2 left unlanded and noted as "carried into 2.8", which 2.8's text never
+picked up, lands with the default instead, together with its sharpest case: a
+drawn wait that does not advance the clock (`t + wait == t`) aborts
+immediately with the total-rate trajectory, since every later event would
+share one timestamp. Task 2.2i.
 
 ### D4 — Flavored/multivariate draws and evaluator-compatible output
 
