@@ -1262,7 +1262,16 @@ walk_risk_set <- function(handle, engine, fid) {
     gate <- if (is.null(support)) {
       TRUE
     } else {
-      sender_gate_from_mask(support$value, support$stored_kind, p2, n1, n2)
+      sender_gate_from_mask(
+        support$value,
+        support$stored_kind,
+        p2,
+        n1,
+        n2,
+        # NOT `engine$twomode_or_reflexive`: that is TRUE on every rate
+        # engine, whose own statistics have no receiver axis.
+        drop_diagonal = !isTRUE(engine$model_spec$is_two_mode)
+      )
     }
     return(list(
       active_sender = p1 & gate,

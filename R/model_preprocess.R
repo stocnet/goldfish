@@ -310,27 +310,43 @@ initial_receiver_count <- function(
   drop_diagonal
 ) {
   present <- sum(active_2)
-  own <- if (drop_diagonal) as.integer(active_2[seq_len(n1)]) else 0L
-  switch(
+  abort_if_diagonal_off_grid(drop_diagonal, n1, n2)
+  count <- switch(
     as.character(stored_kind),
-    "3" = if (isTRUE(as.logical(initial))) {
-      rep(present, n1) - own
-    } else {
-      rep(0L, n1)
-    },
-    "2" = ifelse(as.logical(initial), present - own, 0L),
-    "1" = rep(sum(as.logical(initial) & active_2), n1) -
-      own * as.integer(as.logical(initial)[seq_len(n1)]),
+    "3" = if (isTRUE(as.logical(initial))) rep(present, n1) else rep(0L, n1),
+    "2" = ifelse(as.logical(initial), present, 0L),
+    "1" = rep(sum(as.logical(initial) & active_2), n1),
     "0" = rowSums(
       matrix(as.logical(initial), n1, n2) &
         rep(active_2, each = n1)
-    ) -
-      own *
-        as.integer(
-          as.logical(initial)[(seq_len(n1) - 1L) * n1 + seq_len(n1)]
-        ),
+    ),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
   )
+  count - own_receiver_count(initial, stored_kind, active_2, n1, drop_diagonal)
+}
+
+# Each sender's own cell, allowed and present, as a 0/1 vector, or a zero
+# when the layer has no self-dyads. A branch, never a term multiplied by
+# zero: the diagonal index of a two-mode grid is out of range, and
+# `0L * NA` is `NA`.
+own_receiver_count <- function(
+  value,
+  stored_kind,
+  active_2,
+  n1,
+  drop_diagonal
+) {
+  if (!drop_diagonal) {
+    return(0L)
+  }
+  own <- switch(
+    as.character(stored_kind),
+    "3" = rep(isTRUE(as.logical(value)), n1),
+    "2" = as.logical(value),
+    "1" = as.logical(value)[seq_len(n1)],
+    "0" = as.logical(value)[(seq_len(n1) - 1L) * n1 + seq_len(n1)]
+  )
+  as.integer(own & active_2[seq_len(n1)])
 }
 
 # Adjust the per-sender counts for one event's mask flips. Which senders a flip
@@ -351,7 +367,11 @@ apply_receiver_count_flips <- function(
     return(count)
   }
   values <- flips$values
-  own <- if (drop_diagonal) as.integer(active_2[seq_len(n1)]) else 0L
+  own <- if (drop_diagonal) {
+    as.integer(active_2[seq_len(n1)])
+  } else {
+    rep(0L, n1)
+  }
   if (stored_kind == 0L) {
     senders <- ((entries - 1L) %% n1) + 1L
     receivers <- ((entries - 1L) %/% n1) + 1L

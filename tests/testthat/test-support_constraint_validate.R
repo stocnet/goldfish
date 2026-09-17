@@ -3,7 +3,8 @@
 # rate silent gated-out case) is exercised in isolation, under a pinned cli
 # context for reproducible conditions.
 
-# A 4x4 fixture: two dependent events, sender 1 -> receiver 2, sender 2 -> 3.
+# A 4x4 fixture on one node set: two dependent events, sender 1 -> receiver 2,
+# sender 2 -> 3. One node set, so a sender is never its own candidate.
 # The masks are given outright, event by event, and encoded into the flat stream
 # the producer emits, so these stay unit tests of the validation and not of the
 # representation.
@@ -29,7 +30,8 @@ call_validate <- function(support, family) {
     a$is_dependent,
     a$active_1,
     a$active_2,
-    family = family
+    family = family,
+    drop_diagonal = TRUE
   )
 }
 
@@ -128,6 +130,7 @@ call_validate_choice_moving <- function(
     active_1,
     active_2,
     family = "choice",
+    drop_diagonal = TRUE,
     active_2_update = update,
     active_2_update_pointer = pointer
   )
@@ -179,6 +182,7 @@ call_validate_rate_moving <- function(support, active_2, update, pointer) {
     a$active_1,
     active_2,
     family = "rate",
+    drop_diagonal = TRUE,
     active_2_update = update,
     active_2_update_pointer = pointer
   )

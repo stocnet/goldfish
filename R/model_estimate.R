@@ -1072,6 +1072,7 @@ validate_support_constraint <- function(
   active_1,
   active_2,
   family,
+  drop_diagonal,
   process_label = NULL,
   active_2_update = NULL,
   active_2_update_pointer = NULL
@@ -1110,13 +1111,23 @@ validate_support_constraint <- function(
       ever_present <- ever_present | present
       allowed <- which(
         support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
-          present
+          present &
+          # The sender is not among its own candidates on one node set,
+          # whatever the mask allows on the diagonal.
+          !(drop_diagonal & seq_len(n2) == event_sender[[e]])
       )
       ever_candidate[allowed] <- TRUE
       # Sender-side counterpart of the never-a-candidate warning: which senders
       # ever have an allowed, present receiver. Read at the mask's own kind, so
       # a separable mask answers for every sender without building a grid.
-      gate <- sender_gate_from_mask(mask_e, stored_kind, present, n1, n2)
+      gate <- sender_gate_from_mask(
+        mask_e,
+        stored_kind,
+        present,
+        n1,
+        n2,
+        drop_diagonal
+      )
       ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
@@ -1180,7 +1191,8 @@ validate_support_constraint <- function(
         stored_kind,
         receivers_at(e),
         n1,
-        n2
+        n2,
+        drop_diagonal
       )
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {
@@ -1226,6 +1238,9 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
   if (is.null(prep$support_mask)) {
     return(invisible(NULL))
   }
+  # One node set, so a sender is never among its own allowed receivers. The
+  # preprocessed object names both sides, whatever produced it.
+  drop_diagonal <- !isTRUE(prep$model_spec$is_two_mode)
   validate_support_constraint(
     prep$support_mask,
     prep$event_sender,
@@ -1242,6 +1257,7 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
       prep$active_dyad_init
     },
     family = if (is_rate_family) "rate" else "choice",
+    drop_diagonal = drop_diagonal,
     process_label = process_label,
     # Both branches read the receiver presence as the composition moves. The
     # rate fold leaves the raw receiver crossings in `active_dyad_update`; the

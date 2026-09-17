@@ -212,28 +212,73 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
 #' this is the from-scratch form, for a consumer that reads one event at a time
 #' and has no count to carry.
 #'
+#' A sender is not a receiver of its own event on a one-mode layer, so
+#' `drop_diagonal` takes each sender's own cell back out of its row. The mask
+#' itself is untouched: it answers "is this dyad allowed" everywhere, and a
+#' creation flavor's mask allows the self-dyad forever, since no actor holds a
+#' tie to itself.
+#'
 #' @param support the mask at `stored_kind`.
 #' @param stored_kind its broadcast kind.
 #' @param active_2 receiver presence.
 #' @param n1,n2 sender and receiver counts.
+#' @param drop_diagonal exclude each sender's own cell, as a one-mode risk set
+#'   does. Required: the two node sets decide it, and a silent default is how
+#'   the gate came to count self-dyads in the first place.
 #' @return a length-n1 logical vector.
 #' @noRd
-sender_gate_from_mask <- function(support, stored_kind, active_2, n1, n2) {
+sender_gate_from_mask <- function(
+  support,
+  stored_kind,
+  active_2,
+  n1,
+  n2,
+  drop_diagonal
+) {
   if (is.null(support)) {
     return(rep(any(active_2), n1))
   }
-  switch(
+  abort_if_diagonal_off_grid(drop_diagonal, n1, n2)
+  # Each sender's own cell, allowed and present, or no correction at all.
+  # Computed by branch and never as a term multiplied by zero: on a two-mode
+  # grid the diagonal index does not exist, and `0 * NA` is `NA`.
+  own <- if (drop_diagonal) {
+    switch(
+      as.character(stored_kind),
+      "3" = rep(isTRUE(as.logical(support)), n1),
+      "2" = as.logical(support),
+      "1" = as.logical(support)[seq_len(n1)],
+      "0" = as.logical(support)[(seq_len(n1) - 1L) * n1 + seq_len(n1)]
+    ) &
+      active_2[seq_len(n1)]
+  } else {
+    rep(FALSE, n1)
+  }
+  count <- switch(
     as.character(stored_kind),
-    "3" = rep(isTRUE(as.logical(support)) && any(active_2), n1),
-    "2" = as.logical(support) & any(active_2),
-    "1" = rep(any(as.logical(support) & active_2), n1),
+    "3" = if (isTRUE(as.logical(support))) rep(sum(active_2), n1) else 0L,
+    "2" = ifelse(as.logical(support), sum(active_2), 0L),
+    "1" = rep(sum(as.logical(support) & active_2), n1),
     "0" = rowSums(matrix(as.logical(support), n1, n2)[,
       active_2,
       drop = FALSE
-    ]) >
-      0,
+    ]),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
+  count - own > 0
+}
+
+# A self-dyad exists only where both axes name one node set. A caller asking
+# to drop it on a two-mode grid has the wrong flag, and reading a diagonal
+# that is not there would hand back NA rather than fail.
+abort_if_diagonal_off_grid <- function(drop_diagonal, n1, n2) {
+  if (drop_diagonal && n1 != n2) {
+    cli::cli_abort(
+      "A one-mode gate needs a square grid, not {n1} x {n2}.",
+      .internal = TRUE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Symmetrise a point-kind mask (`mask & t(mask)`)
@@ -259,6 +304,11 @@ symmetrize_mask <- function(mask) {
 #' Presence factors are never bypassed, so an absent node is excluded regardless
 #' of the constraint. When `support` is `NULL` the mask degenerates to the
 #' separable presence product.
+#'
+#' The self-dyad is the CALLER's to exclude: this assembler reduces the grid it
+#' is handed, so a one-mode caller hands it a grid whose diagonal is already
+#' off. The maintained gate ([sender_gate_from_mask()], the preprocessing fold)
+#' takes `drop_diagonal` instead, since it never builds a grid.
 #'
 #' @param support the support mask at `mask_kind`, or `NULL` for no constraint.
 #' @param active_1,active_2 logical sender / receiver presence vectors.

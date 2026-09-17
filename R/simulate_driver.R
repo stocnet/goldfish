@@ -349,7 +349,8 @@ simulation_fid_state <- function(handle, fid) {
         support$stored_kind,
         present2,
         n1,
-        n2
+        n2,
+        drop_diagonal = !isTRUE(engine$model_spec$is_two_mode)
       )
     }
     return(list(
