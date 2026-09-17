@@ -39,3 +39,57 @@ mask_from_timeline <- function(masks, stored_kind = 0L) {
     symmetric = FALSE
   )
 }
+
+# The sender gate a rate risk set should have, from a dense grid and without
+# any package code: a sender is at risk when some present receiver is
+# allowed. On a one-mode layer the self-dyad is not a receiver, whatever the
+# grid holds on its diagonal; on a two-mode layer the two indices name
+# different node sets and every cell counts.
+oracle_sender_gate <- function(grid, present, one_mode) {
+  allowed <- grid & matrix(present, nrow(grid), ncol(grid), byrow = TRUE)
+  if (one_mode) {
+    diag(allowed) <- FALSE
+  }
+  rowSums(allowed) > 0
+}
+
+# A one-mode flavored layer of four actors in which N1 holds a tie to every
+# other actor from the start. Before every event up to its own dissolution
+# at t = 7, and again after it recreates that tie at t = 9, its creation row
+# allows only its own self-dyad, while the other actors create and dissolve
+# around it.
+self_only_sender_data <- function() {
+  history <- data.frame(
+    from = c(1L, 1L, 1L),
+    to = c(2L, 3L, 4L),
+    time = NA_real_,
+    weight = 1
+  )
+  events <- data.frame(
+    from = c(2L, 3L, 2L, 4L, 3L, 2L, 1L, 3L, 1L, 4L),
+    to = c(3L, 4L, 3L, 2L, 4L, 1L, 2L, 2L, 2L, 2L),
+    time = as.numeric(1:10),
+    weight = c(1, 1, -1, 1, -1, 1, -1, 1, 1, -1)
+  )
+  ties <- rbind(history, events)
+  ties$layer <- "calls"
+  add_flavor(
+    list(
+      info = list(
+        name = "self-only",
+        focal = "calls",
+        update = c(calls = "increment"),
+        directed = c(calls = TRUE),
+        observation = c(calls = "event")
+      ),
+      nodes = data.frame(
+        label = paste0("N", 1:4),
+        mode = "p",
+        stringsAsFactors = FALSE
+      ),
+      ties = ties
+    ),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1)
+  )
+}
