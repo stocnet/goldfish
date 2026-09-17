@@ -1,3 +1,7 @@
+---
+status: landed (feature_simulation, awaiting fold)
+---
+
 ## Why
 
 **A DyNAM rate's sender gate counts the sender's own self-dyad as an allowed
