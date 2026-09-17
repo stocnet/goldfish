@@ -49,8 +49,9 @@ from the tree shape the approach.
   a separate, pre-existing edge case, and it would touch the frozen
   baselines' path.
 - The stored mask values and the constraint grammar (no irreflexivity atom).
-- Choice, REM, coordination and DyNAM-i risk sets, which already exclude the
-  self-dyad structurally.
+- The choice, REM, coordination and DyNAM-i risk sets the engines build,
+  which already exclude the self-dyad structurally. The preprocessing
+  validation's candidate set is in scope (D6).
 - Any change to `simulate()`'s driver logic. The regression test checks
   that the corrected gate removes the abort; it adds no guard of its own.
 
@@ -141,6 +142,22 @@ fragment ("fixed estimates of ... when ...").
 the panel path, which already excluded self-loops. No change to
 `complete_generative_spec.R`; a test asserts the two paths give the same
 `|R|` on a fixture both can read.
+
+### D6 — The preprocessing validation reads the same candidate set (added 2026-09-18, Alvaro)
+
+`validate_support_constraint()`'s choice / REM branch builds its candidate
+set as `support_row(...) & present`, which counted a sender's own cell: a
+sender whose only allowed cell was itself passed the empty-risk-set check,
+and a forced-choice warning counted the self-dyad as a candidate. That
+contradicts the spec delta's `cand[i, ] = active_2 & support[i, ] &
+self[i, ]`, so the branch drops the sender's own cell under the same
+`drop_diagonal`, which `validate_prep_support()` derives from the
+preprocessed object's own `model_spec`. It changes which check fires, never
+an estimate: the choice engine already excluded the diagonal.
+
+*Alternatives rejected:* softening the spec delta's choice and REM rows to
+match the old validation; deferring the candidate set to a later task, which
+would leave the change's own spec unmet while it is archived.
 
 ## Risks / Trade-offs
 
