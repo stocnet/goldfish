@@ -134,9 +134,9 @@ run_dynami_monolith <- function(
 
 # Fold a sender-loop support_constraint into `active_sender`.
 # The per-event effective availability is the row-reduction a sender is at risk
-# iff it has >= 1 allowed, present receiver:
+# iff it has >= 1 allowed, present receiver OTHER THAN ITSELF:
 #   active_sender[i] at event e = presence_e[i] & (rowSums(support_e &
-#     receiver_presence_e) > 0)
+#     receiver_presence_e & (j != i)) > 0)
 # — computed here (during preprocessing) and stored on the availability object
 # as net crossings (a flip is emitted only on a 0 <-> positive change of the
 # per-sender available-receiver count, so the buffer stays tiny), REPLACING the
@@ -159,11 +159,25 @@ run_dynami_monolith <- function(
 # flips first, against the receiver presence before this event's crossings,
 # then the crossings against the mask after them.
 #
+# On a one-mode layer a sender is not a receiver of its own event, whatever
+# the mask holds on its diagonal -- and a creation flavor's mask holds TRUE
+# there forever, since no actor ties to itself. `drop_diagonal` says so, and
+# every update below then skips the sender whose index equals the
+# receiver's: a flip of cell (i, i) moves no count, and a column or
+# receiver-presence move at j reaches every sender but j. The diagonal
+# rule belongs to the model, not to the mask, so nothing is written to
+# the stored value.
+#
 # `active_dyad_init` seeds that receiver presence. Returns `out` with
 # `active_sender_init`/`_update`/`_update_pointer` rewritten to the folded
 # object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
 # `avg_active_entity` recomputed as the event-averaged active-sender count.
-fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
+fold_active_sender_support <- function(
+  out,
+  support_mask,
+  active_dyad_init,
+  drop_diagonal
+) {
   n_stored <- length(out$event_time)
   if (n_stored == 0L) {
     return(out)
@@ -179,7 +193,8 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
     stored_kind,
     active_2,
     n1,
-    n2
+    n2,
+    drop_diagonal
   )
   flips_at <- mask_flips(support_mask)
 
@@ -222,7 +237,8 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
       stored_kind,
       active_2,
       n1,
-      n_present_receivers
+      n_present_receivers,
+      drop_diagonal
     )
     if (tracks_receivers) {
       this_receiver_ptr <- receiver_ptr[e]
@@ -235,7 +251,8 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
           active_2,
           mask_at(e),
           stored_kind,
-          n1
+          n1,
+          drop_diagonal
         )
         count <- crossed$count
         active_2 <- crossed$active_2
@@ -282,17 +299,36 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
 # initial mask at its own kind. A separable mask answers without a grid: an
 # alter mask gives every sender the same count, an ego mask gives a sender all
 # the present receivers or none, and a global mask gives everyone the same.
-initial_receiver_count <- function(initial, stored_kind, active_2, n1, n2) {
+# Under `drop_diagonal` each sender's own cell is taken back out again,
+# which costs one term per sender and no grid.
+initial_receiver_count <- function(
+  initial,
+  stored_kind,
+  active_2,
+  n1,
+  n2,
+  drop_diagonal
+) {
   present <- sum(active_2)
+  own <- if (drop_diagonal) as.integer(active_2[seq_len(n1)]) else 0L
   switch(
     as.character(stored_kind),
-    "3" = rep(if (isTRUE(as.logical(initial))) present else 0L, n1),
-    "2" = ifelse(as.logical(initial), present, 0L),
-    "1" = rep(sum(as.logical(initial) & active_2), n1),
+    "3" = if (isTRUE(as.logical(initial))) {
+      rep(present, n1) - own
+    } else {
+      rep(0L, n1)
+    },
+    "2" = ifelse(as.logical(initial), present - own, 0L),
+    "1" = rep(sum(as.logical(initial) & active_2), n1) -
+      own * as.integer(as.logical(initial)[seq_len(n1)]),
     "0" = rowSums(
       matrix(as.logical(initial), n1, n2) &
         rep(active_2, each = n1)
-    ),
+    ) -
+      own *
+        as.integer(
+          as.logical(initial)[(seq_len(n1) - 1L) * n1 + seq_len(n1)]
+        ),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
   )
 }
@@ -307,30 +343,51 @@ apply_receiver_count_flips <- function(
   stored_kind,
   active_2,
   n1,
-  n_present_receivers
+  n_present_receivers,
+  drop_diagonal
 ) {
   entries <- flips$entries
   if (length(entries) == 0L) {
     return(count)
   }
   values <- flips$values
+  own <- if (drop_diagonal) as.integer(active_2[seq_len(n1)]) else 0L
   if (stored_kind == 0L) {
     senders <- ((entries - 1L) %% n1) + 1L
     receivers <- ((entries - 1L) %/% n1) + 1L
-    live <- active_2[receivers]
+    live <- active_2[receivers] & !(drop_diagonal & senders == receivers)
     gained <- tabulate(senders[live & values], nbins = n1)
     lost <- tabulate(senders[live & !values], nbins = n1)
     return(count + gained - lost)
   }
   if (stored_kind == 1L) {
     live <- active_2[entries]
-    return(count + sum(live & values) - sum(live & !values))
+    delta <- sum(live & values) - sum(live & !values)
+    # A column's flip reaches every sender but the one it names.
+    reach <- rep(delta, n1)
+    if (drop_diagonal) {
+      for (k in seq_along(entries)) {
+        j <- entries[[k]]
+        if (j <= n1 && active_2[[j]]) {
+          reach[[j]] <- reach[[j]] - (if (values[[k]]) 1L else -1L)
+        }
+      }
+    }
+    return(count + reach)
   }
   if (stored_kind == 2L) {
-    count[entries] <- ifelse(values, n_present_receivers, 0L)
+    count[entries] <- ifelse(
+      values,
+      n_present_receivers - own[entries],
+      0L
+    )
     return(count)
   }
-  rep(if (values[[length(values)]]) n_present_receivers else 0L, n1)
+  if (values[[length(values)]]) {
+    rep(n_present_receivers, n1) - own
+  } else {
+    rep(0L, n1)
+  }
 }
 
 # Adjust the per-sender counts for one event's receiver presence crossings, and
@@ -347,13 +404,19 @@ apply_receiver_presence_flips <- function(
   active_2,
   mask,
   stored_kind,
-  n1
+  n1,
+  drop_diagonal
 ) {
   for (k in seq_along(nodes)) {
     node <- nodes[[k]]
     delta <- as.integer(values[[k]]) - as.integer(active_2[[node]])
     if (delta != 0L) {
-      count <- count + delta * receiver_reach(mask, stored_kind, node, n1)
+      reach <- receiver_reach(mask, stored_kind, node, n1)
+      # The node that arrives or leaves is not its own receiver.
+      if (drop_diagonal && node <= n1) {
+        reach[[node]] <- 0L
+      }
+      count <- count + delta * reach
       active_2[[node]] <- values[[k]]
     }
   }

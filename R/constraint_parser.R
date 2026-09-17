@@ -387,7 +387,8 @@ plan_with_constraint_atoms <- function(plan, compiled) {
 #' A dyadic (`point`- or `alter`-kind) `support_constraint` on a rate / rate
 #' _ordered spec with no choice formula is consumed on the sender axis by the
 #' row-reduction (folded into `active_sender` during preprocessing): a sender is
-#' at risk iff it has at least one allowed, present receiver. This is the same
+#' at risk iff it has at least one allowed, present receiver, itself
+#' excluded on a one-mode layer. This is the same
 #' definition the joint specification uses,
 #' so rejecting it would be a capability regression and a semantic break.
 #' A one-time informational message explains the reduction and the cheaper
@@ -407,7 +408,7 @@ inform_dyadic_sender_reduction <- function(atom_labels, atom_kinds) {
       "i" = "{.arg support_constraint}: {cli::qty(sum(dyadic))}the dyadic
              atom{?s} {.code {atom_labels[dyadic]}} {?is/are} consumed on the
              sender axis by row-reduction — a sender is at risk iff it has
-             at least one allowed, present receiver.",
+             at least one allowed, present receiver other than itself.",
       "i" = "For a cheaper sender-axis formulation, use an ego-kind atom, e.g.
              {.code ~ tie(net)} becomes {.code ~ outdeg(net) > 0}.",
       "!" = "That reformulation is equivalent only under static receiver

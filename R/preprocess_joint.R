@@ -1699,7 +1699,14 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
         return(out)
       }
       out$support_mask <- support_mask
-      fold_active_sender_support(out, out$support_mask, ctx$active_dyad_init)
+      # The self-dyad is a receiver only where the two axes name different
+      # node sets; on one node set a sender never acts on itself.
+      fold_active_sender_support(
+        out,
+        out$support_mask,
+        ctx$active_dyad_init,
+        drop_diagonal = identical(ctx$nodes, ctx$nodes2)
+      )
     }
     scalar_entity <- "sender"
   } else {
