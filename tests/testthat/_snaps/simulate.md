@@ -48,7 +48,7 @@
     Condition
       Error in `filter_simulation()`:
       ! Cannot filter on stop_reasn: not a column of the pool's summary.
-      i The summary has replicate, n_events, end_time, stop_reason, capped, n_proposals, and acceptance_rate.
+      i The summary has replicate, n_events, end_time, stop_reason, capped, n_proposals, acceptance_rate, n_replayed, and n_skipped.
 
 ---
 
@@ -111,6 +111,63 @@
       x "calls › rate" is an intercept-only rate with no choice.
       i Completion would add a uniform choice, so every draw would be a constant rate and an equiprobable receiver.
       i Add an effect to the rate, or model a choice.
+
+# a replayed flavor prints its regime and skip count
+
+    Code
+      print(out)
+    Message
+      <goldfishSim>: 52 events
+      times: "generated" — from the specification (timed rate)
+      * calls › creation › rate (modeled)
+      * calls › creation › choice (modeled)
+      * calls › dissolution (anchored-replay)
+      Replayed 40 observed events; 24 skipped.
+
+---
+
+    Code
+      print(pool)
+    Message
+      -- <goldfishSimPool> -----------------------------------------------------------
+      3 replicates · times "generated" (from the specification) · 3 processes
+      * calls › creation › rate [fid 1] (modeled)
+      * calls › creation › choice [fid 2] (modeled)
+      * calls › dissolution (anchored-replay)
+      Events per replicate: min 52 · median 66 · mean 62.3 · max 69
+      Replayed events skipped per replicate: min 18 · median 24 · max 24
+      Stop reasons: horizon 3
+      i Select replicates by their summary with `filter_simulation()`.
+
+# replay = refuses what it cannot replay
+
+    Code
+      simulate(flavored, coef = parameters, replay = "calls › deletion")
+    Condition
+      Error in `simulate()`:
+      ! `replay` names 1 flavor the specification does not model.
+      x Unknown: "calls › deletion".
+      i Modeled flavors: "calls › creation" and "calls › dissolution".
+
+---
+
+    Code
+      simulate(flavored, coef = parameters, replay = c("calls › creation",
+        "calls › dissolution"))
+    Condition
+      Error in `simulate()`:
+      ! `replay` leaves no modeled process on "calls".
+      i Replay needs a process to draw beside the replayed events; to leave a whole layer unmodeled, drop it from the specification.
+
+---
+
+    Code
+      simulate(js, coef = sim_two_process_parameters(js), replay = "calls")
+    Condition
+      Error in `simulate()`:
+      ! `replay` names a layer without flavors.
+      x "calls" has no flavors to replay.
+      i Replay applies to a flavored layer; see `add_flavor()`.
 
 # a choice-only DyNAM defaults to time-anchored
 

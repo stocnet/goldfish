@@ -48,6 +48,14 @@
 #' once, counting the replicates that stopped at a guard and those that ran
 #' past the observation window.
 #'
+#' A flavor of a flavored layer that the specification models in neither the
+#' rate nor the choice is not simulated but replayed: its observed events are
+#' applied at their observed times while the modeled flavors are drawn around
+#' them, and each one restarts the clock, as it censors the rate in
+#' estimation. A replayed event the simulated state cannot take, such as the
+#' dissolution of a tie no simulated creation made, is skipped rather than
+#' forced, and counted.
+#'
 #' Every step of the loop is replaceable — see [set_simulation_steps()] for the
 #' plug points and [set_parameter_provider()] for parameters that change during
 #' a run.
@@ -70,6 +78,11 @@
 #' @param n_events stop after this many events.
 #' @param horizon stop at this time. With neither `n_events` nor `horizon`,
 #'   the end of the observation window.
+#' @param replay flavors to replay from their observed events instead of
+#'   drawing them, named as the process labels name them (`"calls ›
+#'   dissolution"`). A flavor the specification does not model is replayed
+#'   without being named here. Parameters for a replayed flavor are accepted
+#'   and not used.
 #' @param steps a [set_simulation_steps()] object replacing any of the driver's
 #'   own steps.
 #' @param control_prep preprocessing options, from [set_preprocessing()].
@@ -78,13 +91,17 @@
 #' @param ... passed between methods. The specification method refuses any
 #'   argument it does not take.
 #'
-#' @return For `nsim = 1` a `goldfishSim`: the simulated `events`, the
-#'   `process_map` with each process's regime, the `times` variant and its
-#'   `times_source` (`"specification"` or `"requested"`), the `capped` flag and
-#'   run `diagnostics`: the `stop_reason` (`"n_events"` or `"horizon"` for a
-#'   target; `"max_events"`, `"rate_trajectory"` or `"clock_resolution"` for a
-#'   guard), the counts of events and proposals, the `end_time` the clock
-#'   reached, the `window_end`, and the total-rate `trajectory`. For
+#' @return For `nsim = 1` a `goldfishSim`: the simulated `events`; the
+#'   `replayed` events in the same columns plus `skipped`; the `process_map`
+#'   with each process's regime (`"modeled"`, `"completed"` or
+#'   `"anchored-replay"`), where a replayed flavor has a row with no `fid` and
+#'   a `replay_source` of `"unmodeled"` or `"requested"`; the `times` variant
+#'   and its `times_source` (`"specification"` or `"requested"`), the `capped`
+#'   flag and run `diagnostics`: the `stop_reason` (`"n_events"` or
+#'   `"horizon"` for a target; `"max_events"`, `"rate_trajectory"` or
+#'   `"clock_resolution"` for a guard), the counts of events and proposals,
+#'   the `end_time` the clock reached, the `window_end`, the total-rate
+#'   `trajectory`, and the counts `n_replayed` and `n_skipped`. For
 #'   `nsim > 1` a `goldfishSimPool`: a list of them that prints in aggregate,
 #'   whose `summary()` gives one row per replicate, and whose replicates are
 #'   selected with [filter_simulation()].
@@ -113,6 +130,7 @@ simulate.goldfishJointSpec <- function(
   times = times_of(object),
   n_events = NULL,
   horizon = NULL,
+  replay = NULL,
   steps = NULL,
   control_prep = set_preprocessing(),
   control_sim = set_simulation_guard(),
@@ -121,6 +139,10 @@ simulate.goldfishJointSpec <- function(
   call <- rlang::current_env()
   rlang::check_dots_empty()
   control_sim <- resolve_simulation_guard(control_sim, call)
+  # A flavor replayed on request is dropped before anything reads the
+  # specification, so from here on it is exactly an unmodeled flavor.
+  requested_replay <- resolve_requested_replay(object, replay, call)
+  object <- drop_replayed_flavors(object, requested_replay)
   # Settled before anything else, so what an explicit `times` costs -- a
   # message, or an abort when the model estimates no clock -- is said first.
   resolved_times <- resolve_simulation_times(
@@ -174,7 +196,12 @@ simulate.goldfishJointSpec <- function(
   # wave Hamming diff for joint estimation -- so the warning is the consumer's
   # to fire, at its own entry, in its own wording.
   warn_pinned_rates(completed, consumer = "simulate", call = call)
-  provider <- resolve_coef_provider(coef, completed, call)
+  provider <- resolve_coef_provider(
+    coef,
+    completed,
+    call,
+    replayed = requested_replay
+  )
 
   if (!is.null(seed)) {
     set.seed(seed)
@@ -190,6 +217,7 @@ simulate.goldfishJointSpec <- function(
       n_events = n_events,
       control_sim = control_sim,
       control_prep = control_prep,
+      requested_replay = requested_replay,
       call = call
     )
   })
@@ -273,6 +301,106 @@ resolve_simulation_steps <- function(steps, call) {
     )
   }
   steps
+}
+
+# The flavors a caller asked to replay, as a data frame of layer and flavor,
+# or NULL. A label names a flavor of a flavored focal layer as the process
+# labels do (`"calls › dissolution"`). At least one modeled process must stay
+# on each layer: replay rides a layer the walk models, and a layer with
+# nothing left to draw is one to leave out of the specification instead.
+resolve_requested_replay <- function(joint_spec, replay, call) {
+  if (is.null(replay)) {
+    return(NULL)
+  }
+  map <- joint_spec$process_map
+  flavored <- !is.na(map$flavor)
+  known <- unique(paste(map$layer[flavored], map$flavor[flavored], sep = " › "))
+  if (!is.character(replay) || anyNA(replay) || length(replay) == 0L) {
+    cli::cli_abort(
+      c(
+        "{.arg replay} must name flavors as {.val layer › flavor}.",
+        "x" = "A {.cls {class(replay)[1]}} was supplied."
+      ),
+      call = call,
+      class = "goldfish_sim_bad_replay"
+    )
+  }
+  unflavored_layers <- unique(map$layer[!flavored])
+  on_unflavored <- replay[replay %in% unflavored_layers]
+  if (length(on_unflavored) > 0L) {
+    cli::cli_abort(
+      c(
+        "{.arg replay} names a layer without flavors.",
+        "x" = "{.val {on_unflavored}} {?has/have} no flavors to replay.",
+        "i" = "Replay applies to a flavored layer; see {.fn add_flavor}."
+      ),
+      call = call,
+      class = "goldfish_sim_bad_replay"
+    )
+  }
+  unknown <- setdiff(replay, known)
+  n_unknown <- length(unknown)
+  if (n_unknown > 0L) {
+    cli::cli_abort(
+      c(
+        "{.arg replay} names {n_unknown} flavor{?s} the specification does
+         not model.",
+        "x" = "Unknown: {.val {unknown}}.",
+        "i" = "Modeled flavors: {.val {known}}."
+      ),
+      call = call,
+      class = "goldfish_sim_bad_replay"
+    )
+  }
+  requested <- unique(replay)
+  parts <- strsplit(requested, " › ", fixed = TRUE)
+  requested <- data.frame(
+    layer = vapply(parts, `[[`, "", 1L),
+    flavor = vapply(parts, `[[`, "", 2L),
+    stringsAsFactors = FALSE
+  )
+  emptied <- vapply(
+    unique(requested$layer),
+    function(layer) {
+      modeled <- unique(map$flavor[map$layer == layer])
+      all(modeled %in% requested$flavor[requested$layer == layer])
+    },
+    logical(1)
+  )
+  if (any(emptied)) {
+    layers <- unique(requested$layer)[emptied]
+    cli::cli_abort(
+      c(
+        "{.arg replay} leaves no modeled process on {.val {layers}}.",
+        "i" = "Replay needs a process to draw beside the replayed events; to
+               leave a whole layer unmodeled, drop it from the specification."
+      ),
+      call = call,
+      class = "goldfish_sim_bad_replay"
+    )
+  }
+  requested
+}
+
+# The specification without the flavors to replay, rebuilt through the same
+# constructor path completion uses, so the process_map is re-derived.
+drop_replayed_flavors <- function(joint_spec, requested) {
+  if (is.null(requested)) {
+    return(joint_spec)
+  }
+  specs <- lapply(joint_spec$specifications, function(spec) {
+    drop <- requested$flavor[requested$layer == spec$focal]
+    if (length(drop) == 0L || is.null(spec$processes)) {
+      return(spec)
+    }
+    spec$processes <- spec$processes[setdiff(names(spec$processes), drop)]
+    if (!is.null(spec$completion_gaps)) {
+      gaps <- spec$completion_gaps
+      spec$completion_gaps <- gaps[!(gaps$flavor %in% drop), , drop = FALSE]
+    }
+    spec
+  })
+  rebuild_completed_joint(joint_spec, specs)
 }
 
 # Refuse a DyNAM process whose authored rate is intercept-only and which has

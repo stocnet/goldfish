@@ -16,6 +16,7 @@
   times = times_of(object),
   n_events = NULL,
   horizon = NULL,
+  replay = NULL,
   steps = NULL,
   control_prep = set_preprocessing(),
   control_sim = set_simulation_guard(),
@@ -52,6 +53,11 @@ with the reason.}
 \item{horizon}{stop at this time. With neither \code{n_events} nor \code{horizon},
 the end of the observation window.}
 
+\item{replay}{flavors to replay from their observed events instead of
+drawing them, named as the process labels name them (\code{"calls › dissolution"}). A flavor the specification does not model is replayed
+without being named here. Parameters for a replayed flavor are accepted
+and not used.}
+
 \item{steps}{a \code{\link[=set_simulation_steps]{set_simulation_steps()}} object replacing any of the driver's
 own steps.}
 
@@ -67,13 +73,17 @@ argument it does not take.}
 stores its formula and estimates but not the data it was fitted on.}
 }
 \value{
-For \code{nsim = 1} a \code{goldfishSim}: the simulated \code{events}, the
-\code{process_map} with each process's regime, the \code{times} variant and its
-\code{times_source} (\code{"specification"} or \code{"requested"}), the \code{capped} flag and
-run \code{diagnostics}: the \code{stop_reason} (\code{"n_events"} or \code{"horizon"} for a
-target; \code{"max_events"}, \code{"rate_trajectory"} or \code{"clock_resolution"} for a
-guard), the counts of events and proposals, the \code{end_time} the clock
-reached, the \code{window_end}, and the total-rate \code{trajectory}. For
+For \code{nsim = 1} a \code{goldfishSim}: the simulated \code{events}; the
+\code{replayed} events in the same columns plus \code{skipped}; the \code{process_map}
+with each process's regime (\code{"modeled"}, \code{"completed"} or
+\code{"anchored-replay"}), where a replayed flavor has a row with no \code{fid} and
+a \code{replay_source} of \code{"unmodeled"} or \code{"requested"}; the \code{times} variant
+and its \code{times_source} (\code{"specification"} or \code{"requested"}), the \code{capped}
+flag and run \code{diagnostics}: the \code{stop_reason} (\code{"n_events"} or
+\code{"horizon"} for a target; \code{"max_events"}, \code{"rate_trajectory"} or
+\code{"clock_resolution"} for a guard), the counts of events and proposals,
+the \code{end_time} the clock reached, the \code{window_end}, the total-rate
+\code{trajectory}, and the counts \code{n_replayed} and \code{n_skipped}. For
 \code{nsim > 1} a \code{goldfishSimPool}: a list of them that prints in aggregate,
 whose \code{summary()} gives one row per replicate, and whose replicates are
 selected with \code{\link[=filter_simulation]{filter_simulation()}}.
@@ -116,6 +126,14 @@ the replicate is flagged \code{capped} with the guard in
 \code{diagnostics$trajectory}, and it stays in the result. A call warns at most
 once, counting the replicates that stopped at a guard and those that ran
 past the observation window.
+
+A flavor of a flavored layer that the specification models in neither the
+rate nor the choice is not simulated but replayed: its observed events are
+applied at their observed times while the modeled flavors are drawn around
+them, and each one restarts the clock, as it censors the rate in
+estimation. A replayed event the simulated state cannot take, such as the
+dissolution of a tie no simulated creation made, is skipped rather than
+forced, and counted.
 
 Every step of the loop is replaceable — see \code{\link[=set_simulation_steps]{set_simulation_steps()}} for the
 plug points and \code{\link[=set_parameter_provider]{set_parameter_provider()}} for parameters that change during

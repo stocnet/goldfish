@@ -129,7 +129,9 @@ summary.goldfishSimPool <- function(object, ...) {
       diagnostics,
       function(d) as.numeric(d$acceptance_rate),
       1
-    )
+    ),
+    n_replayed = vapply(diagnostics, function(d) as.integer(d$n_replayed), 1L),
+    n_skipped = vapply(diagnostics, function(d) as.integer(d$n_skipped), 1L)
   )
 }
 
@@ -163,12 +165,16 @@ print.goldfishSimPool <- function(x, ...) {
     "{n_replicates} replicate{?s} · times {.val {times}} ({source}) ·
      {n_processes} process{?es}"
   )
-  regime <- map$regime %||% rep("modeled", n_processes)
-  labels <- render_process_label(map, map$fid)
+  regime <- simulation_regime_labels(map)
+  labels <- simulation_process_labels(map)
   fids <- map$fid
   cli::cli_ul()
   for (i in seq_along(labels)) {
-    cli::cli_li("{.strong {labels[i]}} [fid {fids[i]}] ({regime[i]})")
+    if (is.na(fids[i])) {
+      cli::cli_li("{.strong {labels[i]}} ({regime[i]})")
+    } else {
+      cli::cli_li("{.strong {labels[i]}} [fid {fids[i]}] ({regime[i]})")
+    }
   }
   cli::cli_end()
 
@@ -181,6 +187,16 @@ print.goldfishSimPool <- function(x, ...) {
     "Events per replicate: min {low} · median {middle} · mean {average} ·
      max {high}"
   )
+  if (any(replicates$n_replayed > 0L)) {
+    skipped <- replicates$n_skipped
+    low_skipped <- min(skipped)
+    middle_skipped <- stats::median(skipped)
+    high_skipped <- max(skipped)
+    cli::cli_text(
+      "Replayed events skipped per replicate: min {low_skipped} · median
+       {middle_skipped} · max {high_skipped}"
+    )
+  }
   reasons <- sort(table(replicates$stop_reason), decreasing = TRUE)
   by_reason <- paste(names(reasons), as.integer(reasons), collapse = " · ")
   cli::cli_text("Stop reasons: {by_reason}")

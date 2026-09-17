@@ -445,6 +445,10 @@ walk_open <- function(
   handle$focal_layers <- focal_layers
   handle$exo_rows <- exo_rows
   handle$exo_cursor <- 0L
+  # Focal-layer rows replayed from the observed stream (walk_replay()), and
+  # per row whether it was skipped: NA until the clock reaches it.
+  handle$replay_rows <- integer(0)
+  handle$replay_skipped <- logical(0)
   # Driver-scheduled events (walk_schedule()), resolved and kept in time order.
   handle$queue <- list()
   handle$queue_time <- numeric(0)
@@ -555,6 +559,16 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
       k <- handle$exo_rows[handle$exo_cursor + 1L]
       oid <- schedule$target[k]
       walk_advance_presence(handle, exo_time)
+      replay_index <- match(k, handle$replay_rows)
+      if (!is.na(replay_index)) {
+        applies <- replay_row_applies(schedule, k, oid, handle)
+        handle$replay_skipped[replay_index] <- !applies
+        if (!applies) {
+          handle$exo_cursor <- handle$exo_cursor + 1L
+          handle$current_time <- max(handle$current_time, exo_time)
+          next
+        }
+      }
       event_args <- merged_build_event_args(
         schedule,
         k,
@@ -580,6 +594,49 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
   walk_advance_presence(handle, t)
   handle$current_time <- max(handle$current_time, t)
   invisible(handle)
+}
+
+# --------------------------------------------------------------------------- #
+# walk_replay
+# --------------------------------------------------------------------------- #
+
+# Replay observed update rows of a focal layer as if they were exogenous: a
+# flavor no process models keeps its observed events, while the driver draws
+# the modeled ones around them. `rows` index the schedule. Being exogenous
+# rows, they are breakpoints the clock redraws at, which is the
+# right-censoring estimation applies to the same stream.
+walk_replay <- function(handle, rows, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  if (handle$exo_cursor > 0L || length(handle$replay_rows) > 0L) {
+    cli::cli_abort(
+      "Replayed rows are registered once, before the walk steps.",
+      .internal = TRUE,
+      call = call
+    )
+  }
+  rows <- sort(as.integer(rows))
+  handle$replay_rows <- rows
+  handle$replay_skipped <- rep(NA, length(rows))
+  handle$exo_rows <- sort(c(handle$exo_rows, rows))
+  invisible(handle)
+}
+
+# Whether a replayed row can be applied to the simulated state. A replayed
+# event can reference a tie the simulation never produced; it is then
+# skipped rather than forced, because forcing it would write state no
+# process generated. An increment fails when it would leave the cell below
+# zero, a replacement when the cell already holds the value.
+replay_row_applies <- function(schedule, k, oid, handle) {
+  key <- handle$props$key[oid]
+  current <- handle$state$networks[[key]][
+    schedule$sender[k],
+    schedule$receiver[k]
+  ]
+  value <- schedule$value[[k]]
+  if (identical(schedule$semantics[k], "increment")) {
+    return(current + value >= 0)
+  }
+  current != value
 }
 
 # --------------------------------------------------------------------------- #

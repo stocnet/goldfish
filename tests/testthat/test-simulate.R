@@ -158,7 +158,9 @@ test_that("a pool summarizes each replicate", {
       stop_reason = "character",
       capped = "logical",
       n_proposals = "integer",
-      acceptance_rate = "double"
+      acceptance_rate = "double",
+      n_replayed = "integer",
+      n_skipped = "integer"
     )
   )
   expect_identical(summary$replicate, 1:3)
@@ -787,6 +789,294 @@ test_that("a flavored layer read by no term draws under its derived masks", {
     state[cell] <- state[cell] + events$increment[k]
   }
   expect_identical(tie_held, events$flavor == "dissolution")
+})
+
+test_that("an unmodeled flavor is replayed, not completed", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2
+  )
+
+  expect_no_warning(
+    out <- simulate(js, nsim = 1, seed = 1, coef = parameters)
+  )
+
+  expect_setequal(out$events$flavor, "creation")
+  map <- out$process_map
+  replay_row <- map[map$regime == "anchored-replay", ]
+  expect_identical(nrow(replay_row), 1L)
+  expect_identical(replay_row$layer, "calls")
+  expect_identical(replay_row$flavor, "dissolution")
+  expect_identical(replay_row$fid, NA_integer_)
+  expect_identical(replay_row$replay_source, "unmodeled")
+  expect_false(any(map$completed %in% TRUE))
+
+  ties <- as.data.frame(data$ties)
+  observed <- ties[ties$flavor %in% "dissolution", ]
+  replayed <- out$replayed
+  expect_named(
+    replayed,
+    c(
+      "time",
+      "layer",
+      "flavor",
+      "sender",
+      "receiver",
+      "increment",
+      "skipped"
+    )
+  )
+  expect_identical(replayed$time, as.numeric(observed$time))
+  expect_identical(replayed$sender, as.integer(observed$from))
+  expect_identical(replayed$receiver, as.integer(observed$to))
+  expect_identical(unique(replayed$flavor), "dissolution")
+  expect_identical(unique(replayed$increment), -1)
+  expect_identical(out$diagnostics$n_replayed, 40L)
+  expect_identical(out$diagnostics$n_skipped, sum(replayed$skipped))
+  expect_gt(out$diagnostics$n_skipped, 0L)
+})
+
+test_that("a replayed dissolution of an absent tie is skipped, not clamped", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2
+  )
+
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters)
+
+  # Rebuild the simulated network from the history, the drawn creations and
+  # the replayed dissolutions in time order; an observed row goes first at a
+  # shared stamp. A skipped row met an absent tie, an applied one a present
+  # tie, and no cell goes below zero.
+  ties <- as.data.frame(data$ties)
+  history <- ties[is.na(ties$time), ]
+  state <- matrix(0, 12L, 12L)
+  state[cbind(history$from, history$to)] <- 1
+  steps <- rbind(
+    data.frame(
+      time = out$replayed$time,
+      sender = out$replayed$sender,
+      receiver = out$replayed$receiver,
+      increment = out$replayed$increment,
+      skipped = out$replayed$skipped,
+      replayed = TRUE
+    ),
+    data.frame(
+      time = out$events$time,
+      sender = out$events$sender,
+      receiver = out$events$receiver,
+      increment = out$events$increment,
+      skipped = FALSE,
+      replayed = FALSE
+    )
+  )
+  steps <- steps[order(steps$time, !steps$replayed), ]
+  held <- logical(nrow(steps))
+  for (k in seq_len(nrow(steps))) {
+    cell <- cbind(steps$sender[k], steps$receiver[k])
+    held[k] <- state[cell] > 0
+    if (!steps$skipped[k]) {
+      state[cell] <- state[cell] + steps$increment[k]
+    }
+  }
+  replays <- steps$replayed
+  expect_identical(held[replays], !steps$skipped[replays])
+  expect_gte(min(state), 0)
+})
+
+test_that("each replayed row is a breakpoint the clock redraws at", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2
+  )
+  asked_at <- numeric(0)
+  recording_clock <- function(rates, t, handle) {
+    asked_at <<- c(asked_at, t)
+    list(
+      wait = stats::rexp(1L, sum(rates)),
+      fid = as.integer(names(rates)[1L]),
+      kind = "event"
+    )
+  }
+  steps <- set_simulation_steps(clock = recording_clock)
+  asked_at <- numeric(0)
+
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters, steps = steps)
+
+  ties <- as.data.frame(data$ties)
+  dissolved_at <- ties$time[ties$flavor %in% "dissolution"]
+  inside <- dissolved_at[dissolved_at < out$diagnostics$end_time]
+  expect_gt(length(inside), 0)
+  expect_in(inside, asked_at)
+})
+
+test_that("an unmodeled flavor on a replace layer skips a no-op replay", {
+  data <- flavored_fixture_data()
+  data$info$update <- c(calls = "replace")
+  data$ties$weight[data$ties$flavor %in% "dissolution"] <- 0
+  data$ties$flavor <- NULL
+  data <- add_flavor(
+    data,
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = 0)
+  )
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2
+  )
+
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters)
+
+  expect_identical(out$diagnostics$n_replayed, 40L)
+  expect_gt(out$diagnostics$n_skipped, 0L)
+  expect_lt(out$diagnostics$n_skipped, 40L)
+})
+
+test_that("a run with nothing to replay records an empty replay", {
+  js <- sim_two_process()
+
+  out <- simulate(
+    js,
+    nsim = 1,
+    seed = 1,
+    coef = sim_two_process_parameters(js),
+    n_events = 5
+  )
+
+  expect_identical(nrow(out$replayed), 0L)
+  expect_identical(out$diagnostics$n_replayed, 0L)
+  expect_identical(out$diagnostics$n_skipped, 0L)
+  expect_false("anchored-replay" %in% out$process_map$regime)
+})
+
+test_that("a replayed flavor prints its regime and skip count", {
+  local_cli_context()
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2
+  )
+
+  out <- simulate(js, nsim = 1, seed = 1, coef = parameters)
+  pool <- simulate(js, nsim = 3, seed = 1, coef = parameters)
+
+  expect_snapshot(print(out))
+  expect_snapshot(print(pool))
+  summary <- summary(pool)
+  expect_identical(typeof(summary$n_replayed), "integer")
+  expect_identical(typeof(summary$n_skipped), "integer")
+  expect_identical(
+    summary$n_skipped,
+    vapply(pool, function(run) run$diagnostics$n_skipped, integer(1))
+  )
+})
+
+test_that("replay = replays a modeled flavor instead of drawing it", {
+  data <- flavored_fixture_data()
+  js <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  # Built for the full model: the replayed flavor's blocks are not used.
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2,
+    `calls › dissolution › rate` = c(-3, 0.1),
+    `calls › dissolution › choice` = 0.2
+  )
+
+  out <- simulate(
+    js,
+    nsim = 1,
+    seed = 1,
+    coef = parameters,
+    replay = "calls › dissolution"
+  )
+
+  expect_setequal(out$events$flavor, "creation")
+  map <- out$process_map
+  replay_row <- map[map$regime %in% "anchored-replay", ]
+  expect_identical(replay_row$flavor, "dissolution")
+  expect_identical(replay_row$replay_source, "requested")
+  expect_false("dissolution" %in% map$flavor[!is.na(map$fid)])
+  expect_identical(out$diagnostics$n_replayed, 40L)
+})
+
+test_that("replay = refuses what it cannot replay", {
+  local_cli_context()
+  data <- flavored_fixture_data()
+  flavored <- single_process_joint(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  ))
+  parameters <- set_parameters(
+    flavored,
+    `calls › creation › rate` = c(-3, 0.1),
+    `calls › creation › choice` = 0.2,
+    `calls › dissolution › rate` = c(-3, 0.1),
+    `calls › dissolution › choice` = 0.2
+  )
+  js <- sim_two_process()
+
+  expect_snapshot(
+    simulate(flavored, coef = parameters, replay = "calls › deletion"),
+    error = TRUE
+  )
+  expect_snapshot(
+    simulate(
+      flavored,
+      coef = parameters,
+      replay = c("calls › creation", "calls › dissolution")
+    ),
+    error = TRUE
+  )
+  expect_snapshot(
+    simulate(js, coef = sim_two_process_parameters(js), replay = "calls"),
+    error = TRUE
+  )
 })
 
 test_that("a choice-only DyNAM defaults to time-anchored", {

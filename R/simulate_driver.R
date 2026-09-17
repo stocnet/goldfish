@@ -40,6 +40,7 @@ simulate_replicate <- function(
   n_events,
   control_sim,
   control_prep,
+  requested_replay = NULL,
   call = rlang::caller_env()
 ) {
   handle <- walk_open(spec, control_prep, call = call)
@@ -64,6 +65,8 @@ simulate_replicate <- function(
   }
   routing <- simulation_routing(spec, handle)
   map <- routing$map
+  replay <- simulation_replay_plan(spec, handle, requested_replay)
+  walk_replay(handle, replay$rows, call = call)
   rate_fids <- map$fid[map$family == "rate"]
   if (length(rate_fids) == 0L) {
     cli::cli_abort(
@@ -184,10 +187,16 @@ simulate_replicate <- function(
     k <- k + 1L
     collect_event(collector, event, fid, map, latent)
   }
+  # Observed rows stamped at the horizon belong to the window, so a replayed
+  # flavor's last events are applied before the run is returned.
+  if (identical(stop_reason, "horizon")) {
+    walk_advance(handle, t, call = call)
+  }
 
   new_goldfish_sim(
     events = collector_frame(collector),
-    process_map = map,
+    process_map = simulation_result_map(map, replay$flavors),
+    replayed = replayed_frame(handle, replay),
     times = times,
     capped = stop_reason %in% SIM_GUARD_STOPS,
     stop_reason = stop_reason,
@@ -714,13 +723,24 @@ warn_simulation_conditions <- function(runs, call) {
 # `at()`. A numeric vector is the single-process convention; a `goldfishParams`
 # is the joint surface, gated on completeness and reconciled against the
 # completed spec; a provider is itself.
-resolve_coef_provider <- function(coef, spec, call) {
+resolve_coef_provider <- function(coef, spec, call, replayed = NULL) {
   if (is_parameter_provider(coef)) {
     return(coef)
   }
   map <- spec$process_map
   if (is_parameters_goldfish(coef)) {
-    reconcile_joint_parameters(coef, spec, arg = "coef", call = call)
+    # Parameters built for the full model carry blocks for a flavor the call
+    # replays instead; those blocks are accepted and not used.
+    coef_map <- coef$process_map
+    unused <- paste(coef_map$layer, coef_map$flavor) %in%
+      paste(replayed$layer, replayed$flavor)
+    reconcile_joint_parameters(
+      coef,
+      spec,
+      arg = "coef",
+      call = call,
+      ignored = render_process_label(coef_map, coef_map$fid[unused])
+    )
     full <- joint_simulation_parameters(coef, arg = "coef", call = call)
     labels <- render_process_label(map, map$fid)
     by_fid <- stats::setNames(
@@ -887,13 +907,132 @@ collector_latent <- function(collector) {
 }
 
 # --------------------------------------------------------------------------- #
+# Replaying unmodeled flavors
+# --------------------------------------------------------------------------- #
+
+# The flavors whose observed events are replayed, and the schedule rows that
+# carry them. On a flavored focal layer every flavor no process models is
+# replayed, together with any flavor the caller asked to replay instead of
+# drawing (already dropped from `spec`). The focal update rows carry no
+# flavor, so the flavor is read back from the row's value through the
+# layer's `values_equivalence`.
+#
+# `flavors` holds one row per replayed flavor: layer, flavor, replay_source.
+simulation_replay_plan <- function(spec, handle, requested) {
+  map <- spec$process_map
+  info <- spec$data$info %||% list()
+  schedule <- handle$schedule
+  flavors <- list()
+  rows <- integer(0)
+  for (layer in unique(map$layer)) {
+    mapping <- info$values_equivalence[[layer]]
+    layer_flavors <- map$flavor[map$layer == layer]
+    if (is.null(mapping) || anyNA(layer_flavors)) {
+      next
+    }
+    asked <- requested$flavor[requested$layer == layer]
+    replayed <- setdiff(names(mapping), setdiff(layer_flavors, asked))
+    if (length(replayed) == 0L) {
+      next
+    }
+    flavors[[length(flavors) + 1L]] <- data.frame(
+      layer = layer,
+      flavor = replayed,
+      replay_source = ifelse(replayed %in% asked, "requested", "unmodeled"),
+      stringsAsFactors = FALSE
+    )
+    candidates <- which(!schedule$dependent & schedule$layer == layer)
+    values <- vapply(schedule$value[candidates], as.numeric, numeric(1))
+    row_flavor <- names(mapping)[match(values, mapping)]
+    rows <- c(rows, candidates[row_flavor %in% replayed])
+  }
+  flavors <- if (length(flavors) > 0L) {
+    do.call(rbind, flavors)
+  } else {
+    data.frame(
+      layer = character(0),
+      flavor = character(0),
+      replay_source = character(0),
+      stringsAsFactors = FALSE
+    )
+  }
+  list(rows = sort(rows), flavors = flavors, mappings = info$values_equivalence)
+}
+
+# The process_map a result reports: the walked fids, then one row per
+# replayed flavor, which has no fid and no family.
+simulation_result_map <- function(map, flavors) {
+  map$replay_source <- rep(NA_character_, nrow(map))
+  if (nrow(flavors) == 0L) {
+    return(map)
+  }
+  extra <- map[rep(NA_integer_, nrow(flavors)), , drop = FALSE]
+  extra$layer <- flavors$layer
+  extra$flavor <- flavors$flavor
+  extra$regime <- "anchored-replay"
+  extra$replay_source <- flavors$replay_source
+  out <- rbind(map, extra)
+  rownames(out) <- NULL
+  out
+}
+
+# The replayed rows the clock reached, whether applied or skipped, in the
+# columns of the drawn events. A row past the stop was never replayed.
+replayed_frame <- function(handle, replay) {
+  schedule <- handle$schedule
+  reached <- !is.na(handle$replay_skipped)
+  rows <- handle$replay_rows[reached]
+  layers <- schedule$layer[rows]
+  values <- vapply(schedule$value[rows], as.numeric, numeric(1))
+  flavor <- vapply(
+    seq_along(rows),
+    function(i) {
+      mapping <- replay$mappings[[layers[i]]]
+      names(mapping)[match(values[i], mapping)]
+    },
+    character(1)
+  )
+  increment <- ifelse(schedule$semantics[rows] == "increment", values, NA)
+  data.frame(
+    time = as.numeric(schedule$time[rows]),
+    layer = as.character(layers),
+    flavor = flavor,
+    sender = as.integer(schedule$sender[rows]),
+    receiver = as.integer(schedule$receiver[rows]),
+    increment = as.numeric(increment),
+    skipped = handle$replay_skipped[reached],
+    stringsAsFactors = FALSE
+  )
+}
+
+# The regime each process_map row prints with; a replay the caller asked for
+# says so.
+simulation_regime_labels <- function(map) {
+  regime <- map$regime %||% rep("modeled", nrow(map))
+  requested <- map$replay_source %in% "requested"
+  regime[requested] <- paste0(regime[requested], ", requested")
+  regime
+}
+
+# One label per process_map row: a walked fid's rendered process, or a
+# replayed flavor's layer and flavor.
+simulation_process_labels <- function(map) {
+  labels <- paste(map$layer, map$flavor, sep = " › ")
+  walked <- !is.na(map$fid)
+  labels[walked] <- render_process_label(map, map$fid[walked])
+  labels
+}
+
+# --------------------------------------------------------------------------- #
 # The result
 # --------------------------------------------------------------------------- #
 
 # `times` is the resolved variant from `resolve_simulation_times()`: the
 # `times` run, its `source`, and the specification's `default` and `reason`.
+# `replayed` holds the replayed rows the clock reached (replayed_frame()).
 new_goldfish_sim <- function(
   events,
+  replayed,
   process_map,
   times,
   capped,
@@ -912,6 +1051,7 @@ new_goldfish_sim <- function(
   structure(
     list(
       events = events,
+      replayed = replayed,
       process_map = process_map,
       times = times$times,
       times_source = times$source,
@@ -929,7 +1069,9 @@ new_goldfish_sim <- function(
         },
         end_time = end_time,
         window_end = window_end,
-        trajectory = trajectory
+        trajectory = trajectory,
+        n_replayed = nrow(replayed),
+        n_skipped = sum(replayed$skipped)
       ),
       latent = latent_path,
       replicate = replicate
@@ -960,13 +1102,20 @@ print.goldfishSim <- function(x, ...) {
     )
   }
   map <- x$process_map
-  regime <- map$regime %||% rep("modeled", nrow(map))
-  labels <- render_process_label(map, map$fid)
+  regime <- simulation_regime_labels(map)
+  labels <- simulation_process_labels(map)
   cli::cli_ul()
   for (i in seq_along(labels)) {
     cli::cli_li("{.field {labels[i]}} ({regime[i]})")
   }
   cli::cli_end()
+  n_replayed <- x$diagnostics$n_replayed %||% 0L
+  if (n_replayed > 0L) {
+    n_skipped <- x$diagnostics$n_skipped
+    cli::cli_text(
+      "Replayed {n_replayed} observed event{?s}; {n_skipped} skipped."
+    )
+  }
   if (isTRUE(x$capped)) {
     reason <- x$diagnostics$stop_reason
     end_time <- x$diagnostics$end_time

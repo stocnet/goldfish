@@ -507,7 +507,8 @@ reconcile_joint_parameters <- function(
   x,
   completed_spec,
   arg,
-  call = rlang::caller_env()
+  call = rlang::caller_env(),
+  ignored = character(0)
 ) {
   accept_joint_parameters(x, arg = arg, call = call)
   # Completion reassigns fids (it rebuilds the process_map), so the object's raw
@@ -519,7 +520,7 @@ reconcile_joint_parameters <- function(
   spec_labels <- render_process_label(map, map$fid)
   completed <- map$completed %||% rep(FALSE, nrow(map))
 
-  stray <- setdiff(object_labels, spec_labels)
+  stray <- setdiff(setdiff(object_labels, ignored), spec_labels)
   if (length(stray) > 0) {
     cli::cli_abort(
       c(

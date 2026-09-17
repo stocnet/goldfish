@@ -47,6 +47,17 @@
   clock-resolution stop measured against the observation window's length,
   and stops on the rate trajectory that are off until set. `simulate()` no
   longer takes `max_events`, and refuses arguments it does not take.
+* `simulate()` replays a flavor that the specification models in neither
+  the rate nor the choice, such as treaty dissolutions beside modeled
+  creations: its observed events are applied at their observed times while
+  the modeled flavors are drawn, and each one restarts the clock. A replayed
+  event the simulated network cannot take, such as dissolving a tie no
+  simulated creation made, is skipped and counted. The new `replay` argument
+  replays a modeled flavor the same way instead of drawing it. The result
+  records each process's regime (`"modeled"`, `"completed"` or
+  `"anchored-replay"`) in its `process_map`, the replayed events in
+  `replayed`, and `n_replayed` and `n_skipped` in its diagnostics and the
+  pool summary.
 * Added `filter_simulation()`, which keeps the replicates of a pool whose
   summary meets every condition, such as `stop_reason == "horizon"`. No
   replicate is excluded unless a filter removes it.
