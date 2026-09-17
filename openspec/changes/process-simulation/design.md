@@ -850,6 +850,28 @@ and no interim guard is needed. Once the replayed rows are exogenous,
 is exactly the right-censoring estimation applies, with no mechanism of its
 own. The same mapping is what the mark
 must carry: a drawn dissolution is an `increment = -1` event (task 2.2c).
+
+*Amended 2026-09-17 (apply 2.8, goldfish-a3; ADR-0091) — the record, the
+skip rule and the override, settled with Alvaro before implementing.* A
+replayed flavor has no fid, so the record lists it as its own row of the
+*result's* `process_map`: `fid` and `family` NA, `regime =
+"anchored-replay"`, and a `replay_source` column (`"unmodeled"` or
+`"requested"`, NA on fid rows). The driver's fid map is unchanged. A
+replayed row is skipped when its increment would leave the cell below zero,
+or when its replacement value is already in the cell; a skip writes nothing.
+The result carries the reached rows as `replayed` (the drawn events'
+columns plus `skipped`; `events` stays drawn-only), `diagnostics$n_replayed`
+and `n_skipped`, the same two as pool summary columns, a
+"Replayed n observed events; k skipped." line in the replicate print, and a
+skipped-per-replicate spread in the pool print, both only when something was
+replayed. No incoherence threshold: that is 2.8b. The per-flavor override
+is `simulate(..., replay = "calls › dissolution")`: a requested flavor is
+dropped from the specification before completion, so it replays exactly like
+an unmodeled one; parameters built for the full model keep its blocks,
+accepted and unused; a replay that leaves a layer with no modeled process,
+an unknown label, or a layer without flavors is refused
+(`goldfish_sim_bad_replay`). A run stopped at its horizon advances the walk
+to it, so observed rows stamped at the window end are replayed.
 ### D10 — One preprocessing pass keyed by fid, never a cycle per sub-model (added 2026-09-07)
 
 The package carries three preprocessing substrates, and the question this

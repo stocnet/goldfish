@@ -414,6 +414,16 @@ documented threshold the run SHALL be flagged incoherent.
 - **THEN** the deletion is skipped, the skip counter increments, and the state is
   not clamped.
 
+#### Scenario: a modeled flavor is replayed on request
+
+- **WHEN** a flavored specification models `creation` and `dissolution` and
+  is simulated with `replay = "calls › dissolution"` and parameters built for
+  both flavors
+- **THEN** no dissolution is drawn, the observed dissolutions are replayed
+  under the skip-and-count rule, the parameters for `dissolution` are
+  accepted and not used, and the regime record shows `dissolution` as
+  `anchored-replay` requested by the call.
+
 #### Scenario: excessive drift flags the run
 
 - **WHEN** the share of skipped replayed events exceeds the documented threshold

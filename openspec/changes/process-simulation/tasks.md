@@ -516,7 +516,7 @@
       names `n_sim = 100`. Regenerating `diagnostics.Rmd` also redrew its
       unseeded information-clock p-values (recip 0.0199 -> 0.0348) and the
       fit-size notes; the prose quotes none of them
-- [ ] 2.2m The guards are one object, and early stops are opt-in (added
+- [x] 2.2m The guards are one object, and early stops are opt-in (added
       2026-09-17, D3 amendment, ADR-0089; ADR-0088 rejected): an exported
       `set_simulation_guard(max_events = NULL, rate_multiple = Inf,
       wait_collapse = Inf, wait_window = 50L, clock_resolution = 0)`
@@ -550,7 +550,17 @@
       that pass `max_events =` to `simulate()` move to `control_sim`
       — *scheduled 2026-09-17*: **before 2.8**. Queue: 2.2m → 2.8 → 2.8b →
       2.3
-- [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
+      — *done 2026-09-17* `ff9709b` (goldfish-a3), 8953 / 0 / 4, six baseline
+      files PASS. Settled with Alvaro first (ADR-0090):
+      `rlang::check_dots_empty()` in `simulate.goldfishJointSpec()`; one class
+      `goldfish_sim_bad_guard` (also for a non-guard `control_sim`); a cli
+      print (rule, "Stops on:", `cli_dl()` with a gloss per guard). The
+      advancing-runaway fixture is `sim_two_process()` with the calls rate at
+      `c(-1, 3)` (`sim_runaway_parameters()`): `max_events` 80 on six seeds in
+      0.08 s; `rate_multiple = 100` and `wait_collapse = 100, wait_window =
+      10` stop it by event ~19. REM `~ 1 + indeg` stops at `clock_resolution`
+      at events 46–59. `max_events` and `clock_resolution` validated finite
+- [x] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
       by default (ADR-0055): their observed events enter the walk schedule as
@@ -574,6 +584,20 @@
       2.2k → 2.2l**. Queue: 2.2h → 2.2i → 2.2j → 2.2k → 2.2l → 2.8 → 2.8b
       → 2.3; *2026-09-17*: 2.2m inserted before 2.8 (queue 2.2m → 2.8 →
       2.8b → 2.3)
+      — *done 2026-09-17* `d349576` (goldfish-a3), 8994 / 0 / 4, six baseline
+      files PASS. Settled with Alvaro first (ADR-0091; design D9 amendment
+      2026-09-17): replayed flavors as fid-less `anchored-replay` rows of the
+      result's `process_map` with `replay_source`; skip when an increment
+      would go below zero or a replacement is a no-op; `replayed` frame,
+      `diagnostics$n_replayed` / `n_skipped`, pool summary columns and print
+      lines; the override built as `simulate(replay = "layer › flavor")`
+      (dropped before completion, full-model parameter blocks accepted and
+      unused, `goldfish_sim_bad_replay` refusals). "The Fisheries shape" is
+      tested on `flavored_fixture_data()`: no flavored treaties stocnet exists
+      in the helpers. A horizon stop advances the walk to the horizon so the
+      last observed rows replay. Finding (not fixed): a creation-only run
+      with replay disabled can draw a sender whose creation mask row is empty
+      (choice returns `NA`)
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
