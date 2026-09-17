@@ -93,6 +93,7 @@ class(steps)
 Other simulation:
 \code{\link[=filter_simulation]{filter_simulation()}},
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
+\code{\link[=set_simulation_guard]{set_simulation_guard()}},
 \code{\link{simulate}},
 \code{\link{simulation-handle}},
 \code{\link[=times_of]{times_of()}}

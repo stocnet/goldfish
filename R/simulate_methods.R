@@ -36,14 +36,17 @@
 #' [set_preprocessing()] sets an `end_time`. The number of events is then drawn
 #' by the model rather than fixed.
 #'
-#' The explosion guards are not targets. A run stops early when its total rate
-#' grows past a large multiple of its starting value, when a drawn waiting
-#' time no longer moves the clock, or at `max_events`. A guard ends only its
-#' own replicate: the events drawn so far are kept, the replicate is flagged
-#' `capped` with the guard in `diagnostics$stop_reason` and the total rate at
-#' each event in `diagnostics$trajectory`, and it stays in the result. A call
-#' warns at most once, counting the replicates that stopped at a guard and
-#' those that ran past the observation window.
+#' The explosion guards are not targets; they are set with
+#' [set_simulation_guard()] and passed as `control_sim`. By default a run
+#' stops short of its target when a drawn waiting time no longer moves the
+#' clock, or at `max_events`, so a runaway whose clock still advances runs on
+#' to the count cap. A stop on the rate trajectory is available but off until
+#' set. A guard ends only its own replicate: the events drawn so far are kept,
+#' the replicate is flagged `capped` with the guard in
+#' `diagnostics$stop_reason` and the total rate at each event in
+#' `diagnostics$trajectory`, and it stays in the result. A call warns at most
+#' once, counting the replicates that stopped at a guard and those that ran
+#' past the observation window.
 #'
 #' Every step of the loop is replaceable — see [set_simulation_steps()] for the
 #' plug points and [set_parameter_provider()] for parameters that change during
@@ -67,13 +70,13 @@
 #' @param n_events stop after this many events.
 #' @param horizon stop at this time. With neither `n_events` nor `horizon`,
 #'   the end of the observation window.
-#' @param max_events the count guard, over proposed events; defaults to ten
-#'   times the number of observed dependent events. A run reaching it stops
-#'   and is flagged.
 #' @param steps a [set_simulation_steps()] object replacing any of the driver's
 #'   own steps.
 #' @param control_prep preprocessing options, from [set_preprocessing()].
-#' @param ... passed between methods.
+#' @param control_sim the guards that stop a runaway replicate, from
+#'   [set_simulation_guard()].
+#' @param ... passed between methods. The specification method refuses any
+#'   argument it does not take.
 #'
 #' @return For `nsim = 1` a `goldfishSim`: the simulated `events`, the
 #'   `process_map` with each process's regime, the `times` variant and its
@@ -86,8 +89,8 @@
 #'   whose `summary()` gives one row per replicate, and whose replicates are
 #'   selected with [filter_simulation()].
 #'
-#' @seealso [set_simulation_steps()], [set_parameter_provider()],
-#'   [simulation-handle].
+#' @seealso [set_simulation_guard()], [set_simulation_steps()],
+#'   [set_parameter_provider()], [simulation-handle].
 #' @family simulation
 #' @importFrom stats simulate
 #' @name simulate
@@ -110,12 +113,14 @@ simulate.goldfishJointSpec <- function(
   times = times_of(object),
   n_events = NULL,
   horizon = NULL,
-  max_events = NULL,
   steps = NULL,
   control_prep = set_preprocessing(),
+  control_sim = set_simulation_guard(),
   ...
 ) {
   call <- rlang::current_env()
+  rlang::check_dots_empty()
+  control_sim <- resolve_simulation_guard(control_sim, call)
   # Settled before anything else, so what an explicit `times` costs -- a
   # message, or an abort when the model estimates no clock -- is said first.
   resolved_times <- resolve_simulation_times(
@@ -183,7 +188,7 @@ simulate.goldfishJointSpec <- function(
       times = resolved_times,
       horizon = horizon,
       n_events = n_events,
-      max_events = max_events,
+      control_sim = control_sim,
       control_prep = control_prep,
       call = call
     )

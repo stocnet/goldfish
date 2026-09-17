@@ -163,11 +163,32 @@
       ! Run stopped at the "clock_resolution" guard at time 1.03;
       flagged as capped.
 
+# simulate refuses a guard that is not a guard object
+
+    Code
+      simulate(js, coef = sim_two_process_parameters(js), control_sim = list(
+        max_events = 20))
+    Condition
+      Error in `simulate()`:
+      ! `control_sim` must be a <goldfishSimGuard>.
+      x A <list> was supplied.
+      i Build one with `set_simulation_guard()`.
+
+# simulate refuses arguments it does not take
+
+    Code
+      simulate(js, coef = sim_two_process_parameters(js), max_events = 20)
+    Condition
+      Error in `simulate()`:
+      ! `...` must be empty.
+      x Problematic argument:
+      * max_events = 20
+
 # a call warns once about guard stops and the frozen state
 
     Code
       invisible(simulate(js, nsim = 3, seed = 4, coef = parameters, n_events = 200,
-        max_events = 30))
+        control_sim = set_simulation_guard(max_events = 30)))
     Condition
       Warning in `simulate()`:
       Simulation flagged 3 of 3 replicates.

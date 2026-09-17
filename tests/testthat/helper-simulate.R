@@ -64,6 +64,19 @@ sim_two_process <- function() {
   make_joint_specification(calls, emails, data = data)
 }
 
+# The calls rate feeds back on its own receivers strongly enough that the
+# total rate outgrows its start a hundredfold within twenty events, while
+# each drawn wait still moves the clock.
+sim_runaway_parameters <- function(js) {
+  set_parameters(
+    js,
+    `calls › rate` = c(-1, 3),
+    `calls › choice` = c(0.2, 0.3),
+    `emails › rate` = c(-1, 0.1),
+    `emails › choice` = c(0.2, 0.3)
+  )
+}
+
 sim_two_process_parameters <- function(js) {
   set_parameters(
     js,

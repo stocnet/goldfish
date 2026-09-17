@@ -16,9 +16,9 @@
   times = times_of(object),
   n_events = NULL,
   horizon = NULL,
-  max_events = NULL,
   steps = NULL,
   control_prep = set_preprocessing(),
+  control_sim = set_simulation_guard(),
   ...
 )
 
@@ -52,16 +52,16 @@ with the reason.}
 \item{horizon}{stop at this time. With neither \code{n_events} nor \code{horizon},
 the end of the observation window.}
 
-\item{max_events}{the count guard, over proposed events; defaults to ten
-times the number of observed dependent events. A run reaching it stops
-and is flagged.}
-
 \item{steps}{a \code{\link[=set_simulation_steps]{set_simulation_steps()}} object replacing any of the driver's
 own steps.}
 
 \item{control_prep}{preprocessing options, from \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 
-\item{...}{passed between methods.}
+\item{control_sim}{the guards that stop a runaway replicate, from
+\code{\link[=set_simulation_guard]{set_simulation_guard()}}.}
+
+\item{...}{passed between methods. The specification method refuses any
+argument it does not take.}
 
 \item{data}{the stocnet to simulate on. Required on a fitted model, which
 stores its formula and estimates but not the data it was fitted on.}
@@ -105,14 +105,17 @@ exogenous, not counting a windowed effect's expiries, unless
 \code{\link[=set_preprocessing]{set_preprocessing()}} sets an \code{end_time}. The number of events is then drawn
 by the model rather than fixed.
 
-The explosion guards are not targets. A run stops early when its total rate
-grows past a large multiple of its starting value, when a drawn waiting
-time no longer moves the clock, or at \code{max_events}. A guard ends only its
-own replicate: the events drawn so far are kept, the replicate is flagged
-\code{capped} with the guard in \code{diagnostics$stop_reason} and the total rate at
-each event in \code{diagnostics$trajectory}, and it stays in the result. A call
-warns at most once, counting the replicates that stopped at a guard and
-those that ran past the observation window.
+The explosion guards are not targets; they are set with
+\code{\link[=set_simulation_guard]{set_simulation_guard()}} and passed as \code{control_sim}. By default a run
+stops short of its target when a drawn waiting time no longer moves the
+clock, or at \code{max_events}, so a runaway whose clock still advances runs on
+to the count cap. A stop on the rate trajectory is available but off until
+set. A guard ends only its own replicate: the events drawn so far are kept,
+the replicate is flagged \code{capped} with the guard in
+\code{diagnostics$stop_reason} and the total rate at each event in
+\code{diagnostics$trajectory}, and it stays in the result. A call warns at most
+once, counting the replicates that stopped at a guard and those that ran
+past the observation window.
 
 Every step of the loop is replaceable — see \code{\link[=set_simulation_steps]{set_simulation_steps()}} for the
 plug points and \code{\link[=set_parameter_provider]{set_parameter_provider()}} for parameters that change during
@@ -126,12 +129,13 @@ data("Social_Evolution", package = "goldfish")
 }
 }
 \seealso{
-\code{\link[=set_simulation_steps]{set_simulation_steps()}}, \code{\link[=set_parameter_provider]{set_parameter_provider()}},
-\link{simulation-handle}.
+\code{\link[=set_simulation_guard]{set_simulation_guard()}}, \code{\link[=set_simulation_steps]{set_simulation_steps()}},
+\code{\link[=set_parameter_provider]{set_parameter_provider()}}, \link{simulation-handle}.
 
 Other simulation:
 \code{\link[=filter_simulation]{filter_simulation()}},
 \code{\link[=set_parameter_provider]{set_parameter_provider()}},
+\code{\link[=set_simulation_guard]{set_simulation_guard()}},
 \code{\link[=set_simulation_steps]{set_simulation_steps()}},
 \code{\link{simulation-handle}},
 \code{\link[=times_of]{times_of()}}

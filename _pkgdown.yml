@@ -54,6 +54,7 @@ reference:
     contents:
       - simulate
       - filter_simulation
+      - set_simulation_guard
       - simulation-handle
       - times_of
   - title: "Diagnostics"

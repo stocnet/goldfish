@@ -133,7 +133,7 @@ test_that("a pool prints its aggregate, not its replicates", {
     nsim = 6,
     seed = 2,
     coef = sim_two_process_parameters(js),
-    max_events = 20
+    control_sim = set_simulation_guard(max_events = 20)
   ))
   expect_snapshot(print(guarded))
 })
@@ -179,7 +179,7 @@ test_that("filter_simulation() keeps replicates by their summary", {
     nsim = 6,
     seed = 2,
     coef = parameters,
-    max_events = 20
+    control_sim = set_simulation_guard(max_events = 20)
   ))
   summary <- summary(pool)
   capped <- summary$replicate[summary$capped]
@@ -300,7 +300,7 @@ test_that("the max_events guard caps and flags the run", {
       seed = 5,
       coef = sim_two_process_parameters(js),
       n_events = 500,
-      max_events = 20
+      control_sim = set_simulation_guard(max_events = 20)
     ),
     class = "goldfish_sim_guard_stop"
   )
@@ -920,7 +920,7 @@ test_that("a clock that cannot advance stops and flags the replicate", {
   expect_snapshot(print(out))
 })
 
-test_that("a runaway REM fit is flagged at a guard, not stamped", {
+test_that("a runaway REM fit stops where its clock stalls, not stamped", {
   data("social_evolution", envir = environment())
   spec <- suppressMessages(make_specification(
     rate = ~ 1 + indeg,
@@ -930,18 +930,207 @@ test_that("a runaway REM fit is flagged at a guard, not stamped", {
   ))
 
   # The estimates of this model on these data: every call raises the
-  # receiver's rate by a factor of three, and the total rate runs away.
+  # receiver's rate by a factor of three, and the total rate runs away until
+  # a drawn wait no longer moves the clock.
   expect_warning(
     out <- simulate(spec, nsim = 1, seed = 1, coef = c(-18.657, 1.150)),
     class = "goldfish_sim_guard_stop"
   )
 
   expect_true(out$capped)
-  expect_identical(out$diagnostics$stop_reason, "rate_trajectory")
+  expect_identical(out$diagnostics$stop_reason, "clock_resolution")
   expect_lt(nrow(out$events), 4390)
   expect_false(anyDuplicated(out$events$time) > 0)
   trajectory <- out$diagnostics$trajectory
   expect_gt(max(trajectory$total_rate), trajectory$total_rate[1])
+})
+
+test_that("a runaway whose clock advances reaches max_events by default", {
+  js <- sim_two_process()
+
+  expect_warning(
+    out <- simulate(js, nsim = 1, seed = 1, coef = sim_runaway_parameters(js)),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  # Ten times the eight observed dependent events, over proposals.
+  expect_true(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "max_events")
+  expect_identical(out$diagnostics$n_proposals, 80L)
+  trajectory <- out$diagnostics$trajectory
+  expect_gt(max(trajectory$total_rate), 100 * trajectory$total_rate[1])
+})
+
+test_that("a finite rate_multiple stops a runaway at the rate trajectory", {
+  js <- sim_two_process()
+
+  expect_warning(
+    out <- simulate(
+      js,
+      nsim = 1,
+      seed = 1,
+      coef = sim_runaway_parameters(js),
+      control_sim = set_simulation_guard(rate_multiple = 100)
+    ),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_true(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "rate_trajectory")
+  expect_lt(out$diagnostics$n_proposals, 80L)
+  trajectory <- out$diagnostics$trajectory
+  n <- nrow(trajectory)
+  expect_gt(trajectory$total_rate[n], 100 * trajectory$total_rate[1])
+  expect_lte(
+    max(trajectory$total_rate[-n]),
+    100 * trajectory$total_rate[1]
+  )
+})
+
+test_that("a finite wait_collapse stops a runaway at the rate trajectory", {
+  js <- sim_two_process()
+
+  expect_warning(
+    out <- simulate(
+      js,
+      nsim = 1,
+      seed = 1,
+      coef = sim_runaway_parameters(js),
+      control_sim = set_simulation_guard(wait_collapse = 100, wait_window = 10)
+    ),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_true(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "rate_trajectory")
+  expect_lt(out$diagnostics$n_proposals, 80L)
+})
+
+test_that("finite early stops leave a bounded run to its horizon", {
+  js <- sim_two_process()
+
+  out <- simulate(
+    js,
+    nsim = 1,
+    seed = 1,
+    coef = sim_two_process_parameters(js),
+    control_sim = set_simulation_guard(
+      rate_multiple = 100,
+      wait_collapse = 100,
+      wait_window = 10
+    )
+  )
+
+  expect_false(out$capped)
+  expect_identical(out$diagnostics$stop_reason, "horizon")
+})
+
+test_that("clock_resolution = NULL lets a stalled clock run to max_events", {
+  js <- sim_two_process()
+  draws <- 0L
+  stalling_clock <- function(rates, t, handle) {
+    draws <<- draws + 1L
+    wait <- if (draws <= 3L) 0.01 else 0
+    list(wait = wait, fid = 1L, kind = "event")
+  }
+  steps <- set_simulation_steps(clock = stalling_clock)
+  draws <- 0L
+
+  expect_warning(
+    out <- simulate(
+      js,
+      nsim = 1,
+      seed = 1,
+      coef = sim_two_process_parameters(js),
+      steps = steps,
+      n_events = 50,
+      control_sim = set_simulation_guard(
+        max_events = 20,
+        clock_resolution = NULL
+      )
+    ),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_identical(out$diagnostics$stop_reason, "max_events")
+  expect_identical(out$diagnostics$n_proposals, 20L)
+  expect_gt(anyDuplicated(out$events$time), 0)
+})
+
+test_that("a positive clock_resolution stops earlier than zero", {
+  js <- sim_two_process()
+  draws <- 0L
+  # Three ordinary waits, then waits that move the clock, but by less than
+  # a thousandth of the window's length of 4.
+  shrinking_clock <- function(rates, t, handle) {
+    draws <<- draws + 1L
+    wait <- if (draws <= 3L) 0.01 else 1e-6
+    list(wait = wait, fid = 1L, kind = "event")
+  }
+  steps <- set_simulation_steps(clock = shrinking_clock)
+  parameters <- sim_two_process_parameters(js)
+
+  draws <- 0L
+  exact <- simulate(
+    js,
+    nsim = 1,
+    seed = 1,
+    coef = parameters,
+    steps = steps,
+    n_events = 10
+  )
+  draws <- 0L
+  expect_warning(
+    coarse <- simulate(
+      js,
+      nsim = 1,
+      seed = 1,
+      coef = parameters,
+      steps = steps,
+      n_events = 10,
+      control_sim = set_simulation_guard(clock_resolution = 1e-3)
+    ),
+    class = "goldfish_sim_guard_stop"
+  )
+
+  expect_identical(exact$diagnostics$stop_reason, "n_events")
+  expect_identical(coarse$diagnostics$stop_reason, "clock_resolution")
+  expect_equal(nrow(coarse$events), 3)
+})
+
+test_that("simulate refuses a guard that is not a guard object", {
+  local_cli_context()
+  js <- sim_two_process()
+
+  expect_snapshot(
+    simulate(
+      js,
+      coef = sim_two_process_parameters(js),
+      control_sim = list(max_events = 20)
+    ),
+    error = TRUE
+  )
+})
+
+test_that("simulate refuses arguments it does not take", {
+  local_cli_context()
+  js <- sim_two_process()
+
+  expect_snapshot(
+    simulate(js, coef = sim_two_process_parameters(js), max_events = 20),
+    error = TRUE
+  )
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim_fixture_data()
+  )
+  expect_error(
+    simulate(spec, coef = c(-1, 0.1, 0.2), max_events = 20),
+    class = "rlib_error_dots_nonempty"
+  )
 })
 
 test_that("one runaway replicate does not end the call", {
@@ -987,7 +1176,7 @@ test_that("a call warns once about guard stops and the frozen state", {
       seed = 4,
       coef = parameters,
       n_events = 200,
-      max_events = 30
+      control_sim = set_simulation_guard(max_events = 30)
     ),
     warning = function(w) {
       warnings[[length(warnings) + 1L]] <<- w
@@ -1005,7 +1194,7 @@ test_that("a call warns once about guard stops and the frozen state", {
       seed = 4,
       coef = parameters,
       n_events = 200,
-      max_events = 30
+      control_sim = set_simulation_guard(max_events = 30)
     ) |>
       invisible()
   )
@@ -1064,7 +1253,7 @@ test_that("a run stopping short of its capacity is cut to its events", {
     seed = 3,
     coef = sim_two_process_parameters(js),
     horizon = 3,
-    max_events = 500
+    control_sim = set_simulation_guard(max_events = 500)
   )
 
   expect_lt(nrow(out$events), 500)

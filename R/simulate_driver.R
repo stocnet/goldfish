@@ -38,7 +38,7 @@ simulate_replicate <- function(
   times,
   horizon,
   n_events,
-  max_events,
+  control_sim,
   control_prep,
   call = rlang::caller_env()
 ) {
@@ -54,7 +54,14 @@ simulate_replicate <- function(
   if (is.null(n_events) && is.null(horizon)) {
     horizon <- window_end
   }
-  max_events <- max_events %||% (10L * n_observed)
+  max_events <- control_sim$max_events %||% (10L * n_observed)
+  window_length <- window$end - window$start
+  # A step must move the clock by more than this; NULL leaves the clock
+  # unguarded. At zero this is exactly a wait that leaves the clock
+  # unchanged.
+  clock_floor <- if (!is.null(control_sim$clock_resolution)) {
+    control_sim$clock_resolution * window_length
+  }
   routing <- simulation_routing(spec, handle)
   map <- routing$map
   rate_fids <- map$fid[map$family == "rate"]
@@ -86,7 +93,7 @@ simulate_replicate <- function(
     observed = n_observed
   )
   trajectory <- new_rate_trajectory(
-    observed_wait = (window$end - window$start) / n_observed
+    observed_wait = window_length / n_observed
   )
 
   t <- handle$current_time
@@ -139,7 +146,8 @@ simulate_replicate <- function(
 
     # A wait too small to move a clock this far from zero would stamp every
     # later event with one timestamp, which no continuous-time process draws.
-    if (!(t + wait > t)) {
+    # The step is measured as the clock records it, not as drawn.
+    if (!is.null(clock_floor) && !((t + wait) - t > clock_floor)) {
       stop_reason <- "clock_resolution"
       break
     }
@@ -150,7 +158,7 @@ simulate_replicate <- function(
       break
     }
     record_total_rate(trajectory, t, total, wait)
-    if (rate_has_run_away(trajectory)) {
+    if (rate_has_run_away(trajectory, control_sim)) {
       stop_reason <- "rate_trajectory"
       break
     }
@@ -566,26 +574,6 @@ reached_target <- function(k, t, n_events, horizon) {
 # the replicate and keeps the events drawn; none ends the call.
 SIM_GUARD_STOPS <- c("max_events", "rate_trajectory", "clock_resolution")
 
-# The rate-trajectory trigger. A run stops at a guard when its total rate
-# exceeds SIM_RATE_MULTIPLE times its value at the first event, or when the
-# median of its last SIM_WAIT_WINDOW waiting times falls below the observed
-# mean waiting time (window length over observed events) divided by
-# SIM_WAIT_COLLAPSE.
-#
-# Both factors sit where a run is already committed to the count guard: at a
-# thousand times the observed pace the window would hold a thousand times the
-# observed events, a hundred times `max_events`. Measured on
-# `social_evolution` at the fitted estimates, six seeds each, run to the window
-# end: the fits that stay bounded (REM `inertia`, `recip`, `inertia + recip`,
-# `inertia + trans`; DyNAM rate `ego(floor)`) peak at 23 times their starting
-# rate and keep the median wait above 0.04 of the observed mean. The fits
-# that reach `max_events` (4390) on every seed -- REM `indeg` and `outdeg`,
-# DyNAM rate `indeg`, `outdeg` and `indeg + outdeg` -- cross both thresholds
-# by their 1500th event, REM `indeg` by its 62nd.
-SIM_RATE_MULTIPLE <- 1e3
-SIM_WAIT_COLLAPSE <- 1e3
-SIM_WAIT_WINDOW <- 50L
-
 # The total rate at each drawn event, kept so a guard stop can show how the
 # rate got there. Grown by doubling: a run's length is unknown until it stops.
 # `observed_wait` is the scale the waiting times are judged against; it is not
@@ -623,22 +611,34 @@ rate_trajectory_frame <- function(trajectory) {
   )
 }
 
-rate_has_run_away <- function(trajectory) {
+# The rate-trajectory trigger, off unless the guard sets a finite factor. A
+# run stops when its total rate exceeds `rate_multiple` times its value at
+# the first event, or when the median of its last `wait_window` waiting
+# times falls below the observed mean waiting time divided by
+# `wait_collapse`.
+rate_has_run_away <- function(trajectory, guard) {
   n <- trajectory$n
   if (n == 0L) {
     return(FALSE)
   }
   if (
-    trajectory$total_rate[n] > SIM_RATE_MULTIPLE * trajectory$total_rate[1L]
+    is.finite(guard$rate_multiple) &&
+      trajectory$total_rate[n] > guard$rate_multiple * trajectory$total_rate[1L]
   ) {
     return(TRUE)
   }
+  window <- guard$wait_window
   scale <- trajectory$observed_wait
-  if (n < SIM_WAIT_WINDOW || !is.finite(scale) || !(scale > 0)) {
+  if (
+    !is.finite(guard$wait_collapse) ||
+      n < window ||
+      !is.finite(scale) ||
+      !(scale > 0)
+  ) {
     return(FALSE)
   }
-  recent <- trajectory$wait[(n - SIM_WAIT_WINDOW + 1L):n]
-  stats::median(recent) < scale / SIM_WAIT_COLLAPSE
+  recent <- trajectory$wait[(n - window + 1L):n]
+  stats::median(recent) < scale / guard$wait_collapse
 }
 
 # One warning per call, whatever happened across its replicates: how many

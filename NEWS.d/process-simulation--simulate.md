@@ -4,9 +4,9 @@
   REM and multivariate specifications, with competing processes drawn on a
   single clock. Free-running runs stop at `n_events` or `horizon`, whichever
   binds first, and with neither at the end of the observation window, so the
-  number of events is drawn rather than fixed. Guards stop a replicate whose
-  rate runs away, whose clock stops advancing, or that reaches `max_events`,
-  flagging it rather than ending the call. Simulating
+  number of events is drawn rather than fixed. By default a replicate stops
+  short of its target only when its clock stops advancing or it reaches
+  `max_events`, and it is flagged rather than ending the call. Simulating
   a fitted model takes the `data` it was fitted on, which the fit does not
   store.
 * Added `set_simulation_steps()` and `set_parameter_provider()`, which replace
@@ -42,6 +42,11 @@
   replicates that prints once in aggregate: the processes, the spread of
   event counts, and how many replicates stopped at each reason. `summary()`
   gives one row per replicate.
+* Added `set_simulation_guard()`, passed to `simulate()` as `control_sim`,
+  which sets when a runaway replicate stops: the `max_events` count cap, a
+  clock-resolution stop measured against the observation window's length,
+  and stops on the rate trajectory that are off until set. `simulate()` no
+  longer takes `max_events`, and refuses arguments it does not take.
 * Added `filter_simulation()`, which keeps the replicates of a pool whose
   summary meets every condition, such as `stop_reason == "horizon"`. No
   replicate is excluded unless a filter removes it.
