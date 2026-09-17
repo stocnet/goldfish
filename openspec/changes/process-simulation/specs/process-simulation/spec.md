@@ -267,11 +267,17 @@ single documented, overridable value. With no target given, a free-running run
 SHALL stop at the end of the observation window as rate estimation defines it:
 the last observed event, dependent or exogenous, excluding window-expiry rows,
 unless an explicit end time is set. The number of events it generates is then
-random rather than fixed at the observed count. The guard SHALL trigger early
-on the rate trajectory (total rate exceeding a large multiple of its
-start-of-run value, or median waiting time collapsing below a resolvable
-scale) and when a drawn waiting time does not advance the clock; the count cap
-SHALL remain as the backstop. Every guard stop SHALL end that replicate only,
+random rather than fixed at the observed count. The guards SHALL be set
+through one guard object passed as `control_sim`: the `max_events` count cap,
+always on; a clock-resolution stop, on by default at a resolution of zero, so
+a replicate stops once a drawn waiting time no longer changes the clock's
+value, with a positive resolution measured as a fraction of the observation
+window's length and a way to turn it off; and early triggers on the rate
+trajectory (total rate exceeding a user-set multiple of its value at the
+first event, or the median of recent waiting times falling below the observed
+mean waiting time divided by a user-set factor), off by default, so a runaway
+replicate whose clock still advances runs on to `max_events`. Every guard
+stop SHALL end that replicate only,
 never the call: the replicate keeps the events drawn so far, is flagged on the
 returned object with the guard that fired and the total-rate trajectory in its
 diagnostics, stays in the pool and in `gof_*` summaries unless the user filters
@@ -291,25 +297,33 @@ all of its replicates. Time-anchored runs SHALL take neither targets nor guard
 
 #### Scenario: a clock that cannot advance is diagnosed
 
-- **WHEN** the total rate grows until a drawn waiting time no longer changes
-  the clock's value
+- **WHEN** the total rate grows, under the default guard, until a drawn
+  waiting time no longer changes the clock's value
 - **THEN** the replicate stops, is flagged with the clock-resolution guard and
   the total-rate trajectory in its diagnostics, and draws no further events at
   the same timestamp.
 
-#### Scenario: explosion diagnosed, not just bounded
+#### Scenario: a runaway replicate reaches max_events by default
 
-- **WHEN** a horizon simulation's parameterization drives the total rate to a
-  large multiple of its starting value before the horizon
-- **THEN** the replicate stops early and is flagged with the rate-trajectory
-  guard and the total-rate trajectory in its diagnostics, rather than spending
-  the full event budget in a vanishing sliver of simulated time, and the call
-  does not abort.
+- **WHEN** a free-running model whose total rate grows without bound, but
+  whose clock keeps advancing, is simulated with the default guard
+- **THEN** the replicate runs until `max_events` proposals, is flagged with
+  the `max_events` guard and the total-rate trajectory in its diagnostics, and
+  is not stopped earlier by the rate trajectory.
+
+#### Scenario: an early stop on the rate trajectory is asked for
+
+- **WHEN** the same model is simulated with a finite `rate_multiple` set on
+  the guard, and its total rate passes that multiple of its value at the
+  first event before the horizon
+- **THEN** the replicate stops there and is flagged with the rate-trajectory
+  guard and the total-rate trajectory in its diagnostics, and the call does
+  not abort.
 
 #### Scenario: one runaway replicate does not end the pool
 
 - **WHEN** `nsim = 100` free-running replicates are simulated and one of them
-  trips the rate-trajectory guard
+  stops at a guard
 - **THEN** the call returns all 100 replicates, the runaway one flagged, and
   warns once reporting how many replicates stopped at a guard and which.
 

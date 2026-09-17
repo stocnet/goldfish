@@ -397,6 +397,68 @@ is stated in the call that left it out. The flag, the per-replicate
 `stop_reason` and the aggregate warning are unchanged; only the default
 exclusion goes.
 
+*Amended 2026-09-17 (explore, goldfish-f0; ADR-0089, ADR-0088 rejected) —
+early stops are parameters, and a runaway reaches `max_events` by default.*
+Task 2.2i turned the rate-trajectory trigger on by default, at thresholds
+chosen in implementation (total rate above 1000 times its first value, or a
+trailing median wait below the observed mean wait over 1000), and filed them
+as ADR-0088. Alvaro rejected that. A replicate that reaches `max_events` is
+the signal that the rate specification explodes; stopping it after a few
+dozen events leaves too little of the run to see why. So the rate-trajectory
+trigger is off by default and becomes something a user sets to stop earlier.
+
+The guards move into one object, passed as `control_sim`, beside
+`control_prep`:
+
+```
+simulate(object, nsim, seed, coef, data, times,
+         n_events, horizon,                        # targets
+         steps,                                    # plug points
+         control_prep = set_preprocessing(),
+         control_sim  = set_simulation_guard())    # guards
+
+set_simulation_guard(
+  max_events       = NULL,  # 10 * observed dependent events, over proposals
+  rate_multiple    = Inf,   # stop when total rate > k x its first value
+  wait_collapse    = Inf,   # stop when median of the last `wait_window`
+                            #   waits < observed mean wait / k
+  wait_window      = 50L,
+  clock_resolution = 0      # stop when a step moves the clock by no more
+                            #   than r x window length; NULL turns it off
+)
+```
+
+`n_events` and `horizon` stay arguments of `simulate()`: they are targets,
+what the user asks for, not conditions under which a run gives up. The
+`max_events` argument leaves `simulate()` outright; the function has been in
+no release. `rate_multiple` and `wait_collapse` at `Inf` never fire.
+
+The window length is the extent `resolve_walk_extent(handle$merged,
+control_prep)` returns, the same window the horizon default and the freeze
+point use: `window_end - window_start`, each the explicit
+`control_prep$start_time` / `end_time` when set, otherwise the minimum /
+maximum time over the merged schedule's rows (dependent events of modeled
+layers, covariate rows of the objects the terms read, the focal stream)
+excluding window-expiry rows. The observed mean wait is that length over the
+observed dependent events.
+
+`clock_resolution = 0` is the default and reproduces the floating-point case
+ADR-0083 diagnoses: a step that moves the clock by no more than `0 x L` is a
+wait for which `t + wait == t`, after which every event would share one
+timestamp. A positive `r` stops earlier, at a resolution relative to the
+window and therefore independent of the clock's origin; `NULL` lets collapsed
+timestamps run on to `max_events`. The consequence of the default, measured
+2026-09-16 on `social_evolution` (six seeds, window-end horizon), is that
+most runaways stop at `clock_resolution`, not at the cap: REM `~ 1 + indeg`
+at events 47–60, DyNAM rate `~ 1 + outdeg` at 103–173, `~ 1 + indeg +
+outdeg` at 417–1301, `~ 1 + indeg` at 1853–3466; REM `~ 1 + outdeg` never
+stalls and reaches `max_events` (4390). Alvaro kept the default knowing this.
+
+Unchanged: every guard stop flags and never aborts (ADR-0084), flagged
+replicates stay in GOF (ADR-0085), the stop reasons
+`"max_events"` / `"rate_trajectory"` / `"clock_resolution"`, the trajectory
+in `diagnostics`, and the single warning per call. Task 2.2m.
+
 ### D4 — Flavored/multivariate draws and evaluator-compatible output
 
 A flavored/multivariate specification simulates as competing processes: the next
@@ -1161,7 +1223,9 @@ untouched — simulation adds no estimation path).
   Resolved 2026-08-19: `10 * n_dep` single documented number, trajectory
   trigger aborts with diagnosis, capped replicates flagged/excluded (D3);
   rejected coordination proposals consume clock time, max-proposals bound
-  with reported acceptance rate (D7).
+  with reported acceptance rate (D7). *Amended 2026-09-16:* no guard stop
+  aborts (ADR-0084), and flagged replicates stay in GOF unless filtered
+  (ADR-0085); see the D3 amendments.
 - **[surface]** Which writer sinks are legal on a simulation run — settle at
   implementation.
 - **[surface]** The output class name. `class-naming-scheme` is archived, so

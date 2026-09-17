@@ -433,6 +433,9 @@
       REM `~ 1 + indeg` run now stops at `rate_trajectory` after ~30 events.
       `diagnostics` gains `end_time`, `window_end`, `trajectory`; the capped
       print names the guard and stop time
+      — *2026-09-17*: the default thresholds above are **rejected**
+      (ADR-0088 rejected; ADR-0089). The rate-trajectory trigger becomes
+      opt-in and the guards move into `set_simulation_guard()`: task 2.2m
 - [x] 2.2j Collect simulated events into pre-allocated columns (added
       2026-09-16, D1 amendment): replace the per-event one-row `data.frame`
       and final `rbind` (about 130 us per event, 10% of a 439-event run) with
@@ -513,6 +516,40 @@
       names `n_sim = 100`. Regenerating `diagnostics.Rmd` also redrew its
       unseeded information-clock p-values (recip 0.0199 -> 0.0348) and the
       fit-size notes; the prose quotes none of them
+- [ ] 2.2m The guards are one object, and early stops are opt-in (added
+      2026-09-17, D3 amendment, ADR-0089; ADR-0088 rejected): an exported
+      `set_simulation_guard(max_events = NULL, rate_multiple = Inf,
+      wait_collapse = Inf, wait_window = 50L, clock_resolution = 0)`
+      returning a classed `goldfishSimGuard`, validated at construction
+      (`max_events` NULL or one positive whole number; `rate_multiple` and
+      `wait_collapse` one number >= 1, `Inf` allowed; `wait_window` one
+      positive whole number; `clock_resolution` NULL or one number >= 0; each
+      refusal a cli abort with a condition class), passed to `simulate()` as
+      `control_sim = set_simulation_guard()`. Remove the `max_events` argument
+      from `simulate()` outright (in no release). The driver reads every
+      guard from the object: `rate_multiple` and `wait_collapse` at `Inf`
+      never fire (replacing the 2.2i constants `SIM_RATE_MULTIPLE`,
+      `SIM_WAIT_COLLAPSE`, `SIM_WAIT_WINDOW`); `clock_resolution = r` stops a
+      replicate when a step moves the clock by no more than `r` times the
+      window length (`resolve_walk_extent()` end minus start), so `r = 0` is
+      the current `t + wait == t` test and `NULL` turns the stop off. The
+      measurement comment in `R/simulate_driver.R` goes with the constants.
+      Roxygen for the new function and `simulate()` (`control_sim`, the
+      explosion-guard paragraph, `@param max_events` removed),
+      `devtools::document()`, `_pkgdown.yml`, a `NEWS.d` bullet, and the 2.2i
+      sentence "Guards stop a replicate whose rate runs away, whose clock
+      stops advancing, or that reaches `max_events`" corrected. Tests: the
+      REM fit of `~ 1 + indeg` on `social_evolution` with the default guard
+      stops at `clock_resolution` (not `rate_trajectory`); a runaway whose
+      clock keeps advancing reaches `max_events` flagged (REM `~ 1 + outdeg`
+      at its estimates, or a lighter fixture that does the same); a finite
+      `rate_multiple` stops it at `rate_trajectory`; a finite `wait_collapse`
+      stops it at `rate_trajectory`; `clock_resolution = NULL` lets a stalled
+      clock run on to `max_events`; a positive `clock_resolution` stops
+      earlier than `0`; construction refusals pinned by snapshot; the tests
+      that pass `max_events =` to `simulate()` move to `control_sim`
+      — *scheduled 2026-09-17*: **before 2.8**. Queue: 2.2m → 2.8 → 2.8b →
+      2.3
 - [ ] 2.8 Per-component regime record (modeled / completed / anchored-replay) on
       `process_map` and print; replay coherence guard (skip-and-count, never
       clamp). Unmodeled flavors of a relational layer take `anchored-replay`
@@ -535,7 +572,8 @@
       today excludes every focal layer wholesale
       — *re-scheduled 2026-09-16 (later)*: after **2.2h → 2.2i → 2.2j →
       2.2k → 2.2l**. Queue: 2.2h → 2.2i → 2.2j → 2.2k → 2.2l → 2.8 → 2.8b
-      → 2.3
+      → 2.3; *2026-09-17*: 2.2m inserted before 2.8 (queue 2.2m → 2.8 →
+      2.8b → 2.3)
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
