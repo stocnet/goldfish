@@ -394,3 +394,55 @@ test_that("a supplied initial_parameters warn-and-ignores warm_start (precedence
   )
   expect_true(ctrl2$augmenter$warm_start)
 })
+
+# --------------------------------------------------------------------------- #
+# Task 1.3a/1.3b (abmcem): the cold-start construction guard (design D4,
+# dynes-augmentation D1/D14) -- routine = "random" combined with a non-zero
+# theta0 (initial_parameters) or warm_start = TRUE warns that uniform draws
+# sit far from the target; no abort, and silent at theta0 = 0.
+# --------------------------------------------------------------------------- #
+
+test_that("random routine + non-zero theta0 warns; random + theta0 = 0 is silent", {
+  local_reproducible_output()
+
+  # Non-zero initial_parameters with routine = "random" warns.
+  expect_snapshot(
+    ctrl <- set_algorithm_em(
+      initial_parameters = make_em_params(),
+      augmenter = set_augmenter_options(routine = "random")
+    )
+  )
+  expect_equal(ctrl$augmenter$routine, "random")
+
+  # warm_start = TRUE alone (no initial_parameters) also warns.
+  expect_snapshot(
+    set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "random", warm_start = TRUE)
+    )
+  )
+
+  # theta0 = 0 via the default NULL initial_parameters (no warm_start) is silent.
+  expect_no_warning(
+    set_algorithm_em(augmenter = set_augmenter_options(routine = "random"))
+  )
+
+  # theta0 = 0 via an explicit all-zero initial_parameters is also silent.
+  zero_params <- structure(
+    list(free = c("calls › rate: indeg" = 0)),
+    class = "goldfishParams"
+  )
+  expect_no_warning(
+    set_algorithm_em(
+      initial_parameters = zero_params,
+      augmenter = set_augmenter_options(routine = "random")
+    )
+  )
+
+  # A non-random routine with a non-zero theta0 does not trigger this guard.
+  expect_no_warning(
+    set_algorithm_em(
+      initial_parameters = make_em_params(),
+      augmenter = set_augmenter_options(routine = "mcmc")
+    )
+  )
+})
