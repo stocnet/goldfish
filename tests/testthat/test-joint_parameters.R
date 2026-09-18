@@ -1,4 +1,4 @@
-# set_init_param() builds a self-validating goldfishParams over a joint
+# set_parameters() builds a self-validating goldfishParams over a joint
 # specification: it resolves each `...` key by membership against the rendered
 # process label (never by parsing the label back into components), validates
 # each per-fid vector against the process's coefficient layout, and classifies
@@ -226,20 +226,19 @@ windowed_flavored_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
-test_that("set_init_param() returns a goldfishParams, not the retired parameters.goldfish", {
-  p <- set_init_param(parameters_join())
+test_that("set_parameters() returns a goldfishParams, not the retired parameters.goldfish", {
+  p <- set_parameters(parameters_join())
   expect_s3_class(p, "goldfishParams")
   expect_false(inherits(p, "parameters.goldfish"))
 })
 
-test_that("set_init_param is exported and the retired set_parameters is not", {
-  expect_true(exists("set_init_param", where = asNamespace("goldfish")))
-  expect_true("set_init_param" %in% getNamespaceExports("goldfish"))
-  expect_false("set_parameters" %in% getNamespaceExports("goldfish"))
+test_that("set_parameters is exported", {
+  expect_true(exists("set_parameters", where = asNamespace("goldfish")))
+  expect_true("set_parameters" %in% getNamespaceExports("goldfish"))
 })
 
 test_that("labels elide the flavor segment for a non-flavored process", {
-  p <- set_init_param(parameters_join())
+  p <- set_parameters(parameters_join())
   expect_identical(
     names(p$full),
     c("calls › rate", "calls › choice", "emails › rate", "emails › choice")
@@ -247,7 +246,7 @@ test_that("labels elide the flavor segment for a non-flavored process", {
 })
 
 test_that("an omitted process key leaves every non-fixed slot free", {
-  p <- set_init_param(parameters_join())
+  p <- set_parameters(parameters_join())
 
   # Nothing supplied: every free slot is NA and the object is incomplete, but
   # the offset slot already carries the specification's fixed value.
@@ -272,7 +271,7 @@ test_that("an omitted process key leaves every non-fixed slot free", {
 })
 
 test_that("a per-fid vector resolves by rendered-label membership", {
-  p <- set_init_param(
+  p <- set_parameters(
     parameters_join(),
     `calls › rate` = c(0.1, 0.2),
     `emails › choice` = c(`inertia/emails` = 0.7)
@@ -289,9 +288,9 @@ test_that("a per-fid vector resolves by rendered-label membership", {
 
 test_that("named and positional per-fid vectors agree", {
   join <- parameters_join()
-  positional <- set_init_param(join, `calls › rate` = c(0.1, 0.2))
+  positional <- set_parameters(join, `calls › rate` = c(0.1, 0.2))
   # Fully named, supplied out of coefficient order -- the names fix the slots.
-  named <- set_init_param(
+  named <- set_parameters(
     join,
     `calls › rate` = c(`indeg/calls` = 0.2, Intercept = 0.1)
   )
@@ -302,7 +301,7 @@ test_that("named and positional per-fid vectors agree", {
 })
 
 test_that("pinning every free slot marks the object complete", {
-  p <- set_init_param(
+  p <- set_parameters(
     parameters_join(),
     `calls › rate` = c(0.1, 0.2),
     `calls › choice` = c(0.3, NA), # NA at offset slot: silent, spec prevails
@@ -317,7 +316,7 @@ test_that("a value supplied for a fixed coefficient warns and is ignored", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    p <- set_init_param(
+    p <- set_parameters(
       join,
       `calls › choice` = c(`inertia/calls` = 0.3, `tie/friendship [Fx]` = 9)
     )
@@ -333,7 +332,7 @@ test_that("a key matching no process aborts naming the valid labels", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    set_init_param(join, `calls:rate` = c(0.1, 0.2)),
+    set_parameters(join, `calls:rate` = c(0.1, 0.2)),
     error = TRUE
   )
 })
@@ -342,7 +341,7 @@ test_that("the same process given twice aborts", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    set_init_param(
+    set_parameters(
       join,
       `calls › rate` = c(0.1, 0.2),
       `calls › rate` = c(0.3, 0.4)
@@ -355,7 +354,7 @@ test_that("a wrong-length per-fid vector aborts naming the fid", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    set_init_param(join, `calls › rate` = c(0.1, 0.2, 0.3)),
+    set_parameters(join, `calls › rate` = c(0.1, 0.2, 0.3)),
     error = TRUE
   )
 })
@@ -364,7 +363,7 @@ test_that("a partly named per-fid vector is rejected", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    set_init_param(join, `calls › rate` = c(Intercept = 0.1, 0.2)),
+    set_parameters(join, `calls › rate` = c(Intercept = 0.1, 0.2)),
     error = TRUE
   )
 })
@@ -373,7 +372,7 @@ test_that("a per-fid vector naming an unknown coefficient aborts", {
   local_cli_context()
   join <- parameters_join()
   expect_snapshot(
-    set_init_param(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2)),
+    set_parameters(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2)),
     error = TRUE
   )
 })
@@ -381,7 +380,7 @@ test_that("a per-fid vector naming an unknown coefficient aborts", {
 # ---- Flavored join: label grammar and same-name resolution ------------------
 
 test_that("flavor-inclusion labels sit alongside an elided one on one object", {
-  p <- set_init_param(flavored_parameters_join())
+  p <- set_parameters(flavored_parameters_join())
   # The calls flavors carry a flavor segment; emails elides it -- all on one
   # object, the mirror of the non-flavored elision test above.
   expect_identical(
@@ -398,7 +397,7 @@ test_that("flavor-inclusion labels sit alongside an elided one on one object", {
 
   # Each is a valid key: a flavor-inclusion label and an elided label both
   # resolve on the same call.
-  p2 <- set_init_param(
+  p2 <- set_parameters(
     flavored_parameters_join(),
     `calls › creation › rate` = c(0.1, 0.2),
     `emails › rate` = c(0.3, 0.4)
@@ -416,7 +415,7 @@ test_that("flavor-inclusion labels sit alongside an elided one on one object", {
 test_that("same-name free slots resolve per flavor without leaking", {
   # `inertia/calls` is the same coefficient name on both calls flavors -- the
   # proposal's motivating collision. Each flavor's key pins its own slot.
-  p <- set_init_param(
+  p <- set_parameters(
     flavored_parameters_join(),
     `calls › creation › choice` = c(
       `inertia/calls` = 0.5,
@@ -442,7 +441,7 @@ test_that("same-name free slots resolve per flavor without leaking", {
 # ---- Flavored join: per-flavor fixed classification (extends D4) -------------
 
 test_that("each flavor's fixed offset resolves to its own value on one call", {
-  p <- set_init_param(flavored_parameters_join())
+  p <- set_parameters(flavored_parameters_join())
   # Two offsets on the SAME term (tie(friendship)), one per flavor, at distinct
   # values -- the fixed value must be keyed per fid, never shared across a join.
   expect_identical(
@@ -464,7 +463,7 @@ test_that("a value at one flavor's fixed slot warns only that flavor", {
   # A single value supplied at creation's fixed slot: the warning names only
   # creation's slot (never dissolution's), and fires once.
   expect_snapshot(
-    p <- set_init_param(
+    p <- set_parameters(
       join,
       `calls › creation › choice` = c(
         `inertia/calls` = 0.5,
@@ -485,7 +484,7 @@ test_that("a value at one flavor's fixed slot warns only that flavor", {
 })
 
 test_that("omitting one flavor's key leaves only that flavor's slots free", {
-  p <- set_init_param(
+  p <- set_parameters(
     flavored_parameters_join(),
     `calls › dissolution › choice` = c(
       `inertia/calls` = 0.7,
@@ -519,7 +518,7 @@ test_that("a colon-grammar key aborts against a flavored spec", {
   # but membership resolution against the rendered ` › ` labels rejects it --
   # proving the abort non-vacuously, where a split would have matched.
   expect_snapshot(
-    set_init_param(join, `calls:creation:rate` = c(0.1, 0.2)),
+    set_parameters(join, `calls:creation:rate` = c(0.1, 0.2)),
     error = TRUE
   )
 })
@@ -628,10 +627,10 @@ test_that("the windowed slot's coef_layout name is the console form, not the dep
   expect_false(any(grepl('window = "1 hour"', lay$name, fixed = TRUE)))
 })
 
-test_that("set_init_param() resolves the console name and rejects the old deparse string", {
+test_that("set_parameters() resolves the console name and rejects the old deparse string", {
   local_cli_context()
   join <- windowed_flavored_join()
-  p <- set_init_param(
+  p <- set_parameters(
     join,
     `calls › creation › choice` = c(
       `inertia/calls [1h]` = 0.6,
@@ -645,7 +644,7 @@ test_that("set_init_param() resolves the console name and rejects the old depars
   # The retired deparse string is not a valid key -- it names no coefficient of
   # the resolved fid, so it aborts as an unknown name, pinning the vocabulary.
   expect_snapshot(
-    set_init_param(
+    set_parameters(
       join,
       `calls › creation › choice` = c(
         `inertia(calls, window = "1 hour")` = 0.6,

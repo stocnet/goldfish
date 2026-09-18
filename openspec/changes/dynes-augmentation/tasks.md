@@ -20,7 +20,7 @@
 > sync with `abmcem`'s task 5.2 and its `dynes-estimation` spec note.
 >
 > **Prerequisite (cross-change).** The joint/multivariate parameter surface —
-> `set_init_param()` → `goldfishParams` and `coef_layout()` — lives in the
+> `set_parameters()` → `goldfishParams` and `coef_layout()` — lives in the
 > `joint-parameters` change (extending the `multivariate-specification`
 > capability). `estimate_dynes()` (`abmcem`) takes it as `initial_parameters` and
 > `simulate()` (`process-simulation`) as `coef`, so `joint-parameters` lands

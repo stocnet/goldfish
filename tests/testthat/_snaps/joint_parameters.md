@@ -1,7 +1,7 @@
 # a value supplied for a fixed coefficient warns and is ignored
 
     Code
-      p <- set_init_param(join, `calls › choice` = c(`inertia/calls` = 0.3,
+      p <- set_parameters(join, `calls › choice` = c(`inertia/calls` = 0.3,
         `tie/friendship [Fx]` = 9))
     Condition
       Warning:
@@ -11,25 +11,25 @@
 # a key matching no process aborts naming the valid labels
 
     Code
-      set_init_param(join, `calls:rate` = c(0.1, 0.2))
+      set_parameters(join, `calls:rate` = c(0.1, 0.2))
     Condition
-      Error in `set_init_param()`:
+      Error in `set_parameters()`:
       ! The label "calls:rate" matches no process.
       i Valid labels: "calls › rate", "calls › choice", "emails › rate", and "emails › choice".
 
 # the same process given twice aborts
 
     Code
-      set_init_param(join, `calls › rate` = c(0.1, 0.2), `calls › rate` = c(0.3, 0.4))
+      set_parameters(join, `calls › rate` = c(0.1, 0.2), `calls › rate` = c(0.3, 0.4))
     Condition
-      Error in `set_init_param()`:
+      Error in `set_parameters()`:
       ! Each process takes at most one value vector.
       x Process "calls › rate" was given more than once.
 
 # a wrong-length per-fid vector aborts naming the fid
 
     Code
-      set_init_param(join, `calls › rate` = c(0.1, 0.2, 0.3))
+      set_parameters(join, `calls › rate` = c(0.1, 0.2, 0.3))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" must have one entry per coefficient.
@@ -38,7 +38,7 @@
 # a partly named per-fid vector is rejected
 
     Code
-      set_init_param(join, `calls › rate` = c(Intercept = 0.1, 0.2))
+      set_parameters(join, `calls › rate` = c(Intercept = 0.1, 0.2))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" are only partly named.
@@ -48,7 +48,7 @@
 # a per-fid vector naming an unknown coefficient aborts
 
     Code
-      set_init_param(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2))
+      set_parameters(join, `calls › rate` = c(Intercept = 0.1, wrong = 0.2))
     Condition
       Error in `resolve_fid_vector()`:
       ! The values for "calls › rate" name coefficients the process does not have.
@@ -58,7 +58,7 @@
 # a value at one flavor's fixed slot warns only that flavor
 
     Code
-      p <- set_init_param(join, `calls › creation › choice` = c(`inertia/calls` = 0.5,
+      p <- set_parameters(join, `calls › creation › choice` = c(`inertia/calls` = 0.5,
         `tie/friendship [Fx]` = 9))
     Condition
       Warning:
@@ -68,16 +68,16 @@
 # a colon-grammar key aborts against a flavored spec
 
     Code
-      set_init_param(join, `calls:creation:rate` = c(0.1, 0.2))
+      set_parameters(join, `calls:creation:rate` = c(0.1, 0.2))
     Condition
-      Error in `set_init_param()`:
+      Error in `set_parameters()`:
       ! The label "calls:creation:rate" matches no process.
       i Valid labels: "calls › creation › rate", "calls › creation › choice", "calls › dissolution › rate", "calls › dissolution › choice", "emails › rate", and "emails › choice".
 
-# set_init_param() resolves the console name and rejects the old deparse string
+# set_parameters() resolves the console name and rejects the old deparse string
 
     Code
-      set_init_param(join, `calls › creation › choice` = c(
+      set_parameters(join, `calls › creation › choice` = c(
         `inertia(calls, window = "1 hour")` = 0.6, `tie/friendship [Fx]` = NA))
     Condition
       Error in `resolve_fid_vector()`:

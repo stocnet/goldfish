@@ -1,4 +1,4 @@
-# The from-result form `set_init_param(spec, result)` -- the fit -> re-simulate
+# The from-result form `set_parameters(spec, result)` -- the fit -> re-simulate
 # round-trip. It reconstructs the per-fid vectors from the fitted result's own
 # coef_layout() (which keeps the fid grouping the flat coef() vector discards),
 # after asserting the result was fit against that same spec. A flat, free-only
@@ -141,7 +141,7 @@ flavored_result_join <- function() {
 # own coef_layout(): each fid carries the spec's coefficient names, its fixed
 # mask, the fixed value at fixed slots, and `estimate` at every free slot -- the
 # exact skeleton a real fit over this spec would surface. This is the round-trip
-# target `set_init_param(spec, result)` must invert.
+# target `set_parameters(spec, result)` must invert.
 fabricate_joint_result <- function(
   spec,
   estimate = seq(0.11, by = 0.11, length.out = 6L)
@@ -183,7 +183,7 @@ test_that("a fitted result round-trips into a complete parameter object", {
   spec <- result_join()
   fit <- fabricate_joint_result(spec)
 
-  p <- set_init_param(spec, fit)
+  p <- set_parameters(spec, fit)
 
   # Every free slot pinned from the fit -> a complete object simulate() drives.
   expect_true(p$complete)
@@ -202,7 +202,7 @@ test_that("the round-trip warns nothing about the fixed slot", {
   spec <- result_join()
   fit <- fabricate_joint_result(spec)
   # The reconstruction leaves fixed slots NA so the spec resolves them silently.
-  expect_no_warning(set_init_param(spec, fit))
+  expect_no_warning(set_parameters(spec, fit))
 })
 
 test_that("a result fit against another specification aborts", {
@@ -254,7 +254,7 @@ test_that("a result fit against another specification aborts", {
     ),
     data = data
   )
-  expect_snapshot(set_init_param(other, fit), error = TRUE)
+  expect_snapshot(set_parameters(other, fit), error = TRUE)
 })
 
 # ---- Flavored round-trip: same-name free slots and per-flavor fixed values ---
@@ -268,7 +268,7 @@ test_that("a flavored result round-trips per fid, keeping each flavor's fixed va
     estimate = seq(0.11, by = 0.11, length.out = 9L)
   )
 
-  p <- expect_no_warning(set_init_param(spec, fit))
+  p <- expect_no_warning(set_parameters(spec, fit))
 
   # Every free slot pinned from the fit, in the canonical order.
   expect_true(p$complete)
