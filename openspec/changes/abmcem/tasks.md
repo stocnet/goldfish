@@ -87,7 +87,7 @@
       non-zero initial parameter vector or `warm_start = TRUE` (recommend a
       model-driven routine or θ₀ = 0); no abort, and silent for `random` at
       θ₀ = 0. Re-run the 1.3a test to confirm GREEN; commit.
-- [ ] 1.4 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
+- [x] 1.4 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       `devtools::document()` if this group touched roxygen/exports; commit.
       **No DESCRIPTION version bump and no root `NEWS.md` edit
       on this branch** — record the controls milestone as a bullet in the
