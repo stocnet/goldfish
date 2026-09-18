@@ -20,3 +20,11 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   importance-sampling weights collapse (its numeric floor sourced from the
   `dynes-augmentation` degeneracy study, not guessed), and run-level dedup so
   the `sim` restart-coupling warning fires at most once per estimation run.
+* Group 3 (SGD M-step optimizer) complete: `optimize_abem_sgd()` owns its inner
+  loop over the concatenated parameter vector — an injected score-only batch
+  evaluator plus the normalized E-step weights, weighted (unweighted-mean) or
+  cyclic (importance-weighted, weight × K/B) batches ascending the same
+  weighted objective, constant/decay/AdaGrad/Adam/momentum step schedules at
+  fixed literature defaults, per-M-step accumulator reset, an optional immobile
+  parameter mask, and gradient-norm (EMA under minibatch) or fixed-iteration
+  stopping with a warn-on-unmet-gradient-at-cap diagnostic.

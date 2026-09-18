@@ -162,11 +162,11 @@
 
 ## 3. SGD M-step optimizer
 
-- [ ] 3.1a Write failing tests for the optimizer: known-optimum convergence
+- [x] 3.1a Write failing tests for the optimizer: known-optimum convergence
       on the analytic stub evaluator, cyclic-vs-weighted expected-gradient
       equivalence fixture, fixed parameters immobile, fresh-state-per-M-step
       check. Run to confirm RED; commit the tests alone.
-- [ ] 3.1b Implement: optimizer contract + `optimize_abem_sgd()` per design D6: weighted
+- [x] 3.1b Implement: optimizer contract + `optimize_abem_sgd()` per design D6: weighted
       with-replacement batches with unweighted means (default) and
       deterministic cyclic batches with importance-weighted gradients
       (weight × K/B); constant default step size plus AdaGrad/Adam/momentum at
