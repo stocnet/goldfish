@@ -193,6 +193,182 @@ residual_resample <- function(weights, size = length(weights)) {
   as.integer(indices)
 }
 
+# The classed E-step object. evaluate_sequence_pool() (the pool evaluator)
+# returns one of these; the ABMCEM loop consumes only compute_q()/compute_ase(),
+# so it is written once, scheme-agnostically, and adding a weighting scheme
+# means adding methods, not editing the loop. Three schemes, three subclasses
+# sharing the `goldfishDynesEstep` parent:
+#   * "importance" -> goldfishEstepIS         (default; no resampling)
+#   * "resampling" -> goldfishEstepResampling (one resample per pass into an
+#                     unweighted multiset feeding Q/ASE and the M-step batches)
+#   * "uniform"    -> goldfishEstepUniform    (MCMC + refresh; plain mean)
+# `lambda` are the per-sequence log-likelihood differences Lambda_i (summed
+# across sub-models); `weights` are the normalized E-step weights (ignored on
+# the uniform path). Resampling draws its multiset here (via `resample_pool()`)
+# unless a `resample_indices` multiset is supplied verbatim (the loop's control
+# RNG substream owns the draw at run time; supplying it keeps the estimators
+# deterministically testable). When `mcmc = TRUE` a lag-1 autocorrelation index
+# of the Lambda series is recorded for the trace (the ASE treats retained draws
+# as independent given the thinning; a high index earns a raise-thinning hint).
+new_dynes_estep <- function(
+  lambda,
+  weights = NULL,
+  scheme = c("importance", "resampling", "uniform"),
+  resampling_scheme = c("stratified", "residual", "random"),
+  resample_indices = NULL,
+  mcmc = FALSE,
+  call = rlang::caller_env()
+) {
+  scheme <- rlang::arg_match(scheme)
+  resampling_scheme <- rlang::arg_match(resampling_scheme)
+  if (!is.numeric(lambda)) {
+    cli::cli_abort("{.arg lambda} must be a numeric vector.", call = call)
+  }
+  k <- length(lambda)
+  if (scheme != "uniform") {
+    if (!is.numeric(weights) || length(weights) != k) {
+      cli::cli_abort(
+        "{.arg weights} must be a numeric vector as long as {.arg lambda}
+         ({.val {k}}) under the {.val {scheme}} scheme.",
+        call = call
+      )
+    }
+  }
+  estep <- list(
+    lambda = lambda,
+    pool_size = k,
+    weights = weights,
+    autocorrelation = if (isTRUE(mcmc)) {
+      lag1_autocorrelation(lambda)
+    } else {
+      NA_real_
+    }
+  )
+  subclass <- switch(
+    scheme,
+    importance = "goldfishEstepIS",
+    resampling = "goldfishEstepResampling",
+    uniform = "goldfishEstepUniform"
+  )
+  if (scheme == "resampling") {
+    if (is.null(resample_indices)) {
+      resample_indices <- resample_pool(weights, resampling_scheme, size = k)
+    }
+    estep$resample_indices <- as.integer(resample_indices)
+    estep$counts <- tabulate(estep$resample_indices, nbins = k)
+    estep$resampling_scheme <- resampling_scheme
+  }
+  structure(estep, class = c(subclass, "goldfishDynesEstep"))
+}
+
+# Lag-1 autocorrelation of a scalar series in draw order -- the MCMC mixing
+# diagnostic recorded in `em_trace`. A constant (zero-variance) series has no
+# defined correlation and reports 0; a series shorter than two draws reports NA.
+lag1_autocorrelation <- function(x) {
+  n <- length(x)
+  if (n < 2L) {
+    return(NA_real_)
+  }
+  centered <- x - mean(x)
+  denom <- sum(centered^2)
+  if (denom <= 0) {
+    return(0)
+  }
+  sum(centered[-1L] * centered[-n]) / denom
+}
+
+# The Q (expected complete-data log-likelihood increment) estimator, dispatching
+# on the E-step scheme.
+compute_q <- function(estep, ...) {
+  UseMethod("compute_q")
+}
+
+# Its Monte-Carlo standard error, dispatching on the same object. Every method
+# returns the ASE carrying an `ase_floored` attribute (read via
+# `ase_floored()`): TRUE only when a variance estimate was floored (resampling).
+compute_ase <- function(estep, ...) {
+  UseMethod("compute_ase")
+}
+
+#' @exportS3Method
+compute_q.default <- function(estep, ...) {
+  cli::cli_abort(
+    "{.fun compute_q} has no method for an object of class
+     {.cls {class(estep)}}; expected a {.cls goldfishDynesEstep}."
+  )
+}
+
+#' @exportS3Method
+compute_ase.default <- function(estep, ...) {
+  cli::cli_abort(
+    "{.fun compute_ase} has no method for an object of class
+     {.cls {class(estep)}}; expected a {.cls goldfishDynesEstep}."
+  )
+}
+
+# Whether an ASE returned by compute_ase() was floored at 0 (a negative variance
+# estimate below the resolution floor). The pass records this in `em_trace`.
+ase_floored <- function(ase) {
+  isTRUE(attr(ase, "ase_floored"))
+}
+
+# Importance (default): Q_hat = sum w_i Lambda_i; ASE^2 = sum w_i^2 (Lambda_i -
+# Q_hat)^2 -- the self-normalized IS delta-method variance. A sum of squares is
+# non-negative, so this form never floors.
+#' @exportS3Method
+compute_q.goldfishEstepIS <- function(estep, ...) {
+  sum(estep$weights * estep$lambda)
+}
+
+#' @exportS3Method
+compute_ase.goldfishEstepIS <- function(estep, ...) {
+  q <- compute_q(estep)
+  ase <- sqrt(sum(estep$weights^2 * (estep$lambda - q)^2))
+  structure(ase, ase_floored = FALSE)
+}
+
+# Resampling: the multinomial counts c_i turn the pool into an unweighted
+# multiset. Q_hat = K^-1 sum c_i Lambda_i; the ASE is the prototype's
+# ratio/delta form sigma^2 = Q_hat^2 [ sum c L^2 / (sum c L)^2 - 1/K ], which
+# includes the resampling noise. The bracket is 0 in exact arithmetic when the
+# Lambda_i are constant across the multiset and can dip negative under
+# floating-point roundoff in that near-convergence regime; the variance is
+# floored at 0 (ASE = 0) rather than propagating NaN from sqrt(negative),
+# degrading the decision bounds to the honest |Q| < tolerance / Q > 0 limit,
+# and the flooring is flagged for the trace.
+#' @exportS3Method
+compute_q.goldfishEstepResampling <- function(estep, ...) {
+  sum(estep$counts * estep$lambda) / estep$pool_size
+}
+
+#' @exportS3Method
+compute_ase.goldfishEstepResampling <- function(estep, ...) {
+  counts <- estep$counts
+  lambda <- estep$lambda
+  k <- estep$pool_size
+  weighted_sum <- sum(counts * lambda)
+  if (weighted_sum == 0) {
+    return(structure(0, ase_floored = FALSE))
+  }
+  q <- weighted_sum / k
+  var_est <- q^2 * (sum(counts * lambda^2) / weighted_sum^2 - 1 / k)
+  floored <- var_est < 0
+  structure(sqrt(max(var_est, 0)), ase_floored = floored)
+}
+
+# Uniform (MCMC + refresh only): Q_hat = mean(Lambda); ASE^2 = s^2(Lambda) / K,
+# the sample standard error of the mean.
+#' @exportS3Method
+compute_q.goldfishEstepUniform <- function(estep, ...) {
+  mean(estep$lambda)
+}
+
+#' @exportS3Method
+compute_ase.goldfishEstepUniform <- function(estep, ...) {
+  ase <- sqrt(stats::var(estep$lambda) / estep$pool_size)
+  structure(ase, ase_floored = FALSE)
+}
+
 # The ESS staleness guard on a persistent pool. It reports the ESS, whether it
 # fell below `ess_threshold` * `pool_size`, and whether the loop should redraw
 # the pool. Two warnings, one code path: when the guard is enabled and ESS

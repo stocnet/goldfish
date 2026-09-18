@@ -118,7 +118,7 @@
       negative-variance ASE floor (a near-constant-Λ resampling fixture
       yields ASE = 0 not `NaN`, records the `ase_floored` flag; design D8).
       Run to confirm RED; commit the tests alone.
-- [ ] 2.2b Implement: classed E-step object (`goldfishEstepIS`/`goldfishEstepResampling`/
+- [x] 2.2b Implement: classed E-step object (`goldfishEstepIS`/`goldfishEstepResampling`/
       `goldfishEstepUniform` inheriting `goldfishDynesEstep`) and internal
       `compute_q()`/`compute_ase()`
       generics with scheme-correct estimators (design D8); MCMC

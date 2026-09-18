@@ -55,7 +55,7 @@ test_that("uniform Q/ASE are the plain mean and standard error of the mean", {
   expect_false(ase_floored(compute_ase(estep)))
 })
 
-test_that("resampling Q/ASE follow the ratio/delta form over the drawn counts", {
+test_that("resampling Q/ASE follow the ratio/delta form over drawn counts", {
   lambda <- c(-1, 0.5, 2, -0.3, 1.1, -0.7)
   w <- c(0.30, 0.05, 0.25, 0.10, 0.20, 0.10)
   withr::local_seed(11L)
@@ -97,7 +97,9 @@ test_that("resampling ASE floors a negative variance estimate to zero", {
 })
 
 test_that("resampling does not flag a genuinely positive variance as floored", {
-  lambda <- c(-2, -1, 0, 1, 2)
+  # Spread, non-zero-sum Lambda over the multiset: Q = 2 and the ratio/delta
+  # bracket is strictly positive, so the estimate is a real ASE, not floored.
+  lambda <- c(0, 1, 2, 3, 4)
   estep <- new_dynes_estep(
     lambda,
     weights = rep(0.2, 5),
@@ -105,11 +107,12 @@ test_that("resampling does not flag a genuinely positive variance as floored", {
     resample_indices = c(1L, 2L, 3L, 4L, 5L)
   )
   ase <- compute_ase(estep)
+  expect_equal(as.numeric(ase), sqrt(0.4))
   expect_gt(as.numeric(ase), 0)
   expect_false(ase_floored(ase))
 })
 
-test_that("importance vs uniform pick different ASE estimators by dispatch alone", {
+test_that("importance vs uniform pick different ASE estimators by dispatch", {
   lambda <- c(-1, 0.5, 2, -0.3)
   w <- c(0.1, 0.2, 0.3, 0.4)
   is_ase <- as.numeric(compute_ase(new_dynes_estep(lambda, w, "importance")))
