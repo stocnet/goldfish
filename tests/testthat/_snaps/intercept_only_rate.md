@@ -247,6 +247,18 @@
       Error:
       ! `joint_spec` must be a <goldfishJointSpec>.
 
+# simulate() warns at entry with its own wording
+
+    Code
+      out <- simulate(js, coef = parameters, n_events = 2, seed = 1)
+    Condition
+      Warning in `simulate()`:
+      ! Layer "emails" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
+      i The default adds no free parameter; it is auto-supplied for the simulate generative surface.
+      Warning in `simulate()`:
+      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
+      i The pin comes from the observed event count over the relevant period.
+
 # mark_pinned_rates rejects an ordered-regime joint specification
 
     Code

@@ -287,7 +287,7 @@ where an empty history makes every alternative look alike and the early score
 contributions are exactly zero --- switch to the simulated reference:
 
 ```{r gof-information-clock}
-test_gof(calls_choice, clock = "information", n_sim = 200)$effects[, c("term", "p_value")]
+test_gof(calls_choice, clock = "information", nsim = 200)$effects[, c("term", "p_value")]
 ```
 
 With near-uniform accrual the two coincide and the choice does not matter.

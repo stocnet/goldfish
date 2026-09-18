@@ -222,6 +222,9 @@ estimators are unaffected — they accept all four levels.
 - `process-simulation` (0/10): the Weibull/Gompertz recovery tests (tasks
   3.4) improvise their DGP; if process-simulation lands first, its simulator
   should grow the parametric clocks and the tests should use it.
+  *Revised 2026-09-15 (ADR-0074):* the parametric clocks are this change's
+  own `clock` steps (task 3.4a); `process-simulation` ships the exponential
+  clock and the plug point, not the distributions.
 - `effect-term-registry` (0/54): the registry schema enumerates per-effect
   `(model, sub_model)` variants — whichever change lands second sweeps
   `rate_ordered` out of the variant enumerations (effects do not vary by

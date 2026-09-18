@@ -600,6 +600,88 @@ with a permissive alias for anything that `pmatch` would have accepted — that 
 the compatibility hazard above, written down and blessed.
 
 
+### D26: An effect's update function and every argument are bound to VALUES once, at construction, never as deferred `eval(parse())` calls (2026-09-11, from `merged-walk-effect-reuse`)
+
+**What the parser does today.** `create_effects_functions()`
+(`R/formula_parser.R`) resolves the update function by building its name as
+text and evaluating it (`eval(parse(text = paste("update", model, sub_model,
+name, sep = "_")))`, with a second `eval(parse(text = name), envir)` fallback
+for user-defined effects), then rewrites the closure's formals: every argument
+written in the formula becomes `call("eval", parse(text = <the argument's
+text>))` and is written back with `formals(FUN) <- .signature`. Only the
+choice-set arguments (`type`, `history`, ...) are resolved to a scalar first
+(`resolve_effect_args()`); `weighted`, `is_two_mode` when declared, window
+names (`eval(parse(text = window_name), envir)` in the window branch), and the
+object arguments (`network = eval(parse(text = "friendship"))`) stay deferred.
+Two consequences, both measured or observed on 2026-09-11 while decomposing
+the merged walk's overhead:
+
+1. **Per event, not per spec.** A deferred formal is a promise re-created on
+   every call of the effect function; each call that touches `weighted` or
+   `window` re-parses the text and evaluates it in the closure's call frame.
+   The walk calls each effect once per event it routes to, so a 60,000-event
+   CollegeMsg run re-parses `"TRUE"` tens of thousands of times per effect.
+   The per-call profile also carries the byte-compiler (`compiler:::tryCmpfun`)
+   because `formals<-` produces a NEW closure object per effect per spec,
+   which the JIT compiles again on first use.
+2. **Resolution in the wrong environment.** A name that is not a literal
+   resolves through the closure's environment chain, which ends in the global
+   environment: `inertia(friendship, weighted = w)` reads `w` from wherever
+   the effect happens to be called, not from where the formula was written,
+   and reads it again on every event. An object argument resolves the same
+   way until the walk overrides it per event with the state-container matrix
+   (`args[template$args_by_shape[[shape]]]` in `call_effect_template()` /
+   `merged_call_template()`), which is why the object case has not bitten:
+   the default is shadowed, not removed.
+
+**Decision.** The constructor (`construct_term()`, D3) binds everything once:
+
+- **The update and init functions are function objects taken from the
+  registry entry** (`term_def$update`, `term_def$init`, D2/D8), never
+  text. A user-defined effect reaches the registry through
+  `register_term()` (D11); the transitional `eval(parse(text = name))`
+  fallback resolves the object ONCE at registration, not per spec.
+- **Every non-object argument is evaluated exactly once at construction, in
+  the formula's own environment** (`environment(formula)`, falling back to
+  the caller's frame the way `model.frame()` does), and the VALUE is stored
+  on the constructed term. A global-environment variable used in a formula is
+  therefore read when the specification is built and never again; changing
+  or removing it afterwards cannot alter a built spec, a preprocessed object
+  or a fit.
+- **Every object argument (network, attribute, window source) is not
+  evaluated at all**: the constructor resolves the name to an object KEY
+  through the data source (`ds_check_network()`, `ds_attribute()`,
+  D7's endogenous/exogenous rule) and stores the key. The walk supplies the
+  object per event from the state container by that key, as it already does;
+  the shadowed global-environment default disappears with the deferral.
+- **The closure's formals are not rewritten.** The constructed term carries
+  an `args` list of resolved constants, and the call template passes them
+  explicitly beside the per-event objects. One function object per effect
+  serves every specification; no `formals<-` copy, no per-spec closure for
+  the JIT to compile, and `formals(update_fn)` keeps meaning what the source
+  says.
+- **Windows** resolve their source name and duration at construction into
+  the `build_plan` (D16) rather than into a deferred window-name expression.
+
+**Alternatives rejected.** (a) Keep the deferred calls but `force()` them
+once at the first event: still one closure copy per spec, still resolved in
+the wrong environment, and the first event becomes special. (b)
+Byte-compile the rewritten closures with `compiler::cmpfun()` at
+construction: pays the compile deliberately instead of accidentally and
+leaves both consequences above in place. (c) Evaluate object arguments to
+their matrices at construction: that is the legacy environment path's
+copy-per-spec pattern ADR-0057 and ADR-0061 removed; the key, not the value,
+is what a walk over a shared state container needs.
+
+**Verification that belongs to this decision.** A counting probe
+(`weighted = {n <<- n + 1L; TRUE}`) evaluates exactly once per construction;
+`formals(term_def$update)` is identical before and after constructing a
+spec; a formula whose argument names a global-environment variable that is
+then removed still preprocesses and fits, and produces the same numbers as
+before its removal; the frozen 1e-6 baselines and the C++ goldens PASS at
+every step (adapter-first, D8: the same functions are called with the same
+values, so nothing a statistic equals moves).
+
 ## Risks / Trade-offs
 
 - [Large surface; risk of silently changing numerics] → D8 adapter-first phasing

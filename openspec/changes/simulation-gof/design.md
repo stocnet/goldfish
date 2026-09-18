@@ -36,7 +36,8 @@ be numbered then:
   time deciles free-running).
 - Per-statistic `times` variant declared in the registry entry, with the
   result recording it; a statistic requesting free-running on a Cox-family
-  fit reports pseudo-time as such (`process-simulation` D2).
+  or coordination fit is refused, since those fits simulate time-anchored only
+  (`process-simulation` ADR-0079).
 - Exclusion of capped replicates and completed/replayed components, read
   from the simulation result rather than recomputed.
 - Comparison: Mahalanobis with `gof-dynes` D9's guard for the joint
@@ -48,9 +49,10 @@ be numbered then:
 
 - [The statistic set diverges between the plain and DyNES halves] → one
   registry, statistics defined once, each half selecting.
-- [Free-running simulation of a Cox-family fit yields pseudo-time] → timing
-  statistics refuse or label on such fits; anchored is the default for
-  everything else.
+- [Cox-family and coordination fits cannot run free (ADR-0079)] → waiting-time
+  statistics are unavailable on such fits; the registry marks them
+  free-running-only and refuses them there, with anchored statistics the
+  default everywhere.
 
 ## Open Questions
 

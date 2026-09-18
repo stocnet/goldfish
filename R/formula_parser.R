@@ -451,17 +451,34 @@ build_spec_map <- function(
     }
     if (inherits(support_constraint, "goldfishSupportPlan")) {
       plan$support_constraint <- compile_one(support_constraint)
+      compiled <- list(plan$support_constraint)
       plan$derivations <- c(
         plan$derivations,
         list(support_mask_derivation(plan$support_constraint))
       )
     } else {
       plan$support_constraints <- lapply(support_constraint, compile_one)
+      compiled <- plan$support_constraints
       plan$derivations <- c(
         plan$derivations,
         lapply(plan$support_constraints, support_mask_derivation)
       )
     }
+    # A windowed constraint atom's derived object joins the registry beside the
+    # formula's, deduplicated by derived identity, so `ds_realize_derivations()`
+    # builds it with no constraint-specific branch.
+    plan$derivations <- register_constraint_windows(
+      plan$derivations,
+      compiled,
+      objects_effects_link,
+      envir = envir,
+      data = data
+    )
+    # The atoms join the estimated plan's effect registry as
+    # `role = "constraint"` rows above the estimated columns, so the whole data
+    # flow lives in one table; their kernel and maintenance stay on the compiled
+    # sub-plans carried above.
+    plan <- plan_with_constraint_atoms(plan, compiled)
   }
   effects_template <- build_effects_template(
     effects,
@@ -569,6 +586,25 @@ compile_support_constraint <- function(
     new_data_source(data = data, envir = envir),
     user_env = rlang::caller_env()
   )
+  # And a windowed atom is a windowed term like any other: it contributes its
+  # own derivation and has its object reference rewired to the derived name.
+  # Without this the atom keeps naming the source layer, reads it undecayed, and
+  # the window is silently ignored -- a constraint decides the risk set, so that
+  # does not crash, it estimates a different model. Metadata only here
+  # (`realize_windows = FALSE`); realization is driven by `plan$derivations` at
+  # state creation, the same as for a formula term.
+  atom_rhs_names <- parse_time_windows(
+    atom_rhs_names,
+    envir = envir,
+    realize_windows = FALSE
+  )
+  atom_derivations <- attr(atom_rhs_names, "window_derivations") %||% list()
+  # Deduplicated by derived identity against the formula's, so an object
+  # windowed at the same width on both sides is one derived object with one
+  # expiry stream rather than two.
+  window_derivations <- dedup_window_derivations(
+    c(window_derivations, atom_derivations)
+  )
   # Constraint atoms always use the dyad kernel (`init_*_choice`): a dyadic atom
   # needs the dyad machinery, and a sender-axis atom (ego/global) works under it
   # too (broadcasting to an ego row). This is the constraint-scoped auxiliary
@@ -640,9 +676,65 @@ compile_support_constraint <- function(
       events_objects_link = link$events_objects_link,
       events_effects_link = events_effects_link,
       objects_effects_link = objects_effects_link,
-      fetch_plan = link$fetch_plan
+      fetch_plan = link$fetch_plan,
+      # Carried out so `build_spec_map()` can register them beside the
+      # formula's; the realize step then needs no constraint-specific branch.
+      window_derivations = atom_derivations
     )
   )
+}
+
+# One entry per derived object, keeping the first occurrence. Two references to
+# the same object at the same window width name the same derived object, so a
+# formula term and a constraint atom that agree share one realization and one
+# expiry stream.
+dedup_window_derivations <- function(derivations) {
+  if (length(derivations) == 0) {
+    return(derivations)
+  }
+  names_seen <- vapply(derivations, `[[`, character(1), "derived_name")
+  derivations[!duplicated(names_seen)]
+}
+
+# Add each compiled constraint's own window derivations to the plan's registry.
+#
+# `build_derivations()` turns the metadata `parse_time_windows()` recorded into
+# the realizable entry shape; the union is then deduplicated by derived name, so
+# a formula term and a constraint atom that window the same object at the same
+# width resolve to ONE derived object with one expiry stream. The `gids` on a
+# constraint's entry come from the estimated formula's link, which does not
+# reference the atom's derived object, so they are empty -- correct, since the
+# atom is maintained by the constraint sub-plan rather than by the statistics
+# walk.
+register_constraint_windows <- function(
+  derivations,
+  compiled,
+  objects_effects_link,
+  envir,
+  data = NULL
+) {
+  atom_derivations <- unlist(
+    lapply(compiled, function(sub_plan) sub_plan$window_derivations),
+    recursive = FALSE
+  ) %||%
+    list()
+  if (length(atom_derivations) == 0) {
+    return(derivations)
+  }
+  built <- build_derivations(
+    atom_derivations,
+    objects_effects_link,
+    envir = envir,
+    data = data
+  )
+  seen <- vapply(
+    derivations %||% list(),
+    `[[`,
+    character(1),
+    "derived_name"
+  )
+  new <- Filter(function(d) !(d$derived_name %in% seen), built)
+  c(derivations, new)
 }
 
 # The support mask is a derived object: one `plan$derivations` entry,

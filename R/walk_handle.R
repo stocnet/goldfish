@@ -18,7 +18,12 @@
 #   * walk_advance(handle, t)  applies the EXOGENOUS covariate events (a layer
 #     no process models) up to t, folding their statistics deltas into every
 #     engine
-#     that reads them and advancing the shared clock.
+#     that reads them and advancing the shared clock. Driver-scheduled events
+#     and node-composition changes up to t are applied on the same pass.
+#   * walk_schedule(handle, event)  queues an event for a later time; it is
+#     applied when walk_advance() reaches it, merged with the exogenous rows.
+#     walk_next_breakpoint(handle) names the next time the handle changes
+#     state on its own, between which rates are constant.
 #   * walk_evaluate(handle, fid, theta)  builds the process-state evaluator's
 #     `state` from the fid's engine live statistics (projected to the fid's own
 #     columns, intercept prepended for a timed rate) and returns that fid's rate
@@ -35,7 +40,7 @@
 #
 # Three contracts carry over from the merged walk:
 #
-#   * PER-FID FOCAL (D8a). Each engine was compiled against its own focal, so a
+#   * PER-FID FOCAL. Each engine was compiled against its own focal, so a
 #     fid's side/mode/dependent-row resolution rides its own compiled spec_map
 #     over the one shared state -- never a stamped shared focal. walk_evaluate
 #     resolves the evaluated fid against that per-fid view.
@@ -51,7 +56,7 @@
 # =========================================================================== #
 
 # --------------------------------------------------------------------------- #
-# Generative-completeness assertion (D9).
+# Generative-completeness assertion.
 # --------------------------------------------------------------------------- #
 
 # Abort unless every process of every specification carries all its expected
@@ -101,44 +106,76 @@ assert_generatively_complete <- function(
   )
 }
 
-# Abort when a sub-model carries no effects (a completion-supplied uniform
-# choice or pinned intercept-only rate). The merged compile parses
-# effect-bearing formulas; an effect-free `~ 1` block is walked by the consumers
-# (simulate() / estimate_dynes()), not this substrate. Detected on the term
-# labels so it is independent of the bundle's internal shape.
-assert_walkable_submodels <- function(joint_spec, call = rlang::caller_env()) {
-  empty <- character(0)
+# The fids the walk compiles no engine for: every fid of a (layer, family)
+# whose sub-models all carry no effects -- a rate-only DyNAM's completed
+# uniform choice, or an authored `rate = ~ 1` beside a modeled choice. The
+# merged compile parses effect terms, and such a family has none to parse. A
+# flavored gap is NOT deferred: its completed sub-model rides its family's
+# unit with an empty effect map, beside the flavors carrying effects, and reads
+# its own support mask there. Detected on the term labels, so it is
+# independent of the bundle's internal shape. Returns the deferred fids'
+# process_map rows; they keep the numbers the specification gave them.
+walk_deferred_fids <- function(joint_spec) {
+  map <- joint_spec$process_map
+  deferred <- rep(FALSE, nrow(map))
   for (spec in joint_spec$specifications) {
-    for (proc in spec_processes(spec)) {
-      for (family in names(proc$submodels)) {
-        formula <- proc$submodels[[family]]$formula
-        labels <- attr(stats::terms(formula), "term.labels")
-        if (length(labels) == 0L) {
-          flavor <- if (is.na(proc$flavor)) {
-            NULL
-          } else {
-            paste0(" (", proc$flavor, ")")
-          }
-          empty <- c(empty, paste0(spec$focal, flavor, " › ", family))
-        }
+    processes <- spec_processes(spec)
+    for (family in names(processes[[1L]]$submodels)) {
+      bearing <- vapply(
+        processes,
+        function(proc) {
+          formula <- proc$submodels[[family]]$formula
+          length(attr(stats::terms(formula), "term.labels")) > 0L
+        },
+        logical(1)
+      )
+      if (!any(bearing)) {
+        deferred <- deferred | (map$layer == spec$focal & map$family == family)
       }
     }
   }
-  if (length(empty) == 0L) {
-    return(invisible(NULL))
+  map[deferred, , drop = FALSE]
+}
+
+# Compile one unit per (layer, family) the walk steps, in the order
+# `build_merged_blocks()` compiles them, leaving out the deferred families.
+# A layer left with no family at all has nothing for the walk to step, which
+# is refused here rather than surfacing as an empty substrate further down.
+walk_compile_units <- function(
+  joint_spec,
+  deferred,
+  impute_policy,
+  call = rlang::caller_env()
+) {
+  units <- list()
+  empty_layers <- character(0)
+  for (spec in joint_spec$specifications) {
+    families <- names(spec_processes(spec)[[1L]]$submodels)
+    walked <- setdiff(families, deferred$family[deferred$layer == spec$focal])
+    if (length(walked) == 0L) {
+      empty_layers <- c(empty_layers, spec$focal)
+    }
+    for (family in walked) {
+      unit <- compile_process_unit(spec, family, joint_spec, impute_policy)
+      units[[unit$key]] <- unit
+    }
   }
-  cli::cli_abort(
-    c(
-      "The walk handle does not yet walk effect-free sub-models.",
-      "x" = "Zero-effect sub-model{?s}: {.val {empty}}.",
-      "i" = "Auto-supplied uniform / pinned defaults are walked by the
-             generative consumers ({.fn simulate}, {.fn estimate_dynes}); the
-             handle here
-             steps effect-bearing sub-models."
-    ),
-    call = call,
-    class = "goldfish_walk_unsupported"
-  )
+  n_empty <- length(empty_layers)
+  if (n_empty > 0L) {
+    cli::cli_abort(
+      c(
+        "The walk has nothing to step on {cli::qty(n_empty)}layer{?s}
+         {.val {empty_layers}}.",
+        "x" = "No sub-model of {cli::qty(n_empty)}{?this layer/these layers}
+               carries an effect.",
+        "i" = "A process needs at least one effect term for the walk to
+               compile it."
+      ),
+      call = call,
+      class = "goldfish_walk_unsupported"
+    )
+  }
+  units
 }
 
 # --------------------------------------------------------------------------- #
@@ -211,6 +248,18 @@ walk_prepare_engine <- function(engine) {
   # every actor, a one-mode dyad engine drops the self-loop cell.
   engine$twomode_or_reflexive <- engine$is_sender ||
     isTRUE(engine$model_spec$is_two_mode)
+  # Live presence per node side, seeded from the context. A rate engine keeps
+  # its receiver side too: a constrained sender gate counts present receivers.
+  engine$presence1 <- as.logical(engine$ctx$active_sender_init)
+  engine$presence2 <- as.logical(engine$ctx$active_dyad_init)
+  engine$presence1_changes <- walk_presence_changes(
+    engine$ctx$active_sender_changes
+  )
+  engine$presence2_changes <- walk_presence_changes(
+    engine$ctx$active_dyad_changes
+  )
+  engine$presence1_cursor <- 0L
+  engine$presence2_cursor <- 0L
   engine
 }
 
@@ -218,24 +267,23 @@ walk_prepare_engine <- function(engine) {
 # union-gid space by `merged_covariate_step()`) into the engine's live
 # statistics,
 # then reset the buffers. Reuses the estimation-path fold helpers
-# (`.gather_apply_stat` / `.gather_apply_broadcast`), so the live statistics
-# evolve byte-identically to the batch consumers' stored update streams.
+# (`.gather_stat_cells` / `.gather_broadcast_blocks`), so the live statistics
+# evolve byte-identically to the batch consumers' stored update streams. The
+# write stays here rather than inside those helpers so `live_stats` is never
+# bound to a second name, which is what made the old fold duplicate the whole
+# matrix on every event.
 walk_fold_engine <- function(engine) {
   rec <- engine$recorder
   if (rec$pending_dep_cols > 0L) {
     block <- do.call(cbind, rec$pending_dep)
-    engine$live_stats <- .gather_apply_stat(
-      engine$live_stats,
-      block,
-      0L,
-      ncol(block),
-      engine$fold_n2
-    )
+    cells <- .gather_stat_cells(block, 0L, ncol(block), engine$fold_n2)
+    if (!is.null(cells)) {
+      engine$live_stats[cells$idx] <- cells$value
+    }
   }
   if (rec$pending_dep_bc_cols > 0L) {
     bc <- do.call(cbind, rec$pending_dep_bc)
-    engine$live_stats <- .gather_apply_broadcast(
-      engine$live_stats,
+    blocks <- .gather_broadcast_blocks(
       bc,
       0L,
       ncol(bc),
@@ -243,6 +291,9 @@ walk_fold_engine <- function(engine) {
       engine$fold_n2,
       engine$twomode_or_reflexive
     )
+    for (block in blocks) {
+      engine$live_stats[block$rows, block$col] <- block$value
+    }
   }
   rec$pending_dep <- list()
   rec$pending_dep_cols <- 0L
@@ -270,6 +321,14 @@ walk_fold_engine <- function(engine) {
 #' generatively complete (every modeled DyNAM flavor carrying both a rate and a
 #' choice) and aborts pointing to [simulate()] / `estimate_dynes()` otherwise;
 #' it never performs completion itself.
+#'
+#' A family whose sub-models all carry no effects — the uniform choice
+#' completion gives a rate-only DyNAM, or an authored `rate = ~ 1` — has
+#' nothing for the merged compile to parse, so the walk compiles no engine for
+#' it. Its fids stay on the handle's `process_map` under the numbers the
+#' specification gave them and are listed in `deferred`; `walk_evaluate()`
+#' refuses them, since their values come from the driver's built-in evaluate
+#' steps over the sibling sub-model's live support.
 #'
 #' @param spec a `goldfishJointSpec` from
 #'   [make_joint_specification()] (or a single `goldfishSpec`, wrapped
@@ -305,30 +364,35 @@ walk_open <- function(
   # a mismatched fid set.
   assert_generatively_complete(joint_spec, call)
 
-  # A generatively complete spec MAY carry auto-supplied zero-parameter defaults
-  # (a uniform choice, a pinned intercept-only rate). Those effect-free
-  # sub-models are the generative consumers' (simulate() / estimate_dynes())
-  # domain: the merged compile parses effect-bearing formulas, so evaluating a
-  # `~ 1` block on the live walk is deferred to them. The handle here walks
-  # effect-bearing sub-models; a completed default is a clear boundary, not a
-  # cryptic parse error.
-  assert_walkable_submodels(joint_spec, call)
+  # Only a family with no effect anywhere is left out of the compile. The
+  # specification and its process_map are kept whole, so every fid keeps its
+  # number: a unit looks its fids up by layer and family, never by counting,
+  # and the block unions are planned over the fids the compiled units own.
+  deferred <- walk_deferred_fids(joint_spec)
+  units <- walk_compile_units(
+    joint_spec,
+    deferred,
+    control_preprocessing$impute,
+    call = call
+  )
+  merged <- build_merged_blocks(
+    joint_spec,
+    control_preprocessing,
+    units = units
+  )
 
-  merged <- build_merged_blocks(joint_spec, control_preprocessing)
-
-  # The handle's live-state stepping supports the class the merged walk already
-  # restricts (no window effects, no explicit window bounds) plus, for now, no
-  # user support constraints and no node-composition dynamics: under those the
-  # live risk set is the trivial all-active set the evaluators apply, so the
-  # live statistics equal the batch materialization exactly. The augmenter /
-  # simulate consumers extend this later.
-  if (!is.null(merged$support_constraints)) {
-    cli::cli_abort(
-      "The walk handle does not yet support user support constraints.",
-      call = call,
-      class = "goldfish_walk_unsupported"
-    )
-  }
+  # What the handle does with the substrate: it hosts window effects (their
+  # expiry rows are ordinary covariate rows, exogenous to every process here,
+  # stepped through walk_advance() like any other), but it reads no explicit
+  # window bounds -- `control_preprocessing` reaches only the imputation
+  # policy below. The clock opens at the schedule's first time and no end
+  # extent is computed, so an expiry row past the last real event is stepped
+  # (the state and the live statistics advance to it) but writes nothing:
+  # the engines carry an identity recorder and no right-censoring consumers,
+  # so there is no row to emit there. A driver that needs the handle bounded
+  # takes the bound from resolve_walk_extent(). Node-composition changes are
+  # not schedule rows: they are presence cursors each engine advances with the
+  # clock, in walk_advance() and before an injected event is applied.
 
   props <- build_shared_object_props(
     merged$objects,
@@ -344,19 +408,18 @@ walk_open <- function(
         control_preprocessing,
         progress = FALSE
       )
-      if (
-        length(engine$ctx$active_sender_changes) > 0L ||
-          length(engine$ctx$active_dyad_changes) > 0L
-      ) {
-        cli::cli_abort(
-          "The walk handle does not yet support node-composition changes.",
-          call = call,
-          class = "goldfish_walk_unsupported"
-        )
-      }
       walk_prepare_engine(engine)
     }
   )
+
+  # Support constraints (a user's, and the masks a flavored layer derives) are
+  # maintained live: their atoms advance with every object event over the
+  # shared state, through the same stores the batch walk records into, and a
+  # fid's mask is recomputed from the atom entries that moved since it was last
+  # read.
+  walk_assert_covered_constraints(engines, merged$objects$key, call)
+  recorders <- build_walk_recorders(engines, merged$objects$key)
+  live_masks <- walk_build_live_masks(engines, recorders)
 
   schedule <- merged$schedule
   start_time <- if (schedule$n > 0L) min(schedule$time) else 0
@@ -376,11 +439,23 @@ walk_open <- function(
   handle$schedule <- schedule
   handle$state <- merged$state
   handle$props <- props
+  handle$recorders <- recorders
+  handle$live_masks <- live_masks
   handle$process_map <- merged$process_map
   handle$focal_layers <- focal_layers
   handle$exo_rows <- exo_rows
   handle$exo_cursor <- 0L
+  # Focal-layer rows replayed from the observed stream (walk_replay()), and
+  # per row whether it was skipped: NA until the clock reaches it.
+  handle$replay_rows <- integer(0)
+  handle$replay_skipped <- logical(0)
+  # Driver-scheduled events (walk_schedule()), resolved and kept in time order.
+  handle$queue <- list()
+  handle$queue_time <- numeric(0)
   handle$current_time <- start_time
+  # The fids with no engine: their process_map rows, under the specification's
+  # own fid numbers.
+  handle$deferred <- deferred
   handle$opened <- TRUE
   structure(handle, class = "goldfishWalk")
 }
@@ -417,7 +492,24 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
     )
     walk_fold_engine(engine)
   }
-  merged_apply_state_update(handle$state, oid, shape, event_args, props)
+  # The constraint atoms read the same pre-update state the effects did.
+  key <- props$key[oid]
+  advance_recorders_for_event(
+    handle$recorders,
+    key,
+    shape,
+    event_args,
+    handle$state,
+    t
+  )
+  walk_collect_atom_moves(handle$live_masks, handle$recorders, key)
+  handle$state <- merged_apply_state_update(
+    handle$state,
+    oid,
+    shape,
+    event_args,
+    props
+  )
   handle$current_time <- t
   invisible(NULL)
 }
@@ -445,25 +537,170 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
     )
   }
   schedule <- handle$schedule
-  while (handle$exo_cursor < length(handle$exo_rows)) {
-    k <- handle$exo_rows[handle$exo_cursor + 1L]
-    if (schedule$time[k] > t) {
+  repeat {
+    exo_time <- if (handle$exo_cursor < length(handle$exo_rows)) {
+      schedule$time[handle$exo_rows[handle$exo_cursor + 1L]]
+    } else {
+      Inf
+    }
+    queued_time <- if (length(handle$queue_time) > 0L) {
+      handle$queue_time[[1L]]
+    } else {
+      Inf
+    }
+    next_time <- min(exo_time, queued_time)
+    if (!is.finite(next_time) || next_time > t) {
       break
     }
-    oid <- schedule$target[k]
-    shape <- schedule$shape[k]
-    event_args <- merged_build_event_args(
-      schedule,
-      k,
-      oid,
-      handle$props,
-      handle$state
-    )
-    walk_apply_object_event(handle, oid, shape, event_args, schedule$time[k])
-    handle$exo_cursor <- handle$exo_cursor + 1L
+    # An observed exogenous row goes before a driver-scheduled event sharing
+    # its stamp: the observed schedule is fixed at open, and the driver
+    # schedules against it.
+    if (exo_time <= queued_time) {
+      k <- handle$exo_rows[handle$exo_cursor + 1L]
+      oid <- schedule$target[k]
+      walk_advance_presence(handle, exo_time)
+      replay_index <- match(k, handle$replay_rows)
+      if (!is.na(replay_index)) {
+        applies <- replay_row_applies(schedule, k, oid, handle)
+        handle$replay_skipped[replay_index] <- !applies
+        if (!applies) {
+          handle$exo_cursor <- handle$exo_cursor + 1L
+          handle$current_time <- max(handle$current_time, exo_time)
+          next
+        }
+      }
+      event_args <- merged_build_event_args(
+        schedule,
+        k,
+        oid,
+        handle$props,
+        handle$state
+      )
+      walk_apply_object_event(
+        handle,
+        oid,
+        schedule$shape[k],
+        event_args,
+        exo_time
+      )
+      handle$exo_cursor <- handle$exo_cursor + 1L
+    } else {
+      resolved <- handle$queue[[1L]]
+      handle$queue <- handle$queue[-1L]
+      handle$queue_time <- handle$queue_time[-1L]
+      walk_apply_resolved(handle, resolved)
+    }
   }
+  walk_advance_presence(handle, t)
   handle$current_time <- max(handle$current_time, t)
   invisible(handle)
+}
+
+# --------------------------------------------------------------------------- #
+# walk_replay
+# --------------------------------------------------------------------------- #
+
+# Replay observed update rows of a focal layer as if they were exogenous: a
+# flavor no process models keeps its observed events, while the driver draws
+# the modeled ones around them. `rows` index the schedule. Being exogenous
+# rows, they are breakpoints the clock redraws at, which is the
+# right-censoring estimation applies to the same stream.
+walk_replay <- function(handle, rows, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  if (handle$exo_cursor > 0L || length(handle$replay_rows) > 0L) {
+    cli::cli_abort(
+      "Replayed rows are registered once, before the walk steps.",
+      .internal = TRUE,
+      call = call
+    )
+  }
+  rows <- sort(as.integer(rows))
+  handle$replay_rows <- rows
+  handle$replay_skipped <- rep(NA, length(rows))
+  handle$exo_rows <- sort(c(handle$exo_rows, rows))
+  invisible(handle)
+}
+
+# Whether a replayed row can be applied to the simulated state. A replayed
+# event can reference a tie the simulation never produced; it is then
+# skipped rather than forced, because forcing it would write state no
+# process generated. An increment fails when it would leave the cell below
+# zero, a replacement when the cell already holds the value.
+replay_row_applies <- function(schedule, k, oid, handle) {
+  key <- handle$props$key[oid]
+  current <- handle$state$networks[[key]][
+    schedule$sender[k],
+    schedule$receiver[k]
+  ]
+  value <- schedule$value[[k]]
+  if (identical(schedule$semantics[k], "increment")) {
+    return(current + value >= 0)
+  }
+  current != value
+}
+
+# --------------------------------------------------------------------------- #
+# walk_schedule / walk_next_breakpoint
+# --------------------------------------------------------------------------- #
+
+#' @rdname walk_handle
+#' @return `walk_schedule()` queues `event` (which must carry a `time`) to be
+#'   applied by a later `walk_advance()` reaching its time, as if it were a row
+#'   of the observed schedule, and returns the handle invisibly. Its value
+#'   resolves against the state at the time it is applied, not when queued.
+#' @keywords internal
+walk_schedule <- function(handle, event, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  if (is.null(event$time)) {
+    cli::cli_abort(
+      "A scheduled {.arg event} must carry a {.field time}.",
+      call = call,
+      class = "goldfish_walk_bad_event"
+    )
+  }
+  resolved <- walk_resolve_event(handle, event, "walk_schedule", call)
+  # Insert after every queued event at or before this time, so events sharing
+  # a stamp apply in the order they were scheduled.
+  position <- findInterval(resolved$time, handle$queue_time)
+  handle$queue <- append(handle$queue, list(resolved), after = position)
+  handle$queue_time <- append(
+    handle$queue_time,
+    resolved$time,
+    after = position
+  )
+  invisible(handle)
+}
+
+#' @rdname walk_handle
+#' @return `walk_next_breakpoint()` returns the time of the next change the
+#'   handle applies on its own clock -- an exogenous row, a scheduled event, or
+#'   a node-composition change -- or `Inf` when none remains. Between the
+#'   current time and that breakpoint every rate is constant unless the driver
+#'   injects an event.
+#' @keywords internal
+walk_next_breakpoint <- function(handle, call = rlang::caller_env()) {
+  walk_assert_open(handle, call)
+  exo_time <- if (handle$exo_cursor < length(handle$exo_rows)) {
+    handle$schedule$time[handle$exo_rows[handle$exo_cursor + 1L]]
+  } else {
+    Inf
+  }
+  queued_time <- if (length(handle$queue_time) > 0L) {
+    handle$queue_time[[1L]]
+  } else {
+    Inf
+  }
+  presence_time <- vapply(
+    handle$engines,
+    function(engine) {
+      min(
+        walk_pending_presence_time(engine, "presence1"),
+        walk_pending_presence_time(engine, "presence2")
+      )
+    },
+    numeric(1)
+  )
+  min(exo_time, queued_time, presence_time, Inf)
 }
 
 # --------------------------------------------------------------------------- #
@@ -479,6 +716,15 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
 #' @keywords internal
 walk_inject <- function(handle, event, call = rlang::caller_env()) {
   walk_assert_open(handle, call)
+  resolved <- walk_resolve_event(handle, event, "walk_inject", call)
+  walk_apply_resolved(handle, resolved)
+  invisible(handle)
+}
+
+# Validate an event against the handle and stage it as the one-row schedule the
+# merged walk's argument builder reads. Returns the target object id, the
+# event time and the staged row; its value is resolved only when applied.
+walk_resolve_event <- function(handle, event, fn, call = rlang::caller_env()) {
   if (is.null(event$layer)) {
     cli::cli_abort(
       "{.arg event} must name a {.field layer}.",
@@ -490,7 +736,7 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
   if (is.na(oid)) {
     cli::cli_abort(
       c(
-        "{.fn walk_inject} cannot resolve layer {.val {event$layer}}.",
+        "{.fn {fn}} cannot resolve layer {.val {event$layer}}.",
         "i" = "The walk knows layers {.val {handle$merged$objects$name}}."
       ),
       call = call,
@@ -501,7 +747,7 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
   if (t < handle$current_time) {
     cli::cli_abort(
       c(
-        "{.fn walk_inject} cannot apply an event before the current clock.",
+        "{.fn {fn}} cannot apply an event before the current clock.",
         "x" = "Current time is {.val {handle$current_time}}; event time is
                {.val {t}}."
       ),
@@ -547,15 +793,75 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
       NA_integer_
     }
   )
+  list(oid = oid, time = t, staged = staged)
+}
+
+# Apply a resolved event at its time: composition first, so the event lands on
+# the presence in force at its stamp, then the value against the live state.
+walk_apply_resolved <- function(handle, resolved) {
+  walk_advance_presence(handle, resolved$time)
   event_args <- merged_build_event_args(
-    staged,
+    resolved$staged,
     1L,
-    oid,
+    resolved$oid,
     handle$props,
     handle$state
   )
-  walk_apply_object_event(handle, oid, shape, event_args, t)
-  invisible(handle)
+  walk_apply_object_event(
+    handle,
+    resolved$oid,
+    resolved$staged$shape,
+    event_args,
+    resolved$time
+  )
+  invisible(NULL)
+}
+
+# --------------------------------------------------------------------------- #
+# Node composition.
+# --------------------------------------------------------------------------- #
+
+# A composition change list as parallel vectors in time order. `order()` is
+# stable, so changes sharing a stamp keep their recorded order.
+walk_presence_changes <- function(changes) {
+  if (length(changes) == 0L) {
+    return(list(time = numeric(0), node = integer(0), replace = logical(0)))
+  }
+  time <- vapply(changes, `[[`, double(1), "time")
+  ordering <- order(time)
+  list(
+    time = time[ordering],
+    node = vapply(changes, `[[`, integer(1), "node")[ordering],
+    replace = vapply(changes, `[[`, logical(1), "replace")[ordering]
+  )
+}
+
+# Apply every composition change stamped at or before `t`, on both node sides
+# of every engine. A change at an event's own stamp is in force for that event,
+# as in the batch presence stream, which applies every change not after the
+# event time.
+walk_advance_presence <- function(handle, t) {
+  for (engine in handle$engines) {
+    for (side in c("presence1", "presence2")) {
+      changes <- engine[[paste0(side, "_changes")]]
+      cursor_name <- paste0(side, "_cursor")
+      cursor <- engine[[cursor_name]]
+      n_changes <- length(changes$time)
+      while (cursor < n_changes && changes$time[[cursor + 1L]] <= t) {
+        cursor <- cursor + 1L
+        engine[[side]][changes$node[[cursor]]] <- changes$replace[[cursor]]
+      }
+      engine[[cursor_name]] <- cursor
+    }
+  }
+  invisible(NULL)
+}
+
+# The stamp of one side's next unapplied composition change, or `Inf`.
+walk_pending_presence_time <- function(engine, side) {
+  changes <- engine[[paste0(side, "_changes")]]
+  cursor <- engine[[paste0(side, "_cursor")]]
+  if (cursor < length(changes$time)) changes$time[[cursor + 1L]] else Inf
 }
 
 # --------------------------------------------------------------------------- #
@@ -565,9 +871,9 @@ walk_inject <- function(handle, event, call = rlang::caller_env()) {
 # Build the process-state evaluator `state` for one fid from its engine's LIVE
 # dense statistics. The union statistics are projected onto the fid's own
 # columns (`effect_map`), the timed baseline hazard prepended as an intercept
-# column of ones, and the trivial all-active risk set attached (the supported
-# class carries no constraint or composition dynamics). Focal-driven side / mode
-# resolution rode the engine's own compiled spec_map (D8a), so `n_actors1/2`
+# column of ones, and the fid's live risk set attached (presence folded with
+# its support constraint, `walk_risk_set()`). Focal-driven side / mode
+# resolution rode the engine's own compiled spec_map, so `n_actors1/2`
 # are this fid's own.
 walk_build_state <- function(handle, fid) {
   map <- handle$process_map
@@ -595,13 +901,14 @@ walk_build_state <- function(handle, fid) {
   is_rate <- engine$is_sender
   n2 <- if (is_rate) 1L else engine$ctx$n2
   tmr <- engine$twomode_or_reflexive
+  risk_set <- walk_risk_set(handle, engine, fid)
 
   list(
     model_type = walk_engine_model_type(engine, has_intercept),
     stat_mat = projected,
-    active_sender = rep(TRUE, n1),
-    active_dyad = rep(TRUE, if (is_rate) n1 else n2),
-    active_dyad_encoding = "alter",
+    active_sender = risk_set$active_sender,
+    active_dyad = risk_set$active_dyad,
+    active_dyad_encoding = risk_set$encoding,
     n_actors1 = n1,
     n_actors2 = n2,
     n_parameters = ncol(projected),
@@ -619,12 +926,25 @@ walk_build_state <- function(handle, fid) {
 #'   `process_map`).
 #' @param theta the parameter vector for the fid, matching its effect columns
 #'   (with a leading intercept for a timed rate).
+#' @param sender optionally the integer sender whose alternatives to evaluate,
+#'   for a fid whose model is defined per sender (DyNAM-choice). Absent, the
+#'   result covers the fid's whole candidate space; supplied, it covers that
+#'   sender's receivers alone, which is what one generative step needs once the
+#'   sender has been drawn. Supplying it for any other fid is an error: those
+#'   models put every alternative in one competing set.
 #' @return `walk_evaluate()` returns the process-state evaluator result for the
-#'   fid: an `index` data frame and the per-alternative `value` (a rate vector
-#'   for a sender-block fid, a choice matrix's probabilities for a dyad-block
-#'   fid), the fid's support applied.
+#'   fid: an `index` naming the candidate rows and the per-alternative `value`
+#'   (a rate vector for a sender-block fid, a choice matrix's probabilities for
+#'   a dyad-block fid, one sender's receiver distribution under `sender`), the
+#'   fid's support applied.
 #' @keywords internal
-walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
+walk_evaluate <- function(
+  handle,
+  fid,
+  theta,
+  sender = NULL,
+  call = rlang::caller_env()
+) {
   walk_assert_open(handle, call)
   map <- handle$process_map
   if (!fid %in% map$fid) {
@@ -635,6 +955,24 @@ walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
       ),
       call = call,
       class = "goldfish_walk_bad_fid"
+    )
+  }
+  if (fid %in% handle$deferred$fid) {
+    label <- render_process_label(map, fid)
+    kind <- if (isTRUE(map$completed[match(fid, map$fid)])) {
+      "a completed default"
+    } else {
+      "an effect-free sub-model"
+    }
+    cli::cli_abort(
+      c(
+        "{.fn walk_evaluate} does not evaluate {.val {label}}.",
+        "x" = "It is {kind}, so the walk compiled no engine for it.",
+        "i" = "Its values come from the simulation's built-in evaluate step
+               over its process's support."
+      ),
+      call = call,
+      class = "goldfish_walk_deferred_fid"
     )
   }
   state <- walk_build_state(handle, fid)
@@ -654,10 +992,54 @@ walk_evaluate <- function(handle, fid, theta, call = rlang::caller_env()) {
   # observed sender's receiver block). A generative walk needs the whole choice
   # matrix, so that model is evaluated once per sender and the rows stacked -- a
   # faithful application of the same evaluator, not a reimplementation.
+  #
+  # Stacking is what the batch-vs-replay oracle compares, but it is not what a
+  # step costs: DyNAM factorizes the intensity into a sender hazard and a
+  # receiver softmax conditional on that sender, so a step that has already
+  # drawn its sender needs one row and pays for n1 of them. `sender` asks for
+  # the row, from the same evaluator, so the two paths cannot drift.
   if (identical(state$model_type, "DyNAM-M")) {
-    return(walk_evaluate_choice_matrix(state, theta))
+    if (is.null(sender)) {
+      return(walk_evaluate_choice_matrix(state, theta))
+    }
+    state$event_sender <- walk_assert_sender(state, fid, sender, call)
+    return(evaluate_process_state(state, theta))
+  }
+  if (!is.null(sender)) {
+    cli::cli_abort(
+      c(
+        "{.arg sender} does not apply to fid {.val {fid}}.",
+        "i" = "Only a per-sender model ({.val DyNAM-M}) has a sender's row to
+               return; {.val {state$model_type}} puts every alternative in one
+               competing set.",
+        "i" = "Drop {.arg sender} to evaluate the whole candidate space."
+      ),
+      call = call,
+      class = "goldfish_walk_bad_sender"
+    )
   }
   evaluate_process_state(state, theta)
+}
+
+# A `sender` argument for a per-sender fid, as a 1-based actor index into the
+# fid's sender set. Returns it coerced to integer.
+walk_assert_sender <- function(state, fid, sender, call) {
+  ok <- length(sender) == 1L &&
+    !is.na(sender) &&
+    sender >= 1L &&
+    sender <= state$n_actors1
+  if (!ok) {
+    cli::cli_abort(
+      c(
+        "{.arg sender} is not an actor of fid {.val {fid}}.",
+        "x" = "Expected one index in {.val {1L}}:{.val {state$n_actors1}}, got
+               {.val {sender}}."
+      ),
+      call = call,
+      class = "goldfish_walk_bad_sender"
+    )
+  }
+  as.integer(sender)
 }
 
 # The full n1 x n2 choice-probability matrix at the live state, one row per
@@ -678,6 +1060,262 @@ walk_evaluate_choice_matrix <- function(state, theta) {
     model_type = state$model_type,
     index = .pse_dyad_index(n1, n2),
     value = value
+  )
+}
+
+# --------------------------------------------------------------------------- #
+# Live risk sets.
+# --------------------------------------------------------------------------- #
+
+# Abort when a constraint's atoms read a dynamic object the shared schedule
+# never visits (a constraint-only network no formula term reads). The batch
+# walk replays such a constraint over a private walk after the fact; a stepping
+# handle has no after, and a mask frozen at its seed would silently simulate a
+# different model.
+walk_assert_covered_constraints <- function(
+  engines,
+  shared_object_keys,
+  call = rlang::caller_env()
+) {
+  uncovered <- character(0)
+  for (engine in engines) {
+    for (sub_plan in engine_constraints(engine)) {
+      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
+        uncovered <- c(uncovered, sub_plan$atom_labels)
+      }
+    }
+  }
+  if (length(uncovered) == 0L) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(
+    c(
+      "The walk handle cannot maintain this support constraint.",
+      "x" = "Constraint atom{?s} {.val {unique(uncovered)}} read{?s/} a
+             changing object no formula term reads, so the shared walk never
+             steps its events."
+    ),
+    call = call,
+    class = "goldfish_walk_unsupported"
+  )
+}
+
+# The compiled constraint one fid's risk set carries: a multi-output engine
+# reads it off its consumer specs, a single-output engine off its own plan.
+walk_fid_constraint <- function(engine, fid) {
+  if (is.null(engine$consumer_specs)) {
+    return(engine$ctx$plan$support_constraint)
+  }
+  engine$consumer_specs[[as.character(fid)]]$constraint
+}
+
+# The atom handle `build_mask_maintainer()` reads, over a store's LIVE atom
+# buffers rather than a replay of its recorded deltas.
+walk_live_atoms <- function(store) {
+  list(
+    n1 = store$n1,
+    n2 = store$n2,
+    atom_labels = store$atom_labels,
+    atom_kinds = store$atom_kinds,
+    atom_value = function(label) {
+      get(
+        as.character(match(label, store$atom_labels)),
+        envir = store$atom_state
+      )
+    }
+  )
+}
+
+# One mask maintainer per distinct (store, expression, kind, symmetry), and a
+# per-fid pointer to it. A layer's rate and choice read one store and, when
+# their expressions agree, one maintainer, as the pooled batch realization
+# does. The maintainers are the batch ones, fed the same touched-entry sets, so
+# a live mask cannot drift from the stored stream.
+#
+# `live` carries: `touched` (per store, the atom entries moved since the last
+# read), `maintainers` / `maintainer_keys` (per store), and `by_fid` (store,
+# maintainer, mask kind and stored kind per constrained fid).
+walk_build_live_masks <- function(engines, recorders) {
+  live <- new.env(parent = emptyenv())
+  live$touched <- lapply(
+    recorders$stores,
+    function(store) vector("list", store$n_atoms)
+  )
+  live$maintainers <- lapply(recorders$stores, function(store) list())
+  live$maintainer_keys <- lapply(recorders$stores, function(store) character())
+  live$by_fid <- list()
+  for (engine in engines) {
+    ctx <- engine$ctx
+    # Only coordination symmetrises its stored mask; the batch requests key
+    # the same choice on the sub-model.
+    symmetric <- identical(engine$sub_model, "choice_coordination")
+    for (fid in engine$fids) {
+      sub_plan <- walk_fid_constraint(engine, fid)
+      if (is.null(sub_plan)) {
+        next
+      }
+      signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
+      store <- recorders$lookup[[
+        paste(engine$model, ctx$nodes, ctx$nodes2, signature, sep = "\v")
+      ]]
+      s <- which(vapply(recorders$stores, identical, logical(1), store))
+      mask_kind <- as.integer(sub_plan$mask_kind)
+      stored_kind <- if (symmetric) 0L else mask_kind
+      maintainer_key <- paste(
+        paste(deparse(sub_plan$expr), collapse = ""),
+        paste(sub_plan$atom_labels, collapse = "\r"),
+        mask_kind,
+        symmetric,
+        sep = "\v"
+      )
+      m <- match(maintainer_key, live$maintainer_keys[[s]])
+      if (is.na(m)) {
+        maintainer <- build_mask_maintainer(
+          walk_live_atoms(store),
+          sub_plan$expr,
+          sub_plan$atom_labels,
+          symmetric,
+          mask_kind,
+          stored_kind
+        )
+        live$maintainers[[s]] <- c(live$maintainers[[s]], list(maintainer))
+        live$maintainer_keys[[s]] <- c(
+          live$maintainer_keys[[s]],
+          maintainer_key
+        )
+        m <- length(live$maintainer_keys[[s]])
+      }
+      live$by_fid[[as.character(fid)]] <- list(
+        store = s,
+        maintainer = m,
+        mask_kind = mask_kind,
+        stored_kind = stored_kind
+      )
+    }
+  }
+  live
+}
+
+# Fold the atom deltas one object event recorded into each store's pending
+# touched set, then drop the record. The batch walk keeps the record to replay
+# at finalization; a stepping handle consumes it as it goes, so a long
+# simulation does not hold every delta it ever produced.
+walk_collect_atom_moves <- function(live, recorders, key) {
+  for (s in unique(recorders$by_key[[key]])) {
+    store <- recorders$stores[[s]]
+    touched <- live$touched[[s]]
+    for (r in seq_along(store$record_gid)) {
+      entries <- store$record_entries[[r]]
+      if (length(entries) == 0L) {
+        next
+      }
+      gid <- store$record_gid[[r]]
+      touched[[gid]] <- unique(c(touched[[gid]], entries))
+    }
+    live$touched[[s]] <- touched
+    store$record_time <- numeric(0)
+    store$record_gid <- integer(0)
+    store$record_entries <- list()
+    store$record_values <- list()
+  }
+  invisible(NULL)
+}
+
+# A constrained fid's current mask at its stored kind, or NULL when the fid
+# carries no constraint. Every maintainer on the fid's store recomputes from
+# the pending moves together, because reading them consumes them.
+walk_live_support <- function(handle, fid) {
+  live <- handle$live_masks
+  entry <- live$by_fid[[as.character(fid)]]
+  if (is.null(entry)) {
+    return(NULL)
+  }
+  s <- entry$store
+  moved <- live$touched[[s]]
+  if (any(lengths(moved) > 0L)) {
+    for (maintainer in live$maintainers[[s]]) {
+      maintainer$recompute(moved)
+    }
+    live$touched[[s]] <- vector("list", length(moved))
+  }
+  list(
+    value = live$maintainers[[s]][[entry$maintainer]]$value(),
+    mask_kind = entry$mask_kind,
+    stored_kind = entry$stored_kind
+  )
+}
+
+# The fid's live risk set in the shapes the process-state evaluators read,
+# folded as the batch finalizers fold it: a rate's sender gate is presence and
+# at least one allowed present receiver; REM and coordination read the whole
+# dyad grid with both presences in it, coordination symmetrised; a choice
+# reads the receiver axis, as a vector when the mask is column-broadcast or
+# gates only senders, as a grid when it is genuinely dyadic.
+walk_risk_set <- function(handle, engine, fid) {
+  n1 <- engine$n1
+  n2 <- engine$n2
+  p1 <- engine$presence1
+  p2 <- engine$presence2
+  support <- walk_live_support(handle, fid)
+
+  if (engine$is_sender) {
+    gate <- if (is.null(support)) {
+      TRUE
+    } else {
+      sender_gate_from_mask(
+        support$value,
+        support$stored_kind,
+        p2,
+        n1,
+        n2,
+        # NOT `engine$twomode_or_reflexive`: that is TRUE on every rate
+        # engine, whose own statistics have no receiver axis.
+        drop_diagonal = !isTRUE(engine$model_spec$is_two_mode)
+      )
+    }
+    return(list(
+      active_sender = p1 & gate,
+      active_dyad = rep(TRUE, n1),
+      encoding = "alter"
+    ))
+  }
+  if (is.null(support)) {
+    return(list(active_sender = p1, active_dyad = p2, encoding = "alter"))
+  }
+
+  spec <- engine$spec_map
+  support_grid <- support_to_grid(
+    support$value,
+    support$stored_kind,
+    n1,
+    n2
+  )
+  if (risk_set_is_dyadic(spec)) {
+    dyads <- outer(p1, p2, "&") & support_grid
+    if (risk_set_symmetrize(spec)) {
+      dyads <- symmetrize_mask(dyads)
+    }
+    return(list(active_sender = p1, active_dyad = dyads, encoding = "point"))
+  }
+  encoding <- active_dyad_encoding_decide(
+    risk_set_encoding(spec),
+    support$mask_kind
+  )
+  switch(
+    encoding,
+    alter = list(
+      active_sender = p1,
+      active_dyad = p2 & support_grid[1L, ],
+      encoding = "alter"
+    ),
+    # An ego-kind mask gates senders only, and the choice risk set is read
+    # from the drawing sender's row, so the receiver axis is presence alone.
+    outer = list(active_sender = p1, active_dyad = p2, encoding = "alter"),
+    point = list(
+      active_sender = p1,
+      active_dyad = matrix(p2, n1, n2, byrow = TRUE) & support_grid,
+      encoding = "point"
+    )
   )
 }
 

@@ -345,13 +345,50 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
   )
 }
 
+#' Append a constraint's atoms to the main plan's effect registry
+#'
+#' Constraint atoms are effects that no one estimates: the same idea as an
+#' interaction operand, which is why `plan$effects` already carries a `role`
+#' column that says so. Recording them beside the main and operand effects puts
+#' the whole data flow — atoms feeding the mask — in one table, where the
+#' two-layer DAG (atoms never read the mask) is a property of a single plan
+#' rather than of two separately parsed ones.
+#'
+#' Only the effect ROWS are appended (the metadata a reader inspects), tagged
+#' `role = "constraint"`; the atoms are seeded, maintained and evaluated through
+#' the compiled sub-plans on `plan$support_constraint(s)`, whose kernel is
+#' dyad whatever the estimated model's is. The appended rows therefore take gids
+#' above the estimated columns and are never counted in `nEffects`, seeded into
+#' `initialStats`, routed by the covariate step, or read as estimated columns:
+#' the estimated statistics — and the frozen baselines — stay bit-identical, and
+#' an unconstrained model appends nothing at all.
+#'
+#' @param plan the estimated plan, after `augment_interactions()`.
+#' @param compiled the constraint sub-plans (one per `(layer, flavor)`).
+#' @return `plan` with the atoms' effect rows appended to `plan$effects`.
+#' @noRd
+plan_with_constraint_atoms <- function(plan, compiled) {
+  atom_rows <- do.call(rbind, lapply(compiled, function(sub) sub$effects))
+  if (is.null(atom_rows) || nrow(atom_rows) == 0L) {
+    return(plan)
+  }
+  # Gids above the estimated columns so no estimated indexing (nEffects,
+  # initialStats, routing, broadcast_kind[gid]) ever reaches an atom row.
+  next_gid <- max(plan$effects$gid) + seq_len(nrow(atom_rows))
+  atom_rows$gid <- next_gid
+  atom_rows$lid <- next_gid
+  plan$effects <- rbind(plan$effects, atom_rows)
+  plan
+}
+
 #' Accept dyadic atoms in a sender-indexed-only specification via the
 #' row-reduction, informing about the reduction
 #'
 #' A dyadic (`point`- or `alter`-kind) `support_constraint` on a rate / rate
 #' _ordered spec with no choice formula is consumed on the sender axis by the
 #' row-reduction (folded into `active_sender` during preprocessing): a sender is
-#' at risk iff it has at least one allowed, present receiver. This is the same
+#' at risk iff it has at least one allowed, present receiver, itself
+#' excluded on a one-mode layer. This is the same
 #' definition the joint specification uses,
 #' so rejecting it would be a capability regression and a semantic break.
 #' A one-time informational message explains the reduction and the cheaper
@@ -371,7 +408,7 @@ inform_dyadic_sender_reduction <- function(atom_labels, atom_kinds) {
       "i" = "{.arg support_constraint}: {cli::qty(sum(dyadic))}the dyadic
              atom{?s} {.code {atom_labels[dyadic]}} {?is/are} consumed on the
              sender axis by row-reduction — a sender is at risk iff it has
-             at least one allowed, present receiver.",
+             at least one allowed, present receiver other than itself.",
       "i" = "For a cheaper sender-axis formulation, use an ego-kind atom, e.g.
              {.code ~ tie(net)} becomes {.code ~ outdeg(net) > 0}.",
       "!" = "That reformulation is equivalent only under static receiver

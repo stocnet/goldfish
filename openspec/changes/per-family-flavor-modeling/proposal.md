@@ -1,3 +1,7 @@
+---
+depends-on: printing-homogenization
+---
+
 ## Why
 
 A flavored specification names flavors in a `rate` list and a `choice` list.
@@ -72,7 +76,10 @@ _None._
 - **Numbers**: none move for any specification that estimates today; the
   new case is tested against the full specification's block to 1e-6.
 - **Sequencing**: after `preprocess-one-walk`, so the planner change is made
-  once on the merged walk rather than on the recipe loops and again after.
+  once on the merged walk rather than on the recipe loops and again after;
+  and after `printing-homogenization`, so the asymmetric container renders
+  through the shared multi-process renderer (ADR-0051) rather than through a
+  second rewrite of `print.goldfishFlavFit`.
   The selector surface (`sub_model` on the flavored path or ADR-0002's
   `blocks =`) is decided with ADR-0002 before task 2.1; until then
   `estimate_flavored()` keeps estimating every family present.

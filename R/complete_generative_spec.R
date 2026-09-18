@@ -48,10 +48,17 @@ expected_families <- function(model) {
 # `wave_times` is the K+1 period boundaries a timed pin buckets on (the panel
 # waves, or a single window). When NULL a single window spanning the data's event
 # times is used, so the pin has one plateau.
+#
+# `times` is the simulation variant the consumer runs, when it has one. A
+# composition with no rate anywhere has no clock and completes no rate, unless
+# the run asked for `"generated"` times: a constant exponential rate beside a
+# choice model is then the clock it asked for, completed and pinned exactly as
+# a missing rate of the timed regime is.
 complete_generative_spec <- function(
   joint_spec,
   consumer = c("estimate_dynes", "simulate"),
   wave_times = NULL,
+  times = NULL,
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)
@@ -77,6 +84,15 @@ complete_generative_spec <- function(
   abort_on_unmodeled_panel_flavor(joint_spec, modeled_panel, call = call)
 
   timed <- is_timed_joint_specification(joint_spec)
+  ordered <- any(vapply(
+    joint_fid_bundles(joint_spec),
+    function(entry) identical(entry$sub_model, "rate_ordered"),
+    logical(1)
+  ))
+  rate_requested <- identical(times, "generated") && !timed && !ordered
+  if (rate_requested) {
+    timed <- TRUE
+  }
 
   # 1. Fill each process's gaps on a working copy of the specifications, tracking
   #    which (layer, flavor, family) were added so the completed column and the
@@ -96,8 +112,9 @@ complete_generative_spec <- function(
           timed = timed
         )
         if (is.null(default)) {
-          # Ordered-regime choice-only rate: no clock to place it on, deferred to
-          # process-simulation's pseudo-time modes -- left as a gap, not filled.
+          # A missing rate with no clock to place it on: left as a gap, and
+          # simulated at the observed stamps, unless generated times were
+          # requested (which made the composition timed above).
           next
         }
         specs[[si]] <- install_default_bundle(
@@ -141,7 +158,12 @@ complete_generative_spec <- function(
   }
 
   # 4. Warn once per filled gap, at this consumer's entry (never suppressed).
-  warn_completed_defaults(added, consumer = consumer, call = call)
+  warn_completed_defaults(
+    added,
+    consumer = consumer,
+    rate_requested = rate_requested,
+    call = call
+  )
 
   completed
 }
@@ -165,8 +187,8 @@ resolve_default_sub_model <- function(spec, flavor, family, timed) {
     ))
   }
   # A missing rate: pinned intercept-only in the timed regime (a shared clock to
-  # place events on), deferred in the ordered regime (no clock -- the choice-only
-  # flavor's timing is process-simulation's pseudo-time / fixed-template modes).
+  # place events on); not completed without a clock, where the choice-only
+  # process simulates at the observed stamps.
   if (!timed) {
     return(NULL)
   }
@@ -669,7 +691,14 @@ abort_on_degenerate_relational_layer <- function(layer, rs, call) {
 }
 
 # Warn once per filled gap, worded for the applied default and the consumer.
-warn_completed_defaults <- function(added, consumer, call) {
+# A rate completed only because generated times were requested says so: the
+# specification alone would have simulated at the observed stamps.
+warn_completed_defaults <- function(
+  added,
+  consumer,
+  call,
+  rate_requested = FALSE
+) {
   if (length(added) == 0L) {
     return(invisible(NULL))
   }
@@ -688,6 +717,12 @@ warn_completed_defaults <- function(added, consumer, call) {
     } else {
       sprintf(" flavor {.val %s}", add$flavor[i])
     }
+    requested_note <- if (rate_requested && add$family[i] == "rate") {
+      c(
+        "i" = "Completed because {.code times = \"generated\"} was requested;
+               the specification's default is {.val observed}, with no rate."
+      )
+    }
     cli::cli_warn(
       c(
         "!" = paste0(
@@ -701,6 +736,7 @@ warn_completed_defaults <- function(added, consumer, call) {
           default,
           "."
         ),
+        requested_note,
         "i" = "The default adds no free parameter; it is auto-supplied for the
                {.field {consumer}} generative surface."
       ),

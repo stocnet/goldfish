@@ -94,7 +94,7 @@ test_that("the test reads stored scores only, on either clock", {
     evaluate_model = function(...) stop("an evaluation pass was triggered")
   )
   gof <- test_gof(fit)
-  simulated <- test_gof(fit, clock = "information", n_sim = 50)
+  simulated <- test_gof(fit, clock = "information", nsim = 50)
 
   expect_s3_class(gof, "goldfishGOF")
   expect_named(gof, c("effects", "process", "omnibus"))
@@ -104,7 +104,7 @@ test_that("the test reads stored scores only, on either clock", {
   expect_identical(attr(gof, "diagnostic"), "goldfishGOF")
   expect_identical(attr(gof, "params")$clock, "event")
   expect_identical(attr(simulated, "params")$clock, "information")
-  expect_identical(attr(simulated, "params")$n_sim, 50L)
+  expect_identical(attr(simulated, "params")$nsim, 50L)
   expect_identical(
     attr(gof, "context")$n_intervals,
     nrow(fit$event_scores)
@@ -145,7 +145,7 @@ test_that("the statistic is the same under both clocks; the axis is not", {
   fit <- gof_fixture()
   event <- test_gof(fit)
   set.seed(42)
-  information <- test_gof(fit, clock = "information", n_sim = 200)
+  information <- test_gof(fit, clock = "information", nsim = 200)
 
   # A supremum reads the values a path takes, never where they are plotted, so
   # this is an identity rather than an approximation.
@@ -181,11 +181,11 @@ test_that("the statistic is the same under both clocks; the axis is not", {
 test_that("the simulated reference draws through the session RNG", {
   fit <- gof_fixture()
   set.seed(11)
-  first <- test_gof(fit, clock = "information", n_sim = 200)
+  first <- test_gof(fit, clock = "information", nsim = 200)
   set.seed(11)
-  again <- test_gof(fit, clock = "information", n_sim = 200)
+  again <- test_gof(fit, clock = "information", nsim = 200)
   set.seed(12)
-  other <- test_gof(fit, clock = "information", n_sim = 200)
+  other <- test_gof(fit, clock = "information", nsim = 200)
 
   expect_identical(first$effects$p_value, again$effects$p_value)
   expect_false(identical(first$effects$p_value, other$effects$p_value))
@@ -231,7 +231,25 @@ test_that("a fit without the score rows says which primitive to store", {
 
 test_that("the replication count is checked before anything is computed", {
   withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
-  expect_snapshot(test_gof(gof_fixture(), n_sim = 0), error = TRUE)
+  expect_snapshot(test_gof(gof_fixture(), nsim = 0), error = TRUE)
+})
+
+test_that("a leftover n_sim is refused, not swallowed by the dots", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- gof_fixture()
+
+  expect_identical(
+    attr(test_gof(fit, clock = "information", nsim = 100), "params")$nsim,
+    100L
+  )
+  expect_snapshot(
+    test_gof(fit, clock = "information", n_sim = 100),
+    error = TRUE
+  )
+  expect_snapshot(
+    test_gof(flavored_container_fit(), n_sim = 100),
+    error = TRUE
+  )
 })
 
 test_that("an effect contributing no score at all is named, not divided by", {
@@ -268,7 +286,7 @@ test_that("print names the reference the p-values came from", {
   }
   expect_snapshot(header(test_gof(fit)))
   set.seed(3)
-  expect_snapshot(header(test_gof(fit, clock = "information", n_sim = 100)))
+  expect_snapshot(header(test_gof(fit, clock = "information", nsim = 100)))
 })
 
 test_that("on a cold start the clocks separate as documented", {
@@ -289,7 +307,7 @@ test_that("on a cold start the clocks separate as documented", {
   for (i in seq_len(n_rep)) {
     fit <- fit_cold_choice(simulate_cold_choice(30, 400, c(1.5, 1)))
     event <- test_gof(fit)
-    information <- test_gof(fit, clock = "information", n_sim = 500)
+    information <- test_gof(fit, clock = "information", nsim = 500)
     event_p[i, ] <- event$effects$p_value
     information_p[i, ] <- information$effects$p_value
     gap[i] <- max(abs(event$effects$statistic - information$effects$statistic))
@@ -447,7 +465,7 @@ test_that("the blocked print groups by process, with no combination", {
 
 test_that("the Cauchy combination survives a p-value at the pole", {
   # Both poles are reachable: the Kolmogorov series is clamped into the unit
-  # interval and the simulated p-value is `(1 + exceed) / (1 + n_sim)`, which
+  # interval and the simulated p-value is `(1 + exceed) / (1 + nsim)`, which
   # is exactly 1 when every replication exceeds. Neither may produce a
   # non-finite statistic.
   expect_true(is.finite(cauchy_omnibus(c(1, 0.5))$statistic))

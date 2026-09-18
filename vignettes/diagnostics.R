@@ -65,7 +65,7 @@ tail(onset$accrual, 2)
 
 
 ## ----gof-information-clock----------------------------------------------------
-test_gof(calls_choice, clock = "information", n_sim = 200)$effects[, c("term", "p_value")]
+test_gof(calls_choice, clock = "information", nsim = 200)$effects[, c("term", "p_value")]
 
 
 ## ----time-trend---------------------------------------------------------------

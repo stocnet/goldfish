@@ -76,7 +76,7 @@ test_that("a superset walk sliced to a subset equals the subset walk (a)", {
   full <- per_fid_mask(fx, fx$sub_tie, superset)
   sub <- per_fid_mask(fx, fx$sub_tie, subset)
 
-  expect_equal(sub$support, full$support[subset_idx])
+  expect_equal(mask_timeline(sub), mask_timeline(full)[subset_idx])
   expect_equal(sub$initial, full$initial)
 })
 
@@ -102,16 +102,16 @@ test_that("pooled masks equal per-fid masks over one shared atom (a)", {
   ref_tie <- per_fid_mask(fx, fx$sub_tie, times_tie)
   ref_ntie <- per_fid_mask(fx, fx$sub_ntie, times_ntie)
 
-  expect_equal(pooled[[1L]]$support, ref_tie$support)
+  expect_equal(mask_timeline(pooled[[1L]]), mask_timeline(ref_tie))
   expect_equal(pooled[[1L]]$initial, ref_tie$initial)
   expect_equal(pooled[[1L]]$n_stored, ref_tie$n_stored)
-  expect_equal(pooled[[2L]]$support, ref_ntie$support)
+  expect_equal(mask_timeline(pooled[[2L]]), mask_timeline(ref_ntie))
   expect_equal(pooled[[2L]]$initial, ref_ntie$initial)
   expect_equal(pooled[[2L]]$n_stored, ref_ntie$n_stored)
   # the two trees genuinely differ (complementary), so this is not a trivial pass
   expect_false(isTRUE(all.equal(
-    ref_tie$support,
-    ref_ntie$support[seq_len(3L)]
+    mask_timeline(ref_tie),
+    mask_timeline(ref_ntie)[seq_len(3L)]
   )))
 })
 
@@ -134,12 +134,12 @@ test_that("several fids sharing one constraint id are evaluated once (a)", {
     prep_envir = fx$env
   )
   expect_equal(
-    pooled[[1L]]$support,
-    per_fid_mask(fx, fx$sub_tie, times_a)$support
+    mask_timeline(pooled[[1L]]),
+    mask_timeline(per_fid_mask(fx, fx$sub_tie, times_a))
   )
   expect_equal(
-    pooled[[2L]]$support,
-    per_fid_mask(fx, fx$sub_tie, times_b)$support
+    mask_timeline(pooled[[2L]]),
+    mask_timeline(per_fid_mask(fx, fx$sub_tie, times_b))
   )
 })
 
@@ -191,8 +191,8 @@ test_that("the flavored path feeds each fid its own sliced mask (b)", {
 
   # Each fid's fold consumed its OWN sliced timeline (rate fids carry their own
   # dependent + right-censored rows), not one shared slice.
-  expect_length(cre$support_mask$support, length(cre$event_time))
-  expect_length(dis$support_mask$support, length(dis$event_time))
+  expect_length(cre$support_mask$update_pointer, length(cre$event_time))
+  expect_length(dis$support_mask$update_pointer, length(dis$event_time))
 
   # Creation (!tie) and dissolution (tie) share the one atom pool: their
   # pre-event masks are exact complements, so both boolean trees were projected

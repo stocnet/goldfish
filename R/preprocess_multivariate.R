@@ -58,15 +58,16 @@ joint_fid_bundles <- function(joint_spec) {
 # absolute-layer effect (`tie(friendship)`) pools to one column shared by both.
 # Deduplication never crosses a block boundary either: the same effect label in
 # DyNAM-choice and in REM resolves to different update functions, so each block
-# computes its own column (design D5).
+# computes its own column.
 #
 # Fids are processed in ascending fid order within a block (the canonical order
 # the `process_map` is built in), so union first-appearance order is
 # deterministic. Returns a list keyed by `stat_block`; each element is the
 # `build_effect_union()` result (keyed by character fid) plus the block's
 # `model` / `sub_model` / `family` metadata and its member `fids`.
-plan_block_unions <- function(joint_spec) {
+plan_block_unions <- function(joint_spec, fids = joint_spec$process_map$fid) {
   process_map <- joint_spec$process_map
+  process_map <- process_map[process_map$fid %in% fids, , drop = FALSE]
   fid_bundles <- joint_fid_bundles(joint_spec)
 
   # `split()` preserves within-group order, and the map is already fid-ordered,

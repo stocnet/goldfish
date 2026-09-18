@@ -493,6 +493,28 @@ fillChanges <- function(nodes, replace, time, set, is_two_mode = FALSE) {
   )
 }
 
+#' Columns of a pointer-keyed availability buffer for one event
+#'
+#' Returns the half-open slice `(from, to]` as 1-based column indices, or `NULL`
+#' when the event carries no updates. This is the shared pointer walk both
+#' availability stats (`active_sender`, `active_dyad`) and every R-side consumer
+#' (the r backend and the gather stack) advance over their per-event crossings
+#' buffer; each consumer keeps its own write, since the buffer shape differs by
+#' encoding (2-row `(node, replace)` vs 3-row `(node1, node2, replace)`).
+#'
+#' @param from,to integer end-column indices from the buffer's per-event
+#'   pointer for the previous and current stored event.
+#'
+#' @return an integer vector of 1-based column indices, or `NULL` for an empty
+#'   slice.
+#' @noRd
+.availability_event_cols <- function(from, to) {
+  if (to <= from) {
+    return(NULL)
+  }
+  (from + 1L):to
+}
+
 #' Apply flat buffer updates to a running statistics array
 #'
 #' Writes a slice of the flat update buffer into the running statistics

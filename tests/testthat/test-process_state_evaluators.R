@@ -139,7 +139,9 @@ test_that("multinomial evaluators return exact-zero excluded probabilities", {
       label = paste0("prob sum [", cell[[1]], "]")
     )
     expect_true(all(out$value[!active] == 0))
-    expect_identical(nrow(out$index), length(out$value))
+    # DyNAM-choice names its candidates with parallel vectors rather than a
+    # data frame, so count the index column both shapes carry.
+    expect_identical(length(out$index$index_i), length(out$value))
   }
 })
 
@@ -173,7 +175,6 @@ test_that("timed evaluators return exact-zero excluded hazards", {
 test_that("no process-state evaluator or materializer is exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
-    "materialize_process_state",
     "evaluate_process_state",
     ".pse_allowed_dyads",
     ".pse_eval_choice",

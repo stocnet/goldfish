@@ -346,8 +346,20 @@ ds_network.goldfishSourceEnvir <- function(src, name) {
 
 #' @exportS3Method
 ds_network.goldfishSourceStocnet <- function(src, name) {
-  if (!is.null(src$net_override[[name]])) {
-    return(src$net_override[[name]])
+  override <- src$net_override[[name]]
+  if (!is.null(override)) {
+    # A fresh matrix, not the cached one. The override is stored on the source
+    # and handed back on every call, so returning it directly gives every state
+    # container built from this source the same matrix: a write through one
+    # would be visible in the others and in the override itself. The ordinary
+    # branch below materializes per call and is already distinct. One copy per
+    # container build, not per event.
+    return(matrix(
+      override,
+      nrow = nrow(override),
+      ncol = ncol(override),
+      dimnames = dimnames(override)
+    ))
   }
   lm <- ds_layer_map(src, name)
   labels <- src$nodes$label
@@ -366,6 +378,43 @@ ds_network.goldfishSourceStocnet <- function(src, name) {
   }
   dimnames(mat) <- list(labels[lm$side1], labels[lm$side2])
   mat
+}
+
+# Confirm a name resolves to a network the source can serve, without
+# materializing it. `build_object_keys()` only needs the answer, and on a
+# stocnet source `ds_network()` answers by allocating the full n1 x n2 matrix
+# and discarding it -- two such throwaway grids per preprocessing call on the
+# batch path, three on the merged walk. A missing layer used to surface as
+# `non-numeric matrix extent` from that allocation; it now aborts by name.
+ds_check_network <- function(src, name) UseMethod("ds_check_network")
+
+#' @exportS3Method
+ds_check_network.goldfishSourceEnvir <- function(src, name) {
+  if (!is.matrix(get(name, envir = src$envir))) {
+    cli::cli_abort("Object {.val {name}} must be a matrix network.")
+  }
+  invisible(TRUE)
+}
+
+#' @exportS3Method
+ds_check_network.goldfishSourceStocnet <- function(src, name) {
+  if (is.null(src$derived[[name]]) && is.null(ds_layer_map(src, name))) {
+    cli::cli_abort("Network {.val {name}} is not a layer of the data.")
+  }
+  invisible(TRUE)
+}
+
+# Can the network's starting state carry a missing cell? Only the source's
+# initial (`time = NA`) rows reach that matrix, so their values answer without
+# materializing it; a derived layer starts empty and an override is already
+# filled. A `TRUE` is a "maybe" (a later initial row may overwrite the NA), so
+# the caller still tests the materialized matrix before storing an override.
+network_initial_may_be_missing <- function(src, name) {
+  if (!is.null(src$net_override[[name]]) || !is.null(src$derived[[name]])) {
+    return(FALSE)
+  }
+  stream <- src$streams$network[[name]]
+  !is.null(stream) && anyNA(stream$value[is.na(stream$time)])
 }
 
 # A layer's direction flag. Vacuous on a two-mode layer (no symmetry concept in
@@ -1085,10 +1134,12 @@ ds_impute_missing.goldfishSourceStocnet <- function(
   for (i in seq_len(nrow(objects_table))) {
     entry <- objects_table[i, ]
     if (!is.na(entry$object)) {
-      mat <- ds_network(src, entry$object)
-      if (anyNA(mat)) {
-        mat[is.na(mat)] <- 0
-        src$net_override[[entry$object]] <- mat
+      if (network_initial_may_be_missing(src, entry$object)) {
+        mat <- ds_network(src, entry$object)
+        if (anyNA(mat)) {
+          mat[is.na(mat)] <- 0
+          src$net_override[[entry$object]] <- mat
+        }
       }
       next
     }

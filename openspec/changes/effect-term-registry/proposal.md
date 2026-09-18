@@ -74,6 +74,22 @@ arguments at runtime.
 
 ## Impact
 
+- **Carries two decisions from `preprocess-one-walk` (Alvaro, 2026-09-10):**
+  - **ADR-0059** — the state matrix is written in place, behind the invariant
+    that nothing else holds a live reference to it. An effect initializer must
+    therefore not return the input network as part of its result. That is a
+    property of what an initializer may return, so the registry's validity
+    declarations are where it can be *enforced* rather than remembered, and the
+    address-comparison audit that found the third aliasing site becomes its
+    conformance test.
+  - **ADR-0060** — the expensive effects (`trans`, `cycle`, `mixed_trans`,
+    `mixed_cycle`, probably `four`) are ported to C++ while the walk stays in R.
+    Measured: `trans` is 378 microseconds per effect-event against 11 to 47 for
+    ordinary effects, so porting them is worth three to five times on a realistic
+    model where moving the driver to C++ is worth about twelve percent. The
+    registry is the home because "implemented in C++, R the declared fallback"
+    is a registry entry rather than a convention, which is what keeps the second
+    definition from drifting.
 - Code: `R/formula_parser.R` (resolution + validation), the
   `R/functions_effects_*.R` families (registered rather than name-discovered;
   argument `if/else` moved to constructor-encoded recipes), `R/model_preprocess*.R`

@@ -97,6 +97,250 @@ test_that("build_merged_blocks compiles one spec_map per process, grouped by blo
   )
 })
 
+# The spec_map the estimation wrapper compiles for a specification, captured at
+# the run stage without walking it: the recipe dispatch is replaced by a capture
+# so the compile runs exactly as estimation runs it.
+wrapper_spec_map <- function(spec, model, family) {
+  captured <- NULL
+  local_mocked_bindings(
+    preprocess = function(spec, ...) {
+      captured <<- spec
+      rlang::abort("captured", class = "goldfish_test_captured")
+    }
+  )
+  try(
+    suppressWarnings(suppressMessages(compute_statistics(spec, model, family))),
+    silent = TRUE
+  )
+  captured
+}
+
+# Every field the merged walk reads off a unit's spec_map, so the two compiles
+# have to agree on all of them. The closures are compared by their code, since
+# each compile creates them in its own working environment; `plan` carries
+# `derivations` and `routing`, so a windowed term's derived object and its
+# routing are covered by comparing the whole plan.
+compile_walk_fields <- c(
+  "model",
+  "sub_model",
+  "is_two_mode",
+  "nodes",
+  "nodes2",
+  "behavior",
+  "has_intercept",
+  "parsed_terms",
+  "plan",
+  "effects_template",
+  "effect_description",
+  "effects",
+  "window_parameters",
+  "events_objects_link",
+  "events_effects_link",
+  "objects_effects_link",
+  "fetch_plan",
+  "data",
+  "focal",
+  "modeled_flavor",
+  "impute_policy"
+)
+
+expect_same_compile <- function(spec, model, family) {
+  from_wrapper <- wrapper_spec_map(spec, model, family)
+  bundle <- spec$submodels[[family]]
+  from_joint <- compile_recipe_spec_map(
+    bundle$formula,
+    model,
+    bundle$sub_model,
+    data = spec$data,
+    impute_policy = set_preprocessing()$impute
+  )
+  expect_s3_class(from_wrapper, "goldfishSpecMap")
+  expect_equal(class(from_joint), class(from_wrapper))
+  expect_equal(
+    from_joint[compile_walk_fields],
+    from_wrapper[compile_walk_fields],
+    ignore_function_env = TRUE
+  )
+  expect_s3_class(attr(from_wrapper, "model_spec"), "goldfishKind")
+  expect_equal(
+    attr(from_joint, "model_spec"),
+    attr(from_wrapper, "model_spec")
+  )
+}
+
+test_that("the wrapper and the joint path compile one and the same spec_map", {
+  # The merged walk reads a unit's spec_map where the recipe loops read the
+  # wrapper's, and decorates each fid's output from the `model_spec` attribute
+  # the compile stamps on it. Two compiles of the same specification have to
+  # agree on every field the walk reads, the attribute included.
+  for (family in c("rate", "choice")) {
+    expect_same_compile(parity_toy_spec(), "DyNAM", family)
+  }
+})
+
+test_that("the wrapper and the joint path compile a windowed spec alike", {
+  # A windowed term registers a derived object in `plan$derivations` and rewires
+  # the effect's reference to it; if the two compiles resolved the window
+  # differently the merged walk would read a different derived object than the
+  # recipe loops. The windowed family here is choice; rate is the no-window
+  # control on the same specification.
+  for (family in c("rate", "choice")) {
+    expect_same_compile(parity_toy_spec_windowed(), "DyNAM", family)
+  }
+})
+
+# A flavored single-family (rate-only) specification: two flavors on one layer,
+# so the one process compiles a union rate map that projects per flavor.
+flavored_rate_data <- function() {
+  nodes <- data.frame(label = c("A", "B", "C", "D"), mode = "p")
+  ties <- data.frame(
+    from = c(1L, 3L, 1L, 2L, 3L),
+    to = c(2L, 4L, 2L, 3L, 4L),
+    time = c(NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, -1, 1, -1)
+  )
+  info <- list(
+    name = "toy4",
+    focal = "calls",
+    update = c(calls = "increment"),
+    directed = c(calls = TRUE),
+    observation = c(calls = "event")
+  )
+  add_flavor(
+    list(info = info, nodes = nodes, ties = ties),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1)
+  )
+}
+
+flavored_rate_spec <- function(data = flavored_rate_data()) {
+  suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
+    model = "DyNAM",
+    data = data
+  ))
+}
+
+test_that("an unread focal layer is registered last with its stream", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + ego(floor),
+    choice = ~ alter(floor),
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  mb <- build_merged_blocks(single_process_joint(spec))
+
+  # No term reads `calls`, yet the dependent events are drawn into it: the
+  # layer follows the objects the terms read, so none of their oids move.
+  expect_identical(mb$objects$name, c("nodes$floor", "calls"))
+  expect_true("calls" %in% names(mb$state$networks))
+  # Without its covariate stream the matrix would never be updated.
+  on_calls <- mb$schedule$layer == "calls"
+  expect_equal(sum(on_calls & mb$schedule$dependent), 439)
+  expect_equal(sum(on_calls & !mb$schedule$dependent), 439)
+  expect_in(mb$schedule$target[on_calls & !mb$schedule$dependent], 2L)
+})
+
+test_that("a focal layer a term already reads is registered once", {
+  data("social_evolution", envir = environment())
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = social_evolution
+  )
+  mb <- build_merged_blocks(single_process_joint(spec))
+
+  expect_identical(mb$objects$name, "calls")
+  expect_equal(mb$schedule$n, 878)
+})
+
+test_that("build_merged_blocks accepts pre-compiled units", {
+  # The joint path compiles per process and hands the units in; letting
+  # build_merged_blocks compile them itself has to reach the same substrate.
+  joint <- joint_two_process()
+  ctrl <- set_preprocessing()
+  units <- list()
+  for (spec in joint$specifications) {
+    for (family in names(spec_processes(spec)[[1L]]$submodels)) {
+      u <- compile_process_unit(spec, family, joint, ctrl$impute)
+      units[[u$key]] <- u
+    }
+  }
+  handed <- build_merged_blocks(joint, ctrl, units = units)
+  auto <- build_merged_blocks(joint, ctrl)
+
+  expect_equal(handed$blocks, auto$blocks)
+  expect_equal(handed$schedule, auto$schedule)
+  expect_equal(handed$objects, auto$objects)
+  expect_equal(handed$state$networks, auto$state$networks)
+  for (key in names(auto$units)) {
+    expect_equal(handed$units[[key]]$spec_map, auto$units[[key]]$spec_map)
+  }
+})
+
+test_that("the one-unit entry equals the joint path on a plain spec", {
+  # The estimation entry compiles ONE spec_map and hands it to the merged walk
+  # without compiling again; the output has to equal the joint path's on the
+  # same single-process specification.
+  data <- parity_toy_data()
+  ctrl <- set_preprocessing()
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg + indeg(calls, weighted = TRUE),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  ))
+  spec_map <- compile_recipe_spec_map(
+    spec$submodels$rate$formula,
+    "DyNAM",
+    spec$submodels$rate$sub_model,
+    data = data,
+    impute_policy = ctrl$impute
+  )
+  via_entry <- suppressMessages(preprocess_one_unit(
+    spec,
+    "rate",
+    spec_map,
+    ctrl
+  ))
+  via_joint <- suppressMessages(preprocess_joint(
+    single_process_joint(spec),
+    ctrl
+  ))
+  expect_equal(via_entry, via_joint)
+})
+
+test_that("the one-unit entry equals the joint path on a flavored spec", {
+  # A flavored process routes its per-flavor consumers off the one union
+  # spec_map; the one-unit entry has to reproduce the fid-keyed flavored output.
+  ctrl <- set_preprocessing()
+  spec <- flavored_rate_spec()
+  joint <- single_process_joint(spec)
+  fp <- process_family_plan(spec, "rate")
+  spec_map <- compile_recipe_spec_map(
+    fp$formula,
+    "DyNAM",
+    fp$sub_model,
+    data = joint$data,
+    modeled_flavor = fp$modeled_flavor,
+    impute_policy = ctrl$impute
+  )
+  via_entry <- suppressMessages(preprocess_one_unit(
+    spec,
+    "rate",
+    spec_map,
+    ctrl
+  ))
+  via_joint <- suppressMessages(preprocess_joint(joint, ctrl))
+  expect_named(via_entry, names(via_joint))
+  expect_equal(via_entry, via_joint)
+})
+
 test_that("rate and choice blocks carry the sender (2D) and dyad (3D) shapes", {
   mb <- build_merged_blocks(joint_two_process())
 
@@ -571,10 +815,17 @@ test_that("each constraint is compiled once into the merged plan, snapshot per f
   choice <- prep_by_flavor(merged, "creation", "choice")
   expect_identical(rate$support_mask$initial, choice$support_mask$initial)
   expect_false(
-    length(rate$support_mask$support) == length(choice$support_mask$support)
+    length(rate$support_mask$update_pointer) ==
+      length(choice$support_mask$update_pointer)
   )
-  expect_equal(length(rate$support_mask$support), length(rate$event_time))
-  expect_equal(length(choice$support_mask$support), length(choice$event_time))
+  expect_equal(
+    length(rate$support_mask$update_pointer),
+    length(rate$event_time)
+  )
+  expect_equal(
+    length(choice$support_mask$update_pointer),
+    length(choice$event_time)
+  )
 })
 
 # ---- Multilevel per-fid focal (D8a) -----------------------------------------
@@ -818,4 +1069,55 @@ test_that("the merged walk does not regress the single-process hot path", {
     reps
   ))
   expect_lt(ratio, 10)
+})
+
+test_that("a plain unit skips the identity projection and its own state", {
+  # A plain unit's consumer reads every union column in order, so its
+  # projection is a copy that changes nothing; and the walk runs over the ONE
+  # shared state and schedule, so the unit's own container is never read.
+  spec <- parity_toy_spec()
+  mb <- suppressWarnings(build_merged_blocks(single_process_joint(spec)))
+  engines <- lapply(
+    mb$units,
+    build_walk_engine,
+    merged = mb,
+    control_preprocessing = set_preprocessing(),
+    progress = FALSE
+  )
+  for (engine in engines) {
+    expect_null(engine$consumers[[1L]]$gid_lookup)
+    expect_null(engine$ctx$state)
+    expect_null(engine$ctx$schedule)
+  }
+})
+
+test_that("the engine's routing table resolves the plan once per object", {
+  # The covariate step reads its templates, update positions and broadcast
+  # kinds from the table rather than from the plan's lookups per event.
+  spec <- parity_toy_spec()
+  mb <- suppressWarnings(build_merged_blocks(single_process_joint(spec)))
+  engine <- build_walk_engine(
+    mb$units[[1L]],
+    merged = mb,
+    control_preprocessing = set_preprocessing(),
+    progress = FALSE
+  )
+  ctx <- engine$ctx
+  expect_length(engine$route, length(ctx$plan$routing))
+  for (oid in seq_along(ctx$plan$routing)) {
+    entries <- engine$route[[oid]]
+    gids <- vapply(entries, `[[`, integer(1), "gid")
+    expect_equal(gids, ctx$plan$routing[[oid]])
+    for (entry in entries) {
+      net_update <- ctx$net_update_lookup[oid, entry$gid]
+      expect_equal(
+        entry$net_update,
+        if (is.na(net_update)) NULL else net_update
+      )
+      expect_equal(
+        entry$broadcast_kind,
+        ctx$plan$effects$broadcast_kind[entry$gid]
+      )
+    }
+  }
 })

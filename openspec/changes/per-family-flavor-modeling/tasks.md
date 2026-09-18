@@ -32,9 +32,24 @@
       vignette's half specification estimates through `estimate_dynam()` and
       `compute_statistics()`; the generative path still completes it with the
       existing warning and `walk_open()` still asserts.
-- [ ] 2.2 `print.goldfishFlavFit` (and the summary printer) group by flavor
-      with the families present; snapshot under a pinned cli context for an
-      asymmetric container; `coef()`, `vcov()`, `tidy()`, `glance()` and the
+      **Negative guard for the other two estimators.** The abort is a single
+      call site shared by all three specification entry points
+      (`estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` each route a
+      `goldfishSpec` to `estimate_from_specification()`), but a completion gap
+      is structurally DyNAM-only: `collect_completion_gaps()` rows come from
+      `setdiff(fam, present)`, and `fam` is whichever of `rate` / `choice` was
+      supplied. REM refuses `choice` outright, so `fam` is `"rate"` alone and
+      the difference is always empty; DyNAMi refuses a flavor-keyed `choice`
+      and takes its own construction branch, so it has no flavored processes.
+      Assert both, so removing the abort from a shared call site cannot
+      silently change a model family it was never reachable for: a flavored REM
+      specification carries zero `completion_gaps`, and a DyNAMi specification
+      with a flavor-keyed `choice` is still refused at construction.
+- [ ] 2.2 The asymmetric container renders through
+      `printing-homogenization`'s shared renderer (a flavor with one family
+      renders one family section; `print.goldfishFlavFit` and
+      `print.goldfishSummFlavFit` need no new layout); snapshot under the
+      shared `local_cli_context()` for an asymmetric container; `coef()`, `vcov()`, `tidy()`, `glance()` and the
       `test_*` fan-outs verified on the asymmetric container.
 - [ ] 2.3 Verification: `NOT_CRAN=true` suite green; baselines PASS;
       `devtools::document()` if any roxygen changed.

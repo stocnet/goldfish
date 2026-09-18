@@ -493,7 +493,15 @@ build_joint_process_map <- function(specs, modeled_panel = character(0)) {
         # The statistic block a consumer's gids scope to: an effect is
         # deduplicated only among formulas resolving to the same update function.
         stat_block = paste(proc$model, bundle$sub_model, sep = ":"),
-        has_intercept = bundle$has_intercept,
+        # A rate (exact-time) sub-model models the waiting times, so it carries
+        # the baseline-hazard time intercept even when the formula omits an
+        # explicit `1`; the recipe estimation entry force-adds it, while the
+        # make_specification bundle only lowers the flag. Raise it here, where
+        # the process map the merged consumer reads is assembled, so the two
+        # entries agree on the likelihood shape. `rate_ordered` is the ordinal
+        # case and keeps whatever the bundle recorded.
+        has_intercept = bundle$has_intercept ||
+          identical(bundle$sub_model, "rate"),
         constraint_id = constraint_ids[i],
         coupled = any(refs %in% modeled_panel),
         stringsAsFactors = FALSE

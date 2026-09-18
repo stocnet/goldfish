@@ -1,10 +1,9 @@
 #' Preprocess a model given its specification
 #'
-#' Selecting a recipe is a lookup, not a polymorphism: every variant runs the
-#' same two loops, differing only in which one and in the parameters that
-#' distinguish a timed rate from an ordinal sub-model. So the generic carries
-#' one method that reads those facts off the spec's behavioral descriptor,
-#' rather than a method per model variant restating them.
+#' Dispatch is a lookup, not a polymorphism: a standard specification runs
+#' through the merged single-clock walk whatever its model variant, so the
+#' generic carries one method that reads the process structure it is handed and
+#' walks it, rather than a method per model variant.
 #'
 #' DyNAM-i is the one difference that is still real: its events arrive as
 #' group interactions and reach a preprocessing loop of their own. That is a
@@ -13,8 +12,8 @@
 #' effect-registry work closes the gap and the branch goes too.
 #'
 #' @param spec a `goldfishKind` object from `new_model_spec()`.
-#' @param ... arguments passed to the recipe loops, see
-#'   `run_sender_recipe_loop()` and `run_dyad_recipe_loop()`.
+#' @param ... preprocessing arguments threaded to the merged walk (or the
+#'   DyNAM-i monolith), see [preprocess_one_unit()].
 #'
 #' @return a list of class goldfishStat
 #' @noRd
@@ -23,21 +22,60 @@ preprocess <- function(spec, ...) {
 }
 
 #' @noRd
-preprocess.goldfishKind <- function(spec, ...) {
+preprocess.goldfishKind <- function(
+  spec,
+  ...,
+  recipe_spec = NULL,
+  family = NULL,
+  control_prep = NULL,
+  new_writer = writer_default
+) {
   if (identical(behavior_input_shape(spec), "grouped")) {
     return(run_dynami_monolith(spec, ...))
   }
-  recipe <- if (identical(risk_set_axis(spec), "sender")) {
-    run_sender_recipe_loop
-  } else {
-    run_dyad_recipe_loop
+  # Standard specifications run through the merged single-clock walk, the
+  # substrate the frozen baselines have always exercised and the one
+  # `simulate()` drives. The recipe estimation surface compiles a spec_map from
+  # a formula rather than a goldfishSpec, so `recipe_spec` carries the
+  # single-process structure the walk reads (focal, family, constraint,
+  # intercept) reassembled from that compiled map. A single-process call unwraps
+  # the one fid the walk emits.
+  dots <- list(...)
+  out <- preprocess_one_unit(
+    recipe_spec,
+    family,
+    spec,
+    control_preprocessing = control_prep %||% set_preprocessing(),
+    progress = isTRUE(dots$progress),
+    writer = dots$writer %||% writer_default(),
+    new_writer = new_writer,
+    # Defer the support-constraint validation to estimation, as the recipe
+    # loops did: a single-process spec preprocessed on its own must not be
+    # rejected for a constraint only an estimation reads.
+    validate_support = FALSE
+  )
+  map <- attr(out, "process_map")
+  prep <- out[[as.character(map$fid[map$family == family])]]
+  # The merged walk stamps each output with the estimation-re-entry metadata
+  # (formula, model, sub-model, node sides, node lookup, model spec) and the
+  # support-validation flag. The estimation wrapper adds the re-entry metadata
+  # after preprocessing, and the gather/data.frame/db paths rebuild their stack
+  # from the raw statistics, so strip them here and let the wrapper decorate
+  # uniformly.
+  deco <- c(
+    "formula",
+    "model",
+    "sub_model",
+    "nodes",
+    "nodes2",
+    "node_lookup",
+    "model_spec",
+    "support_validated"
+  )
+  for (field in deco) {
+    prep[[field]] <- NULL
   }
-  # A timed rate models the waiting times, so its loop emits the
-  # right-censored intervals and the intercept scalars that multiply them.
-  # An ordinal sub-model models only which event came next and needs neither,
-  # which is why both parameters follow one fact rather than two.
-  timed <- identical(behavior_timing(spec), "timed")
-  recipe(spec, ..., is_exact_time = timed)
+  prep
 }
 
 #' DyNAM-i preprocessing delegate
@@ -48,7 +86,6 @@ preprocess.goldfishKind <- function(spec, ...) {
 #' `preprocess_interaction()` keeps computing its own start and end times from
 #' the event streams, as it did before the dispatch wiring.
 #'
-#' @inheritParams run_sender_recipe_loop
 #' @param groups_network character, name of the groups network object.
 #' @param ... absorbs the recipe arguments that the DyNAM-i loop does not
 #'   consume (`window_parameters`, `ignore_rep_parameter`, `is_two_mode`,
@@ -95,89 +132,97 @@ run_dynami_monolith <- function(
   prep
 }
 
-#' Sender-indexed recipe kernel
-#'
-#' Shared event loop for the sender-indexed model variants.
-#' It consumes the three recipe input structures built once before the loop
-#' the state container owned by the recipe, the
-#' merged event schedule, and the compiled update plan. Statistic updates
-#' are written into one flat `stat_mat_update` buffer with doubling growth
-#' covering dependent and right-censored events; `initial_stats`
-#' is kept in the sender-native `n1 x nEffects` form. Global-attribute
-#' events update the `globals` component of the state container and emit
-#' right-censored statistic updates without sender/receiver recording.
-#'
-#' @section Extension points (documented, not implemented):
-#' Two future capabilities attach to this loop and its writer; neither is
-#' implemented in this change.
-#' \describe{
-#'   \item{Per-event simulation hook}{a hook invoked once per
-#'     stored event, positioned immediately after the per-event statistic
-#'     update is emitted to the writer (the `writer$write_event()` call in
-#'     this loop) and before the loop advances to the next scheduled event.
-#'     At that point the visible state is the current state container — the
-#'     networks, nodal/nodal2 attribute frames, and globals row reflecting
-#'     all updates up to and including this event. The hook may read that
-#'     snapshot and append new events to the schedule (an event-stream
-#'     append): appended events must carry a `time` not earlier than the
-#'     current event and are merged respecting the dependent-first tie-break
-#'     so the schedule stays time-sorted. This hook — not a writer — is the
-#'     seam reserved for a future `simulate()` goodness-of-fit method.}
-#'   \item{Parallel chunk preprocessing}{the loop plus its
-#'     writer can be run over a contiguous chunk of the event schedule,
-#'     warm-started from the state container at the chunk's first event, with
-#'     per-chunk results merged by a coordinating `finalize()`. The
-#'     obligation is that `writer$write_event` is associative across a chunk
-#'     boundary and the per-chunk flat buffers concatenate in event order.
-#'     See the writer-strategy extension points in [preprocess_writers] for
-#'     the alternatives-sampling gather writer and the parallel/streaming
-#'     writer contracts.}
-#' }
-#'
-#' @param spec a `spec_map` (built by `build_spec_map()`) carrying a
-#'   `sender_spec` class; the effect closures, per-term window parameters, link
-#'   matrices, plan, call templates, and node sets are unpacked from it.
-#' @inheritParams preprocess_monolith
-#' @param is_exact_time logical, whether the sub-model models the waiting
-#'   times between events rather than only their order. A waiting-time model
-#'   needs the right-censored intervals stored and the intercept scalars
-#'   (`n_dep_events`, `total_time`, `avg_active_entity`) computed; an ordinal
-#'   one needs neither, which is why both follow this one fact.
-#' @param ... absorbs arguments of `preprocess_monolith()` that the kernel
-#'   does not consume (`is_two_mode`, `ignore_rep_parameter`,
-#'   `opportunitiesList`).
-#'
-#' @return a list of class goldfishStat
-#' @noRd
 # Fold a sender-loop support_constraint into `active_sender`.
 # The per-event effective availability is the row-reduction a sender is at risk
-# iff it has >= 1 allowed, present receiver:
+# iff it has >= 1 allowed, present receiver OTHER THAN ITSELF:
 #   active_sender[i] at event e = presence_e[i] & (rowSums(support_e &
-#     active_dyad_init) > 0)
+#     receiver_presence_e & (j != i)) > 0)
 # — computed here (during preprocessing) and stored on the availability object
 # as net crossings (a flip is emitted only on a 0 <-> positive change of the
 # per-sender available-receiver count, so the buffer stays tiny), REPLACING the
-# estimation-time recombination. `support_mask$support` carries the per-event
-# dyadic mask snapshots (lagged, aligned to the stored events);
-# `active_dyad_init` is the receiver presence used for the row-reduction
-# (matching the predecessor's static receiver availability). Returns `out` with
+# estimation-time recombination.
+#
+# That count is MAINTAINED, not recomputed. The mask arrives as a stream of the
+# entries that flipped, and a flip adjusts the counts of the senders it reaches:
+# a point flip touches one sender, an alter flip every sender by the same
+# amount, an ego flip sets one sender's count outright. A sender crossing is
+# emitted only when its count crosses zero, which is why `~ indeg(msg) < 20`
+# produced four crossings and not three thousand snapshots. The grid the old
+# `rowSums()` reduced is never built.
+#
+# BOTH inner axes move. The receiver presence the count is taken over is itself
+# a crossings buffer, and a receiver leaving decrements the count of every
+# sender allowed to reach it — the same locality argument the mask flips use,
+# read off the mask's own kind. Freezing that axis at time zero leaves a sender
+# whose only allowed receivers have departed still at risk. The two factors are
+# updated once each per event, each against the other's current value: mask
+# flips first, against the receiver presence before this event's crossings,
+# then the crossings against the mask after them.
+#
+# On a one-mode layer a sender is not a receiver of its own event, whatever
+# the mask holds on its diagonal -- and a creation flavor's mask holds TRUE
+# there forever, since no actor ties to itself. `drop_diagonal` says so, and
+# every update below then skips the sender whose index equals the
+# receiver's: a flip of cell (i, i) moves no count, and a column or
+# receiver-presence move at j reaches every sender but j. The diagonal
+# rule belongs to the model, not to the mask, so nothing is written to
+# the stored value.
+#
+# `active_dyad_init` seeds that receiver presence. Returns `out` with
 # `active_sender_init`/`_update`/`_update_pointer` rewritten to the folded
 # object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
 # `avg_active_entity` recomputed as the event-averaged active-sender count.
-fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
-  support <- support_mask$support
+fold_active_sender_support <- function(
+  out,
+  support_mask,
+  active_dyad_init,
+  drop_diagonal
+) {
   n_stored <- length(out$event_time)
   if (n_stored == 0L) {
     return(out)
   }
   n1 <- length(out$active_sender_init)
+  n2 <- length(active_dyad_init)
+  stored_kind <- support_mask$stored_kind %||% 0L
+  active_2 <- active_dyad_init
+  n_present_receivers <- sum(active_2)
+
+  count <- initial_receiver_count(
+    support_mask$initial,
+    stored_kind,
+    active_2,
+    n1,
+    n2,
+    drop_diagonal
+  )
+  flips_at <- mask_flips(support_mask)
+
+  # Charging a receiver crossing to the counts needs the mask's current value,
+  # not just its flips, so the cursor is opened only when the receiver
+  # composition actually moves: at point kind its value is an n1 x n2 object
+  # and most models never pay for it.
+  receiver_upd <- out$active_dyad_update
+  receiver_ptr <- out$active_dyad_update_pointer
+  tracks_receivers <- !is.null(receiver_upd) &&
+    !is.null(receiver_ptr) &&
+    ncol(receiver_upd) > 0L
+  mask_at <- if (tracks_receivers) mask_cursor(support_mask) else NULL
+  prev_receiver_ptr <- 0L
 
   # Walk the presence crossings buffer in event order to recover presence_e,
-  # intersect with the per-event sender gate, and record the folded vector.
+  # intersect with the maintained sender gate, and re-encode the result as
+  # crossings without ever holding the folded timeline: only the previous
+  # event's vector is needed to name what changed.
   presence <- out$active_sender_init
   upd <- out$active_sender_update
   ptr <- out$active_sender_update_pointer
-  folded <- vector("list", n_stored)
+  n_changes <- integer(n_stored)
+  change_nodes <- vector("list", n_stored)
+  change_repl <- vector("list", n_stored)
+  folded_init <- NULL
+  previous <- NULL
+  active_total <- 0
   prev_ptr <- 0L
   for (e in seq_len(n_stored)) {
     this_ptr <- if (!is.null(ptr)) ptr[e] else 0L
@@ -186,29 +231,55 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
       presence[upd[1L, cols]] <- as.logical(upd[2L, cols])
     }
     prev_ptr <- this_ptr
-    gate <- rowSums(support[[e]] & rep(active_dyad_init, each = n1)) > 0
-    folded[[e]] <- presence & gate
+    count <- apply_receiver_count_flips(
+      count,
+      flips_at(e),
+      stored_kind,
+      active_2,
+      n1,
+      n_present_receivers,
+      drop_diagonal
+    )
+    if (tracks_receivers) {
+      this_receiver_ptr <- receiver_ptr[e]
+      if (this_receiver_ptr > prev_receiver_ptr) {
+        cols <- (prev_receiver_ptr + 1L):this_receiver_ptr
+        crossed <- apply_receiver_presence_flips(
+          count,
+          as.integer(receiver_upd[1L, cols]),
+          as.logical(receiver_upd[2L, cols]),
+          active_2,
+          mask_at(e),
+          stored_kind,
+          n1,
+          drop_diagonal
+        )
+        count <- crossed$count
+        active_2 <- crossed$active_2
+        n_present_receivers <- sum(active_2)
+      }
+      prev_receiver_ptr <- this_receiver_ptr
+    }
+    current <- presence & (count > 0L)
+    if (e == 1L) {
+      folded_init <- current
+    } else {
+      crossing <- emit_crossings(previous, current)
+      n_changes[e] <- length(crossing$entries)
+      change_nodes[[e]] <- crossing$entries
+      change_repl[[e]] <- as.numeric(crossing$values)
+    }
+    previous <- current
+    active_total <- active_total + sum(current)
   }
 
-  # Re-encode the folded timeline as crossings: the init carries the first
-  # event's value (its slice is empty) and each later event emits only the
-  # senders whose folded availability changed since the previous event.
-  n_changes <- integer(n_stored)
-  change_nodes <- vector("list", n_stored)
-  change_repl <- vector("list", n_stored)
-  for (e in seq_len(n_stored)[-1L]) {
-    ch <- which(folded[[e]] != folded[[e - 1L]])
-    n_changes[e] <- length(ch)
-    change_nodes[[e]] <- ch
-    change_repl[[e]] <- as.numeric(folded[[e]][ch])
-  }
   node_vec <- unlist(change_nodes, use.names = FALSE)
   repl_vec <- unlist(change_repl, use.names = FALSE)
   # Preserve the raw sender presence for the fail-fast constraint validation
   # (its "present but always gated out" warning is defined on raw presence, not
   # the folded object); estimation engines never read it.
   out$support_mask$sender_presence_init <- out$active_sender_init
-  out$active_sender_init <- folded[[1L]]
+  out$active_sender_init <- folded_init
   out$active_sender_update <- if (length(node_vec) > 0L) {
     rbind(node_vec, repl_vec)
   } else {
@@ -219,9 +290,174 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
   out$active_sender_folded <- TRUE
 
   if (!is.null(out$avg_active_entity)) {
-    out$avg_active_entity <- mean(vapply(folded, sum, numeric(1)))
+    out$avg_active_entity <- active_total / n_stored
   }
   out
+}
+
+# How many allowed, present receivers each sender starts with, read off the
+# initial mask at its own kind. A separable mask answers without a grid: an
+# alter mask gives every sender the same count, an ego mask gives a sender all
+# the present receivers or none, and a global mask gives everyone the same.
+# Under `drop_diagonal` each sender's own cell is taken back out again,
+# which costs one term per sender and no grid.
+initial_receiver_count <- function(
+  initial,
+  stored_kind,
+  active_2,
+  n1,
+  n2,
+  drop_diagonal
+) {
+  present <- sum(active_2)
+  abort_if_diagonal_off_grid(drop_diagonal, n1, n2)
+  count <- switch(
+    as.character(stored_kind),
+    "3" = if (isTRUE(as.logical(initial))) rep(present, n1) else rep(0L, n1),
+    "2" = ifelse(as.logical(initial), present, 0L),
+    "1" = rep(sum(as.logical(initial) & active_2), n1),
+    "0" = rowSums(
+      matrix(as.logical(initial), n1, n2) &
+        rep(active_2, each = n1)
+    ),
+    cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
+  )
+  count - own_receiver_count(initial, stored_kind, active_2, n1, drop_diagonal)
+}
+
+# Each sender's own cell, allowed and present, as a 0/1 vector, or a zero
+# when the layer has no self-dyads. A branch, never a term multiplied by
+# zero: the diagonal index of a two-mode grid is out of range, and
+# `0L * NA` is `NA`.
+own_receiver_count <- function(
+  value,
+  stored_kind,
+  active_2,
+  n1,
+  drop_diagonal
+) {
+  if (!drop_diagonal) {
+    return(0L)
+  }
+  own <- switch(
+    as.character(stored_kind),
+    "3" = rep(isTRUE(as.logical(value)), n1),
+    "2" = as.logical(value),
+    "1" = as.logical(value)[seq_len(n1)],
+    "0" = as.logical(value)[(seq_len(n1) - 1L) * n1 + seq_len(n1)]
+  )
+  as.integer(own & active_2[seq_len(n1)])
+}
+
+# Adjust the per-sender counts for one event's mask flips. Which senders a flip
+# reaches follows from the mask's kind, exactly as `map_entries()` says it does:
+# a point entry is one dyad, an alter entry a whole column, an ego entry a whole
+# row, a global entry everything.
+apply_receiver_count_flips <- function(
+  count,
+  flips,
+  stored_kind,
+  active_2,
+  n1,
+  n_present_receivers,
+  drop_diagonal
+) {
+  entries <- flips$entries
+  if (length(entries) == 0L) {
+    return(count)
+  }
+  values <- flips$values
+  own <- if (drop_diagonal) {
+    as.integer(active_2[seq_len(n1)])
+  } else {
+    rep(0L, n1)
+  }
+  if (stored_kind == 0L) {
+    senders <- ((entries - 1L) %% n1) + 1L
+    receivers <- ((entries - 1L) %/% n1) + 1L
+    live <- active_2[receivers] & !(drop_diagonal & senders == receivers)
+    gained <- tabulate(senders[live & values], nbins = n1)
+    lost <- tabulate(senders[live & !values], nbins = n1)
+    return(count + gained - lost)
+  }
+  if (stored_kind == 1L) {
+    live <- active_2[entries]
+    delta <- sum(live & values) - sum(live & !values)
+    # A column's flip reaches every sender but the one it names.
+    reach <- rep(delta, n1)
+    if (drop_diagonal) {
+      for (k in seq_along(entries)) {
+        j <- entries[[k]]
+        if (j <= n1 && active_2[[j]]) {
+          reach[[j]] <- reach[[j]] - (if (values[[k]]) 1L else -1L)
+        }
+      }
+    }
+    return(count + reach)
+  }
+  if (stored_kind == 2L) {
+    count[entries] <- ifelse(
+      values,
+      n_present_receivers - own[entries],
+      0L
+    )
+    return(count)
+  }
+  if (values[[length(values)]]) {
+    rep(n_present_receivers, n1) - own
+  } else {
+    rep(0L, n1)
+  }
+}
+
+# Adjust the per-sender counts for one event's receiver presence crossings, and
+# hand back the moved receiver presence with them. A receiver arriving raises
+# the count of every sender allowed to reach it and a departure lowers it, so
+# only the NET change may be charged: a node that crosses twice within one
+# event has to be applied in order, which is why this walks the crossings one
+# at a time rather than vectorizing over them. There are rarely more than a
+# handful per event.
+apply_receiver_presence_flips <- function(
+  count,
+  nodes,
+  values,
+  active_2,
+  mask,
+  stored_kind,
+  n1,
+  drop_diagonal
+) {
+  for (k in seq_along(nodes)) {
+    node <- nodes[[k]]
+    delta <- as.integer(values[[k]]) - as.integer(active_2[[node]])
+    if (delta != 0L) {
+      reach <- receiver_reach(mask, stored_kind, node, n1)
+      # The node that arrives or leaves is not its own receiver.
+      if (drop_diagonal && node <= n1) {
+        reach[[node]] <- 0L
+      }
+      count <- count + delta * reach
+      active_2[[node]] <- values[[k]]
+    }
+  }
+  list(count = count, active_2 = active_2)
+}
+
+# Which senders one receiver is allowed for, read at the mask's own kind and
+# returned as a 0/1 vector the counts can be shifted by. The reach of a
+# receiver is the mirror of the reach of a mask flip: a point mask answers from
+# the receiver's own column, an alter mask by whether that one receiver is
+# allowed at all, an ego mask by each sender's own bit, a global mask for
+# everyone or no one.
+receiver_reach <- function(mask, stored_kind, node, n1) {
+  switch(
+    as.character(stored_kind),
+    "3" = rep(as.integer(as.logical(mask)), n1),
+    "2" = as.integer(as.logical(mask)),
+    "1" = rep(as.integer(as.logical(mask[[node]])), n1),
+    "0" = as.integer(as.logical(mask[((node - 1L) * n1) + seq_len(n1)])),
+    cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
+  )
 }
 
 # Shared opening for the sender and dyad recipe loops. The two drivers begin
@@ -234,13 +470,20 @@ fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
 # kernel vs a 3D dyad array) — that shaping stays in each loop. The context is
 # returned as a list the caller splats into its frame; it is also the seam a
 # future multi-consumer walk over one shared state builds on.
+# `build_state = FALSE` skips the per-unit state container, event schedule and
+# their two schedule checks: the merged walk runs every unit over ONE shared
+# state and schedule it builds itself (and checks itself), so a unit's own copy
+# would be materialized -- one full n1 x n2 matrix per network -- only to be
+# discarded. Everything else in the context (streams, cache, initial
+# statistics, lookups) is what the walk engine actually reads.
 prepare_recipe_context <- function(
   spec,
   startTime,
   endTime,
   prep_envir,
   sub_model,
-  progress = FALSE
+  progress = FALSE,
+  build_state = TRUE
 ) {
   # The compiled recipe inputs ride on `spec` (a spec_map): the
   # effect closures, per-term window parameters, link matrices, plan, and call
@@ -357,7 +600,13 @@ prepare_recipe_context <- function(
     integer(0)
   }
   n_inter <- length(inter_ids)
-  nEffects <- n_fun + n_inter
+  # The output columns are exactly the effects nobody excludes: constraint-role
+  # atoms carry `role = "constraint"` in `plan$effects`, and reading that role
+  # here is what keeps them out of `nEffects`, `initial_stats`, and the output
+  # statistics. They are appended after the estimated effects, so the estimated
+  # columns remain the leading `1..nEffects` and nothing downstream reindexes;
+  # an unconstrained plan has no such row and the count is unchanged.
+  nEffects <- sum(plan$effects$role != "constraint")
 
   composition1 <- ds_composition(src, nodes, n1)
   composition2 <- ds_composition(src, nodes2, n2)
@@ -366,16 +615,20 @@ prepare_recipe_context <- function(
   active_sender_changes <- composition1$changes
   active_dyad_changes <- composition2$changes
 
-  state <- build_state_container(
-    rownames(objects_effects_link),
-    nodes,
-    nodes2,
-    envir = prep_envir,
-    src = src
-  )
-  schedule <- build_event_schedule(events, events_objects_link, plan$objects)
-  assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
-  assert_globals_defined(state, plan$objects, schedule)
+  state <- NULL
+  schedule <- NULL
+  if (build_state) {
+    state <- build_state_container(
+      rownames(objects_effects_link),
+      nodes,
+      nodes2,
+      envir = prep_envir,
+      src = src
+    )
+    schedule <- build_event_schedule(events, events_objects_link, plan$objects)
+    assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
+    assert_globals_defined(state, plan$objects, schedule)
+  }
 
   net_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
   att_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -383,6 +636,27 @@ prepare_recipe_context <- function(
     plan$effect_objects$net_update
   att_update_lookup[cbind(plan$effect_objects$oid, plan$effect_objects$gid)] <-
     plan$effect_objects$att_update
+
+  # Per-object routing table for the covariate branch of a walk: for each
+  # effect an object's event reaches, its call template, its update positions
+  # (NULL where the effect does not take one) and its broadcast kind, resolved
+  # here once. Read per event, the same answers cost two matrix lookups, an
+  # NA test and three list chains per effect, which on a degree-only rate
+  # model is as much as the effect update itself.
+  broadcast_kind <- plan$effects$broadcast_kind
+  route <- lapply(seq_along(plan$routing), function(oid) {
+    lapply(plan$routing[[oid]], function(gid) {
+      net_update <- net_update_lookup[oid, gid]
+      att_update <- att_update_lookup[oid, gid]
+      list(
+        gid = gid,
+        template = effects_template[[gid]],
+        net_update = if (is.na(net_update)) NULL else net_update,
+        att_update = if (is.na(att_update)) NULL else att_update,
+        broadcast_kind = broadcast_kind[gid]
+      )
+    })
+  })
 
   list(
     effects = effects,
@@ -419,542 +693,8 @@ prepare_recipe_context <- function(
     state = state,
     schedule = schedule,
     net_update_lookup = net_update_lookup,
-    att_update_lookup = att_update_lookup
-  )
-}
-
-run_sender_recipe_loop <- function(
-  spec,
-  startTime = NULL,
-  endTime = NULL,
-  is_exact_time = FALSE,
-  progress = FALSE,
-  prep_envir = new.env(),
-  writer = writer_default(),
-  consumer_specs = NULL,
-  ...
-) {
-  ctx <- prepare_recipe_context(
-    spec,
-    startTime,
-    endTime,
-    prep_envir,
-    sub_model = "rate",
-    progress = progress
-  )
-  # Splat the shared setup (spec unpack, streams, window, cache, state,
-  # schedule, composition, lookups) into this frame; each loop then shapes its
-  # own `initial_stats` (2D sender kernel vs 3D dyad array).
-  list2env(ctx, environment())
-
-  initial_stats <- matrix(0, nrow = n1, ncol = nEffects)
-  initial_stats[, seq_len(n_fun)] <- do.call(
-    cbind,
-    lapply(stat_cache, "[[", "stat")
-  )
-  stat_cache <- lapply(stat_cache, "[[", "cache")
-
-  # Interaction state (sender kernel): keep a live per-sender vector for every
-  # operand feeding an interaction, seeded from its initial column and updated in
-  # place as its effect emits deltas. Each interaction column is the elementwise
-  # per-sender product of its operands; its initial column is seeded here and its
-  # deltas are emitted as per-sender point updates when any operand changes.
-  op_kind <- plan$effects$broadcast_kind
-  op_state <- new.env(parent = emptyenv())
-  # Per-event accumulator of interaction operand senders touched, keyed by
-  # interaction gid; emptied after each event's interaction emission.
-  dirty_inter <- list()
-  if (n_inter > 0) {
-    operand_gids <- sort(unique(unlist(plan$interactions)))
-    for (og in operand_gids) {
-      assign(as.character(og), initial_stats[, og], envir = op_state)
-    }
-    for (ig in inter_ids) {
-      ops <- plan$interactions[[as.character(ig)]]
-      prod_vec <- get(as.character(ops[1]), envir = op_state)
-      for (o in ops[-1]) {
-        prod_vec <- prod_vec * get(as.character(o), envir = op_state)
-      }
-      initial_stats[, ig] <- prod_vec
-    }
-  }
-
-  call_effect_template <- function(
-    template,
-    gid,
-    shape,
-    event_args,
-    net_update,
-    att_update,
-    event_order,
-    inter_event_time
-  ) {
-    args <- c(
-      list(
-        network = if (template$n_networks == 1L) {
-          state$networks[[template$net_keys]]
-        } else if (template$n_networks > 1L) {
-          lapply(template$net_keys, function(k) state$networks[[k]])
-        } else {
-          list()
-        },
-        attribute = if (template$n_attributes == 1L) {
-          state[[template$att_components]][[template$att_keys]]
-        } else if (template$n_attributes > 1L) {
-          lapply(
-            seq_len(template$n_attributes),
-            function(j) {
-              state[[template$att_components[j]]][[template$att_keys[j]]]
-            }
-          )
-        } else {
-          list()
-        },
-        cache = stat_cache[[gid]],
-        n1 = n1,
-        n2 = n2,
-        net_update = net_update,
-        att_update = att_update,
-        event_order = event_order,
-        inter_event_time = inter_event_time
-      ),
-      event_args
-    )
-    do.call(template$fun, args[template$args_by_shape[[shape]]])
-  }
-
-  # One consumer per output object: the single default output, or one per
-  # modeled flavor reading the shared union walk. Each owns its writer, its
-  # projection onto its own statistics columns, and its own pending buffers.
-  consumers <- init_consumers(
-    consumer_specs,
-    writer = writer,
-    is_exact_time = is_exact_time,
-    spec = spec,
-    dims = list(
-      nEffects = nEffects,
-      n1 = n1,
-      n2 = n2,
-      is_sender = inherits(spec, "goldfishAxisSender"),
-      n_dependent = nrow(events[[1L]]),
-      max_store = schedule$n + 1L
-    ),
-    initial_stats_fn = function() initial_stats
-  )
-  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
-
-  bcast_kind <- plan$effects$broadcast_kind
-
-  i_total_events <- 0L
-  i_dependent_events <- 0L
-  time <- startTime
-  interval <- 0
-  final_step <- FALSE
-
-  if (progress) {
-    cat("Preprocessing events.\n", startTime, endTime, schedule$n)
-    pb <- utils::txtProgressBar(max = schedule$n, char = "*", style = 3)
-    dot_events <- ifelse(schedule$n > 50, ceiling(schedule$n / 50), 1)
-  }
-
-  for (k in seq_len(schedule$n)) {
-    i_total_events <- i_total_events + 1L
-    next_event_time <- schedule$time[k]
-    if (hasStartTime || hasEndTime) {
-      if (isValidEvent && next_event_time <= endTime) {
-        interval <- next_event_time - time
-      } else if (isValidEvent && next_event_time > endTime) {
-        interval <- endTime - time
-        next_event_time <- endTime
-        final_step <- TRUE
-      } else if (!isValidEvent && next_event_time >= startTime) {
-        interval <- next_event_time - startTime
-        isValidEvent <- TRUE
-      }
-    } else {
-      interval <- next_event_time - time
-    }
-
-    time <- next_event_time
-
-    isDependent <- schedule$dependent[k] && !final_step
-
-    if (progress && i_total_events %% dot_events == 0) {
-      utils::setTxtProgressBar(pb, i_total_events)
-    }
-
-    # `event_order` is derived as the difference of these two counters, so a
-    # dependent event must advance both whether or not the observation window
-    # has opened. Advancing only the total would leave a gap across the
-    # burn-in fold, and an effect that reads adjacency in the event stream --
-    # trans(history = "consecutive") -- would find none.
-    if (isDependent) {
-      i_dependent_events <- 1L + i_dependent_events
-    }
-
-    if (isValidEvent && isDependent) {
-      if (schedule$shape[k] == "node") {
-        ev_sender <- schedule$node[k]
-        ev_receiver <- schedule$node[k]
-      } else {
-        ev_sender <- schedule$sender[k]
-        ev_receiver <- schedule$receiver[k]
-      }
-      route_dependent_event(
-        consumers,
-        rc_consumers,
-        flavor = schedule$flavor[k],
-        event_info = list(
-          is_dependent = 1L,
-          interval = interval,
-          time = time,
-          sender = ev_sender,
-          receiver = ev_receiver
-        )
-      )
-    } else if (!isDependent) {
-      if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (final_step) {
-          # The closing row is the window ending, not an event. The event that
-          # triggered the stop lies outside the window, and its sender and
-          # receiver would read as a real observation everywhere the row
-          # surfaces.
-          ev_sender <- NA_integer_
-          ev_receiver <- NA_integer_
-        } else if (schedule$shape[k] == "global") {
-          ev_sender <- NA_integer_
-          ev_receiver <- NA_integer_
-        } else if (schedule$shape[k] == "node") {
-          ev_sender <- schedule$node[k]
-          ev_receiver <- schedule$node[k]
-        } else {
-          ev_sender <- schedule$sender[k]
-          ev_receiver <- schedule$receiver[k]
-        }
-        route_right_censored_event(
-          rc_consumers,
-          list(
-            is_dependent = 0L,
-            interval = interval,
-            time = time,
-            sender = ev_sender,
-            receiver = ev_receiver
-          )
-        )
-      }
-
-      if (!final_step) {
-        oid <- schedule$target[k]
-        component <- plan$objects$component[oid]
-        key <- plan$objects$key[oid]
-        shape <- schedule$shape[k]
-        is_undirected_net <- plan$objects$is_undirected[oid]
-
-        if (shape == "global") {
-          replace_value <- schedule$value[[k]]
-          if (is.na(replace_value)) {
-            replace_value <- 0
-          }
-          event_args <- list(replace = replace_value)
-        } else if (shape == "node") {
-          event_node <- schedule$node[k]
-          if (schedule$semantics[k] == "increment") {
-            increment_value <- schedule$value[[k]]
-            if (is.na(increment_value)) {
-              increment_value <- 0
-            }
-            replace_value <-
-              state[[component]][[key]][event_node] + increment_value
-          } else {
-            replace_value <- schedule$value[[k]]
-            if (is.na(replace_value)) {
-              if (identical(plan$objects$policy[oid], "as_category")) {
-                # Under the as-category policy a missing event value is the
-                # reserved level, not a summary over the other nodes -- the same
-                # recode the initial table received.
-                replace_value <- IMPUTATION_MISSING_LEVEL
-              } else {
-                # Impute from the node's own mode category by the summary its
-                # recorded type selects -- a bare mean would write NA into a
-                # categorical vector, failing the next update's comparison.
-                replace_value <- impute_nodal_value(
-                  state[[component]][[key]],
-                  event_node,
-                  attr(state, "strata")[[component]],
-                  plan$objects$value_type[oid]
-                )
-              }
-            }
-          }
-          event_args <- list(node = event_node, replace = replace_value)
-        } else {
-          event_sender <- schedule$sender[k]
-          event_receiver <- schedule$receiver[k]
-          if (schedule$semantics[k] == "increment") {
-            increment_value <- schedule$value[[k]]
-            if (is.na(increment_value)) {
-              increment_value <- 0
-            }
-            replace_value <-
-              state$networks[[key]][event_sender, event_receiver] +
-              increment_value
-          } else {
-            replace_value <- schedule$value[[k]]
-            if (is.na(replace_value)) replace_value <- 0
-          }
-          if (replace_value < 0) {
-            warning(
-              "You are dissolving a tie which doesn't exist!",
-              call. = FALSE
-            )
-          }
-          event_args <- list(
-            sender = event_sender,
-            receiver = event_receiver,
-            replace = replace_value
-          )
-        }
-
-        for (gid in plan$routing[[oid]]) {
-          template <- effects_template[[gid]]
-          net_update_pos <- net_update_lookup[oid, gid]
-          if (is.na(net_update_pos)) {
-            net_update_pos <- NULL
-          }
-          att_update_pos <- att_update_lookup[oid, gid]
-          if (is.na(att_update_pos)) {
-            att_update_pos <- NULL
-          }
-
-          effect_update <- call_effect_template(
-            template,
-            gid,
-            shape,
-            event_args,
-            net_update_pos,
-            att_update_pos,
-            i_total_events - i_dependent_events,
-            interval
-          )
-
-          if (!is.null(attr(effect_update$cache, "last_update"))) {
-            attr(stat_cache[[gid]], "last_update") <- attr(
-              effect_update$cache,
-              "last_update"
-            )
-          }
-
-          updates <- effect_update$changes
-          if (
-            !is.null(effect_update$cache) && !is.null(effect_update$changes)
-          ) {
-            stat_cache[[gid]] <- effect_update$cache
-          }
-
-          if (is_undirected_net) {
-            event_args2 <- event_args
-            event_args2$sender <- event_args$receiver
-            event_args2$receiver <- event_args$sender
-            effect_update2 <- call_effect_template(
-              template,
-              gid,
-              shape,
-              event_args2,
-              net_update_pos,
-              att_update_pos,
-              i_total_events - i_dependent_events,
-              interval
-            )
-            if (
-              !is.null(effect_update2$cache) &&
-                !is.null(effect_update2$changes)
-            ) {
-              stat_cache[[gid]] <- effect_update2$cache
-            }
-            updates <- rbind(updates, effect_update2$changes)
-          }
-
-          if (!is.null(updates)) {
-            # Interaction second-hop (sender kernel): if this effect is an
-            # operand, apply its per-sender delta to its live vector and record
-            # the touched senders for each interaction it feeds. Sender deltas
-            # carry a unique node1 per row (discovery 0.1), so no per-operand
-            # dedup is needed.
-            if (n_inter > 0L && gid <= n_fun) {
-              feeds <- plan$operand_of[[as.character(gid)]]
-              if (!is.null(feeds)) {
-                ov <- get(as.character(gid), envir = op_state)
-                ov[updates[, "node1"]] <- updates[, "replace"]
-                assign(as.character(gid), ov, envir = op_state)
-                for (ig in feeds) {
-                  igc <- as.character(ig)
-                  dirty_inter[[igc]] <- c(
-                    dirty_inter[[igc]],
-                    updates[, "node1"]
-                  )
-                }
-              }
-            }
-            if (hasStartTime && next_event_time < startTime) {
-              initial_stats[cbind(updates[, "node1"], gid)] <-
-                updates[, "replace"]
-            } else if (bcast_kind[gid] != 0L) {
-              bc_block <- broadcast_entries_from_updates(
-                updates,
-                bcast_kind[gid],
-                gid
-              )
-              for (cs in consumers) {
-                consumer_accumulate_broadcast(cs, bc_block)
-              }
-            } else {
-              block <- rbind(
-                updates[, "node1"] - 1,
-                0,
-                gid - 1,
-                updates[, "replace"]
-              )
-              for (cs in consumers) {
-                consumer_accumulate_point(cs, block)
-              }
-            }
-          }
-        }
-
-        # Emit each touched interaction's product delta (sender kernel):
-        # recompute the per-sender product over its operands at the union of
-        # senders changed this event and route it as a per-sender point update.
-        # Emitted after the routing loop so all operand deltas are applied first;
-        # a trivial unique() covers the cross-operand overlap.
-        if (n_inter > 0L && length(dirty_inter) > 0L) {
-          for (igc in names(dirty_inter)) {
-            ig <- as.integer(igc)
-            senders <- unique(dirty_inter[[igc]])
-            ops <- plan$interactions[[igc]]
-            prodv <- get(as.character(ops[1]), envir = op_state)[senders]
-            for (o in ops[-1]) {
-              prodv <- prodv * get(as.character(o), envir = op_state)[senders]
-            }
-            if (hasStartTime && next_event_time < startTime) {
-              initial_stats[cbind(senders, ig)] <- prodv
-            } else {
-              block <- rbind(senders - 1, 0, ig - 1, prodv)
-              for (cs in consumers) {
-                consumer_accumulate_point(cs, block)
-              }
-            }
-          }
-          dirty_inter <- list()
-        }
-
-        if (shape == "global") {
-          state$globals[[key]] <- event_args$replace
-        } else if (shape == "node") {
-          state[[component]][[key]][event_args$node] <- event_args$replace
-        } else {
-          state$networks[[key]][event_args$sender, event_args$receiver] <-
-            event_args$replace
-          if (is_undirected_net) {
-            state$networks[[key]][event_args$receiver, event_args$sender] <-
-              event_args$replace
-          }
-        }
-      }
-    }
-
-    if (final_step) break
-  }
-
-  # The window closes at the end time even when the schedule runs out before
-  # reaching it. Only the branch that meets an out-of-window event used to
-  # write the closing row, so the exposure after the last event left the
-  # likelihood entirely, biasing the baseline rate upward. Whether the row is
-  # stored is a property of the likelihood: a family with no compensator keeps
-  # no right-censoring consumer, and a row there would contribute exactly zero
-  # while changing the interval count.
-  trailing_interval <- endTime - time
-  if (
-    isValidEvent &&
-      !final_step &&
-      length(rc_consumers) > 0L &&
-      trailing_interval > 0
-  ) {
-    route_right_censored_event(
-      rc_consumers,
-      list(
-        is_dependent = 0L,
-        interval = trailing_interval,
-        time = endTime,
-        sender = NA_integer_,
-        receiver = NA_integer_
-      )
-    )
-  }
-
-  if (progress) {
-    utils::setTxtProgressBar(pb, schedule$n)
-    close(pb)
-  }
-
-  # Rate models gate on the sender axis: the constraint mask is
-  # realized dyad-shaped here (the same self-contained pass, aux dyad state)
-  # and attached additively; the gather consumer reduces it to a per-sender gate.
-  # A NULL sub-plan leaves the output unchanged.
-  finalize_consumers(
-    consumers,
-    consumer_specs,
-    tail = list(
-      spec = spec,
-      initial_stats = initial_stats,
-      active_sender_init = active_sender_init,
-      active_sender_changes = active_sender_changes,
-      active_dyad_init = active_dyad_init,
-      active_dyad_changes = active_dyad_changes,
-      start_time = startTime,
-      end_time = endTime,
-      is_exact_time = is_exact_time
-    ),
-    default_constraint = plan$support_constraint,
-    project_initial_stats = function(stats, effect_map) {
-      stats[, effect_map, drop = FALSE]
-    },
-    finish_output = function(out, constraint, support_mask = NULL) {
-      if (is.null(constraint)) {
-        return(out)
-      }
-      # The single-output path realizes its own mask here (baseline-gated,
-      # unchanged); the flavored path passes a mask pre-realized by the pooled
-      # pass, so the atom stream is walked once across the family's fids.
-      if (is.null(support_mask)) {
-        support_mask <- preprocess_support_mask(
-          constraint,
-          model = spec$model,
-          nodes = nodes,
-          nodes2 = nodes2,
-          symmetric = FALSE,
-          snapshot_times = out$event_time,
-          src = src,
-          prep_envir = prep_envir
-        )
-      }
-      out$support_mask <- support_mask
-      # Fold the constraint into `active_sender` during preprocessing: the
-      # row-reduction becomes net crossings on the availability
-      # object, and the estimation-time recombination is dropped.
-      fold_active_sender_support(out, out$support_mask, active_dyad_init)
-    },
-    realize_masks = function(requests) {
-      preprocess_pooled_support_masks(
-        requests,
-        model = spec$model,
-        nodes = nodes,
-        nodes2 = nodes2,
-        symmetric = FALSE,
-        prep_envir = prep_envir,
-        src = src
-      )
-    },
-    scalar_entity = "sender"
+    att_update_lookup = att_update_lookup,
+    route = route
   )
 }
 
@@ -965,28 +705,16 @@ run_sender_recipe_loop <- function(
 # matrix. Used to keep an operand's live matrix current so interaction products
 # can be recomputed.
 expand_operand_update <- function(updates, kind, n1, n2) {
-  node1 <- updates[, "node1"]
-  node2 <- updates[, "node2"]
-  repl <- updates[, "replace"]
-  if (kind == 0L) {
-    return(list(cells = cbind(node1, node2), vals = repl))
-  }
-  if (kind == 3L) {
-    cells <- cbind(rep(seq_len(n1), times = n2), rep(seq_len(n2), each = n1))
-    return(list(cells = cells, vals = rep(repl[length(repl)], n1 * n2)))
-  }
-  if (kind == 1L) {
-    cells <- cbind(
-      rep(seq_len(n1), times = length(node2)),
-      rep(node2, each = n1)
-    )
-    return(list(cells = cells, vals = rep(repl, each = n1)))
-  }
-  cells <- cbind(
-    rep(node1, each = n2),
-    rep(seq_len(n2), times = length(node1))
+  projected <- project_entries(
+    updates[, "node1"],
+    updates[, "node2"],
+    updates[, "replace"],
+    kind,
+    0L,
+    n1,
+    n2
   )
-  list(cells = cells, vals = rep(repl, each = n2))
+  list(cells = projected$entries, vals = projected$values)
 }
 
 # Deduplicate the accumulated interaction cell matrix (rows are (i, j) pairs)
@@ -997,32 +725,21 @@ dedup_cells <- function(cells, n1) {
   cells[!duplicated(key), , drop = FALSE]
 }
 
-#' Dyad-indexed recipe kernel
-#'
-#' Shared event loop for the dyad-indexed model variants.
-#' It mirrors `run_sender_recipe_loop()` over the same three recipe input
-#' structures but produces dyad-shaped statistics:
-#' `initial_stats` is kept in the engine-native `n1 x n2 x nEffects` (3D)
-#' form and the flat `stat_mat_update` buffer carries `node2` in its second
-#' row. Right-censored events are stored only when the sub-model models
-#' waiting times (`is_exact_time = TRUE`, the rate models); choice
-#' configurations store dependent rows only, so the combined buffer carries
-#' exclusively `is_dependent = 1` rows. Global-attribute events are handled
-#' as in the sender kernel so future choice-model interaction
-#' support only touches the effects layer.
-#'
-#' The per-event simulation hook and parallel chunk preprocessing extension
-#' points attach to this kernel on the same terms documented
-#' for `run_sender_recipe_loop()`.
-#'
-#' @param spec a `spec_map` (built by `build_spec_map()`) carrying a `dyad_spec`
-#'   class; the effect closures, per-term window parameters, link matrices,
-#'   plan, call templates, and node sets are unpacked from it.
-#' @inheritParams run_sender_recipe_loop
-#'
-#' @return a list of class goldfishStat
-#' @noRd
-NULL
+# The streaming form of `walk_presence_buffer()`: the presence vector at each
+# event, one at a time, for a consumer walking the events in order anyway.
+presence_cursor <- function(init, update, pointer) {
+  current <- init
+  seen <- 0L
+  function(e) {
+    hi <- if (!is.null(pointer)) pointer[e] else 0L
+    if (hi > seen) {
+      cols <- (seen + 1L):hi
+      current[update[1L, cols]] <<- as.logical(update[2L, cols])
+      seen <<- hi
+    }
+    current
+  }
+}
 
 # Walk a flat presence crossings buffer (init + (node, replace) updates keyed by
 # a per-event cumulative pointer) to the per-event length-n logical vector it
@@ -1043,6 +760,42 @@ walk_presence_buffer <- function(init, update, pointer, n_stored) {
   res
 }
 
+# The streaming form of `crossings_from_vectors()`: the caller pushes one
+# event's vector at a time and only the previous one is held, so a fold never
+# materializes its timeline. On 1899 actors and 1500 events the list form is 2.8
+# million logicals for a receiver vector and 4 billion for a REM risk mask,
+# which is why the coordination cell had to be measured on a tenth of the
+# sequence.
+crossings_accumulator <- function(n_stored) {
+  n_changes <- integer(n_stored)
+  nodes <- vector("list", n_stored)
+  repl <- vector("list", n_stored)
+  init <- NULL
+  previous <- NULL
+  list(
+    push = function(e, current) {
+      if (e == 1L) {
+        init <<- current
+      } else {
+        crossing <- emit_crossings(previous, current)
+        n_changes[e] <<- length(crossing$entries)
+        nodes[[e]] <<- crossing$entries
+        repl[[e]] <<- as.numeric(crossing$values)
+      }
+      previous <<- current
+    },
+    finish = function() {
+      nv <- unlist(nodes, use.names = FALSE)
+      rv <- unlist(repl, use.names = FALSE)
+      list(
+        init = init,
+        update = if (length(nv) > 0L) rbind(nv, rv) else matrix(0, 2L, 0L),
+        pointer = cumsum(n_changes)
+      )
+    }
+  )
+}
+
 # Re-encode a per-event sequence of length-n logical vectors as init + net
 # crossings (node, replace) with a per-event cumulative pointer (event 1 in the
 # init, its slice empty; later events emit only changed entries).
@@ -1052,10 +805,10 @@ crossings_from_vectors <- function(vecs) {
   nodes <- vector("list", n_stored)
   repl <- vector("list", n_stored)
   for (e in seq_len(n_stored)[-1L]) {
-    ch <- which(vecs[[e]] != vecs[[e - 1L]])
-    n_changes[e] <- length(ch)
-    nodes[[e]] <- ch
-    repl[[e]] <- as.numeric(vecs[[e]][ch])
+    crossing <- emit_crossings(vecs[[e - 1L]], vecs[[e]])
+    n_changes[e] <- length(crossing$entries)
+    nodes[[e]] <- crossing$entries
+    repl[[e]] <- as.numeric(crossing$values)
   }
   nv <- unlist(nodes, use.names = FALSE)
   rv <- unlist(repl, use.names = FALSE)
@@ -1092,7 +845,15 @@ fold_active_dyad_support <- function(
   }
   n1 <- length(out$active_sender_init)
   n2 <- length(out$active_dyad_init)
-  support <- support_mask$support
+  # As in the sender fold: a cursor over the flip stream, advanced with the
+  # events this loop already walks in order.
+  stored_kind <- support_mask$stored_kind %||% 0L
+  mask_at <- mask_cursor(support_mask)
+  # Both branches below read ONE row per event, so the row is read at the mask's
+  # own kind instead of expanding a grid to take a slice of it.
+  support_row_at <- function(e, sender) {
+    support_row(mask_at(e), stored_kind, sender, n1, n2)
+  }
   has_opportunity <- !is.null(opportunitiesList)
   encoding <- active_dyad_encoding_decide(
     risk_set_encoding(spec),
@@ -1107,12 +868,14 @@ fold_active_dyad_support <- function(
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
   # symmetrised so `(i, j)` is available iff both directions are
   # allowed — required for the mutual likelihood. Every DyNAM choice encoding
-  # folds below: alter/scalar as the receiver vector, point (dyadic atom or
-  # opportunity list) and ego-kind (outer) as dense point row flips.
+  # folds below: alter/scalar as the receiver vector, ego-kind as the outer
+  # factorization (receiver presence f2, sender presence f1, no dyad-shaped
+  # object), and point (dyadic atom or opportunity list) as dense point row
+  # flips.
   if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
-      support,
+      support_mask,
       n1,
       n2,
       n_stored,
@@ -1120,32 +883,62 @@ fold_active_dyad_support <- function(
     ))
   }
 
-  recv <- walk_presence_buffer(
+  recv_at <- presence_cursor(
     out$active_dyad_init,
     out$active_dyad_update,
-    out$active_dyad_update_pointer,
-    n_stored
+    out$active_dyad_update_pointer
   )
+  # The fold below overwrites `active_dyad_update` with the folded availability,
+  # so the raw receiver crossings are gone by the time the fail-fast validation
+  # runs on a choice object. Stash them beside the init the validation already
+  # reads, so it can walk the receiver presence per event rather than freezing
+  # it at time zero.
   out$support_mask$receiver_presence_init <- out$active_dyad_init
+  out$support_mask$receiver_presence_update <- out$active_dyad_update
+  out$support_mask$receiver_presence_update_pointer <-
+    out$active_dyad_update_pointer
 
   if (identical(encoding, "alter")) {
-    # An alter/scalar mask is column-broadcast, so any row is the alter vector.
-    folded <- lapply(
-      seq_len(n_stored),
-      function(e) recv[[e]] & support[[e]][1L, ]
-    )
-    cr <- crossings_from_vectors(folded)
+    # An alter/scalar mask is column-broadcast, so its stored value IS the alter
+    # vector at kind 1 and any row of the grid otherwise. Accumulated as it goes
+    # rather than collected: only the previous event's vector is needed to name
+    # what changed.
+    accumulator <- crossings_accumulator(n_stored)
+    for (e in seq_len(n_stored)) {
+      accumulator$push(e, recv_at(e) & support_row_at(e, 1L))
+    }
+    cr <- accumulator$finish()
     out$active_dyad_init <- cr$init
     out$active_dyad_update <- cr$update
     out$active_dyad_update_pointer <- cr$pointer
     out$active_dyad_encoding <- "alter"
     out$active_dyad_folded <- TRUE
+  } else if (identical(encoding, "outer")) {
+    # An ego-kind atom gates only the sender axis (its support row is constant
+    # across receivers), so the availability factorizes: the receiver presence
+    # is f2 (`active_dyad`, stored as its own crossings stream) and the sender
+    # presence is f1 (`active_sender`, left as it is), with cell
+    # (i, j) = active_sender[i] & active_dyad[j]. No dyad-shaped object is
+    # allocated. The sender factor is not folded into f1 because the choice risk
+    # set reads only the observed sender's row and the observed sender is always
+    # allowed (the fail-fast validation errors otherwise), so a sender the atom
+    # gates out is never a row the likelihood reads; the sender-side validation
+    # reports it instead.
+    accumulator <- crossings_accumulator(n_stored)
+    for (e in seq_len(n_stored)) {
+      accumulator$push(e, recv_at(e))
+    }
+    cr <- accumulator$finish()
+    out$active_dyad_init <- cr$init
+    out$active_dyad_update <- cr$update
+    out$active_dyad_update_pointer <- cr$pointer
+    out$active_dyad_encoding <- "outer"
+    out$active_dyad_folded <- TRUE
   } else {
-    # point/outer: fold receiver presence ∩ the sender's support row ∩
-    # opportunity into the dense point buffer. Covers a genuinely dyadic (point)
-    # atom, any atom together with a user opportunity list, and an ego-kind
-    # (outer) atom whose support row is sender-constant. The choice risk set
-    # reads only the event sender's row, so only that row is emitted.
+    # point: fold receiver presence ∩ the sender's support row ∩ opportunity
+    # into the dense point buffer. Covers a genuinely dyadic (point) atom and
+    # any atom together with a user opportunity list. The choice risk set reads
+    # only the event sender's row, so only that row is emitted.
     senders <- out$event_sender
     opp_row <- function(e) {
       if (!has_opportunity) {
@@ -1154,11 +947,15 @@ fold_active_dyad_support <- function(
       opp <- opportunitiesList[[e]]
       if (is.null(opp)) rep(TRUE, n2) else seq_len(n2) %in% opp
     }
-    desired <- lapply(
-      seq_len(n_stored),
-      function(e) recv[[e]] & support[[e]][senders[[e]], ] & opp_row(e)
+    out <- build_active_dyad_point(
+      out,
+      recv_at,
+      function(e) recv_at(e) & support_row_at(e, senders[[e]]) & opp_row(e),
+      senders,
+      n1,
+      n2,
+      n_stored
     )
-    out <- build_active_dyad_point(out, recv, desired, senders, n1, n2)
   }
 
   out
@@ -1170,71 +967,109 @@ fold_active_dyad_support <- function(
 # the default engine consumes it directly as the per-event risk mask, replacing
 # the standalone `active_dyad_mask` snapshot. The raw presences are stashed on
 # `support_mask` for the fail-fast validation, which needs them unfolded.
+#
+# The mask is MAINTAINED, not rebuilt. Its three inputs all arrive as flip
+# streams -- sender presence, receiver presence, and the support mask -- and a
+# flip reaches a bounded set of cells: a sender crossing one row, a receiver
+# crossing one column, a support flip whatever its kind projects onto. Only
+# those cells are recomputed, so the `outer()` product and the expanded grid are
+# built once at the first event rather than at every one. Coordination is
+# additionally symmetrised, which is not elementwise, so its recomputed set is
+# closed under transposition.
 fold_active_dyad_support_rem <- function(
   out,
-  support,
+  support_mask,
   n1,
   n2,
   n_stored,
   symmetric = FALSE
 ) {
-  p1 <- walk_presence_buffer(
-    out$active_sender_init,
+  stored_kind <- support_mask$stored_kind %||% 0L
+  p1_flips <- flip_reader(
     out$active_sender_update,
-    out$active_sender_update_pointer,
-    n_stored
+    out$active_sender_update_pointer
   )
-  p2 <- walk_presence_buffer(
-    out$active_dyad_init,
+  p2_flips <- flip_reader(
     out$active_dyad_update,
-    out$active_dyad_update_pointer,
-    n_stored
+    out$active_dyad_update_pointer
   )
+  support_flips <- mask_flips(support_mask)
+  p1 <- out$active_sender_init
+  p2 <- out$active_dyad_init
+  support <- support_mask$initial
   out$support_mask$sender_presence_init <- out$active_sender_init
   out$support_mask$receiver_presence_init <- out$active_dyad_init
-  # Coordination: the mutual likelihood needs `(i, j)` active iff
-  # both directions are allowed, so symmetrise the per-event mask. The presence
-  # product `outer(p1, p2)` is symmetric for a one-mode model, so `m & t(m)`
-  # reduces to symmetrising the support atoms.
-  masks <- lapply(
-    seq_len(n_stored),
-    function(e) {
-      m <- outer(p1[[e]], p2[[e]]) & (support[[e]] == 1)
-      if (symmetric) {
-        m <- m & t(m)
-      }
-      m
-    }
-  )
-  build_active_dyad_point_full(out, masks, n1, n2)
-}
 
-# Assemble the `active_dyad` point encoding from per-event dense n1 x n2 masks
-# (REM). Unlike the choice point fold (one sender row per event), the REM risk
-# set spans the whole matrix, so every changed cell between consecutive events
-# is emitted as a net `(node1, node2, replace)` flip; the first event's mask
-# seeds the dense init and each later event emits its diff in event order.
-build_active_dyad_point_full <- function(out, masks, n1, n2) {
-  n_stored <- length(masks)
-  init <- masks[[1L]]
-  cur <- init
+  transposed <- function(entries) {
+    rows <- ((entries - 1L) %% n1) + 1L
+    cols <- ((entries - 1L) %/% n1) + 1L
+    (rows - 1L) * n1 + cols
+  }
+  raw_at <- function(entries) {
+    rows <- ((entries - 1L) %% n1) + 1L
+    cols <- ((entries - 1L) %/% n1) + 1L
+    p1[rows] &
+      p2[cols] &
+      read_value_at_entries(support, stored_kind, entries, 0L, n1, n2)
+  }
+  advance_inputs <- function(e) {
+    f1 <- p1_flips(e)
+    f2 <- p2_flips(e)
+    fs <- support_flips(e)
+    p1[f1$entries] <<- f1$values
+    p2[f2$entries] <<- f2$values
+    support[fs$entries] <<- fs$values
+    list(senders = f1$entries, receivers = f2$entries, mask = fs$entries)
+  }
+
+  advance_inputs(1L)
+  current <- outer(p1, p2) &
+    (support_to_grid(support, stored_kind, n1, n2) == 1)
+  if (symmetric) {
+    current <- symmetrize_mask(current)
+  }
+  # `current` is written IN PLACE from here on, so the init has to be its own
+  # object: aliasing it would rewrite the value every emitted flip is a diff
+  # against. `& TRUE` is an elementwise operation, so it allocates.
+  init <- current & TRUE
+
   n_changes <- integer(n_stored)
   node1 <- vector("list", n_stored)
   node2 <- vector("list", n_stored)
   repl <- vector("list", n_stored)
   for (e in seq_len(n_stored)[-1L]) {
-    d <- masks[[e]]
-    ch <- which(cur != d)
-    n_changes[e] <- length(ch)
-    node1[[e]] <- ((ch - 1L) %% n1) + 1L
-    node2[[e]] <- ((ch - 1L) %/% n1) + 1L
-    repl[[e]] <- as.numeric(d[ch])
-    cur <- d
+    moved <- advance_inputs(e)
+    reached <- unique(c(
+      if (length(moved$senders) > 0L) {
+        map_entries(moved$senders, 2L, 0L, n1, n2)
+      },
+      if (length(moved$receivers) > 0L) {
+        map_entries(moved$receivers, 1L, 0L, n1, n2)
+      },
+      if (length(moved$mask) > 0L) {
+        map_entries(moved$mask, stored_kind, 0L, n1, n2)
+      }
+    ))
+    if (length(reached) == 0L) {
+      next
+    }
+    if (symmetric) {
+      reached <- unique(c(reached, transposed(reached)))
+      desired <- raw_at(reached) & raw_at(transposed(reached))
+    } else {
+      desired <- raw_at(reached)
+    }
+    flips <- changed_entries(current, reached, desired)
+    n_changes[e] <- length(flips$entries)
+    node1[[e]] <- ((flips$entries - 1L) %% n1) + 1L
+    node2[[e]] <- ((flips$entries - 1L) %/% n1) + 1L
+    repl[[e]] <- as.numeric(flips$values)
+    current <- write_entries(current, flips$entries, flips$values)
   }
+
   n1v <- unlist(node1, use.names = FALSE)
   n2v <- unlist(node2, use.names = FALSE)
   rv <- unlist(repl, use.names = FALSE)
-
   out$active_dyad_init <- init
   out$active_dyad_update <- if (length(n1v) > 0L) {
     rbind(n1v, n2v, rv)
@@ -1265,20 +1100,26 @@ fold_active_dyad_opportunity <- function(out, opportunitiesList) {
   }
   n1 <- length(out$active_sender_init)
   n2 <- length(out$active_dyad_init)
-  recv <- walk_presence_buffer(
+  recv_at <- presence_cursor(
     out$active_dyad_init,
     out$active_dyad_update,
-    out$active_dyad_update_pointer,
-    n_stored
+    out$active_dyad_update_pointer
   )
   senders <- out$event_sender
   # `seq_len(n2) %in% opportunitiesList[[e]]` mirrors the estimation-time
   # recompute exactly (an all-TRUE row when the event has no restriction).
-  desired <- lapply(seq_len(n_stored), function(e) {
-    opp <- opportunitiesList[[e]]
-    if (is.null(opp)) recv[[e]] else recv[[e]] & (seq_len(n2) %in% opp)
-  })
-  build_active_dyad_point(out, recv, desired, senders, n1, n2)
+  build_active_dyad_point(
+    out,
+    recv_at,
+    function(e) {
+      opp <- opportunitiesList[[e]]
+      if (is.null(opp)) recv_at(e) else recv_at(e) & (seq_len(n2) %in% opp)
+    },
+    senders,
+    n1,
+    n2,
+    n_stored
+  )
 }
 
 # Assemble the `active_dyad` point encoding from per-event desired receiver rows.
@@ -1288,10 +1129,18 @@ fold_active_dyad_opportunity <- function(out, opportunitiesList) {
 # rows carry the event-1 receiver presence, immaterial until each sender's first
 # event overwrites its row) and each later event emits net
 # `(node1 = sender, node2 = j, replace)` flips against the row's stored value.
-build_active_dyad_point <- function(out, recv, desired, senders, n1, n2) {
-  n_stored <- length(desired)
-  cur <- matrix(recv[[1L]], nrow = n1, ncol = n2, byrow = TRUE)
-  cur[senders[[1L]], ] <- desired[[1L]]
+build_active_dyad_point <- function(
+  out,
+  recv_at,
+  desired_at,
+  senders,
+  n1,
+  n2,
+  n_stored
+) {
+  cur <- matrix(recv_at(1L), nrow = n1, ncol = n2, byrow = TRUE)
+  first <- desired_at(1L)
+  cur[senders[[1L]], ] <- first
   init <- cur
   n_changes <- integer(n_stored)
   node1 <- vector("list", n_stored)
@@ -1299,12 +1148,13 @@ build_active_dyad_point <- function(out, recv, desired, senders, n1, n2) {
   repl <- vector("list", n_stored)
   for (e in seq_len(n_stored)[-1L]) {
     s <- senders[[e]]
-    ch <- which(cur[s, ] != desired[[e]])
+    desired <- desired_at(e)
+    ch <- which(cur[s, ] != desired)
     n_changes[e] <- length(ch)
     node1[[e]] <- rep.int(s, length(ch))
     node2[[e]] <- ch
-    repl[[e]] <- as.numeric(desired[[e]][ch])
-    cur[s, ] <- desired[[e]]
+    repl[[e]] <- as.numeric(desired[ch])
+    cur[s, ] <- desired
   }
   n1v <- unlist(node1, use.names = FALSE)
   n2v <- unlist(node2, use.names = FALSE)
@@ -1320,1270 +1170,6 @@ build_active_dyad_point <- function(out, recv, desired, senders, n1, n2) {
   out$active_dyad_encoding <- "point"
   out$active_dyad_folded <- TRUE
   out
-}
-
-run_dyad_recipe_loop <- function(
-  spec,
-  startTime = NULL,
-  endTime = NULL,
-  is_exact_time = FALSE,
-  progress = FALSE,
-  prep_envir = new.env(),
-  writer = writer_default(),
-  opportunitiesList = NULL,
-  consumer_specs = NULL,
-  ...
-) {
-  ctx <- prepare_recipe_context(
-    spec,
-    startTime,
-    endTime,
-    prep_envir,
-    sub_model = "choice",
-    progress = progress
-  )
-  # Splat the shared setup (spec unpack, streams, window, cache, state,
-  # schedule, composition, lookups) into this frame; each loop then shapes its
-  # own `initial_stats` (2D sender kernel vs 3D dyad array).
-  list2env(ctx, environment())
-
-  initial_stats <- array(0, dim = c(n1, n2, nEffects))
-  initial_stats[,, seq_len(n_fun)] <- array(
-    unlist(lapply(stat_cache, "[[", "stat")),
-    dim = c(n1, n2, n_fun)
-  )
-  stat_cache <- lapply(stat_cache, "[[", "cache")
-
-  # Interaction state. Keep a live full n1 x n2 value for every
-  # operand feeding an interaction, seeded from its initial slice, and updated in
-  # place as its effect emits deltas (per its broadcast kind). Each interaction's
-  # column is the elementwise product of its operands' live matrices; its
-  # initial slice is seeded here and its deltas are emitted as point updates when
-  # any operand changes (second-hop routing).
-  op_kind <- plan$effects$broadcast_kind
-  op_state <- new.env(parent = emptyenv())
-  # Per-event accumulator of interaction operand cells touched, keyed
-  # by interaction gid; refilled in the routing loop, emptied after each event's
-  # interaction emission.
-  dirty_inter <- list()
-  if (n_inter > 0) {
-    operand_gids <- sort(unique(unlist(plan$interactions)))
-    for (og in operand_gids) {
-      assign(as.character(og), initial_stats[,, og], envir = op_state)
-    }
-    for (ig in inter_ids) {
-      ops <- plan$interactions[[as.character(ig)]]
-      prod_mat <- get(as.character(ops[1]), envir = op_state)
-      for (o in ops[-1]) {
-        prod_mat <- prod_mat * get(as.character(o), envir = op_state)
-      }
-      initial_stats[,, ig] <- prod_mat
-    }
-  }
-
-  call_effect_template <- function(
-    template,
-    gid,
-    shape,
-    event_args,
-    net_update,
-    att_update,
-    event_order,
-    inter_event_time
-  ) {
-    args <- c(
-      list(
-        network = if (template$n_networks == 1L) {
-          state$networks[[template$net_keys]]
-        } else if (template$n_networks > 1L) {
-          lapply(template$net_keys, function(k) state$networks[[k]])
-        } else {
-          list()
-        },
-        attribute = if (template$n_attributes == 1L) {
-          state[[template$att_components]][[template$att_keys]]
-        } else if (template$n_attributes > 1L) {
-          lapply(
-            seq_len(template$n_attributes),
-            function(j) {
-              state[[template$att_components[j]]][[template$att_keys[j]]]
-            }
-          )
-        } else {
-          list()
-        },
-        cache = stat_cache[[gid]],
-        n1 = n1,
-        n2 = n2,
-        net_update = net_update,
-        att_update = att_update,
-        event_order = event_order,
-        inter_event_time = inter_event_time
-      ),
-      event_args
-    )
-    do.call(template$fun, args[template$args_by_shape[[shape]]])
-  }
-
-  # One consumer per output object: the single default output, or one per
-  # modeled flavor reading the shared union walk. Each owns its writer, its
-  # projection onto its own statistics columns, and its own pending buffers.
-  consumers <- init_consumers(
-    consumer_specs,
-    writer = writer,
-    is_exact_time = is_exact_time,
-    spec = spec,
-    dims = list(
-      nEffects = nEffects,
-      n1 = n1,
-      n2 = n2,
-      is_sender = inherits(spec, "goldfishAxisSender"),
-      n_dependent = nrow(events[[1L]]),
-      max_store = schedule$n + 1L
-    ),
-    initial_stats_fn = function() initial_stats
-  )
-  rc_consumers <- Filter(function(cs) cs$is_exact_time, consumers)
-
-  bcast_kind <- plan$effects$broadcast_kind
-
-  i_total_events <- 0L
-  i_dependent_events <- 0L
-  time <- startTime
-  interval <- 0
-  final_step <- FALSE
-
-  if (progress) {
-    cat("Preprocessing events.\n", startTime, endTime, schedule$n)
-    pb <- utils::txtProgressBar(max = schedule$n, char = "*", style = 3)
-    dot_events <- ifelse(schedule$n > 50, ceiling(schedule$n / 50), 1)
-  }
-
-  for (k in seq_len(schedule$n)) {
-    i_total_events <- i_total_events + 1L
-    next_event_time <- schedule$time[k]
-    if (hasStartTime || hasEndTime) {
-      if (isValidEvent && next_event_time <= endTime) {
-        interval <- next_event_time - time
-      } else if (isValidEvent && next_event_time > endTime) {
-        interval <- endTime - time
-        next_event_time <- endTime
-        final_step <- TRUE
-      } else if (!isValidEvent && next_event_time >= startTime) {
-        interval <- next_event_time - startTime
-        isValidEvent <- TRUE
-      }
-    } else {
-      interval <- next_event_time - time
-    }
-
-    time <- next_event_time
-
-    isDependent <- schedule$dependent[k] && !final_step
-
-    if (progress && i_total_events %% dot_events == 0) {
-      utils::setTxtProgressBar(pb, i_total_events)
-    }
-
-    # `event_order` is derived as the difference of these two counters, so a
-    # dependent event must advance both whether or not the observation window
-    # has opened. Advancing only the total would leave a gap across the
-    # burn-in fold, and an effect that reads adjacency in the event stream --
-    # trans(history = "consecutive") -- would find none.
-    if (isDependent) {
-      i_dependent_events <- 1L + i_dependent_events
-    }
-
-    if (isValidEvent && isDependent) {
-      if (schedule$shape[k] == "node") {
-        ev_sender <- schedule$node[k]
-        ev_receiver <- schedule$node[k]
-      } else {
-        ev_sender <- schedule$sender[k]
-        ev_receiver <- schedule$receiver[k]
-      }
-      route_dependent_event(
-        consumers,
-        rc_consumers,
-        flavor = schedule$flavor[k],
-        event_info = list(
-          is_dependent = 1L,
-          interval = interval,
-          time = time,
-          sender = ev_sender,
-          receiver = ev_receiver
-        )
-      )
-    } else if (!isDependent) {
-      if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
-        if (final_step) {
-          # The closing row is the window ending, not an event. The event that
-          # triggered the stop lies outside the window, and its sender and
-          # receiver would read as a real observation everywhere the row
-          # surfaces.
-          ev_sender <- NA_integer_
-          ev_receiver <- NA_integer_
-        } else if (schedule$shape[k] == "global") {
-          ev_sender <- NA_integer_
-          ev_receiver <- NA_integer_
-        } else if (schedule$shape[k] == "node") {
-          ev_sender <- schedule$node[k]
-          ev_receiver <- schedule$node[k]
-        } else {
-          ev_sender <- schedule$sender[k]
-          ev_receiver <- schedule$receiver[k]
-        }
-        route_right_censored_event(
-          rc_consumers,
-          list(
-            is_dependent = 0L,
-            interval = interval,
-            time = time,
-            sender = ev_sender,
-            receiver = ev_receiver
-          )
-        )
-      }
-
-      if (!final_step) {
-        oid <- schedule$target[k]
-        component <- plan$objects$component[oid]
-        key <- plan$objects$key[oid]
-        shape <- schedule$shape[k]
-        is_undirected_net <- plan$objects$is_undirected[oid]
-
-        if (shape == "global") {
-          replace_value <- schedule$value[[k]]
-          if (is.na(replace_value)) {
-            replace_value <- 0
-          }
-          event_args <- list(replace = replace_value)
-        } else if (shape == "node") {
-          event_node <- schedule$node[k]
-          if (schedule$semantics[k] == "increment") {
-            increment_value <- schedule$value[[k]]
-            if (is.na(increment_value)) {
-              increment_value <- 0
-            }
-            replace_value <-
-              state[[component]][[key]][event_node] + increment_value
-          } else {
-            replace_value <- schedule$value[[k]]
-            if (is.na(replace_value)) {
-              if (identical(plan$objects$policy[oid], "as_category")) {
-                # Under the as-category policy a missing event value is the
-                # reserved level, not a summary over the other nodes -- the same
-                # recode the initial table received.
-                replace_value <- IMPUTATION_MISSING_LEVEL
-              } else {
-                # Impute from the node's own mode category by the summary its
-                # recorded type selects -- a bare mean would write NA into a
-                # categorical vector, failing the next update's comparison.
-                replace_value <- impute_nodal_value(
-                  state[[component]][[key]],
-                  event_node,
-                  attr(state, "strata")[[component]],
-                  plan$objects$value_type[oid]
-                )
-              }
-            }
-          }
-          event_args <- list(node = event_node, replace = replace_value)
-        } else {
-          event_sender <- schedule$sender[k]
-          event_receiver <- schedule$receiver[k]
-          if (schedule$semantics[k] == "increment") {
-            increment_value <- schedule$value[[k]]
-            if (is.na(increment_value)) {
-              increment_value <- 0
-            }
-            replace_value <-
-              state$networks[[key]][event_sender, event_receiver] +
-              increment_value
-          } else {
-            replace_value <- schedule$value[[k]]
-            if (is.na(replace_value)) replace_value <- 0
-          }
-          if (replace_value < 0) {
-            warning(
-              "You are dissolving a tie which doesn't exist!",
-              call. = FALSE
-            )
-          }
-          event_args <- list(
-            sender = event_sender,
-            receiver = event_receiver,
-            replace = replace_value
-          )
-        }
-
-        for (gid in plan$routing[[oid]]) {
-          template <- effects_template[[gid]]
-          net_update_pos <- net_update_lookup[oid, gid]
-          if (is.na(net_update_pos)) {
-            net_update_pos <- NULL
-          }
-          att_update_pos <- att_update_lookup[oid, gid]
-          if (is.na(att_update_pos)) {
-            att_update_pos <- NULL
-          }
-
-          effect_update <- call_effect_template(
-            template,
-            gid,
-            shape,
-            event_args,
-            net_update_pos,
-            att_update_pos,
-            i_total_events - i_dependent_events,
-            interval
-          )
-
-          if (!is.null(attr(effect_update$cache, "last_update"))) {
-            attr(stat_cache[[gid]], "last_update") <- attr(
-              effect_update$cache,
-              "last_update"
-            )
-          }
-
-          updates <- effect_update$changes
-          if (
-            !is.null(effect_update$cache) && !is.null(effect_update$changes)
-          ) {
-            stat_cache[[gid]] <- effect_update$cache
-          }
-
-          if (is_undirected_net) {
-            event_args2 <- event_args
-            event_args2$sender <- event_args$receiver
-            event_args2$receiver <- event_args$sender
-            effect_update2 <- call_effect_template(
-              template,
-              gid,
-              shape,
-              event_args2,
-              net_update_pos,
-              att_update_pos,
-              i_total_events - i_dependent_events,
-              interval
-            )
-            if (
-              !is.null(effect_update2$cache) &&
-                !is.null(effect_update2$changes)
-            ) {
-              stat_cache[[gid]] <- effect_update2$cache
-            }
-            updates <- rbind(updates, effect_update2$changes)
-          }
-
-          if (!is.null(updates)) {
-            # Interaction second-hop: if this effect is an operand,
-            # apply its delta to its live matrix and record the touched cells for
-            # each interaction it feeds, so the product columns are refreshed
-            # after the routing loop.
-            if (n_inter > 0L && gid <= n_fun) {
-              feeds <- plan$operand_of[[as.character(gid)]]
-              if (!is.null(feeds)) {
-                exp <- expand_operand_update(updates, op_kind[gid], n1, n2)
-                om <- get(as.character(gid), envir = op_state)
-                om[exp$cells] <- exp$vals
-                assign(as.character(gid), om, envir = op_state)
-                for (ig in feeds) {
-                  igc <- as.character(ig)
-                  dirty_inter[[igc]] <- rbind(dirty_inter[[igc]], exp$cells)
-                }
-              }
-            }
-            if (hasStartTime && next_event_time < startTime) {
-              initial_stats[cbind(
-                updates[, "node1"],
-                updates[, "node2"],
-                gid
-              )] <- updates[, "replace"]
-            } else if (bcast_kind[gid] != 0L) {
-              bc_block <- broadcast_entries_from_updates(
-                updates,
-                bcast_kind[gid],
-                gid
-              )
-              for (cs in consumers) {
-                consumer_accumulate_broadcast(cs, bc_block)
-              }
-            } else {
-              block <- rbind(
-                updates[, "node1"] - 1,
-                updates[, "node2"] - 1,
-                gid - 1,
-                updates[, "replace"]
-              )
-              for (cs in consumers) {
-                consumer_accumulate_point(cs, block)
-              }
-            }
-          }
-        }
-
-        # Emit each touched interaction's product delta: recompute
-        # the product over its operands at the union of cells changed this event
-        # and route it as a point update (its own column). Emitted after the
-        # routing loop so all operand deltas for the event are applied first.
-        if (n_inter > 0L && length(dirty_inter) > 0L) {
-          for (igc in names(dirty_inter)) {
-            ig <- as.integer(igc)
-            cells <- dedup_cells(dirty_inter[[igc]], n1)
-            ops <- plan$interactions[[igc]]
-            prodv <- get(as.character(ops[1]), envir = op_state)[cells]
-            for (o in ops[-1]) {
-              prodv <- prodv * get(as.character(o), envir = op_state)[cells]
-            }
-            if (hasStartTime && next_event_time < startTime) {
-              initial_stats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
-            } else {
-              block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
-              for (cs in consumers) {
-                consumer_accumulate_point(cs, block)
-              }
-            }
-          }
-          dirty_inter <- list()
-        }
-
-        if (shape == "global") {
-          state$globals[[key]] <- event_args$replace
-        } else if (shape == "node") {
-          state[[component]][[key]][event_args$node] <- event_args$replace
-        } else {
-          state$networks[[key]][event_args$sender, event_args$receiver] <-
-            event_args$replace
-          if (is_undirected_net) {
-            state$networks[[key]][event_args$receiver, event_args$sender] <-
-              event_args$replace
-          }
-        }
-      }
-    }
-
-    if (final_step) break
-  }
-
-  # The window closes at the end time even when the schedule runs out before
-  # reaching it. Only the branch that meets an out-of-window event used to
-  # write the closing row, so the exposure after the last event left the
-  # likelihood entirely, biasing the baseline rate upward. Whether the row is
-  # stored is a property of the likelihood: a family with no compensator keeps
-  # no right-censoring consumer, and a row there would contribute exactly zero
-  # while changing the interval count.
-  trailing_interval <- endTime - time
-  if (
-    isValidEvent &&
-      !final_step &&
-      length(rc_consumers) > 0L &&
-      trailing_interval > 0
-  ) {
-    route_right_censored_event(
-      rc_consumers,
-      list(
-        is_dependent = 0L,
-        interval = trailing_interval,
-        time = endTime,
-        sender = NA_integer_,
-        receiver = NA_integer_
-      )
-    )
-  }
-
-  if (progress) {
-    utils::setTxtProgressBar(pb, schedule$n)
-    close(pb)
-  }
-
-  finalize_consumers(
-    consumers,
-    consumer_specs,
-    tail = list(
-      spec = spec,
-      initial_stats = initial_stats,
-      active_sender_init = active_sender_init,
-      active_sender_changes = active_sender_changes,
-      active_dyad_init = active_dyad_init,
-      active_dyad_changes = active_dyad_changes,
-      start_time = startTime,
-      end_time = endTime,
-      is_exact_time = is_exact_time
-    ),
-    default_constraint = plan$support_constraint,
-    project_initial_stats = function(stats, effect_map) {
-      stats[,, effect_map, drop = FALSE]
-    },
-    # The support-constraint mask is realized in a self-contained pass over the
-    # constraint sub-plan. It is attached additively so the statistics
-    # output is untouched; the gather consumer reads it per event. A NULL
-    # sub-plan (no constraint) leaves the output unchanged.
-    finish_output = function(out, constraint, support_mask = NULL) {
-      if (!is.null(constraint)) {
-        # The single-output path realizes its own mask here (baseline-gated,
-        # unchanged); the flavored path passes a mask pre-realized by the pooled
-        # pass, so the atom stream is walked once across the family's fids.
-        if (is.null(support_mask)) {
-          support_mask <- preprocess_support_mask(
-            constraint,
-            model = spec$model,
-            nodes = nodes,
-            nodes2 = nodes2,
-            symmetric = identical(spec$sub_model, "choice_coordination"),
-            snapshot_times = out$event_time,
-            src = src,
-            prep_envir = prep_envir
-          )
-        }
-        out$support_mask <- support_mask
-        # Fold the constraint into `active_dyad` at its minimal encoding during
-        # preprocessing; estimation consumes it via the
-        # encoding accessors.
-        return(fold_active_dyad_support(
-          out,
-          out$support_mask,
-          spec,
-          constraint$mask_kind,
-          opportunitiesList = opportunitiesList
-        ))
-      }
-      # An opportunity list names which receivers a sender may reach, so it
-      # is meaningful only to the two choice families: the receiver row, and
-      # coordination's unordered pairs.
-      if (!is.null(opportunitiesList) && is_choice_family(spec)) {
-        # The deprecated opportunity list is a point-kind availability
-        # contribution: fold it into the `active_dyad` point buffer during the
-        # preprocessing pass so estimation reads it through the point accessor
-        # instead of recomputing `seq_len(n2) %in% opportunitiesList[[i]]` on
-        # every Newton-Raphson iteration. Only the constraint-free case folds
-        # here — when a support_constraint is present its (still standalone)
-        # mask path intersects the user opportunity list, so both ride together
-        # until the mask path is retired with the engine wiring.
-        out <- fold_active_dyad_opportunity(out, opportunitiesList)
-      }
-      out
-    },
-    realize_masks = function(requests) {
-      preprocess_pooled_support_masks(
-        requests,
-        model = spec$model,
-        nodes = nodes,
-        nodes2 = nodes2,
-        symmetric = identical(spec$sub_model, "choice_coordination"),
-        prep_envir = prep_envir,
-        src = src
-      )
-    },
-    # A tie-oriented rate integrates over dyads, so its intercept scalar counts
-    # active dyads rather than active senders.
-    scalar_entity = "dyad"
-  )
-}
-
-#' preprocess event and related objects describe in the formula to estimate
-#'
-#' Create a preprocess.goldfish class object with the update statistics
-#' for estimation.
-#'
-#' @inheritParams estimate
-#' @param events list with all
-#' @param effects list of effects functions return by
-#'   `create_effects_functions()`.
-#' @param events_objects_link data.frame output of `get_events_and_objects_link()`.
-#' @param events_effects_link data.frame output of `get_events_effects_link()`.
-#' @param objects_effects_link data.frame output of `get_objects_effects_link()`.
-#' @param nodes character with the object that contains the nodes information
-#' @param nodes2 character with the object that contains the nodes information,
-#'   different from `nodes` when `is_two_mode = TRUE`.
-#' @param is_two_mode logical is it a two mode network?
-#' @param startTime numerical start time to preprocess the data
-#' @param endTime numerical end time to preprocess the data
-#' @param is_exact_time logical does the sub-model model waiting times? A
-#'   waiting-time model contributes the right-censored intervals to its
-#'   likelihood; an ordinal one models only which event came next.
-#' @param progress logical should print progress
-#'
-#' @return a list of class goldfishStat
-#'
-#' @noRd
-preprocess_monolith <- function(
-  model,
-  sub_model,
-  events,
-  effects,
-  window_parameters,
-  ignore_rep_parameter,
-  events_objects_link,
-  events_effects_link,
-  objects_effects_link,
-  # multiple_parameter,
-  nodes,
-  nodes2 = nodes,
-  is_two_mode,
-  # add more parameters
-  startTime = min(vapply(events, function(x) min(x$time), double(1))),
-  endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  is_exact_time = FALSE,
-  opportunitiesList = NULL,
-  progress = FALSE,
-  prep_envir = new.env()
-) {
-  # For debugging
-  # if (identical(environment(), globalenv())) {
-  #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
-  #   endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-  #   progress <- FALSE
-  # }
-
-  # print(match.call())
-  # initialize statistics functions from data objects
-  # number of actors
-  n1 <- nrow(get(nodes, envir = prep_envir))
-  n2 <- nrow(get(nodes2, envir = prep_envir))
-  nEffects <- length(effects)
-
-  # check start time and end time are valid values, set flags
-  hasEndTime <- FALSE
-  hasStartTime <- FALSE
-  isValidEvent <- TRUE
-
-  is_window_effect <- !vapply(window_parameters, is.null, logical(1))
-  which_event_no_window_effect <- events_effects_link[,
-    !is_window_effect,
-    drop = FALSE
-  ]
-  which_event_no_window_effect <- rowSums(!is.na(which_event_no_window_effect))
-  which_event_no_window_effect <- c(1, which(which_event_no_window_effect > 0))
-
-  has_ignore_rep <- any(ignore_rep_parameter)
-
-  events_min <- min(vapply(
-    events[which_event_no_window_effect],
-    function(x) min(x$time),
-    double(1)
-  ))
-  events_max <- max(vapply(
-    events[which_event_no_window_effect],
-    function(x) max(x$time),
-    double(1)
-  ))
-  if (is.null(endTime)) {
-    endTime <- events_max
-    if (any(is_window_effect)) hasEndTime <- TRUE
-  } else if (endTime != events_max) {
-    if (!is.numeric(endTime)) {
-      endTime <- as.numeric(endTime)
-    }
-    if (events_min > endTime) {
-      stop("End time smaller than first event time.", call. = FALSE)
-    }
-    # to solve: if endTime > events_max
-    # should it produce censored events? warning?
-    # add a fake event to the event list
-    # end_time_event <- data.frame(
-    #   time = endTime,
-    #   sender = NA,
-    #   receiver = NA,
-    #   replace = NA
-    # )
-    # events <- c(events, endtime = list(end_time_event))
-    hasEndTime <- TRUE
-  }
-  if (is.null(startTime)) {
-    startTime <- events_min
-  } else if (startTime != events_min) {
-    if (!is.numeric(startTime)) {
-      startTime <- as.numeric(startTime)
-    }
-    if (events_max < startTime) {
-      stop("Start time geater than last event time.", call. = FALSE)
-    }
-    hasStartTime <- TRUE
-    if (events_min < startTime) isValidEvent <- FALSE
-    # if (events_min > startTime) isValidEvent <- TRUE
-    # To solve: if startTime < events_min should be a warning?
-  }
-  ignore_events <- 1L # event_pos should be correct for initialization
-
-  # impute missing data in objects: 0 for networks and mean for attributes
-  imputed <- impute_missing_data(objects_effects_link, envir = prep_envir)
-
-  if (progress) {
-    cat("Initializing cache objects and statistical matrices.\n")
-  }
-
-  stat_cache <- initialize_cache_stat(
-    objects_effects_link = objects_effects_link,
-    effects = effects,
-    groups_network = NULL,
-    window_parameters = window_parameters,
-    n1 = n1,
-    n2 = n2,
-    model = model,
-    sub_model = sub_model,
-    envir = prep_envir
-  )
-  is_rate <- model == "DyNAM" && sub_model == "rate"
-  if (is_rate) {
-    initial_stats <- do.call(cbind, lapply(stat_cache, "[[", "stat"))
-  } else {
-    initial_stats <- array(
-      unlist(lapply(stat_cache, "[[", "stat")),
-      dim = c(n1, n2, nEffects)
-    )
-  }
-
-  stat_cache <- lapply(stat_cache, "[[", "cache")
-
-  # UPDATED ALVARO: logical values indicating the type of information in events
-  is_increment_event <- vapply(
-    events,
-    function(x) "increment" %in% names(x),
-    logical(1)
-  )
-  is_node_event <- vapply(events, function(x) "node" %in% names(x), logical(1))
-  is_global_event <- vapply(
-    events,
-    function(x) !any(c("node", "sender", "receiver") %in% names(x)),
-    logical(1)
-  )
-  is_global_event[1] <- FALSE
-
-  # initialize return objects
-
-  # calculate total of events
-  time <- unique(events[[1]]$time)
-  if (is_exact_time) {
-    n_right_censored_events <- unique(unlist(lapply(events, function(x) {
-      x$time
-    })))
-    n_total_events <- as.integer(sum(n_right_censored_events <= endTime))
-    n_right_censored_events <- setdiff(n_right_censored_events, time)
-    if (length(n_right_censored_events) > 1) {
-      # count right censored events in the preprocessed window
-      n_right_censored_events <- as.integer(sum(
-        n_right_censored_events >= startTime &
-          n_right_censored_events <= endTime
-      ))
-      # -1 because the last event is the endTime event, correct if no events
-      n_right_censored_events <- ifelse(
-        n_right_censored_events > 1,
-        n_right_censored_events - 1L,
-        0L
-      )
-    } else {
-      n_right_censored_events <- 0L
-    }
-  } else {
-    n_right_censored_events <- 0L
-    n_total_events <- as.integer(nrow(events[[1]]))
-  }
-
-  n_dependent_events <- ifelse(
-    hasStartTime || hasEndTime,
-    as.integer(sum(time >= startTime & time <= endTime)),
-    as.integer(length(time))
-  )
-  n_total_change_events <- n_dependent_events + n_right_censored_events
-  stats_change <- vector("list", n_total_change_events)
-  intervals <- vector("numeric", n_total_change_events)
-  is_dependent <- vector("integer", n_total_change_events)
-  event_time <- vector("numeric", n_total_change_events)
-  event_sender <- vector("integer", n_total_change_events)
-  event_receiver <- vector("integer", n_total_change_events)
-  final_step <- FALSE
-  nodes_obj <- get(nodes, envir = prep_envir)
-  nodes2_obj <- get(nodes2, envir = prep_envir)
-  active_sender_init <- if (!is.null(nodes_obj$present)) {
-    nodes_obj$present
-  } else {
-    rep(TRUE, n1)
-  }
-  active_dyad_init <- if (!is.null(nodes2_obj$present)) {
-    nodes2_obj$present
-  } else {
-    rep(TRUE, n2)
-  }
-  comp_events1 <- attr(nodes_obj, "events")[
-    attr(nodes_obj, "dynamic_attribute") == "present"
-  ]
-  comp_events2 <- attr(nodes2_obj, "events")[
-    attr(nodes2_obj, "dynamic_attribute") == "present"
-  ]
-  active_sender_changes <- if (
-    length(comp_events1) > 0 && !is.na(comp_events1[1])
-  ) {
-    cc <- get(comp_events1[1], envir = prep_envir)
-    node_idx1 <- if (is.character(cc$node)) {
-      match(cc$node, nodes_obj$label)
-    } else {
-      as.integer(cc$node)
-    }
-    lapply(seq_len(nrow(cc)), function(i) {
-      list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i])
-    })
-  } else {
-    list()
-  }
-  active_dyad_changes <- if (
-    length(comp_events2) > 0 && !is.na(comp_events2[1])
-  ) {
-    cc <- get(comp_events2[1], envir = prep_envir)
-    node_idx2 <- if (is.character(cc$node)) {
-      match(cc$node, nodes2_obj$label)
-    } else {
-      as.integer(cc$node)
-    }
-    lapply(seq_len(nrow(cc)), function(i) {
-      list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i])
-    })
-  } else {
-    list()
-  }
-
-  # # Remove duplicates of event lists!
-
-  # initialize loop parameters
-  # pointers = [1,1,1](events have three elements:
-  # call_dependent(439*4), calls(439*4), friendship(766*4))
-  pointers <- rep(1, length(events))
-  valid_pointers <- rep(TRUE, length(events))
-  if (hasEndTime) {
-    valid_pointers <- vapply(events, function(x) x$time[1], double(1)) <=
-      endTime
-  }
-  pointer_temp_right_censored <- 1L
-  time <- startTime
-  interval <- 0L
-  # updates_dependent/updates_intervals: list of 6, each element if NULL
-  updates_dependent <- vector("list", nEffects)
-  updates_intervals <- vector("list", nEffects)
-
-  # initialize progressbar output, CHANGED ALVARO: add iterators
-
-  # i_right_censored <- 0
-  i_dependent_events <- 0L
-  i_total_events <- 0L
-  if (progress) {
-    cat("Preprocessing events.\n", startTime, endTime, n_total_events)
-    # # how often print, max 50 prints
-    pb <- utils::txtProgressBar(max = n_total_events, char = "*", style = 3)
-    dot_events <- ifelse(n_total_events > 50, ceiling(n_total_events / 50), 1)
-  }
-
-  # iterate over all event lists
-  while (any(valid_pointers)) {
-    i_total_events <- i_total_events + 1L
-    # times: the timepoint for next events to update in all event lists
-    times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
-      vapply(identity, numeric(1))
-    next_event <- which(valid_pointers)[head(
-      which.min(times[valid_pointers]),
-      1
-    )]
-    next_event_time <- times[next_event]
-    if (hasStartTime || hasEndTime) {
-      if (isValidEvent && next_event_time <= endTime) {
-        interval <- next_event_time - time
-      } else if (isValidEvent && next_event_time > endTime) {
-        interval <- endTime - time
-        next_event_time <- endTime
-        final_step <- TRUE
-      } else if (!isValidEvent && next_event_time >= startTime) {
-        interval <- next_event_time - startTime
-        isValidEvent <- TRUE
-      }
-    } else {
-      interval <- next_event_time - time
-    }
-
-    time <- next_event_time
-
-    isDependent <- next_event == 1 && !final_step
-
-    if (isValidEvent) {
-      event_pos <- pointers[1] + pointer_temp_right_censored - ignore_events
-    } else if (isDependent && !isValidEvent) {
-      ignore_events <- ignore_events + 1L
-      event_pos <- 0
-    }
-
-    # # CHANGED ALVARO: progress bar
-    if (progress && i_total_events %% dot_events == 0) {
-      utils::setTxtProgressBar(pb, i_total_events)
-    }
-
-    if (progress && i_total_events == n_total_events) {
-      utils::setTxtProgressBar(pb, i_total_events)
-      close(pb)
-    }
-
-    # Distinguish three cases
-    #   1. Dependent events (store stats)
-    #   2. right-censored events (store stats)
-    #   3. update change events (including right-censored events of 2.)
-    #      calculate statistics updates
-    #      update objects
-
-    # `event_order` is derived as the difference of these two counters, so a
-    # dependent event must advance both whether or not the observation window
-    # has opened. Advancing only the total would leave a gap across the
-    # burn-in fold, and an effect that reads adjacency in the event stream --
-    # trans(history = "consecutive") -- would find none.
-    if (isDependent) {
-      i_dependent_events <- 1L + i_dependent_events
-    }
-
-    # 1. store statistic updates for DEPENDENT events
-    if (isValidEvent && isDependent) {
-      stats_change[[event_pos]] <- updates_dependent
-      intervals[[event_pos]] <- interval
-      is_dependent[[event_pos]] <- 1L
-      event_time[[event_pos]] <- time
-      updates_dependent <- vector("list", nEffects)
-      updates_intervals <- vector("list", nEffects)
-      event <- events[[next_event]][pointers[next_event], ]
-      if (is_node_event[next_event]) {
-        event_sender[[event_pos]] <- event$node
-        event_receiver[[event_pos]] <- event$node
-      } else {
-        event_sender[[event_pos]] <- event$sender
-        event_receiver[[event_pos]] <- event$receiver
-      }
-    } else if (!isDependent) {
-      if (isValidEvent && is_exact_time && interval > 0) {
-        stats_change[[event_pos]] <- updates_intervals
-        intervals[[event_pos]] <- interval
-        is_dependent[[event_pos]] <- 0L
-        event_time[[event_pos]] <- time
-        rc_event <- events[[next_event]][pointers[next_event], ]
-        if (is_global_event[next_event]) {
-          event_sender[[event_pos]] <- NA_integer_
-          event_receiver[[event_pos]] <- NA_integer_
-        } else if (is_node_event[next_event] && length(rc_event) == 1) {
-          event_sender[[event_pos]] <- rc_event
-          event_receiver[[event_pos]] <- rc_event
-        } else if (is_node_event[next_event]) {
-          event_sender[[event_pos]] <- rc_event$node
-          event_receiver[[event_pos]] <- rc_event$node
-        } else {
-          event_sender[[event_pos]] <- rc_event$sender
-          event_receiver[[event_pos]] <- rc_event$receiver
-        }
-        updates_intervals <- vector("list", nEffects)
-        pointer_temp_right_censored <- pointer_temp_right_censored + 1
-      } # else if (isValidEvent && !final_step && interval > 0) {
-      #   time_intervals[[i_dependent_events + 1]] <- interval +
-      #     time_intervals[[i_dependent_events + 1]]
-      # }
-
-      # 3. update stats and data objects for OBJECT CHANGE EVENTS
-      # (all non-dependent events)
-
-      # Two steps are performed for non-dependent events
-      #   (0. get objects and update increment columns)
-      #   a. Calculate statistic updates for each event that relates
-      #     to the data update
-      #   b. Update the data objects
-
-      object_name_table <- events_objects_link[next_event, -1]
-      object_name <- object_name_table$name
-      object <- get_element_from_data_object_table(
-        object_name_table,
-        envir = prep_envir
-      )[[1]]
-      is_undirected_net <- FALSE
-      if (inherits(object, "network.goldfish")) {
-        is_undirected_net <- !attr(object, "directed")
-      }
-
-      # # CHANGED ALVARO: avoid dependence in variables position
-      if (is_global_event[next_event]) {
-        event <- events[[next_event]][
-          pointers[next_event],
-          "replace",
-          drop = FALSE
-        ]
-        # A global attribute has a single value, so a missing update cannot be
-        # imputed from other values: reject it rather than writing an arbitrary
-        # zero into the model.
-        if (is.na(event$replace)) {
-          cli::cli_abort(c(
-            "Global attribute {.val {object_name}} has a missing value at time
-             {.val {time}}.",
-            "x" = "A global attribute has a single value, so a missing update
-                   cannot be imputed from other values.",
-            "i" = "Give the event an explicit value."
-          ))
-        }
-      } else if (is_increment_event[next_event]) {
-        vars_keep <- c(
-          if (is_node_event[next_event]) "node" else c("sender", "receiver"),
-          "increment"
-        )
-        event <- events[[next_event]][pointers[next_event], vars_keep]
-        # missing data imputation
-        if (is_node_event[next_event]) {
-          old_value <- object[event$node]
-          # if the replace is missing impute by 0 because is increment
-          if (is.na(event$increment)) event$increment <- 0
-        }
-        if (!is_node_event[next_event]) {
-          old_value <- object[event$sender, event$receiver]
-          # if the replace is missing impute by 0 (not-tie)
-          if (is.na(event$increment)) event$increment <- 0
-        }
-        event$replace <- old_value + event$increment
-        event$increment <- NULL
-      } else {
-        vars_keep <- c(
-          if (is_node_event[next_event]) "node" else c("sender", "receiver"),
-          "replace"
-        )
-        event <- events[[next_event]][pointers[next_event], vars_keep]
-        # missing data imputation
-        if (is_node_event[next_event] && is.na(event$replace)) {
-          # The legacy engine carries one node set with no modes, so the pool is
-          # every other node -- one implicit category. Routing through the typed
-          # resolver still selects a mean or a most-common value by type, so a
-          # categorical attribute no longer gets a mean written into it.
-          event$replace <- impute_nodal_value(
-            object,
-            event$node,
-            NULL,
-            attribute_value_type(object)
-          )
-        }
-        if (!is_node_event[next_event] && is.na(event$replace)) {
-          # if the replace is missing impute by 0 (not-tie)
-          event$replace <- 0
-        }
-      }
-
-      # network update an negative replacement throws a warning
-      if (
-        !is_node_event[next_event] &&
-          !is_global_event[next_event] &&
-          event$replace < 0
-      ) {
-        warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
-      }
-
-      ## 3a. calculate statistics changes
-      if (!final_step) {
-        for (id in which(!is.na(events_effects_link[next_event, ]))) {
-          # create the ordered list for the objects
-          objects_to_pass <- objects_effects_link[, id][
-            !is.na(objects_effects_link[, id])
-          ]
-          names <- rownames(objects_effects_link)
-          names <- names[!is.na(objects_effects_link[, id])]
-          ordered_names <- names[order(objects_to_pass)]
-          ordered_object_table <- get_data_objects(list(list(
-            "",
-            ordered_names
-          )))
-          .objects <- get_element_from_data_object_table(
-            ordered_object_table,
-            envir = prep_envir
-          )
-          # identify class to feed effects functions
-          obj_cat <- assign_category_object(.objects)
-          att_ids <- which(obj_cat == "attribute")
-          net_ids <- which(obj_cat == "network")
-          if (attr(obj_cat, "none_class")) {
-            stop(
-              "An object is not assigned either as network or attibute",
-              paste(names[attr(obj_cat, "many_classes") != 1], collapse = ", "),
-              "check the class of the object.",
-              call. = FALSE
-            )
-          }
-
-          # call effects function with required arguments
-          .args_fun <- list(
-            network = if (length(.objects[net_ids]) == 1) {
-              .objects[net_ids][[1]]
-            } else {
-              .objects[net_ids]
-            },
-            attribute = if (length(.objects[att_ids]) == 1) {
-              .objects[att_ids][[1]]
-            } else {
-              .objects[att_ids]
-            },
-            cache = stat_cache[[id]],
-            n1 = n1,
-            n2 = n2,
-            net_update = if (length(.objects[net_ids]) <= 1) {
-              NULL
-            } else {
-              which(ordered_names == object_name)
-            },
-            att_update = if (length(.objects[att_ids]) <= 1) {
-              NULL
-            } else {
-              which(ordered_names == object_name)
-            },
-            # add more parameters:
-            # - consecutive updates in closure effects
-            # - inter_event_time (since last event right-censored included):
-            #   exponentially weighted decay effects
-            event_order = i_total_events - i_dependent_events,
-            inter_event_time = interval
-          )
-          effect_update <- call_fun(
-            effects,
-            id,
-            "effect",
-            c(.args_fun, event),
-            " cannot update \n",
-            colnames(objects_effects_link)[id]
-          )
-
-          # CHANGED - MABEL - need to update cache attributes for last_update when
-          # trans or cycle and history = "consecutive"
-          if (!is.null(attr(effect_update$cache, 'last_update'))) {
-            attr(stat_cache[[id]], "last_update") <- attr(
-              effect_update$cache,
-              'last_update'
-            )
-          }
-
-          updates <- effect_update$changes
-          # if cache and changes are not null update cache
-          if (
-            !is.null(effect_update$cache) && !is.null(effect_update$changes)
-          ) {
-            stat_cache[[id]] <- effect_update$cache
-          }
-
-          if (is_undirected_net) {
-            event2 <- event
-            event2$sender <- event$receiver
-            event2$receiver <- event$sender
-            if (
-              !is.null(effect_update$cache) &&
-                !is.null(effect_update$changes)
-            ) {
-              # styler: off
-              .args_fun$cache <- stat_cache[[id]]
-            }
-            effect_update2 <- call_fun(
-              effects,
-              id,
-              "effect",
-              c(.args_fun, event2),
-              " cannot update \n",
-              colnames(objects_effects_link)[id]
-            )
-
-            if (
-              !is.null(effect_update2$cache) &&
-                !is.null(effect_update2$changes)
-            ) {
-              # styler: off
-              stat_cache[[id]] <- effect_update2$cache
-            }
-            updates2 <- effect_update2$changes
-            updates <- rbind(updates, updates2)
-          }
-
-          if (!is.null(updates)) {
-            if (hasStartTime && next_event_time < startTime) {
-              if (is_rate) {
-                initial_stats[cbind(updates[, "node1"], id)] <- updates[,
-                  "replace"
-                ]
-              } else {
-                initial_stats[cbind(
-                  updates[, "node1"],
-                  updates[, "node2"],
-                  id
-                )] <-
-                  updates[, "replace"]
-              }
-            } else {
-              # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
-              # AND IMPUTE THE MISSING VALUES
-              # if (anyNA(stat_cache[[id]][["stat"]])) {
-              #   position_NA <- which(
-              #     is.na(stat_cache[[id]][["stat"]]),
-              #     arr.ind  = TRUE
-              #   )
-              #   average <- mean(stat_cache[[id]][["stat"]], na.rm = TRUE)
-              #   updates[is.na(updates[, "replace"]), "replace"] <- average
-              #   stat_cache[[id]][["stat"]][position_NA] <- average
-              # }
-
-              updates_dependent[[id]] <- rbind(updates_dependent[[id]], updates)
-              updates_intervals[[id]] <- rbind(updates_intervals[[id]], updates)
-            }
-          }
-        }
-      }
-
-      # 3b. Update the data object
-      if (!final_step) {
-        if (is_global_event[next_event]) {
-          object <- event$replace
-        } else if (!is.null(event$node)) {
-          object[event$node] <- event$replace
-        } else if (!is.null(event$sender)) {
-          # [sender, receiver] value: replace value of the event
-          object[event$sender, event$receiver] <- event$replace
-          if (is_undirected_net) {
-            object[event$receiver, event$sender] <- event$replace
-          }
-        }
-        # Assign object
-        assign("object", object, envir = prep_envir)
-        eval(
-          parse(text = paste(object_name, "<- object")),
-          envir = prep_envir,
-          enclos = parent.frame()
-        )
-      }
-    } # end 3. (!dependent)
-
-    # update events pointers
-    pointers[next_event] <- 1 + pointers[next_event]
-    valid_pointers <- pointers <= vapply(events, nrow, integer(1)) &
-      times <= endTime
-
-    # Stop at the end of the window rather than draining the remaining
-    # pointers. Nothing past it is stored, so visiting those events only costs
-    # time -- and the recipe loops already stop here, which is the disagreement
-    # that mattered: two preprocessing paths cannot mean different things by
-    # the end of the observation window.
-    if (final_step) break
-  }
-
-  if (progress && utils::getTxtProgressBar(pb) < n_total_events) {
-    close(pb)
-  }
-
-  new_goldfish_stat(
-    list(
-      initial_stats = initial_stats,
-      stats_change = stats_change,
-      intervals = intervals,
-      is_dependent = is_dependent,
-      event_time = event_time,
-      event_sender = event_sender,
-      event_receiver = event_receiver,
-      event_pos = seq_len(length(stats_change)),
-      active_sender_init = active_sender_init,
-      active_sender_changes = active_sender_changes,
-      active_dyad_init = active_dyad_init,
-      active_dyad_changes = active_dyad_changes,
-      active_dyad_encoding = if (identical(model, "REM")) "outer" else "alter",
-      start_time = startTime,
-      end_time = endTime
-    ),
-    storage = "pointer"
-  )
 }
 
 #' initialize the cache object or the stat matrices

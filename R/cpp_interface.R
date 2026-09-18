@@ -1248,30 +1248,49 @@ gather_ <- function(
   return(gathered_data)
 }
 
-# Apply the slice of flat stat updates for one event, in place.
-# `upd` is the 4 x k flat buffer (rows node1, node2, effect, replace;
-# all 0-indexed); columns `(from + 1):to` (1-indexed) are applied. Later
-# writes to the same cell win, matching the sequential C++ assignment.
-.gather_apply_stat <- function(stat_mat, upd, from, to, n2) {
+# The cells one event's slice of flat stat updates writes, as a `[<-` subscript
+# and the values to write. `upd` is the 4 x k flat buffer (rows node1, node2,
+# effect, replace; all 0-indexed); columns `(from + 1):to` (1-indexed) are
+# taken. Duplicate cells stay in order, so the caller's single subassignment
+# leaves the later write standing, matching the sequential C++ assignment.
+#
+# This returns the cells rather than writing them because the caller's buffer
+# is what must not be duplicated. Passing an n1*n2 x p matrix to a helper binds
+# it to a second name, which marks it shared, so the helper's own subassignment
+# copies the whole buffer -- every event, on a matrix that is 27 MB at 1899
+# actors. Measured on a 400^2 x 8 buffer: 1.13 ms per event through a helper
+# that writes, 0.017 ms with the write left to the caller, and `tracemem`
+# reports no duplication at all on the second.
+.gather_stat_cells <- function(upd, from, to, n2) {
   if (to <= from) {
-    return(stat_mat)
+    return(NULL)
   }
   cols <- (from + 1L):to
-  rr <- upd[1, cols] * n2 + upd[2, cols] + 1
-  cc <- upd[3, cols] + 1
-  stat_mat[cbind(rr, cc)] <- upd[4, cols]
-  stat_mat
+  list(
+    idx = cbind(upd[1, cols] * n2 + upd[2, cols] + 1, upd[3, cols] + 1),
+    value = upd[4, cols]
+  )
 }
 
-# Apply the slice of broadcast (constant-value fan-out) updates for one event,
-# in place, on the flattened n1*n2 x p `stat_mat`. `bc` is the 4 x M broadcast
+# The blocks one event's slice of broadcast (constant-value fan-out) updates
+# writes on the flattened n1*n2 x p `stat_mat`. `bc` is the 4 x M broadcast
 # buffer (rows kind, fixed, effect, replace; fixed and effect 0-indexed);
-# columns `(from + 1):to` (1-indexed) are applied. Mirrors the C++
+# columns `(from + 1):to` (1-indexed) are taken. Each block is a row selection,
+# one column, and the single value to recycle across it. Mirrors the C++
 # apply_broadcast_updates(): kind 1 over senders holding alter `fixed`, kind 2
 # over alters holding ego `fixed`, kind 3 over all actors, skipping the
 # reflexive diagonal cell when `!twomode_or_reflexive`.
-.gather_apply_broadcast <- function(
-  stat_mat,
+#
+# A block rather than the (cell, value) pairs `.gather_stat_cells()` returns,
+# because a broadcast is a whole axis and pairing it cell by cell is what makes
+# it expensive. The full fan-out touches n1*n2 cells for one effect: written as
+# a block it recycles one scalar down a column selection, written as pairs it
+# needs an n1*n2 x 2 index matrix and an n1*n2 value vector beside it. Measured
+# on a 1200^2 x 3 buffer, full fan-out: 43.5 ms per event through a helper that
+# writes, 74 ms through paired cells, 5.5 ms through blocks. The caller does the
+# write for the same reason as the stat cells -- binding the buffer to a second
+# name is what makes it copy.
+.gather_broadcast_blocks <- function(
   bc,
   from,
   to,
@@ -1280,45 +1299,47 @@ gather_ <- function(
   twomode_or_reflexive
 ) {
   if (to <= from) {
-    return(stat_mat)
+    return(NULL)
   }
-  for (b in (from + 1L):to) {
-    kind <- bc[1, b]
-    fixed <- bc[2, b]
-    effect <- bc[3, b] + 1L
-    value <- bc[4, b]
-    if (kind == 1L) {
-      rows <- if (twomode_or_reflexive) {
+  lapply((from + 1L):to, function(entry) {
+    kind <- bc[1, entry]
+    fixed <- bc[2, entry]
+    rows <- if (kind == 1L) {
+      senders <- if (twomode_or_reflexive) {
         seq_len(n1) - 1L
       } else {
         setdiff(seq_len(n1) - 1L, fixed)
       }
-      stat_mat[rows * n2 + fixed + 1L, effect] <- value
+      senders * n2 + fixed + 1L
     } else if (kind == 2L) {
-      cols <- if (twomode_or_reflexive) {
+      alters <- if (twomode_or_reflexive) {
         seq_len(n2) - 1L
       } else {
         setdiff(seq_len(n2) - 1L, fixed)
       }
-      stat_mat[fixed * n2 + cols + 1L, effect] <- value
+      fixed * n2 + alters + 1L
     } else {
-      ij <- expand.grid(i = seq_len(n1) - 1L, j = seq_len(n2) - 1L)
-      if (!twomode_or_reflexive) {
-        ij <- ij[ij$i != ij$j, ]
+      cells <- seq_len(n1 * n2)
+      if (twomode_or_reflexive) {
+        cells
+      } else {
+        # The flat position of each reflexive cell (i, i), dropped from the
+        # fan-out. Only the shared prefix of the two axes has one.
+        reflexive <- seq_len(min(n1, n2))
+        cells[-((reflexive - 1L) * n2 + reflexive)]
       }
-      stat_mat[ij$i * n2 + ij$j + 1L, effect] <- value
     }
-  }
-  stat_mat
+    list(rows = rows, col = bc[3, entry] + 1L, value = bc[4, entry])
+  })
 }
 
 # Apply the slice of presence (composition-change) updates for one event.
 # `upd` row 1 is the 1-indexed node, row 2 the replacement value.
 .gather_apply_presence <- function(presence, upd, from, to) {
-  if (to <= from) {
+  cols <- .availability_event_cols(from, to)
+  if (is.null(cols)) {
     return(presence)
   }
-  cols <- (from + 1L):to
   presence[upd[1, cols]] <- upd[2, cols]
   presence
 }
@@ -1327,10 +1348,10 @@ gather_ <- function(
 # n1 x n2 availability matrix. `upd` rows are (node1, node2, replace), all
 # 1-indexed on the node axes; later writes to the same cell win.
 .gather_apply_presence_point <- function(active_dyad, upd, from, to) {
-  if (to <= from) {
+  cols <- .availability_event_cols(from, to)
+  if (is.null(cols)) {
     return(active_dyad)
   }
-  cols <- (from + 1L):to
   active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
   active_dyad
 }
@@ -1416,17 +1437,13 @@ gather_sender_receiver_model_r <- function(
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
-    stat_mat <- .gather_apply_stat(
-      stat_mat,
-      stat_mat_update,
-      update_id,
-      ptr,
-      n_actors2
-    )
+    cells <- .gather_stat_cells(stat_mat_update, update_id, ptr, n_actors2)
+    if (!is.null(cells)) {
+      stat_mat[cells$idx] <- cells$value
+    }
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
-    stat_mat <- .gather_apply_broadcast(
-      stat_mat,
+    blocks <- .gather_broadcast_blocks(
       stat_mat_broadcast,
       bc_id,
       bc_ptr,
@@ -1434,6 +1451,9 @@ gather_sender_receiver_model_r <- function(
       n_actors2,
       twomode_or_reflexive
     )
+    for (block in blocks) {
+      stat_mat[block$rows, block$col] <- block$value
+    }
     bc_id <- bc_ptr
     if (has_cc1) {
       ptr1 <- active_sender_update_pointer[e]
@@ -1570,17 +1590,13 @@ gather_receiver_model_r <- function(
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
-    stat_mat <- .gather_apply_stat(
-      stat_mat,
-      stat_mat_update,
-      update_id,
-      ptr,
-      n_actors2
-    )
+    cells <- .gather_stat_cells(stat_mat_update, update_id, ptr, n_actors2)
+    if (!is.null(cells)) {
+      stat_mat[cells$idx] <- cells$value
+    }
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
-    stat_mat <- .gather_apply_broadcast(
-      stat_mat,
+    blocks <- .gather_broadcast_blocks(
       stat_mat_broadcast,
       bc_id,
       bc_ptr,
@@ -1588,6 +1604,9 @@ gather_receiver_model_r <- function(
       n_actors2,
       twomode_or_reflexive
     )
+    for (block in blocks) {
+      stat_mat[block$rows, block$col] <- block$value
+    }
     bc_id <- bc_ptr
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
@@ -1673,17 +1692,13 @@ gather_sender_model_r <- function(
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
-    stat_mat <- .gather_apply_stat(
-      stat_mat,
-      stat_mat_update,
-      update_id,
-      ptr,
-      n_actors2
-    )
+    cells <- .gather_stat_cells(stat_mat_update, update_id, ptr, n_actors2)
+    if (!is.null(cells)) {
+      stat_mat[cells$idx] <- cells$value
+    }
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
-    stat_mat <- .gather_apply_broadcast(
-      stat_mat,
+    blocks <- .gather_broadcast_blocks(
       stat_mat_broadcast,
       bc_id,
       bc_ptr,
@@ -1691,6 +1706,9 @@ gather_sender_model_r <- function(
       n_actors2,
       twomode_or_reflexive
     )
+    for (block in blocks) {
+      stat_mat[block$rows, block$col] <- block$value
+    }
     bc_id <- bc_ptr
     if (has_cc1) {
       ptr1 <- active_sender_update_pointer[e]

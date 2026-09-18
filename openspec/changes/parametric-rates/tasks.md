@@ -60,6 +60,13 @@
 - [ ] 3.4 Simulation-recovery tests: weibull k < 1 and k > 1 recovery,
       gompertz γ ≠ 0 recovery, exponential data under weibull gives k̂ ≈ 1;
       weak-information divergence test reports instead of looping
+- [ ] 3.4a Free-running Weibull/Gompertz clocks as `clock` steps (moved here
+      2026-09-15 from `process-simulation` 2.4, ADR-0074): analytic inversion
+      of `Σλ_i·[G(t+w) − G(t)]` per constant-rate segment (common-shape
+      closure) plugged into `set_simulation_steps(clock = )`, honoring the
+      exponential clock's breakpoint contract; the per-actor time origin
+      across a breakpoint settled with 3.4's DGP (design open question);
+      3.4's recovery tests use it. Depends on `process-simulation` 2.2.
 - [ ] 3.5 Verify group: cpp-recompile then not-cran-test with baselines PASS
       (exponential path bit-stable), bump DESCRIPTION + NEWS (phase milestone)
 

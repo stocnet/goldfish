@@ -650,3 +650,18 @@ test_that("an attribute aggregated over a covariate's senders reads there", {
     label = "the sponsor tie at t = 1.5, then O2's size change"
   )
 })
+
+test_that("a network name the stocnet source cannot resolve aborts by name", {
+  # The existence check used to materialize the full n1 x n2 matrix and let a
+  # missing layer die inside that allocation as `non-numeric matrix extent`.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+  expect_error(
+    build_object_keys(
+      "nosuch",
+      nodes = "nodes_side1",
+      nodes2 = "nodes_side2",
+      src = src
+    ),
+    "not a layer"
+  )
+})

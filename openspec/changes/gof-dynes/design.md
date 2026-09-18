@@ -192,6 +192,21 @@ lookup key for the maintainer's decision log, not required reading):
 `test_nested.default` naming the generic in its error message is the mitigation
 for users who reach for `anova()` first.
 
+**Revised 2026-09-14 — the surface is `test_parameter(m1, type = "lr", null =
+m0)`, not `test_nested()`** (ADR-0072 supersedes ADR-0037; lookup key only).
+`printing-homogenization` gives `test_parameter()` three `type`s of one
+restriction test — score (today's), Wald (full fit, flat `coef()`/`vcov()`)
+and likelihood ratio (against a `null` fit) — mirroring RSiena's
+`score.Test()`/`Wald.RSiena()` shape, which has no two-fit entry point. This
+change supplies the DyNES **method** of `test_parameter()`, whose `"lr"` type
+is the bootstrap-adjusted test above and whose `"score"`/`"wald"` types it
+decides with the Fisher approximation. Both reasons above survive: no
+`anova()`, and the generic has no parent default, so the exact-likelihood
+`"lr"` can never reach a DyNES fit by inheritance. The contract table,
+D5–D6 and the `nested-model-lr-test` capability are unchanged in substance;
+the rename sweep (`lr_test_dynes` → the new spelling) is still owed at apply
+time.
+
 ### D5 — RE-permutation sampler mirrors the estimation augmenter (permute-only v1)
 Phase 2's sampler is the estimation MCMC augmenter with the layers' roles swapped:
 **RE times move, PE times are fixed**. It reuses the exact window rule and

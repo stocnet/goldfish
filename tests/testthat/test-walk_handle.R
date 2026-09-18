@@ -257,6 +257,22 @@ test_that("walk_inject makes an event visible to every reading fid", {
   expect_equal(walk_evaluate(handle, 2L, theta_choice)$value, calls_after)
 })
 
+test_that("a sender's row equals its block of the full choice matrix", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  walk_advance(handle, 4.5)
+  theta_choice <- c(0, 2)
+  n2 <- 6L
+
+  full <- walk_evaluate(handle, 2L, theta_choice)$value
+  for (s in seq_len(6L)) {
+    row <- walk_evaluate(handle, 2L, theta_choice, sender = s)
+    expect_equal(row$value, full[(s - 1L) * n2 + seq_len(n2)])
+    expect_identical(row$index$index_i, rep(s, n2))
+    expect_identical(row$index$index_j, seq_len(n2))
+  }
+})
+
 test_that("handle misuse aborts with cli errors", {
   local_cli_context()
   js <- walk_two_process()
@@ -297,6 +313,17 @@ test_that("handle misuse aborts with cli errors", {
     walk_evaluate(handle, 1L, c(0, 0, 0)),
     class = "goldfish_walk_bad_theta"
   )
+
+  # A sender out of range, and a sender asked of a fid that has no per-sender
+  # row to give (fid 1 is the rate model).
+  expect_error(
+    walk_evaluate(handle, 2L, c(0, 0), sender = 99L),
+    class = "goldfish_walk_bad_sender"
+  )
+  expect_error(
+    walk_evaluate(handle, 1L, c(0, 0), sender = 1L),
+    class = "goldfish_walk_bad_sender"
+  )
   expect_error(
     walk_inject(
       handle,
@@ -334,7 +361,7 @@ test_that("walk_open aborts on an incomplete specification", {
   expect_snapshot(walk_open(js), error = TRUE)
 })
 
-test_that("walk_open defers effect-free completed defaults to the consumers", {
+test_that("walk_open defers a whole effect-free family without renumbering", {
   local_cli_context()
   data <- walk_fixture_data()
   calls_rate_only <- make_specification(
@@ -353,14 +380,309 @@ test_that("walk_open defers effect-free completed defaults to the consumers", {
   js <- suppressWarnings(
     make_joint_specification(calls_rate_only, emails_spec, data = data)
   )
-  # Completion supplies a uniform (effect-free) calls choice; that block passes
-  # the completeness assert but is walked by simulate() / estimate_dynes(), not
-  # this substrate -- a clear boundary, not the incomplete-spec abort.
+  # Completion supplies an effect-free calls choice. Nothing can compile it,
+  # so the walk defers it and keeps every fid the specification numbered.
   completed <- suppressWarnings(
     complete_generative_spec(js, consumer = "simulate")
   )
+  handle <- walk_open(completed)
+
+  expect_identical(handle$process_map$fid, completed$process_map$fid)
+  expect_identical(handle$deferred$fid, 2L)
+  expect_setequal(
+    unlist(lapply(handle$engines, `[[`, "fids")),
+    c(1L, 3L, 4L)
+  )
+  expect_snapshot(walk_evaluate(handle, 2L, numeric(0)), error = TRUE)
+
+  # The fids after the deferred one still mean what they meant: emails'
+  # choice evaluates exactly as it does with calls absent.
+  alone <- walk_open(emails_spec)
+  expect_equal(
+    walk_evaluate(handle, 4L, c(0.2, 0.3), sender = 1L)$value,
+    walk_evaluate(alone, 2L, c(0.2, 0.3), sender = 1L)$value
+  )
+})
+
+# Replay a specification's observed schedule through the handle and compare
+# each fid's live evaluation at its own dependent events against the batch
+# materialization. Returns the number of comparisons and of excluded
+# alternatives among the compared choice rows, so a test can confirm the risk
+# set it compared actually excluded something.
+walk_replay_against_batch <- function(spec) {
+  batch <- suppressWarnings(preprocess_joint(spec))
+  map <- attr(batch, "process_map")
+  handle <- suppressWarnings(walk_open(spec))
+  schedule <- handle$schedule
+  dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
+  n_checked <- 0L
+  n_excluded <- 0L
+  for (k in seq_len(schedule$n)) {
+    # Driven by schedule position, not by time alone: a dependent row is
+    # evaluated before the covariate rows sharing its stamp. An exogenous row is
+    # reached through walk_advance(), which owns its cursor; a focal covariate
+    # row is the realization of a dependent event, which the driver injects.
+    if (
+      !schedule$dependent[k] && !(schedule$layer[k] %in% handle$focal_layers)
+    ) {
+      walk_advance(handle, schedule$time[k])
+      next
+    }
+    if (!schedule$dependent[k]) {
+      event <- list(
+        layer = schedule$layer[k],
+        sender = schedule$sender[k],
+        receiver = schedule$receiver[k],
+        time = schedule$time[k]
+      )
+      event[[schedule$semantics[k]]] <- schedule$value[[k]]
+      walk_inject(handle, event)
+      next
+    }
+    # The composition in force at a dependent event includes changes at its
+    # own stamp; the exogenous rows sharing that stamp come after it.
+    walk_advance_presence(handle, schedule$time[k])
+    own <- map$fid[
+      map$layer == schedule$layer[k] &
+        (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
+    ]
+    for (fid in own) {
+      key <- as.character(fid)
+      dep_count[[key]] <- dep_count[[key]] + 1L
+      row <- map[map$fid == fid, ]
+      is_rate <- identical(row$family, "rate")
+      out <- batch[[key]]
+      n_parameters <- if (is_rate) {
+        ncol(out$initial_stats) + row$has_intercept
+      } else {
+        dim(out$initial_stats)[3]
+      }
+      theta <- rep_len(c(0.4, -0.3, 0.25), n_parameters)
+      live <- walk_evaluate(handle, fid, theta)
+      state <- materialize_process_state(
+        out,
+        model_type = if (is_rate) "DyNAM-M-Rate" else "DyNAM-M",
+        event_index = which(out$is_dependent == 1L)[dep_count[[key]]],
+        has_intercept = row$has_intercept
+      )
+      reference <- evaluate_process_state(state, theta)$value
+      if (is_rate) {
+        expect_equal(live$value, reference)
+      } else {
+        sender <- schedule$sender[k]
+        n2 <- state$n_actors2
+        live_row <- live$value[(sender - 1L) * n2 + seq_len(n2)]
+        expect_equal(live_row, reference)
+        n_excluded <- n_excluded + sum(live_row[-sender] == 0)
+      }
+      n_checked <- n_checked + 1L
+    }
+  }
+  list(n_checked = n_checked, n_excluded = n_excluded)
+}
+
+# calls is the modeled layer; emails is an exogenous layer the choice reads, so
+# a constraint on it is stepped by the shared walk. Email stamps sit between the
+# call stamps: a support mask reads the atoms strictly before an event's time,
+# and a tie would make the batch and the live read differ by definition.
+walk_constrained_data <- function(emails) {
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    cbind(emails, layer = "emails")
+  )
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+}
+
+test_that("a dyadic support constraint is maintained live on the handle", {
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a receiver-axis support constraint is maintained live", {
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(6L, 6L, 2L, 3L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ indeg(emails) < 1
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a flavored layer's derived masks are maintained live", {
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    layer = "calls",
+    model = "DyNAM",
+    data = flavored_fixture_data()
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a constraint on an object no formula reads is refused", {
+  local_cli_context()
+  # The deprecated preprocessing default warns once per session, so whether it
+  # reaches this snapshot depends on test order; the snapshot is the abort.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L),
+    to = c(1L, 2L),
+    time = c(1.5, 2.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  expect_snapshot(walk_open(spec), error = TRUE)
+})
+
+test_that("node-composition changes advance with the handle's clock", {
+  data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
+  # N6 is never called and N1 is called only after it returns, so no observed
+  # event reaches an absent node; N1 is also an absent sender at t = 3 and 4.
+  changes <- data.frame(
+    time = c(1.5, 2.5, 3.5, 4.5),
+    node = c(6L, 1L, 6L, 1L),
+    var = "active"
+  )
+  changes$value <- list(list(FALSE), list(FALSE), list(TRUE), list(TRUE))
+  data$changes <- changes
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+
+  handle <- suppressWarnings(walk_open(spec))
+  expect_equal(walk_next_breakpoint(handle), 1.5)
+  walk_advance(handle, 2.5)
+  expect_equal(walk_evaluate(handle, 1L, c(0, 0))$value[c(1L, 6L)], c(0, 0))
+})
+
+test_that("window effects replay against the batch walk", {
+  for (spec in list(
+    parity_toy_spec_windowed(),
+    parity_toy_spec_windowed_rate()
+  )) {
+    replay <- walk_replay_against_batch(spec)
+    expect_gt(replay$n_checked, 0L)
+  }
+})
+
+test_that("a scheduled event applies when the clock reaches it", {
+  js <- walk_two_process()
+  event <- list(
+    layer = "friendship",
+    sender = 5L,
+    receiver = 6L,
+    increment = 1,
+    time = 1.25
+  )
+
+  scheduled <- walk_open(js)
+  walk_schedule(scheduled, event)
+  expect_equal(walk_next_breakpoint(scheduled), 1)
+  walk_advance(scheduled, 1)
+  expect_equal(walk_next_breakpoint(scheduled), 1.25)
+  expect_equal(scheduled$state$networks[["friendship"]][5, 6], 0)
+  walk_advance(scheduled, 1.5)
+  expect_equal(walk_next_breakpoint(scheduled), 2)
+  expect_equal(scheduled$state$networks[["friendship"]][5, 6], 1)
+
+  injected <- walk_open(js)
+  walk_advance(injected, 1)
+  walk_inject(injected, event)
+  walk_advance(injected, 1.5)
+  expect_equal(
+    walk_evaluate(scheduled, 2L, c(0, 2))$value,
+    walk_evaluate(injected, 2L, c(0, 2))$value
+  )
+})
+
+test_that("scheduled events apply in time order, ties in scheduling order", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  replace_at <- function(value, time) {
+    list(
+      layer = "friendship",
+      sender = 5L,
+      receiver = 6L,
+      replace = value,
+      time = time
+    )
+  }
+  walk_schedule(handle, replace_at(9, 1.75))
+  walk_schedule(handle, replace_at(3, 1.25))
+  walk_schedule(handle, replace_at(7, 1.25))
+
+  walk_advance(handle, 1.5)
+  expect_equal(handle$state$networks[["friendship"]][5, 6], 7)
+  walk_advance(handle, 1.8)
+  expect_equal(handle$state$networks[["friendship"]][5, 6], 9)
+  expect_equal(walk_next_breakpoint(handle), 2)
+})
+
+test_that("scheduling misuse aborts with cli errors", {
+  js <- walk_two_process()
+  handle <- walk_open(js)
+  walk_advance(handle, 3)
+  event <- list(layer = "friendship", sender = 5L, receiver = 6L, increment = 1)
+  expect_error(walk_schedule(handle, event), class = "goldfish_walk_bad_event")
   expect_error(
-    walk_open(completed),
-    class = "goldfish_walk_unsupported"
+    walk_schedule(handle, c(event, time = 2)),
+    class = "goldfish_walk_out_of_order"
   )
 })

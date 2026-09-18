@@ -116,6 +116,26 @@
 - [ ] 3.3 Implement endogenous `object_default` injection and the exogenous
       missing-object error (D7); set `is_two_mode`/`directed` authoritatively
       from object attributes (replacing the parser inference warning).
+- [ ] 3.3b Bind the update/init functions and every argument to VALUES once at
+      construction (D26). The constructor takes `term_def$update` /
+      `term_def$init` as function objects (no `eval(parse(text = "update_..."))`,
+      no per-spec `formals<-` rewrite); evaluates each non-object argument
+      exactly once in the formula's environment and stores the value; resolves
+      each object argument (network, attribute, window source) to a data-source
+      KEY and stores the key, so the walk keeps supplying the object per event
+      from the state container and the global-environment fallback goes away
+      with the deferral. Retire the deferred `call("eval", parse(text = s))`
+      signature entries, the `type`/`history` `eval(parse(text = v), envir)`
+      in `parse_multiple_effects()` and the window-name eval in the window
+      branch, all onto the same once-at-construction path. Tests per D26: the
+      counting probe evaluates once per construction; `formals()` of a registry
+      update function is unchanged by constructing a spec; a spec built from a
+      global-environment variable survives that variable's removal with
+      identical numbers. Baselines PASS throughout (adapter-first). Land it
+      before 4.1 routes the parser through the constructor, so 4.1 has one
+      resolution path to route to. Write the ADR when it lands (D26 records the
+      design; the vault entry records the decision and the two rejected
+      alternatives).
 - [ ] 3.4 Implement the constructed term's `build_plan` field (D16): move the
       parser's ad-hoc window-object creation into build-time promises the
       preprocessing phase fulfills (window now; `retain`/categorical slots
@@ -135,6 +155,9 @@
       `parse_multiple_effects()` (`R/formula_parser.R`) with
       `get_term_def()` + `construct_term()`; feed the resolved references into
       the existing parser outputs / `build_update_plan()` `effects` registry.
+      The constructor already carries the function objects and the resolved
+      argument values (3.3b, D26), so this task removes the parser's
+      `eval(parse())` sites rather than re-pointing them.
 - [ ] 4.2 Ensure the strict validity declarations (1.3) reproduce current accept/
       reject behaviour: every formula that estimated still constructs, every one
       that errored still errors — **except for the one intended break** below.
@@ -374,3 +397,56 @@
 - [ ] 11.3 Tests: character window on numeric axis aborts; difftime/duration windows
       equal their numeric-seconds equivalents to machine precision; snapshot the cli
       errors
+
+## ADR obligations settled 2026-09-11
+
+Three ADRs name this change as the place their rule is enforced or their
+question answered. Added here so the obligation travels with the change rather
+than living in a decision record nobody reads at implementation time.
+
+- [ ] R1 **The shared-core conformance test** ([ADR-0061](../../../decisions),
+      accepted 2026-09-11). A new effect, operand, constraint atom or mask must
+      declare a broadcast kind and maintain it through the shared
+      maintain-at-kind core, never by adding its own path. Assert it from the
+      registry: enumerate the maintained values and fail on one that does not
+      reach the shared write. The rule was a review convention until now, and a
+      review convention is exactly what was in place while the dyad operand
+      branch and the constraint atoms each grew their own path.
+- [ ] R2 **The aliasing-invariant conformance test** (ADR-0059, accepted
+      2026-09-11). "Nothing else holds a live reference to a state matrix" is a
+      standing package invariant, not a fact about the code at the time of
+      writing. The audit that established it was a one-off read of every effect
+      initializer; make it a test the registry runs, so a new effect that
+      returns the state matrix as its own cache fails rather than silently
+      breaking the in-place write.
+- [ ] R4 **Decide the C++ port's scope** (ADR-0060, accepted 2026-09-11 — the
+      ADR supplies background, this change makes the decision). The walk stays
+      in R; which effects are ported, in what order, and whether `consecutive`
+      is worth carrying into C++ are decided here, with measurement of this
+      change's own rather than the ADR's. The background it hands over:
+      the driver is roughly a third of a cheap effect's cost, the callback floor
+      is 5.5 microseconds and irreducible, `trans` is 378 microseconds per
+      effect-event, and `four()` is the most expensive by construction and the
+      least used.
+      One characterization worth not re-deriving: an effect update has **clean
+      algebra** when its increment reads the CURRENT state alone — gather a
+      neighbourhood off the adjacency, scatter-add into the cache, carry nothing
+      between events but the cache. `trans`'s `pooled` and `sequential` branches
+      both have it and port together; `consecutive` does not, because it threads
+      the previous event's sender, receiver and order on a cache attribute and
+      counts a two-path only when the two events were adjacent in the stream. It
+      is the threading rather than the arithmetic that resists a port, so
+      whether C++ carries that attribute is its own question.
+
+- [ ] R3 **Review the diagonal rule, and whether estimation already enforces
+      it** (ADR-0063, open — this review is what closes it). A one-mode dyad
+      statistic zeroes its own diagonal in its `init_*`, and the kind-shaped
+      projection depends on that convention holding. Two things to establish,
+      both needing the full catalogue rather than the sample the ADR
+      generalizes from:
+      (a) does any effect zero something other than its diagonal, or leave the
+      diagonal non-zero in a one-mode model;
+      (b) **is the init-level zeroing even needed**, given the risk set excludes
+      self-dyads downstream — if estimation already enforces it, the convention
+      is redundant work at every init and the careful part is naming the cases
+      where it is NOT redundant. Record which those are.

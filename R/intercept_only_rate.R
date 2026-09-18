@@ -57,12 +57,13 @@
 #    `intercept_only_rate_theta_block()`, `joint_theta_layout()`,
 #    `intercept_only_rate_loglik_offset()`.
 #
-# 5. Intercept-only <=> pinned in the generative context (D6). `rate = ~ 1`
-#    (no other rate effects) and a completion-supplied rate for a choice-only
-#    flavor produce the SAME pinned object -- source-agnostic, read only from
-#    bundle shape. A rate carrying any effect keeps its estimated baseline. The
-#    single-process path (`estimate_dynam()` / `estimate_rem()`) is untouched:
-#    scoped by TYPE to `goldfishJointSpec`.
+# 5. Completed intercept-only <=> pinned in the generative context (D6). A
+#    completion-supplied rate for a choice-only flavor becomes the pinned
+#    object. The classifier reads bundle shape, but marking a rate pinned also
+#    reads the completion record: an authored `rate = ~ 1` is modeled and
+#    reads its intercept from the parameters. A rate carrying any effect keeps
+#    its estimated baseline. The single-process path (`estimate_dynam()` /
+#    `estimate_rem()`) is untouched: scoped by TYPE to `goldfishJointSpec`.
 #    `is_intercept_only_rate_bundle()`, `pinned_rate_descriptor()`,
 #    `mark_pinned_rates()`. Each consumer warns at its own entry, worded for
 #    its count source, never suppressed on re-entry: `warn_pinned_rate()`,
@@ -666,23 +667,23 @@ intercept_only_rate_loglik_offset <- function(
 
 # ---- User surface: intercept-only <=> pinned in the generative context -------
 #
-# In the generative/joint context an intercept-only rate -- `rate = ~ 1` with no
-# other rate effects, or a rate a completion transform supplies for a
-# choice-only flavor -- is understood as *pinned* (zero free parameters), not
-# estimated. The re-interpretation is safe because goldfish's leading `1` is
-# otherwise an *estimated* baseline log-hazard used pervasively as
-# `~ 1 + effects`; a *bare* intercept-only rate is the one case with nothing
-# worth estimating (its MLE is the degenerate log(N / T / |R|), exactly the
-# per-period frozen pin this primitive computes). A rate carrying ANY effect
-# keeps its estimated baseline intercept unchanged -- only the effect-free rate
-# is pinned. This treatment is scoped to the generative context and lives here;
-# the single-process estimation path is untouched.
+# In the generative/joint context an intercept-only rate a completion transform
+# supplies for a choice-only flavor is understood as *pinned* (zero free
+# parameters), not estimated: nobody authored it, so there is no parameter to
+# read, and its MLE is the degenerate log(N / T / |R|), exactly the per-period
+# frozen pin this primitive computes. An authored `rate = ~ 1` has the same
+# shape but is not pinned: the user wrote the rate, so its intercept is a
+# parameter like the `1` of `~ 1 + effects`. A rate carrying ANY effect keeps
+# its estimated baseline intercept unchanged. This treatment is scoped to the
+# generative context and lives here; the single-process estimation path is
+# untouched.
 
 # Classify a *rate* submodel bundle as intercept-only. This is the single,
-# source-agnostic test both a user-written `~ 1` and a completion-supplied rate
-# route through: it reads only the bundle's shape -- a rate sub_model carrying an
-# intercept and NO other effects -- never how the bundle was produced, so the two
-# sources are indistinguishable here and reinterpret to the same pinned object. A
+# source-agnostic shape test both a user-written `~ 1` and a completion-supplied
+# rate route through: it reads only the bundle's shape -- a rate sub_model
+# carrying an intercept and NO other effects -- never how the bundle was
+# produced. Whether such a rate is pinned is a separate question, answered by
+# the completion record in `mark_pinned_rates()`. A
 # rate carrying any effect (`~ 1 + inertia`) has a non-empty effect list and is
 # NOT intercept-only, so it keeps its estimated baseline. A non-rate family
 # (choice / rate_ordered -- whose `has_intercept` is forced FALSE upstream) is
@@ -741,15 +742,16 @@ pinned_rate_descriptor <- function(bundle, model, call = rlang::caller_env()) {
   )
 }
 
-# Reinterpret every intercept-only rate in a joint specification as PINNED -- the
-# generative-context rule, and ONLY there. Walks the composed specifications'
-# submodel bundles in `process_map` (fid) order, sets a `pinned` logical column
-# on the map (TRUE for a rate fid whose bundle is intercept-only, FALSE for every
-# estimated rate, every rate carrying effects, and every non-rate family), and
-# attaches the per-fid pinned descriptors under `pinned_rates`. A user-written
-# `~ 1` and a completion-supplied rate for a choice-only flavor produce the
-# identical bundle shape, so both are marked pinned identically -- one concept,
-# one treatment.
+# Mark every COMPLETED intercept-only rate in a joint specification as PINNED
+# -- the generative-context rule, and ONLY there. Walks the composed
+# specifications' submodel bundles in `process_map` (fid) order, sets a
+# `pinned` logical column on the map (TRUE for a rate fid whose bundle
+# completion supplied and whose shape is intercept-only, FALSE for every other
+# fid), and attaches the per-fid pinned descriptors under `pinned_rates`.
+# Pinning reads the completion record, not the shape alone: a user-written
+# `~ 1` has the same bundle shape, but the user asked for that rate to be
+# modeled, so its intercept is a parameter the run reads from `coef` rather
+# than a constant fixed from observed counts.
 #
 # The reinterpretation is scoped to the generative context by TYPE: it accepts
 # ONLY a `goldfishJointSpec`. The single-process estimation path operates on a
@@ -781,6 +783,7 @@ mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
     function(fid) {
       entry <- fid_bundles[[as.character(fid)]]
       identical(entry$family, "rate") &&
+        isTRUE(entry$bundle$completed) &&
         is_intercept_only_rate_bundle(entry$bundle)
     },
     logical(1)

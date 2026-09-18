@@ -1054,7 +1054,11 @@ compute_statistics <- function(
 #   B dependent event's own sender has 0 live receivers                  -> error
 #   D the whole risk set is empty at a dependent event                   -> error
 #   C the risk set has exactly 1 candidate (forced choice)               -> warn
-#   E a node is never live across the whole sequence                     -> warn
+#   E a node is never at risk / never a candidate across the sequence    -> warn
+# Case E is per family: choice warns on a receiver never an allowed candidate
+# AND on a sender allowed no receiver at any event; rate warns on a sender never
+# at risk. A never-observed such node is a legitimate wider-population model, so
+# it warns rather than errors.
 # Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
 # not an error) — only the dependent event's own sender triggers A/B.
 # `process_label` names the process the failing object belongs to when several
@@ -1068,9 +1072,15 @@ validate_support_constraint <- function(
   active_1,
   active_2,
   family,
-  process_label = NULL
+  drop_diagonal,
+  process_label = NULL,
+  active_2_update = NULL,
+  active_2_update_pointer = NULL
 ) {
-  support <- support_mask$support
+  # A cursor over the flip stream: the validation already walks the dependent
+  # events in ascending order, so this is a change of source, not of logic.
+  mask_at <- mask_cursor(support_mask)
+  stored_kind <- support_mask$stored_kind %||% 0L
   in_process <- if (is.null(process_label)) {
     NULL
   } else {
@@ -1083,9 +1093,42 @@ validate_support_constraint <- function(
 
   if (family == "choice") {
     ever_candidate <- logical(n2)
+    ever_present <- logical(n2)
+    ever_at_risk_sender <- logical(n1)
+    # All four verdicts below are defined over "allowed AND present receivers",
+    # so the receiver presence is read at the event, the way the rate branch
+    # does. Freezing it at time zero is wrong in both directions: an observed
+    # receiver that joined late reads as an excluded dyad, and a receiver that
+    # joins mid-sequence and is never allowed goes unnamed.
+    receivers_at <- presence_cursor(
+      active_2,
+      active_2_update,
+      active_2_update_pointer
+    )
     for (e in dep) {
-      allowed <- which(support[[e]][event_sender[[e]], ] & active_2)
+      mask_e <- mask_at(e)
+      present <- receivers_at(e)
+      ever_present <- ever_present | present
+      allowed <- which(
+        support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
+          present &
+          # The sender is not among its own candidates on one node set,
+          # whatever the mask allows on the diagonal.
+          !(drop_diagonal & seq_len(n2) == event_sender[[e]])
+      )
       ever_candidate[allowed] <- TRUE
+      # Sender-side counterpart of the never-a-candidate warning: which senders
+      # ever have an allowed, present receiver. Read at the mask's own kind, so
+      # a separable mask answers for every sender without building a grid.
+      gate <- sender_gate_from_mask(
+        mask_e,
+        stored_kind,
+        present,
+        n1,
+        n2,
+        drop_diagonal
+      )
+      ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
           "{.arg support_constraint}: empty risk set at event {e}.",
@@ -1105,18 +1148,52 @@ validate_support_constraint <- function(
         forced <- c(forced, e)
       }
     }
-    never <- which(active_2 & !ever_candidate)
+    # "Present" here means present at some event across the sequence, not at
+    # time zero: a receiver that joins mid-sequence and is never allowed is
+    # named, and one absent throughout is not (it is not part of any risk set).
+    never <- which(ever_present & !ever_candidate)
     if (length(never) > 0) {
       cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} present receiver{?s}
-               never an allowed candidate.",
+        "!" = "{.arg support_constraint}: {length(never)} receiver{?s} present
+               at some event, never an allowed candidate.",
         "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+    # A sender allowed no receiver at any event is a legitimate model -- the
+    # constraint may describe a wider population than the observed events -- so
+    # this is a warning, not an error, and mirrors the rate family's
+    # "never at risk". An observed sender in this set errors above at its own
+    # event; this names the pattern over the whole sequence for the rest.
+    never_sender <- which(active_1 & !ever_at_risk_sender)
+    if (length(never_sender) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never_sender)} present
+               sender{?s} allowed no receiver at any event.",
+        "i" = "{cli::qty(length(never_sender))}Node{?s}: {.val {never_sender}}."
       ))
     }
   } else {
     ever_active <- logical(n1)
+    # The gate is the same per-sender allowed-receiver count the fold
+    # maintains, computed here from the mask's own kind: a separable mask
+    # answers without a grid at all, and only a genuinely dyadic one is reduced
+    # row by row. Both of its inner axes move, so the receiver presence is read
+    # at the event too; freezing it at time zero would keep a sender whose only
+    # allowed receivers have departed on the allowed side of the check.
+    receivers_at <- presence_cursor(
+      active_2,
+      active_2_update,
+      active_2_update_pointer
+    )
     for (e in dep) {
-      gate <- rowSums(support[[e]] & rep(active_2, each = n1)) > 0
+      gate <- sender_gate_from_mask(
+        mask_at(e),
+        stored_kind,
+        receivers_at(e),
+        n1,
+        n2,
+        drop_diagonal
+      )
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {
         cli::cli_abort(c(
@@ -1161,6 +1238,9 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
   if (is.null(prep$support_mask)) {
     return(invisible(NULL))
   }
+  # One node set, so a sender is never among its own allowed receivers. The
+  # preprocessed object names both sides, whatever produced it.
+  drop_diagonal <- !isTRUE(prep$model_spec$is_two_mode)
   validate_support_constraint(
     prep$support_mask,
     prep$event_sender,
@@ -1177,56 +1257,445 @@ validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
       prep$active_dyad_init
     },
     family = if (is_rate_family) "rate" else "choice",
-    process_label = process_label
+    drop_diagonal = drop_diagonal,
+    process_label = process_label,
+    # Both branches read the receiver presence as the composition moves. The
+    # rate fold leaves the raw receiver crossings in `active_dyad_update`; the
+    # dyad fold rewrites that buffer into the folded availability, so the choice
+    # branch reads the raw crossings the fold stashed before overwriting it.
+    active_2_update = if (is_rate_family) {
+      prep$active_dyad_update
+    } else {
+      prep$support_mask$receiver_presence_update
+    },
+    active_2_update_pointer = if (is_rate_family) {
+      prep$active_dyad_update_pointer
+    } else {
+      prep$support_mask$receiver_presence_update_pointer
+    }
   )
 }
 
-#' Recipe (DyNAM/REM) preprocessing front-end
+# The sub-model vocabulary the effect constructors and the stored objects use:
+# an ordinal rate compiles and reports as `rate`, and an REM process as
+# `choice`, since its dyadic hazard runs on the choice effects' dyad kernel.
+legacy_sub_model_of <- function(model, sub_model) {
+  if (identical(model, "REM")) {
+    return("choice")
+  }
+  if (identical(sub_model, "rate_ordered")) {
+    return("rate")
+  }
+  sub_model
+}
+
+#' Compile a formula's terms against the working data
 #'
-#' Compiles the `spec_map` upfront and runs the shared recipe loop
-#' via `preprocess(spec_map, …)`. Returns both `prep` and the `spec_map` (the
-#' latter carries the single-source-of-truth `effect_description` consumed by the
-#' printing step). Isolated from the DyNAMi front-end so the shared
-#' estimate path carries no model conditionals in its preprocessing.
+#' The stage every estimation path shares before its front-end diverges: parse
+#' the formula (or take the parsed bundle a specification supplies), stamp the
+#' modeled layer as the focal of the working copy, settle the time intercept
+#' the sub-model implies, validate the terms, resolve the node sides of the
+#' focal layer, and build the effect closures with their object link. The
+#' recipe compile (`compile_spec_map()`) continues from here to the walk-ready
+#' `spec_map`; the DyNAMi and incremental (`preprocessed`) paths take the terms
+#' and build their own inputs.
 #'
-#' @return a list with `prep` (goldfishStat) and `spec_map`.
+#' @param formula the two-sided model formula, its dependent alias already
+#'   resolved to a focal layer.
+#' @param model,sub_model the validated model vocabulary.
+#' @param work_data the working copy of the stocnet data object, or `NULL` on
+#'   the legacy environment path. The focal layer is stamped on a local copy
+#'   (copy-on-modify, never the caller's object), returned as `work_data` for
+#'   the caller to carry on with.
+#' @param work_env the working environment the effect closures are created in:
+#'   the cloned legacy environment, or a fresh one on the stocnet path.
+#' @param parsed_formula an already-parsed bundle to reuse instead of parsing
+#'   `formula` (a specification supplies its own); `NULL` parses here.
+#' @param realize_windows whether the parse realizes window objects eagerly
+#'   (DyNAMi and the incremental path, byte-identical to before) or only records
+#'   the derivation recipe the recipe state container realizes later.
+#' @param modeled_flavor the flavor(s) the dependent rows are restricted to.
+#' @param estimating whether the terms are validated at estimation strength
+#'   (rejecting unidentified bare main effects) or at preprocessing strength.
+#' @param progress logical, print the stage messages.
+#' @param call the frame the user-facing aborts are reported from.
+#'
+#' @return a list: `parsed_formula` (its intercept settled), `work_data`
+#'   (focal stamped), `work_src` (the working data source), `dep_name`,
+#'   `rhs_names`, `has_intercept`, `window_parameters`, `legacy_sub_model`,
+#'   `nodes`, `nodes2`, `is_two_mode`, `effects` and `objects_effects_link`.
 #' @noRd
-preprocess_recipe <- function(
-  parsed_formula,
-  model_spec,
-  effects,
-  window_parameters,
-  objects_effects_link,
-  events_objects_link,
-  events_effects_link,
-  fetch_plan,
-  control_prep,
-  progress,
+compile_model_terms <- function(
+  formula,
+  model,
+  sub_model,
+  work_data,
   work_env,
-  support_constraint = NULL,
-  writer = writer_default(),
-  new_writer = writer_default,
-  work_data = NULL,
+  parsed_formula = NULL,
+  realize_windows = FALSE,
   modeled_flavor = NULL,
-  flavor_plan = NULL
+  estimating = FALSE,
+  progress = FALSE,
+  call = rlang::caller_env()
 ) {
+  # A goldfishSpec object supplies its parsed bundle so estimation
+  # reuses it rather than re-parsing; it was parsed with the same
+  # recipe-deferred window semantics. Otherwise parse the formula here.
+  if (is.null(parsed_formula)) {
+    parsed_formula <- parse_formula(
+      formula,
+      envir = work_env,
+      realize_windows = realize_windows,
+      data = work_data
+    )
+  }
+  rhs_names <- parsed_formula$rhs_names
+  dep_name <- parsed_formula$dep_name
+  has_intercept <- parsed_formula$has_intercept
+
+  # The layer being modeled is the focal layer of this compile. Stamp it onto
+  # the working copy so every downstream new_data_source(data = work_data)
+  # resolves focal/side/mode lookups against the modeled layer through the
+  # existing `%||% info$focal` fallback -- info$focal is only the default for
+  # *which* layer to model, never the source of truth once a layer is chosen. A
+  # focal-less object then estimates, and an info$focal naming a different layer
+  # never wins over the modeled one. work_data is a local copy (copy-on-modify),
+  # so this never mutates the caller's object; the caller takes the stamped
+  # copy back from the return value.
+  if (!is.null(work_data)) {
+    work_data$info$focal <- dep_name
+  }
+
+  # Interaction terms compute their product in the dyad recipe loop;
+  # guard the not-yet-supported model families (sender / DyNAMi).
+  abort_if_interactions_unsupported(parsed_formula, model, sub_model)
+
+  # DyNAM-i ONLY: creates extra parameter to differentiate joining and
+  # leaving rates, and effect subtypes. Added directly to GetDetailPrint
+
+  if (any(unlist(parsed_formula$ignore_rep_parameter))) {
+    cli::cli_abort(
+      c(
+        "Effects with {.code ignore_repetitions = TRUE} are disabled.",
+        "x" = "The previous implementation computed incorrect statistics:
+               it always masked repetitions using the dependent network instead
+               of the network the effect is applied to.",
+        "i" = "Follow the reimplementation progress in
+               {.url https://github.com/stocnet/goldfish/issues/105}."
+      ),
+      call = call
+    )
+  }
+
+  # Model-specific preprocessing initialization
+  if (
+    has_intercept &&
+      ((model %in%
+        c("DyNAM", "DyNAMi") &&
+        sub_model %in% c("choice", "choice_coordination")) ||
+        sub_model == "rate_ordered")
+  ) {
+    warning(
+      "Model ",
+      dQuote(model),
+      " sub_model ",
+      dQuote(sub_model),
+      " ignores the time intercept.",
+      call. = FALSE,
+      immediate. = TRUE
+    )
+    parsed_formula$has_intercept <- has_intercept <- FALSE
+  }
+  # `sub_model = "rate"` models the waiting times between events; the time
+  # intercept is the baseline hazard that likelihood needs, so a rate formula
+  # without an explicit `1` gets the intercept added rather than collapsing to
+  # the order-only (ordinal) partial likelihood. Ordinal modeling is requested
+  # explicitly with `sub_model = "rate_ordered"`.
+  if (sub_model == "rate" && !has_intercept) {
+    cli::cli_inform(c(
+      "i" = "{.code sub_model = \"rate\"} models the waiting times between
+             events; a time intercept has been added.",
+      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
+             of the events (ordinal likelihood)."
+    ))
+    parsed_formula$has_intercept <- has_intercept <- TRUE
+  }
+
+  # Per-(model, sub_model) main-effect validity. Unavailable effects
+  # (no bare implementation, e.g. global in choice) abort in every phase;
+  # computable-but-unidentified effects stay producible via preprocessing
+  # (compute_statistics, as design columns for interactions / random effects)
+  # and are rejected only when estimating. Runs after `*` expansion. All
+  # effects are main until interaction terms land.
+  validity_sub_model <- sub_model
+  # Validity is role-aware. Offset (fixed-coefficient) terms and
+  # interaction operand-only terms are NOT bare main effects, so they are held
+  # out of the main-effect identification check: an offset warns rather than
+  # aborts (handled in the fixed-coefficient assembly below), and an operand
+  # (e.g. `global`/`ego` feeding an interaction that restores variation)
+  # follows the separate operand rule. A term that is both a requested main
+  # effect and an operand (the `a*b` case, is_main) stays in the main-effect
+  # check.
+  is_offset <- unlist(parsed_formula$offset_parameter)
+  if (is.null(is_offset)) {
+    is_offset <- logical(length(rhs_names))
+  }
+  is_main <- unlist(parsed_formula$is_main_parameter)
+  if (is.null(is_main)) {
+    is_main <- rep(TRUE, length(rhs_names))
+  }
+  is_operand <- unlist(parsed_formula$is_operand_parameter)
+  if (is.null(is_operand)) {
+    is_operand <- logical(length(rhs_names))
+  }
+  operand_only <- is_operand & !is_main
+  main_effect <- !is_offset & !operand_only
+  validate_effects(
+    model,
+    validity_sub_model,
+    vapply(rhs_names[main_effect], "[[", character(1), 1),
+    vapply(
+      parsed_formula$type_parameter[main_effect],
+      as.character,
+      character(1)
+    ),
+    estimating = estimating
+  )
+  validate_operands(
+    model,
+    validity_sub_model,
+    vapply(rhs_names[operand_only], "[[", character(1), 1),
+    vapply(
+      parsed_formula$type_parameter[operand_only],
+      as.character,
+      character(1)
+    )
+  )
+
+  legacy_sub_model <- legacy_sub_model_of(model, sub_model)
+
+  if (
+    progress &&
+      !(model %in%
+        c("DyNAM", "DyNAMi") &&
+        sub_model %in% c("choice", "choice_coordination"))
+  ) {
+    cat(
+      ifelse(has_intercept, "T", "No t"),
+      "ime intercept added.\n",
+      sep = ""
+    )
+  }
+  # if (progress && !all(vapply(window_parameters, is.null, logical(1))))
+  #   cat("Creating window objects in global environment.")
+
+  if (progress) {
+    cat("Initializing objects.\n")
+  }
+
+  # get node sets of dependent variable
+  work_src <- new_data_source(
+    data = work_data,
+    envir = work_env,
+    focal = dep_name,
+    modeled_flavor = modeled_flavor
+  )
+
+  # A length-2 answer means the dependent process spans two modes: legacy reads
+  # the dependent object's node sets, stocnet the focal layer's side pair.
+  .nodes <- ds_layer_sides(work_src, dep_name)
+  is_two_mode <- FALSE
+  if (length(.nodes) == 2) {
+    .nodes2 <- .nodes[2]
+    .nodes <- .nodes[1]
+    is_two_mode <- TRUE
+  } else {
+    .nodes2 <- .nodes
+  }
+
+  # Coordination (DyNAM-MM) models the symmetric joint creation of a tie by both
+  # endpoints, reading both directed dyads (a, b) and (b, a) over one node set.
+  # That is undefined on a two-mode layer -- an event does not reciprocally
+  # coordinate with an actor -- and the C++ step indexes out of bounds. Reject
+  # it here, before any preprocessing or the estimation engine.
+  if (is_two_mode && identical(sub_model, "choice_coordination")) {
+    cli::cli_abort(
+      c(
+        "{.val choice_coordination} cannot run on a two-mode layer.",
+        "x" = "The focal layer {.val {dep_name}} is two-mode.",
+        "i" = "Coordination (DyNAM-MM) models symmetric ties within one node
+               set.",
+        "i" = "Use {.code sub_model = \"choice\"} for a two-mode choice model."
+      ),
+      call = call
+    )
+  }
+
+  effects <- create_effects_functions(
+    rhs_names,
+    model,
+    legacy_sub_model,
+    envir = work_env,
+    derivations = parsed_formula$window_derivations,
+    data = work_data
+  )
+  objects_effects_link <- get_objects_effects_link(rhs_names)
+
+  list(
+    parsed_formula = parsed_formula,
+    work_data = work_data,
+    work_src = work_src,
+    dep_name = dep_name,
+    rhs_names = rhs_names,
+    has_intercept = has_intercept,
+    window_parameters = parsed_formula$window_parameters,
+    legacy_sub_model = legacy_sub_model,
+    nodes = .nodes,
+    nodes2 = .nodes2,
+    is_two_mode = is_two_mode,
+    effects = effects,
+    objects_effects_link = objects_effects_link
+  )
+}
+
+#' Compile a recipe (DyNAM/REM) process into its walk-ready `spec_map`
+#'
+#' The one compile stage the recipe loops and the merged walk share: the terms
+#' (`compile_model_terms()`), the event-stream link and fetch plan, the
+#' dispatch `model_spec`, and `build_spec_map()`, with the per-attribute
+#' imputation policy stamped on the result. The estimation wrapper calls it for
+#' a fresh DyNAM/REM preprocessing; the merged walk calls it once per process
+#' with that process's own focal-stamped working copy, so a unit compiled for
+#' the walk is the spec_map the recipe loop would have read.
+#'
+#' @inheritParams compile_model_terms
+#' @param support_constraint the parsed constraint sub-plan (or the named list
+#'   of per-flavor sub-plans a multi-flavor walk supplies) to compile into the
+#'   spec_map, or `NULL`.
+#' @param impute_policy the per-attribute imputation policy
+#'   (`set_preprocessing()$impute`).
+#'
+#' @return the `goldfishSpecMap` the walk reads, carrying two attributes for
+#'   the caller that compiled it: `model_spec`, the pristine dispatch spec each
+#'   output is decorated with (the estimation-re-entry metadata), and `source`,
+#'   the working data source the terms resolved against.
+#' @noRd
+compile_spec_map <- function(
+  formula,
+  model,
+  sub_model,
+  work_data,
+  work_env,
+  parsed_formula = NULL,
+  support_constraint = NULL,
+  modeled_flavor = NULL,
+  impute_policy = NULL,
+  estimating = FALSE,
+  progress = FALSE,
+  call = rlang::caller_env()
+) {
+  # On the recipe (DyNAM/REM) path the shared parser stays free of
+  # environment mutations: parse_formula() records the window
+  # derivation recipe but does not realize it, and the recipe state container
+  # realizes it from `plan$derivations`.
+  terms <- compile_model_terms(
+    formula,
+    model,
+    sub_model,
+    work_data = work_data,
+    work_env = work_env,
+    parsed_formula = parsed_formula,
+    realize_windows = FALSE,
+    modeled_flavor = modeled_flavor,
+    estimating = estimating,
+    progress = progress,
+    call = call
+  )
+  parsed_formula <- terms$parsed_formula
+
+  # Build the event-stream link metadata + fetch plan (no tables). The recipe
+  # (DyNAM/REM) path defers fetching to state creation.
+  link <- build_events_objects_link(
+    terms$dep_name,
+    terms$rhs_names,
+    terms$nodes,
+    terms$nodes2,
+    envir = work_env,
+    derivations = parsed_formula$window_derivations,
+    data = terms$work_data
+  )
+  events_effects_link <- get_events_effects_link(
+    terms$rhs_names,
+    link$events_objects_link
+  )
+
+  model_spec <- new_model_spec(
+    model = model,
+    sub_model = sub_model,
+    is_two_mode = terms$is_two_mode,
+    nodes = terms$nodes,
+    nodes2 = terms$nodes2,
+    has_intercept = terms$has_intercept
+  )
+
+  # Decided here rather than downstream: the risk-set descriptor the message
+  # depends on is only available once the specification exists, and the
+  # preprocessing that follows assumes at least one effect.
+  abort_if_no_effect_terms(
+    terms$rhs_names,
+    parsed_formula,
+    model_spec,
+    call = call
+  )
+
   spec_map <- build_spec_map(
     parsed_formula,
     model_spec,
-    effects,
-    window_parameters,
-    objects_effects_link,
-    events_objects_link,
+    terms$effects,
+    terms$window_parameters,
+    terms$objects_effects_link,
+    link$events_objects_link,
     events_effects_link,
-    fetch_plan,
+    link$fetch_plan,
     support_constraint = support_constraint,
     envir = work_env,
-    data = work_data,
+    data = terms$work_data,
     modeled_flavor = modeled_flavor
   )
   # The per-attribute imputation policy rides on the compiled spec so the recipe
   # context reaches it without threading through every loop's `...`.
-  spec_map$impute_policy <- control_prep$impute
+  spec_map$impute_policy <- impute_policy
+  # Keep the pristine model spec reachable so a driver can decorate each
+  # output with it (the estimation-re-entry metadata) without rebuilding it;
+  # the source rides along for the node frames and lookups the wrapper reports
+  # from, so the compile builds it once.
+  attr(spec_map, "model_spec") <- model_spec
+  attr(spec_map, "source") <- terms$work_src
+  spec_map
+}
+
+#' Recipe (DyNAM/REM) preprocessing front-end
+#'
+#' Runs the shared recipe loop on a compiled `spec_map` via
+#' `preprocess(spec_map, …)`; the map comes from `compile_spec_map()` and
+#' carries the single-source-of-truth `effect_description` the printing step
+#' consumes. Isolated from the DyNAMi front-end so the shared estimate path
+#' carries no model conditionals in its preprocessing.
+#'
+#' @return the preprocessed object (goldfishStat), or the fid-keyed list a
+#'   multi-flavor walk emits.
+#' @noRd
+preprocess_recipe <- function(
+  spec_map,
+  control_prep,
+  progress,
+  work_env,
+  writer = writer_default(),
+  new_writer = writer_default,
+  flavor_plan = NULL,
+  recipe_spec = NULL,
+  family = NULL
+) {
   # A multi-flavor walk drives K consumers instead of the single writer. The
   # consumer specs can only be assembled here, after the spec_map has compiled
   # each `(layer, flavor)` constraint into `plan$support_constraints`: a
@@ -1241,10 +1710,14 @@ preprocess_recipe <- function(
       new_writer = new_writer
     )
   }
+  # `recipe_spec` carries the single-process structure the merged walk reads,
+  # reassembled from the compiled map. It is threaded on through `preprocess()`
+  # so the dispatch method (the one dispatch point) routes a single-process spec
+  # to the merged walk; the flavored consumer path keeps its recipe route.
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
   # events (from spec$fetch_plan) inside state creation,
   # so no pre-fetched events list is threaded here.
-  prep <- preprocess(
+  preprocess(
     spec_map,
     startTime = control_prep$start_time,
     endTime = control_prep$end_time,
@@ -1252,9 +1725,63 @@ preprocess_recipe <- function(
     progress = progress,
     prep_envir = work_env,
     writer = writer,
-    consumer_specs = consumer_specs
+    consumer_specs = consumer_specs,
+    recipe_spec = recipe_spec,
+    family = family,
+    control_prep = control_prep,
+    new_writer = new_writer
   )
-  list(prep = prep, spec_map = spec_map)
+}
+
+# Reassemble the degenerate single-process `goldfishSpec` the merged
+# single-clock walk reads, from a compiled recipe `spec_map` and the formula it
+# was compiled from. The recipe estimation surface compiles a spec_map straight
+# from a formula, so the process structure the joint substrate needs -- the
+# focal layer, the sub-model family bundle, the parsed support constraint, and
+# the intercept flag the recipe compile already settled -- has no goldfishSpec
+# to ride on and is rebuilt here. `has_intercept` is read off the compiled
+# model spec, which the recipe compile has already raised for an exact-time
+# rate model, so the merged walk inherits the same likelihood shape the
+# estimation entry chose.
+recipe_process_spec <- function(
+  spec_map,
+  formula,
+  family,
+  has_intercept,
+  constraint_plan = NULL
+) {
+  one_sided <- if (length(formula) == 3L) {
+    stats::as.formula(
+      call("~", formula[[3L]]),
+      env = environment(formula)
+    )
+  } else {
+    formula
+  }
+  bundle <- list(
+    formula = formula,
+    input_formula = one_sided,
+    sub_model = spec_map$sub_model,
+    has_intercept = has_intercept,
+    parsed = spec_map$parsed_terms
+  )
+  modeled_flavor <- if (length(spec_map$modeled_flavor) > 0) {
+    spec_map$modeled_flavor
+  } else {
+    character(0)
+  }
+  structure(
+    list(
+      data = spec_map$data,
+      focal = spec_map$focal,
+      model = spec_map$model,
+      modeled_flavor = modeled_flavor,
+      submodels = stats::setNames(list(bundle), family),
+      constraint = constraint_plan,
+      processes = NULL
+    ),
+    class = "goldfishSpec"
+  )
 }
 
 #' DyNAMi preprocessing front-end (isolated)
@@ -1768,7 +2295,7 @@ estimate_wrapper <- function(
     }
   }
 
-  ## 1.1 PARSE for all cases: preprocessed or not
+  ## 1.1 PARSE and COMPILE the terms, then each front-end's own inputs
   # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
   # environment mutations: parse_formula() records the window
   # derivation recipe but does not realize it, and the recipe state container
@@ -1778,304 +2305,156 @@ estimate_wrapper <- function(
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
     is.null(preprocessed)
-  # A goldfishSpec object supplies its parsed bundle so estimation
-  # reuses it rather than re-parsing; it was parsed with the same
-  # recipe-deferred window semantics. Otherwise parse the formula here.
-  if (is.null(parsed_formula)) {
-    parsed_formula <- parse_formula(
+
+  if (recipe_deferred_windows) {
+    # Recipe (DyNAM/REM) models compile the spec_map upfront -- through the one
+    # compile the merged walk's per-process units share -- and dispatch
+    # preprocess() on it (`preprocess_recipe()`). The compile hands back the
+    # working source it built beside the pristine dispatch spec.
+    spec_map <- compile_spec_map(
       formula,
-      envir = work_env,
-      realize_windows = !recipe_deferred_windows,
-      data = work_data
+      model,
+      sub_model,
+      work_data = work_data,
+      work_env = work_env,
+      parsed_formula = parsed_formula,
+      support_constraint = constraint_plan,
+      modeled_flavor = modeled_flavor,
+      impute_policy = control_prep$impute,
+      estimating = !preprocessing_only,
+      progress = progress
     )
+    parsed_formula <- spec_map$parsed_terms
+    work_src <- attr(spec_map, "source")
+    model_spec <- attr(spec_map, "model_spec")
+    effects <- spec_map$effects
+    objects_effects_link <- spec_map$objects_effects_link
+    .nodes <- spec_map$nodes
+    .nodes2 <- spec_map$nodes2
+    is_two_mode <- spec_map$is_two_mode
+  } else {
+    # DyNAMi runs its own isolated front-end (`preprocess_dynami()`) and the
+    # preprocessed path re-parses against a stored object: both take the
+    # compiled terms and build their own inputs from them, and `spec_map`
+    # stays NULL for both (the printing step falls back to `GetDetailPrint`).
+    terms <- compile_model_terms(
+      formula,
+      model,
+      sub_model,
+      work_data = work_data,
+      work_env = work_env,
+      parsed_formula = parsed_formula,
+      realize_windows = TRUE,
+      modeled_flavor = modeled_flavor,
+      estimating = !preprocessing_only,
+      progress = progress
+    )
+    parsed_formula <- terms$parsed_formula
+    work_data <- terms$work_data
+    work_src <- terms$work_src
+    rhs_names <- terms$rhs_names
+    dep_name <- terms$dep_name
+    effects <- terms$effects
+    objects_effects_link <- terms$objects_effects_link
+    .nodes <- terms$nodes
+    .nodes2 <- terms$nodes2
+    is_two_mode <- terms$is_two_mode
+
+    ## 1.2 PARSE for preprocessed: check the formula consistency
+    if (!is.null(preprocessed)) {
+      # find the old and new effects indexes, do basic consistency checks
+      old_parsed_formula <- parse_formula(
+        preprocessed$formula,
+        envir = work_env,
+        data = work_data
+      )
+      effects_indexes <- compare_formulas(
+        old_parsed_formula = old_parsed_formula,
+        new_parsed_formula = parsed_formula,
+        model = model,
+        sub_model = terms$legacy_sub_model
+      )
+      if (sum(duplicated(effects_indexes)) > 0) {
+        stop(
+          "The comparison of the new formula and old formula is not able\n",
+          "to identify the effects properly.\n",
+          "It's not possible to use the preprocessed object in this case.",
+          call. = FALSE
+        )
+      }
+    }
+
+    ### 2. INITIALIZE OBJECTS: link objects----
+
+    ## 2.2 INITIALIZE OBJECTS for preprocessed == NULL
+    if (is.null(preprocessed)) {
+      # Build the event-stream link metadata + fetch plan (no tables).
+      # DyNAMi realizes windows eagerly at parse time and fetches here (its
+      # front-end cleans the fetched events before its monolith loop).
+      link <- build_events_objects_link(
+        dep_name,
+        rhs_names,
+        .nodes,
+        .nodes2,
+        envir = work_env,
+        derivations = parsed_formula$window_derivations,
+        data = work_data
+      )
+      events_objects_link <- link$events_objects_link
+      fetch_plan <- link$fetch_plan
+      events_effects_link <- get_events_effects_link(
+        rhs_names,
+        events_objects_link
+      )
+      events <- if (model == "DyNAMi") {
+        fetch_events(fetch_plan, envir = work_env)
+      } else {
+        NULL
+      }
+    }
+
+    ### 3. PREPROCESS statistics----
+    if (!is.null(preprocessed)) {
+      # recover the nodesets
+      .nodes <- preprocessed$nodes
+      .nodes2 <- preprocessed$nodes2
+      # The focal layer's mode map decides two-modeness (stocnet); the legacy
+      # source, which has no map, answers from the recovered side names.
+      is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
+    }
+
+    model_spec <- new_model_spec(
+      model = model,
+      sub_model = sub_model,
+      is_two_mode = is_two_mode,
+      nodes = .nodes,
+      nodes2 = .nodes2,
+      has_intercept = terms$has_intercept
+    )
+
+    # Decided here rather than downstream: the risk-set descriptor the message
+    # depends on is only available once the specification exists, and the
+    # preprocessing that follows assumes at least one effect.
+    abort_if_no_effect_terms(rhs_names, parsed_formula, model_spec)
+
+    spec_map <- NULL
   }
+
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
-
-  # The layer being modeled is the focal layer of this estimation. Stamp it onto
-  # the working copy so every downstream new_data_source(data = work_data)
-  # resolves focal/side/mode lookups against the modeled layer through the
-  # existing `%||% info$focal` fallback -- info$focal is only the default for
-  # *which* layer to model, never the source of truth once a layer is chosen. A
-  # focal-less object then estimates, and an info$focal naming a different layer
-  # never wins over the modeled one. work_data is a local copy (copy-on-modify),
-  # so this never mutates the caller's object.
-  if (!is.null(work_data)) {
-    work_data$info$focal <- dep_name
-  }
-
-  # Interaction terms compute their product in the dyad recipe loop;
-  # guard the not-yet-supported model families (sender / DyNAMi).
-  abort_if_interactions_unsupported(parsed_formula, model, sub_model)
-
-  # DyNAM-i ONLY: creates extra parameter to differentiate joining and
-  # leaving rates, and effect subtypes. Added directly to GetDetailPrint
-
-  if (any(unlist(parsed_formula$ignore_rep_parameter))) {
-    cli::cli_abort(c(
-      "Effects with {.code ignore_repetitions = TRUE} are disabled.",
-      "x" = "The previous implementation computed incorrect statistics:
-             it always masked repetitions using the dependent network instead
-             of the network the effect is applied to.",
-      "i" = "Follow the reimplementation progress in
-             {.url https://github.com/stocnet/goldfish/issues/105}."
-    ))
-  }
-
-  # Model-specific preprocessing initialization
-  if (
-    has_intercept &&
-      ((model %in%
-        c("DyNAM", "DyNAMi") &&
-        sub_model %in% c("choice", "choice_coordination")) ||
-        sub_model == "rate_ordered")
-  ) {
-    warning(
-      "Model ",
-      dQuote(model),
-      " sub_model ",
-      dQuote(sub_model),
-      " ignores the time intercept.",
-      call. = FALSE,
-      immediate. = TRUE
-    )
-    parsed_formula$has_intercept <- has_intercept <- FALSE
-  }
-  # `sub_model = "rate"` models the waiting times between events; the time
-  # intercept is the baseline hazard that likelihood needs, so a rate formula
-  # without an explicit `1` gets the intercept added rather than collapsing to
-  # the order-only (ordinal) partial likelihood. Ordinal modeling is requested
-  # explicitly with `sub_model = "rate_ordered"`.
-  if (sub_model == "rate" && !has_intercept) {
-    cli::cli_inform(c(
-      "i" = "{.code sub_model = \"rate\"} models the waiting times between
-             events; a time intercept has been added.",
-      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
-             of the events (ordinal likelihood)."
-    ))
-    parsed_formula$has_intercept <- has_intercept <- TRUE
-  }
   # An exact-time sub-model is exactly one carrying the time intercept: the
-  # branches above add it for `rate` and drop it for `rate_ordered`, so by
+  # compile adds it for `rate` and drops it for `rate_ordered`, so by
   # here the formula's own property answers the sub-model's.
   is_exact_time <- has_intercept
-
-  # Per-(model, sub_model) main-effect validity. Unavailable effects
-  # (no bare implementation, e.g. global in choice) abort in every phase;
-  # computable-but-unidentified effects stay producible via preprocessing
-  # (compute_statistics, as design columns for interactions / random effects) and are
-  # rejected only when estimating. Runs after `*` expansion. All effects are
-  # main until interaction terms land.
-  validity_sub_model <- sub_model
-  # Validity is role-aware. Offset (fixed-coefficient) terms and
-  # interaction operand-only terms are NOT bare main effects, so they are held
-  # out of the main-effect identification check: an offset warns rather than
-  # aborts (handled in the fixed-coefficient assembly below), and an operand
-  # (e.g. `global`/`ego` feeding an interaction that restores variation) follows
-  # the separate operand rule. A term that is both a requested main effect and an
-  # operand (the `a*b` case, is_main) stays in the main-effect check.
-  is_offset <- unlist(parsed_formula$offset_parameter)
-  if (is.null(is_offset)) {
-    is_offset <- logical(length(rhs_names))
-  }
-  is_main <- unlist(parsed_formula$is_main_parameter)
-  if (is.null(is_main)) {
-    is_main <- rep(TRUE, length(rhs_names))
-  }
-  is_operand <- unlist(parsed_formula$is_operand_parameter)
-  if (is.null(is_operand)) {
-    is_operand <- logical(length(rhs_names))
-  }
-  operand_only <- is_operand & !is_main
-  main_effect <- !is_offset & !operand_only
-  validate_effects(
-    model,
-    validity_sub_model,
-    vapply(rhs_names[main_effect], "[[", character(1), 1),
-    vapply(
-      parsed_formula$type_parameter[main_effect],
-      as.character,
-      character(1)
-    ),
-    estimating = !preprocessing_only
-  )
-  validate_operands(
-    model,
-    validity_sub_model,
-    vapply(rhs_names[operand_only], "[[", character(1), 1),
-    vapply(
-      parsed_formula$type_parameter[operand_only],
-      as.character,
-      character(1)
-    )
-  )
-
-  legacy_sub_model <- sub_model
-  if (sub_model == "rate_ordered") {
-    legacy_sub_model <- "rate"
-  }
-  if (model == "REM") {
-    legacy_sub_model <- "choice"
-  }
-
-  if (
-    progress &&
-      !(model %in%
-        c("DyNAM", "DyNAMi") &&
-        sub_model %in% c("choice", "choice_coordination"))
-  ) {
-    cat(
-      ifelse(has_intercept, "T", "No t"),
-      "ime intercept added.\n",
-      sep = ""
-    )
-  }
-  # if (progress && !all(vapply(window_parameters, is.null, logical(1))))
-  #   cat("Creating window objects in global environment.")
-
-  ## 1.2 PARSE for preprocessed: check the formula consistency
-  if (!is.null(preprocessed)) {
-    # find the old and new effects indexes, do basic consistency checks
-    old_parsed_formula <- parse_formula(
-      preprocessed$formula,
-      envir = work_env,
-      data = work_data
-    )
-    effects_indexes <- compare_formulas(
-      old_parsed_formula = old_parsed_formula,
-      new_parsed_formula = parsed_formula,
-      model = model,
-      sub_model = legacy_sub_model
-    )
-    if (sum(duplicated(effects_indexes)) > 0) {
-      stop(
-        "The comparison of the new formula and old formula is not able\n",
-        "to identify the effects properly.\n",
-        "It's not possible to use the preprocessed object in this case.",
-        call. = FALSE
-      )
-    }
-  }
-
-  ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
-
-  if (progress) {
-    cat("Initializing objects.\n")
-  }
-
-  ## 2.0 Set is_two_mode to define effects functions
-  # get node sets of dependent variable
-  work_src <- new_data_source(
-    data = work_data,
-    envir = work_env,
-    focal = dep_name,
-    modeled_flavor = modeled_flavor
-  )
+  family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
+  legacy_sub_model <- legacy_sub_model_of(model, sub_model)
   # Estimation reports on the node sets as supplied, not on the working copies
   # imputation may have filled in; on the stocnet path nothing shadows `nodes`,
   # so the working source already is the original.
   orig_src <- if (is_legacy) new_data_source(envir = data) else work_src
-
-  # A length-2 answer means the dependent process spans two modes: legacy reads
-  # the dependent object's node sets, stocnet the focal layer's side pair.
-  .nodes <- ds_layer_sides(work_src, dep_name)
-  is_two_mode <- FALSE
-  if (length(.nodes) == 2) {
-    .nodes2 <- .nodes[2]
-    .nodes <- .nodes[1]
-    is_two_mode <- TRUE
-  } else {
-    .nodes2 <- .nodes
-  }
-
-  # Coordination (DyNAM-MM) models the symmetric joint creation of a tie by both
-  # endpoints, reading both directed dyads (a, b) and (b, a) over one node set.
-  # That is undefined on a two-mode layer -- an event does not reciprocally
-  # coordinate with an actor -- and the C++ step indexes out of bounds. Reject it
-  # here, before any preprocessing or the estimation engine.
-  if (is_two_mode && identical(sub_model, "choice_coordination")) {
-    cli::cli_abort(c(
-      "{.val choice_coordination} cannot run on a two-mode layer.",
-      "x" = "The focal layer {.val {dep_name}} is two-mode.",
-      "i" = "Coordination (DyNAM-MM) models symmetric ties within one node set.",
-      "i" = "Use {.code sub_model = \"choice\"} for a two-mode choice model."
-    ))
-  }
-
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessed or not
-  # enviroment from which get the objects
-
-  effects <- create_effects_functions(
-    rhs_names,
-    model,
-    legacy_sub_model,
-    envir = work_env,
-    derivations = parsed_formula$window_derivations,
-    data = work_data
-  )
-  objects_effects_link <- get_objects_effects_link(rhs_names)
-
-  ## 2.2 INITIALIZE OBJECTS for preprocessed == NULL
-  if (is.null(preprocessed)) {
-    # Build the event-stream link metadata + fetch plan (no tables). The recipe
-    # (DyNAM/REM) path defers fetching to state creation;
-    # DyNAMi realizes windows eagerly at parse time and fetches here (its
-    # front-end cleans the fetched events before its monolith loop).
-    link <- build_events_objects_link(
-      dep_name,
-      rhs_names,
-      .nodes,
-      .nodes2,
-      envir = work_env,
-      derivations = parsed_formula$window_derivations,
-      data = work_data
-    )
-    events_objects_link <- link$events_objects_link
-    fetch_plan <- link$fetch_plan
-    events_effects_link <- get_events_effects_link(
-      rhs_names,
-      events_objects_link
-    )
-    events <- if (model == "DyNAMi") {
-      fetch_events(fetch_plan, envir = work_env)
-    } else {
-      NULL
-    }
-  }
-
-  ### 3. PREPROCESS statistics----
-  if (!is.null(preprocessed)) {
-    # recover the nodesets
-    .nodes <- preprocessed$nodes
-    .nodes2 <- preprocessed$nodes2
-    # The focal layer's mode map decides two-modeness (stocnet); the legacy
-    # source, which has no map, answers from the recovered side names.
-    is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
-  }
-
-  model_spec <- new_model_spec(
-    model = model,
-    sub_model = sub_model,
-    is_two_mode = is_two_mode,
-    nodes = .nodes,
-    nodes2 = .nodes2,
-    has_intercept = has_intercept
-  )
-
-  # Decided here rather than downstream: the risk-set descriptor the message
-  # depends on is only available once the specification exists, and the
-  # preprocessing that follows assumes at least one effect.
-  abort_if_no_effect_terms(rhs_names, parsed_formula, model_spec)
-
-  # Recipe (DyNAM/REM) models compile the spec_map upfront and
-  # dispatch preprocess() on it (`preprocess_recipe()`); DyNAMi runs its own
-  # isolated front-end (`preprocess_dynami()`). `spec_map` stays NULL
-  # for DyNAMi and for the preprocessed path (the printing step falls back
-  # to `GetDetailPrint`).
-  spec_map <- NULL
 
   ## 3.1 INITIALIZE OBJECTS for preprocessed: remove old effects,
   ## add new ones
@@ -2137,7 +2516,10 @@ estimate_wrapper <- function(
           work_env
         )
       } else {
-        preprocess_recipe(
+        # The added effects compile into a spec_map of their own: the full
+        # parse with the new terms' effects and links, stamped with the policy
+        # the way the compile stamps a fresh one.
+        new_spec_map <- build_spec_map(
           parsed_formula,
           model_spec,
           new_effects,
@@ -2146,10 +2528,32 @@ estimate_wrapper <- function(
           new_events_objects_link,
           new_events_effects_link,
           new_fetch_plan,
+          envir = work_env
+        )
+        new_spec_map$impute_policy <- control_prep$impute
+        # The added-effect walk runs on the merged single-clock substrate too,
+        # so it carries the process structure that substrate reads.
+        # `build_spec_map()` stamps no model spec attribute (only the top-level
+        # compile does), so it is attached here, and the reduced formula is
+        # reassembled from the added terms.
+        attr(new_spec_map, "model_spec") <- model_spec
+        new_recipe_spec <- recipe_process_spec(
+          new_spec_map,
+          stats::reformulate(
+            vapply(new_rhs_names, deparse_rhs_term, character(1)),
+            response = dep_name
+          ),
+          family,
+          has_intercept
+        )
+        preprocess_recipe(
+          new_spec_map,
           control_prep,
           progress,
-          work_env
-        )$prep
+          work_env,
+          recipe_spec = new_recipe_spec,
+          family = family
+        )
       }
 
       if (
@@ -2315,27 +2719,31 @@ estimate_wrapper <- function(
         writer
       )
     } else {
-      recipe_out <- preprocess_recipe(
-        parsed_formula,
-        model_spec,
-        effects,
-        window_parameters,
-        objects_effects_link,
-        events_objects_link,
-        events_effects_link,
-        fetch_plan,
+      # A single-process spec routes through the merged single-clock walk. The
+      # flavored consumer path keeps its recipe route (its per-family union is
+      # not a single-process structure), so `recipe_spec` stays NULL for it.
+      recipe_spec <- if (is.null(flavor_plan)) {
+        recipe_process_spec(
+          spec_map,
+          formula,
+          family,
+          has_intercept,
+          constraint_plan
+        )
+      } else {
+        NULL
+      }
+      prep <- preprocess_recipe(
+        spec_map,
         control_prep,
         progress,
         work_env,
-        support_constraint = constraint_plan,
         writer = writer,
         new_writer = new_writer,
-        work_data = work_data,
-        modeled_flavor = modeled_flavor,
-        flavor_plan = flavor_plan
+        flavor_plan = flavor_plan,
+        recipe_spec = recipe_spec,
+        family = family
       )
-      prep <- recipe_out$prep
-      spec_map <- recipe_out$spec_map
     }
     if (output %in% c("gather", "data.frame", "db")) {
       # The interaction front-end ignores the writer, so its product is the

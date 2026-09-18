@@ -277,3 +277,11 @@ event_reductions_probe <- function(X, w, c, obs, allowed, dependent, index_a, in
     .Call('_goldfish_event_reductions_probe', PACKAGE = 'goldfish', X, w, c, obs, allowed, dependent, index_a, index_b, n_a, n_b)
 }
 
+set_entries <- function(buffer, at, values) {
+    invisible(.Call('_goldfish_set_entries', PACKAGE = 'goldfish', buffer, at, values))
+}
+
+set_matrix_cells <- function(matrix, rows, cols, values) {
+    invisible(.Call('_goldfish_set_matrix_cells', PACKAGE = 'goldfish', matrix, rows, cols, values))
+}
+

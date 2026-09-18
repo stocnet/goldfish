@@ -50,6 +50,13 @@ reference:
       - starts_with("set")
       - update-method
       - print-method
+  - title: "Simulate"
+    contents:
+      - simulate
+      - filter_simulation
+      - set_simulation_guard
+      - simulation-handle
+      - times_of
   - title: "Diagnostics"
     contents:
       - logLik.result.goldfish

@@ -137,9 +137,17 @@ dynami_fold_availability <- function(prep, masks) {
   n1 <- length(prep$active_sender_init)
   n2 <- length(prep$active_dyad_init)
   n_stored <- length(prep$event_sender)
-  recv <- rep(list(rep(TRUE, n2)), n_stored)
+  all_present <- rep(TRUE, n2)
   senders <- as.list(prep$event_sender)
-  build_active_dyad_point(prep, recv, masks, senders, n1, n2)
+  build_active_dyad_point(
+    prep,
+    function(e) all_present,
+    function(e) masks[[e]],
+    senders,
+    n1,
+    n2,
+    n_stored
+  )
 }
 
 # The monolith object mapped to the recipe shape every shared consumer reads,

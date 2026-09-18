@@ -25,30 +25,35 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   DyNAM-i joins once `refactor-dynami-engine` lands its recompute-to-delta
   effect adapter (its D1; the `dynami-stocnet-boundary` change this bullet
   used to name archived on 2026-07-23).
-- **Four plug points and a parameter provider** (added 2026-09-09, design
-  D11): the loop takes a `goldfishSimSteps` from an exported
-  `set_simulation_steps(parameters, clock, mark, accept)`, every slot
-  defaulting to goldfish's descriptor-keyed step, and `coef` is a provider —
-  a numeric vector, a `goldfishParams`, or `set_parameter_provider(init, at)`
-  — resolving each step to a per-fid vector or per-ego matrix. Parametric
-  clocks, the two-sided mechanisms, the DyNES augmenter and goldfish.latent's
-  random effects and hidden Markov regimes are callers of one loop; the walk
-  handle stays internal. Detail per variant in `.plan/sp/sim_variants.md`.
-- **The `times =` axis** (revised 2026-08-19, ADR-0033): every family gets both
-  simulation variants — **free-running** (`times = "generated"`, default: draw
+- **Five plug points and a parameter provider** (added 2026-09-09, design
+  D11; fifth point and variant ownership revised 2026-09-15, ADR-0074): the
+  loop takes a `goldfishSimSteps` from an exported
+  `set_simulation_steps(parameters, evaluate, clock, mark, accept)`, every
+  slot defaulting to goldfish's descriptor-keyed step, and `coef` is a
+  provider — a numeric vector, a `goldfishParams`, or
+  `set_parameter_provider(init, at)`. The model variant is the `evaluate`
+  step, not a parameter shape: goldfish's evaluators carry the vector case
+  only, and a per-actor random effect, a regime mixture or a non-log-linear
+  hazard is a supplied step. Parametric clocks and the two-sided mark kernels
+  are steps too, and their implementation moves to `parametric-rates` and
+  `two-sided-coordination`; this change ships the exponential clock, the
+  basic and flavored families, and the conjunctive coordination mark. The
+  DyNES augmenter and goldfish.latent's variants are callers of one loop; the
+  walk handle stays internal. Detail per variant in `.plan/sp/sim_variants.md`.
+- **The `times =` axis** (revised 2026-08-19, ADR-0033): each family gets the
+  simulation variants its specification can honor — **free-running** (`times = "generated"`, default: draw
   clock and marks) and **time-anchored** (`times = "observed"`: hold the
   observed times, redraw the marks) — the anchored variant being the honest
   mode for Cox-family fits and the cheap GOF workhorse everywhere.
 - **Distribution-keyed timing strategies**: exponential draws exact
   competing-exponential waiting times (intercept included); Weibull/Gompertz
   (common shape) draw exactly by analytic inversion per constant-rate segment
-  — also the DGP for `parametric-rates`' recovery tests; Cox/choice-only has
-  no estimated clock — anchored is the clean variant, free-running uses
-  crude-rate pseudo-time (labeled up-to-scale); coordination simulates
-  per mechanism (all five): anchored from the mechanism's mark multinomial (no
-  rejection loop), free-running via each mechanism's generative thinning
-  construction (the mutual-choice rejection loop is the conjunctive instance),
-  acceptance rate reported.
+  — also the DGP for `parametric-rates`' recovery tests; Cox and coordination have
+  no estimated clock and simulate time-anchored only — no pseudo-time
+  (ADR-0079); a choice-only DyNAM runs free only on request, through a completed
+  constant exponential rate (ADR-0076); coordination simulates per mechanism
+  (all five) from the mechanism's mark multinomial at the observed stamps, with
+  no rejection loop.
 - **Windowed effects free-run correctly**: simulated events self-schedule their
   window expiries in a per-window FIFO (constant window ⇒ insertion-order
   expiry) treated as breakpoints, keeping the exponential draw exact with
@@ -57,7 +62,11 @@ of `dynes-augmentation` into its own home directly on the walk handle.
   `horizon =` / `n_events =` are statistical targets (whichever binds first); a
   separate `max_events` guard (default `10 * n_dep`) trips early on the
   total-rate trajectory with a diagnosis, capped replicates are flagged and
-  excluded from GOF pools by default.
+  kept in GOF pools unless the user filters them out (amended 2026-09-16,
+  ADR-0085). Amended 2026-09-17 (ADR-0089): the guards live in
+  `control_sim = set_simulation_guard()`; a runaway reaches `max_events` by
+  default, the clock-resolution stop is on at resolution 0, and the
+  rate-trajectory triggers are off unless the user sets them.
 - **Per-component regime record**: every result records modeled / completed /
   anchored-replay per component; replayed events whose precondition fails in
   the simulated state are skipped and counted, with an incoherence flag past a

@@ -123,7 +123,7 @@ test_that("the folded active_sender equals the from-scratch gate reduction", {
   # (rowSums(support & receiver-availability) > 0), per stored event.
   n1 <- length(prep$active_dyad_init)
   presence <- prep$support_mask$sender_presence_init
-  reference <- lapply(prep$support_mask$support, function(s) {
+  reference <- lapply(mask_timeline(prep$support_mask), function(s) {
     presence & (rowSums(s & rep(prep$active_dyad_init, each = n1)) > 0)
   })
   folded <- folded_active_sender_per_event(prep)

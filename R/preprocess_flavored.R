@@ -329,9 +329,18 @@ init_consumers <- function(
         )
       )
     )
+    # An identity map (every union column, in order) is the single-output case
+    # wearing a consumer spec: projecting through it would copy every update
+    # block per event to change nothing, so it takes the NULL fast path.
+    is_identity <- length(effect_map) == dims$nEffects &&
+      all(effect_map == seq_len(dims$nEffects))
     new_consumer(
       cspec$writer,
-      gid_lookup = flavor_gid_lookup(effect_map, dims$nEffects),
+      gid_lookup = if (is_identity) {
+        NULL
+      } else {
+        flavor_gid_lookup(effect_map, dims$nEffects)
+      },
       is_exact_time = cspec$has_intercept
     )
   })
@@ -491,18 +500,85 @@ finalize_consumers <- function(
   # `render()` produces the writer's product from the folded object. Rendering
   # last is what lets a candidate-enumerating product (the gather stack) expand
   # only the post-fold risk set.
-  if (is.null(consumer_specs)) {
-    writer <- consumers[[1L]]$writer
-    out <- finish_output(writer$finalize(tail), default_constraint)
-    return(writer$render(out, tail$spec))
-  }
-
   # Finalize every consumer's writer first: each output carries its own
   # stored-event timeline, so the mask snapshots cannot be realized until all
   # timelines are known. The masks are then realized in ONE pooled pass over the
   # shared atom stream (`realize_masks`) and each fid's fold consumes its own
   # sliced mask -- the atom maintenance is walked once, not once per output.
-  finalized <- lapply(names(consumers), function(fl) {
+  single <- is.null(consumer_specs)
+  finalized <- if (single) {
+    writer <- consumers[[1L]]$writer
+    list(list(
+      out = writer$finalize(tail),
+      constraint = default_constraint,
+      writer = writer,
+      spec = tail$spec
+    ))
+  } else {
+    finalize_consumer_writers(
+      consumers,
+      consumer_specs,
+      tail,
+      project_initial_stats
+    )
+  }
+
+  masks <- realize_masks(consumer_mask_requests(finalized))
+  render_finalized_consumers(
+    finalized,
+    masks,
+    finish_output,
+    scalar_entity,
+    weight_risk_set = !single,
+    names = if (single) NULL else names(consumers)
+  )
+}
+
+# Fold each finalized consumer's mask in and render it. Split from the
+# finalization so a caller spanning several engines can realize every mask
+# between the two halves.
+#
+# `weight_risk_set` is FALSE for a single-output engine, which averages its
+# intercept scalar per stored event: only competing processes make the intervals
+# uneven enough for the time weighting to differ.
+render_finalized_consumers <- function(
+  finalized,
+  masks,
+  finish_output,
+  scalar_entity,
+  weight_risk_set,
+  names = NULL
+) {
+  outputs <- lapply(seq_along(finalized), function(i) {
+    out <- finish_output(
+      finalized[[i]]$out,
+      finalized[[i]]$constraint,
+      masks[[i]]
+    )
+    if (weight_risk_set && !is.null(out$avg_active_entity)) {
+      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
+    }
+    finalized[[i]]$writer$render(out, finalized[[i]]$spec)
+  })
+  if (is.null(names)) {
+    return(outputs[[1L]])
+  }
+  stats::setNames(outputs, names)
+}
+
+# Finalize each consumer's writer without folding anything, so a caller that
+# spans SEVERAL engines can pool their masks together. A constraint belongs to
+# the `(layer, flavor)` process, not to a sub-model family, so the rate and the
+# choice of one layer are two consumers in two engines that must reach one atom
+# pool; that is only possible once every timeline is known, which is what this
+# split buys.
+finalize_consumer_writers <- function(
+  consumers,
+  consumer_specs,
+  tail,
+  project_initial_stats
+) {
+  lapply(names(consumers), function(fl) {
     cspec <- consumer_specs[[fl]]
     writer <- consumers[[fl]]$writer
     flavor_tail <- tail
@@ -517,24 +593,20 @@ finalize_consumers <- function(
       spec = flavor_tail$spec
     )
   })
+}
 
-  masks <- realize_masks(lapply(finalized, function(f) {
-    list(constraint = f$constraint, snapshot_times = f$out$event_time)
-  }))
-
-  outputs <- lapply(seq_along(finalized), function(i) {
-    out <- finish_output(
-      finalized[[i]]$out,
-      finalized[[i]]$constraint,
-      masks[[i]]
+# The pooled-realization requests a set of finalized consumers implies. Each
+# carries its own `symmetric`, because a layer's rate and its coordination
+# choice share an atom pool and an evaluation and differ only in whether the
+# stored mask is symmetrised.
+consumer_mask_requests <- function(finalized) {
+  lapply(finalized, function(f) {
+    list(
+      constraint = f$constraint,
+      snapshot_times = f$out$event_time,
+      symmetric = identical(f$spec$sub_model, "choice_coordination")
     )
-    if (!is.null(out$avg_active_entity)) {
-      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
-    }
-    finalized[[i]]$writer$render(out, finalized[[i]]$spec)
   })
-  names(outputs) <- names(consumers)
-  outputs
 }
 
 # A flavor's intercept scalar: the average size of its post-constraint risk set
@@ -743,12 +815,14 @@ render_process_label <- function(process_map, fid) {
 
 # Preprocess a multi-flavor specification in one call.
 #
-# Each sub-model family (rate, choice) runs ONE walk over the event sequence:
-# the union of that family's per-flavor effects is computed once and each
-# flavor's consumer projects it onto its own columns. The two families keep
-# separate walks -- gids are scoped per statistic block, and an effect in
-# DyNAM-rate and the same effect in DyNAM-choice resolve to different update
-# functions, so there is nothing to share between them.
+# ONE walk over the event sequence covers the whole specification, both
+# sub-model families together: the body is a single `preprocess_joint()`
+# call, which unions every family's per-flavor effects, projects each
+# flavor's consumer onto its own columns and snapshots each fid's support
+# mask. (The families walked separately until the merged substrate landed,
+# on the ground that gids are scoped per statistic block; sharing the clock
+# and the state does not require sharing them.) What is left here is the
+# re-keying.
 #
 # Returns a list of `goldfishStat` objects indexed by fid, carrying the
 # `process_map` identity table as an attribute.
@@ -764,89 +838,45 @@ preprocess_flavored <- function(
       .internal = TRUE
     )
   }
+  # One merged single-clock walk over the whole specification, in place of a
+  # per-family walk each of which drove its own consumer set. The joint
+  # substrate already unions each family's per-flavor effects, projects each
+  # flavor's consumer onto its own columns, snapshots each fid's support mask
+  # and stamps the validation, so the flavored front-end is now that one call.
+  merged <- preprocess_joint(
+    spec,
+    control_preprocessing = control_prep,
+    progress = progress,
+    verbose = verbose
+  )
+  merged_map <- attr(merged, "process_map")
+
+  # Re-key the merged outputs under the family-major fid scheme the flavored
+  # container has always exposed (every family's flavors, family by family),
+  # rather than the joint planner's flavor-major order. The joint `coupled`
+  # separability column is meaningless for a single-layer flavored spec and has
+  # never been part of this contract, so it is dropped. Keyed on (family,
+  # flavor), so the two orderings describe the same processes either way.
   flavors <- names(spec$processes)
   families <- names(spec$processes[[1L]]$submodels)
-  constraints <- assign_constraint_ids(spec$processes)
+  keep_cols <- setdiff(names(merged_map), "coupled")
 
   outputs <- list()
-  map_rows <- vector("list", length(families))
-  next_fid <- 0L
-
-  for (fi in seq_along(families)) {
-    family <- families[[fi]]
-    union <- plan_flavor_union(spec, family)
-    fids <- stats::setNames(next_fid + seq_along(flavors), flavors)
-    next_fid <- next_fid + length(flavors)
-    fid_keys <- as.character(fids)
-
-    # The consumer plan is metadata only (fid, flavor, projection, intercept,
-    # constraint id); the writers and the compiled constraints are attached
-    # downstream, once the family's spec_map has compiled them.
-    consumer_plan <- lapply(flavors, function(fl) {
-      list(
-        fid = fids[[fl]],
-        flavor = fl,
-        effect_map = union$effect_maps[[fl]],
-        has_intercept = unname(union$has_intercept[[fl]]),
-        constraint_id = constraints$ids[[fl]],
-        # This flavor's own two-sided formula: the object's statistics are the
-        # projection onto these effects, so this is what describes it, not the
-        # union formula that drove the shared walk.
-        formula = spec$processes[[fl]]$submodels[[family]]$formula
-      )
-    })
-    names(consumer_plan) <- fid_keys
-
-    preps <- estimate_wrapper(
-      x = union$bundle$formula,
-      model = spec$model,
-      sub_model = union$sub_model,
-      data = spec$data,
-      control_prep = control_prep,
-      preprocessing_only = TRUE,
-      progress = progress,
-      verbose = verbose,
-      support_constraint = if (length(constraints$plans) > 0) {
-        constraints$plans
-      } else {
-        NULL
-      },
-      modeled_flavor = flavors,
-      flavor_plan = list(consumers = consumer_plan)
-    )
-    outputs[fid_keys] <- preps[fid_keys]
-
-    map_rows[[fi]] <- data.frame(
-      fid = unname(fids),
-      layer = spec$focal,
-      flavor = flavors,
-      family = family,
-      # The statistic block a consumer's gids are scoped to: an effect is
-      # deduplicated only among formulas resolving to the same update function.
-      stat_block = paste(spec$model, union$sub_model, sep = ":"),
-      has_intercept = unname(union$has_intercept[flavors]),
-      constraint_id = unname(constraints$ids[flavors]),
-      stringsAsFactors = FALSE
-    )
+  map_rows <- list()
+  new_fid <- 0L
+  for (family in families) {
+    for (flavor in flavors) {
+      new_fid <- new_fid + 1L
+      hit <- merged_map$family == family & merged_map$flavor == flavor
+      old_fid <- merged_map$fid[hit]
+      outputs[[as.character(new_fid)]] <- merged[[as.character(old_fid)]]
+      row <- merged_map[hit, keep_cols, drop = FALSE]
+      row$fid <- new_fid
+      map_rows[[length(map_rows) + 1L]] <- row
+    }
   }
-
   process_map <- do.call(rbind, map_rows)
-
-  # Fail fast, per process: a flavor whose derived mask contradicts the user
-  # constraint leaves an empty risk set, and the message must say WHICH process
-  # is empty -- the label is rendered from the map for that message alone.
-  for (i in seq_len(nrow(process_map))) {
-    key <- as.character(process_map$fid[i])
-    validate_prep_support(
-      outputs[[key]],
-      is_rate_family = identical(process_map$family[i], "rate"),
-      process_label = render_process_label(process_map, process_map$fid[i])
-    )
-    # Stamped so estimation does not re-run the same check and duplicate every
-    # warning it just emitted; the message here is the more useful of the two,
-    # since only this one can name the process.
-    outputs[[key]]$support_validated <- TRUE
-  }
+  rownames(process_map) <- NULL
 
   structure(
     outputs,
