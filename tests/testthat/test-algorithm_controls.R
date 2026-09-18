@@ -185,3 +185,211 @@ test_that("sgd_tolerance is named distinctly from the EM-stop tolerance", {
   expect_false("tolerance" %in% names(set_sgd_options()))
   expect_true("sgd_tolerance" %in% names(set_sgd_options()))
 })
+
+# --------------------------------------------------------------------------- #
+# Task 1.2a/1.2b (abmcem): set_algorithm_em() nests the three child option
+# bundles and enforces the cross-object validity matrix + precedence table
+# (design D2/D4/D5/D6/D7). It validates its own arguments and the nested
+# controls' classes; the child constructors validate their own options.
+# Out of scope here: the cold-start construction guard (task 1.3), and the
+# per-fid warm-start *fit* + its singular-fit fallback, a runtime behavior
+# deferred to the loop (task 5.2) since set_algorithm_em() never sees the spec.
+# --------------------------------------------------------------------------- #
+
+# A lightweight goldfishParams stand-in: set_algorithm_em() only checks the
+# class at construction (it stores the object for the loop to project later), so
+# a classed stub exercises the precedence branch without building a joint spec.
+make_em_params <- function() {
+  structure(
+    list(free = c("calls › rate: indeg" = 0.3)),
+    class = "goldfishParams"
+  )
+}
+
+test_that("set_algorithm_em assembles defaults and nests the child controls", {
+  ctrl <- set_algorithm_em()
+  expect_s3_class(
+    ctrl,
+    c("goldfishAlgoEm", "goldfishAlgo", "list"),
+    exact = TRUE
+  )
+
+  expect_equal(ctrl$n_sequences, 100L)
+  expect_equal(ctrl$max_iterations, 50L)
+  expect_equal(ctrl$accept_quantile, 0.2)
+  expect_equal(ctrl$growth_quantile, 0.2)
+  expect_equal(ctrl$stop_quantile, 0.1)
+  expect_equal(ctrl$tolerance, 1e-3)
+  expect_equal(ctrl$stop_count, 1L)
+  expect_equal(ctrl$max_retries, 20L)
+  expect_equal(ctrl$max_pool, 5000L)
+  expect_null(ctrl$seed)
+  expect_null(ctrl$initial_parameters)
+  expect_false(ctrl$em_trace_se)
+  expect_equal(ctrl$n_cores, 2L)
+
+  expect_s3_class(ctrl$augmenter, "goldfishAugmenterCtrl")
+  expect_s3_class(ctrl$weights, "goldfishWeightsCtrl")
+  expect_s3_class(ctrl$optimizer, "goldfishSgdCtrl")
+})
+
+test_that("set_algorithm_em resolves a NULL batch_size to min(n_sequences, 10) once", {
+  # default n_sequences = 100 -> batch of 10 (design D6).
+  expect_equal(set_algorithm_em()$optimizer$batch_size, 10L)
+  # a tiny pool floors the batch at n_sequences so it never exceeds the pool.
+  expect_equal(set_algorithm_em(n_sequences = 4L)$optimizer$batch_size, 4L)
+  # an explicit batch_size is used verbatim, never overridden.
+  expect_equal(
+    set_algorithm_em(
+      n_sequences = 100L,
+      optimizer = set_sgd_options(batch_size = 25L)
+    )$optimizer$batch_size,
+    25L
+  )
+})
+
+test_that("set_algorithm_em records whether n_cores was set explicitly", {
+  # The loop's warn-once-if-explicit mirai rule (task 5.2) needs this flag,
+  # since missing() is lost by the time the control reaches estimate_dynes().
+  expect_false(set_algorithm_em()$n_cores_explicit)
+  expect_true(set_algorithm_em(n_cores = 2L)$n_cores_explicit)
+})
+
+test_that("set_algorithm_em rejects invalid own arguments", {
+  local_reproducible_output()
+  expect_snapshot(set_algorithm_em(n_sequences = 0L), error = TRUE)
+  expect_snapshot(set_algorithm_em(max_iterations = 0L), error = TRUE)
+  expect_snapshot(set_algorithm_em(accept_quantile = 0), error = TRUE)
+  expect_snapshot(set_algorithm_em(tolerance = 0), error = TRUE)
+  expect_snapshot(set_algorithm_em(stop_count = 0L), error = TRUE)
+  expect_snapshot(set_algorithm_em(max_pool = 0L), error = TRUE)
+  expect_snapshot(set_algorithm_em(n_cores = 0L), error = TRUE)
+  expect_error(set_algorithm_em(accept_quantile = 1))
+  expect_error(set_algorithm_em(growth_quantile = 1.5))
+  expect_error(set_algorithm_em(stop_quantile = -0.1))
+  expect_error(set_algorithm_em(max_retries = 0L))
+  expect_error(set_algorithm_em(seed = c(1L, 2L)))
+  expect_error(set_algorithm_em(em_trace_se = "yes"))
+})
+
+test_that("set_algorithm_em rejects a nested control of the wrong class", {
+  local_reproducible_output()
+  expect_snapshot(set_algorithm_em(augmenter = list()), error = TRUE)
+  expect_snapshot(set_algorithm_em(weights = set_sgd_options()), error = TRUE)
+  expect_snapshot(
+    set_algorithm_em(optimizer = set_weights_options()),
+    error = TRUE
+  )
+})
+
+test_that("set_algorithm_em accepts only a goldfishParams for initial_parameters", {
+  local_reproducible_output()
+  # A bare numeric vector / list is rejected, the error naming set_parameters().
+  expect_snapshot(
+    set_algorithm_em(initial_parameters = c(0.1, 0.2)),
+    error = TRUE
+  )
+  expect_error(
+    set_algorithm_em(initial_parameters = list(0.1)),
+    "set_parameters"
+  )
+  # A goldfishParams is stored verbatim for the loop to project.
+  p <- make_em_params()
+  expect_identical(
+    set_algorithm_em(initial_parameters = p)$initial_parameters,
+    p
+  )
+})
+
+test_that("uniform weighting off the mcmc+refresh cell warns and switches to importance", {
+  local_reproducible_output()
+  # random + uniform is invalid -> warn, corrected to importance (spec scenario).
+  expect_snapshot(
+    ctrl <- set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "random"),
+      weights = set_weights_options(weighting = "uniform", refresh = TRUE)
+    )
+  )
+  expect_equal(ctrl$weights$weighting, "importance")
+
+  # mcmc + uniform but no refresh is still invalid -> warn, corrected.
+  expect_warning(
+    ctrl2 <- set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "mcmc"),
+      weights = set_weights_options(weighting = "uniform", refresh = FALSE)
+    )
+  )
+  expect_equal(ctrl2$weights$weighting, "importance")
+
+  # mcmc + refresh + uniform is the one valid cell -> no warning, kept as-is.
+  expect_no_warning(
+    ctrl3 <- set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "mcmc"),
+      weights = set_weights_options(weighting = "uniform", refresh = TRUE)
+    )
+  )
+  expect_equal(ctrl3$weights$weighting, "uniform")
+})
+
+test_that("refresh makes staleness transformations inapplicable (warn + reset)", {
+  local_reproducible_output()
+  expect_snapshot(
+    ctrl <- set_algorithm_em(
+      weights = set_weights_options(transformation = "clipping", refresh = TRUE)
+    )
+  )
+  expect_equal(ctrl$weights$transformation, "identity")
+})
+
+test_that("a non-default ess_threshold under refresh warns (ESS guard inapplicable)", {
+  local_reproducible_output()
+  expect_snapshot(
+    set_algorithm_em(
+      weights = set_weights_options(refresh = TRUE, ess_threshold = 0.3)
+    )
+  )
+})
+
+test_that("a non-identity transformation with resampling warns (truncated-IS caveat)", {
+  local_reproducible_output()
+  expect_snapshot(
+    ctrl <- set_algorithm_em(
+      weights = set_weights_options(
+        transformation = "clipping",
+        use = "resampling"
+      )
+    )
+  )
+  # Warn-only: the transformation is kept, not reset.
+  expect_equal(ctrl$weights$transformation, "clipping")
+})
+
+test_that("cyclic batches under resampling warn (importance-weighting inapplicable)", {
+  local_reproducible_output()
+  expect_snapshot(
+    set_algorithm_em(
+      weights = set_weights_options(use = "resampling"),
+      optimizer = set_sgd_options(batch_scheme = "cyclic")
+    )
+  )
+})
+
+test_that("a supplied initial_parameters warn-and-ignores warm_start (precedence)", {
+  local_reproducible_output()
+  expect_snapshot(
+    ctrl <- set_algorithm_em(
+      initial_parameters = make_em_params(),
+      augmenter = set_augmenter_options(warm_start = TRUE)
+    )
+  )
+  # The explicit start wins: warm_start is disabled on the stored augmenter.
+  expect_false(ctrl$augmenter$warm_start)
+
+  # warm_start alone (no initial_parameters) passes through untouched.
+  expect_no_warning(
+    ctrl2 <- set_algorithm_em(
+      augmenter = set_augmenter_options(warm_start = TRUE)
+    )
+  )
+  expect_true(ctrl2$augmenter$warm_start)
+})
