@@ -11,3 +11,12 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   validity matrix and precedence rules, and the cold-start construction guard
   (`routine = "random"` with a non-zero `initial_parameters` or
   `warm_start = TRUE` warns).
+* Group 2 (weighting machinery and Q/ASE dispatch) complete: importance-weight
+  reference records with likelihood-ratio reweighting, weight transformations,
+  the three resampling schemes, the ESS redraw guard, and the classed E-step
+  object with `compute_q()`/`compute_ase()` scheme dispatch. Rounding out the
+  E-step diagnostics: a one-shot cold-start ESS diagnostic for a pathological
+  startup pool, a mid-run recommendation to switch to `augment_seq_mcmc()` when
+  importance-sampling weights collapse (its numeric floor sourced from the
+  `dynes-augmentation` degeneracy study, not guessed), and run-level dedup so
+  the `sim` restart-coupling warning fires at most once per estimation run.

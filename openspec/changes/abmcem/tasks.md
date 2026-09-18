@@ -153,7 +153,7 @@
       warning fires per estimation run (first restart at any iteration/draw),
       never per iteration or per draw. Re-run the 2.4a tests to confirm GREEN;
       commit.
-- [ ] 2.5 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
+- [x] 2.5 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       `devtools::document()` if this group touched roxygen/exports; commit.
       **No DESCRIPTION version bump and no root `NEWS.md` edit on this
       branch** — record the weighting milestone as a bullet in the
