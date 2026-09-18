@@ -112,7 +112,7 @@
       (with the resampling warning); stratified/residual/random resampling;
       `refresh` mode and the ESS guard with its two warnings (never at
       startup). Re-run the 2.1a tests to confirm GREEN; commit.
-- [ ] 2.2a Write failing tests for the classed E-step object and
+- [x] 2.2a Write failing tests for the classed E-step object and
       `compute_q()`/`compute_ase()` generics: scheme-dispatch equivalences
       against closed forms from an analytic stub evaluator (design D11);
       negative-variance ASE floor (a near-constant-Λ resampling fixture
