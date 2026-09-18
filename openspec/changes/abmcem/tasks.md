@@ -46,7 +46,7 @@
       design D6) with child-local cli
       validation (errors naming valid options; descriptive argument names per
       design D2). Re-run the 1.1a tests to confirm GREEN; commit.
-- [ ] 1.2a Write failing tests for `set_algorithm_em()`: validity matrix
+- [x] 1.2a Write failing tests for `set_algorithm_em()`: validity matrix
       warn-and-ignore cases, precedence fixtures, and `warm_start` passthrough
       + **precedence** (a supplied `initial_parameters` warn-and-ignores the
       augmenter's `warm_start = TRUE`; the explicit start wins). Run to confirm
@@ -54,7 +54,7 @@
       fid whose singular fit falls back to zero with a fid-naming warning — is a
       runtime behavior needing a drawn sequence and the Group-4 evaluator path,
       so it and its test are deferred to task 5.2; see there.)
-- [ ] 1.2b Implement: `set_algorithm_em()` nesting the three: single `seed`, `n_cores` (CRAN
+- [x] 1.2b Implement: `set_algorithm_em()` nesting the three: single `seed`, `n_cores` (CRAN
       2-core default), stop-rule quantiles, `stop_count`, `max_retries`,
       **`max_pool = 5000L`** (clamps the post-acceptance pool-sizing rule; first
       pass to bind the cap warns once — design D2/D7),

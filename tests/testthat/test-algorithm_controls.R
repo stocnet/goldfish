@@ -344,10 +344,11 @@ test_that("refresh makes staleness transformations inapplicable (warn + reset)",
 test_that("a non-default ess_threshold under refresh warns (ESS guard inapplicable)", {
   local_reproducible_output()
   expect_snapshot(
-    set_algorithm_em(
+    ctrl <- set_algorithm_em(
       weights = set_weights_options(refresh = TRUE, ess_threshold = 0.3)
     )
   )
+  expect_true(ctrl$weights$refresh)
 })
 
 test_that("a non-identity transformation with resampling warns (truncated-IS caveat)", {
@@ -367,7 +368,7 @@ test_that("a non-identity transformation with resampling warns (truncated-IS cav
 test_that("cyclic batches under resampling warn (importance-weighting inapplicable)", {
   local_reproducible_output()
   expect_snapshot(
-    set_algorithm_em(
+    ctrl <- set_algorithm_em(
       weights = set_weights_options(use = "resampling"),
       optimizer = set_sgd_options(batch_scheme = "cyclic")
     )

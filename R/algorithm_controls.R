@@ -328,3 +328,315 @@ set_sgd_options <- function(
   class(control_list) <- c("goldfishSgdCtrl", "list")
   control_list
 }
+
+#' Control Parameters for the Ascent-based Monte Carlo EM Algorithm
+#'
+#' Specifies the ascent-based Monte Carlo EM (ABMCEM) loop `[estimate_dynes]`
+#' runs, nesting one option bundle per algorithm concern:
+#' `[set_augmenter_options]` (how endpoint-hitting sequences are drawn),
+#' `[set_weights_options]` (how the pool is weighted and resampled at the
+#' E-step), and `[set_sgd_options]` (the stochastic-gradient M-step). This
+#' constructor validates its own arguments and the nested controls' classes,
+#' then enforces the **cross-object rules** the child constructors cannot see on
+#' their own: the augmenter \eqn{\times} weighting validity matrix, the
+#' refresh-inapplicability and transformation precedence, and the
+#' warm-start precedence. Inconsistent-but-ignorable combinations warn and are
+#' corrected; impossible ones (a nested control of the wrong class, a
+#' non-`goldfishParams` starting point) abort.
+#'
+#' @param n_sequences A single positive integer, the **initial** pool size (the
+#'   loop's \eqn{m_0} / K — the number of endpoint-hitting sequences the first
+#'   iteration draws). Default `100L`.
+#' @param max_iterations A single positive integer, the outer EM iteration
+#'   budget. Exhausting it returns the last accepted parameters with a
+#'   non-convergence warning and `converged = FALSE`, never an abort. Default
+#'   `50L`.
+#' @param accept_quantile,growth_quantile,stop_quantile Single numeric values
+#'   in \eqn{(0, 1)}, the tail probabilities of the ascent stop rule — the
+#'   paper's \eqn{\alpha} (accept), \eqn{\beta} (growth), and \eqn{\gamma}
+#'   (stop). A pass accepts when the ascent lower bound clears zero, sizes the
+#'   next pool from the growth quantile, and stops when the upper bound falls
+#'   within `tolerance`. Defaults `0.2`, `0.2`, `0.1`.
+#' @param tolerance A single positive numeric value, the EM-stop threshold on
+#'   the Q-scale. Named distinctly from `[set_sgd_options]`'s `sgd_tolerance`
+#'   (the M-step gradient-norm scale) so the two are never set by the same
+#'   argument. Default `1e-3`.
+#' @param stop_count A single positive integer, the number of **consecutive**
+#'   stop-rule satisfactions required to terminate (checked once per decision
+#'   pass; any miss resets the streak). Default `1L`.
+#' @param max_retries A single positive integer, the within-iteration
+#'   pool-growth retry budget. Exhausting it aborts the run (the ascent cannot
+#'   be certified at that iteration), carrying the accumulated trace as
+#'   condition data. Default `20L`.
+#' @param max_pool A single positive integer, the ceiling clamping the
+#'   post-acceptance pool-sizing rule (whose \eqn{Q^2} denominator can request
+#'   an astronomical pool near the optimum). Default `5000L`.
+#' @param seed A single integer, or `NULL` (default). The **only** seed: one RNG
+#'   stream governs augmentation draws, batch selection, and resampling. `NULL`
+#'   leaves the loop to draw and record a seed.
+#' @param initial_parameters A `goldfishParams` (from `[set_parameters]` over
+#'   the joint specification), or `NULL` (default). It is \eqn{\theta_0}: its
+#'   free (non-offset `NA`) slots are the parameters estimated, and `NULL` means
+#'   zero over the free set. There is deliberately **no** `fixed_parameters`
+#'   argument — fixed effects are the specification's formula offsets, not a
+#'   control setting. A bare numeric vector or a parameter *provider* is
+#'   rejected (build a `goldfishParams` with `[set_parameters]`).
+#' @param em_trace_se A single logical. When `TRUE`, the per-iteration
+#'   `em_trace` also carries parameter standard errors (one extra Fisher pass
+#'   per accepted iteration). Default `FALSE`.
+#' @param n_cores A single positive integer, the worker budget for the internal
+#'   per-sequence map (pool preprocessing and evaluation). The default runs
+#'   serially; a value above 1 uses mirai daemons when that Suggests package is
+#'   installed, else warns once and runs serially. Held within CRAN's two-core
+#'   cap by default (`2L`).
+#' @param augmenter,weights,optimizer The nested option bundles, from
+#'   `[set_augmenter_options]`, `[set_weights_options]`, and `[set_sgd_options]`
+#'   respectively. Each defaults to its own constructor's defaults.
+#'
+#' @return An object of class `c("goldfishAlgoEm", "goldfishAlgo", "list")`
+#'   carrying the resolved EM settings and the (possibly corrected) nested
+#'   controls. The nested `[set_sgd_options]` `batch_size`, if left `NULL`, is
+#'   resolved once here to `min(n_sequences, 10L)` and frozen for the run.
+#' @seealso [set_augmenter_options()], [set_weights_options()],
+#'   [set_sgd_options()]
+#' @export
+#' @examples
+#' em_ctrl <- set_algorithm_em(
+#'   n_sequences = 200L,
+#'   max_iterations = 100L,
+#'   augmenter = set_augmenter_options(routine = "mcmc"),
+#'   weights = set_weights_options(weighting = "importance")
+#' )
+set_algorithm_em <- function(
+  n_sequences = 100L,
+  max_iterations = 50L,
+  accept_quantile = 0.2,
+  growth_quantile = 0.2,
+  stop_quantile = 0.1,
+  tolerance = 1e-3,
+  stop_count = 1L,
+  max_retries = 20L,
+  max_pool = 5000L,
+  seed = NULL,
+  initial_parameters = NULL,
+  em_trace_se = FALSE,
+  n_cores = 2L,
+  augmenter = set_augmenter_options(),
+  weights = set_weights_options(),
+  optimizer = set_sgd_options()
+) {
+  n_cores_explicit <- !missing(n_cores)
+
+  n_sequences <- check_em_count(n_sequences, "n_sequences")
+  max_iterations <- check_em_count(max_iterations, "max_iterations")
+  stop_count <- check_em_count(stop_count, "stop_count")
+  max_retries <- check_em_count(max_retries, "max_retries")
+  max_pool <- check_em_count(max_pool, "max_pool")
+  n_cores <- check_em_count(n_cores, "n_cores")
+
+  check_em_quantile(accept_quantile, "accept_quantile")
+  check_em_quantile(growth_quantile, "growth_quantile")
+  check_em_quantile(stop_quantile, "stop_quantile")
+
+  if (
+    !rlang::is_scalar_double(tolerance) || is.na(tolerance) || tolerance <= 0
+  ) {
+    cli::cli_abort("{.arg tolerance} must be a single positive numeric value.")
+  }
+  if (!rlang::is_scalar_logical(em_trace_se) || is.na(em_trace_se)) {
+    cli::cli_abort(
+      "{.arg em_trace_se} must be a single {.code TRUE}/{.code FALSE}."
+    )
+  }
+  if (!is.null(seed)) {
+    if (!rlang::is_scalar_integerish(seed, finite = TRUE)) {
+      cli::cli_abort("{.arg seed} must be {.code NULL} or a single integer.")
+    }
+    seed <- as.integer(seed)
+  }
+  if (!is.null(initial_parameters)) {
+    # Accepts only a goldfishParams; the abort names set_parameters(). The
+    # object is stored as-is — the loop projects its free set (offsets excluded)
+    # when it has the specification.
+    initial_parameters <- accept_joint_parameters(
+      initial_parameters,
+      arg = "initial_parameters"
+    )
+  }
+
+  augmenter <- check_nested_control(
+    augmenter,
+    "goldfishAugmenterCtrl",
+    "augmenter",
+    "set_augmenter_options"
+  )
+  weights <- check_nested_control(
+    weights,
+    "goldfishWeightsCtrl",
+    "weights",
+    "set_weights_options"
+  )
+  optimizer <- check_nested_control(
+    optimizer,
+    "goldfishSgdCtrl",
+    "optimizer",
+    "set_sgd_options"
+  )
+
+  # Cross-object rules. Warm-start precedence first: an explicit start wins over
+  # a warm-start fit, so disable the toggle before it can reach the loop.
+  if (!is.null(initial_parameters) && isTRUE(augmenter$warm_start)) {
+    cli::cli_warn(c(
+      "{.arg initial_parameters} was supplied, so the augmenter's
+       {.arg warm_start} is ignored.",
+      "i" = "The explicit starting values take precedence over a warm-start
+             fit."
+    ))
+    augmenter$warm_start <- FALSE
+  }
+
+  # Validity matrix (design D4): uniform weighting is exact only when the
+  # proposal is the model's conditional distribution — the mcmc routine with a
+  # per-iteration pool refresh. Every other cell warns and switches to
+  # importance weighting.
+  uniform_valid <- identical(augmenter$routine, "mcmc") &&
+    isTRUE(weights$refresh)
+  if (identical(weights$weighting, "uniform") && !uniform_valid) {
+    cli::cli_warn(c(
+      "{.arg weighting} = {.val uniform} requires {.arg routine} = {.val mcmc}
+       with pool {.arg refresh} = {.code TRUE}.",
+      "i" = "Using {.arg weighting} = {.val importance} instead."
+    ))
+    weights$weighting <- "importance"
+  }
+
+  # Refresh-inapplicability (design D5): a whole-pool redraw each iteration
+  # makes the staleness defenses moot. A non-identity transformation is reset
+  # (state-changing); a non-default ESS threshold is warned as unused.
+  if (isTRUE(weights$refresh)) {
+    if (!identical(weights$transformation, "identity")) {
+      cli::cli_warn(c(
+        "{.arg transformation} = {.val {weights$transformation}} is inapplicable
+         when {.arg refresh} = {.code TRUE}.",
+        "i" = "Weight transformations act on a persistent pool; the redrawn pool
+               uses {.val identity}."
+      ))
+      weights$transformation <- "identity"
+    }
+    if (!isTRUE(weights$ess_threshold == 0.5)) {
+      cli::cli_warn(c(
+        "{.arg ess_threshold} is inapplicable when {.arg refresh} =
+         {.code TRUE}.",
+        "i" = "The ESS redraw guard does not run on a fully redrawn pool."
+      ))
+    }
+  } else if (
+    # Non-identity transform feeds resampling probabilities their truncation
+    # bias (design D5). Warn-only — the transformation is still applied.
+    !identical(weights$transformation, "identity") &&
+      identical(weights$use, "resampling")
+  ) {
+    cli::cli_warn(c(
+      "A non-identity {.arg transformation} = {.val {weights$transformation}}
+       with {.arg use} = {.val resampling} truncates the weights before
+       resampling.",
+      "i" = "Resampling probabilities inherit the transformation's bias
+             (truncated-IS caveat)."
+    ))
+  }
+
+  # Batch-scheme coupling (design D6): resampled batches carry unweighted
+  # gradients, so the cyclic scheme's importance-weighting has nothing to act
+  # on.
+  if (
+    identical(weights$use, "resampling") &&
+      identical(optimizer$batch_scheme, "cyclic")
+  ) {
+    cli::cli_warn(c(
+      "{.arg batch_scheme} = {.val cyclic} importance-weights the gradient,
+       which is inapplicable when {.arg use} = {.val resampling}.",
+      "i" = "Resampled batches use unweighted gradients."
+    ))
+  }
+
+  # Resolve the fixed absolute batch size once (design D6): the only object that
+  # knows n_sequences freezes NULL to min(n_sequences, 10L); an explicit value
+  # is kept verbatim. The floor keeps the batch from exceeding a tiny pool.
+  if (is.null(optimizer$batch_size)) {
+    optimizer$batch_size <- min(n_sequences, 10L)
+  }
+
+  control_list <- list(
+    n_sequences = n_sequences,
+    max_iterations = max_iterations,
+    accept_quantile = accept_quantile,
+    growth_quantile = growth_quantile,
+    stop_quantile = stop_quantile,
+    tolerance = tolerance,
+    stop_count = stop_count,
+    max_retries = max_retries,
+    max_pool = max_pool,
+    seed = seed,
+    initial_parameters = initial_parameters,
+    em_trace_se = em_trace_se,
+    n_cores = n_cores,
+    n_cores_explicit = n_cores_explicit,
+    augmenter = augmenter,
+    weights = weights,
+    optimizer = optimizer
+  )
+
+  class(control_list) <- c("goldfishAlgoEm", "goldfishAlgo", "list")
+  control_list
+}
+
+# A single positive integer (the EM loop's count-valued controls), coerced to
+# integer. `arg` names the offending argument in the abort.
+check_em_count <- function(value, arg, call = rlang::caller_env()) {
+  if (!rlang::is_scalar_integerish(value, finite = TRUE) || value < 1) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a single positive integer.",
+      call = call
+    )
+  }
+  as.integer(value)
+}
+
+# A single numeric stop-rule quantile in the open interval (0, 1) -- the tails
+# feed qnorm(), so 0 and 1 (infinite z) are rejected.
+check_em_quantile <- function(value, arg, call = rlang::caller_env()) {
+  if (
+    !rlang::is_scalar_double(value) ||
+      is.na(value) ||
+      value <= 0 ||
+      value >= 1
+  ) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a single numeric value in (0, 1).",
+      call = call
+    )
+  }
+  invisible(value)
+}
+
+# A nested option bundle of the expected class; the abort names the constructor
+# that mints it so the fix is obvious.
+check_nested_control <- function(
+  value,
+  cls,
+  arg,
+  constructor,
+  call = rlang::caller_env()
+) {
+  if (!inherits(value, cls)) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} must be a {.cls {cls}}.",
+        "x" = "A {.cls {class(value)[1]}} was supplied.",
+        "i" = "Build one with {.fn {constructor}}."
+      ),
+      call = call
+    )
+  }
+  value
+}
