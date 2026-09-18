@@ -3,8 +3,8 @@
 # Casella & Levine (2001) likelihood-ratio (own-ratio self-normalized IS)
 # reweighting, the named-enum log-weight transformation, effective sample size,
 # the three resampling schemes, and the ESS staleness guard with its two
-# warnings (design D5). Pure functions over hand-computed fixtures; the loop
-# wiring (redraw, refresh, growth) is Group 5.
+# warnings. Pure functions over hand-computed fixtures; the loop wiring
+# (redraw, refresh, growth) lives with the estimation loop, not here.
 
 test_that("new_reference_record stores the log-scale triple", {
   rec <- new_reference_record(
@@ -56,8 +56,7 @@ test_that("importance weights are a hand-computed self-normalized ratio", {
 test_that("reweighting a persistent pool is a likelihood ratio, not a redraw", {
   # A pool drawn at theta_k, then re-evaluated at theta_{k+1}: the weights are
   # recomputed from the SAME stored reference records and the new loglik, with
-  # no new sequences generated (spec scenario "reweighting is a likelihood
-  # ratio, not a redraw").
+  # no new sequences generated: reweighting is a likelihood ratio, not a redraw.
   records <- list(
     new_reference_record(c(0, 0), loglik_ref = 0, log_proposal = 0),
     new_reference_record(c(0, 0), loglik_ref = 0, log_proposal = 0),
@@ -131,7 +130,7 @@ test_that("clipping transformation caps the dominant weight", {
 })
 
 test_that("non-finite per-sequence loglik normalizes its weight to zero", {
-  # The D-ROBUST degenerate-sequence guard yields a non-finite loglik; its
+  # A degenerate (singular-information) sequence yields a non-finite loglik; its
   # weight must vanish rather than poison the pool.
   log_proposal <- c(0, 0, 0)
   loglik <- c(0, log(2), -Inf)

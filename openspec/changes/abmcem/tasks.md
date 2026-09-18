@@ -97,10 +97,10 @@
 
 ## 2. Weighting machinery and Q/ASE dispatch
 
-- [ ] 2.1a Write failing tests for weight state: hand-computed weight/ESS
+- [x] 2.1a Write failing tests for weight state: hand-computed weight/ESS
       fixtures, reweighting-ratio fixtures, guard-warning snapshots (the ESS
       guard's two warnings). Run to confirm RED; commit the tests alone.
-- [ ] 2.1b Implement: weight state per design D5: permanent per-sequence reference records
+- [x] 2.1b Implement: weight state per design D5: permanent per-sequence reference records
       (θ_ref, log-likelihood at θ_ref, log proposal density) on the log
       scale; likelihood-ratio reweighting (the Casella & Levine 2001
       sample-reuse update — add the cite to `inst/REFERENCES.bib`) with
