@@ -70,3 +70,90 @@ test_that("cold-start diagnostic is distinct from the ESS redraw guard", {
   expect_false(guard$redraw)
   expect_warning(cold_start_ess_diagnostic(w, ess_threshold = 0.5))
 })
+
+# --- Task 2.4a: runtime ESS-collapse recommendation + restart dedup ---------
+
+test_that("mid-run ESS collapse recommends augment_seq_mcmc() once per run", {
+  local_reproducible_output()
+  # The numeric IS-ESS collapse floor is owned by dynes-augmentation's 6.2/6.3
+  # study, not this change; the message surface reads it through a single seam.
+  # The test injects a calibrated fraction (0.3 of the pool) via that seam.
+  testthat::local_mocked_bindings(
+    importance_ess_collapse_threshold = function() 0.3
+  )
+  state <- new_run_warning_state()
+  w <- degenerate_weights(20) # ESS ~ 1.06 < 0.3 * 20 = 6 -> collapse.
+
+  expect_snapshot(
+    fired <- recommend_mcmc_on_ess_collapse(state, w, routine = "random")
+  )
+  expect_true(fired)
+  # Run-level dedup: a second collapse in the same run stays silent.
+  expect_no_warning(
+    again <- recommend_mcmc_on_ess_collapse(state, w, routine = "sim")
+  )
+  expect_false(again)
+})
+
+test_that("ESS-collapse recommendation is dormant until the study calibrates it", {
+  # With no calibrated threshold (dynes 6.2/6.3 not landed) the seam returns NA
+  # and the recommendation never fires -- the surface ships without a guessed
+  # number baked in.
+  expect_true(is.na(importance_ess_collapse_threshold()))
+  state <- new_run_warning_state()
+  w <- degenerate_weights(20)
+  expect_no_warning(
+    fired <- recommend_mcmc_on_ess_collapse(state, w, routine = "random")
+  )
+  expect_false(fired)
+})
+
+test_that("ESS-collapse recommendation is scoped to importance-weighted routines", {
+  testthat::local_mocked_bindings(
+    importance_ess_collapse_threshold = function() 0.3
+  )
+  w <- degenerate_weights(20)
+  # MCMC's uniform weighting makes the same statistic trivially the pool size, so
+  # the IS-dimension recommendation does not apply to it.
+  expect_no_warning(
+    fired <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      w,
+      routine = "mcmc"
+    )
+  )
+  expect_false(fired)
+  # It also never fires at startup (the cold-start diagnostic owns iteration 1).
+  expect_no_warning(
+    startup <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      w,
+      routine = "random",
+      at_startup = TRUE
+    )
+  )
+  expect_false(startup)
+})
+
+test_that("restart-coupling warning fires exactly once per run", {
+  local_reproducible_output()
+  state <- new_run_warning_state()
+  # The first restart at any iteration/draw warns, naming the coupled constraint.
+  expect_snapshot(
+    first <- warn_restart_coupling_once(state, restarted = TRUE)
+  )
+  expect_true(first)
+  # Every later restart in the same run is deduplicated to silence.
+  expect_no_warning(
+    second <- warn_restart_coupling_once(state, restarted = TRUE)
+  )
+  expect_false(second)
+})
+
+test_that("a coupling-free run emits no restart warning", {
+  state <- new_run_warning_state()
+  expect_no_warning(
+    fired <- warn_restart_coupling_once(state, restarted = FALSE)
+  )
+  expect_false(fired)
+})
