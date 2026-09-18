@@ -47,3 +47,98 @@ cold_start_ess_diagnostic <- function(weights, ess_threshold = 0.5) {
   decision$diagnosed <- TRUE
   decision
 }
+
+# The single seam for the mid-run IS-ESS collapse threshold, as a fraction of the
+# pool size. This change owns only the message surface that consumes it; the
+# numeric floor -- where importance-weighted augmentation degenerates faster than
+# pool growth can recover, the flips-per-interval cliff -- is owned by
+# dynes-augmentation's 6.2/6.3 degeneracy study. Reading it through this one
+# accessor (rather than a literal at the call site) is what keeps the runtime
+# recommendation and the documented operating envelope from drifting: when the
+# study lands, dynes-augmentation calibrates the value here, in one place. Until
+# then the threshold is NA and the recommendation stays dormant -- the surface
+# ships without a guessed number baked in.
+importance_ess_collapse_threshold <- function() {
+  NA_real_
+}
+
+# Run-level diagnostic state, owned by the estimation loop and threaded through
+# every pass. The dedup flags keep the mid-run ESS-collapse recommendation and
+# the sim restart-coupling warning firing at most once per estimation run (never
+# per iteration or per draw). The loop creates one at entry.
+new_run_warning_state <- function() {
+  state <- new.env(parent = emptyenv())
+  state$ess_collapse_warned <- FALSE
+  state$restart_coupling_warned <- FALSE
+  state
+}
+
+# The mid-run IS-ESS collapse recommendation (design D5, dynes-augmentation
+# D14/#5). Distinct from BOTH the ESS redraw guard (which regenerates the pool)
+# and the cold-start diagnostic (a startup bad-theta0 corner): when the pool's
+# effective sample size collapses mid-run under an importance-weighted augmenter
+# (`routine` "random"/"sim") because flips-per-interval is high, the IS-weight
+# variance grows ~exponentially in the sequence-space dimension, so no redraw at
+# any theta recovers it. The loop then emits a cli recommendation to switch to
+# `augment_seq_mcmc()`, which does not pay the IS-dimension tax. The
+# recommendation only informs -- it never switches augmenters or redraws -- and
+# fires at most once per run. It does not apply to MCMC (its uniform weighting
+# makes the same statistic trivially the pool size) or at startup (the cold-start
+# diagnostic owns iteration 1). The numeric floor comes from
+# importance_ess_collapse_threshold(); a dormant (NA) threshold never fires.
+recommend_mcmc_on_ess_collapse <- function(
+  state,
+  weights,
+  routine,
+  at_startup = FALSE
+) {
+  if (
+    at_startup ||
+      !routine %in% c("random", "sim") ||
+      isTRUE(state$ess_collapse_warned)
+  ) {
+    return(invisible(FALSE))
+  }
+  threshold <- importance_ess_collapse_threshold()
+  ess <- effective_sample_size(weights)
+  pool_size <- length(weights)
+  if (is.na(threshold) || ess >= threshold * pool_size) {
+    return(invisible(FALSE))
+  }
+  state$ess_collapse_warned <- TRUE
+  cli::cli_warn(c(
+    "!" = "Effective sample size {.val {round(ess, 2)}} has collapsed mid-run
+           under the importance-weighted {.arg routine} = {.val {routine}} (pool
+           size {.val {pool_size}}); redrawing cannot recover it.",
+    "i" = "With many changes per interval the importance-weight variance grows
+           with the sequence-space dimension, a cost no redraw at any parameters
+           removes.",
+    "i" = "Switch to {.fn augment_seq_mcmc}, which does not pay the
+           importance-sampling dimension tax."
+  ))
+  invisible(TRUE)
+}
+
+# Restart-coupling warning dedup (design D5, dynes-augmentation D20). The sim
+# augmenter's reject-and-restart fires inside augmenter draws the loop drives;
+# the augmenter reports that a restart occurred, but the LOOP owns the run-level
+# dedup so exactly one warning fires per estimation run (the first restart at any
+# iteration or draw), naming the coupled constraint and its plug-in-normalizer
+# bias -- never one warning per iteration or per draw. A coupling-free run (no
+# restart ever fires) emits none.
+warn_restart_coupling_once <- function(state, restarted) {
+  if (!isTRUE(restarted) || isTRUE(state$restart_coupling_warned)) {
+    return(invisible(FALSE))
+  }
+  state$restart_coupling_warned <- TRUE
+  cli::cli_warn(c(
+    "!" = "A coupled constraint forced the {.val sim} augmenter to reject and
+           restart at least one interval during this run.",
+    "i" = "Restart-conditioning normalizes the proposal density by an estimated
+           completion probability, a plug-in normalizer that biases the
+           importance weights.",
+    "i" = "Consider {.fn augment_seq_mcmc}, or loosening the coupled constraint,
+           if the coupling is severe."
+  ))
+  invisible(TRUE)
+}

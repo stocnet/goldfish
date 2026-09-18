@@ -134,14 +134,14 @@
       under `ess_threshold` × K); it names the proposal/target mismatch and the
       mitigations and never redraws or grows the pool; quiet on the default
       θ₀ = 0 path. Re-run the 2.3a test to confirm GREEN; commit.
-- [ ] 2.4a Write failing tests for the runtime ESS-collapse recommendation
+- [x] 2.4a Write failing tests for the runtime ESS-collapse recommendation
       and restart-warning dedup: **runtime ESS-collapse recommendation**
       snapshot (fires under a high-dimension IS pool, names
       `augment_seq_mcmc()`, distinct from the redraw guard) and
       **restart-warning dedup** (a run with many restarts emits exactly one
       coupling warning; a coupling-free run emits none). Run to confirm RED;
       commit the tests alone.
-- [ ] 2.4b Implement: runtime ESS-collapse recommendation + restart-warning dedup (design
+- [x] 2.4b Implement: runtime ESS-collapse recommendation + restart-warning dedup (design
       D5, dynes-augmentation D14/#5 and D20): (a) when mid-run ESS collapses under
       an importance-weighted augmenter (`routine = "random"`/`"sim"`) the loop
       emits an actionable cli recommendation to switch to `augment_seq_mcmc()` —
