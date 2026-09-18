@@ -17,7 +17,7 @@ make_quadratic_score_fn <- function(targets) {
   }
 }
 
-test_that("full-variant SGD ascends the analytic stub to the weighted optimum", {
+test_that("full-variant SGD ascends the stub to the weighted optimum", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   optimum <- colSums(weights * targets)
@@ -49,6 +49,9 @@ test_that("minibatch weighted SGD converges to the weighted optimum", {
   optimum <- colSums(weights * targets)
   score_fn <- make_quadratic_score_fn(targets)
 
+  # A decreasing (Bottou) step run to a fixed budget is the Robbins-Monro
+  # regime, so the noisy minibatch iterate settles onto the weighted optimum
+  # rather than hovering in the O(step) neighborhood a constant step leaves.
   res <- optimize_abem_sgd(
     theta = c(3, -3),
     score_fn = score_fn,
@@ -57,17 +60,17 @@ test_that("minibatch weighted SGD converges to the weighted optimum", {
       variant = "minibatch",
       batch_size = 8L,
       batch_scheme = "weighted",
-      step_size = 0.05,
-      step_schedule = "constant",
-      sgd_tolerance = 5e-2,
-      max_iterations = 5000L
+      step_size = 0.3,
+      step_schedule = "decay",
+      convergence = "iterations",
+      max_iterations = 20000L
     )
   )
 
-  expect_equal(res$parameters, optimum, tolerance = 5e-2)
+  expect_equal(res$parameters, optimum, tolerance = 1e-2)
 })
 
-test_that("cyclic and weighted batch gradients share the weighted expectation", {
+test_that("cyclic and weighted batch gradients share an expectation", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4, 2, 1), ncol = 2, byrow = TRUE)
   weights <- c(0.1, 0.2, 0.3, 0.4)
   theta <- c(0.5, -0.5)
@@ -124,13 +127,15 @@ test_that("a cyclic-scheme run reaches the same weighted optimum", {
       variant = "minibatch",
       batch_size = 2L,
       batch_scheme = "cyclic",
-      step_size = 0.05,
-      step_schedule = "constant",
-      sgd_tolerance = 1e-3,
-      max_iterations = 5000L
+      step_size = 0.3,
+      step_schedule = "decay",
+      convergence = "iterations",
+      max_iterations = 20000L
     )
   )
 
+  # The K/B-scaled cyclic gradients average to the full-pool weighted gradient
+  # over each cycle, so a decreasing step drives the iterate onto the optimum.
   expect_equal(res$parameters, optimum, tolerance = 5e-3)
 })
 
@@ -154,7 +159,7 @@ test_that("fixed parameters stay immobile through the M-step", {
     fixed = 1L
   )
 
-  # The masked coordinate never leaves its start; the free one finds its optimum.
+  # The masked coordinate never moves; the free one finds its optimum.
   expect_identical(res$parameters[1], 5)
   expect_equal(res$parameters[2], free_optimum, tolerance = 1e-5)
   expect_true(res$converged)
@@ -173,7 +178,7 @@ test_that("optimizer accumulators reset every M-step", {
         variant = "full",
         step_schedule = "adam",
         step_size = 0.1,
-        sgd_tolerance = 1e-6,
+        convergence = "iterations",
         max_iterations = 200L
       )
     )
@@ -194,15 +199,25 @@ test_that("every step schedule ascends the analytic stub", {
   score_fn <- make_quadratic_score_fn(targets)
 
   for (schedule in c("constant", "decay", "adagrad", "adam", "momentum")) {
+    # Per-schedule stable step sizes (momentum's effective rate is
+    # step_size / (1 - 0.9), so it needs the smallest); run the fixed budget so
+    # each schedule is judged purely on where it lands, not its stop rule.
+    step_size <- switch(
+      schedule,
+      adagrad = 0.2,
+      adam = 0.2,
+      momentum = 0.1,
+      0.4
+    )
     res <- optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
       weights = weights,
       control = set_sgd_options(
         variant = "full",
-        step_size = if (schedule %in% c("adagrad", "adam")) 0.2 else 0.4,
+        step_size = step_size,
         step_schedule = schedule,
-        sgd_tolerance = 1e-4,
+        convergence = "iterations",
         max_iterations = 20000L
       )
     )
@@ -210,7 +225,7 @@ test_that("every step schedule ascends the analytic stub", {
   }
 })
 
-test_that("exiting on the iteration cap with an unmet gradient criterion warns", {
+test_that("hitting the iteration cap with the gradient criterion unmet warns", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   score_fn <- make_quadratic_score_fn(targets)
@@ -256,12 +271,12 @@ test_that("the iterations mode runs the budget without a convergence warning", {
   expect_false(res$converged)
 })
 
-test_that("resampling draws uniformly over the multiset with unweighted grads", {
+test_that("resampling draws over the multiset with unweighted gradients", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   multiset <- c(1L, 3L, 3L, 2L, 3L)
   score_fn <- make_quadratic_score_fn(targets)
-  # Under resampling the effective objective is the plain mean over the multiset.
+  # Under resampling the objective is the plain mean over the multiset.
   optimum <- colMeans(targets[multiset, , drop = FALSE])
 
   res <- optimize_abem_sgd(
