@@ -416,10 +416,11 @@ test_that("random routine + non-zero theta0 warns; random + theta0 = 0 is silent
 
   # warm_start = TRUE alone (no initial_parameters) also warns.
   expect_snapshot(
-    set_algorithm_em(
+    ctrl2 <- set_algorithm_em(
       augmenter = set_augmenter_options(routine = "random", warm_start = TRUE)
     )
   )
+  expect_true(ctrl2$augmenter$warm_start)
 
   # theta0 = 0 via the default NULL initial_parameters (no warm_start) is silent.
   expect_no_warning(

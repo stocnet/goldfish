@@ -78,11 +78,11 @@
       nested `set_sgd_options()` `batch_size = NULL`
       default to `min(n_sequences, 10)` once here and freeze it** (design D6);
       `devtools::document()`. Re-run the 1.2a tests to confirm GREEN; commit.
-- [ ] 1.3a Write failing test for the cold-start construction guard:
+- [x] 1.3a Write failing test for the cold-start construction guard:
       cold-start construction-guard warning snapshot (`random` + non-zero θ₀
       warns; `random` + θ₀ = 0 silent). Run to confirm RED; commit the test
       alone.
-- [ ] 1.3b Implement: cold-start construction guard (design D4, dynes-augmentation
+- [x] 1.3b Implement: cold-start construction guard (design D4, dynes-augmentation
       D1/D14): `set_algorithm_em()` warns when `routine = "random"` meets a
       non-zero initial parameter vector or `warm_start = TRUE` (recommend a
       model-driven routine or θ₀ = 0); no abort, and silent for `random` at

@@ -234,3 +234,23 @@
       `initial_parameters` was supplied, so the augmenter's `warm_start` is ignored.
       i The explicit starting values take precedence over a warm-start fit.
 
+# random routine + non-zero theta0 warns; random + theta0 = 0 is silent
+
+    Code
+      ctrl <- set_algorithm_em(initial_parameters = make_em_params(), augmenter = set_augmenter_options(
+        routine = "random"))
+    Condition
+      Warning:
+      `routine` = "random" draws uniformly over orderings/times, which sits far from the target model at a non-zero starting point.
+      i E-step importance weights may collapse at iteration 1; consider a model-driven `routine` ("sim" or "mcmc"), or start from `initial_parameters` = `NULL` (theta0 = 0).
+
+---
+
+    Code
+      ctrl2 <- set_algorithm_em(augmenter = set_augmenter_options(routine = "random",
+        warm_start = TRUE))
+    Condition
+      Warning:
+      `routine` = "random" draws uniformly over orderings/times, which sits far from the target model at a non-zero starting point.
+      i E-step importance weights may collapse at iteration 1; consider a model-driven `routine` ("sim" or "mcmc"), or start from `initial_parameters` = `NULL` (theta0 = 0).
+

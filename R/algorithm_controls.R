@@ -483,6 +483,12 @@ set_algorithm_em <- function(
     "set_sgd_options"
   )
 
+  # Cold-start construction guard (design D4, dynes-augmentation D1/D14):
+  # captured before the warm-start precedence branch below can clear the flag,
+  # since either a non-zero explicit theta0 or a requested warm start is
+  # equally a risk for the "random" routine.
+  warm_start_requested <- isTRUE(augmenter$warm_start)
+
   # Cross-object rules. Warm-start precedence first: an explicit start wins over
   # a warm-start fit, so disable the toggle before it can reach the loop.
   if (!is.null(initial_parameters) && isTRUE(augmenter$warm_start)) {
@@ -556,6 +562,25 @@ set_algorithm_em <- function(
       "{.arg batch_scheme} = {.val cyclic} importance-weights the gradient,
        which is inapplicable when {.arg use} = {.val resampling}.",
       "i" = "Resampled batches use unweighted gradients."
+    ))
+  }
+
+  # Cold-start construction guard (design D4, dynes-augmentation D1/D14):
+  # "random" draws uniformly over orderings/times, which sits far from the
+  # target model at a non-zero starting point and risks E-step weight collapse
+  # at iteration 1. Settle-at-construction complement to the runtime cold-start
+  # ESS diagnostic (D5); valid, not aborted, and silent at theta0 = 0 (the
+  # "random" + default-theta0 path is near the model).
+  if (
+    identical(augmenter$routine, "random") &&
+      (!is_zero_initial_parameters(initial_parameters) || warm_start_requested)
+  ) {
+    cli::cli_warn(c(
+      "{.arg routine} = {.val random} draws uniformly over orderings/times,
+       which sits far from the target model at a non-zero starting point.",
+      "i" = "E-step importance weights may collapse at iteration 1; consider a
+             model-driven {.arg routine} ({.val sim} or {.val mcmc}), or start
+             from {.arg initial_parameters} = {.code NULL} (theta0 = 0)."
     ))
   }
 
@@ -639,4 +664,17 @@ check_nested_control <- function(
     )
   }
   value
+}
+
+# Whether a supplied initial_parameters object (or its absence) represents
+# theta0 = 0 over the free set for the cold-start construction guard: NULL
+# defaults to zero (design D2), and an unpinned (NA) free slot also defaults
+# to zero at the loop, so only a genuinely nonzero pin counts as non-zero.
+is_zero_initial_parameters <- function(x) {
+  if (is.null(x)) {
+    return(TRUE)
+  }
+  values <- x$free
+  values[is.na(values)] <- 0
+  all(values == 0)
 }
