@@ -124,11 +124,11 @@
       generics with scheme-correct estimators (design D8); MCMC
       autocorrelation index recorded for the trace. Re-run the 2.2a tests to
       confirm GREEN; commit.
-- [ ] 2.3a Write failing test for the cold-start ESS diagnostic: cold-start
+- [x] 2.3a Write failing test for the cold-start ESS diagnostic: cold-start
       diagnostic snapshot (fires below the pathology floor, distinct from the
       guard warning, silent at θ₀ = 0). Run to confirm RED; commit the test
       alone.
-- [ ] 2.3b Implement: cold-start ESS diagnostic (design D5, dynes-augmentation D14): a
+- [x] 2.3b Implement: cold-start ESS diagnostic (design D5, dynes-augmentation D14): a
       one-shot startup diagnostic, distinct from the recurring guard warning,
       fires when first-iteration ESS is below a hard pathology floor (strictly
       under `ess_threshold` × K); it names the proposal/target mismatch and the
