@@ -171,3 +171,146 @@ build_sequence_pool <- function(
 pool_references <- function(pool) {
   lapply(pool$sequences, function(s) s$reference)
 }
+
+# One zero-iteration engine evaluation of a single sub-model over its stored
+# statistics: run the existing Newton engine for zero optimizer iterations at
+# `theta_block` (the sub-model's slice of the concatenated theta over its free
+# effects), harvesting the log-likelihood, score, and Fisher information the
+# engine computes at that vector. The stored statistics are reused through
+# `preprocessed`, so no re-preprocessing happens. Fixed effects are the
+# formula's offsets, already baked into the statistics, so `theta_block` covers
+# only the free effects.
+#
+# The engine inverts the information matrix unconditionally and stop()s on a
+# singular one (even for a likelihood-only request), so a singular sequence
+# surfaces here as an error; the per-sequence caller turns that into a
+# non-finite result rather than aborting the pool.
+pool_engine_eval <- function(
+  sub_model,
+  data,
+  stats,
+  theta_block,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  fit <- estimate_wrapper(
+    x = sub_model$formula,
+    model = sub_model$model,
+    sub_model = sub_model$sub_model,
+    data = data,
+    preprocessed = stats,
+    control_algo = set_algorithm_newton(
+      initial_parameters = theta_block,
+      max_iterations = 0L,
+      backend = "r"
+    ),
+    control_prep = control_prep,
+    verbose = FALSE,
+    progress = FALSE
+  )
+  list(
+    loglik = fit$log_likelihood,
+    score = fit$final_score,
+    fisher = fit$final_information_matrix
+  )
+}
+
+# Evaluate one pooled sequence at the concatenated `theta`: split theta across
+# the sub-models, evaluate each over its stored statistics, and reassemble the
+# per-sequence quantities on the full free-parameter dimension `p` -- the total
+# log-likelihood (summed across sub-models), the concatenated score (each
+# sub-model's score placed at its theta_index), and the block-diagonal Fisher
+# information (no cross-sub-model terms in this version). A sub-model whose
+# information matrix is singular at theta makes the whole sequence degenerate:
+# its result is non-finite (-Inf log-likelihood, so its importance weight
+# vanishes), which the caller reports without aborting the pool.
+evaluate_pool_sequence <- function(pool, sequence, theta, call) {
+  sub_models <- pool$sub_models
+  p <- pool$theta_length
+  loglik <- 0
+  score <- numeric(p)
+  fisher <- matrix(0, p, p)
+  degenerate <- FALSE
+
+  for (j in seq_along(sub_models)) {
+    sm <- sub_models[[j]]
+    harvest <- tryCatch(
+      pool_engine_eval(
+        sm,
+        sequence$data,
+        sequence$stats[[j]],
+        theta[sm$theta_index],
+        control_prep = pool$control_prep,
+        call = call
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(harvest)) {
+      degenerate <- TRUE
+      break
+    }
+    loglik <- loglik + harvest$loglik
+    score[sm$theta_index] <- harvest$score
+    fisher[sm$theta_index, sm$theta_index] <- harvest$fisher
+  }
+
+  if (degenerate) {
+    loglik <- -Inf
+    score <- rep(NA_real_, p)
+    fisher <- matrix(NA_real_, p, p)
+  }
+
+  list(loglik = loglik, score = score, fisher = fisher, degenerate = degenerate)
+}
+
+# The evaluator contract's v1 implementation: evaluate every pooled sequence at
+# the concatenated `theta` and return the requested quantities per sequence.
+# `what` is honored at the harvest level -- the engine computes what it does,
+# and only the requested quantities are returned, so a batched evaluator can
+# later optimize the harvest without changing any call site. Per-sequence
+# granularity is contract: the score is returned per sequence (a K x p matrix,
+# never a pooled total) because the covariance estimators need the per-sequence
+# outer products. `degenerate` flags the sequences a singular-information guard
+# marked non-finite.
+evaluate_sequence_pool <- function(
+  pool,
+  theta,
+  what = c("loglik", "score", "fisher"),
+  map_fn = pool$map_fn,
+  call = rlang::caller_env()
+) {
+  if (!inherits(pool, "goldfishDynesPool")) {
+    cli::cli_abort(
+      "{.arg pool} must be a {.cls goldfishDynesPool}.",
+      call = call
+    )
+  }
+  what <- rlang::arg_match(what, multiple = TRUE)
+  if (length(theta) != pool$theta_length) {
+    cli::cli_abort(
+      "{.arg theta} must have length {.val {pool$theta_length}}, not
+       {.val {length(theta)}}.",
+      call = call
+    )
+  }
+
+  per_sequence <- map_fn(pool$sequences, function(sequence) {
+    evaluate_pool_sequence(pool, sequence, theta, call = call)
+  })
+
+  out <- list()
+  if ("loglik" %in% what) {
+    out$loglik <- vapply(per_sequence, function(r) r$loglik, numeric(1))
+  }
+  if ("score" %in% what) {
+    out$score <- do.call(
+      rbind,
+      lapply(per_sequence, function(r) r$score)
+    )
+  }
+  if ("fisher" %in% what) {
+    out$fisher <- lapply(per_sequence, function(r) r$fisher)
+  }
+  out$degenerate <- vapply(per_sequence, function(r) r$degenerate, logical(1))
+  out
+}

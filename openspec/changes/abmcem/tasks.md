@@ -190,14 +190,14 @@
       reference-record attachment; the internal per-sequence map seam (serial
       `lapply()` default) per design D10. Re-run the 4.1a test to confirm
       GREEN; commit.
-- [ ] 4.2a Write failing tests for the zero-iteration adapter: adapter equals
+- [x] 4.2a Write failing tests for the zero-iteration adapter: adapter equals
       direct zero-iteration engine evaluation on an event-stream toy fixture;
       numerical cross-check against the `.plan/dynes/` prototype behavior
       where feasible (design D11); **degenerate-sequence guard (4.2)** — a
       deliberately collinear sequence in the pool yields a non-finite result
       and the pool evaluation completes for the rest, with no
       matrix-inversion abort. Run to confirm RED; commit the tests alone.
-- [ ] 4.2b Implement: zero-iteration adapter per design D3: `evaluate_sequence_pool(pool,
+- [x] 4.2b Implement: zero-iteration adapter per design D3: `evaluate_sequence_pool(pool,
       theta, what)` splitting/reassembling the concatenated θ across
       sub-models, harvesting `log_likelihood`/`final_score`/`final_information_matrix`
       from `estimate_wrapper()` at `max_iterations = 0L`, honoring `what` at
