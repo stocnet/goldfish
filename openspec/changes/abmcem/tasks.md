@@ -182,10 +182,10 @@
 
 ## 4. Prototype-path pool evaluator
 
-- [ ] 4.1a Write failing test for pool structure and entry path:
+- [x] 4.1a Write failing test for pool structure and entry path:
       preprocessing runs once per sequence across repeated evaluations. Run
       to confirm RED; commit the test alone.
-- [ ] 4.1b Implement: pool structure and entry path: per-sequence data build +
+- [x] 4.1b Implement: pool structure and entry path: per-sequence data build +
       preprocess-once through the existing pipeline, stored statistics,
       reference-record attachment; the internal per-sequence map seam (serial
       `lapply()` default) per design D10. Re-run the 4.1a test to confirm
