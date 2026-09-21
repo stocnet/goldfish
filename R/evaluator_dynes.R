@@ -49,6 +49,30 @@ new_pool_submodel <- function(
   )
 }
 
+# A precomputed attachment for a pooled sequence: the per-sub-model statistics
+# and the log-likelihood at the theta the sequence was evaluated under
+# already materialized elsewhere (e.g. inside an MCMC chain's acceptance-ratio
+# pass). Accepted on pool entry and ignored in this version -- every routine
+# takes the from-scratch preprocess path (design D3) -- present only so a
+# later fast-follow that reuses a retained draw's statistics is a drop-in with
+# no signature change on the pool-entry path (dynes-augmentation D23).
+new_pool_attachment <- function(
+  stats,
+  loglik_ref,
+  call = rlang::caller_env()
+) {
+  if (!is.list(stats)) {
+    cli::cli_abort("{.arg stats} must be a list.", call = call)
+  }
+  if (!rlang::is_scalar_double(loglik_ref) || !is.finite(loglik_ref)) {
+    cli::cli_abort(
+      "{.arg loglik_ref} must be a single finite numeric value.",
+      call = call
+    )
+  }
+  list(stats = stats, loglik_ref = loglik_ref)
+}
+
 # Preprocess one pooled sequence: run every sub-model's formula through the
 # existing pipeline over the sequence's data object and return the stored
 # goldfishStat objects, one per sub-model, in sub-model order. This is the
@@ -313,4 +337,77 @@ evaluate_sequence_pool <- function(
   }
   out$degenerate <- vapply(per_sequence, function(r) r$degenerate, logical(1))
   out
+}
+
+# The theta_k-closed proposal evaluator the ABEM loop builds once per EM
+# iteration and injects into an augmenter's init() (design D3,
+# dynes-augmentation D20): one preprocess plus one likelihood pass per
+# candidate, over this change's own evaluation primitive. `sub_models` is the
+# same pool-level descriptor list `build_sequence_pool()` takes; the loop
+# supplies it decomposed from the joint spec at each iteration, closing over
+# the current `theta`.
+#
+# The returned closure answers by NAME, not position -- `list(loglik, rates)`
+# -- so the MCMC-reuse fast-follow (dynes-augmentation D23) can widen it to
+# `list(loglik, rates, stats_handle)` without breaking a caller that reads
+# `$loglik`/`$rates`. No reuse logic ships here: a singular candidate reads as
+# `-Inf`, mirroring the pool evaluator's own D-ROBUST guard, and a real
+# `rate_queries` request aborts naming what is missing rather than returning a
+# fabricated value under that name -- the named-pair rate-at-position query
+# needs a `what` extension this change does not ship (compute_lik_seq() sugar
+# ships with the batched evaluator, not here).
+make_proposal_evaluator <- function(
+  sub_models,
+  theta,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  if (!is.list(sub_models) || length(sub_models) == 0) {
+    cli::cli_abort(
+      "{.arg sub_models} must be a non-empty list of sub-model descriptors.",
+      call = call
+    )
+  }
+  if (!is.numeric(theta)) {
+    cli::cli_abort("{.arg theta} must be a numeric vector.", call = call)
+  }
+
+  function(candidate_seq, rate_queries = NULL) {
+    if (!is.null(rate_queries)) {
+      cli::cli_abort(
+        c(
+          "Named-pair rate-at-position queries are not yet implemented.",
+          "i" = "Only {.field loglik} is available from this version's
+                 proposal evaluator."
+        ),
+        call = call
+      )
+    }
+    harvest <- tryCatch(
+      {
+        stats <- preprocess_pool_sequence(
+          sub_models,
+          candidate_seq,
+          control_prep = control_prep,
+          call = call
+        )
+        loglik <- 0
+        for (j in seq_along(sub_models)) {
+          sm <- sub_models[[j]]
+          loglik <- loglik +
+            pool_engine_eval(
+              sm,
+              candidate_seq,
+              stats[[j]],
+              theta[sm$theta_index],
+              control_prep = control_prep,
+              call = call
+            )$loglik
+        }
+        loglik
+      },
+      error = function(e) -Inf
+    )
+    list(loglik = harvest, rates = NULL)
+  }
 }
