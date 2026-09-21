@@ -255,6 +255,102 @@ test_that("a singular sequence yields a non-finite result, not a pool abort", {
   expect_false(any(is.finite(res$loglik)))
 })
 
+# The v1 attachment-optional conformance pin (design D3, dynes-augmentation
+# D23): the pool-entry path always takes the from-scratch preprocess, whether
+# or not a precomputed attachment is supplied -- a supplied one is stored but
+# never consulted, so the pin is that its presence changes nothing observable.
+# make_proposal_evaluator() is the other half of the same seam: its return is
+# a NAMED list, pinned by name rather than position, so a later widen from
+# `(loglik, rates)` to add a stats handle cannot break a caller that reads it
+# by name.
+
+test_that("pool entry succeeds with no attachment and takes the from-scratch path", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+
+  expect_null(pool$sequences[[1]]$attachment)
+  expect_s3_class(pool$sequences[[1]]$stats[[1]], "goldfishStat")
+})
+
+test_that("a supplied attachment is ignored -- byte-identical to no attachment", {
+  fx <- make_pool_fixture(n_sequences = 2L)
+  baseline <- build_sequence_pool(
+    fx$sub_models,
+    fx$sequences,
+    theta_length = 3L
+  )
+
+  # Deliberately bogus attachment content: if the pool-entry path ever
+  # consulted it instead of preprocessing from scratch, the stored statistics
+  # would differ from the baseline built with no attachment at all.
+  attached_sequences <- Map(
+    function(seq_i, i) {
+      seq_i$attachment <- new_pool_attachment(
+        stats = list("bogus"),
+        loglik_ref = -999 - i
+      )
+      seq_i
+    },
+    fx$sequences,
+    seq_along(fx$sequences)
+  )
+  attached <- build_sequence_pool(
+    fx$sub_models,
+    attached_sequences,
+    theta_length = 3L
+  )
+
+  expect_identical(
+    lapply(attached$sequences, `[[`, "stats"),
+    lapply(baseline$sequences, `[[`, "stats")
+  )
+  theta <- c(0.4, -0.2, 0.1)
+  expect_identical(
+    evaluate_sequence_pool(attached, theta, what = "loglik"),
+    evaluate_sequence_pool(baseline, theta, what = "loglik")
+  )
+})
+
+test_that("new_pool_attachment validates its stats and loglik_ref", {
+  expect_snapshot(
+    new_pool_attachment(stats = "not-a-list", loglik_ref = -1),
+    error = TRUE
+  )
+  expect_snapshot(
+    new_pool_attachment(stats = list(), loglik_ref = NA_real_),
+    error = TRUE
+  )
+})
+
+test_that("make_proposal_evaluator returns a named-list contract", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  theta <- c(1.0, 0.5, -0.2)
+  eval_fn <- make_proposal_evaluator(fx$sub_models, theta)
+  out <- eval_fn(fx$sequences[[1]]$data)
+
+  # Named, not positional: a widen from (loglik, rates) to also carry a
+  # stats handle must not shift what `out$loglik` reads.
+  expect_named(out, c("loglik", "rates"))
+  expect_null(out$rates)
+
+  direct <- direct_zero_iteration(
+    fx$sequences[[1]]$data,
+    calls ~ inertia + recip + trans,
+    theta
+  )
+  expect_equal(out$loglik, direct$log_likelihood, tolerance = 1e-10)
+})
+
+test_that("make_proposal_evaluator does not fabricate rate-at-position queries", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  eval_fn <- make_proposal_evaluator(fx$sub_models, c(0, 0, 0))
+
+  expect_snapshot(
+    eval_fn(fx$sequences[[1]]$data, rate_queries = list(c(1L, 2L))),
+    error = TRUE
+  )
+})
+
 test_that("a degenerate sequence does not stop the rest of the pool", {
   fx <- make_pool_fixture(n_sequences = 2L)
   pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
