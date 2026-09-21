@@ -206,14 +206,14 @@
       (the engine inverts it unconditionally and `stop()`s) yields a non-finite
       per-sequence result instead of aborting the pool; `devtools::document()`.
       Re-run the 4.2a tests to confirm GREEN; commit.
-- [ ] 4.3a Write failing tests for the v1 attachment-optional conformance
+- [x] 4.3a Write failing tests for the v1 attachment-optional conformance
       pin: pool entry succeeds with **no** attachment and takes the
       from-scratch path, a supplied attachment is **ignored** in v1 (result
       byte-identical to the no-attachment build), and
       `make_proposal_evaluator()` returns a named-list contract (widen-able
       return pinned by name, not positionally). Run to confirm RED; commit
       the tests alone.
-- [ ] 4.3b Implement: v1 attachment-optional conformance pin (design D3, `dynes-augmentation`
+- [x] 4.3b Implement: v1 attachment-optional conformance pin (design D3, `dynes-augmentation`
       D23): the pool-entry record constructor (4.1) accepts an **optional**
       precomputed `(stats, loglik@θ_ref)` attachment argument — **ignored in v1**
       (every `routine` takes the from-scratch A0 path), present only so the A3
@@ -223,7 +223,7 @@
       No reuse logic ships here — this task only fixes the two shapes so the seam
       widen (5.1's deferred note) touches exactly one return contract later.
       Re-run the 4.3a tests to confirm GREEN; commit.
-- [ ] 4.4 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
+- [x] 4.4 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       `devtools::document()` if this group touched roxygen/exports; commit.
       **No DESCRIPTION version bump and no root `NEWS.md` edit on this
       branch** — record the evaluator-adapter milestone as a bullet in the

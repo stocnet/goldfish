@@ -28,3 +28,17 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   fixed literature defaults, per-M-step accumulator reset, an optional immobile
   parameter mask, and gradient-norm (EMA under minibatch) or fixed-iteration
   stopping with a warn-on-unmet-gradient-at-cap diagnostic.
+* Group 4 (prototype-path pool evaluator) complete: `build_sequence_pool()`
+  preprocesses each pooled sequence once, on entry, through the existing
+  pipeline via an injectable per-sequence map seam; `evaluate_sequence_pool()`
+  is the v1 evaluator-contract adapter, harvesting per-sequence
+  loglik/score/Fisher from the existing engine at zero optimizer iterations,
+  honoring `what` at the harvest level and wrapping the per-sequence engine
+  call so a singular information matrix degrades to a non-finite result
+  instead of aborting the pool. The pool-entry path stays attachment-optional
+  — a caller may attach a precomputed `(stats, loglik@theta_ref)` record via
+  `new_pool_attachment()`, ignored in this version so a later reuse
+  fast-follow needs no signature change — and `make_proposal_evaluator()`
+  ships the theta-closed single-candidate proposal evaluator the ABEM loop
+  will inject into an augmenter, returning its `(loglik, rates)` pair as a
+  named list so that contract can widen without breaking callers.
