@@ -651,11 +651,7 @@ relational_window_risk_set <- function(data, layer, model = c("DyNAM", "REM")) {
     model = model,
     data = data
   )
-  prep <- if (identical(model, "REM")) {
-    estimate_rem(spec, sub_model = "rate", preprocessing_only = TRUE)
-  } else {
-    estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
-  }
+  prep <- compute_statistics(spec, model = model, sub_model = "rate")
   list(
     count = prep$n_dep_events,
     duration = prep$total_time,

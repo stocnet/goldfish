@@ -119,16 +119,16 @@ constraint_atoms_prep <- function(family) {
         support_constraint = ~ tie(call_network),
         data = fx$data
       )
-      estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
+      compute_statistics(spec, model = "DyNAM", sub_model = "rate")
     },
     choice = {
       fx <- constraint_atoms_social_data()
       dep <- fx$dep
-      estimate_dynam(
+      compute_statistics(
         dep ~ inertia + recip,
+        model = "DyNAM",
         sub_model = "choice",
         data = fx$data,
-        preprocessing_only = TRUE,
         support_constraint = ~ tie(call_network)
       )
     },
@@ -146,22 +146,22 @@ constraint_atoms_prep <- function(family) {
         actors,
         allowedNet
       ))
-      estimate_rem(
+      compute_statistics(
         dep ~ 1 + inertia + recip,
+        model = "REM",
         sub_model = "rate",
         data = d,
-        support_constraint = ~ tie(allowedNet),
-        preprocessing_only = TRUE
+        support_constraint = ~ tie(allowedNet)
       )
     },
     coord = {
       d <- constraint_atoms_coord_data()
-      estimate_dynam(
+      compute_statistics(
         create_bilat ~ inertia + indeg + trans + tie(contignet),
+        model = "DyNAM",
         sub_model = "choice_coordination",
         data = d,
-        support_constraint = ~ tie(allowedNet),
-        preprocessing_only = TRUE
+        support_constraint = ~ tie(allowedNet)
       )
     },
     cli::cli_abort("Unknown constraint-atoms family {.val {family}}.")
