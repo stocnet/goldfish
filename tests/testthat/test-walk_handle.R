@@ -406,9 +406,10 @@ test_that("walk_open defers a whole effect-free family without renumbering", {
 
 # Replay a specification's observed schedule through the handle and compare
 # each fid's live evaluation at its own dependent events against the batch
-# materialization. Returns the number of comparisons and of excluded
-# alternatives among the compared choice rows, so a test can confirm the risk
-# set it compared actually excluded something.
+# materialization, stepping the handle with walk_replay_to(). Returns the
+# number of comparisons and of excluded alternatives among the compared choice
+# rows, so a test can confirm the risk set it compared actually excluded
+# something.
 walk_replay_against_batch <- function(spec) {
   batch <- suppressWarnings(preprocess_joint(spec))
   map <- attr(batch, "process_map")
@@ -417,28 +418,11 @@ walk_replay_against_batch <- function(spec) {
   dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
   n_checked <- 0L
   n_excluded <- 0L
-  for (k in seq_len(schedule$n)) {
+  for (k in which(schedule$dependent)) {
     # Driven by schedule position, not by time alone: a dependent row is
-    # evaluated before the covariate rows sharing its stamp. An exogenous row is
-    # reached through walk_advance(), which owns its cursor; a focal covariate
-    # row is the realization of a dependent event, which the driver injects.
-    if (
-      !schedule$dependent[k] && !(schedule$layer[k] %in% handle$focal_layers)
-    ) {
-      walk_advance(handle, schedule$time[k])
-      next
-    }
-    if (!schedule$dependent[k]) {
-      event <- list(
-        layer = schedule$layer[k],
-        sender = schedule$sender[k],
-        receiver = schedule$receiver[k],
-        time = schedule$time[k]
-      )
-      event[[schedule$semantics[k]]] <- schedule$value[[k]]
-      walk_inject(handle, event)
-      next
-    }
+    # evaluated before the covariate rows sharing its stamp. walk_replay_to()
+    # applies every row before k, in schedule order.
+    walk_replay_to(handle, k)
     # The composition in force at a dependent event includes changes at its
     # own stamp; the exogenous rows sharing that stamp come after it.
     walk_advance_presence(handle, schedule$time[k])
@@ -480,6 +464,69 @@ walk_replay_against_batch <- function(spec) {
   }
   list(n_checked = n_checked, n_excluded = n_excluded)
 }
+
+# calls is modeled; friendship and emails are exogenous layers the formulas
+# read. Two calls events and an emails row share the stamp 2, and a friendship
+# row and an emails row share the stamp of the last call, so a dependent row
+# has covariate rows at its own stamp that the batch path scores it before.
+walk_tied_spec <- function() {
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 3L, 4L),
+      to = c(2L, 4L, 5L),
+      time = c(1, 2, 3),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 2, 3),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 5L),
+      to = c(1L, 2L),
+      time = c(2, 3),
+      layer = "emails"
+    )
+  )
+  data <- list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(
+        friendship = "increment",
+        calls = "increment",
+        emails = "increment"
+      ),
+      directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+      observation = c(friendship = "panel", calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ inertia + tie(friendship) + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+}
+
+test_that("a dependent event tied with exogenous rows replays against batch", {
+  spec <- walk_tied_spec()
+  schedule <- suppressWarnings(walk_open(spec))$schedule
+  exogenous_stamps <- schedule$time[!schedule$layer %in% "calls"]
+  expect_true(any(schedule$time[schedule$dependent] %in% exogenous_stamps))
+
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+})
 
 # calls is the modeled layer; emails is an exogenous layer the choice reads, so
 # a constraint on it is stepped by the shared walk. Email stamps sit between the
