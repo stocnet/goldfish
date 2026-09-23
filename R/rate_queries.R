@@ -102,3 +102,38 @@ walk_replay_exogenous_row <- function(handle, k, call) {
   handle$exo_cursor <- cursor + 1L
   invisible(NULL)
 }
+
+# Rebind a completed joint specification to a candidate sequence: the candidate
+# replaces the data at the joint level and on every process specification, and
+# nothing else is recomputed. Flavor style, the mode map, the process map's
+# coupling and the completed-rate pins are all fixed by `info` and `nodes` at
+# construction, so a candidate differing there would silently run against a
+# specification built for another dataset; only the ties may differ. Completion
+# must not re-run per candidate either: a pin that moved with the candidate
+# would shift the likelihood between proposals with no parameter to explain it.
+bind_candidate_data <- function(spec, candidate, call = rlang::caller_env()) {
+  differing <- c("info", "nodes")[
+    !c(
+      identical(candidate$info, spec$data$info),
+      identical(candidate$nodes, spec$data$nodes)
+    )
+  ]
+  if (length(differing) > 0L) {
+    cli::cli_abort(
+      c(
+        "The candidate sequence does not match the specification's data in
+         {.field {differing}}.",
+        "i" = "A candidate may differ from the observed data only in its
+               ties."
+      ),
+      call = call,
+      class = "goldfish_candidate_mismatch"
+    )
+  }
+  spec$data <- candidate
+  spec$specifications <- lapply(spec$specifications, function(part) {
+    part$data <- candidate
+    part
+  })
+  spec
+}
