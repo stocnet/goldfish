@@ -210,3 +210,104 @@ test_that("a candidate whose nodes differ is refused naming nodes", {
   )
   expect_snapshot(bind_candidate_data(rq_joint_spec(), candidate), error = TRUE)
 })
+
+# A completed joint specification whose layout has every slot kind: timed rates
+# (a leading intercept), an offset between two free choice effects, and an
+# autocompleted uniform choice on emails. Free slots are numbered 1..6 in
+# canonical order: calls rate (1, 2), calls choice (3, 4), emails rate (5, 6).
+rq_layout_spec <- function() {
+  data <- rq_tied_data()
+  spec <- make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ inertia + offset(tie(friendship), coef = -0.5) + tie(emails),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+  suppressWarnings(complete_generative_spec(spec))
+}
+
+test_that("flat theta maps onto each fid's full coefficient vector", {
+  spec <- rq_layout_spec()
+  theta <- c(0.1, 0.2, 0.3, -0.4, -1, 0.7)
+  by_fid <- flat_to_fid_theta(spec, theta)
+
+  expect_named(by_fid, c("1", "2", "3", "4"))
+  expect_identical(by_fid[["1"]], c(0.1, 0.2))
+  expect_identical(by_fid[["2"]], c(0.3, -0.5, -0.4))
+  expect_identical(by_fid[["3"]], c(-1, 0.7))
+  # The completed choice has no coefficient; its inputs never come from theta.
+  expect_identical(by_fid[["4"]], numeric(0))
+
+  params <- set_parameters(
+    spec,
+    `calls › rate` = c(0.1, 0.2),
+    `calls › choice` = c(0.3, NA, -0.4),
+    `emails › rate` = c(-1, 0.7)
+  )
+  expect_identical(
+    by_fid[as.character(1:3)],
+    stats::setNames(lapply(params$full, unname), as.character(1:3))
+  )
+})
+
+test_that("each mapped vector has the length the walk evaluates with", {
+  spec <- rq_layout_spec()
+  by_fid <- flat_to_fid_theta(spec, c(0.1, 0.2, 0.3, -0.4, -1, 0.7))
+  handle <- suppressWarnings(walk_open(spec))
+  walk_replay_to(handle, 12L)
+
+  for (fid in 1:3) {
+    expect_no_error(walk_evaluate(handle, fid, by_fid[[as.character(fid)]]))
+  }
+  # The offset slot is the friendship column: N3's only friendship tie, to N4,
+  # is the one alternative the offset moves.
+  choice <- walk_evaluate(handle, 2L, c(0, -0.5, 0), sender = 3L)$value
+  expect_equal(choice[4] / choice[2], exp(-0.5))
+  expect_equal(choice[1], choice[2])
+})
+
+test_that("a theta of the wrong length is refused", {
+  expect_error(
+    flat_to_fid_theta(rq_layout_spec(), c(0.1, 0.2)),
+    class = "goldfish_theta_layout_mismatch"
+  )
+})
+
+rq_layout_submodels <- function(calls_choice = 3:4) {
+  list(
+    new_pool_submodel(calls ~ 1 + indeg(friendship), "DyNAM", "rate", 1:2),
+    new_pool_submodel(
+      calls ~ inertia + offset(tie(friendship), coef = -0.5) + tie(emails),
+      "DyNAM",
+      "choice",
+      calls_choice
+    ),
+    new_pool_submodel(emails ~ 1 + inertia, "DyNAM", "rate", 5:6)
+  )
+}
+
+test_that("sub-model positions matching the free layout pass the check", {
+  expect_no_error(assert_theta_layout(rq_layout_spec(), rq_layout_submodels()))
+})
+
+test_that("sub-model positions off the free layout abort naming the mismatch", {
+  local_cli_context()
+  spec <- rq_layout_spec()
+  shifted <- rq_layout_submodels(calls_choice = c(3L, 7L))
+
+  expect_error(
+    assert_theta_layout(spec, shifted),
+    class = "goldfish_theta_layout_mismatch"
+  )
+  expect_snapshot(assert_theta_layout(spec, shifted), error = TRUE)
+})
