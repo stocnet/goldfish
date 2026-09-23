@@ -25,3 +25,14 @@
       ! The candidate sequence does not match the specification's data in nodes.
       i A candidate may differ from the observed data only in its ties.
 
+# sub-model positions off the free layout abort naming the mismatch
+
+    Code
+      assert_theta_layout(spec, shifted)
+    Condition
+      Error:
+      ! The sub-models' theta_index positions do not match the specification's free coefficient layout.
+      x No sub-model claims free position 4.
+      x The layout has no free slot at position 7.
+      i Number each sub-model's free effects in `coef_layout()` order.
+

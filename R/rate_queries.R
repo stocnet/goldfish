@@ -137,3 +137,78 @@ bind_candidate_data <- function(spec, candidate, call = rlang::caller_env()) {
   })
   spec
 }
+
+# Spread a flat free-parameter vector over the walked fids: each fid gets its
+# full coefficient vector (a timed rate's leading intercept, offsets at their
+# formula position), fixed slots from the layout and free slots from
+# `theta[index]`. This is the same per-fid layout `set_parameters()` hands to
+# simulate(). An autocompleted fid gets `numeric(0)`: its pinned intercept or
+# uniform draw is supplied at evaluation time, never read from theta. Returns a
+# list keyed by `as.character(fid)` in process_map order.
+flat_to_fid_theta <- function(spec, theta, call = rlang::caller_env()) {
+  layout <- coef_layout(spec)
+  n_free <- sum(!layout$fixed)
+  if (length(theta) != n_free) {
+    cli::cli_abort(
+      c(
+        "{.arg theta} must hold one value per free coefficient of the
+         specification.",
+        "x" = "The layout has {n_free} free coefficient{?s}; {.arg theta} has
+               {length(theta)}."
+      ),
+      call = call,
+      class = "goldfish_theta_layout_mismatch"
+    )
+  }
+  map <- spec$process_map
+  completed <- map$completed %||% rep(FALSE, nrow(map))
+  by_fid <- lapply(seq_len(nrow(map)), function(i) {
+    if (isTRUE(completed[i])) {
+      return(numeric(0))
+    }
+    slots <- layout[layout$fid == map$fid[i], ]
+    values <- as.numeric(slots$value)
+    free <- !slots$fixed
+    values[free] <- theta[slots$index[free]]
+    values
+  })
+  stats::setNames(by_fid, as.character(map$fid))
+}
+
+# The sub-models' theta_index positions must be exactly the layout's free
+# slots, each claimed once: flat_to_fid_theta() reads theta through the
+# layout's numbering, so a sub-model numbering its free effects any other way
+# would evaluate the rate query at parameters the likelihood never saw.
+assert_theta_layout <- function(spec, sub_models, call = rlang::caller_env()) {
+  layout <- coef_layout(spec)
+  expected <- layout$index[!layout$fixed]
+  claimed <- unlist(lapply(sub_models, `[[`, "theta_index"), use.names = FALSE)
+  missing <- setdiff(expected, claimed)
+  extra <- setdiff(claimed, expected)
+  repeated <- unique(claimed[duplicated(claimed)])
+  if (length(missing) + length(extra) + length(repeated) > 0L) {
+    cli::cli_abort(
+      c(
+        "The sub-models' {.field theta_index} positions do not match the
+         specification's free coefficient layout.",
+        "x" = if (length(missing) > 0L) {
+          "No sub-model claims free {cli::qty(length(missing))}position{?s}
+           {.val {missing}}."
+        },
+        "x" = if (length(extra) > 0L) {
+          "The layout has no free slot at {cli::qty(length(extra))}position{?s}
+           {.val {extra}}."
+        },
+        "x" = if (length(repeated) > 0L) {
+          "More than one sub-model claims
+           {cli::qty(length(repeated))}position{?s} {.val {repeated}}."
+        },
+        "i" = "Number each sub-model's free effects in {.fn coef_layout}
+               order."
+      ),
+      call = call,
+      class = "goldfish_theta_layout_mismatch"
+    )
+  }
+  invisible(spec)
+}

@@ -226,7 +226,7 @@ rq_layout_spec <- function() {
       data = data
     ),
     make_specification(
-      rate = ~ 1 + inertia,
+      rate = ~ 1 + indeg,
       layer = "emails",
       model = "DyNAM",
       data = data
@@ -255,8 +255,8 @@ test_that("flat theta maps onto each fid's full coefficient vector", {
     `emails › rate` = c(-1, 0.7)
   )
   expect_identical(
-    by_fid[as.character(1:3)],
-    stats::setNames(lapply(params$full, unname), as.character(1:3))
+    by_fid,
+    stats::setNames(lapply(params$full, unname), as.character(1:4))
   )
 })
 
@@ -292,7 +292,7 @@ rq_layout_submodels <- function(calls_choice = 3:4) {
       "choice",
       calls_choice
     ),
-    new_pool_submodel(emails ~ 1 + inertia, "DyNAM", "rate", 5:6)
+    new_pool_submodel(emails ~ 1 + indeg, "DyNAM", "rate", 5:6)
   )
 }
 
