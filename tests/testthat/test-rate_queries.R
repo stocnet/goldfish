@@ -10,7 +10,7 @@ local_cli_context <- function(env = parent.frame()) {
 # read. Stamps are tied on purpose. The schedule at t = 2 runs: the dependent
 # rows of calls events 2 and 3 (rows 4, 5), friendship 3 -> 4 (row 6), the
 # realizations of calls events 2 and 3 (rows 7, 8), emails 2 -> 1 (row 9).
-rq_tied_spec <- function() {
+rq_tied_data <- function() {
   ties <- rbind(
     data.frame(
       from = c(1L, 3L, 4L),
@@ -31,7 +31,7 @@ rq_tied_spec <- function() {
       layer = "emails"
     )
   )
-  data <- list(
+  list(
     info = list(
       name = "toy",
       focal = "calls",
@@ -50,12 +50,15 @@ rq_tied_spec <- function() {
     ),
     ties = ties
   )
+}
+
+rq_tied_spec <- function() {
   make_specification(
     rate = ~ 1 + indeg(friendship),
     choice = ~ inertia + tie(friendship) + tie(emails),
     layer = "calls",
     model = "DyNAM",
-    data = data
+    data = rq_tied_data()
   )
 }
 
@@ -138,4 +141,72 @@ test_that("walk_replay_to refuses to move backward", {
   walk_replay_to(handle, 8L)
   expect_error(walk_replay_to(handle, 4L), class = "goldfish_walk_out_of_order")
   expect_snapshot(walk_replay_to(handle, 4L), error = TRUE)
+})
+
+# A joint specification over the tied fixture, with `data` swapped in when a
+# candidate is wanted.
+rq_joint_spec <- function(data = rq_tied_data()) {
+  make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ inertia + tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + inertia,
+      layer = "emails",
+      model = "REM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# The same data with the calls ties moved in time: what an augmented
+# candidate changes.
+rq_candidate_data <- function() {
+  data <- rq_tied_data()
+  is_calls <- data$ties$layer == "calls"
+  data$ties$time[is_calls] <- data$ties$time[is_calls] + 0.5
+  data
+}
+
+test_that("a candidate differing only in its ties is bound everywhere", {
+  spec <- rq_joint_spec()
+  candidate <- rq_candidate_data()
+  bound <- bind_candidate_data(spec, candidate)
+
+  expect_identical(bound$data, candidate)
+  for (part in bound$specifications) {
+    expect_identical(part$data, candidate)
+  }
+  expect_identical(bound$process_map, spec$process_map)
+  expect_identical(bound$completed_rates, spec$completed_rates)
+  expect_false(identical(bound$data$ties, spec$data$ties))
+})
+
+test_that("a candidate whose info differs is refused naming info", {
+  local_cli_context()
+  candidate <- rq_candidate_data()
+  candidate$info$directed[["calls"]] <- FALSE
+
+  expect_error(
+    bind_candidate_data(rq_joint_spec(), candidate),
+    class = "goldfish_candidate_mismatch"
+  )
+  expect_snapshot(bind_candidate_data(rq_joint_spec(), candidate), error = TRUE)
+})
+
+test_that("a candidate whose nodes differ is refused naming nodes", {
+  local_cli_context()
+  candidate <- rq_candidate_data()
+  candidate$nodes$label[1] <- "Z1"
+
+  expect_error(
+    bind_candidate_data(rq_joint_spec(), candidate),
+    class = "goldfish_candidate_mismatch"
+  )
+  expect_snapshot(bind_candidate_data(rq_joint_spec(), candidate), error = TRUE)
 })
