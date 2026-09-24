@@ -341,14 +341,100 @@ test_that("make_proposal_evaluator returns a named-list contract", {
   expect_equal(out$loglik, direct$log_likelihood, tolerance = 1e-10)
 })
 
-test_that("make_proposal_evaluator does not fabricate rate-at-position queries", {
+# Rate queries: given the completed joint specification, the closure binds each
+# candidate to it and reads the named pairs' intensities off a walk replayed
+# over the candidate, at the flat theta mapped onto the specification's fids.
+
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
+rq_evaluator_theta <- function() c(-1, 0.4, 0.5, 0.8, -2, 0.6)
+
+rq_evaluator_queries <- function() {
+  list(
+    list(after = 2L, layer = "calls", sender = "N3", receiver = "N4"),
+    list(after = 0L, layer = "emails", sender = "N2", receiver = "N1"),
+    list(after = 4L, layer = "calls", sender = "N5", receiver = "N1")
+  )
+}
+
+test_that("make_proposal_evaluator answers rate_queries at the mapped theta", {
+  spec <- rq_layout_spec()
+  theta <- rq_evaluator_theta()
+  candidate <- rq_candidate_data()
+  queries <- rq_evaluator_queries()
+  eval_fn <- make_proposal_evaluator(rq_layout_submodels(), theta, spec = spec)
+
+  out <- suppressWarnings(
+    expect_no_error(eval_fn(candidate, rate_queries = queries))
+  )
+
+  expect_named(out, c("loglik", "rates"))
+  expect_length(out$rates, length(queries))
+  expected <- suppressWarnings(
+    query_rate_at_position(
+      bind_candidate_data(spec, candidate),
+      flat_to_fid_theta(spec, theta),
+      queries
+    )
+  )
+  expect_identical(out$rates, expected)
+  expect_true(all(out$rates > 0))
+})
+
+test_that("rate_queries without a specification aborts naming spec", {
+  local_cli_context()
   fx <- make_pool_fixture(n_sequences = 1L)
   eval_fn <- make_proposal_evaluator(fx$sub_models, c(0, 0, 0))
+  queries <- list(
+    list(after = 1L, layer = "calls", sender = "1", receiver = "2")
+  )
 
+  expect_error(
+    eval_fn(fx$sequences[[1]]$data, rate_queries = queries),
+    "spec"
+  )
   expect_snapshot(
-    eval_fn(fx$sequences[[1]]$data, rate_queries = list(c(1L, 2L))),
+    eval_fn(fx$sequences[[1]]$data, rate_queries = queries),
     error = TRUE
   )
+})
+
+test_that("a sub-model layout off the specification aborts at construction", {
+  expect_error(
+    make_proposal_evaluator(
+      rq_layout_submodels(calls_choice = c(3L, 7L)),
+      rq_evaluator_theta(),
+      spec = rq_layout_spec()
+    ),
+    class = "goldfish_theta_layout_mismatch"
+  )
+})
+
+test_that("an absent rate_queries returns NULL rates and opens no walk", {
+  opened <- 0L
+  real_open <- walk_open
+  local_mocked_bindings(
+    walk_open = function(...) {
+      opened <<- opened + 1L
+      real_open(...)
+    }
+  )
+  eval_fn <- make_proposal_evaluator(
+    rq_layout_submodels(),
+    rq_evaluator_theta(),
+    spec = rq_layout_spec()
+  )
+  candidate <- rq_candidate_data()
+
+  omitted <- suppressWarnings(eval_fn(candidate))
+  explicit <- suppressWarnings(eval_fn(candidate, rate_queries = NULL))
+
+  expect_null(omitted$rates)
+  expect_null(explicit$rates)
+  expect_identical(omitted, explicit)
+  expect_identical(opened, 0L)
 })
 
 test_that("a degenerate sequence does not stop the rest of the pool", {
