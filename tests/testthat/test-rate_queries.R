@@ -686,6 +686,33 @@ test_that("tied candidate events are addressable one at a time", {
   expect_false(isTRUE(all.equal(both[1], both[2])))
 })
 
+test_that("completed rates do not move with the candidate", {
+  spec <- rq_pinned_spec()
+  theta <- list(
+    `1` = c(-1, 0.4),
+    `2` = c(0.5, 0.8),
+    `3` = numeric(0),
+    `4` = 0.5
+  )
+  shifted <- bind_candidate_data(spec, rq_candidate_data())
+  query <- list(rq_query(0, "emails", "N5", "N2"))
+
+  expect_identical(shifted$completed_rates, spec$completed_rates)
+
+  at_open <- query_rate_at_position(spec, theta, query)
+  expect_equal(query_rate_at_position(shifted, theta, query), at_open)
+
+  # At open the choice is the same under both candidates, so the intensity is
+  # the pinned intercept times that choice.
+  choice <- walk_evaluate(
+    suppressWarnings(walk_open(spec)),
+    4L,
+    0.5,
+    sender = 5L
+  )$value
+  expect_equal(at_open, exp(spec$completed_rates[["3"]]$intercept) * choice[2])
+})
+
 test_that("a position outside the candidate's events aborts naming it", {
   local_cli_context()
   spec <- rq_exo_spec()
