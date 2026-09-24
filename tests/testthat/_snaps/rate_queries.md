@@ -72,3 +72,12 @@
       ! Cannot answer the rate query "calls: N1 -> N2".
       x Its choice is coordinated; a coordination process has no single sender's rate to draw a waiting time at.
 
+# a position outside the candidate's events aborts naming it
+
+    Code
+      query_rate_at_position(spec, rq_exo_theta(), queries)
+    Condition
+      Error:
+      ! Cannot answer the rate query "calls: N1 -> N2".
+      x Its position `after = 7` is not one of the candidate's 0:6 events.
+

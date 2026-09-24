@@ -304,6 +304,87 @@ pair_intensity <- function(
   rate[i] * value_of(map$fid[choice_row], sender = i)[j]
 }
 
+# The frozen pair intensities for a batch of queries against one candidate.
+# `spec` is the candidate-bound completed joint specification, `theta` the
+# per-fid list flat_to_fid_theta() builds, and each query is
+# `list(after, layer, flavor, sender, receiver)`. Returns one intensity per
+# query, in the caller's order.
+#
+# `after = k` is the state immediately after candidate event k's realization:
+# every schedule row before it is applied and none after it, not even an
+# exogenous row sharing its stamp. That is the state a proposal's waiting time
+# is drawn at, frozen at the preceding event; later rows lie inside the
+# proposal window. Candidate events are counted in realization order, so two
+# tied events are two positions. `after = 0` is the state at open.
+#
+# The handle only moves forward, so one handle answers the whole batch:
+# positions are visited in increasing order and every query at a position is
+# read there.
+query_rate_at_position <- function(
+  spec,
+  theta,
+  queries,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  handle <- walk_open(spec, control_prep, call = call)
+  routing <- simulation_routing(spec, handle)
+  schedule <- handle$schedule
+  realized <- which(
+    !schedule$dependent & schedule$layer %in% handle$focal_layers
+  )
+  # The row a replay stops before, so that event k's realization is the last
+  # row applied.
+  stop_row <- c(1L, realized + 1L)
+
+  after <- vapply(
+    queries,
+    function(query) {
+      k <- query$after
+      if (
+        length(k) != 1L ||
+          is.na(k) ||
+          k != round(k) ||
+          k < 0L ||
+          k > length(realized)
+      ) {
+        abort_unresolved_rate_query(
+          rate_query_label(
+            query$layer,
+            query$flavor %||% NA_character_,
+            query$sender,
+            query$receiver
+          ),
+          "Its position {.code after = {k}} is not one of the candidate's
+           {.val {0L}}:{.val {length(realized)}} events.",
+          call
+        )
+      }
+      as.integer(k)
+    },
+    integer(1)
+  )
+
+  intensity <- numeric(length(queries))
+  for (k in sort(unique(after))) {
+    walk_replay_to(handle, stop_row[k + 1L], call = call)
+    for (q in which(after == k)) {
+      query <- queries[[q]]
+      intensity[q] <- pair_intensity(
+        handle,
+        routing,
+        theta,
+        process = list(layer = query$layer, flavor = query$flavor),
+        sender = query$sender,
+        receiver = query$receiver,
+        pinned = spec$completed_rates,
+        call = call
+      )
+    }
+  }
+  intensity
+}
+
 rate_query_process <- function(layer, flavor) {
   if (is.na(flavor)) layer else paste0(layer, " (", flavor, ")")
 }
@@ -327,6 +408,10 @@ resolve_query_label <- function(lookup, label, side, role, query, call) {
 }
 
 abort_unresolved_rate_query <- function(query, why, call) {
+  # `why` interpolates the caller's variables, but the label must be this
+  # `query`, whatever the caller's own `query` holds.
+  envir <- new.env(parent = parent.frame())
+  envir$query <- query
   cli::cli_abort(
     c(
       "Cannot answer the rate query {.val {query}}.",
@@ -334,6 +419,6 @@ abort_unresolved_rate_query <- function(query, why, call) {
     ),
     call = call,
     class = "goldfish_rate_query_unresolved",
-    .envir = parent.frame()
+    .envir = envir
   )
 }
