@@ -36,3 +36,39 @@
       x The layout has no free slot at position 7.
       i Number each sub-model's free effects in `coef_layout()` order.
 
+# an unknown actor label aborts naming the query
+
+    Code
+      rq_pair(spec, theta, "calls", "N2", "N9")
+    Condition
+      Error in `rq_pair()`:
+      ! Cannot answer the rate query "calls: N2 -> N9".
+      x The receiver "N9" is not a node of the layer.
+
+# an unknown process aborts naming the query
+
+    Code
+      rq_pair(spec, theta, "friendship", "N1", "N2")
+    Condition
+      Error in `rq_pair()`:
+      ! Cannot answer the rate query "friendship: N1 -> N2".
+      x The specification carries no process "friendship".
+
+# an ordered or coordination process aborts naming its regime
+
+    Code
+      rq_pair(ordered, list(), "calls", "N1", "N2")
+    Condition
+      Error in `rq_pair()`:
+      ! Cannot answer the rate query "calls: N1 -> N2".
+      x Its rate is ordered; only a timed rate gives an intensity.
+
+---
+
+    Code
+      rq_pair(coordination, list(), "calls", "N1", "N2")
+    Condition
+      Error in `rq_pair()`:
+      ! Cannot answer the rate query "calls: N1 -> N2".
+      x Its choice is coordinated; a coordination process has no single sender's rate to draw a waiting time at.
+

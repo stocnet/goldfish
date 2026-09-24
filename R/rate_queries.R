@@ -212,3 +212,128 @@ assert_theta_layout <- function(spec, sub_models, call = rlang::caller_env()) {
   }
   invisible(spec)
 }
+
+# The frozen intensity of one `(process, sender, receiver)` pair at the
+# handle's current state. `process` is `list(layer, flavor)`; `sender` and
+# `receiver` are node labels; `theta` is the per-fid list flat_to_fid_theta()
+# builds; `pinned` is the specification's `completed_rates`.
+#
+# Every fid is evaluated through the steps a simulation draw uses, so a
+# completed default -- which has no engine and which walk_evaluate() refuses --
+# is evaluated at its pinned intercept or uniformly, over its sibling's live
+# support. A DyNAM pair is the sender's rate times the receiver's choice
+# probability, the choice evaluated for that sender's row alone; a REM rate
+# already ranges over dyads. An excluded alternative returns its computed zero;
+# a query naming something that is not there aborts instead.
+pair_intensity <- function(
+  handle,
+  routing,
+  theta,
+  process,
+  sender,
+  receiver,
+  pinned = list(),
+  call = rlang::caller_env()
+) {
+  walk_assert_open(handle, call)
+  map <- routing$map
+  layer <- process$layer
+  flavor <- process$flavor %||% NA_character_
+  query <- rate_query_label(layer, flavor, sender, receiver)
+  rows <- which(map$layer == layer & identical_flavor(map$flavor, flavor))
+  if (length(rows) == 0L) {
+    abort_unresolved_rate_query(
+      query,
+      "The specification carries no process
+       {.val {rate_query_process(layer, flavor)}}.",
+      call
+    )
+  }
+  rate_row <- rows[map$family[rows] == "rate"]
+  choice_row <- rows[map$family[rows] == "choice"]
+  if (any(sub("^[^:]*:", "", map$stat_block[rows]) == "choice_coordination")) {
+    abort_unresolved_rate_query(
+      query,
+      "Its choice is coordinated; a coordination process has no single
+       sender's rate to draw a waiting time at.",
+      call
+    )
+  }
+  # The rate side's timed baseline hazard is the timed / ordered split: an
+  # ordered rate ranks events and has no intensity to draw a time from.
+  if (length(rate_row) == 0L || !isTRUE(map$has_intercept[rate_row])) {
+    abort_unresolved_rate_query(
+      query,
+      "Its rate is ordered; only a timed rate gives an intensity.",
+      call
+    )
+  }
+
+  rate_fid <- map$fid[rate_row]
+  engine <- walk_engine_of_fid(handle, rate_fid) %||%
+    walk_engine_of_fid(handle, sibling_fid(map, rate_fid))
+  lookup <- engine$node_lookup
+  # The lookup carries a second side only for a two-mode layer.
+  receiver_side <- if (any(lookup$side == 2L)) 2L else 1L
+  i <- resolve_query_label(lookup, sender, 1L, "sender", query, call)
+  j <- resolve_query_label(
+    lookup,
+    receiver,
+    receiver_side,
+    "receiver",
+    query,
+    call
+  )
+
+  t <- handle$current_time
+  value_of <- function(fid, sender = NULL) {
+    inputs <- fid_evaluation_inputs(
+      routing,
+      fid,
+      default_evaluate,
+      theta,
+      pinned,
+      t
+    )
+    evaluate_fid(handle, fid, inputs$theta, inputs$step, sender = sender)
+  }
+  rate <- value_of(rate_fid)
+  if (length(choice_row) == 0L) {
+    return(rate[(i - 1L) * engine$n2 + j])
+  }
+  rate[i] * value_of(map$fid[choice_row], sender = i)[j]
+}
+
+rate_query_process <- function(layer, flavor) {
+  if (is.na(flavor)) layer else paste0(layer, " (", flavor, ")")
+}
+
+rate_query_label <- function(layer, flavor, sender, receiver) {
+  paste0(rate_query_process(layer, flavor), ": ", sender, " -> ", receiver)
+}
+
+# The local index of `label` on `side` of a layer's node lookup.
+resolve_query_label <- function(lookup, label, side, role, query, call) {
+  on_side <- lookup[lookup$side == side, , drop = FALSE]
+  at <- if (length(label) == 1L && !is.na(label)) match(label, on_side$label)
+  if (length(at) == 0L || is.na(at)) {
+    abort_unresolved_rate_query(
+      query,
+      "The {role} {.val {label}} is not a node of the layer.",
+      call
+    )
+  }
+  on_side$local[at]
+}
+
+abort_unresolved_rate_query <- function(query, why, call) {
+  cli::cli_abort(
+    c(
+      "Cannot answer the rate query {.val {query}}.",
+      "x" = why
+    ),
+    call = call,
+    class = "goldfish_rate_query_unresolved",
+    .envir = parent.frame()
+  )
+}
