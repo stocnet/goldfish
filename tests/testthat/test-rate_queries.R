@@ -502,3 +502,201 @@ test_that("an ordered or coordination process aborts naming its regime", {
     error = TRUE
   )
 })
+
+# calls is a modeled DyNAM process that reads emails; texts is a modeled REM
+# process; friendship and emails stay exogenous. Candidate events, counted in
+# realization order: calls 1 (row 3), texts 1 (row 5), calls 2 and 3 tied at
+# t = 2 (rows 9, 10), texts 2 (row 13), calls 4 (row 16). The emails row 2 -> 1
+# (row 11) shares event 4's stamp and follows it.
+rq_exo_data <- function() {
+  data <- rq_tied_data()
+  data$ties <- rbind(
+    data$ties,
+    data.frame(
+      from = c(6L, 1L),
+      to = c(1L, 6L),
+      time = c(1.5, 2.5),
+      layer = "texts"
+    )
+  )
+  data$info$update[["texts"]] <- "increment"
+  data$info$directed[["texts"]] <- TRUE
+  data$info$observation[["texts"]] <- "event"
+  data
+}
+
+rq_exo_spec <- function() {
+  data <- rq_exo_data()
+  spec <- make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ inertia + tie(emails),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + inertia,
+      layer = "texts",
+      model = "REM",
+      data = data
+    ),
+    data = data
+  )
+  suppressWarnings(complete_generative_spec(spec))
+}
+
+rq_exo_theta <- function() {
+  list(`1` = c(-1, 0.4), `2` = c(0.5, 0.8), `3` = c(-2, 0.6))
+}
+
+rq_query <- function(after, layer, sender, receiver) {
+  list(after = after, layer = layer, sender = sender, receiver = receiver)
+}
+
+# The pair intensity read by hand: replay to `row`, then read the pair.
+rq_manual <- function(spec, theta, row, layer, sender, receiver) {
+  handle <- suppressWarnings(walk_open(spec))
+  walk_replay_to(handle, row)
+  pair_intensity(
+    handle,
+    simulation_routing(spec, handle),
+    theta,
+    process = list(layer = layer, flavor = NA),
+    sender = sender,
+    receiver = receiver,
+    pinned = spec$completed_rates
+  )
+}
+
+test_that("the exogenous fixture's schedule has the layout the tests rely on", {
+  handle <- suppressWarnings(walk_open(rq_exo_spec()))
+  schedule <- handle$schedule
+  realized <- which(
+    !schedule$dependent & schedule$layer %in% handle$focal_layers
+  )
+  expect_identical(realized, c(3L, 5L, 9L, 10L, 13L, 16L))
+  expect_identical(schedule$layer[11], "emails")
+  expect_identical(schedule$time[c(9, 10, 11)], c(2, 2, 2))
+})
+
+test_that("a single query equals a pair read after a manual replay", {
+  spec <- rq_exo_spec()
+  theta <- rq_exo_theta()
+
+  expect_equal(
+    query_rate_at_position(spec, theta, list(rq_query(2, "calls", "N2", "N3"))),
+    rq_manual(spec, theta, 6L, "calls", "N2", "N3")
+  )
+  expect_equal(
+    query_rate_at_position(spec, theta, list(rq_query(0, "texts", "N1", "N6"))),
+    rq_manual(spec, theta, 1L, "texts", "N1", "N6")
+  )
+})
+
+test_that("a batch of queries opens one handle and applies each row once", {
+  spec <- rq_exo_spec()
+  opened <- 0L
+  injected <- 0L
+  stops <- integer(0)
+  real_open <- walk_open
+  real_inject <- walk_inject
+  real_replay <- walk_replay_to
+  local_mocked_bindings(
+    walk_open = function(...) {
+      opened <<- opened + 1L
+      real_open(...)
+    },
+    walk_inject = function(...) {
+      injected <<- injected + 1L
+      real_inject(...)
+    },
+    walk_replay_to = function(handle, row, ...) {
+      stops <<- c(stops, row)
+      real_replay(handle, row, ...)
+    }
+  )
+
+  query_rate_at_position(
+    spec,
+    rq_exo_theta(),
+    list(
+      rq_query(5, "calls", "N1", "N2"),
+      rq_query(1, "texts", "N6", "N1"),
+      rq_query(5, "texts", "N1", "N6"),
+      rq_query(3, "calls", "N3", "N4")
+    )
+  )
+
+  expect_identical(opened, 1L)
+  # Replayed forward once per distinct position; the five realizations up to
+  # event 5 are each injected exactly once.
+  expect_identical(stops, c(4L, 10L, 14L))
+  expect_identical(injected, 5L)
+})
+
+test_that("results return in the caller's order, not position order", {
+  spec <- rq_exo_spec()
+  theta <- rq_exo_theta()
+  queries <- list(
+    rq_query(6, "calls", "N1", "N2"),
+    rq_query(0, "texts", "N6", "N1"),
+    rq_query(4, "calls", "N3", "N4")
+  )
+
+  expect_equal(
+    query_rate_at_position(spec, theta, queries),
+    c(
+      rq_manual(spec, theta, 17L, "calls", "N1", "N2"),
+      rq_manual(spec, theta, 1L, "texts", "N6", "N1"),
+      rq_manual(spec, theta, 11L, "calls", "N3", "N4")
+    )
+  )
+})
+
+test_that("a position excludes a later row sharing the event's stamp", {
+  spec <- rq_exo_spec()
+  theta <- rq_exo_theta()
+  # tie(emails) moves N2's choice of N1 once the emails row 11 is applied.
+  at_event_4 <- query_rate_at_position(
+    spec,
+    theta,
+    list(rq_query(4, "calls", "N2", "N1"))
+  )
+
+  expect_equal(at_event_4, rq_manual(spec, theta, 11L, "calls", "N2", "N1"))
+  expect_false(isTRUE(all.equal(
+    at_event_4,
+    rq_manual(spec, theta, 12L, "calls", "N2", "N1")
+  )))
+})
+
+test_that("tied candidate events are addressable one at a time", {
+  spec <- rq_exo_spec()
+  theta <- rq_exo_theta()
+  # Events 3 and 4 share t = 2; inertia on N3 -> N4 appears only with event 4.
+  both <- query_rate_at_position(
+    spec,
+    theta,
+    list(rq_query(3, "calls", "N3", "N4"), rq_query(4, "calls", "N3", "N4"))
+  )
+
+  expect_equal(both[1], rq_manual(spec, theta, 10L, "calls", "N3", "N4"))
+  expect_equal(both[2], rq_manual(spec, theta, 11L, "calls", "N3", "N4"))
+  expect_false(isTRUE(all.equal(both[1], both[2])))
+})
+
+test_that("a position outside the candidate's events aborts naming it", {
+  local_cli_context()
+  spec <- rq_exo_spec()
+  queries <- list(rq_query(7, "calls", "N1", "N2"))
+
+  expect_error(
+    query_rate_at_position(spec, rq_exo_theta(), queries),
+    class = "goldfish_rate_query_unresolved"
+  )
+  expect_snapshot(
+    query_rate_at_position(spec, rq_exo_theta(), queries),
+    error = TRUE
+  )
+})
