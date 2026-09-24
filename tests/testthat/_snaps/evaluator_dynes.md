@@ -14,3 +14,12 @@
       Error:
       ! `loglik_ref` must be a single finite numeric value.
 
+# rate_queries without a specification aborts naming spec
+
+    Code
+      eval_fn(fx$sequences[[1]]$data, rate_queries = queries)
+    Condition
+      Error:
+      ! Rate queries need the completed joint specification.
+      i Supply `spec` to `make_proposal_evaluator()`.
+

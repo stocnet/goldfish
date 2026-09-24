@@ -351,14 +351,23 @@ evaluate_sequence_pool <- function(
 # -- so the MCMC-reuse fast-follow (dynes-augmentation D23) can widen it to
 # `list(loglik, rates, stats_handle)` without breaking a caller that reads
 # `$loglik`/`$rates`. No reuse logic ships here: a singular candidate reads as
-# `-Inf`, mirroring the pool evaluator's own D-ROBUST guard, and a real
-# `rate_queries` request aborts naming what is missing rather than returning a
-# fabricated value under that name -- the named-pair rate-at-position query
-# needs a `what` extension this change does not ship (compute_lik_seq() sugar
-# ships with the batched evaluator, not here).
+# `-Inf`, mirroring the pool evaluator's own D-ROBUST guard.
+#
+# `rate_queries` asks for named-pair intensities at positions inside the
+# candidate -- what a proposal's reverse density is drawn at. Answering it
+# needs `spec`, the completed joint specification the sub-models were
+# decomposed from: the candidate is rebound to it (never recompleted, so pinned
+# rates cannot move between proposals) and the pairs are read off a walk
+# replayed over the candidate, the same evaluation path simulate() draws with.
+# The flat theta reaches the walk through the specification's coefficient
+# layout, so the sub-models' `theta_index` must number that layout's free slots;
+# this is checked here, once, rather than surfacing as rates evaluated at
+# parameters the likelihood never saw. The log-likelihood path never reads
+# `spec`, and a call without `rate_queries` opens no walk.
 make_proposal_evaluator <- function(
   sub_models,
   theta,
+  spec = NULL,
   control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
@@ -371,15 +380,29 @@ make_proposal_evaluator <- function(
   if (!is.numeric(theta)) {
     cli::cli_abort("{.arg theta} must be a numeric vector.", call = call)
   }
+  theta_by_fid <- NULL
+  if (!is.null(spec)) {
+    assert_theta_layout(spec, sub_models, call = call)
+    theta_by_fid <- flat_to_fid_theta(spec, theta, call = call)
+  }
 
   function(candidate_seq, rate_queries = NULL) {
+    rates <- NULL
     if (!is.null(rate_queries)) {
-      cli::cli_abort(
-        c(
-          "Named-pair rate-at-position queries are not yet implemented.",
-          "i" = "Only {.field loglik} is available from this version's
-                 proposal evaluator."
-        ),
+      if (is.null(spec)) {
+        cli::cli_abort(
+          c(
+            "Rate queries need the completed joint specification.",
+            "i" = "Supply {.arg spec} to {.fn make_proposal_evaluator}."
+          ),
+          call = call
+        )
+      }
+      rates <- query_rate_at_position(
+        bind_candidate_data(spec, candidate_seq, call = call),
+        theta_by_fid,
+        rate_queries,
+        control_prep = control_prep,
         call = call
       )
     }
@@ -408,6 +431,6 @@ make_proposal_evaluator <- function(
       },
       error = function(e) -Inf
     )
-    list(loglik = harvest, rates = NULL)
+    list(loglik = harvest, rates = rates)
   }
 }
