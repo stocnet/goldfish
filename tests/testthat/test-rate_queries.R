@@ -311,3 +311,194 @@ test_that("sub-model positions off the free layout abort naming the mismatch", {
   )
   expect_snapshot(assert_theta_layout(spec, shifted), error = TRUE)
 })
+
+# A pair query at the end of the replayed schedule of `spec`, labels and all.
+rq_pair <- function(spec, theta, layer, sender, receiver, flavor = NA) {
+  handle <- suppressWarnings(walk_open(spec))
+  walk_replay_to(handle, handle$schedule$n + 1L)
+  pair_intensity(
+    handle,
+    simulation_routing(spec, handle),
+    theta,
+    process = list(layer = layer, flavor = flavor),
+    sender = sender,
+    receiver = receiver,
+    pinned = spec$completed_rates
+  )
+}
+
+rq_replayed <- function(spec) {
+  handle <- suppressWarnings(walk_open(spec))
+  walk_replay_to(handle, handle$schedule$n + 1L)
+  handle
+}
+
+# calls is a modeled DyNAM process, emails a modeled REM process.
+rq_pair_spec <- function() {
+  suppressWarnings(complete_generative_spec(rq_joint_spec()))
+}
+
+rq_pair_theta <- function() {
+  list(`1` = c(-1, 0.4), `2` = c(0.5, 0.8), `3` = c(-2, 0.6))
+}
+
+# emails is choice-only, so completion pins an intercept-only rate for it.
+rq_pinned_spec <- function() {
+  data <- rq_tied_data()
+  spec <- make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ inertia + tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+  suppressWarnings(complete_generative_spec(spec))
+}
+
+test_that("a DyNAM pair is the sender's rate times the receiver's choice", {
+  spec <- rq_pair_spec()
+  theta <- rq_pair_theta()
+  handle <- rq_replayed(spec)
+  rate <- walk_evaluate(handle, 1L, theta[["1"]])$value
+  choice <- walk_evaluate(handle, 2L, theta[["2"]], sender = 2L)$value
+
+  expect_equal(
+    rq_pair(spec, theta, "calls", "N2", "N3"),
+    rate[2] * choice[3]
+  )
+})
+
+test_that("a REM pair is the dyad's own rate", {
+  spec <- rq_pair_spec()
+  theta <- rq_pair_theta()
+  rate <- walk_evaluate(rq_replayed(spec), 3L, theta[["3"]])$value
+
+  # Dyad (i, j) sits at (i - 1) * n2 + j.
+  expect_equal(
+    rq_pair(spec, theta, "emails", "N5", "N2"),
+    rate[(5 - 1) * 6 + 2]
+  )
+})
+
+test_that("an excluded pair returns an exact zero", {
+  spec <- rq_pair_spec()
+  theta <- rq_pair_theta()
+
+  expect_identical(rq_pair(spec, theta, "calls", "N2", "N2"), 0)
+  expect_identical(rq_pair(spec, theta, "emails", "N4", "N4"), 0)
+})
+
+test_that("a completed intercept-only rate is evaluated at its pin", {
+  spec <- rq_pinned_spec()
+  theta <- list(
+    `1` = c(-1, 0.4),
+    `2` = c(0.5, 0.8),
+    `3` = numeric(0),
+    `4` = 0.5
+  )
+  choice <- walk_evaluate(rq_replayed(spec), 4L, 0.5, sender = 5L)$value
+  intercept <- spec$completed_rates[["3"]]$intercept
+
+  expect_equal(
+    rq_pair(spec, theta, "emails", "N5", "N2"),
+    exp(intercept) * choice[2]
+  )
+})
+
+test_that("a completed uniform choice spreads the rate over the receivers", {
+  spec <- rq_layout_spec()
+  theta <- flat_to_fid_theta(spec, c(0.1, 0.2, 0.3, -0.4, -1, 0.7))
+  rate <- walk_evaluate(rq_replayed(spec), 3L, theta[["3"]])$value
+
+  # Five receivers are open to N4: every node but itself.
+  expect_equal(rq_pair(spec, theta, "emails", "N4", "N1"), rate[4] / 5)
+})
+
+test_that("an unknown actor label aborts naming the query", {
+  local_cli_context()
+  spec <- rq_pair_spec()
+  theta <- rq_pair_theta()
+
+  expect_error(
+    rq_pair(spec, theta, "calls", "N2", "N9"),
+    class = "goldfish_rate_query_unresolved"
+  )
+  expect_snapshot(rq_pair(spec, theta, "calls", "N2", "N9"), error = TRUE)
+})
+
+test_that("an unknown process aborts naming the query", {
+  local_cli_context()
+  spec <- rq_pair_spec()
+  theta <- rq_pair_theta()
+
+  expect_error(
+    rq_pair(spec, theta, "friendship", "N1", "N2"),
+    class = "goldfish_rate_query_unresolved"
+  )
+  expect_snapshot(rq_pair(spec, theta, "friendship", "N1", "N2"), error = TRUE)
+})
+
+test_that("an ordered or coordination process aborts naming its regime", {
+  local_cli_context()
+  data <- rq_tied_data()
+  ordered <- make_joint_specification(
+    make_specification(
+      rate = ~ indeg(friendship),
+      choice = ~inertia,
+      rate_sub_model = "rate_ordered",
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~indeg,
+      choice = ~inertia,
+      rate_sub_model = "rate_ordered",
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+  coordination <- make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~inertia,
+      choice_sub_model = "choice_coordination",
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+
+  expect_error(
+    rq_pair(ordered, list(), "calls", "N1", "N2"),
+    class = "goldfish_rate_query_unresolved"
+  )
+  expect_snapshot(rq_pair(ordered, list(), "calls", "N1", "N2"), error = TRUE)
+  expect_error(
+    rq_pair(coordination, list(), "calls", "N1", "N2"),
+    class = "goldfish_rate_query_unresolved"
+  )
+  expect_snapshot(
+    rq_pair(coordination, list(), "calls", "N1", "N2"),
+    error = TRUE
+  )
+})
