@@ -247,6 +247,22 @@
       Error:
       ! `joint_spec` must be a <goldfishJointSpec>.
 
+# estimate_dynes() warns at entry with its own wording
+
+    Code
+      estimate_dynes(js, control)
+    Condition
+      Warning in `estimate_dynes()`:
+      ! Layer "emails" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
+      i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
+      Warning in `estimate_dynes()`:
+      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
+      i The pin comes from the wave Hamming diff between observed states -- a net-change floor.
+      i It carries no standard error and is excluded from estimation.
+      Error in `estimate_dynes()`:
+      ! No augmenter is available for `routine` = "sim" yet.
+      i The sequence augmenters are not part of this version of goldfish.
+
 # simulate() warns at entry with its own wording
 
     Code

@@ -58,9 +58,11 @@ condition data. Default \code{20L}.}
 post-acceptance pool-sizing rule (whose \eqn{Q^2} denominator can request
 an astronomical pool near the optimum). Default \code{5000L}.}
 
-\item{seed}{A single integer, or \code{NULL} (default). The \strong{only} seed: one RNG
-stream governs augmentation draws, batch selection, and resampling. \code{NULL}
-leaves the loop to draw and record a seed.}
+\item{seed}{A single integer, or \code{NULL} (default). The \strong{only} seed: it
+seeds one L'Ecuyer-CMRG root from which augmentation draws, batch
+selection, and resampling all take their streams. \code{NULL} draws a seed from
+the session's RNG and records it on the result. At a fixed seed the drawn
+sequences do not depend on \code{n_cores}; see "Reproducibility".}
 
 \item{initial_parameters}{A \code{goldfishParams} (from \verb{[set_parameters]} over
 the joint specification), or \code{NULL} (default). It is \eqn{\theta_0}: its
@@ -74,11 +76,13 @@ rejected (build a \code{goldfishParams} with \verb{[set_parameters]}).}
 \code{em_trace} also carries parameter standard errors (one extra Fisher pass
 per accepted iteration). Default \code{FALSE}.}
 
-\item{n_cores}{A single positive integer, the worker budget for the internal
-per-sequence map (pool preprocessing and evaluation). The default runs
-serially; a value above 1 uses mirai daemons when that Suggests package is
-installed, else warns once and runs serially. Held within CRAN's two-core
-cap by default (\code{2L}).}
+\item{n_cores}{A single positive integer, the core budget for the internal
+per-sequence map (augmentation draws, pool preprocessing, and evaluation).
+Left at its default (\code{2L}, within CRAN's two-core cap) the map runs
+serially. An explicit value above 1 runs it on that many mirai daemons,
+with workers times BLAS threads kept within \code{n_cores}; if mirai (a
+Suggests package) is not installed, it warns once and runs serially. The
+worker count never changes the drawn sequences; see "Reproducibility".}
 
 \item{augmenter, weights, optimizer}{The nested option bundles, from
 \verb{[set_augmenter_options]}, \verb{[set_weights_options]}, and \verb{[set_sgd_options]}
@@ -104,6 +108,22 @@ warm-start precedence. Inconsistent-but-ignorable combinations warn and are
 corrected; impossible ones (a nested control of the wrong class, a
 non-\code{goldfishParams} starting point) abort.
 }
+\section{Reproducibility}{
+
+\code{seed} makes a run reproducible, in two parts:
+\itemize{
+\item \strong{The drawn sequences} are identical for any \code{n_cores}, serial included,
+and on any machine. Each draw runs on its own random-number substream,
+keyed by its EM iteration and its position among that iteration's draws,
+never by the worker that runs it. The draws are pure R and call no BLAS.
+\item \strong{The estimates} are identical for any \code{n_cores} on the same machine and
+BLAS build. Per-sequence results are combined in sequence order, never in
+the order workers return them. Across machines, compiled code and
+multithreaded BLAS round differently, so bit-for-bit identical estimates
+are not promised there.
+}
+}
+
 \examples{
 em_ctrl <- set_algorithm_em(
   n_sequences = 200L,

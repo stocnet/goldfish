@@ -850,18 +850,51 @@ test_that("a pinned rate never appears in theta (single-process unchanged)", {
 })
 
 test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchanged", {
-  # The full joint-fit assertion needs the joint optimizer (estimate_dynes()),
-  # which does not exist yet -- deferred behind this guard (see progress.md
-  # Session 4). The unit-level θ-exclusion above (joint_theta_layout /
-  # theta_block) stands in until the consumer lands.
-  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
+  # emails is keyed in choice only, with its one effect an offset(), so the
+  # timed completion pins its rate and emails claims no theta slot. Evaluated
+  # as estimate_dynes() decomposes it, the pool's score and Fisher information
+  # are the same with and without the pinned rate's sub-model; only the
+  # log-likelihood gains the pinned (θ-free) term. The calls choice is a
+  # single indeg effect: richer choices are singular on these five events.
+  data <- pinned_joint_data()
+  spec <- suppressWarnings(complete_generative_spec(make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~indeg,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      choice = ~ offset(inertia, coef = 0.3),
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )))
+  sub_models <- decompose_joint_spec(spec)
+  is_pinned <- vapply(sub_models, function(sm) !is.null(sm$pinned_rate), TRUE)
+  expect_identical(sum(is_pinned), 1L)
 
-  # When estimate_dynes() lands: fit a joint spec WITHOUT a pinned rate, capture
-  # theta length / score length / Hessian dim; add a pinned intercept-only rate
-  # flavor; refit; assert all three dimensions are unchanged and only a reported
-  # log-likelihood offset differs. Left as an explicit failing marker so the
-  # deferral is visible if the guard is ever removed prematurely.
-  expect_true(FALSE)
+  theta <- c(-1, 0.1, 0.2)
+  evaluate <- function(sub_models) {
+    pool <- build_sequence_pool(
+      sub_models,
+      list(list(data = data, reference = list(theta_ref = theta))),
+      theta_length = length(theta)
+    )
+    evaluate_sequence_pool(pool, theta, what = c("loglik", "score", "fisher"))
+  }
+  without <- evaluate(sub_models[!is_pinned])
+  with_pin <- evaluate(sub_models)
+
+  expect_identical(dim(with_pin$score), dim(without$score))
+  expect_identical(dim(with_pin$fisher[[1]]), dim(without$fisher[[1]]))
+  expect_equal(with_pin$score, without$score)
+  expect_equal(with_pin$fisher, without$fisher)
+  expect_true(is.finite(with_pin$loglik))
+  expect_false(isTRUE(all.equal(with_pin$loglik, without$loglik)))
 })
 
 # Context-aware pinned-rate warning (Session 5.3): each consumer warns at its
@@ -1003,20 +1036,58 @@ test_that("the warning is not suppressed across repeated calls", {
   expect_warning(warn_pinned_rates(marked, consumer = "simulate"))
 })
 
-# DEFERRED (soft-blocked, per progress.md): neither estimate_dynes() nor a
-# simulate.goldfishJointSpec method exists yet, so the actual
-# consumer-entry snapshots and the cross-consumer re-fire test cannot exercise
-# the real entry points. warn_pinned_rate(s)() above is the wording/logic those
-# entries will call; these three tests are left in place, guarded, so they
-# activate the moment each consumer lands -- no fake consumer is stubbed here.
+# The consumer-entry warnings, fired by each consumer's own entry point. The
+# pin is announced once per consumer call, in that consumer's wording.
+
+# calls fully specified; emails keyed in choice only, so a timed completion
+# pins its missing rate.
+pinned_entry_join <- function() {
+  data <- pinned_joint_data()
+  make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~ inertia + tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# The pinned-rate warnings a call raises, muffling every other condition the
+# consumer signals (its completion warnings, and estimate_dynes()'s abort for
+# want of an augmenter, which comes after the entry warning).
+pinned_rate_warnings <- function(expr) {
+  messages <- character(0)
+  withCallingHandlers(
+    tryCatch(expr, goldfish_dynes_no_augmenter = function(e) NULL),
+    goldfish_pinned_rate_warning = function(w) {
+      messages <<- c(messages, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    },
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+  messages
+}
 
 test_that("estimate_dynes() warns at entry with its own wording", {
-  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
+  js <- pinned_entry_join()
+  control <- set_algorithm_em(
+    augmenter = set_augmenter_options(routine = "sim")
+  )
 
-  # When estimate_dynes() lands: fit a joint spec carrying a pinned rate and
-  # assert the Hamming-diff/no-SE/excluded warning fires at entry, matching
-  # warn_pinned_rate(fid, "estimate_dynes")'s snapshot above.
-  expect_true(FALSE)
+  messages <- pinned_rate_warnings(estimate_dynes(js, control))
+
+  expect_length(messages, 1L)
+  expect_match(messages, "Hamming diff")
+  expect_snapshot(estimate_dynes(js, control), error = TRUE)
 })
 
 test_that("simulate() warns at entry with its own wording", {
@@ -1058,17 +1129,28 @@ test_that("simulate() warns at entry with its own wording", {
 })
 
 test_that("the same spec re-fires when routed through a second consumer", {
-  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
-  skip_if_not(
-    exists("simulate.goldfishJointSpec", mode = "function"),
-    "simulate() method for goldfishJointSpec not yet implemented"
+  js <- pinned_entry_join()
+  parameters <- set_parameters(
+    js,
+    `calls › rate` = c(-1, 0.1),
+    `calls › choice` = c(0.2, 0.3),
+    `emails › choice` = c(0.2)
+  )
+  control <- set_algorithm_em(
+    augmenter = set_augmenter_options(routine = "sim")
   )
 
-  # When both consumers land: route the SAME pinned joint spec through
-  # estimate_dynes() then simulate() and assert BOTH warn -- the second
-  # consumer's warning must not be suppressed by the first having already
-  # fired, and each must carry its own consumer-specific wording.
-  expect_true(FALSE)
+  first <- pinned_rate_warnings(estimate_dynes(js, control))
+  second <- pinned_rate_warnings(
+    simulate(js, coef = parameters, n_events = 2, seed = 1)
+  )
+
+  # The second consumer is not silenced by the first having fired, and each
+  # speaks of its own pin source.
+  expect_length(first, 1L)
+  expect_length(second, 1L)
+  expect_match(first, "Hamming diff")
+  expect_match(second, "observed event count")
 })
 
 # Timed-regime scope guard (Session 6.1/6.2, D3): the primitive is meaningful

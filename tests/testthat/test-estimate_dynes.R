@@ -32,12 +32,14 @@ local_grow_redraw_script <- function(env = parent.frame()) {
 }
 
 surface_control <- function(...) {
-  set_algorithm_em(
+  args <- list(
     n_sequences = 4L,
     seed = 42L,
-    augmenter = set_augmenter_options(routine = "random"),
-    ...
+    augmenter = set_augmenter_options(routine = "random")
   )
+  dots <- list(...)
+  args[names(dots)] <- dots
+  do.call(set_algorithm_em, args)
 }
 
 # --- Surface ----------------------------------------------------------------
@@ -94,7 +96,13 @@ test_that("a goldfishParams initial value is theta0, unpinned slots at zero", {
     `calls › rate` = c(-1, NA)
   )
 
-  estimate_dynes(spec, surface_control(initial_parameters = start))
+  estimate_dynes(
+    spec,
+    surface_control(
+      initial_parameters = start,
+      augmenter = set_augmenter_options(routine = "sim")
+    )
+  )
 
   expect_equal(unname(captured), c(-1, 0, 0, 0, 0, 0, 0))
 })
@@ -321,7 +329,7 @@ test_that("a draw's substream depends on its key, not on the request order", {
   expect_false(identical(draw_seed(jumped, 0L, 1L), draw_seed(jumped, 1L, 1L)))
 })
 
-test_that("draws are identical across worker counts through growth and redraw", {
+test_that("draws match across worker counts through growth and redraw", {
   local_analytic_evaluator()
   run <- function(n_cores) {
     local_grow_redraw_script()

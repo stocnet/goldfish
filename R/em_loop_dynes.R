@@ -28,6 +28,8 @@
 #   through unchanged to every iteration's proposal evaluator (which reads it
 #   for rate queries). Re-completing it here could move a pinned rate between
 #   proposals with no parameter to explain the move.
+# * `map_fn`: the per-sequence map seam the pool preprocesses and evaluates
+#   through (lapply() by default).
 #
 # Returns a list: the last accepted `parameters`, `converged`, the number of
 # accepted `iterations`, the `em_trace` (one row per pass), and the final
@@ -40,6 +42,7 @@ run_abem_loop <- function(
   control,
   spec = NULL,
   control_prep = set_preprocessing(),
+  map_fn = lapply,
   call = rlang::caller_env()
 ) {
   if (!inherits(control, "goldfishAlgoEm")) {
@@ -91,7 +94,8 @@ run_abem_loop <- function(
       sub_models,
       lapply(drawn, abem_pool_entry, theta = theta, call = call),
       theta_length = length(theta),
-      control_prep = control_prep
+      control_prep = control_prep,
+      map_fn = map_fn
     )
     loglik <- evaluate_sequence_pool(chunk, theta, what = "loglik")$loglik
     for (i in seq_along(chunk$sequences)) {

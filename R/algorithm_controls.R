@@ -371,9 +371,11 @@ set_sgd_options <- function(
 #' @param max_pool A single positive integer, the ceiling clamping the
 #'   post-acceptance pool-sizing rule (whose \eqn{Q^2} denominator can request
 #'   an astronomical pool near the optimum). Default `5000L`.
-#' @param seed A single integer, or `NULL` (default). The **only** seed: one RNG
-#'   stream governs augmentation draws, batch selection, and resampling. `NULL`
-#'   leaves the loop to draw and record a seed.
+#' @param seed A single integer, or `NULL` (default). The **only** seed: it
+#'   seeds one L'Ecuyer-CMRG root from which augmentation draws, batch
+#'   selection, and resampling all take their streams. `NULL` draws a seed from
+#'   the session's RNG and records it on the result. At a fixed seed the drawn
+#'   sequences do not depend on `n_cores`; see "Reproducibility".
 #' @param initial_parameters A `goldfishParams` (from `[set_parameters]` over
 #'   the joint specification), or `NULL` (default). It is \eqn{\theta_0}: its
 #'   free (non-offset `NA`) slots are the parameters estimated, and `NULL` means
@@ -384,11 +386,13 @@ set_sgd_options <- function(
 #' @param em_trace_se A single logical. When `TRUE`, the per-iteration
 #'   `em_trace` also carries parameter standard errors (one extra Fisher pass
 #'   per accepted iteration). Default `FALSE`.
-#' @param n_cores A single positive integer, the worker budget for the internal
-#'   per-sequence map (pool preprocessing and evaluation). The default runs
-#'   serially; a value above 1 uses mirai daemons when that Suggests package is
-#'   installed, else warns once and runs serially. Held within CRAN's two-core
-#'   cap by default (`2L`).
+#' @param n_cores A single positive integer, the core budget for the internal
+#'   per-sequence map (augmentation draws, pool preprocessing, and evaluation).
+#'   Left at its default (`2L`, within CRAN's two-core cap) the map runs
+#'   serially. An explicit value above 1 runs it on that many mirai daemons,
+#'   with workers times BLAS threads kept within `n_cores`; if mirai (a
+#'   Suggests package) is not installed, it warns once and runs serially. The
+#'   worker count never changes the drawn sequences; see "Reproducibility".
 #' @param augmenter,weights,optimizer The nested option bundles, from
 #'   `[set_augmenter_options]`, `[set_weights_options]`, and `[set_sgd_options]`
 #'   respectively. Each defaults to its own constructor's defaults.
@@ -397,6 +401,20 @@ set_sgd_options <- function(
 #'   carrying the resolved EM settings and the (possibly corrected) nested
 #'   controls. The nested `[set_sgd_options]` `batch_size`, if left `NULL`, is
 #'   resolved once here to `min(n_sequences, 10L)` and frozen for the run.
+#'
+#' @section Reproducibility:
+#' `seed` makes a run reproducible, in two parts:
+#'
+#' * **The drawn sequences** are identical for any `n_cores`, serial included,
+#'   and on any machine. Each draw runs on its own random-number substream,
+#'   keyed by its EM iteration and its position among that iteration's draws,
+#'   never by the worker that runs it. The draws are pure R and call no BLAS.
+#' * **The estimates** are identical for any `n_cores` on the same machine and
+#'   BLAS build. Per-sequence results are combined in sequence order, never in
+#'   the order workers return them. Across machines, compiled code and
+#'   multithreaded BLAS round differently, so bit-for-bit identical estimates
+#'   are not promised there.
+#'
 #' @seealso [set_augmenter_options()], [set_weights_options()],
 #'   [set_sgd_options()]
 #' @export

@@ -244,29 +244,7 @@ build_sequence_pool <- function(
     call = call
   )
 
-  built <- map_fn(sequences, function(seq_i) {
-    stats <- preprocess_pool_sequence(
-      sub_models,
-      seq_i$data,
-      control_prep = control_prep,
-      call = call
-    )
-    fixed <- pool_fixed_loglik(
-      sub_models,
-      seq_i$data,
-      stats,
-      control_prep = control_prep,
-      call = call
-    )
-    list(
-      data = seq_i$data,
-      stats = stats,
-      fixed_loglik = fixed$loglik,
-      fixed_degenerate = fixed$degenerate,
-      reference = seq_i$reference,
-      attachment = seq_i$attachment
-    )
-  })
+  built <- map_fn(sequences, pool_entry_task(sub_models, control_prep))
 
   structure(
     list(
@@ -278,6 +256,35 @@ build_sequence_pool <- function(
     ),
     class = c("goldfishDynesPool", "list")
   )
+}
+
+# The per-sequence pool-entry task: preprocess once and store the statistics
+# and the θ-free fixed-only term with the sequence. Built in its own frame so
+# the map seam ships a worker the sub-models and nothing else of the pool.
+pool_entry_task <- function(sub_models, control_prep) {
+  function(seq_i) {
+    stats <- preprocess_pool_sequence(
+      sub_models,
+      seq_i$data,
+      control_prep = control_prep,
+      call = NULL
+    )
+    fixed <- pool_fixed_loglik(
+      sub_models,
+      seq_i$data,
+      stats,
+      control_prep = control_prep,
+      call = NULL
+    )
+    list(
+      data = seq_i$data,
+      stats = stats,
+      fixed_loglik = fixed$loglik,
+      fixed_degenerate = fixed$degenerate,
+      reference = seq_i$reference,
+      attachment = seq_i$attachment
+    )
+  }
 }
 
 # The pool's reference records, in sequence order -- the per-sequence
@@ -574,6 +581,16 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
   list(loglik = loglik, score = score, fisher = fisher, degenerate = degenerate)
 }
 
+# The per-sequence evaluation task at `theta`. It closes over the pool's
+# sub-models and settings only, never its sequences, so the map seam sends
+# each worker one sequence per task rather than the whole pool.
+pool_evaluation_task <- function(pool, theta) {
+  header <- pool[c("sub_models", "theta_length", "control_prep")]
+  function(sequence) {
+    evaluate_pool_sequence(header, sequence, theta, call = NULL)
+  }
+}
+
 # The evaluator contract's v1 implementation: evaluate every pooled sequence at
 # the concatenated `theta` and return the requested quantities per sequence.
 # `what` is honored at the harvest level -- the engine computes what it does,
@@ -605,9 +622,7 @@ evaluate_sequence_pool <- function(
     )
   }
 
-  per_sequence <- map_fn(pool$sequences, function(sequence) {
-    evaluate_pool_sequence(pool, sequence, theta, call = call)
-  })
+  per_sequence <- map_fn(pool$sequences, pool_evaluation_task(pool, theta))
 
   out <- list()
   if ("loglik" %in% what) {

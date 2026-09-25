@@ -45,7 +45,8 @@ Imports:
     cli,
     lifecycle,
     manynet (>= 2.1.0),
-    DBI
+    DBI,
+    parallel
 LinkingTo:
     Rcpp,
     RcppArmadillo
@@ -70,7 +71,7 @@ Suggests:
     ggplot2,
     maxLik,
     mitools,
-    parallel
+    mirai
 VignetteBuilder: knitr 
 LazyData: true
 Roxygen: list(markdown = TRUE)
