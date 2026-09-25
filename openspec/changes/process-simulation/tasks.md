@@ -598,7 +598,7 @@
       last observed rows replay. Finding (not fixed): a creation-only run
       with replay disabled can draw a sender whose creation mask row is empty
       (choice returns `NA`)
-- [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
+- [x] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
       — *rewritten 2026-09-25 (explore, ADR-0094; D9 amendment)*: **no
@@ -609,7 +609,10 @@
       that `n_replayed` is the observed count unless a target or guard stops
       the run first, and that no count flags a run; `devtools::document()`.
       No code, no test change
-- [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
+      — *done 2026-09-25* `b377e98` (goldfish-b2), 9037 / 0 / 4, six baseline
+      files PASS. The roxygen paragraph on replayed flavors in `simulate()`
+      carries it; no NEWS bullet (a documentation clarification)
+- [x] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record
       — *settled 2026-09-25 (explore, ADR-0095; D6 amendment)*: the run walks
@@ -636,6 +639,21 @@
       opens a DyNAM process without a rate for a time-anchored run; a missing
       choice, or a missing rate under free-running, still aborts. Tests add an
       unflavored single-process choice-only run and the `walk_open()` case
+      — *done 2026-09-25* `0d7e1ae` (goldfish-b2), 9089 / 0 / 4, six baseline
+      files PASS. `R/simulate_anchored.R` (`simulate_anchored_replicate()`,
+      `anchored_stamps()`, `anchored_evaluation()`; a choice-only stamp's
+      "rate" is the indicator of the held sender, so the mark step is
+      unchanged); `choice_evaluation()` factored out of `mark_evaluation()`;
+      `walk_open(times =)`; refusals `goldfish_sim_anchored_argument` and
+      `goldfish_sim_unsupported` (coordination). `n_stamps_skipped` is NA on a
+      free-running run. **Finding:** holding every observed sender keeps each
+      sender's out-degree equal to the observed one, so the flavor masks
+      alone never empty a held sender's row (0 skips on 20 seeds of three
+      fixtures); the skip test triggers it through the `mark` plug point. A
+      skip needs a constraint on simulated state beyond the sender's own
+      out-ties, or the 2.8c gate defect. The steps' dry call hands `mark` a
+      toy evaluation with no layer, so a step wrapping `default_mark()` must
+      answer it directly (not fixed). The old refusal snapshots became runs
 - [ ] 2.3b Per-flavor anchoring (split from 2.3 on 2026-09-25, ADR-0095):
       hold one flavor's observed stamps, redrawing its marks, inside an
       otherwise free-running run, recorded through the regime record. A
