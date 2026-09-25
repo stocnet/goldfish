@@ -756,3 +756,103 @@ test_that("a pinned rate refuses an interval that straddles a wave boundary", {
     class = "goldfish_pinned_rate_straddle"
   )
 })
+
+# A free sub-model may also carry offset() terms: theta covers only its free
+# coefficients, while the engine lays out every coefficient, offsets included.
+# The adapter must place theta at the free positions and harvest the score and
+# Fisher information at those positions only.
+test_that("a sub-model mixing free and offset terms evaluates at its free slots", {
+  data("social_evolution", envir = environment())
+  formula <- calls ~ inertia + offset(recip, coef = 0.5) + trans
+  sub_models <- list(
+    new_pool_submodel(formula, "DyNAM", "choice", theta_index = 1:2)
+  )
+  pool <- build_sequence_pool(
+    sub_models,
+    list(list(
+      data = social_evolution,
+      reference = new_reference_record(c(0, 0), -100, -100)
+    )),
+    theta_length = 2L
+  )
+  theta <- c(0.4, -0.1)
+
+  res <- evaluate_sequence_pool(pool, theta)
+  # The offset's value is fixed by the formula; the full vector's middle entry
+  # is overwritten by it.
+  direct <- direct_zero_iteration(social_evolution, formula, c(0.4, 0, -0.1))
+
+  expect_false(res$degenerate[[1]])
+  expect_equal(res$loglik[[1]], direct$log_likelihood, tolerance = 1e-10)
+  expect_equal(res$score[1, ], direct$final_score[c(1, 3)], tolerance = 1e-10)
+  expect_equal(
+    res$fisher[[1]],
+    direct$final_information_matrix[c(1, 3), c(1, 3)],
+    tolerance = 1e-10
+  )
+})
+
+test_that("a rate sub-model's free slots include its time intercept", {
+  data("social_evolution", envir = environment())
+  formula <- calls ~ 1 + offset(indeg, coef = 0.2) + outdeg
+  sub_models <- list(
+    new_pool_submodel(formula, "DyNAM", "rate", theta_index = 1:2)
+  )
+  pool <- build_sequence_pool(
+    sub_models,
+    list(list(
+      data = social_evolution,
+      reference = new_reference_record(c(0, 0), -100, -100)
+    )),
+    theta_length = 2L
+  )
+  theta <- c(-3, 0.05)
+
+  res <- evaluate_sequence_pool(pool, theta)
+  direct <- direct_zero_iteration(
+    social_evolution,
+    formula,
+    c(-3, 0, 0.05),
+    sub_model = "rate"
+  )
+
+  expect_false(res$degenerate[[1]])
+  expect_equal(res$loglik[[1]], direct$log_likelihood, tolerance = 1e-10)
+  expect_equal(res$score[1, ], direct$final_score[c(1, 3)], tolerance = 1e-10)
+})
+
+test_that("the proposal evaluator scores a sub-model with offset terms", {
+  data("social_evolution", envir = environment())
+  formula <- calls ~ inertia + offset(recip, coef = 0.5) + trans
+  sub_models <- list(
+    new_pool_submodel(formula, "DyNAM", "choice", theta_index = 1:2)
+  )
+  eval_fn <- make_proposal_evaluator(sub_models, c(0.4, -0.1))
+  out <- eval_fn(social_evolution)
+
+  direct <- direct_zero_iteration(social_evolution, formula, c(0.4, 0, -0.1))
+  expect_equal(out$loglik, direct$log_likelihood, tolerance = 1e-10)
+})
+
+test_that("a theta_index not matching the free coefficients aborts at entry", {
+  data("social_evolution", envir = environment())
+  sub_models <- list(
+    new_pool_submodel(
+      calls ~ inertia + offset(recip, coef = 0.5) + trans,
+      "DyNAM",
+      "choice",
+      theta_index = 1:3
+    )
+  )
+  expect_error(
+    build_sequence_pool(
+      sub_models,
+      list(list(
+        data = social_evolution,
+        reference = new_reference_record(c(0, 0, 0), -100, -100)
+      )),
+      theta_length = 3L
+    ),
+    class = "goldfish_theta_index_mismatch"
+  )
+})
