@@ -601,9 +601,48 @@
 - [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
+      — *rewritten 2026-09-25 (explore, ADR-0094; D9 amendment)*: **no
+      threshold, no flag, no argument.** The skip counts are a descriptor of
+      how far the replayed flavors acted on the simulated state, and nothing
+      stops, warns about or excludes a replicate on them. Documentation only:
+      the `simulate()` roxygen says what `n_replayed` and `n_skipped` mean,
+      that `n_replayed` is the observed count unless a target or guard stops
+      the run first, and that no count flags a run; `devtools::document()`.
+      No code, no test change
 - [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record
+      — *settled 2026-09-25 (explore, ADR-0095; D6 amendment)*: the run walks
+      the dependent rows of the modeled layers on the merged schedule; an
+      unmodeled flavor's rows stay replayed. Each stamp keeps its observed
+      layer and flavor; the sender is redrawn from the rate and the receiver
+      from its choice row (DyNAM with a rate), the receiver alone with the
+      observed sender held (choice-only DyNAM), the dyad from the rate (REM).
+      A stamp with no support is skipped and counted
+      (`diagnostics$n_stamps_skipped`, pool summary column); the stamp total
+      is stated in the prints. `stop_reason = "observed"`, `capped = FALSE`,
+      `end_time` the last stamp, empty trajectory. `n_events`, `horizon` and
+      `control_sim` refused when supplied (one condition class).
+      Coordination refused until 2.6; the ordered rate not special-cased. A
+      fitted model anchors through the rebuilt specification. Per-flavor
+      anchoring moves to 2.3b. Tests (new file `test-simulate_anchored.R`):
+      observed stamps and layers kept, marks redrawn, on DyNAM rate+choice,
+      choice-only DyNAM, REM and a fitted model; an unmodeled flavor replayed
+      under anchoring; an unsupported stamp skipped and counted; the argument
+      refusals; the coordination refusal; prints and pool summary. The
+      snapshots that pinned the refusal become runs
+- [ ] 2.3b Per-flavor anchoring (split from 2.3 on 2026-09-25, ADR-0095):
+      hold one flavor's observed stamps, redrawing its marks, inside an
+      otherwise free-running run, recorded through the regime record. A
+      second loop; its argument name and interaction with `replay =` are
+      open (ask before implementing)
+- [ ] 2.8c The rate-with-choice sender gate follows a saturated choice mask
+      (added 2026-09-25, the 2.8 finding; ADR-0095): a sender whose choice
+      row is all zero in the simulated state gets zero rate, so a DyNAM with
+      a rate and a choice never draws a sender it cannot give a receiver
+      (today the choice returns `NA` and `merged_build_event_args()`
+      aborts). Changes free-running draws on saturating runs; ask before
+      settling where the gate reads the mask
 - [ ] 2.4 ~~Weibull/Gompertz free-running clocks~~ **Moved 2026-09-15 to
       `parametric-rates` task 3.4a** (ADR-0074): the clocks are `clock`
       steps owned by the change that owns the distribution axis; this

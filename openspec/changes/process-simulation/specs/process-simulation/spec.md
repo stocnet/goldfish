@@ -158,7 +158,10 @@ specification carries a clock — a timed rate, or the constant exponential rate
 choice-only DyNAM gains on request — and an ordered (Cox) rate or a coordination
 process SHALL simulate time-anchored only, `times = "generated"` on it aborting
 stating why; anchored
-runs are bounded by the observed stream and take no stopping arguments.
+runs are bounded by the observed stream and take no stopping arguments. An
+anchored stamp SHALL keep its observed layer and flavor, and a stamp whose
+redraw has no support in the simulated state SHALL be skipped and counted,
+never clamped.
 Documentation SHALL use the vocabulary "free-running" and "time-anchored" and
 SHALL NOT describe the axis as conditional/unconditional.
 
@@ -195,6 +198,20 @@ SHALL NOT describe the axis as conditional/unconditional.
 - **THEN** a message states that the specification's default is `"generated"`
   and that the observed stamps are held, and the result records `times` as
   requested.
+
+#### Scenario: an anchored run takes no targets or guard
+
+- **WHEN** a specification is simulated with `times = "observed"` and
+  `n_events`, `horizon` or `control_sim` is supplied
+- **THEN** `simulate()` aborts naming the supplied arguments, before any walk
+  opens.
+
+#### Scenario: an unsupported stamp is skipped and counted
+
+- **WHEN** a choice-only DyNAM is simulated time-anchored and a stamp's held
+  sender has no receiver available in the simulated state
+- **THEN** no event is drawn at that stamp, the replicate's count of skipped
+  stamps increments, and the run continues at the next stamp.
 
 ### Requirement: Free-running clocks are keyed on the distribution axis
 
@@ -404,8 +421,10 @@ while modeled components simulate around them). The record SHALL ride the
 statistics that touch completed or replayed components. A replayed event whose
 precondition fails in the simulated state (e.g. a deletion of a tie no
 simulated creation created) SHALL be skipped and counted, never force-applied
-as a state clamp; the skip count SHALL be reported on the result, and past a
-documented threshold the run SHALL be flagged incoherent.
+as a state clamp; the skip count SHALL be reported on the result per
+replicate, beside the number of replayed events the run reached, as a
+descriptor of how far the replayed flavors acted on the simulated state, and
+SHALL NOT stop, flag, warn about, or exclude a replicate.
 
 #### Scenario: replayed deletion with no matching tie is skipped
 
@@ -424,11 +443,12 @@ documented threshold the run SHALL be flagged incoherent.
   accepted and not used, and the regime record shows `dissolution` as
   `anchored-replay` requested by the call.
 
-#### Scenario: excessive drift flags the run
+#### Scenario: skip counts describe the replay and nothing acts on them
 
-- **WHEN** the share of skipped replayed events exceeds the documented threshold
-- **THEN** the result is flagged incoherent and the flag is visible in the print
-  and to `gof_*` consumers.
+- **WHEN** a hybrid run skips most of the replayed events it reaches
+- **THEN** each replicate reports how many replayed events it reached and how
+  many it skipped, the pool summary carries both per replicate, and no
+  replicate is flagged, stopped, warned about, or dropped from the pool.
 
 ### Requirement: Simulated pools are evaluator-compatible
 

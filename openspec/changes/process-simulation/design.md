@@ -703,6 +703,34 @@ held. Its condition classes name the conditions present
 (`goldfish_sim_guard_stop`, `goldfish_sim_frozen_exogenous`), so a test or a
 caller can still match either. Task 2.2i.
 
+*Amended 2026-09-25 (explore, goldfish-b2; ADR-0095) — what the
+time-anchored run walks and redraws.* An anchored run walks the dependent
+rows of the modeled layers on the merged schedule, in schedule order; a row
+whose flavor is unmodeled stays a replayed row (D9), not a stamp. Each stamp
+keeps its observed layer and flavor, and only the marks inside that process
+are redrawn: for a DyNAM with a rate, the sender from the process's rate and
+the receiver from that sender's choice row (the free-running mark step,
+unchanged); for a choice-only DyNAM, the observed sender is held and the
+receiver redrawn, since no rate models the sender; for REM, the dyad from the
+rate. Redrawing which process fires, from the competing rates at the stamp,
+is rejected: it moves events between layers, the hazard the layer-isolated
+design avoids. A stamp whose redraw has no support in the simulated state —
+a held sender with an all-zero choice row, or a sender gate that misses a
+saturated choice mask — is skipped and counted, never clamped:
+`diagnostics$n_stamps_skipped` per replicate and a pool summary column of the
+same name. Every anchored replicate walks every stamp, so the stamp total is
+the same across a pool and is stated in the prints rather than stored per
+replicate. An anchored run reports `stop_reason = "observed"`, `capped =
+FALSE`, `end_time` at its last stamp and an empty total-rate trajectory; it
+takes no targets and no guard, so `n_events`, `horizon` and `control_sim` are
+refused when supplied. Coordination is refused until task 2.6; the ordered
+rate is not special-cased, because the walk already evaluates it as a sender
+distribution. Holding one flavor's stamps inside an otherwise free-running
+run is a second loop, deferred to task 2.3b. A fitted model anchors through
+the specification its method rebuilds, so the 2.2h rebuild serves it. The
+rate-with-choice sender gate that misses a saturated choice mask is fixed in
+its own task rather than absorbed by the skip.
+
 ### D7 — Coordination simulates per mechanism: all five, both variants (added 2026-08-19)
 
 Keyed by `two-sided-coordination`'s `mechanism =`. **Time-anchored**: at
@@ -872,6 +900,24 @@ accepted and unused; a replay that leaves a layer with no modeled process,
 an unknown label, or a layer without flavors is refused
 (`goldfish_sim_bad_replay`). A run stopped at its horizon advances the walk
 to it, so observed rows stamped at the window end are replayed.
+
+*Amended 2026-09-25 (explore, goldfish-b2; ADR-0094) — the skip counts are a
+descriptor, and no threshold flags a run.* The sentence above that has a
+documented threshold flag the run incoherent is withdrawn. Measured on the
+flavored fixture (creation modeled, 40 dissolutions replayed), the skip share
+is 0.47–0.60 at the parameters the fixture simulates at, because a
+free-running creation stream lands on other dyads than the observed one, and
+it reaches 0 only by over-creating until every dyad holds a tie; it also grows
+with the horizon. A threshold on it would flag correct models and pass
+saturated ones. So `n_skipped` out of `n_replayed` describes how far the
+replayed flavors could act on the simulated state, and nothing acts on it: no
+flag, no argument, no warning, no stop, no default exclusion. `n_replayed`
+stays per replicate beside `n_skipped`: it equals the observed count when a
+run reaches the window end, and is smaller when a target or a guard stops it
+first, and guard-stopped replicates stay in the pool (ADR-0085). Counts per
+flavor are the `flavor-cases` change's question (ADR-0096). Task 2.8b is
+documentation only.
+
 ### D10 — One preprocessing pass keyed by fid, never a cycle per sub-model (added 2026-09-07)
 
 The package carries three preprocessing substrates, and the question this
@@ -1259,9 +1305,12 @@ untouched — simulation adds no estimation path).
   owned by `dynes-augmentation`, so this change mints only `goldfishSim` and
   wraps replicates in a plain list until that format lands. Confirm at task
   2.1.
-- **[surface]** The incoherence threshold default (share of replayed events
+- ~~**[surface]** The incoherence threshold default (share of replayed events
   skipped, D9) and the trajectory-trigger multiple (D3) — settle against
-  fixtures during implementation (ADR-0034 open questions).
+  fixtures during implementation (ADR-0034 open questions).~~ Resolved: the
+  trajectory triggers are off by default and set on the guard object
+  (2026-09-17, ADR-0089); there is no incoherence threshold, the skip counts
+  being a descriptor (2026-09-25, ADR-0094).
 - **[D11]** The exact accessor surface the step closures get on the opaque
   handle. The per-side question for a coordination fid moved with the
   matrix branch: it is now a question for goldfish.latent's evaluate step
