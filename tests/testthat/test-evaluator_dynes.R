@@ -466,3 +466,293 @@ test_that("a degenerate sequence does not stop the rest of the pool", {
   expect_true(is.finite(res$loglik[[1]]))
   expect_false(is.finite(res$loglik[[2]]))
 })
+
+# Fixed-only sub-models: a fid with no free slot -- a completed pinned rate, a
+# completed uniform choice, or an authored fid whose effects are all offset()
+# -- still has a log-likelihood. It is θ-free, so the pool adds it to each
+# sequence's total and gives it no score or Fisher block.
+#
+# Four actors, all present, one directed `calls` layer. The default path puts
+# events at 1, 3, 6 (first wave period [0, 10)) and at 10, 12, 15 (second
+# period [10, 20]); the event exactly at t = 10 closes the interval (6, 10], so
+# no interval straddles the interior wave boundary.
+fixed_only_data <- function(calls_time = c(1, 3, 6, 10, 12, 15)) {
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = data.frame(
+      from = c(1L, 2L, 1L, 3L, 4L, 1L),
+      to = c(2L, 1L, 2L, 4L, 3L, 2L),
+      time = calls_time,
+      layer = "calls"
+    )
+  )
+}
+
+fixed_only_free_submodel <- function() {
+  new_pool_submodel(
+    calls ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    theta_index = 1:2
+  )
+}
+
+# A two-plateau pin, the object `spec$completed_rates` holds for a completed
+# timed rate: log-hazard -1 on [0, 10), -2 on [10, 20].
+fixed_only_pinned_rate <- function() {
+  make_intercept_only_rate(
+    c(-1, -2),
+    model_type = "DyNAM-M-Rate",
+    wave_times = c(0, 10, 20)
+  )
+}
+
+fixed_only_pinned_submodel <- function() {
+  new_pool_submodel(
+    calls ~ 1,
+    model = "DyNAM",
+    sub_model = "rate",
+    theta_index = integer(0),
+    pinned_rate = fixed_only_pinned_rate()
+  )
+}
+
+fixed_only_pool <- function(sub_models, data = fixed_only_data()) {
+  build_sequence_pool(
+    sub_models,
+    list(list(
+      data = data,
+      reference = new_reference_record(c(0, 0), -10, -10)
+    )),
+    theta_length = 2L
+  )
+}
+
+test_that("new_pool_submodel accepts a zero-length theta_index", {
+  sm <- expect_no_error(fixed_only_pinned_submodel())
+  expect_identical(sm$theta_index, integer(0))
+
+  authored <- expect_no_error(
+    new_pool_submodel(
+      calls ~ offset(inertia, coef = 0.5),
+      model = "DyNAM",
+      sub_model = "choice",
+      theta_index = integer(0)
+    )
+  )
+  expect_identical(authored$theta_index, integer(0))
+})
+
+test_that("a pinned rate is only accepted on a fixed-only rate sub-model", {
+  expect_error(
+    new_pool_submodel(
+      calls ~ inertia,
+      model = "DyNAM",
+      sub_model = "choice",
+      theta_index = integer(0),
+      pinned_rate = fixed_only_pinned_rate()
+    ),
+    "only applies to a fixed-only rate"
+  )
+  expect_error(
+    new_pool_submodel(
+      calls ~ 1 + outdeg,
+      model = "DyNAM",
+      sub_model = "rate",
+      theta_index = 1:2,
+      pinned_rate = fixed_only_pinned_rate()
+    ),
+    "only applies to a fixed-only rate"
+  )
+})
+
+test_that("a fixed-only fid adds its log-likelihood but no score or Fisher block", {
+  theta <- c(0.3, -0.2)
+  free_only <- fixed_only_pool(list(fixed_only_free_submodel()))
+  with_pinned <- fixed_only_pool(
+    list(fixed_only_free_submodel(), fixed_only_pinned_submodel())
+  )
+
+  base <- evaluate_sequence_pool(free_only, theta)
+  res <- evaluate_sequence_pool(with_pinned, theta)
+
+  # Dimensions stay at the free-slot count: the pinned fid claims no slot.
+  expect_identical(dim(res$score), c(1L, 2L))
+  expect_identical(dim(res$fisher[[1]]), c(2L, 2L))
+  expect_equal(res$score, base$score, tolerance = 1e-12)
+  expect_equal(res$fisher, base$fisher, tolerance = 1e-12)
+  expect_false(res$degenerate[[1]])
+
+  # Hand-computed pinned-rate term, Σ c_w(e) − Σ_w e^{c_w} ∫_w |R(t)| dt, with
+  # the exposure integrated over the engine's window (first event onward) and
+  # |R(t)| = 4 throughout. Period 1: events at 1, 3, 6, exposure 4 * (10 − 1).
+  # Period 2: events at 10 (an interior boundary belongs to the next period),
+  # 12, 15, exposure 4 * (15 − 10).
+  c1 <- -1
+  c2 <- -2
+  pinned <- 3 * c1 + 3 * c2 - exp(c1) * 4 * 9 - exp(c2) * 4 * 5
+  expect_equal(res$loglik[[1]], base$loglik[[1]] + pinned, tolerance = 1e-10)
+})
+
+test_that("the fixed-only term is path-dependent but cancels in the reweight", {
+  theta <- c(0.3, -0.2)
+  theta_ref <- c(0, 0)
+  both <- list(fixed_only_free_submodel(), fixed_only_pinned_submodel())
+
+  # Path B moves the event at t = 12 to t = 8, across the wave boundary: the
+  # same exposure per period, but one event's log-hazard changes from c2 to c1.
+  path_a <- fixed_only_data()
+  path_b <- fixed_only_data(calls_time = c(1, 3, 6, 10, 8, 15))
+  path_b$ties <- path_b$ties[order(path_b$ties$time), ]
+
+  fixed_term <- function(data) {
+    with_pinned <- evaluate_sequence_pool(fixed_only_pool(both, data), theta)
+    free_only <- evaluate_sequence_pool(
+      fixed_only_pool(list(fixed_only_free_submodel()), data),
+      theta
+    )
+    with_pinned$loglik[[1]] - free_only$loglik[[1]]
+  }
+  # c1 − c2 = (−1) − (−2) = 1.
+  expect_equal(fixed_term(path_b) - fixed_term(path_a), 1, tolerance = 1e-10)
+
+  # On one path, the reweight log f(Ω;θ) − log f(Ω;θ_ref) is unchanged by the
+  # θ-free term.
+  log_ratio <- function(sub_models) {
+    pool <- fixed_only_pool(sub_models, path_a)
+    evaluate_sequence_pool(pool, theta, what = "loglik")$loglik -
+      evaluate_sequence_pool(pool, theta_ref, what = "loglik")$loglik
+  }
+  expect_equal(
+    log_ratio(both),
+    log_ratio(list(fixed_only_free_submodel())),
+    tolerance = 1e-10
+  )
+})
+
+test_that("an authored all-offset fid is scored the same way", {
+  theta <- c(0.3, -0.2)
+  authored <- new_pool_submodel(
+    calls ~ offset(inertia, coef = 0.5),
+    model = "DyNAM",
+    sub_model = "choice",
+    theta_index = integer(0)
+  )
+  base <- evaluate_sequence_pool(
+    fixed_only_pool(list(fixed_only_free_submodel())),
+    theta
+  )
+  res <- evaluate_sequence_pool(
+    fixed_only_pool(list(fixed_only_free_submodel(), authored)),
+    theta
+  )
+
+  direct <- estimate_wrapper(
+    x = calls ~ offset(inertia, coef = 0.5),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = fixed_only_data(),
+    control_algo = set_algorithm_newton(max_iterations = 0L, backend = "r"),
+    verbose = FALSE,
+    progress = FALSE
+  )
+  expect_equal(
+    res$loglik[[1]],
+    base$loglik[[1]] + direct$log_likelihood,
+    tolerance = 1e-10
+  )
+  expect_equal(res$score, base$score, tolerance = 1e-12)
+  expect_equal(res$fisher, base$fisher, tolerance = 1e-12)
+})
+
+# A completed uniform choice has no statistic columns. The engine refuses an
+# effect-free formula outright, so the pool scores it through a single column
+# whose coefficient is fixed at 0: every alternative then carries the same
+# linear predictor, each event contributes −log |support(t)|, and an all-fixed
+# evaluation is likelihood-only (no information-matrix inversion), so the
+# column's values never matter.
+test_that("the engine refuses an effect-free choice formula", {
+  expect_error(
+    suppressWarnings(
+      estimate_wrapper(
+        x = calls ~ 1,
+        model = "DyNAM",
+        sub_model = "choice",
+        data = fixed_only_data(),
+        control_algo = set_algorithm_newton(max_iterations = 0L, backend = "r"),
+        verbose = FALSE,
+        progress = FALSE
+      )
+    ),
+    "at least one effect term"
+  )
+})
+
+test_that("a zero-coefficient column scores -log |support(t)| per event", {
+  direct <- estimate_wrapper(
+    x = calls ~ offset(inertia(calls), coef = 0),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = fixed_only_data(),
+    control_algo = set_algorithm_newton(
+      max_iterations = 0L,
+      backend = "r",
+      diagnostics = "loglik"
+    ),
+    verbose = FALSE,
+    progress = FALSE
+  )
+  # Four actors, no self-ties: three legal receivers at every event.
+  expect_equal(direct$interval_log_lik, rep(-log(3), 6), tolerance = 1e-12)
+})
+
+test_that("a completed uniform choice enters the pool as a fixed-only fid", {
+  theta <- c(0.3, -0.2)
+  uniform <- new_pool_submodel(
+    calls ~ 1,
+    model = "DyNAM",
+    sub_model = "choice",
+    theta_index = integer(0)
+  )
+  base <- evaluate_sequence_pool(
+    fixed_only_pool(list(fixed_only_free_submodel())),
+    theta
+  )
+  res <- expect_no_error(
+    evaluate_sequence_pool(
+      fixed_only_pool(list(fixed_only_free_submodel(), uniform)),
+      theta
+    )
+  )
+  expect_equal(
+    res$loglik[[1]],
+    base$loglik[[1]] - 6 * log(3),
+    tolerance = 1e-10
+  )
+  expect_equal(res$score, base$score, tolerance = 1e-12)
+})
+
+test_that("a pinned rate refuses an interval that straddles a wave boundary", {
+  # Moving the boundary event from t = 10 to t = 11 leaves the interval
+  # (6, 11] across the interior boundary at 10: its exposure has no single
+  # plateau, so the per-period column cannot score it exactly.
+  straddling <- fixed_only_data(calls_time = c(1, 3, 6, 11, 12, 15))
+  expect_error(
+    fixed_only_pool(
+      list(fixed_only_free_submodel(), fixed_only_pinned_submodel()),
+      straddling
+    ),
+    class = "goldfish_pinned_rate_straddle"
+  )
+})
