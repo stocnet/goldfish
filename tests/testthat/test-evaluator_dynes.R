@@ -255,10 +255,10 @@ test_that("a singular sequence yields a non-finite result, not a pool abort", {
   expect_false(any(is.finite(res$loglik)))
 })
 
-# The v1 attachment-optional conformance pin (design D3, dynes-augmentation
-# D23): the pool-entry path always takes the from-scratch preprocess, whether
-# or not a precomputed attachment is supplied -- a supplied one is stored but
-# never consulted, so the pin is that its presence changes nothing observable.
+# The v1 attachment-optional conformance pin: the pool-entry path always takes
+# the from-scratch preprocess, whether or not a precomputed attachment is
+# supplied -- a supplied one is stored but never consulted, so the pin is that
+# its presence changes nothing observable.
 # make_proposal_evaluator() is the other half of the same seam: its return is
 # a NAMED list, pinned by name rather than position, so a later widen from
 # `(loglik, rates)` to add a stats handle cannot break a caller that reads it
@@ -743,18 +743,31 @@ test_that("a completed uniform choice enters the pool as a fixed-only fid", {
   expect_equal(res$score, base$score, tolerance = 1e-12)
 })
 
-test_that("a pinned rate refuses an interval that straddles a wave boundary", {
+test_that("a pinned rate splits an interval that straddles a wave boundary", {
   # Moving the boundary event from t = 10 to t = 11 leaves the interval
-  # (6, 11] across the interior boundary at 10: its exposure has no single
-  # plateau, so the per-period column cannot score it exactly.
+  # (6, 11] across the interior boundary at 10. The risk set is constant
+  # within an interval, so its exposure splits at the boundary exactly as if
+  # an event sat there: 4 * 4 at c1 and 4 * 1 at c2.
   straddling <- fixed_only_data(calls_time = c(1, 3, 6, 11, 12, 15))
-  expect_error(
-    fixed_only_pool(
-      list(fixed_only_free_submodel(), fixed_only_pinned_submodel()),
-      straddling
-    ),
-    class = "goldfish_pinned_rate_straddle"
+  theta <- c(0.3, -0.2)
+  base <- evaluate_sequence_pool(
+    fixed_only_pool(list(fixed_only_free_submodel()), straddling),
+    theta
   )
+  res <- evaluate_sequence_pool(
+    expect_no_error(
+      fixed_only_pool(
+        list(fixed_only_free_submodel(), fixed_only_pinned_submodel()),
+        straddling
+      )
+    ),
+    theta
+  )
+
+  c1 <- -1
+  c2 <- -2
+  pinned <- 3 * c1 + 3 * c2 - exp(c1) * 4 * 9 - exp(c2) * 4 * 5
+  expect_equal(res$loglik[[1]], base$loglik[[1]] + pinned, tolerance = 1e-10)
 })
 
 # A free sub-model may also carry offset() terms: theta covers only its free
