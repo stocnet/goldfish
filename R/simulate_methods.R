@@ -54,7 +54,12 @@
 #' them, and each one restarts the clock, as it censors the rate in
 #' estimation. A replayed event the simulated state cannot take, such as the
 #' dissolution of a tie no simulated creation made, is skipped rather than
-#' forced, and counted.
+#' forced, and counted. The counts, `n_replayed` and `n_skipped` in
+#' `diagnostics`, describe how far the replayed flavors could act on the
+#' simulated sequence; no count stops, flags or removes a replicate. A run
+#' that reaches the end of the observation window replays every observed
+#' event of those flavors, so `n_replayed` is smaller only when a target or a
+#' guard stops the run first.
 #'
 #' Every step of the loop is replaceable — see [set_simulation_steps()] for the
 #' plug points and [set_parameter_provider()] for parameters that change during
