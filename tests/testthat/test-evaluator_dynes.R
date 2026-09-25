@@ -577,7 +577,7 @@ test_that("a pinned rate is only accepted on a fixed-only rate sub-model", {
   )
 })
 
-test_that("a fixed-only fid adds its log-likelihood but no score or Fisher block", {
+test_that("a fixed-only fid adds a log-likelihood, no score or Fisher block", {
   theta <- c(0.3, -0.2)
   free_only <- fixed_only_pool(list(fixed_only_free_submodel()))
   with_pinned <- fixed_only_pool(

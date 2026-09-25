@@ -17,11 +17,22 @@
 # sub-model's free effects occupy in the concatenated parameter vector. A fid's
 # fixed effects are the formula's offset() terms, baked into the preprocessed
 # statistics, so they never enter `theta_index`.
+#
+# A zero-length `theta_index` makes the sub-model FIXED-ONLY: a completed
+# uniform choice, a completed pinned rate, or an authored fid whose effects are
+# all offset(). It claims no slot in theta but still has a log-likelihood, which
+# moves with the drawn path (the risk-set exposure and the legal choice sets
+# follow the latent events), so it must stay in the target density wherever
+# paths are compared. It is θ-free: evaluated once per sequence, never at a new
+# theta, and never part of the score or Fisher information. `pinned_rate` is the
+# frozen intercept-only rate object a completed timed rate carries in the
+# completed specification's `completed_rates`.
 new_pool_submodel <- function(
   formula,
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   theta_index,
+  pinned_rate = NULL,
   call = rlang::caller_env()
 ) {
   if (!rlang::is_formula(formula)) {
@@ -31,7 +42,6 @@ new_pool_submodel <- function(
   sub_model <- rlang::arg_match(sub_model)
   if (
     !is.numeric(theta_index) ||
-      length(theta_index) == 0 ||
       anyNA(theta_index) ||
       any(theta_index < 1) ||
       any(theta_index != as.integer(theta_index))
@@ -41,12 +51,74 @@ new_pool_submodel <- function(
       call = call
     )
   }
+  fixed_only <- length(theta_index) == 0
+  if (!is.null(pinned_rate)) {
+    if (!is_intercept_only_rate(pinned_rate)) {
+      cli::cli_abort(
+        "{.arg pinned_rate} must be a frozen intercept-only rate object.",
+        call = call
+      )
+    }
+    timed <- identical(
+      behavior_timing(new_model_spec(model, sub_model)),
+      "timed"
+    )
+    if (!fixed_only || !timed || !is_effect_free_formula(formula)) {
+      cli::cli_abort(
+        c(
+          "{.arg pinned_rate} only applies to a fixed-only rate sub-model.",
+          "i" = "A pinned rate has no free slot and no effects: use
+                 {.code sub_model = \"rate\"}, an effect-free
+                 {.code layer ~ 1} formula, and a zero-length
+                 {.arg theta_index}."
+        ),
+        call = call
+      )
+    }
+  }
   list(
     formula = formula,
     model = model,
     sub_model = sub_model,
-    theta_index = as.integer(theta_index)
+    theta_index = as.integer(theta_index),
+    fixed_only = fixed_only,
+    pinned_rate = pinned_rate,
+    engine_formula = pool_engine_formula(formula, model, sub_model)
   )
+}
+
+# The formula the engine preprocesses and evaluates. The engine refuses an
+# effect-free right-hand side ("a model needs at least one effect term"), which
+# is exactly what a completed uniform choice or a completed pinned rate carries
+# (`layer ~ 1`). Such a sub-model is scored through a single column whose
+# coefficient is fixed at 0: every alternative then shares one linear predictor,
+# so a choice contributes −log |support(t)| per event and a rate reduces to its
+# intercept. With every coefficient fixed the engine evaluates the likelihood
+# only and never inverts the information matrix, so the column's values are
+# irrelevant; any statistic the layer always supports will do. A timed rate
+# keeps its intercept column, which carries the pinned plateau.
+pool_engine_formula <- function(formula, model, sub_model) {
+  if (!is_effect_free_formula(formula)) {
+    return(formula)
+  }
+  spec <- new_model_spec(model, sub_model)
+  lhs <- rlang::f_lhs(formula)
+  zero_column <- if (identical(risk_set_axis(spec), "sender")) {
+    rlang::expr(offset(outdeg(!!lhs), coef = 0))
+  } else {
+    rlang::expr(offset(inertia(!!lhs), coef = 0))
+  }
+  new_rhs <- if (identical(behavior_timing(spec), "timed")) {
+    rlang::expr(1 + !!zero_column)
+  } else {
+    zero_column
+  }
+  rlang::new_formula(lhs, new_rhs, env = rlang::f_env(formula))
+}
+
+is_effect_free_formula <- function(formula) {
+  rhs <- rlang::f_rhs(formula)
+  identical(rhs, 1) || identical(rhs, 1L)
 }
 
 # A precomputed attachment for a pooled sequence: the per-sub-model statistics
@@ -86,7 +158,7 @@ preprocess_pool_sequence <- function(
 ) {
   lapply(sub_models, function(sm) {
     estimate_wrapper(
-      x = sm$formula,
+      x = sm$engine_formula,
       model = sm$model,
       sub_model = sm$sub_model,
       data = data,
@@ -170,9 +242,18 @@ build_sequence_pool <- function(
       control_prep = control_prep,
       call = call
     )
+    fixed <- pool_fixed_loglik(
+      sub_models,
+      seq_i$data,
+      stats,
+      control_prep = control_prep,
+      call = call
+    )
     list(
       data = seq_i$data,
       stats = stats,
+      fixed_loglik = fixed$loglik,
+      fixed_degenerate = fixed$degenerate,
       reference = seq_i$reference,
       attachment = seq_i$attachment
     )
@@ -218,7 +299,7 @@ pool_engine_eval <- function(
   call = rlang::caller_env()
 ) {
   fit <- estimate_wrapper(
-    x = sub_model$formula,
+    x = sub_model$engine_formula,
     model = sub_model$model,
     sub_model = sub_model$sub_model,
     data = data,
@@ -239,25 +320,169 @@ pool_engine_eval <- function(
   )
 }
 
+# The θ-free log-likelihood a sequence's fixed-only sub-models contribute,
+# summed. Computed once per sequence (at pool entry, or once per candidate in
+# the proposal evaluator), since no parameter value can change it. An engine
+# failure marks the sequence degenerate, like a singular free sub-model; a
+# pinned rate whose intervals straddle a wave boundary is a preprocessing
+# contract violation and aborts instead of being absorbed.
+pool_fixed_loglik <- function(
+  sub_models,
+  data,
+  stats,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  loglik <- 0
+  for (j in seq_along(sub_models)) {
+    sm <- sub_models[[j]]
+    if (!sm$fixed_only) {
+      next
+    }
+    term <- tryCatch(
+      fixed_only_loglik(sm, data, stats[[j]], control_prep, call = call),
+      error = function(e) {
+        if (inherits(e, "goldfish_pinned_rate_straddle")) {
+          stop(e)
+        }
+        NULL
+      }
+    )
+    if (is.null(term)) {
+      return(list(loglik = -Inf, degenerate = TRUE))
+    }
+    loglik <- loglik + term
+  }
+  list(loglik = loglik, degenerate = FALSE)
+}
+
+# One fixed-only sub-model's log-likelihood over its stored statistics, at the
+# values its formula fixes. An authored all-offset fid or a completed uniform
+# choice is a plain likelihood-only engine pass. A pinned rate is scored
+# through its per-period column instead: see pinned_rate_loglik().
+fixed_only_loglik <- function(sub_model, data, stats, control_prep, call) {
+  if (!is.null(sub_model$pinned_rate)) {
+    return(pinned_rate_loglik(sub_model, data, stats, control_prep, call))
+  }
+  fit <- estimate_wrapper(
+    x = sub_model$engine_formula,
+    model = sub_model$model,
+    sub_model = sub_model$sub_model,
+    data = data,
+    preprocessed = stats,
+    control_algo = set_algorithm_newton(max_iterations = 0L, backend = "r"),
+    control_prep = control_prep,
+    verbose = FALSE,
+    progress = FALSE
+  )
+  fit$log_likelihood
+}
+
+# A pinned timed rate is not one fixed value: it has one plateau c_w per wave
+# period, while the engine carries a single intercept coefficient. Its
+# log-likelihood
+#
+#   Σ_e c_{w(e)} − Σ_w e^{c_w} ∫_w |R(t)| dt
+#
+# is therefore read off one engine pass at intercept 0, where each interval's
+# log-likelihood is exactly minus its exposure ∫ |R(t)| dt (the event term
+# log e^0 vanishes and the only other column has coefficient 0). Each interval's
+# exposure is then scaled by the plateau of the period it lies in, and each
+# dependent event adds the plateau of the period its time falls in -- the
+# half-open membership, so an event on an interior boundary belongs to the next
+# period. This equals an intercept column holding c_{w} per interval with its
+# coefficient fixed at 1, and it is exact only when no interval straddles an
+# interior wave boundary, which the preprocess must guarantee (per-wave windows
+# or an event injected at the boundary). A single-plateau pin is the K = 1 case.
+pinned_rate_loglik <- function(sub_model, data, stats, control_prep, call) {
+  rate <- sub_model$pinned_rate
+  fit <- estimate_wrapper(
+    x = sub_model$engine_formula,
+    model = sub_model$model,
+    sub_model = sub_model$sub_model,
+    data = data,
+    preprocessed = stats,
+    control_algo = set_algorithm_newton(
+      initial_parameters = c(Intercept = 0),
+      max_iterations = 0L,
+      backend = "r",
+      diagnostics = "loglik"
+    ),
+    control_prep = control_prep,
+    verbose = FALSE,
+    progress = FALSE
+  )
+  exposure <- -fit$interval_log_lik
+  end <- stats$event_time
+  start <- end - stats$intervals
+  abort_if_interval_straddles_wave(rate, start, end, call = call)
+
+  dependent <- stats$is_dependent == 1L
+  event_plateau <- rate$intercept[
+    intercept_only_rate_period(rate, end[dependent], call = call)
+  ]
+  exposure_plateau <- rate$intercept[
+    intercept_only_rate_period(rate, start, call = call)
+  ]
+  sum(event_plateau) - sum(exp(exposure_plateau) * exposure)
+}
+
+abort_if_interval_straddles_wave <- function(rate, start, end, call) {
+  interior <- rate$wave_times[-c(1L, length(rate$wave_times))]
+  if (length(interior) == 0L) {
+    return(invisible(NULL))
+  }
+  straddles <- vapply(
+    seq_along(start),
+    function(k) any(start[[k]] < interior & end[[k]] > interior),
+    logical(1)
+  )
+  if (!any(straddles)) {
+    return(invisible(NULL))
+  }
+  k <- which(straddles)[[1L]]
+  cli::cli_abort(
+    c(
+      "A pinned rate cannot score an interval that crosses a wave boundary.",
+      "x" = "Interval {.val {k}} runs from {.val {start[[k]]}} to
+             {.val {end[[k]]}}, across an interior boundary.",
+      "i" = "Its exposure has no single plateau. Preprocess each wave period
+             separately, or place an event at every interior boundary."
+    ),
+    class = "goldfish_pinned_rate_straddle",
+    call = call
+  )
+}
+
 # Evaluate one pooled sequence at the concatenated `theta`: split theta across
 # the sub-models, evaluate each over its stored statistics, and reassemble the
 # per-sequence quantities on the full free-parameter dimension `p` -- the total
 # log-likelihood (summed across sub-models), the concatenated score (each
 # sub-model's score placed at its theta_index), and the block-diagonal Fisher
-# information (no cross-sub-model terms in this version). A sub-model whose
+# information (no cross-sub-model terms in this version). Fixed-only sub-models
+# are not re-evaluated: their θ-free term, stored at pool entry, is added to the
+# log-likelihood and they place nothing in the score or Fisher information,
+# so it cancels in any ratio across theta on one path. A sub-model whose
 # information matrix is singular at theta makes the whole sequence degenerate:
 # its result is non-finite (-Inf log-likelihood, so its importance weight
 # vanishes), which the caller reports without aborting the pool.
 evaluate_pool_sequence <- function(pool, sequence, theta, call) {
   sub_models <- pool$sub_models
   p <- pool$theta_length
-  loglik <- 0
+  # The fixed-only sub-models' θ-free term, stored at pool entry.
+  loglik <- sequence$fixed_loglik
   score <- numeric(p)
   fisher <- matrix(0, p, p)
-  degenerate <- FALSE
+  degenerate <- sequence$fixed_degenerate
 
   for (j in seq_along(sub_models)) {
     sm <- sub_models[[j]]
+    if (degenerate) {
+      break
+    }
+    if (sm$fixed_only) {
+      next
+    }
     harvest <- tryCatch(
       pool_engine_eval(
         sm,
@@ -414,9 +639,18 @@ make_proposal_evaluator <- function(
           control_prep = control_prep,
           call = call
         )
-        loglik <- 0
+        loglik <- pool_fixed_loglik(
+          sub_models,
+          candidate_seq,
+          stats,
+          control_prep = control_prep,
+          call = call
+        )$loglik
         for (j in seq_along(sub_models)) {
           sm <- sub_models[[j]]
+          if (sm$fixed_only) {
+            next
+          }
           loglik <- loglik +
             pool_engine_eval(
               sm,
@@ -429,7 +663,12 @@ make_proposal_evaluator <- function(
         }
         loglik
       },
-      error = function(e) -Inf
+      error = function(e) {
+        if (inherits(e, "goldfish_pinned_rate_straddle")) {
+          stop(e)
+        }
+        -Inf
+      }
     )
     list(loglik = harvest, rates = rates)
   }
