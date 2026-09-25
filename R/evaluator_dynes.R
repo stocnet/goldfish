@@ -235,6 +235,14 @@ build_sequence_pool <- function(
     }
   }
 
+  # The coefficient layout depends on the formulas, not on the drawn events,
+  # so one sequence's data resolves it for the whole pool.
+  sub_models <- with_coefficient_masks(
+    sub_models,
+    sequences[[1]]$data,
+    call = call
+  )
+
   built <- map_fn(sequences, function(seq_i) {
     stats <- preprocess_pool_sequence(
       sub_models,
@@ -282,9 +290,11 @@ pool_references <- function(pool) {
 # `theta_block` (the sub-model's slice of the concatenated theta over its free
 # effects), harvesting the log-likelihood, score, and Fisher information the
 # engine computes at that vector. The stored statistics are reused through
-# `preprocessed`, so no re-preprocessing happens. Fixed effects are the
-# formula's offsets, already baked into the statistics, so `theta_block` covers
-# only the free effects.
+# `preprocessed`, so no re-preprocessing happens. `theta_block` covers only the
+# free coefficients, while the engine takes one value per coefficient: it is
+# placed at the sub-model's free positions (see with_coefficient_masks()), and
+# the engine overwrites the fixed positions with the formula's fixed values.
+# The score and Fisher information are harvested at the free positions only.
 #
 # The engine inverts the information matrix unconditionally and stop()s on a
 # singular one (even for a likelihood-only request), so a singular sequence
@@ -298,6 +308,9 @@ pool_engine_eval <- function(
   control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
+  free <- sub_model$coefficients$free
+  parameters <- numeric(sub_model$coefficients$n_params)
+  parameters[free] <- theta_block
   fit <- estimate_wrapper(
     x = sub_model$engine_formula,
     model = sub_model$model,
@@ -305,7 +318,7 @@ pool_engine_eval <- function(
     data = data,
     preprocessed = stats,
     control_algo = set_algorithm_newton(
-      initial_parameters = theta_block,
+      initial_parameters = parameters,
       max_iterations = 0L,
       backend = "r"
     ),
@@ -315,9 +328,64 @@ pool_engine_eval <- function(
   )
   list(
     loglik = fit$log_likelihood,
-    score = fit$final_score,
-    fisher = fit$final_information_matrix
+    score = fit$final_score[free],
+    fisher = fit$final_information_matrix[free, free, drop = FALSE]
   )
+}
+
+# Attach to every free sub-model the layout of its engine coefficient vector
+# ([intercept?, effects..., interactions...]): its length and the positions the
+# formula leaves free. The fixed positions come from the same
+# assemble_fixed_parameters() the estimator reads (offset() terms, operand-only
+# interaction columns), and the intercept follows the estimator's rule that a
+# timed rate always carries one and no other sub-model does. A `theta_index`
+# whose length differs from the free count would put theta at the wrong
+# coefficients, so it aborts here rather than surfacing as a degenerate
+# sequence.
+with_coefficient_masks <- function(sub_models, data, call) {
+  lapply(seq_along(sub_models), function(j) {
+    sm <- sub_models[[j]]
+    if (sm$fixed_only) {
+      return(sm)
+    }
+    parsed <- parse_formula(
+      sm$engine_formula,
+      realize_windows = FALSE,
+      data = data
+    )
+    has_intercept <- identical(
+      behavior_timing(new_model_spec(sm$model, sm$sub_model)),
+      "timed"
+    )
+    n_params <- length(parsed$rhs_names) +
+      length(parsed$interactions) +
+      has_intercept
+    fixed_spec <- suppressWarnings(assemble_fixed_parameters(
+      parsed_formula = parsed,
+      rhs_names = parsed$rhs_names,
+      has_intercept = has_intercept,
+      model = sm$model,
+      sub_model = sm$sub_model,
+      fixed_parameters = NULL,
+      offset_coef = NULL
+    ))
+    free <- setdiff(seq_len(n_params), fixed_spec$idx)
+    if (length(free) != length(sm$theta_index)) {
+      cli::cli_abort(
+        c(
+          "Sub-model {.val {j}} has {length(free)} free coefficient{?s} but
+           {length(sm$theta_index)} {.field theta_index} position{?s}.",
+          "i" = "{.field theta_index} numbers the free coefficients only:
+                 the time intercept of a rate counts, {.fn offset} terms do
+                 not."
+        ),
+        class = "goldfish_theta_index_mismatch",
+        call = call
+      )
+    }
+    sm$coefficients <- list(n_params = n_params, free = free)
+    sm
+  })
 }
 
 # The θ-free log-likelihood a sequence's fixed-only sub-models contribute,
@@ -612,6 +680,11 @@ make_proposal_evaluator <- function(
   }
 
   function(candidate_seq, rate_queries = NULL) {
+    candidate_models <- with_coefficient_masks(
+      sub_models,
+      candidate_seq,
+      call = call
+    )
     rates <- NULL
     if (!is.null(rate_queries)) {
       if (is.null(spec)) {
@@ -646,8 +719,8 @@ make_proposal_evaluator <- function(
           control_prep = control_prep,
           call = call
         )$loglik
-        for (j in seq_along(sub_models)) {
-          sm <- sub_models[[j]]
+        for (j in seq_along(candidate_models)) {
+          sm <- candidate_models[[j]]
           if (sm$fixed_only) {
             next
           }

@@ -761,7 +761,7 @@ test_that("a pinned rate refuses an interval that straddles a wave boundary", {
 # coefficients, while the engine lays out every coefficient, offsets included.
 # The adapter must place theta at the free positions and harvest the score and
 # Fisher information at those positions only.
-test_that("a sub-model mixing free and offset terms evaluates at its free slots", {
+test_that("a sub-model mixing free and offset terms uses its free slots", {
   data("social_evolution", envir = environment())
   formula <- calls ~ inertia + offset(recip, coef = 0.5) + trans
   sub_models <- list(
