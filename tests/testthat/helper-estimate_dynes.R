@@ -81,6 +81,28 @@ dynes_multiwave_spec <- function() {
   suppressWarnings(complete_generative_spec(joint, wave_times = c(0, 2, 5)))
 }
 
+# The raw joint specification inside dynes_multiwave_spec(): estimate_dynes()
+# completes it at entry, pinning the friendship rate and supplying a uniform
+# calls choice, so three coefficients are free.
+dynes_pinned_raw_spec <- function() {
+  events <- dynes_multiwave_data("event")
+  make_joint_specification(
+    make_specification(
+      choice = ~ inertia + offset(recip, coef = -0.5),
+      layer = "friendship",
+      model = "DyNAM",
+      data = events
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = events
+    ),
+    data = dynes_multiwave_data("panel")
+  )
+}
+
 # Draws a scalar near 1 (the analytic evaluator's data) and a widely spread
 # log proposal density, both from the RNG the seam injects. The spread makes
 # the importance weights degenerate, so the ESS guard redraws once a pool
