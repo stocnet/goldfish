@@ -25,8 +25,10 @@ replicate numbers. \code{pool} itself is unchanged.
 
 \code{summary()} on a pool returns the data frame the conditions read, one row
 per replicate: \code{replicate}, \code{n_events}, \code{end_time} (the clock when the
-run stopped), \code{stop_reason}, \code{capped}, \code{n_proposals} and
-\code{acceptance_rate}.
+run stopped), \code{stop_reason}, \code{capped}, \code{n_proposals},
+\code{acceptance_rate}, \code{n_replayed} and \code{n_skipped} (replayed events reached
+and skipped), and \code{n_stamps_skipped} (observed stamps a time-anchored run
+could not draw at; \code{NA} for a free-running run).
 }
 \description{
 Keeps the replicates of a \code{\link[=simulate]{simulate()}} pool whose per-replicate summary

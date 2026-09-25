@@ -67,11 +67,18 @@
 # and pointing to the surfaces that DO complete.
 assert_generatively_complete <- function(
   joint_spec,
+  times = "generated",
   call = rlang::caller_env()
 ) {
   gaps <- list()
   for (spec in joint_spec$specifications) {
     needed <- expected_families(spec$model)
+    # A time-anchored run holds what the likelihood conditions on. A DyNAM
+    # choice is conditional on its sender, so without a rate the observed
+    # sender is held and the choice alone has something to draw.
+    if (identical(times, "observed") && "choice" %in% needed) {
+      needed <- setdiff(needed, "rate")
+    }
     for (proc in spec_processes(spec)) {
       missing <- setdiff(needed, names(proc$submodels))
       for (family in missing) {
@@ -318,9 +325,10 @@ walk_fold_engine <- function(engine) {
 #'
 #' These are internal building blocks: not exported, committing to no
 #' user-facing signature. `walk_open()` **asserts** its specification is
-#' generatively complete (every modeled DyNAM flavor carrying both a rate and a
-#' choice) and aborts pointing to [simulate()] / `estimate_dynes()` otherwise;
-#' it never performs completion itself.
+#' generatively complete for the variant it serves (every modeled DyNAM flavor
+#' carrying a choice, and a rate as well unless the run is time-anchored) and
+#' aborts pointing to [simulate()] / `estimate_dynes()` otherwise; it never
+#' performs completion itself.
 #'
 #' A family whose sub-models all carry no effects — the uniform choice
 #' completion gives a rate-only DyNAM, or an authored `rate = ~ 1` — has
@@ -335,6 +343,9 @@ walk_fold_engine <- function(engine) {
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
+#' @param times the simulation variant the walk serves: `"generated"` (a
+#'   free-running run, or joint estimation) or `"observed"` (a time-anchored
+#'   run, where a DyNAM process without a rate draws at the observed stamps).
 #' @param call the calling environment, for error reporting.
 #'
 #' @return `walk_open()` returns a `goldfishWalk` object.
@@ -343,9 +354,11 @@ walk_fold_engine <- function(engine) {
 walk_open <- function(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  times = c("generated", "observed"),
   call = rlang::caller_env()
 ) {
   lifecycle::signal_stage("experimental", "walk_open()")
+  times <- rlang::arg_match(times)
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
@@ -362,7 +375,7 @@ walk_open <- function(
   # The generative-completeness assert (never completion): a spec that skipped
   # complete_generative_spec() fails loudly here rather than opening a walk with
   # a mismatched fid set.
-  assert_generatively_complete(joint_spec, call)
+  assert_generatively_complete(joint_spec, times, call)
 
   # Only a family with no effect anywhere is left out of the compile. The
   # specification and its process_map are kept whole, so every fid keeps its

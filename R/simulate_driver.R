@@ -462,6 +462,19 @@ mark_evaluation <- function(
   if (is.na(choice_fid)) {
     return(evaluation)
   }
+  evaluation$choice <- choice_evaluation(
+    handle,
+    choice_fid,
+    theta,
+    evaluate,
+    routing
+  )
+  evaluation
+}
+
+# A choice fid's evaluation as a function of the sender, so only that
+# sender's row is ever computed.
+choice_evaluation <- function(handle, choice_fid, theta, evaluate, routing) {
   # A choice step never reads the clock, so the pinned table and time are not
   # needed to resolve its inputs.
   inputs <- fid_evaluation_inputs(
@@ -472,10 +485,9 @@ mark_evaluation <- function(
     pinned = list(),
     t = NA_real_
   )
-  evaluation$choice <- function(sender) {
+  function(sender) {
     evaluate_fid(handle, choice_fid, inputs$theta, inputs$step, sender = sender)
   }
-  evaluation
 }
 
 # The per-fid shapes, read once at open: they are fixed by the compiled engines
@@ -1031,6 +1043,8 @@ simulation_process_labels <- function(map) {
 # `times` is the resolved variant from `resolve_simulation_times()`: the
 # `times` run, its `source`, and the specification's `default` and `reason`.
 # `replayed` holds the replayed rows the clock reached (replayed_frame()).
+# `n_stamps_skipped` counts the observed stamps a time-anchored run could not
+# draw at; a free-running run walks no stamps, so it is NA there.
 new_goldfish_sim <- function(
   events,
   replayed,
@@ -1044,7 +1058,8 @@ new_goldfish_sim <- function(
   trajectory,
   latent,
   spec,
-  replicate
+  replicate,
+  n_stamps_skipped = NA_integer_
 ) {
   # The latent path is written only when a provider supplied one, so a plain
   # run carries no column of NULLs.
@@ -1072,7 +1087,8 @@ new_goldfish_sim <- function(
         window_end = window_end,
         trajectory = trajectory,
         n_replayed = nrow(replayed),
-        n_skipped = sum(replayed$skipped)
+        n_skipped = sum(replayed$skipped),
+        n_stamps_skipped = n_stamps_skipped
       ),
       latent = latent_path,
       replicate = replicate
@@ -1115,6 +1131,13 @@ print.goldfishSim <- function(x, ...) {
     n_skipped <- x$diagnostics$n_skipped
     cli::cli_text(
       "Replayed {n_replayed} observed event{?s}; {n_skipped} skipped."
+    )
+  }
+  n_stamps_skipped <- x$diagnostics$n_stamps_skipped %||% NA_integer_
+  if (!is.na(n_stamps_skipped)) {
+    n_stamps <- x$diagnostics$n_proposals + n_stamps_skipped
+    cli::cli_text(
+      "Walked {n_stamps} observed stamp{?s}; {n_stamps_skipped} skipped."
     )
   }
   if (isTRUE(x$capped)) {

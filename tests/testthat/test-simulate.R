@@ -160,7 +160,8 @@ test_that("a pool summarizes each replicate", {
       n_proposals = "integer",
       acceptance_rate = "double",
       n_replayed = "integer",
-      n_skipped = "integer"
+      n_skipped = "integer",
+      n_stamps_skipped = "integer"
     )
   )
   expect_identical(summary$replicate, 1:3)
@@ -516,19 +517,21 @@ test_that("a provider leaving a process unparameterized aborts", {
   )
 })
 
-test_that("anchoring a timed model is announced, then refused for now", {
+test_that("anchoring a timed model is announced, then runs", {
   local_cli_context()
   js <- sim_two_process()
 
   expect_snapshot(
-    simulate(
+    out <- simulate(
       js,
+      seed = 1,
       coef = sim_two_process_parameters(js),
-      times = "observed",
-      n_events = 2
-    ),
-    error = TRUE
+      times = "observed"
+    )
   )
+  expect_identical(out$times, "observed")
+  expect_identical(out$times_source, "requested")
+  expect_identical(out$diagnostics$stop_reason, "observed")
 })
 
 test_that("an explicit times equal to the default is silent and recorded", {
@@ -1089,12 +1092,14 @@ test_that("a choice-only DyNAM defaults to time-anchored", {
     data = data
   )
 
-  # No rate is fabricated: no completion warning precedes the refusal of the
-  # time-anchored run, which does not exist yet.
-  expect_snapshot(
-    simulate(spec, coef = c(0.2, 0.3), n_events = 2),
-    error = TRUE
-  )
+  # No rate is fabricated: no completion warning, and the only process is the
+  # modeled choice.
+  expect_no_warning(out <- simulate(spec, seed = 1, coef = c(0.2, 0.3)))
+
+  expect_identical(out$times, "observed")
+  expect_identical(out$times_source, "specification")
+  expect_identical(out$process_map$family, "choice")
+  expect_identical(out$process_map$regime, "modeled")
 })
 
 test_that("a choice-only DyNAM generates only when asked", {

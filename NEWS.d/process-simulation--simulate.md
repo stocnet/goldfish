@@ -58,6 +58,15 @@
   `"anchored-replay"`) in its `process_map`, the replayed events in
   `replayed`, and `n_replayed` and `n_skipped` in its diagnostics and the
   pool summary.
+* `simulate()` runs time-anchored (`times = "observed"`), the default for a
+  choice-only DyNAM and available on request for a timed model. The observed
+  events of the modeled layers keep their times, layers and flavors, and the
+  marks are redrawn: sender and receiver for a DyNAM with a rate, the
+  receiver alone with the observed sender held for a choice-only DyNAM, the
+  dyad for a REM. An observed event the simulated state cannot support is
+  skipped and counted in `n_stamps_skipped`. A time-anchored run refuses
+  `n_events`, `horizon` and `control_sim`; coordination processes are refused
+  for now.
 * Added `filter_simulation()`, which keeps the replicates of a pool whose
   summary meets every condition, such as `stop_reason == "horizon"`. No
   replicate is excluded unless a filter removes it.

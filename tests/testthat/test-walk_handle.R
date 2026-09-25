@@ -361,6 +361,35 @@ test_that("walk_open aborts on an incomplete specification", {
   expect_snapshot(walk_open(js), error = TRUE)
 })
 
+test_that("walk_open opens a process without a rate for an anchored run", {
+  data <- walk_fixture_data()
+  choice_only <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  expect_error(walk_open(choice_only), class = "goldfish_walk_incomplete_spec")
+  handle <- walk_open(choice_only, times = "observed")
+  expect_s3_class(handle, "goldfishWalk")
+})
+
+test_that("walk_open still refuses a missing choice for an anchored run", {
+  data <- walk_fixture_data()
+  rate_only <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  expect_error(
+    walk_open(rate_only, times = "observed"),
+    class = "goldfish_walk_incomplete_spec"
+  )
+})
+
 test_that("walk_open defers a whole effect-free family without renumbering", {
   local_cli_context()
   data <- walk_fixture_data()

@@ -48,10 +48,10 @@ time-anchored one. Defaults to \code{\link[=times_of]{times_of()}}, which reads 
 what the model can honor; an explicit value it cannot honor is refused
 with the reason.}
 
-\item{n_events}{stop after this many events.}
+\item{n_events}{stop after this many events. Free-running only.}
 
 \item{horizon}{stop at this time. With neither \code{n_events} nor \code{horizon},
-the end of the observation window.}
+the end of the observation window. Free-running only.}
 
 \item{replay}{flavors to replay from their observed events instead of
 drawing them, named as the process labels name them (\code{"calls › dissolution"}). A flavor the specification does not model is replayed
@@ -64,7 +64,7 @@ own steps.}
 \item{control_prep}{preprocessing options, from \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 
 \item{control_sim}{the guards that stop a runaway replicate, from
-\code{\link[=set_simulation_guard]{set_simulation_guard()}}.}
+\code{\link[=set_simulation_guard]{set_simulation_guard()}}. Free-running only.}
 
 \item{...}{passed between methods. The specification method refuses any
 argument it does not take.}
@@ -81,9 +81,12 @@ a \code{replay_source} of \code{"unmodeled"} or \code{"requested"}; the \code{ti
 and its \code{times_source} (\code{"specification"} or \code{"requested"}), the \code{capped}
 flag and run \code{diagnostics}: the \code{stop_reason} (\code{"n_events"} or
 \code{"horizon"} for a target; \code{"max_events"}, \code{"rate_trajectory"} or
-\code{"clock_resolution"} for a guard), the counts of events and proposals,
-the \code{end_time} the clock reached, the \code{window_end}, the total-rate
-\code{trajectory}, and the counts \code{n_replayed} and \code{n_skipped}. For
+\code{"clock_resolution"} for a guard; \code{"observed"} for a time-anchored run),
+the counts of events and proposals, the \code{end_time} the clock reached, the
+\code{window_end}, the total-rate \code{trajectory} (empty for a time-anchored
+run), the counts \code{n_replayed} and \code{n_skipped}, and \code{n_stamps_skipped},
+the observed events a time-anchored run skipped (\code{NA} when
+free-running). For
 \code{nsim > 1} a \code{goldfishSimPool}: a list of them that prints in aggregate,
 whose \code{summary()} gives one row per replicate, and whose replicates are
 selected with \code{\link[=filter_simulation]{filter_simulation()}}.
@@ -102,6 +105,16 @@ but the initial state — this is what tests the clock. \strong{Time-anchored}
 The default is read from the model by \code{\link[=times_of]{times_of()}}: free-running when it
 carries a timed rate, time-anchored when its rate is ordered, it coordinates,
 or it has no rate.
+
+A time-anchored run walks the observed events of the modeled layers in
+order. Each keeps its time, layer and flavor, and the run redraws what the
+model draws: the sender from the rate and the receiver from the choice, or
+the dyad for a REM. A DyNAM with no rate models no sender, so the observed
+sender is held and only the receiver is redrawn. An observed event whose
+redraw the simulated state cannot support, such as a sender with no
+receiver its choice allows, is skipped and counted rather than forced. The
+observed stream bounds the run, so it takes no \code{n_events}, \code{horizon} or
+\code{control_sim}. Coordination processes cannot be simulated yet.
 
 Observed exogenous streams — covariate changes and node composition — march
 along with the simulated clock. A free-running run that passes the end of

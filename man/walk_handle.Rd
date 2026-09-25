@@ -13,6 +13,7 @@
 walk_open(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  times = c("generated", "observed"),
   call = rlang::caller_env()
 )
 
@@ -33,6 +34,10 @@ as a one-process join).}
 
 \item{control_preprocessing}{preprocessing options, as for
 \code{\link[=preprocess_joint]{preprocess_joint()}}.}
+
+\item{times}{the simulation variant the walk serves: \code{"generated"} (a
+free-running run, or joint estimation) or \code{"observed"} (a time-anchored
+run, where a DyNAM process without a rate draws at the observed stamps).}
 
 \item{call}{the calling environment, for error reporting.}
 
@@ -96,9 +101,10 @@ every consumer sees it.
 
 These are internal building blocks: not exported, committing to no
 user-facing signature. \code{walk_open()} \strong{asserts} its specification is
-generatively complete (every modeled DyNAM flavor carrying both a rate and a
-choice) and aborts pointing to \code{\link[=simulate]{simulate()}} / \code{estimate_dynes()} otherwise;
-it never performs completion itself.
+generatively complete for the variant it serves (every modeled DyNAM flavor
+carrying a choice, and a rate as well unless the run is time-anchored) and
+aborts pointing to \code{\link[=simulate]{simulate()}} / \code{estimate_dynes()} otherwise; it never
+performs completion itself.
 
 A family whose sub-models all carry no effects — the uniform choice
 completion gives a rate-only DyNAM, or an authored \code{rate = ~ 1} — has
