@@ -67,11 +67,15 @@ is gated at that consumer (see the mechanism-gating requirement below).
 
 ### Requirement: Generative-readiness completion fills half-specified flavors
 
-A specification SHALL be made *generatively complete* before it is used to
-**generate** events (drive the walk handle via `simulate()` or an augmenter) or
-estimated **jointly** (`estimate_dynes()`) — every modeled DyNAM flavor (the
-choice family, coordination included) carrying both a rate and a choice — by a
-completion transform run at the consumer's entry. A flavor **keyed in one
+A specification SHALL be made *generatively complete* for the variant it runs
+before it is used to **generate** events (drive the walk handle via `simulate()`
+or an augmenter) or estimated **jointly** (`estimate_dynes()`), by a completion
+transform run at the consumer's entry. For free-running generation and joint
+estimation every modeled DyNAM flavor (the choice family, coordination
+included) carries both a rate and a choice; for time-anchored simulation it
+carries its choice, and a rate only if the model has one, a process without a
+rate drawing at the observed stamps (a choice-only DyNAM holding the observed
+sender, a coordination process drawing its pair). A flavor **keyed in one
 sub-model list and omitted from the other** SHALL have the missing sub-model filled
 with its zero-information default and SHALL emit a `cli` **warning** naming
 the layer, flavor, sub-model, and the default applied; the warning SHALL fire at

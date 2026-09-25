@@ -631,6 +631,11 @@
       under anchoring; an unsupported stamp skipped and counted; the argument
       refusals; the coordination refusal; prints and pool summary. The
       snapshots that pinned the refusal become runs
+      — *amended 2026-09-25 (explore, ADR-0097; D5 amendment)*: 2.3 owns the
+      variant-dependent completeness rule: `walk_open()` learns the variant and
+      opens a DyNAM process without a rate for a time-anchored run; a missing
+      choice, or a missing rate under free-running, still aborts. Tests add an
+      unflavored single-process choice-only run and the `walk_open()` case
 - [ ] 2.3b Per-flavor anchoring (split from 2.3 on 2026-09-25, ADR-0095):
       hold one flavor's observed stamps, redrawing its marks, inside an
       otherwise free-running run, recorded through the regime record. A
@@ -661,6 +666,10 @@
       `two-sided-coordination` task 2.5a** (ADR-0074): per-mechanism mark
       kernels are `mark` steps owned by the change that defines the
       mechanisms; its 2.5 fixtures seed them.
+      — *note 2026-09-25 (ADR-0097)*: coordination has no rate, and the
+      anchored completeness rule 2.3 lands already opens its walk; 2.6 adds
+      the pair draw from the mark multinomial and lifts 2.3's coordination
+      refusal
 - [ ] 2.7 Windowed effects in free-running simulation (after 2.0c; revised
       2026-09-15, D8): the handle fans an injected source-layer event out to
       each derived `layer_ω` (entry row now, expiry scheduled through

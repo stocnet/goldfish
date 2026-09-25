@@ -468,9 +468,13 @@ attaching a writer sink to the simulation walk.
 
 ### Requirement: Simulation requires a generatively-complete specification
 
-`simulate()` SHALL require a generatively-complete specification — every modeled
-DyNAM flavor carrying both a rate and a choice, so an event's who/when (rate) and
-whom (choice) can both be drawn — by running the generative-readiness completion
+`simulate()` SHALL require a specification generatively complete for the variant
+it runs — under `times = "generated"` every modeled DyNAM flavor carrying both a
+rate and a choice, so an event's who/when (rate) and whom (choice) can both be
+drawn; under `times = "observed"` each carrying its choice, and a rate only if
+the model has one, a process without a rate drawing at the observed stamps (a
+choice-only DyNAM holding the observed sender, a coordination process drawing
+its pair) — by running the generative-readiness completion
 transform (`make-multivariate-spec`) **once** at entry, before the draw loop opens
 the walk handle. A flavor keyed in one sub-model and omitted from the other SHALL
 be completed with its zero-information default and warned once: a **rate-only
@@ -483,7 +487,8 @@ process. A **choice-only** DyNAM SHALL NOT be rate-completed by default — its 
 timing is time-anchored — and SHALL gain a constant exponential rate only when
 `times = "generated"` is requested. REM requires only a rate and is already
 complete. `walk_open()`
-SHALL assert completeness, so the draw loop never opens an incomplete specification.
+SHALL assert completeness for the variant it serves, so the draw loop never opens
+a specification missing a family that variant draws from.
 A completed fid SHALL be evaluated through its built-in evaluate step: a
 completed uniform choice as an equiprobable draw over the fid's receiver
 support, and a completed pinned rate as the constant per-actor rate
@@ -538,7 +543,8 @@ mask, the mask the process's modeled sub-model reads.
 #### Scenario: incomplete spec that reaches the walk is rejected
 
 - **WHEN** a code path reaches `walk_open()` with a half-specified DyNAM
-  specification that skipped the completion transform
+  specification that skipped the completion transform, missing a choice, or
+  missing a rate for a free-running run
 - **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
   simulating events with a missing rate or choice.
 
@@ -572,3 +578,10 @@ mask, the mask the process's modeled sub-model reads.
   `times = "generated"`
 - **THEN** no baseline rate is fabricated; timing comes from the anchored
   strategy, and only the choice marks are drawn from the model.
+
+#### Scenario: an unflavored choice-only DyNAM opens the walk time-anchored
+
+- **WHEN** a single-process, unflavored choice-only DyNAM specification is
+  simulated with its default `times = "observed"`
+- **THEN** the walk opens without a rate, each observed stamp keeps its
+  observed sender, and the receiver is drawn from the choice.

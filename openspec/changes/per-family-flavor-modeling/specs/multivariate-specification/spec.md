@@ -2,11 +2,15 @@
 
 ### Requirement: Generative-readiness completion fills half-specified flavors
 
-A specification SHALL be made *generatively complete* — every modeled DyNAM
-flavor (the choice / choice_coordination sub-model family) carrying both a rate
-and a choice — by a completion transform run at the consumer's entry whenever
-it is used to **generate** events (drive the walk handle via `simulate()` or an
-augmenter) or to be estimated **jointly** (`estimate_dynes()`). A flavor **keyed in one
+A specification SHALL be made *generatively complete* for the variant it runs
+by a completion transform run at the consumer's entry whenever it is used to
+**generate** events (drive the walk handle via `simulate()` or an augmenter) or
+to be estimated **jointly** (`estimate_dynes()`). For free-running generation and
+joint estimation every modeled DyNAM flavor (the choice / choice_coordination
+sub-model family) carries both a rate and a choice; for time-anchored simulation
+it carries its choice, and a rate only if the model has one, a process without a
+rate drawing at the observed stamps (a choice-only DyNAM holding the observed
+sender, a coordination process drawing its pair). A flavor **keyed in one
 sub-model list and omitted from the other** SHALL have the missing sub-model filled
 with its zero-information default and SHALL emit a `cli` **warning** naming
 the layer, flavor, sub-model, and the default applied; the warning SHALL fire at

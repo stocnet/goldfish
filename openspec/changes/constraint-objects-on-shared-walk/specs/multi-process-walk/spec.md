@@ -80,7 +80,9 @@ equality), including on constrained fixtures whose risk sets exclude at
 least one alternative.
 
 `walk_open()` SHALL **assert** that its specification is generatively complete
-(every modeled DyNAM flavor carrying both a rate and a choice) and SHALL abort
+for the variant its consumer runs (every modeled DyNAM flavor carrying its
+choice, and a rate as well unless the run is time-anchored; the definition is
+`multivariate-specification`'s) and SHALL abort
 with a `cli` error pointing to `simulate()` / `estimate_dynes()` when it is not.
 `walk_open()` SHALL NOT perform completion itself — the generative-readiness
 completion transform (`multivariate-specification`) is run **once** at the

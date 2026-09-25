@@ -616,6 +616,27 @@ flavor named in one list completes the missing family with the timing of the
 existing model (a pinned rate when the process is timed, nothing when it is
 ordered), and a flavor named in neither list completes nothing (verified). The
 second half is only correct once D9's replay runs; see D9's amendment.
+
+*Amended 2026-09-25 (explore, goldfish-b2; ADR-0097) — completeness depends on
+the variant.* Completion already leaves a choice-only DyNAM without a rate when
+there is no clock, "simulated at the observed stamps", but seven artifacts
+define *generatively complete* as a rate and a choice, and `walk_open()`
+enforces it, so task 2.3's anchored choice-only run aborted before its first
+stamp. The definition now depends on the variant: free-running (and joint
+estimation) needs a rate and a choice; a time-anchored run needs the choice,
+and a rate only if the model has one. At every anchored stamp the run holds
+what the fitted likelihood conditions on and redraws what it models, so a
+choice-only DyNAM holds the observed sender and a coordination process draws
+its pair (task 2.6). The mirror case is already covered: a rate-only DyNAM
+cannot hold a receiver chosen given a redrawn sender, and completion supplies a
+uniform choice under the support constraint in both variants. The rule is
+folded into this change's own requirement, `## MODIFIED` deltas of the living
+`multivariate-specification` (completion, walk assert) and `multi-process-walk`
+(`walk_open()`), and the copies in `per-family-flavor-modeling`,
+`two-sided-coordination` and `constraint-objects-on-shared-walk`. Placing it in
+`multivariate-specification` alone was rejected: that capability is scoped to
+joins and half-specified flavors, and an unflavored single-process
+specification reaches the walk only through `single_process_joint()`.
 ### D6 — The `times =` axis: free-running and time-anchored, first-class on every family (added 2026-08-19)
 
 One argument on `simulate()`, `times = c("generated", "observed")`, default
@@ -1335,6 +1356,11 @@ untouched — simulation adds no estimation path).
   choice-only DyNAM keeps ADR-0076's requested completion.
 - ~~**[D11 / built-ins]** Whether a caller may replace a built-in evaluate step
   per regime~~ Resolved 2026-09-15: `default` only (D11 amendment).
+- **[D5 / DyNES / ADR-0097]** In a joint specification where one process has a
+  timed rate and another is choice-only, whether a time-anchored run holds the
+  choice-only process's observed sender or draws it from the pinned rate that
+  completion installs for a timed join. Plain DyNAM has no such join; left to
+  the DyNES work.
 - **[D7 / ADR-0079]** Whether coordination inside a timed joint composition may
   run free on the pinned opportunity clock ρ̃_k + ρ̃_l (`two-sided-coordination`
   D16); left to that change.
