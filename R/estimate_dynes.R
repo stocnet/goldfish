@@ -31,11 +31,27 @@
 #' @param control_algo The algorithm controls, from [set_algorithm_em()].
 #' @param control_prep The preprocessing controls, from [set_preprocessing()].
 #'
-#' @return A list with the last accepted `parameters` (named by the composite
-#'   labels of [coef_layout()]), `converged`, the number of accepted
+#' @return A `goldfishDynesFit`: the last accepted `parameters` (named by the
+#'   composite labels of [coef_layout()]), `converged`, the number of accepted
 #'   `iterations`, the `em_trace` (one row per decision pass), the final `pool`
 #'   with its per-sequence `loglik` and normalized `weights`, the `seed` the run
-#'   used, and the completed `spec`.
+#'   used, the completed `spec` and the `authored_spec`, and two covariance
+#'   matrices from one full-pool evaluation at the returned estimate, made
+#'   whether or not the run converged. `covariance`, returned by `vcov()`, is
+#'   the sandwich \eqn{I^{-1} (\sum_i w_i s_i s_i^\top) I^{-1}} with
+#'   \eqn{I = \sum_i w_i I_i}. `mc_covariance` is the Monte-Carlo error of the
+#'   estimate, \eqn{I^{-1} (\sum_i w_i^2 (s_i - \bar s)(s_i - \bar s)^\top)
+#'   I^{-1}}. Both use the importance weights \eqn{w_i} over the whole pool.
+#'
+#'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
+#'   groups them by process, with both errors, and lists every fixed
+#'   coefficient: an `offset()` term, or a completed default such as a pinned
+#'   rate, is a `fixed = TRUE` row with its frozen value and no error.
+#'   `print()`, `summary()`, `tidy()` and `glance()` report both errors and the
+#'   convergence status. `logLik()` refuses, and `AIC()` and `BIC()` with it:
+#'   the estimator ascends a Monte-Carlo estimate of the likelihood, not an
+#'   exact one. `simulate()` runs the specification the fit holds, at its
+#'   estimates.
 #'
 #' @references Levine, R. A., & Casella, G. (2001). Implementations of the
 #' Monte Carlo EM algorithm. *Journal of Computational and Graphical
@@ -124,7 +140,7 @@ estimate_dynes <- function(
   res$parameters <- stats::setNames(as.numeric(res$parameters), labels)
   res$seed <- seed
   res$spec <- completed
-  res
+  new_dynes_fit(res, spec, control_algo, fit_call = sys.call(), call = call)
 }
 
 # The augmenter the control selects. The augment_seq_*() augmenters land with

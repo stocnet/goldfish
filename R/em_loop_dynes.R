@@ -402,19 +402,7 @@ abem_trace_tibble <- function(rows) {
 # I^-1 (sum_i w_i s_i s_i') I^-1 with I = sum_i w_i I_i, over the whole pool.
 # A singular information yields NA rather than stopping the loop.
 abem_sandwich_se <- function(pool, theta, weights) {
-  res <- evaluate_sequence_pool(pool, theta, what = c("score", "fisher"))
-  keep <- weights > 0 & !res$degenerate
-  scores <- res$score[keep, , drop = FALSE]
-  w <- weights[keep]
-  information <- Reduce(`+`, Map(`*`, res$fisher[keep], w))
-  meat <- crossprod(scores * sqrt(w))
-  tryCatch(
-    {
-      bread <- solve(information)
-      sqrt(diag(bread %*% meat %*% bread))
-    },
-    error = function(e) rep(NA_real_, length(theta))
-  )
+  sqrt(diag(dynes_covariances(pool, theta, weights)$covariance))
 }
 
 warn_pool_capped <- function(requested, max_pool) {

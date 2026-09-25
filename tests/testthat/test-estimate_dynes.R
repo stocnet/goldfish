@@ -87,7 +87,8 @@ test_that("a goldfishParams initial value is theta0, unpinned slots at zero", {
     run_abem_loop = function(theta0, ...) {
       captured <<- theta0
       list(parameters = theta0, converged = TRUE, em_trace = NULL)
-    }
+    },
+    new_dynes_fit = function(res, ...) res
   )
   local_dynes_augmenter(new_keyed_stub_augmenter())
   spec <- dynes_surface_spec()
@@ -235,7 +236,8 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
     run_abem_loop = function(theta0, ...) {
       captured <<- theta0
       list(parameters = theta0, converged = TRUE, em_trace = NULL)
-    }
+    },
+    new_dynes_fit = function(res, ...) res
   )
   drawn <- list()
   local_dynes_augmenter(list(
@@ -286,6 +288,7 @@ test_that("the warm-start fallback warning names the fid", {
     run_abem_loop = function(theta0, ...) {
       list(parameters = theta0, converged = TRUE, em_trace = NULL)
     },
+    new_dynes_fit = function(res, ...) res,
     dynes_warm_start_fit = function(sub_model, data, control_prep) {
       if (identical(sub_model$sub_model, "choice")) {
         stop("Matrix cannot be inverted")

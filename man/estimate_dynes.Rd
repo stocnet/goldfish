@@ -18,11 +18,27 @@ estimate_dynes(
 \item{control_prep}{The preprocessing controls, from \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 }
 \value{
-A list with the last accepted \code{parameters} (named by the composite
-labels of \code{\link[=coef_layout]{coef_layout()}}), \code{converged}, the number of accepted
+A \code{goldfishDynesFit}: the last accepted \code{parameters} (named by the
+composite labels of \code{\link[=coef_layout]{coef_layout()}}), \code{converged}, the number of accepted
 \code{iterations}, the \code{em_trace} (one row per decision pass), the final \code{pool}
 with its per-sequence \code{loglik} and normalized \code{weights}, the \code{seed} the run
-used, and the completed \code{spec}.
+used, the completed \code{spec} and the \code{authored_spec}, and two covariance
+matrices from one full-pool evaluation at the returned estimate, made
+whether or not the run converged. \code{covariance}, returned by \code{vcov()}, is
+the sandwich \eqn{I^{-1} (\sum_i w_i s_i s_i^\top) I^{-1}} with
+\eqn{I = \sum_i w_i I_i}. \code{mc_covariance} is the Monte-Carlo error of the
+estimate, \eqn{I^{-1} (\sum_i w_i^2 (s_i - \bar s)(s_i - \bar s)^\top)
+  I^{-1}}. Both use the importance weights \eqn{w_i} over the whole pool.
+
+\code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
+groups them by process, with both errors, and lists every fixed
+coefficient: an \code{offset()} term, or a completed default such as a pinned
+rate, is a \code{fixed = TRUE} row with its frozen value and no error.
+\code{print()}, \code{summary()}, \code{tidy()} and \code{glance()} report both errors and the
+convergence status. \code{logLik()} refuses, and \code{AIC()} and \code{BIC()} with it:
+the estimator ascends a Monte-Carlo estimate of the likelihood, not an
+exact one. \code{simulate()} runs the specification the fit holds, at its
+estimates.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
