@@ -42,3 +42,21 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   ships the theta-closed single-candidate proposal evaluator the ABEM loop
   will inject into an augmenter, returning its `(loglik, rates)` pair as a
   named list so that contract can widen without breaking callers.
+* Group 5 (ABEM loop, estimation surface, and results) complete: the ABEM
+  loop (accept/grow/stop against Q and its standard error, harmonic growth,
+  a `max_pool`-clamped post-acceptance pool size, retry exhaustion aborting
+  with the accumulated `em_trace` attached, `max_iterations` returning the last
+  accepted estimate flagged `converged = FALSE`) and the experimental,
+  not-yet-exported `estimate_dynes()` surface (completion once at entry,
+  decomposition of the joint specification into pool sub-models, warm start,
+  L'Ecuyer-CMRG substreams keyed by iteration and draw, and a mirai map seam
+  behind the serial default). `estimate_dynes()` returns a new
+  `goldfishDynesFit`. Its `vcov()` is the sandwich covariance from one
+  full-pool evaluation at the estimate, populated whether or not the run
+  converged, and the Monte-Carlo error is carried beside it. `coef()` and
+  `vcov()` are flat over the free coefficients, and `coef_layout()` lists
+  completed and `offset()` processes as fixed rows. `print()`, `summary()`,
+  `tidy()` and `glance()` show both errors and the convergence status, and
+  `simulate()` runs the joint specification the fit holds. `logLik()` refuses,
+  and `AIC()` and `BIC()` with it, because the estimator ascends a Monte-Carlo
+  estimate of the likelihood.
