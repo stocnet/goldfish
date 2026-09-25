@@ -736,6 +736,41 @@
       stopgap, and `per-family-flavor-modeling`'s delta pins such a gap to a
       zero hazard. When this lands the flavored relational pin reads it;
       coordinate that delta's wording with its owner
+      — *settled 2026-09-26 (explore, ADR-0098; D5 amendment)*: computed in
+      preprocessing by extending `time_weighted_risk_set()` (no live
+      accumulator on the simulation walk; the D5 / 2.11 re-pin question stays
+      open), in `assemble_default_output()` and the support-gate fold, for
+      every exact-time output. The field is `exposure_entity_time` (active
+      senders after the gate for DyNAM, active dyads for REM), not
+      `exposure_actor_time`; `avg_active_entity = exposure_entity_time /
+      total_time`. The flavored relational pin reads its per-flavor exposure
+      (the stopgap sentence is already replaced in the three copies of the
+      completion requirement). The `goldfishStat` print's field table gains
+      the row. Spec delta: `specs/active-availability-stat/spec.md`. Report
+      every frozen baseline that moves (measured before: the DyNAM sender
+      baselines pass with the time-weighted seed, REM untested); stop before
+      committing if one fails at 1e-6
+- [ ] 2.11b The pin's scalars on every fit, and an approximation for a
+      specification (added 2026-09-26, ADR-0098; after 2.11): every DyNAM and
+      REM preprocessing, the choice family included, computes `n_dep_events`,
+      `total_time`, `exposure_entity_time` and `avg_active_entity`, and every
+      fit carries them; `simulate()` on a fit pins a completed rate from them
+      with no preprocessing pass. From a specification the pin defaults to
+      the endpoint approximation `|R| ≈ (n_start + n_end) / 2`, entities
+      present at the window's start and end, times `total_time`;
+      `set_preprocessing(exposure = c("approximate", "exact"))` asks for the
+      preprocessing pass (estimation always computes the exact value). One
+      message, class `goldfish_sim_approximate_exposure`, when the
+      approximation might differ: the layer's nodes change composition inside
+      the window, or the process carries a support constraint (derived flavor
+      masks included); it names `set_preprocessing(exposure = "exact")`.
+      Roxygen for `set_preprocessing()` and `simulate()`,
+      `devtools::document()`, a `NEWS.d` bullet. Tests: a choice fit carries
+      the four scalars; a fitted choice-only DyNAM simulated generated pins
+      from them without a pass; a specification with composition changes pins
+      from the endpoint approximation with the message; `exposure = "exact"`
+      pins as the fit does, silently; a fixed-population specification with
+      no support constraint pins silently and equals the exact pin
 
 ## 3. Tests and documentation
 

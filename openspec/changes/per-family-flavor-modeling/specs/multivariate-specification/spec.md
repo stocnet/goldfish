@@ -54,20 +54,20 @@ regardless of the underlying event stream's time representation (numeric, `POSIX
 `Date`, or character) — the pin computation SHALL NOT propagate a `difftime` or other
 non-numeric temporal object into `T_w`. `|R_w|` (the period's average rate-entity
 size) SHALL be **supplied by the consumer**, its source keyed on how the flavor is
-observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or, for
-an **unflavored relational** layer (no flavor keying on the process), a
-time-weighted `avg_active_entity` sourced from goldfish's own preprocessing scalars
+observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or, for a
+**relational** layer, flavored or not, the
+time-weighted `avg_active_entity` (`exposure_entity_time / total_time`, per flavor on
+a flavored layer) sourced from goldfish's own preprocessing scalars
 (see design D9a, D3) — and the period partition SHALL follow the half-open membership
 convention `findInterval(t, wave_times, rightmost.closed = TRUE)` (interior
 boundaries left-closed/right-open, final period right-closed). A **flavored**
-relational (event-observed, non-panel) layer's missing rate SHALL, until a
-flavor-aware relational risk-set source exists, use the same wave-endpoint/Hamming-diff
-derivation as a panel layer over the layer's own observed time extent — never the
+relational (event-observed, non-panel) layer's missing rate SHALL read
+its own flavor's exposure over the layer's own observed time extent — never the
 range of an unrelated layer in the same joint dataset. A completed rate whose pinned
 layer has **no timed events at all** (every row is `time = NA` history) SHALL, on a
-**panel**-observed layer (or the flavored-relational fallback that shares the panel
-derivation), emit a `cli` **warning** naming the layer and pin to a **zero hazard**
-(`intercept_w = -Inf`, the flavor cannot fire); on an **unflavored relational** layer,
+**panel**-observed layer, emit a `cli` **warning** naming the layer and pin to a
+**zero hazard** (`intercept_w = -Inf`, the flavor cannot fire); on a **relational**
+layer, flavored or not,
 whose risk-set scalars (`total_time`, `avg_active_entity`) would be zero and admit no
 finite pin, it SHALL **abort** with a `cli` error naming the layer. A **per-period**
 empty wave in a multi-wave grid (nothing changed between two boundaries) is NOT this

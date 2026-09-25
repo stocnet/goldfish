@@ -485,7 +485,15 @@ whose per-actor intercept SHALL be **pinned** (zero free parameters, never read 
 process, or from the requested event count / time window for a fully rate-less
 process. A **choice-only** DyNAM SHALL NOT be rate-completed by default — its default
 timing is time-anchored — and SHALL gain a constant exponential rate only when
-`times = "generated"` is requested. REM requires only a rate and is already
+`times = "generated"` is requested. A pinned rate's scalars (`n_dep_events`,
+`total_time`, `exposure_entity_time`) SHALL be read from the fitted result when
+`simulate()` is called on a fit; from a specification they SHALL default to the
+endpoint approximation of the risk set, `(n_start + n_end) / 2` entities
+present at the window's start and end times `total_time`, and
+`set_preprocessing(exposure = "exact")` SHALL run a preprocessing pass instead;
+a message SHALL say so when the approximation might differ from the exact value
+(a composition change inside the window, or a support constraint on the
+process). REM requires only a rate and is already
 complete. `walk_open()`
 SHALL assert completeness for the variant it serves, so the draw loop never opens
 a specification missing a family that variant draws from.
@@ -585,3 +593,24 @@ mask, the mask the process's modeled sub-model reads.
   simulated with its default `times = "observed"`
 - **THEN** the walk opens without a rate, each observed stamp keeps its
   observed sender, and the receiver is drawn from the choice.
+
+#### Scenario: a fit pins its completed rate from its own scalars
+
+- **WHEN** a fitted choice-only DyNAM is simulated with `times = "generated"`
+- **THEN** the completed rate is pinned from the fit's `n_dep_events`,
+  `total_time` and `exposure_entity_time`, and no preprocessing pass runs.
+
+#### Scenario: a specification pins from the endpoint approximation
+
+- **WHEN** a choice-only DyNAM specification on nodes whose composition changes
+  inside the window is simulated with `times = "generated"`
+- **THEN** the completed rate is pinned with the risk set approximated as the
+  average of the entities present at the window's start and end, and a message
+  names `set_preprocessing(exposure = "exact")` as the way to the exact value.
+
+#### Scenario: the exact exposure is asked for
+
+- **WHEN** the same specification is simulated with
+  `control_prep = set_preprocessing(exposure = "exact")`
+- **THEN** a preprocessing pass computes the time-weighted exposure, the pin
+  equals the one a fit of the same data carries, and no message is shown.

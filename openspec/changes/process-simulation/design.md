@@ -637,6 +637,33 @@ folded into this change's own requirement, `## MODIFIED` deltas of the living
 `multivariate-specification` alone was rejected: that capability is scoped to
 joins and half-specified flavors, and an unflavored single-process
 specification reaches the walk only through `single_process_joint()`.
+
+*Amended 2026-09-26 (explore, goldfish-b2; ADR-0098) — exposure is
+time-weighted, fits carry it, and a specification approximates it.* A pinned
+rate reads `log(n_dep_events / (total_time · avg_active_entity))`, and the
+specs call `avg_active_entity` time-weighted, but a single-output engine
+averages it over stored events; only the flavored path weights by time. On
+the Fisheries rate baseline the two are 145.5 and 178.6 senders. Task 2.11
+makes preprocessing compute `exposure_entity_time`, the integral of the
+rate's entity count over the window (active senders after the support gate
+for DyNAM, active dyads for REM), by extending `time_weighted_risk_set()`, and
+`avg_active_entity = exposure_entity_time / total_time`; a flavored relational
+layer's pin reads its per-flavor exposure instead of the panel wave-endpoint
+stopgap. Task 2.11b makes every DyNAM and REM preprocessing, choice included,
+compute `n_dep_events`, `total_time`, `exposure_entity_time` and
+`avg_active_entity`, and every fit carry them, so `simulate()` on a fit pins
+without another pass; a choice fit carries none of them today. From a
+specification there is no fit: the pin uses by default the endpoint
+approximation `|R| ≈ (n_start + n_end) / 2`, the entities present at the
+window's start and end (exact when nothing enters or leaves, the panel's
+wave-endpoint convention), and `set_preprocessing(exposure = "exact")` runs
+the preprocessing pass. One message, class
+`goldfish_sim_approximate_exposure`, fires when the approximation might
+differ: the layer's nodes change composition inside the window, or the
+process carries a support constraint, derived flavor masks included.
+Estimation always computes the exact value. A live accumulator on the
+simulation walk is not built; it serves only the open question below on
+re-pinning from the live exposure.
 ### D6 — The `times =` axis: free-running and time-anchored, first-class on every family (added 2026-08-19)
 
 One argument on `simulate()`, `times = c("generated", "observed")`, default
@@ -1340,7 +1367,9 @@ untouched — simulation adds no estimation path).
 - **[D5 / 2.11]** Whether a free-running run whose composition drifts from
   the observed period average should re-pin a completed intercept from the
   live exposure, or keep the observed pin (2026-09-15; the exposure
-  integral makes the live value available either way).
+  integral makes the live value available either way). *Note 2026-09-26 (ADR-0098):* still open; 2.11 computes the exposure
+  in preprocessing, not live on the simulation walk, so a live re-pin would
+  add that accumulator.
 - **[D11 / parametric-rates]** The per-actor time origin of the Weibull
   hazard across a regime switch or a window breakpoint; per-segment
   inversion handles it only if the origin is stored per actor on the handle.
