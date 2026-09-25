@@ -125,9 +125,10 @@ is_effect_free_formula <- function(formula) {
 # and the log-likelihood at the theta the sequence was evaluated under
 # already materialized elsewhere (e.g. inside an MCMC chain's acceptance-ratio
 # pass). Accepted on pool entry and ignored in this version -- every routine
-# takes the from-scratch preprocess path (design D3) -- present only so a
-# later fast-follow that reuses a retained draw's statistics is a drop-in with
-# no signature change on the pool-entry path (dynes-augmentation D23).
+# takes the from-scratch preprocess path, which is never slower than reuse
+# and needs no agreement on the statistics layout -- present only so a later
+# fast-follow that reuses a retained MCMC draw's statistics is a drop-in with
+# no signature change on the pool-entry path.
 new_pool_attachment <- function(
   stats,
   loglik_ref,
@@ -391,9 +392,7 @@ with_coefficient_masks <- function(sub_models, data, call) {
 # The θ-free log-likelihood a sequence's fixed-only sub-models contribute,
 # summed. Computed once per sequence (at pool entry, or once per candidate in
 # the proposal evaluator), since no parameter value can change it. An engine
-# failure marks the sequence degenerate, like a singular free sub-model; a
-# pinned rate whose intervals straddle a wave boundary is a preprocessing
-# contract violation and aborts instead of being absorbed.
+# failure marks the sequence degenerate, like a singular free sub-model.
 pool_fixed_loglik <- function(
   sub_models,
   data,
@@ -409,12 +408,7 @@ pool_fixed_loglik <- function(
     }
     term <- tryCatch(
       fixed_only_loglik(sm, data, stats[[j]], control_prep, call = call),
-      error = function(e) {
-        if (inherits(e, "goldfish_pinned_rate_straddle")) {
-          stop(e)
-        }
-        NULL
-      }
+      error = function(e) NULL
     )
     if (is.null(term)) {
       return(list(loglik = -Inf, degenerate = TRUE))
@@ -459,9 +453,9 @@ fixed_only_loglik <- function(sub_model, data, stats, control_prep, call) {
 # dependent event adds the plateau of the period its time falls in -- the
 # half-open membership, so an event on an interior boundary belongs to the next
 # period. This equals an intercept column holding c_{w} per interval with its
-# coefficient fixed at 1, and it is exact only when no interval straddles an
-# interior wave boundary, which the preprocess must guarantee (per-wave windows
-# or an event injected at the boundary). A single-plateau pin is the K = 1 case.
+# coefficient fixed at 1. An interval that crosses an interior wave boundary
+# has no single plateau, so its exposure is split at the boundary (see
+# pinned_rate_compensator()). A single-plateau pin is the K = 1 case.
 pinned_rate_loglik <- function(sub_model, data, stats, control_prep, call) {
   rate <- sub_model$pinned_rate
   fit <- estimate_wrapper(
@@ -483,43 +477,43 @@ pinned_rate_loglik <- function(sub_model, data, stats, control_prep, call) {
   exposure <- -fit$interval_log_lik
   end <- stats$event_time
   start <- end - stats$intervals
-  abort_if_interval_straddles_wave(rate, start, end, call = call)
 
   dependent <- stats$is_dependent == 1L
   event_plateau <- rate$intercept[
     intercept_only_rate_period(rate, end[dependent], call = call)
   ]
-  exposure_plateau <- rate$intercept[
-    intercept_only_rate_period(rate, start, call = call)
-  ]
-  sum(event_plateau) - sum(exp(exposure_plateau) * exposure)
+  sum(event_plateau) -
+    pinned_rate_compensator(rate, start, end, exposure, call = call)
 }
 
-abort_if_interval_straddles_wave <- function(rate, start, end, call) {
+# The compensator sum_w e^{c_w} * integral_w |R(t)| dt over the intervals
+# (start, end], given each interval's exposure |R_k| * (end - start). The risk
+# set only changes at an interval's end, so |R(t)| is constant inside it: an
+# interval crossing interior wave boundaries is cut there and each piece takes
+# the exposure share of its width at its own period's plateau. This is exactly
+# what an event placed on each boundary would give, without re-preprocessing.
+pinned_rate_compensator <- function(rate, start, end, exposure, call) {
   interior <- rate$wave_times[-c(1L, length(rate$wave_times))]
-  if (length(interior) == 0L) {
-    return(invisible(NULL))
-  }
-  straddles <- vapply(
+  per_interval <- vapply(
     seq_along(start),
-    function(k) any(start[[k]] < interior & end[[k]] > interior),
-    logical(1)
+    function(k) {
+      cuts <- interior[interior > start[[k]] & interior < end[[k]]]
+      if (length(cuts) == 0L) {
+        plateau <- rate$intercept[
+          intercept_only_rate_period(rate, start[[k]], call = call)
+        ]
+        return(exp(plateau) * exposure[[k]])
+      }
+      edges <- c(start[[k]], cuts, end[[k]])
+      share <- diff(edges) / (end[[k]] - start[[k]])
+      plateau <- rate$intercept[
+        intercept_only_rate_period(rate, edges[-length(edges)], call = call)
+      ]
+      sum(exp(plateau) * share) * exposure[[k]]
+    },
+    numeric(1)
   )
-  if (!any(straddles)) {
-    return(invisible(NULL))
-  }
-  k <- which(straddles)[[1L]]
-  cli::cli_abort(
-    c(
-      "A pinned rate cannot score an interval that crosses a wave boundary.",
-      "x" = "Interval {.val {k}} runs from {.val {start[[k]]}} to
-             {.val {end[[k]]}}, across an interior boundary.",
-      "i" = "Its exposure has no single plateau. Preprocess each wave period
-             separately, or place an event at every interior boundary."
-    ),
-    class = "goldfish_pinned_rate_straddle",
-    call = call
-  )
+  sum(per_interval)
 }
 
 # Evaluate one pooled sequence at the concatenated `theta`: split theta across
@@ -633,18 +627,19 @@ evaluate_sequence_pool <- function(
 }
 
 # The theta_k-closed proposal evaluator the ABEM loop builds once per EM
-# iteration and injects into an augmenter's init() (design D3,
-# dynes-augmentation D20): one preprocess plus one likelihood pass per
-# candidate, over this change's own evaluation primitive. `sub_models` is the
-# same pool-level descriptor list `build_sequence_pool()` takes; the loop
-# supplies it decomposed from the joint spec at each iteration, closing over
-# the current `theta`.
+# iteration and injects into an augmenter's init(), where an MCMC move reads
+# f(candidate) for its acceptance ratio: one preprocess plus one likelihood
+# pass per candidate, over the same engine the pool evaluator uses.
+# `sub_models` is the same pool-level descriptor list `build_sequence_pool()`
+# takes; the loop supplies it decomposed from the joint spec at each
+# iteration, closing over the current `theta`.
 #
 # The returned closure answers by NAME, not position -- `list(loglik, rates)`
-# -- so the MCMC-reuse fast-follow (dynes-augmentation D23) can widen it to
-# `list(loglik, rates, stats_handle)` without breaking a caller that reads
-# `$loglik`/`$rates`. No reuse logic ships here: a singular candidate reads as
-# `-Inf`, mirroring the pool evaluator's own D-ROBUST guard.
+# -- so a later fast-follow that reuses a retained MCMC draw's statistics can
+# widen it to `list(loglik, rates, stats_handle)` without breaking a caller
+# that reads `$loglik`/`$rates`. No reuse logic ships here: a singular
+# candidate reads as `-Inf`, mirroring the pool evaluator's singular-information
+# guard in evaluate_pool_sequence().
 #
 # `rate_queries` asks for named-pair intensities at positions inside the
 # candidate -- what a proposal's reverse density is drawn at. Answering it
@@ -736,12 +731,7 @@ make_proposal_evaluator <- function(
         }
         loglik
       },
-      error = function(e) {
-        if (inherits(e, "goldfish_pinned_rate_straddle")) {
-          stop(e)
-        }
-        -Inf
-      }
+      error = function(e) -Inf
     )
     list(loglik = harvest, rates = rates)
   }
