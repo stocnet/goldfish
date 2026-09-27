@@ -194,7 +194,10 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
     "3" = rep(as.logical(support), n2),
     "2" = rep(as.logical(support[[sender]]), n2),
     "1" = as.logical(support),
-    "0" = as.logical(matrix(support, n1, n2)[sender, ]),
+    # The stored vector is the grid in column-major order, so row `sender`
+    # is every n1-th entry from `sender` on; reshaping it into a matrix
+    # first would copy all n1 x n2 cells to read n2 of them.
+    "0" = as.logical(support[sender + n1 * (seq_len(n2) - 1L)]),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
 }

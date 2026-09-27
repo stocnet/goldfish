@@ -116,3 +116,19 @@ test_that("initial_receiver_count() counts the grid's allowed receivers", {
     }
   }
 })
+
+test_that("reading a dyadic mask's rows costs far less than a grid a row", {
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  # A 300 x 300 logical grid is 0.34 MB, so rebuilding it for each of the 300
+  # rows allocates about 103 MB. The bound is a tenth of a grid per row.
+  n <- 300L
+  withr::local_seed(1L)
+  support <- stats::runif(n * n) > 0.5
+  used <- bench::bench_memory(
+    for (sender in seq_len(n)) {
+      support_row(support, 0L, sender, n, n)
+    }
+  )
+  expect_lt(as.numeric(used$mem_alloc), n * (n * n * 4) / 10)
+})
