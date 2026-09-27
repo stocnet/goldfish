@@ -750,6 +750,36 @@
       every frozen baseline that moves (measured before: the DyNAM sender
       baselines pass with the time-weighted seed, REM untested); stop before
       committing if one fails at 1e-6
+      — *settled 2026-09-27 (explore, goldfish-ec; ADR-0099)*: the exposure
+      is the engine's row alignment (presence and support applied at the
+      row, as the compensator reads them), so `n_dep_events /
+      exposure_entity_time` is exactly the intercept-only MLE; not the
+      continuous integral over the change stream (fisheries 145.4799 vs
+      145.4176). A single-output REM counts senders today; it moves to dyads,
+      and the dyad count drops the self-dyad on a one-mode layer (read from
+      the resolved self-tie rule once `allow-reflexive-user` lands; note in
+      its task 2.2). `time_weighted_risk_set()` learns the `"outer"`
+      encoding (it reads only `"point"` today and fails on fish_rem) and is
+      rewritten as a running sum: no per-row presence list, and never a
+      per-row dense dyad matrix (about 14 MB a row on CollegeMsg). Baselines
+      measured with the dyad seed: every REM cell passes the relative 1e-6
+      (abs 1.6e-6 se_rem, 5.7e-6 fish_rem, 1.3e-5 global_rem); the two-mode
+      REM cell is unmeasured. Before/after timing on CollegeMsg subsets
+      (1k/5k/10k, median of three warm runs; before at `e362b94` recorded in
+      `progress.md`): rate, choice, constrained choice and REM preprocessing,
+      the pin pass, and the exposure computation itself
+- [ ] 2.2n The fit rebuild keeps the support constraint and the modeled
+      flavor (added 2026-09-27, ADR-0099; schedule: after 2.11, before
+      2.11b): a fit stores neither today, so `simulate(fit, data =)` on a
+      constrained fit draws outside the support it was estimated on, and a
+      fit of one `modeled_flavor` is rebuilt as the whole layer. The fit
+      stores the constraint formula and the modeled flavor as estimated;
+      `specification_from_fit()` passes both to `make_specification()`
+      (and `allow_reflexive` once `allow-reflexive-user` lands, whichever of
+      the two lands second). Spec delta: `process-simulation` "Simulation
+      drives the walk handle from a specification and parameters", sentence
+      and two scenarios. Tests: a constrained fit's simulated events never
+      fall on an excluded dyad; a one-flavor fit rebuilds that flavor
 - [ ] 2.11b The pin's scalars on every fit, and an approximation for a
       specification (added 2026-09-26, ADR-0098; after 2.11): every DyNAM and
       REM preprocessing, the choice family included, computes `n_dep_events`,
@@ -771,6 +801,41 @@
       from the endpoint approximation with the message; `exposure = "exact"`
       pins as the fit does, silently; a fixed-population specification with
       no support constraint pins silently and equals the exact pin
+      — *settled 2026-09-27 (explore, goldfish-ec; ADR-0099)*: a choice's
+      scalars come from the same walk, not an extra pass. The walk keeps a
+      running sum per exposure consumer over the rows a rate would store
+      (every event with a positive interval, plus the window-end boundary),
+      so a choice fit equals a rate fit on the same data (test). Unconstrained:
+      two scalars per consumer, nothing else held. Constrained: the gate needs
+      the mask at those rows and masks are realized after the walk, so the
+      row times (one numeric vector, 8 bytes a row) are kept for the mask
+      request and the gate is counted as the rate fold counts it, streaming;
+      both are discarded once the four scalars exist. The fit gains four
+      length-one numerics. `simulate()` on a fit carries them into completion
+      through the rebuilt specification (no pass); a `control_prep` window or
+      `exposure = "exact"` takes the specification path. The endpoint count
+      follows the model: senders for DyNAM, dyads without the self-dyad on a
+      one-mode layer for REM, a derived flavor mask applied at the endpoint
+      states. In a flavored container each process fit carries its own
+      scalars; `printing-homogenization` 6.2a reads them. Same before/after
+      timing as 2.11
+      — *revised 2026-09-27 (explore, goldfish-ec; Alvaro chose the detour)*:
+      2.11b waits for `constraint-objects-on-shared-walk`, including its D9
+      (the batch walk composes masks live, as the handle does). With the
+      mask live at every row, a constrained choice's exposure is a plain
+      running sum like any other consumer, and the row-time list above is
+      not built. Order: `rate-init-value-copy-free-updates` → 2.11 → 2.2n →
+      `constraint-objects-on-shared-walk` → 2.11b.
+      `relational_window_risk_set()` is repurposed as the exact path only.
+      It runs for `set_preprocessing(exposure = "exact")`, and for a fit
+      simulated with a different window when the exact value is asked for.
+      The default specification path (endpoint approximation) and the fit
+      path (stored scalars) never run it. Its stand-in rate carries the
+      process's own support constraint and modeled flavor, and on a
+      flavored layer a flavor-keyed stand-in with the derived mask, so it
+      returns that process's exposure. That is also the per-flavor
+      exposure 2.11's flavored relational pin reads. Test: its value equals
+      the scalars a fit of the same data and process carries
 
 ## 3. Tests and documentation
 

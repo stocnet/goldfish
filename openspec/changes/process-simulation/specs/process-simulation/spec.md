@@ -21,7 +21,11 @@ the specification from the fit's stored formula, model and sub-model: a fit
 carries neither its specification nor the stocnet it was fitted on, and SHALL
 say so rather than failing inside the walk. The rebuild SHALL keep the fit's
 terms as written and the intercept the fit estimated, so simulating a fit
-compiles the model that was estimated without re-announcing an intercept. The mark of an event
+compiles the model that was estimated without re-announcing an intercept. A
+fitted result SHALL carry the support constraint and the modeled flavor it was
+estimated with, and the rebuild SHALL pass both to the specification, so a
+constrained fit simulates under the support it was estimated on and a fit of
+one modeled flavor simulates that flavor, not the whole layer. The mark of an event
 on a flavored layer SHALL carry that flavor's update value, so a simulated
 dissolution removes the tie a creation made.
 A simulation run SHALL open the walk once per replicate and SHALL NOT
@@ -78,6 +82,20 @@ state every engine reads.
   added, is simulated with `simulate(fit, data =)`
 - **THEN** the rebuilt specification carries the intercept, the run emits no
   intercept message, and the fit's coefficients apply to the same terms.
+
+#### Scenario: a constrained fit simulates under its constraint
+
+- **WHEN** a DyNAM fit estimated with a `support_constraint` is simulated with
+  `simulate(fit, data =)`
+- **THEN** the rebuilt specification carries the same constraint, and no
+  simulated event falls on a dyad the constraint excludes at that event.
+
+#### Scenario: a fit of one modeled flavor rebuilds that flavor
+
+- **WHEN** a fit estimated from a specification with `modeled_flavor` set is
+  simulated with `simulate(fit, data =)`
+- **THEN** the rebuilt specification models that flavor only, exactly as the
+  specification the fit was estimated from did.
 
 #### Scenario: a specification of only exogenous covariates simulates
 
@@ -487,9 +505,13 @@ process. A **choice-only** DyNAM SHALL NOT be rate-completed by default — its 
 timing is time-anchored — and SHALL gain a constant exponential rate only when
 `times = "generated"` is requested. A pinned rate's scalars (`n_dep_events`,
 `total_time`, `exposure_entity_time`) SHALL be read from the fitted result when
-`simulate()` is called on a fit; from a specification they SHALL default to the
+`simulate()` is called on a fit, carried into completion by the rebuilt
+specification with no preprocessing pass, unless `control_prep` sets a window
+or asks for the exact exposure, which takes the specification path below; from
+a specification they SHALL default to the
 endpoint approximation of the risk set, `(n_start + n_end) / 2` entities
-present at the window's start and end times `total_time`, and
+present at the window's start and end times `total_time` (senders for a DyNAM
+rate, dyads without the self-dyad on a one-mode layer for REM), and
 `set_preprocessing(exposure = "exact")` SHALL run a preprocessing pass instead;
 a message SHALL say so when the approximation might differ from the exact value
 (a composition change inside the window, or a support constraint on the

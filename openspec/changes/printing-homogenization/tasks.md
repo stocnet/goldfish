@@ -184,7 +184,14 @@
       reordering against `flavored_row_order()`. Replaces the
       `goldfish_sim_unsupported` abort `process-simulation` 2.1 left. Test: a
       two-flavor container simulates one sequence with both flavors competing
-      on one clock, at the parameters `set_parameters(spec, fit)` returns
+      on one clock, at the parameters `set_parameters(spec, fit)` returns.
+      *Note 2026-09-27 (`process-simulation` 2.11b/2.2n, session
+      goldfish-ec; ADR-0099):* each process fit in the container carries its
+      own `n_dep_events`, `total_time`, `exposure_entity_time` and
+      `avg_active_entity`, and a single fit's rebuild carries its support
+      constraint and modeled flavor. The container rebuild reads both the
+      same way: a completed rate pins from its process fit's scalars with no
+      preprocessing pass, and each process keeps its constraint
 - [ ] 6.3 `initial_parameters` on `estimate_dynam()`, `estimate_rem()`,
       `estimate_dynami()` and the flavored path accepts a `goldfishParams`
       (pinned free slots are the warm start; `NA` slots start at zero as

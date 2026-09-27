@@ -56,6 +56,15 @@ continuous-time block.
   snapshot go with them. Detector-first: byte-identity references are
   captured on the new uncovered fixture before the threading, and the
   deletion happens only once every reference matches.
+- **The batch walk keeps masks live** (added 2026-09-27, from
+  `process-simulation` 2.11b; vault ADR-0099). Masks are composed from the
+  atoms as the walk moves them, by the same maintainers the stepping handle
+  already runs live, instead of being realized after the walk at requested
+  snapshot times. Each constrained fid's availability is folded as the walk
+  goes, and the post-walk realization and folds retire once every
+  reference matches byte-identically. A constrained process's exposure
+  then accumulates as a running sum like any other, and the observed dyad
+  can be checked at its own event.
 - **The mask timing rule is stated once**: a support mask reads its atoms
   strictly before the event's stamp on every path. The batch already does;
   the handle defers atom moves stamped at the current clock until the clock

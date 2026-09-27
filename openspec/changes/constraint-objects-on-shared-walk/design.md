@@ -241,6 +241,48 @@ before evaluating; compares `walk_evaluate()` to
 F4 and F5 with `expect_gt(n_excluded, 0)`, so the substrate half and the
 testing half of this change meet on the same fixtures.
 
+### D9 — The batch walk composes masks live, as the handle does (added 2026-09-27)
+
+Today the batch walk records the constraint atoms as it goes
+(`advance_recorders_for_event()`), but composes them into masks only
+afterwards: `realize_pending_masks()` replays the recorded atoms at each
+fid's requested snapshot times (a choice's own events, a rate's rows), and
+`fold_active_sender_support()` / `fold_active_dyad_support()` /
+`build_active_dyad_point()` then fold each mask into the stored
+availability. Nothing in the walk needs that order. The statistics are
+computed over every dyad whatever the mask; the mask only filters the risk
+set. The post-walk order is inherited from the recipe loops, which finalized
+their output before a mask existed. Pooling one atom stream across fids
+with a union of snapshot times was the reason to keep it once the walk
+merged. The stepping handle already does it live:
+`walk_build_live_masks()` feeds the batch's own `build_mask_maintainer()`
+the atom entries each object event moved, and `walk_live_support()` reads
+the current mask.
+
+The batch walk uses that same construction. At each object event it collects
+the atom moves, and under D3's rule a move stamped at the current clock waits
+until the clock passes it. At each stored row it reads every constrained
+fid's current mask and folds that fid's availability incrementally: the
+rate's sender gate through per-sender allowed-receiver counts, which change
+only on a flipped cell or a presence change, and the choice's `active_dyad`
+as net flips of the event sender's row. What is stored does not change; the
+flip streams are the same objects, emitted as the walk goes. Three things
+follow:
+- a constrained process's exposure is a running sum on the same walk (no
+  row-time list, no second realization);
+- the observed dyad can be checked against the mask at its own event rather
+  than after the whole walk;
+- one mask path serves batch and handle, so they cannot drift.
+
+Detector-first, as D2: capture the folded availability and mask streams of
+every constrained reference family (rate, choice, rate plus choice, REM,
+flavored derived masks, coordination) before the switch, and delete
+`realize_pending_masks()`'s replay and the three post-walk folds only once
+all match byte-identically. *Rejected:* keep the post-walk realization and
+request extra snapshot times for the exposure. It works, but it keeps a
+second composition path beside the handle's and a row-time list per
+constrained consumer, the very duplication this change retires.
+
 ## Risks / Trade-offs
 
 - [Threading touches `build_shared_objects()`/`build_joint_schedule()`, the
@@ -273,7 +315,8 @@ Commit per task on `feature_simulation`; `NOT_CRAN=true` green with
 baselines PASS at each. Order: references for the uncovered case (D2 step
 one) → harness and F1 (D5, D6) so the oracle path exists before the
 substrate moves → threading (D1) with byte-identity → handle conformance and
-tie fixture (D3) → retirement (D2 step three) → fixtures F2–F5 with replay
+tie fixture (D3) → retirement (D2 step three) → live masks in the batch
+walk (D9) → fixtures F2–F5 with replay
 arms (D6, D8) → close. `status: landed (feature_simulation, awaiting fold)`
 at the end; no archive on the branch.
 
@@ -283,5 +326,8 @@ at the end; no archive on the branch.
   walk extent (D4; `observation-tail-right-censoring` D1/D2 own it).
 - Whether the mask rule should later align with statistics and presence at
   a tied stamp (D3's rejected alternative; ADR-0073 open question).
+- Whether the observed-dyad check moves into the walk (abort at the event,
+  D9) or stays in `validate_support_constraint()` after preprocessing with
+  the same message; the snapshot pins whichever is chosen.
 - Whether `preprocess_support_mask()` has a test-only caller worth keeping
   as a helper under ADR-0054's oracle rule, or goes.

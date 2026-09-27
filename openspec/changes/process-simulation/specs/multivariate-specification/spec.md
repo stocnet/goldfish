@@ -129,12 +129,11 @@ time on an unfilled gap.
 #### Scenario: a layer with no timed events warns (panel) or aborts (relational)
 - **WHEN** a completed rate's pinned layer carries no timed events at all (every row
   is `time = NA` history)
-- **THEN** a **panel**-observed layer (or a flavored relational layer on the panel
-  fallback) emits a `cli` warning naming the layer and completes to a zero-hazard pin
-  (`intercept_w = -Inf`), whereas an **unflavored relational** layer aborts with a
-  `cli` error naming the layer, because its `total_time` / `avg_active_entity` scalars
-  are zero and no finite pin exists; a per-period empty wave in a multi-wave grid does
-  neither and stays a silent `-Inf`.
+- **THEN** a **panel**-observed layer emits a `cli` warning naming the layer and
+  completes to a zero-hazard pin (`intercept_w = -Inf`), whereas a **relational**
+  layer, flavored or not, aborts with a `cli` error naming the layer, because its
+  `total_time` / `avg_active_entity` scalars are zero and no finite pin exists; a
+  per-period empty wave in a multi-wave grid does neither and stays a silent `-Inf`.
 
 #### Scenario: an unflavored relational layer's completed rate uses the relational risk-set source
 - **WHEN** a missing rate is completed for an **unflavored** process on a layer that

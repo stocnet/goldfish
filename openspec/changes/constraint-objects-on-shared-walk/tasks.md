@@ -107,6 +107,26 @@
 - [ ] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS; `devtools::document()` for the
       changed signatures.
+- [ ] 4.4 Live masks in the batch walk, references first (D9, added
+      2026-09-27; `process-simulation` 2.11b waits for this group, so a
+      constrained choice's exposure is a plain running sum): capture folded `active_sender` / `active_dyad` streams and
+      mask streams for every constrained reference family (rate, choice,
+      rate plus choice, REM, flavored derived masks, coordination) with the
+      post-walk realization still authoritative.
+- [ ] 4.5 `run_merged_walk()` builds live masks with the handle's
+      construction (one builder shared by both, not a copy), collects atom
+      moves per object event under D3's strictly-before rule, and folds each
+      constrained fid's availability at each stored row. Assert every 4.4
+      reference byte-identically.
+- [ ] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
+      (`fold_active_sender_support()`, `fold_active_dyad_support()`,
+      `build_active_dyad_point()` as post-walk steps); settle the open
+      question on where the observed-dyad check runs, and snapshot it.
+- [ ] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
+      three warm runs) for a constrained choice and a constrained rate plus
+      choice, before 4.5 and after 4.6.
+- [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      SKIP; every reference family PASS.
 
 ## 5. Fixtures F2–F5 with oracle and replay arms (D6, D8)
 

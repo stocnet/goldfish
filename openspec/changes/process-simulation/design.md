@@ -664,6 +664,34 @@ process carries a support constraint, derived flavor masks included.
 Estimation always computes the exact value. A live accumulator on the
 simulation walk is not built; it serves only the open question below on
 re-pinning from the live exposure.
+
+*Amended 2026-09-27 (explore, goldfish-ec; ADR-0099) — which exposure, and
+how a choice gets it.* Three values were measured on the fisheries rate: the
+engine's rows with presence applied at the row, 145.4799; presence applied
+before the row, 145.3777; the continuous integral over the change stream,
+145.4176. The engine assigns a composition change to the whole interval ending
+at the row it is mapped to, so only the first makes `n_dep_events /
+exposure_entity_time` the intercept-only MLE, and it is the one used. The
+integral needs no walk, since presence is a step function of the change list
+alone, but it cannot apply a support gate, which depends on the network state.
+A single-output REM counts senders today; it moves to dyads without the
+self-dyad on a one-mode layer, the likelihood's risk set (every REM baseline
+still passes the relative 1e-6). A choice's rows are its own events only (its
+intervals cover 87,955,200 of the fisheries window's 314,496,000), so the walk
+keeps, per exposure consumer, a running sum over the rows a rate would store;
+a constrained choice also keeps those row times for its mask request, since
+masks are realized after the walk. An extra rate-style pass was rejected: the
+walk already visits every row, and a pass at simulation time would take the
+scalars off the fit. The exposure is never computed by materializing a per-row
+presence or dyad object. Simulating a fit reads the scalars through the rebuilt
+specification, which also carries the fit's support constraint and modeled
+flavor (task 2.2n): a fit stored neither, so a constrained fit simulated
+unconstrained while its post-gate scalars described the gated process.
+*Revised the same day:* the row-time list for a constrained choice is not
+built. Task 2.11b waits for `constraint-objects-on-shared-walk` D9, which
+composes masks live in the batch walk, so every consumer's exposure is a
+running sum. `relational_window_risk_set()` becomes the exact path only,
+carrying the process's constraint, modeled flavor and derived mask.
 ### D6 — The `times =` axis: free-running and time-anchored, first-class on every family (added 2026-08-19)
 
 One argument on `simulate()`, `times = c("generated", "observed")`, default

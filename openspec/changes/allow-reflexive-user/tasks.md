@@ -46,6 +46,15 @@
       (`validate_prep_support()`) drop their local derivations. Verify: 2.1
       passes and `grep -n 'is_two_mode' R/` shows no second derivation of the
       self-tie rule outside the predicate.
+      *Note 2026-09-26 (`process-simulation` 2.11/2.11b, session
+      goldfish-ec):* two more readers of the self-tie rule land there. The
+      time-weighted exposure (`exposure_entity_time`, via
+      `time_weighted_risk_set()`) counts a REM rate's dyads without the
+      self-dyad on a one-mode layer, matching the likelihood's risk set; the
+      endpoint approximation a specification-driven simulation pins from
+      counts the same way. Both derive "one-mode" locally today and must read
+      the resolved value here, so a reflexive REM's exposure includes the
+      diagonal
 - [ ] 2.3 Remove `abort_if_diagonal_off_grid()` and its snapshot test (D4),
       and rename `op_drop_diagonal` to say what it means (one-mode AND this
       unit has interactions), updating its uses in `R/preprocess_joint.R`.
