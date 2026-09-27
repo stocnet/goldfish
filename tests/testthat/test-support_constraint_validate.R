@@ -214,3 +214,52 @@ test_that("rate: a departing receiver gates out the sender allowed for it", {
     "gated out"
   )
 })
+
+# The full text of every verdict, errors and warnings alike, so a rewrite of
+# how the validation reads its masks is checked against the messages it
+# produced, not only against a keyword in each.
+test_that("every validation verdict keeps its full message", {
+  withr::local_options(cli.num_colors = 1L)
+  local_reproducible_output()
+  excluded <- all_true()
+  excluded[1, 2] <- FALSE
+  empty <- all_true()
+  empty[1, ] <- FALSE
+  forced <- matrix(FALSE, 4L, 4L)
+  forced[1, 2] <- TRUE
+  never_receiver <- all_true()
+  never_receiver[, 4] <- FALSE
+  never_sender <- all_true()
+  never_sender[3, ] <- FALSE
+  pairs <- matrix(FALSE, 4L, 4L)
+  pairs[1, 2] <- TRUE
+  pairs[2, 3] <- TRUE
+
+  expect_snapshot(
+    error = TRUE,
+    call_validate(list(excluded, all_true()), "choice")
+  )
+  expect_snapshot(
+    error = TRUE,
+    call_validate(list(empty, all_true()), "choice")
+  )
+  expect_snapshot(call_validate(list(forced, all_true()), "choice"))
+  expect_snapshot(call_validate(list(never_receiver, never_receiver), "choice"))
+  expect_snapshot(error = TRUE, call_validate(list(empty, all_true()), "rate"))
+  expect_snapshot(call_validate(list(never_sender, never_sender), "rate"))
+  expect_snapshot(call_validate_rate_moving(
+    list(pairs, pairs),
+    c(TRUE, TRUE, FALSE, TRUE),
+    rbind(3, 1),
+    c(0L, 1L)
+  ))
+  expect_snapshot(
+    error = TRUE,
+    call_validate_rate_moving(
+      list(pairs, pairs),
+      rep(TRUE, 4L),
+      rbind(3, 0),
+      c(0L, 1L)
+    )
+  )
+})
