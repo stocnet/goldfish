@@ -1105,6 +1105,15 @@ validate_support_constraint <- function(
       active_2_update,
       active_2_update_pointer
     )
+    count_at <- receiver_count_tracker(
+      support_mask,
+      active_2,
+      active_2_update,
+      active_2_update_pointer,
+      n1,
+      n2,
+      drop_diagonal
+    )
     for (e in dep) {
       mask_e <- mask_at(e)
       present <- receivers_at(e)
@@ -1118,16 +1127,10 @@ validate_support_constraint <- function(
       )
       ever_candidate[allowed] <- TRUE
       # Sender-side counterpart of the never-a-candidate warning: which senders
-      # ever have an allowed, present receiver. Read at the mask's own kind, so
-      # a separable mask answers for every sender without building a grid.
-      gate <- sender_gate_from_mask(
-        mask_e,
-        stored_kind,
-        present,
-        n1,
-        n2,
-        drop_diagonal
-      )
+      # ever have an allowed, present receiver. The count is carried from the
+      # mask's flips and the receiver crossings, as the rate fold carries it,
+      # rather than recomputed from the whole mask at each event.
+      gate <- count_at(e) > 0L
       ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
@@ -1175,25 +1178,22 @@ validate_support_constraint <- function(
   } else {
     ever_active <- logical(n1)
     # The gate is the same per-sender allowed-receiver count the fold
-    # maintains, computed here from the mask's own kind: a separable mask
-    # answers without a grid at all, and only a genuinely dyadic one is reduced
-    # row by row. Both of its inner axes move, so the receiver presence is read
-    # at the event too; freezing it at time zero would keep a sender whose only
-    # allowed receivers have departed on the allowed side of the check.
-    receivers_at <- presence_cursor(
+    # maintains, carried the same way: each event's mask flips, then its
+    # receiver crossings. Both of its inner axes move, so the receiver
+    # presence is followed through the events too; freezing it at time zero
+    # would keep a sender whose only allowed receivers have departed on the
+    # allowed side of the check.
+    count_at <- receiver_count_tracker(
+      support_mask,
       active_2,
       active_2_update,
-      active_2_update_pointer
+      active_2_update_pointer,
+      n1,
+      n2,
+      drop_diagonal
     )
     for (e in dep) {
-      gate <- sender_gate_from_mask(
-        mask_at(e),
-        stored_kind,
-        receivers_at(e),
-        n1,
-        n2,
-        drop_diagonal
-      )
+      gate <- count_at(e) > 0L
       ever_active <- ever_active | (active_1 & gate)
       if (!gate[event_sender[[e]]]) {
         cli::cli_abort(c(

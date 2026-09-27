@@ -157,3 +157,60 @@ test_that("counting a dyadic mask's receivers builds no grid", {
   expect_lt(as.numeric(gate$mem_alloc), budget)
   expect_lt(as.numeric(count$mem_alloc), budget)
 })
+
+# A dyadic mask that changes at every event on six actors, with receivers 2
+# and 5 leaving and 2 coming back, so a carried count sees mask flips and
+# presence moves at the same events.
+moving_mask_fixture <- function() {
+  withr::local_seed(7L)
+  n <- 6L
+  n_events <- 8L
+  masks <- lapply(seq_len(n_events), function(e) stats::runif(n * n) > 0.6)
+  update <- rbind(c(2, 5, 2), c(0, 0, 1))
+  pointer <- c(0L, 0L, 1L, 1L, 2L, 2L, 3L, 3L)
+  present <- lapply(seq_len(n_events), function(e) {
+    p <- rep(TRUE, n)
+    moves <- seq_len(pointer[[e]])
+    for (k in moves) {
+      p[update[1L, k]] <- as.logical(update[2L, k])
+    }
+    p
+  })
+  list(
+    n = n,
+    masks = masks,
+    support_mask = mask_from_timeline(masks),
+    update = update,
+    pointer = pointer,
+    present = present
+  )
+}
+
+test_that("a carried receiver count gates senders as the whole mask does", {
+  fx <- moving_mask_fixture()
+  for (visit in list(seq_along(fx$masks), c(2L, 5L, 8L))) {
+    count_at <- receiver_count_tracker(
+      fx$support_mask,
+      rep(TRUE, fx$n),
+      fx$update,
+      fx$pointer,
+      fx$n,
+      fx$n,
+      drop_diagonal = TRUE
+    )
+    for (e in visit) {
+      expect_identical(
+        count_at(e) > 0,
+        sender_gate_from_mask(
+          fx$masks[[e]],
+          0L,
+          fx$present[[e]],
+          fx$n,
+          fx$n,
+          drop_diagonal = TRUE
+        ),
+        label = paste("event", e, "of", length(visit))
+      )
+    }
+  }
+})

@@ -184,31 +184,15 @@ fold_active_sender_support <- function(
   }
   n1 <- length(out$active_sender_init)
   n2 <- length(active_dyad_init)
-  stored_kind <- support_mask$stored_kind %||% 0L
-  active_2 <- active_dyad_init
-  n_present_receivers <- sum(active_2)
-
-  count <- initial_receiver_count(
-    support_mask$initial,
-    stored_kind,
-    active_2,
+  count_at <- receiver_count_tracker(
+    support_mask,
+    active_dyad_init,
+    out$active_dyad_update,
+    out$active_dyad_update_pointer,
     n1,
     n2,
     drop_diagonal
   )
-  flips_at <- mask_flips(support_mask)
-
-  # Charging a receiver crossing to the counts needs the mask's current value,
-  # not just its flips, so the cursor is opened only when the receiver
-  # composition actually moves: at point kind its value is an n1 x n2 object
-  # and most models never pay for it.
-  receiver_upd <- out$active_dyad_update
-  receiver_ptr <- out$active_dyad_update_pointer
-  tracks_receivers <- !is.null(receiver_upd) &&
-    !is.null(receiver_ptr) &&
-    ncol(receiver_upd) > 0L
-  mask_at <- if (tracks_receivers) mask_cursor(support_mask) else NULL
-  prev_receiver_ptr <- 0L
 
   # Walk the presence crossings buffer in event order to recover presence_e,
   # intersect with the maintained sender gate, and re-encode the result as
@@ -231,36 +215,7 @@ fold_active_sender_support <- function(
       presence[upd[1L, cols]] <- as.logical(upd[2L, cols])
     }
     prev_ptr <- this_ptr
-    count <- apply_receiver_count_flips(
-      count,
-      flips_at(e),
-      stored_kind,
-      active_2,
-      n1,
-      n_present_receivers,
-      drop_diagonal
-    )
-    if (tracks_receivers) {
-      this_receiver_ptr <- receiver_ptr[e]
-      if (this_receiver_ptr > prev_receiver_ptr) {
-        cols <- (prev_receiver_ptr + 1L):this_receiver_ptr
-        crossed <- apply_receiver_presence_flips(
-          count,
-          as.integer(receiver_upd[1L, cols]),
-          as.logical(receiver_upd[2L, cols]),
-          active_2,
-          mask_at(e),
-          stored_kind,
-          n1,
-          drop_diagonal
-        )
-        count <- crossed$count
-        active_2 <- crossed$active_2
-        n_present_receivers <- sum(active_2)
-      }
-      prev_receiver_ptr <- this_receiver_ptr
-    }
-    current <- presence & (count > 0L)
+    current <- presence & (count_at(e) > 0L)
     if (e == 1L) {
       folded_init <- current
     } else {
@@ -293,6 +248,87 @@ fold_active_sender_support <- function(
     out$avg_active_entity <- active_total / n_stored
   }
   out
+}
+
+# Each sender's allowed, present receiver count, carried from event to event
+# as the fold above describes, for any consumer that asks at ascending stored
+# events. Asking for event `e` steps through every event up to it, so a
+# consumer visiting only some events (the validation reads dependent events
+# only) charges each event's mask flips and receiver crossings in the same
+# order the fold does.
+receiver_count_tracker <- function(
+  support_mask,
+  active_2,
+  receiver_update,
+  receiver_pointer,
+  n1,
+  n2,
+  drop_diagonal
+) {
+  stored_kind <- support_mask$stored_kind %||% 0L
+  n_present_receivers <- sum(active_2)
+  count <- initial_receiver_count(
+    support_mask$initial,
+    stored_kind,
+    active_2,
+    n1,
+    n2,
+    drop_diagonal
+  )
+  flips_at <- mask_flips(support_mask)
+
+  # Charging a receiver crossing to the counts needs the mask's current value,
+  # not just its flips, so the cursor is opened only when the receiver
+  # composition actually moves: at point kind its value is an n1 x n2 object
+  # and most models never pay for it.
+  tracks_receivers <- !is.null(receiver_update) &&
+    !is.null(receiver_pointer) &&
+    ncol(receiver_update) > 0L
+  mask_at <- if (tracks_receivers) mask_cursor(support_mask) else NULL
+  prev_receiver_ptr <- 0L
+  seen <- 0L
+
+  step <- function(e) {
+    count <<- apply_receiver_count_flips(
+      count,
+      flips_at(e),
+      stored_kind,
+      active_2,
+      n1,
+      n_present_receivers,
+      drop_diagonal
+    )
+    if (!tracks_receivers) {
+      return(invisible(NULL))
+    }
+    this_receiver_ptr <- receiver_pointer[e]
+    if (this_receiver_ptr > prev_receiver_ptr) {
+      cols <- (prev_receiver_ptr + 1L):this_receiver_ptr
+      crossed <- apply_receiver_presence_flips(
+        count,
+        as.integer(receiver_update[1L, cols]),
+        as.logical(receiver_update[2L, cols]),
+        active_2,
+        mask_at(e),
+        stored_kind,
+        n1,
+        drop_diagonal
+      )
+      count <<- crossed$count
+      active_2 <<- crossed$active_2
+      n_present_receivers <<- sum(active_2)
+    }
+    prev_receiver_ptr <<- this_receiver_ptr
+    invisible(NULL)
+  }
+
+  function(e) {
+    while (seen < e) {
+      seen <<- seen + 1L
+      step(seen)
+    }
+    count
+  }
 }
 
 # How many allowed, present receivers each sender starts with, read off the
