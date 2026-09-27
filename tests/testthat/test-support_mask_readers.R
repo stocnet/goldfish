@@ -132,3 +132,28 @@ test_that("reading a dyadic mask's rows costs far less than a grid a row", {
   )
   expect_lt(as.numeric(used$mem_alloc), n * (n * n * 4) / 10)
 })
+
+test_that("counting a dyadic mask's receivers builds no grid", {
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  # With every receiver present there is nothing to subset, so a count is a
+  # pass over the stored vector. Reshaping it into a grid and taking columns
+  # costs two grids a call, 0.69 MB here; the bound is a tenth of one.
+  n <- 300L
+  withr::local_seed(1L)
+  support <- stats::runif(n * n) > 0.5
+  present <- rep(TRUE, n)
+  budget <- 50 * (n * n * 4) / 10
+  gate <- bench::bench_memory(
+    for (i in 1:50) {
+      sender_gate_from_mask(support, 0L, present, n, n, drop_diagonal = TRUE)
+    }
+  )
+  count <- bench::bench_memory(
+    for (i in 1:50) {
+      initial_receiver_count(support, 0L, present, n, n, drop_diagonal = TRUE)
+    }
+  )
+  expect_lt(as.numeric(gate$mem_alloc), budget)
+  expect_lt(as.numeric(count$mem_alloc), budget)
+})

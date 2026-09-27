@@ -316,10 +316,7 @@ initial_receiver_count <- function(
     "3" = if (isTRUE(as.logical(initial))) rep(present, n1) else rep(0L, n1),
     "2" = ifelse(as.logical(initial), present, 0L),
     "1" = rep(sum(as.logical(initial) & active_2), n1),
-    "0" = rowSums(
-      matrix(as.logical(initial), n1, n2) &
-        rep(active_2, each = n1)
-    ),
+    "0" = point_receiver_count(initial, active_2, n1, n2),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.", .internal = TRUE)
   )
   count - own_receiver_count(initial, stored_kind, active_2, n1, drop_diagonal)

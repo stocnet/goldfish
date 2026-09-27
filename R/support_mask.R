@@ -208,8 +208,7 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
 #' kind. A separable mask answers it without a grid: an alter mask gives every
 #' sender the same answer, an ego mask gives each sender its own, and a global
 #' mask gives everyone the same. Only a genuinely dyadic mask is reduced row by
-#' row, and even then the grid is built once for the event rather than as a
-#' `rep()`-broadcast intermediate.
+#' row, and even then over its stored vector, without building the grid.
 #'
 #' The preprocessing folds MAINTAIN this as a count rather than recomputing it;
 #' this is the from-scratch form, for a consumer that reads one event at a time
@@ -262,13 +261,27 @@ sender_gate_from_mask <- function(
     "3" = if (isTRUE(as.logical(support))) rep(sum(active_2), n1) else 0L,
     "2" = ifelse(as.logical(support), sum(active_2), 0L),
     "1" = rep(sum(as.logical(support) & active_2), n1),
-    "0" = rowSums(matrix(as.logical(support), n1, n2)[,
-      active_2,
-      drop = FALSE
-    ]),
+    "0" = point_receiver_count(support, active_2, n1, n2),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
   count - own > 0
+}
+
+# Each sender's allowed, present receivers under a dyadic (kind 0) mask, the
+# self-dyad included. The count is taken on the stored column-major vector:
+# with every receiver present that is a pass over it, and otherwise only the
+# present receivers' columns are copied, never the whole grid twice as a
+# reshape and a column subset would.
+point_receiver_count <- function(support, active_2, n1, n2) {
+  if (!is.logical(support)) {
+    support <- as.logical(support)
+  }
+  if (all(active_2)) {
+    return(.rowSums(support, n1, n2))
+  }
+  columns <- which(as.logical(active_2))
+  cells <- rep((columns - 1L) * n1, each = n1) + seq_len(n1)
+  .rowSums(support[cells], n1, length(columns))
 }
 
 # A self-dyad exists only where both axes name one node set. A caller asking
