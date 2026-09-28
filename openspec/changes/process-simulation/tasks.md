@@ -714,7 +714,7 @@
       multi-period relational fixture reproduces each period's `count_w`; single-window
       reduction matches the upstream value byte-for-byte
 
-- [ ] 2.11 Exposure integral on the merged walk (added 2026-09-15, D5): the
+- [x] 2.11 Exposure integral on the merged walk (added 2026-09-15, D5): the
       walk accumulates, per timed fid, `∫|R_w(t)| dt` — the sum over
       intervals of `dt × |active ∩ gated senders|`, presence changes applied
       at their stamps — and stores it beside `total_time` on the
@@ -779,6 +779,18 @@
       which `constraint-objects-on-shared-walk` D9 retires as a post-walk
       step. The computation is one loop over the stored output rows, not a
       second walk through the events
+      — *done 2026-09-28 (goldfish-ce), `c323fdc`*: `risk_set_exposure()`
+      in `render_finalized_consumers()` (senders; "outer" dyads as the
+      factor product less the diagonal; "point" dyads by per-cell flips);
+      tested as `n_dep_events / exposure_entity_time` = the intercept-only
+      MLE (`~ 1 + offset(x, coef = 0)`) to 1e-9, guards proven by
+      mutation. Alvaro settled: the flavored pin's stand-in is keyed on
+      every flavor of the layer; a zero window gives 0 and 0; the parity
+      goldens drop the two scalars from both sides; three tests that
+      pinned a default Newton stop converge tightly. Frozen baselines all
+      PASS (the two-mode REM cell too); none moved beyond 1e-6. The window
+      is the formula's combined schedule (ADR-0100), which 2.11b's
+      equality test must respect
 - [ ] 2.2n The fit rebuild keeps the support constraint and the modeled
       flavor (added 2026-09-27, ADR-0099; schedule: after 2.11, before
       2.11b): a fit stores neither today, so `simulate(fit, data =)` on a
