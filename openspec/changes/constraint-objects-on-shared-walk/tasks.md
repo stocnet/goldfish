@@ -1,11 +1,15 @@
 ## 0. Gates and references (D2 step one)
 
-- [ ] 0.1 Confirm `constraint-atoms-as-operands` is landed on
+- [x] 0.1 Confirm `constraint-atoms-as-operands` is landed on
       `feature_simulation` with only its task 3.2 open, and the tree clean;
       `NOT_CRAN=true` suite green (not-cran-test; baselines PASS not SKIP).
       Record in `progress.md` the pre-existing order-dependent
       `test-complete_generative_spec.R` snapshot failure so it is not
       mistaken for a regression.
+      — *done 2026-09-29 (goldfish-ce), at `e5ba0f8`*: only 3.2 open; tree
+      clean; 9295 PASS / 0 FAIL / 4 SKIP, six baseline files PASS. The
+      order-dependent snapshot failure did not occur in this run (nor at
+      2.2n); recorded in `progress.md` as not reproduced.
 - [ ] 0.2 Add a fifth reference family to `helper-constraint-atoms.R` on the
       uncovered shape (`walk_constrained_data()`, `choice ~ inertia`,
       `support_constraint = ~ !tie(emails)`; plus a rate variant) and
