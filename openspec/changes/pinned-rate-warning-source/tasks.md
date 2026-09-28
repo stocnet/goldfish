@@ -28,7 +28,7 @@
 
 ## 2. One warning per completed rate, worded by source (design D2–D4)
 
-- [ ] 2.1a Write failing tests (`r-lib:testing-r-packages`, pinned cli context):
+- [x] 2.1a Write failing tests (`r-lib:testing-r-packages`, pinned cli context):
       at `estimate_dynes()` entry, a completed rate on the relational fixture
       (`pinned_entry_join()`) raises exactly **one** warning that names
       `emails › rate`, states the observed-event-count source, carries the
@@ -39,7 +39,7 @@
       handler on either `goldfish_pinned_rate_warning` or
       `goldfish_completed_default_warning`, and that a completed **choice**
       carries only the latter. Run to confirm RED; commit the tests alone.
-- [ ] 2.1b Implement per `r-lib:cli`: `complete_generative_spec()` passes
+- [x] 2.1b Implement per `r-lib:cli`: `complete_generative_spec()` passes
       `completed$completed_rates` and `completed$process_map` into
       `warn_completed_defaults()` alongside `added` and the consumer. For each
       `added` row with `family == "rate"`, resolve its fid with an NA-safe
