@@ -84,3 +84,9 @@
   optimizer's tolerance.
 * A completed rate on a flavored, event-observed layer is pinned from that
   flavor's own exposure instead of the panel wave-endpoint approximation.
+* Fixed `simulate()` on a fitted model dropping the `support_constraint` and
+  the modeled flavor it was estimated with: a constrained fit drew events on
+  dyads its constraint excludes, and a fit of one flavor, such as
+  `rate = list(creation ~ ...)`, simulated every event of the layer. A fit
+  now records both as `support_constraint` and `modeled_flavor`, and the
+  rebuilt model carries them, deriving a flavor's mask again from the data.

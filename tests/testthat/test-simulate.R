@@ -1684,3 +1684,175 @@ test_that("a fitted ordered rate rebuilds ordered and refuses a clock", {
     class = "goldfish_sim_no_clock"
   )
 })
+
+# The dyads `emails` holds strictly before each event, which the constraint
+# `~ !tie(emails)` excludes from that event's risk set.
+on_held_emails_dyad <- function(events, data) {
+  emails <- data$ties[data$ties$layer == "emails", ]
+  vapply(
+    seq_len(nrow(events)),
+    function(i) {
+      any(
+        emails$from == events$sender[i] &
+          emails$to == events$receiver[i] &
+          emails$time < events$time[i]
+      )
+    },
+    logical(1)
+  )
+}
+
+test_that("a fit records its support constraint and modeled flavor", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "REM",
+    data = data
+  )
+  fit <- suppressMessages(estimate_rem(spec, sub_model = "rate"))
+
+  # Recorded even when there is none, so the fit states it was unconstrained.
+  expect_contains(names(fit), c("support_constraint", "modeled_flavor"))
+  expect_null(fit$support_constraint)
+  expect_null(fit$modeled_flavor)
+})
+
+test_that("a constrained REM fit simulates under its constraint", {
+  data <- sim_fixture_data()
+  # A term reads `emails`, so the walk steps the constraint's object.
+  spec <- make_specification(
+    rate = ~ 1 + indeg(emails),
+    layer = "calls",
+    model = "REM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  fit <- suppressMessages(estimate_rem(spec, sub_model = "rate"))
+
+  expect_identical(deparse1(fit$support_constraint), "~!tie(emails)")
+  from_fit <- suppressMessages(suppressWarnings(
+    simulate(fit, seed = 2, data = data, n_events = 200)
+  ))
+  from_spec <- suppressMessages(suppressWarnings(
+    simulate(spec, seed = 2, coef = fit$parameters, n_events = 200)
+  ))
+
+  expect_identical(from_fit$events, from_spec$events)
+  expect_false(any(on_held_emails_dyad(from_fit$events, data)))
+})
+
+test_that("a constrained DyNAM choice fit simulates under its constraint", {
+  data <- sim_fixture_data()
+  spec <- make_specification(
+    choice = ~ indeg(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  fit <- suppressMessages(estimate_dynam(spec, sub_model = "choice"))
+
+  # Time-anchored at the five observed stamps; many replicates so an
+  # unconstrained receiver draw would land on an excluded dyad.
+  from_fit <- suppressMessages(suppressWarnings(
+    simulate(fit, nsim = 40, seed = 5, data = data)
+  ))
+  from_spec <- suppressMessages(suppressWarnings(
+    simulate(spec, nsim = 40, seed = 5, coef = fit$parameters)
+  ))
+
+  events <- do.call(rbind, lapply(from_fit, `[[`, "events"))
+  expect_identical(
+    lapply(from_fit, `[[`, "events"),
+    lapply(from_spec, `[[`, "events")
+  )
+  expect_false(any(on_held_emails_dyad(events, data)))
+})
+
+test_that("a fit of one modeled flavor rebuilds that flavor", {
+  data <- flavored_fixture_data()
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg),
+    model = "DyNAM",
+    data = data
+  )
+  fit <- suppressWarnings(estimate_dynam(spec, sub_model = "rate"))
+
+  expect_identical(as.vector(fit$modeled_flavor), "creation")
+  rebuilt <- specification_from_fit(fit, data, rlang::current_env())
+  expect_identical(rebuilt$modeled_flavor, "creation")
+  # The mutually exclusive layer's mask is derived again from the data.
+  expect_identical(
+    deparse1(rebuilt$derived_constraint),
+    deparse1(spec$derived_constraint)
+  )
+
+  from_fit <- suppressWarnings(simulate(
+    fit,
+    seed = 2,
+    data = data,
+    n_events = 30
+  ))
+  from_spec <- suppressWarnings(
+    simulate(spec, seed = 2, coef = fit$parameters, n_events = 30)
+  )
+  expect_identical(from_fit$events, from_spec$events)
+  expect_setequal(from_fit$events$flavor, "creation")
+  map <- from_fit$process_map
+  expect_identical(
+    map$regime[map$flavor %in% "dissolution"],
+    "anchored-replay"
+  )
+})
+
+test_that("a flavored process fit rebuilds its own flavor", {
+  res <- flavored_single_family_fit()
+  fit <- fit_of(res, "dissolution", "rate")
+
+  expect_identical(as.vector(fit$modeled_flavor), "dissolution")
+  rebuilt <- specification_from_fit(
+    fit,
+    flavored_fixture_data(),
+    rlang::current_env()
+  )
+  expect_identical(rebuilt$modeled_flavor, "dissolution")
+})
+
+test_that("a fit named by its dependent events rebuilds without a mask", {
+  data <- flavored_fixture_data()
+  data$info$dependents <- list(
+    creations = list(layer = "calls", flavor = "creation")
+  )
+  # The dependent-events name selects the flavor and derives no mask, so the
+  # rebuild names the process the same way rather than keying the flavor.
+  fit <- suppressWarnings(
+    estimate_dynam(creations ~ 1 + indeg, sub_model = "rate", data = data)
+  )
+
+  expect_identical(as.vector(fit$modeled_flavor), "creation")
+  expect_identical(attr(fit$modeled_flavor, "dependent"), "creations")
+  rebuilt <- specification_from_fit(fit, data, rlang::current_env())
+  expect_identical(rebuilt$modeled_flavor, "creation")
+  expect_null(rebuilt$derived_constraint)
+  expect_null(rebuilt$constraint)
+})
+
+test_that("a specification named by its dependent events rebuilds so", {
+  data <- flavored_fixture_data()
+  data$info$dependents <- list(
+    creations = list(layer = "calls", flavor = "creation")
+  )
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "creations",
+    model = "DyNAM",
+    data = data
+  )
+  fit <- suppressWarnings(estimate_dynam(spec, sub_model = "rate"))
+
+  expect_identical(attr(fit$modeled_flavor, "dependent"), "creations")
+  rebuilt <- specification_from_fit(fit, data, rlang::current_env())
+  expect_identical(rebuilt$layer, spec$layer)
+  expect_null(rebuilt$derived_constraint)
+})

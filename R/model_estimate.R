@@ -259,6 +259,13 @@
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
+#'   \item{support_constraint}{the one-sided `support_constraint` formula the
+#'   model was estimated with, or `NULL` when it had none. A flavor's derived
+#'   mask is not included: it follows from the data's flavor style.}
+#'   \item{modeled_flavor}{the flavor whose events were modeled, or `NULL`
+#'   when every event of the layer was. A flavor selected through a
+#'   dependent-events name carries that name as its `dependent` attribute.
+#'   [simulate()] rebuilds the model from these two and `formula`.}
 #'   \item{backend}{a character value naming the computational implementation
 #'   that produced the fit (`"cpp"`, `"r"` or `"gather"`), after any
 #'   estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
@@ -788,7 +795,8 @@ estimate_from_specification <- function(
     support_constraint = spec$constraint,
     modeled_flavor = spec$modeled_flavor,
     output = output,
-    max_length = max_length
+    max_length = max_length,
+    specification = spec
   )
 }
 
@@ -2041,6 +2049,44 @@ resolve_preprocessed <- function(
   )
 }
 
+# The support constraint a fit records: the user's formula, not the parsed
+# plan estimation ran on. A flavor's derived mask is left out because the
+# rebuild derives it again from the data's flavor style. Kept without its
+# environment, as the fit's formula is, so a fit carries none of the
+# caller's objects.
+fit_support_constraint <- function(specification, support_constraint) {
+  constraint <- if (!is.null(specification)) {
+    specification$support_constraint
+  } else if (inherits(support_constraint, "formula")) {
+    support_constraint
+  }
+  if (is.null(constraint)) {
+    return(NULL)
+  }
+  stats::as.formula(deparse1(constraint), env = new.env(parent = emptyenv()))
+}
+
+# The modeled flavor a fit records. A flavor selected by a dependent-events
+# name carries that name as its `dependent` attribute: that path derives no
+# flavor mask, so the rebuild names the process the same way instead of
+# keying the flavor, which would derive one.
+fit_modeled_flavor <- function(flavor, specification, dependent_alias) {
+  if (length(flavor) == 0L) {
+    return(NULL)
+  }
+  dependent <- dependent_alias
+  if (
+    !is.null(specification) &&
+      !identical(specification$layer, specification$focal)
+  ) {
+    dependent <- specification$layer
+  }
+  if (!is.null(dependent)) {
+    attr(flavor, "dependent") <- dependent
+  }
+  flavor
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -2063,7 +2109,8 @@ estimate_wrapper <- function(
   support_constraint = NULL,
   modeled_flavor = NULL,
   recorded_flavor = NULL,
-  flavor_plan = NULL
+  flavor_plan = NULL,
+  specification = NULL
 ) {
   output <- match.arg(output)
 
@@ -2264,8 +2311,12 @@ estimate_wrapper <- function(
   # A dependent-events object name on the LHS (the legacy call surface, e.g.
   # `create_bilat ~ ...`) resolves to its focal layer and stamped flavor before
   # parsing, so the rest of the pipeline sees an ordinary focal layer.
+  dependent_alias <- NULL
   if (!is_legacy) {
     aliased <- resolve_dependent_alias(formula, work_data, modeled_flavor)
+    if (!identical(aliased$formula, formula)) {
+      dependent_alias <- deparse1(formula[[2L]])
+    }
     formula <- aliased$formula
     modeled_flavor <- aliased$modeled_flavor
   }
@@ -3147,6 +3198,17 @@ estimate_wrapper <- function(
     env = new.env(parent = emptyenv())
   )
   result$formula <- formula_keep
+  # Beyond its formula, simulating a fit rebuilds the process from the
+  # support constraint and the modeled flavor it was estimated with. Both
+  # are recorded even when absent, so a fit states it was unconstrained.
+  result["support_constraint"] <- list(
+    fit_support_constraint(specification, support_constraint)
+  )
+  result["modeled_flavor"] <- list(fit_modeled_flavor(
+    recorded_flavor %||% modeled_flavor,
+    specification,
+    dependent_alias
+  ))
   # The self-contained data has no caller-scope dependent object for the broom /
   # diagnostic surface to `get()`, so carry the modeled dependent events on the
   # result (labels resolved from the mode map), in event-schedule order.

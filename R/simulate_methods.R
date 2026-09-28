@@ -85,7 +85,9 @@
 #'   or a [set_parameter_provider()]. A fitted model supplies its own estimates
 #'   and needs none.
 #' @param data the stocnet to simulate on. Required on a fitted model, which
-#'   stores its formula and estimates but not the data it was fitted on.
+#'   stores its formula and estimates but not the data it was fitted on. The
+#'   model is rebuilt with the support constraint and the modeled flavor the
+#'   fit was estimated with.
 #' @param times `"generated"` for a free-running run or `"observed"` for a
 #'   time-anchored one. Defaults to [times_of()], which reads the variant from
 #'   what the model can honor; an explicit value it cannot honor is refused
@@ -526,7 +528,8 @@ abort_on_effect_free_process <- function(joint_spec, call) {
 
 # Rebuild the specification a fit was estimated from. A `goldfishFit` stores
 # its formula (two-sided, the response naming the focal layer), its model and
-# its sub-model, but NOT the specification object and NOT the data -- so the
+# its sub-model, its support constraint and its modeled flavor,
+# but NOT the specification object and NOT the data -- so the
 # data comes from the caller, who has it, rather than from a copy of the whole
 # stocnet carried on every fitted model.
 specification_from_fit <- function(fit, data, call) {
@@ -557,7 +560,25 @@ specification_from_fit <- function(fit, data, call) {
   # fit never estimated.
   family <- if (is_choice_family(fit$model_spec)) "choice" else "rate"
   sub_model <- fit$model_spec$sub_model %||% fit$sub_model
-  args <- list(layer = layer, model = fit$model, data = data)
+  # A flavor selected by a dependent-events name is rebuilt through that name,
+  # which derives no flavor mask, as its estimation did not. Any other modeled
+  # flavor is keyed, so a mutually exclusive layer derives its mask again.
+  flavor <- fit$modeled_flavor
+  dependent <- attr(flavor, "dependent")
+  if (!is.null(dependent)) {
+    layer <- dependent
+  } else if (!is.null(flavor)) {
+    rhs <- list(stats::as.formula(
+      call("~", as.name(flavor), rhs[[2L]]),
+      env = environment(rhs)
+    ))
+  }
+  args <- list(
+    layer = layer,
+    model = fit$model,
+    data = data,
+    support_constraint = fit$support_constraint
+  )
   args[[family]] <- rhs
   args[[paste0(family, "_sub_model")]] <- sub_model
   do.call(make_specification, args)

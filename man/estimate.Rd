@@ -278,6 +278,13 @@ preprocessed object it was estimated from.}
 \item{formula}{a formula with the information of the model fitted.}
 \item{model}{a character value of the model type.}
 \item{sub_model}{a character value of the sub_model type.}
+\item{support_constraint}{the one-sided \code{support_constraint} formula the
+model was estimated with, or \code{NULL} when it had none. A flavor's derived
+mask is not included: it follows from the data's flavor style.}
+\item{modeled_flavor}{the flavor whose events were modeled, or \code{NULL}
+when every event of the layer was. A flavor selected through a
+dependent-events name carries that name as its \code{dependent} attribute.
+\code{\link[=simulate]{simulate()}} rebuilds the model from these two and \code{formula}.}
 \item{backend}{a character value naming the computational implementation
 that produced the fit (\code{"cpp"}, \code{"r"} or \code{"gather"}), after any
 estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
