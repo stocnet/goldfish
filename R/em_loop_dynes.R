@@ -31,6 +31,8 @@
 #   proposals with no parameter to explain the move.
 # * `map_fn`: the per-sequence map seam the pool preprocesses and evaluates
 #   through (lapply() by default).
+# * `store`: the resident pool store (open_pool_store()) every draw is sent
+#   to; without one, the first pool opens a serial store over `map_fn`.
 #
 # Returns a list: the last accepted `parameters`, `converged`, the number of
 # accepted `iterations`, the `em_trace` (one row per pass), and the final
@@ -44,6 +46,7 @@ run_abem_loop <- function(
   spec = NULL,
   control_prep = set_preprocessing(),
   map_fn = lapply,
+  store = NULL,
   call = rlang::caller_env()
 ) {
   if (!inherits(control, "goldfishAlgoEm")) {
@@ -78,7 +81,8 @@ run_abem_loop <- function(
   run$loglik <- numeric(0)
 
   # Draw `n` sequences at `theta`, continuing the iteration's draw_index, and
-  # append them to the pool with their log-likelihood at `theta` cached.
+  # append them to the pool (or let them replace it) with their log-likelihood
+  # at `theta` cached. Either way the store receives the new sequences once.
   draw_into_pool <- function(n, iteration, theta, replace = FALSE) {
     n <- as.integer(n)
     if (n <= 0L) {
@@ -91,24 +95,31 @@ run_abem_loop <- function(
       run_state,
       any(vapply(drawn, function(d) isTRUE(d$restarted), logical(1)))
     )
-    chunk <- build_sequence_pool(
-      decomposition,
-      lapply(drawn, abem_pool_entry, theta = theta, call = call),
-      theta_length = length(theta),
-      control_prep = control_prep,
-      map_fn = map_fn
-    )
-    loglik <- evaluate_sequence_pool(chunk, theta, what = "loglik")$loglik
-    for (i in seq_along(chunk$sequences)) {
-      chunk$sequences[[i]]$reference$loglik_ref <- loglik[[i]]
-    }
-    if (replace || is.null(run$pool)) {
-      run$pool <- chunk
-      run$loglik <- loglik
+    entries <- lapply(drawn, abem_pool_entry, theta = theta, call = call)
+    fresh <- replace || is.null(run$pool)
+    if (fresh) {
+      run$pool <- build_sequence_pool(
+        decomposition,
+        entries,
+        theta_length = length(theta),
+        control_prep = control_prep,
+        map_fn = map_fn,
+        store = store %||% run$pool$store
+      )
+      added <- seq_along(run$pool$sequences)
     } else {
-      run$pool$sequences <- c(run$pool$sequences, chunk$sequences)
-      run$loglik <- c(run$loglik, loglik)
+      added <- length(run$pool$sequences) + seq_along(entries)
+      run$pool <- append_sequence_pool(run$pool, entries, call = call)
     }
+    loglik <- evaluate_sequence_pool(
+      pool_subset(run$pool, added),
+      theta,
+      what = "loglik"
+    )$loglik
+    for (j in seq_along(added)) {
+      run$pool$sequences[[added[[j]]]]$reference$loglik_ref <- loglik[[j]]
+    }
+    run$loglik <- if (fresh) loglik else c(run$loglik, loglik)
     n
   }
 
@@ -187,9 +198,11 @@ run_abem_loop <- function(
 
       pool <- run$pool
       score_fn <- function(theta, indices) {
-        sub_pool <- pool
-        sub_pool$sequences <- pool$sequences[indices]
-        scores <- evaluate_sequence_pool(sub_pool, theta, what = "score")$score
+        scores <- evaluate_sequence_pool(
+          pool_subset(pool, indices),
+          theta,
+          what = "score"
+        )$score
         # A degenerate sequence carries zero weight; a zero score keeps its
         # NA out of a cyclic batch's weighted sum.
         scores[!is.finite(scores)] <- 0

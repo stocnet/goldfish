@@ -127,18 +127,16 @@ keyed_draw_task <- function(draw, iteration, theta) {
   }
 }
 
-# The seam for one estimation run: `map(x, f)` with the lapply() contract, and
-# `close()` to release any daemons. Serial is the default (n_cores = 1L);
+# The seam for one estimation run: `map(x, f)` with the lapply() contract,
+# `broadcast(f, args)` running `f` once on every worker (the pool store's
+# mutations) and returning each worker's result, and `close()` to release any
+# daemons. Serial is the default (n_cores = 1L);
 # only n_cores > 1 asks for parallelism, and without mirai that request warns
 # once and runs serially, which gives the same result. Workers times BLAS
 # threads never exceeds `n_cores`, so the two levels of parallelism do not
 # oversubscribe.
 dynes_map_seam <- function(control, call = rlang::caller_env()) {
-  serial <- list(
-    map = lapply,
-    n_workers = 1L,
-    close = function() invisible(NULL)
-  )
+  serial <- serial_map_seam()
   if (control$n_cores <= 1L) {
     return(serial)
   }
@@ -162,8 +160,21 @@ dynes_map_seam <- function(control, call = rlang::caller_env()) {
     map = function(x, f) {
       reduce_in_index_order(dynes_parallel_map(x, f, compute))
     },
+    broadcast = function(f, args) {
+      dynes_broadcast(f, args, compute, n_workers)
+    },
     n_workers = n_workers,
     close = function() dynes_daemons_stop(compute)
+  )
+}
+
+# The serial seam over `map_fn`: one worker, this process.
+serial_map_seam <- function(map_fn = lapply) {
+  list(
+    map = map_fn,
+    broadcast = function(f, args) list(do.call(f, args)),
+    n_workers = 1L,
+    close = function() invisible(NULL)
   )
 }
 
@@ -244,4 +255,34 @@ dynes_daemons_stop <- function(compute) {
 dynes_parallel_map <- function(x, f, compute) {
   values <- mirai::mirai_map(x, f, .compute = compute)[mirai::.stop]
   lapply(seq_along(values), function(i) list(index = i, value = values[[i]]))
+}
+
+# Run `f(args)` on every daemon and collect each daemon's result. `.min` makes
+# the call wait for all `n_workers` daemons, and under dispatcher everywhere()
+# is a synchronization point, so no task mapped afterwards can reach a daemon
+# the broadcast has not. A daemon that fails, or one that never answers, would
+# leave its resident store behind the others', so either aborts.
+dynes_broadcast <- function(f, args, compute, n_workers) {
+  results <- mirai::collect_mirai(mirai::everywhere(
+    do.call(f, args),
+    .args = list(f = f, args = args),
+    .min = n_workers,
+    .compute = compute
+  ))
+  failed <- vapply(results, mirai::is_error_value, logical(1))
+  if (any(failed) || length(results) < n_workers) {
+    problem <- if (any(failed)) {
+      c(
+        "x" = "{sum(failed)} of {length(results)} daemon{?s} failed.",
+        "i" = "First failure: {as.character(results[failed][[1L]])}"
+      )
+    } else {
+      c("x" = "Only {length(results)} of {n_workers} daemons answered.")
+    }
+    cli::cli_abort(
+      c("The pool store could not be updated on every daemon.", problem),
+      class = "goldfish_dynes_broadcast_failed"
+    )
+  }
+  results
 }

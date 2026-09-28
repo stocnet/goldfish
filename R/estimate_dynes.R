@@ -110,6 +110,19 @@ estimate_dynes <- function(
   keyer <- new_draw_keyer(get_rng_state())
   seam <- dynes_map_seam(control_algo, call = call)
   on.exit(seam$close(), add = TRUE, after = FALSE)
+  # The static header reaches the workers once, here; the store is released
+  # before the daemons stop.
+  store <- open_pool_store(
+    seam,
+    pool_store_header(
+      decomposition,
+      length(labels),
+      control_prep,
+      completed$data,
+      call = call
+    )
+  )
+  on.exit(close_pool_store(store), add = TRUE, after = FALSE)
   augmenter <- keyed_augmenter(
     augmenter,
     keyer,
@@ -135,6 +148,7 @@ estimate_dynes <- function(
     spec = completed,
     control_prep = control_prep,
     map_fn = seam$map,
+    store = store,
     call = call
   )
   res$parameters <- stats::setNames(as.numeric(res$parameters), labels)

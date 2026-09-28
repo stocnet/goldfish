@@ -453,7 +453,7 @@
       already records it). Close the design's "mirai path never run" item
       with a one-line note that the real-daemon test now runs in the
       `NOT_CRAN=true` gate.
-- [ ] 6.2a Write failing tests for broadcast-resident pool data (design "Open
+- [x] 6.2a Write failing tests for broadcast-resident pool data (design "Open
       Questions", no-daemon-resident-data verdict; spec scenario "pool data
       reaches the daemons once"), against a mocked seam that records payloads:
       the evaluation-task payload does not grow with K and contains no
@@ -464,7 +464,7 @@
       The id-sync test also asserts the pool generation counter (6.2b), and a
       task carrying a stale generation aborts, on the serial store as well as
       the daemon store.
-- [ ] 6.2b Implement: a pool store keyed by sequence id with append/replace
+- [x] 6.2b Implement: a pool store keyed by sequence id with append/replace
       mutations, broadcast via `mirai::everywhere()` on daemons and a local
       environment on the serial path; hook both mutations into
       `draw_into_pool()`; broadcast the static header (sub-models,

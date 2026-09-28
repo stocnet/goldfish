@@ -325,12 +325,16 @@ fid_stats <- function(stats, sm) {
 #   evaluated at.
 # * `map_fn`: the per-sequence map seam, `function(x, f)`; the serial lapply
 #   default requires no optional dependency.
+# * `store`: the resident pool store (open_pool_store()) the sequences are
+#   sent to. The pool REPLACES whatever the store held. Without one, a serial
+#   store over `map_fn` is opened for this pool.
 build_sequence_pool <- function(
   decomposition,
   sequences,
   theta_length,
   control_prep = set_preprocessing(),
   map_fn = lapply,
+  store = NULL,
   call = rlang::caller_env()
 ) {
   if (!inherits(decomposition, "goldfishDynesDecomposition")) {
@@ -339,13 +343,7 @@ build_sequence_pool <- function(
       call = call
     )
   }
-  sub_models <- decomposition$sub_models
-  if (!is.list(sequences) || length(sequences) == 0) {
-    cli::cli_abort(
-      "{.arg sequences} must be a non-empty list of pooled sequences.",
-      call = call
-    )
-  }
+  check_pool_sequences(sequences, call = call)
   if (
     !rlang::is_scalar_integerish(theta_length, finite = TRUE) ||
       theta_length < 1
@@ -356,7 +354,7 @@ build_sequence_pool <- function(
     )
   }
   theta_length <- as.integer(theta_length)
-  for (sm in sub_models) {
+  for (sm in decomposition$sub_models) {
     if (any(sm$theta_index > theta_length)) {
       cli::cli_abort(
         "A sub-model's {.field theta_index} runs past {.arg theta_length}
@@ -364,6 +362,85 @@ build_sequence_pool <- function(
         call = call
       )
     }
+  }
+
+  if (is.null(store)) {
+    # The coefficient layout depends on the formulas, not on the drawn events,
+    # so one sequence's data resolves it for the whole pool.
+    store <- open_pool_store(
+      serial_map_seam(map_fn),
+      pool_store_header(
+        decomposition,
+        theta_length,
+        control_prep,
+        sequences[[1]]$data,
+        call = call
+      )
+    )
+  } else if (!identical(store$header$theta_length, theta_length)) {
+    cli::cli_abort(
+      "{.arg theta_length} ({.val {theta_length}}) differs from the pool
+       store's ({.val {store$header$theta_length}}).",
+      call = call
+    )
+  }
+
+  built <- pool_entries(store, sequences)
+  ids <- pool_store_mutate(store, built, replace = TRUE)
+  header <- store$header
+  structure(
+    list(
+      sub_models = header$sub_models,
+      engine_spec = header$engine_spec,
+      sequences = built,
+      ids = ids,
+      generation = store$generation,
+      theta_length = header$theta_length,
+      control_prep = header$control_prep,
+      store = store
+    ),
+    class = c("goldfishDynesPool", "list")
+  )
+}
+
+# Append `sequences` to `pool`: preprocessed on entry like a new pool, sent to
+# the pool's store, and added after the existing sequences. Only the current
+# pool can grow: appending to one a later mutation superseded would leave the
+# store holding sequences this pool does not list.
+append_sequence_pool <- function(pool, sequences, call = rlang::caller_env()) {
+  check_pool_sequences(sequences, call = call)
+  store <- pool$store
+  if (!identical(pool$generation, store$generation)) {
+    cli::cli_abort(
+      "Only the current pool can grow; this one is at generation
+       {.val {pool$generation}}, the store at {.val {store$generation}}.",
+      class = "goldfish_dynes_stale_pool",
+      call = call
+    )
+  }
+  built <- pool_entries(store, sequences)
+  ids <- pool_store_mutate(store, built, replace = FALSE)
+  pool$sequences <- c(pool$sequences, built)
+  pool$ids <- c(pool$ids, ids)
+  pool$generation <- store$generation
+  pool
+}
+
+# The pool restricted to the sequences at `indices`, in that order: an SGD
+# batch or the chunk a draw just added. It shares the store and generation, so
+# it evaluates the same resident sequences.
+pool_subset <- function(pool, indices) {
+  pool$sequences <- pool$sequences[indices]
+  pool$ids <- pool$ids[indices]
+  pool
+}
+
+check_pool_sequences <- function(sequences, call) {
+  if (!is.list(sequences) || length(sequences) == 0) {
+    cli::cli_abort(
+      "{.arg sequences} must be a non-empty list of pooled sequences.",
+      call = call
+    )
   }
   for (i in seq_along(sequences)) {
     seq_i <- sequences[[i]]
@@ -375,38 +452,30 @@ build_sequence_pool <- function(
       )
     }
   }
+}
 
-  # The coefficient layout depends on the formulas, not on the drawn events,
-  # so one sequence's data resolves it for the whole pool.
-  sub_models <- with_coefficient_masks(
-    sub_models,
-    sequences[[1]]$data,
-    call = call
-  )
-
-  built <- map_fn(
+# Preprocess `sequences` once each through the store's map seam.
+pool_entries <- function(store, sequences) {
+  header <- store$header
+  store$seam$map(
     sequences,
-    pool_entry_task(sub_models, decomposition$engine_spec, control_prep)
-  )
-
-  structure(
-    list(
-      sub_models = sub_models,
-      engine_spec = decomposition$engine_spec,
-      sequences = built,
-      theta_length = theta_length,
-      control_prep = control_prep,
-      map_fn = map_fn
-    ),
-    class = c("goldfishDynesPool", "list")
+    pool_entry_task(
+      header$sub_models,
+      header$engine_spec,
+      header$control_prep
+    )
   )
 }
 
 # The per-sequence pool-entry task: preprocess once and store the statistics
 # and the θ-free fixed-only term with the sequence. Built in its own frame so
 # the map seam ships a worker the sub-models and the engine spec and nothing
-# else of the pool.
+# else of the pool; the arguments are rebound as plain values, since a forced
+# promise can serialize with its caller's frame, which holds every sequence.
 pool_entry_task <- function(sub_models, engine_spec, control_prep) {
+  sub_models <- sub_models
+  engine_spec <- engine_spec
+  control_prep <- control_prep
   function(seq_i) {
     stats <- preprocess_pool_sequence(
       engine_spec,
@@ -724,16 +793,6 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
   list(loglik = loglik, score = score, fisher = fisher, degenerate = degenerate)
 }
 
-# The per-sequence evaluation task at `theta`. It closes over the pool's
-# sub-models and settings only, never its sequences, so the map seam sends
-# each worker one sequence per task rather than the whole pool.
-pool_evaluation_task <- function(pool, theta) {
-  header <- pool[c("sub_models", "theta_length", "control_prep")]
-  function(sequence) {
-    evaluate_pool_sequence(header, sequence, theta, call = NULL)
-  }
-}
-
 # The evaluator contract's v1 implementation: evaluate every pooled sequence at
 # the concatenated `theta` and return the requested quantities per sequence.
 # `what` is honored at the harvest level -- the engine computes what it does,
@@ -742,12 +801,12 @@ pool_evaluation_task <- function(pool, theta) {
 # granularity is contract: the score is returned per sequence (a K x p matrix,
 # never a pooled total) because the covariance estimators need the per-sequence
 # outer products. `degenerate` flags the sequences a singular-information guard
-# marked non-finite.
+# marked non-finite. The sequences are read from the pool's resident store,
+# so each task carries only a sequence id, theta, and the pool generation.
 evaluate_sequence_pool <- function(
   pool,
   theta,
   what = c("loglik", "score", "fisher"),
-  map_fn = pool$map_fn,
   call = rlang::caller_env()
 ) {
   if (!inherits(pool, "goldfishDynesPool")) {
@@ -765,7 +824,11 @@ evaluate_sequence_pool <- function(
     )
   }
 
-  per_sequence <- map_fn(pool$sequences, pool_evaluation_task(pool, theta))
+  store <- pool$store
+  per_sequence <- store$seam$map(
+    as.list(pool$ids),
+    store_evaluation_task(store$key, pool$generation, theta)
+  )
 
   out <- list()
   if ("loglik" %in% what) {

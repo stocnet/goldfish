@@ -519,7 +519,8 @@ test_that("the parallel seam keeps workers times BLAS threads within n_cores", {
   backend <- local_reversed_parallel_backend()
 
   seam <- dynes_map_seam(surface_control(n_cores = 4L))
-  on.exit(seam$close())
+  # A bare on.exit() would replace the handler that restores the mocks.
+  withr::defer(seam$close())
 
   started <- backend$started[[1]]
   expect_lte(started[["n_workers"]] * started[["blas_threads"]], 4)

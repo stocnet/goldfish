@@ -39,6 +39,8 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call) {
   dimnames(covariances$covariance) <- dims
   dimnames(covariances$mc_covariance) <- dims
 
+  # The store is closed once estimation returns; the fit keeps the sequences.
+  res$pool$store <- NULL
   res$covariance <- covariances$covariance
   res$mc_covariance <- covariances$mc_covariance
   res$authored_spec <- authored_spec

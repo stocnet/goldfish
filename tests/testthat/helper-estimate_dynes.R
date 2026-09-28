@@ -243,6 +243,9 @@ local_reversed_parallel_backend <- function(env = parent.frame()) {
         list(index = i, value = f(x[[i]]))
       }))
     },
+    dynes_broadcast = function(f, args, compute, n_workers) {
+      rep(list(do.call(f, args)), n_workers)
+    },
     .env = env
   )
   calls

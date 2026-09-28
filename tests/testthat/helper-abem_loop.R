@@ -65,11 +65,19 @@ local_analytic_evaluator <- function(env = parent.frame()) {
           sequences = lapply(sequences, function(s) {
             list(data = s$data, reference = s$reference)
           }),
-          theta_length = as.integer(theta_length),
-          map_fn = lapply
+          theta_length = as.integer(theta_length)
         ),
         class = c("goldfishDynesPool", "list")
       )
+    },
+    append_sequence_pool = function(pool, sequences, ...) {
+      pool$sequences <- c(
+        pool$sequences,
+        lapply(sequences, function(s) {
+          list(data = s$data, reference = s$reference)
+        })
+      )
+      pool
     },
     evaluate_sequence_pool = function(
       pool,

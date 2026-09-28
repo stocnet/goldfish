@@ -60,7 +60,16 @@ reachable_names <- function(x, seen = new.env()) {
   character(0)
 }
 
-payload_bytes <- function(x) length(serialize(x, NULL))
+# A task's serialized size as an installed goldfish ships it: load_all() keeps
+# each function's source reference, which drags the whole source file along
+# (and grows once the file's lines are first read), and an installed package
+# has none.
+payload_bytes <- function(x) {
+  if (is.function(x)) {
+    x <- utils::removeSource(x)
+  }
+  length(serialize(x, NULL))
+}
 
 # The evaluation tasks a recording backend saw: those mapped over ids.
 evaluation_tasks <- function(record) {
@@ -272,6 +281,7 @@ test_that("a broadcast waits for every daemon and aborts on any failure", {
       "map"
     },
     collect_mirai = function(x, ...) {
+      force(x)
       list(list(generation = 1L), structure(5L, class = "errorValue"))
     },
     .package = "mirai"
@@ -288,7 +298,10 @@ test_that("a broadcast waits for every daemon and aborts on any failure", {
 test_that("a broadcast answered by fewer daemons than started aborts", {
   local_mocked_bindings(
     everywhere = function(...) "map",
-    collect_mirai = function(x, ...) list(list(generation = 1L)),
+    collect_mirai = function(x, ...) {
+      force(x)
+      list(list(generation = 1L))
+    },
     .package = "mirai"
   )
 
