@@ -12,7 +12,7 @@ combined as **self-normalized importance sampling with heterogeneous proposals**
 — each sequence weighted by the likelihood ratio against its own reference,
 self-normalized across the pool; true multiple importance sampling with a shared
 mixture denominator is a recorded future refinement. This cross-iteration
-likelihood-ratio reweighting is the Casella & Levine (2001) Monte-Carlo-EM
+likelihood-ratio reweighting is the Levine & Casella (2001) Monte-Carlo-EM
 sample-reuse importance-weight update.
 Uniform weighting SHALL be accepted only with the MCMC
 augmentation routine and pool refresh enabled; every other combination SHALL
@@ -277,13 +277,20 @@ parameters SHALL yield a non-finite per-sequence result rather than aborting
 the whole pool evaluation (the engine path inverts the information matrix
 unconditionally); its normalized weight then vanishes and the ESS guard
 absorbs the loss.
+Pool-entry preprocessing SHALL score each sequence under the joint
+single-clock likelihood: each process's own events are dependent events for
+its fids, and every other modeled process's events, on another layer or
+another flavor, are state changes and right-censoring boundaries for the
+timed rate fids, whose exposure runs to the end of the observation window.
+Fixed-only fids SHALL be included in that likelihood.
 The ABMCEM loop SHALL depend only on the evaluator contract, so a batched
 evaluator implementation can replace this path with no loop changes.
 
 #### Scenario: adapter matches direct engine evaluation
 - **WHEN** a pooled sequence is evaluated at θ through the adapter
 - **THEN** its log-likelihood, score, and Fisher information equal a direct
-  zero-iteration engine evaluation of the same sequence's model at θ.
+  zero-iteration engine evaluation of each fid's statistics from the
+  sequence's joint preprocessing at θ.
 
 #### Scenario: evaluation at new parameters skips preprocessing
 - **WHEN** the same pool is evaluated at two parameter vectors in succession
@@ -297,6 +304,20 @@ evaluator implementation can replace this path with no loop changes.
   completes for the remaining sequences, without raising the engine's
   matrix-inversion error.
 
+#### Scenario: a multi-process likelihood carries cross-process censoring
+- **WHEN** a pooled sequence of a two-layer joint specification is evaluated
+  at θ
+- **THEN** each timed rate fid's statistics include a right-censoring row at
+  every other process's events, and its exposure ends at the end of the
+  observation window rather than at its own last event.
+
+#### Scenario: flavored processes are scored on their own events
+- **WHEN** a pooled sequence with competing flavors on one layer is evaluated
+  at θ
+- **THEN** each flavor's log-likelihood, score, and Fisher information equal
+  those of the ordinary flavored estimation path on the same sequence at the
+  same θ.
+
 ### Requirement: Per-sequence work runs through one map seam
 
 Every per-sequence loop (pool entry preprocessing, pool evaluation) SHALL run
@@ -305,12 +326,13 @@ dependencies. When mirai is installed and more than one core is requested,
 the seam SHALL use persistent daemons that receive the data once and only
 parameters and draws per iteration, with reproducible parallel RNG streams
 and a non-nested thread budget (workers × BLAS threads bounded by the core
-count). When more than one core is **explicitly** requested but mirai is not
+count). The core count SHALL default to 1 (serial), so parallelism is used
+only when requested and the recorded core count always matches how the run
+executed. When more than one core is requested but mirai is not
 installed, the seam SHALL emit a one-time cli warning that the requested
 parallelism is unavailable and SHALL run serially (the result identical to the
 parallel path under the same seed); the default core-count path SHALL stay
-silent with no reference to the missing package. The core count default SHALL
-respect CRAN's two-core check limit.
+silent with no reference to the missing package.
 Augmentation substreams SHALL be keyed by a per-iteration `draw_index` that
 increments monotonically across the initial pool, every growth append, and
 every redraw — never rewinding within an iteration — so the grown and redrawn
@@ -323,8 +345,13 @@ seed.
 - **THEN** estimation runs serially with no error and no reference to the
   missing package.
 
-#### Scenario: explicit parallel request without mirai warns once
-- **WHEN** `n_cores > 1` is explicitly requested and mirai is not installed
+#### Scenario: default core count runs serially
+- **WHEN** `set_algorithm_em()` is called without `n_cores`
+- **THEN** the control records `n_cores = 1`, estimation runs serially, and no
+  daemons are started.
+
+#### Scenario: parallel request without mirai warns once
+- **WHEN** `n_cores > 1` is requested and mirai is not installed
 - **THEN** a one-time cli warning reports that the requested parallelism is
   unavailable, and estimation runs serially with a result identical to the
   parallel path under the same seed.
@@ -339,3 +366,10 @@ seed.
   runs serially and with two workers under the same seed
 - **THEN** the drawn pool — including the appended and redrawn sequences — and
   the resulting estimates are identical across the two worker counts.
+
+#### Scenario: pool data reaches the daemons once
+- **WHEN** a parallel estimation evaluates the pool across optimizer steps, a
+  growth append, and a redraw
+- **THEN** each sequence's data and statistics are sent to the daemons once
+  per pool entry, and every evaluation task carries only sequence ids and
+  parameters, with a payload size that does not depend on the pool size.

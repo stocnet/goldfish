@@ -1,3 +1,7 @@
+---
+depends-on: process-simulation
+---
+
 ## Why
 
 The ascent-based Monte Carlo EM (ABMCEM) algorithm that powers DyNES — the EM
@@ -100,6 +104,17 @@ evaluator.
   new arguments on `set_algorithm_newton()` — the internal fits use its
   defaults.
 
+### Modified Capabilities
+
+- `fit-class-hierarchy` (added 2026-09-18): this change adds a fit class, so
+  the verdict table owes one row per generic dispatching on fit classes —
+  `override` for `coef`, `vcov`, `coef_layout` and now **`simulate`** (the
+  generic `process-simulation` added; the DyNES result holds its own joint
+  specification and panel waves, so the parent's data-demanding rebuild is
+  wrong for it), the decided `logLik` verdict, `inherit` for the rest. Design
+  D9 always stated this obligation; the delta file that discharges it is task
+  5.3c.
+
 ## Impact
 
 - **R**: new `R/model_estimate_dynes.R` (surface + ABEM loop),
@@ -108,7 +123,11 @@ evaluator.
   `R/algorithm_optimizer_sgd.R` (M-step), `R/algorithm_evaluate_pool.R`
   (prototype-path evaluator adapter), result/`vcov()`/`summary()`/`print()`
   methods. No `src/` changes (the prototype path reuses the existing engine).
-- **Dependencies**: mirai enters Suggests (serial default map seam).
+- **Dependencies**: mirai enters Suggests (serial default map seam);
+  pkgload enters Suggests (daemons `load_all()` a development tree);
+  `parallel` moves from Suggests to Imports (base R, no install cost), because
+  the L'Ecuyer-CMRG substream keying needs `nextRNGStream()` /
+  `nextRNGSubStream()` on every run, serial included.
 - **Prototypes retired**: `sgd_estimation_algorithm.R` Part 2 and the
   optimizer/weighting/SE functions in `estimation_algorithm_functions.R`
   (`sgd_refactor()`, `get_weights()`, `stratified_resample()`,

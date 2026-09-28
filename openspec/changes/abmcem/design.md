@@ -131,7 +131,16 @@ constructors, one per concern, nested under the EM constructor:
   `joint-parameters` D4): the fixed set lives in the specification's per-effect
   formula offsets (`offset()`), not on the EM control — the zero-iteration
   evaluator (D3) reads each sub-spec's offsets directly, and the warm-start
-  Newton fits inherit them from the sub-specs. `n_sequences` is the **initial
+  Newton fits inherit them from the sub-specs. *Note (2026-09-18):* `simulate()`
+  reads the same parameter surface but accepts **three** forms — a numeric
+  vector, a `goldfishParams`, or a `goldfishParamProvider` from
+  `set_parameter_provider()` (`process-simulation` D11). `initial_parameters`
+  deliberately stays at the one form: a provider is a *per-step* parameter path,
+  meaningful for a generative draw and meaningless for a starting point the
+  M-step immediately moves off, and a bare numeric vector would reintroduce the
+  positional concatenation `joint-parameters` exists to remove. The narrowing is
+  a choice, not an oversight — a provider or a vector here gets an error naming
+  `set_parameters()`. `n_sequences` is the **initial
   pool size** (the loop's m₀ / K, D7).
 - `set_augmenter_options(routine = c("mcmc", "random", "sim"), burn_in, thinning,
   initialize = c("random", "sim"), initial_sequence = NULL, warm_start = FALSE,
@@ -217,8 +226,20 @@ The v1 implementation of the evaluator contract
 is an internal adapter reproducing the prototypes' pattern:
 
 - **Preprocess once per sequence** (on pool entry): the sequence's data object
-  is built and preprocessed through the existing pipeline; the preprocessed
-  statistics are stored with the sequence.
+  is built and preprocessed through the existing pipeline's **merged joint
+  walk** (`preprocess_joint()`), one walk per sequence over the joint spec
+  pointed at that sequence's data. The per-fid statistics are stored with the
+  sequence. The DyNES target is the **joint single-clock likelihood**: a
+  process's own events are dependent events for its fids. A modeled event of
+  any other process (another layer or another flavor) is a right-censoring
+  boundary for every other timed rate fid and a state change for the choice
+  fids. Every timed rate is exposed to the end of the observation window.
+  The engine refuses effect-free formulas, so fixed-only fids (completed
+  uniform choices, pinned rates) enter the walk through a **pool engine
+  spec**, built once at decomposition. That spec swaps each effect-free
+  bundle for a parsed bundle of its `pool_engine_formula()`.
+  *(Amended 2026-09-25; v1 first shipped per-sub-model preprocessing, see
+  Open Questions "The pool evaluator scored each process on its own".)*
 - **Evaluate at any θ**: per sub-model, `estimate_wrapper()` with
   `preprocessed` = the stored statistics and
   `set_algorithm_newton(initial_parameters = theta_block,
@@ -271,6 +292,45 @@ construction here is shaped to accept an optional attachment (ignored in v1), an
 single point where the reuse path crosses the carve-out seam, and it is this
 change's to own.
 
+**Proposal evaluator and rate queries (amended 2026-09-24, `rate-queries`).**
+Task 4.3b shipped `make_proposal_evaluator()` with a `rate_queries` argument that
+`cli_abort()`ed, naming the capability as missing rather than returning a
+fabricated value. The `rate-queries` change (its D4/D6/D7) replaced that abort
+with real computation; the named-list `(loglik, rates)` contract pinned here is
+unchanged. The landed shape:
+
+- Signature `make_proposal_evaluator(sub_models, theta, spec = NULL,
+  control_prep = set_preprocessing())` — `spec` is the **completed joint
+  specification**, optional, read only by the rate path.
+- At construction, when `spec` is supplied, `assert_theta_layout(spec,
+  sub_models)` checks that the sub-models' `theta_index` union equals
+  `coef_layout(spec)`'s free `index` set (no position claimed twice), and
+  `flat_to_fid_theta()` maps the flat θ onto per-fid vectors once.
+- `eval_fn(candidate_seq, rate_queries = NULL)`: with `rate_queries = NULL` it
+  returns `rates = NULL` and does no walk work; with queries (a list of
+  `list(after = k, layer, flavor, sender, receiver)`) it rebinds the candidate
+  via `bind_candidate_data()` and returns `rates` as a numeric vector in the
+  caller's query order, computed through `query_rate_at_position()` — one
+  `walk_open()` and one forward pass. Queries without `spec` abort naming the
+  missing argument; an unresolvable query aborts (classed
+  `goldfish_rate_query_unresolved`), outside the loglik `tryCatch`, so it is
+  never read as a `-Inf` loglik.
+- **Two paths, one closure.** `loglik` comes from the zero-iteration engine per
+  sub-model (above); `rates` come from the walk handle, the same `Λ` the
+  simulation driver draws with (`dynes-augmentation` D20 invariant 2). They
+  agree through `multi-process-walk`'s batch-vs-replay equality; this change
+  does not re-prove it.
+
+Two obligations fall on this change's loop and surface (tasks 5.1b/5.2b). First,
+`spec` must be the completed spec `estimate_dynes()` produces **once** at entry
+(`dynes-augmentation` D21), never re-completed per iteration or candidate — a
+re-completion can move the pinned rates between proposals with no parameter to
+explain it (`rate-queries` D6). Second, whatever decomposes the joint spec into
+`sub_models` must number `theta_index` from `coef_layout(spec)$index` (free
+slots in canonical fid order, a timed rate's intercept included); otherwise the
+construction check aborts on the first evaluator the loop builds. No such
+producer exists yet — `estimate_dynes()` is the first.
+
 ### D4 — Augmenter × weighting validity matrix (from dynes-augmentation D13)
 
 Uniform weighting is valid exactly when the proposal *is* the model's
@@ -289,7 +349,7 @@ refresh-inapplicability rules (D5) form the precedence table `set_algorithm_em()
 enforces.
 
 **MCMC + persistent pool (`routine = "mcmc"`, `refresh = FALSE`).** This is the
-Casella & Levine (2001) sample-reuse regime — the sequences drawn at the start
+Levine & Casella (2001) sample-reuse regime — the sequences drawn at the start
 are dragged through the run and reweighted every iteration by the likelihood
 ratio against each sequence's own θ_ref (the D5 importance-weight update). Its
 default and only valid weighting is therefore `weighting = "importance"`;
@@ -325,7 +385,7 @@ probability the augmenter estimates as its restart acceptance rate
 re-normalizing (a coupling-free draw reports normalizer 1 and is unaffected). Weights stay on the
 log scale; cross-iteration reweighting is the likelihood ratio against each
 sequence's own θ_ref — the Monte-Carlo-EM sample-reuse importance-weight update
-of Casella & Levine (2001), added to `inst/REFERENCES.bib` and cited from the
+of Levine & Casella (2001), added to `inst/REFERENCES.bib` and cited from the
 `set_weights_options()`/`estimate_dynes()` roxygen. **Mixed-θ_ref pools in v1
 (the D8 estimator as written): self-normalized importance sampling with
 heterogeneous proposals** — each sequence's weight is the likelihood ratio
@@ -668,7 +728,27 @@ Two rows are decided by the paragraphs above rather than left open. `coef()`
 and `vcov()` are `override` (flat, composite-labelled, MC error carried
 alongside), and `coef_layout()` is `override` — the DyNES result is a joint
 surface, so unlike a single-process fit it *has* per-process blocks to lay
-out. The row that needs a decision made rather than read off is **`logLik`**:
+out.
+
+*Added 2026-09-18 — a row that did not exist when this was written.*
+`process-simulation` made **`simulate`** a generic dispatching on fit classes
+(`override` on `goldfishFit` and `goldfishFlavFit`; its `fit-class-hierarchy`
+delta adds the row). The requirement it modifies obliges *any* change adding a
+fit class to record a verdict for every such generic, so this change now owes
+one. The verdict is **`override`**, for a reason specific to this estimator
+rather than inherited: `simulate.goldfishFit()` rebuilds a specification out of
+the fit's formula, model and sub-model and demands the data as an argument,
+because a single-process fit stores neither its specification nor its stocnet.
+A DyNES result stores **both** — it was fitted *from* a `goldfishJointSpec` and
+carries the panel waves — so the parent's method would ask the user for data the
+result is already holding, and would rebuild a specification from formulas that
+are only one fid's half of a joint one. The override passes the held joint spec
+and θ̂ (as the `goldfishParams` of `joint-parameters`) straight to the driver.
+This is not hypothetical plumbing: `dynes-augmentation`'s recovery study (its
+task 6.2) draws its panels through exactly this path, so the fit → re-simulate
+round trip is on the validation path of the pair of changes.
+
+The row that needs a decision made rather than read off is **`logLik`**:
 this estimator maximizes a Monte-Carlo estimate of the observed-data
 likelihood, so an inherited exact-likelihood `logLik()` would let `AIC()` and
 `BIC()` return numbers that look like information criteria and are not. That
@@ -683,15 +763,16 @@ instead.
 One internal map seam for every per-sequence loop (pool preprocessing on
 entry, pool evaluation): default serial `lapply()`; when mirai (Suggests) is
 installed and `n_cores > 1`, persistent daemons hold the data once and receive
-only θ and draws per iteration. **mirai-absent fallback (Q6 resolution):** an
-**explicit** `n_cores > 1` with mirai not installed emits a **one-time** cli
+only θ and draws per iteration. **mirai-absent fallback (Q6 resolution):** a
+requested `n_cores > 1` with mirai not installed emits a **one-time** cli
 warning (the requested parallelism is unavailable; install mirai) and runs
 serial — the run still succeeds and is bit-identical to the parallel path (D10
 RNG). The **default** `n_cores` path stays silent with no reference to the
 missing package (the serial-works-without-mirai scenario); only a user's
-explicit request is warned. Governing invariant: workers × BLAS threads ≤
+request is warned. Governing invariant: workers × BLAS threads ≤
 cores (`blas_threads = max(1, floor(n_cores / n_workers))`). `n_cores` lives
-on `set_algorithm_em()` (default within CRAN's 2-core cap) with parallel RNG
+on `set_algorithm_em()` (default `1L`, serial; see the "Parallel only on an
+explicit `n_cores`" verdict under Open Questions) with parallel RNG
 streams. FORK/`mclapply` excluded; PSOCK rejected (the prototype's
 `clusterExport` tax across hundreds of iterations is the anti-pattern this
 seam removes). MCMC chain generation stays serial by nature — the seam covers
@@ -765,12 +846,21 @@ never promised).
 - **[Q/ASE estimator bugs mask non-convergence]** → analytic stub evaluator
   gives closed-form Q and ASE to test against; `em_trace` makes every decision
   auditable post hoc.
+- **[Proposal evaluator's loglik and rates use different compiles]** (added
+  2026-09-24) → the loglik path is per-sub-model `estimate_wrapper()`, the rate
+  path the merged walk; they agree through `multi-process-walk`'s
+  batch-vs-replay equality. A rate query also pays a second compile per proposed
+  move (`walk_open()` recompiles every formula); caching a live handle across a
+  chain's proposals belongs to `augment_seq_mcmc()`'s driver (`rate-queries` D5)
+  and is the first place to look if profiling finds it dominant.
 
 ## Migration Plan
 
 Purely additive: new surface only. `set_algorithm_newton()` is unchanged — the
 warm-start reuses it at its defaults, so no existing estimator behavior changes
-and frozen coefficient baselines are untouched. mirai enters Suggests only. Rollback is reverting the
+and frozen coefficient baselines are untouched. Dependencies: mirai and
+pkgload enter Suggests, and `parallel` (base R) moves from Suggests to Imports
+for the RNG substream keying. Rollback is reverting the
 change's commits. The `dynes-augmentation` trim (tasks 5.x/7.1 removal, spec
 delta split, design pointers) happens with this change's proposal so the two
 changes never double-claim.
@@ -838,3 +928,289 @@ changes never double-claim.
   is filled once by `set_algorithm_em()` to **`min(n_sequences, 10)`** and frozen
   (a batch of 10 at the `n_sequences = 100L` default, floored at `n_sequences` for
   tiny pools; the prototype's per-iteration `⌈K/25⌉` is not carried forward).
+- **[resolved 2026-09-25 — allow fixed-only sub-models, as a θ-free per-path term]**
+  `new_pool_submodel()` accepts a zero-length `theta_index`, and a fixed-only fid is
+  evaluated at its fixed values with zero optimizer iterations and no score or Fisher
+  block. A multi-wave pinned rate is **not** one fixed value: it has one plateau
+  `intercept_w` per wave period, and the engine carries one intercept coefficient per
+  rate fid. It is therefore evaluated through a **per-period offset column**: the
+  intercept column holds `c_{w(e)}` for the period containing each interval
+  (`intercept_only_rate_period()`, read from `spec$completed_rates`, the same table the
+  walk's `rate_queries` read), with its coefficient fixed at 1. This is exact only
+  when no interval straddles a wave boundary, which the preprocess must guarantee
+  (per-wave windows or an injected interior-wave boundary; `dynes-augmentation` D5
+  and D20 invariant 2). That includes the closure's per-candidate preprocess.
+  *Amended 2026-09-25 (task 5.1b):* the guarantee is met analytically. The risk
+  set is constant within an engine interval, so `pinned_rate_compensator()` cuts
+  a straddling interval's exposure at each interior wave time and scores each
+  piece at its own plateau. That equals an event injected on the boundary, needs
+  no re-preprocess, and applies at pool entry and in the closure alike. The
+  earlier `goldfish_pinned_rate_straddle` abort is retired, so a candidate the
+  closure scored can never abort at pool entry. A
+  single-plateau pin is the K = 1 case of the same column. The same rule covers every
+  fixed-only fid, whoever fixed it: an authored fid whose effects are all `offset()`,
+  and a completed uniform choice (its `−log |support(t)|` also moves with the path as
+  the legal set changes). Authored and completed fids differ only in how
+  `coef_layout()` reports them, not in how they are scored. Its log-likelihood is a
+  θ-free per-path term. It enters the recorded proposal density `q` (`sim`'s draw density; MCMC's
+  forward/reverse proposal densities through `rate_queries`), since `q` must be the
+  density actually drawn from. It also enters the target `f` wherever **paths** are
+  compared: `make_proposal_evaluator()`'s `loglik` (the acceptance ratio `f′/f`) and
+  `evaluate_sequence_pool()`'s stored reference log-likelihood (the pool's importance
+  weights, normalized across paths). Leaving it out of `f` there would weight toward a
+  posterior different from the one `q` drew under. Where only **θ** varies on a fixed
+  path, it drops out on its own: it cancels in the D14 reweight
+  `f(Ω;θ)/f(Ω;θ_ref)` and in the ascent test's ΔQ, and contributes nothing to Q's
+  score or Fisher information, so the M-step never sees it. Because it is θ-free, it
+  is computed once per sequence at draw time and never recomputed at a new θ.
+  "Argue cancellation" is rejected: the term is not candidate-invariant (the `|R(t)|`
+  compensator moves with the latent path; `dynes-augmentation` D21 and its resolved
+  open question). Constrains task 5.2's decomposition: a fixed-only fid becomes a
+  sub-model with a log-likelihood and no `theta_index` slots.
+
+  The question as originally raised: fixed-only fids and the
+  log-likelihood target. `new_pool_submodel()` (task 4.1b) requires a non-empty
+  `theta_index`, so a fid with no free slot — a completed intercept-only rate, or an
+  authored fid whose effects are all `offset()` — cannot be a sub-model. The
+  log-likelihood half of `make_proposal_evaluator()` and `evaluate_sequence_pool()`
+  (the E-step weights) then omits that fid's density, while the `rate_queries` half
+  evaluates it at its pinned/fixed values through the walk. The omission is harmless
+  only if the term is constant across candidates; it is not in general: a pinned rate
+  bucketed on `wave_times` (`dynes-augmentation` D21) or a changing composition makes a
+  timed rate's density depend on where augmented events fall, so f(Ω′)/f(Ω) and the
+  importance weights would be missing a factor. Options:
+  - **Allow fixed-only sub-models** — relax `new_pool_submodel()` to accept a
+    zero-length `theta_index` and evaluate the fid at its fixed values (a pinned
+    intercept passed as an offset / fixed initial value, zero optimizer iterations,
+    no score or Fisher block). Keeps f complete; needs a check that the engine accepts
+    an all-fixed parameter vector.
+  - **Argue cancellation** — state in the design which fixed-only fids provably
+    contribute a candidate-invariant term, and abort at decomposition for any that do
+    not.
+  Coupled with `dynes-augmentation`'s open question on whether a completed fid's pin
+  is estimated. Resolve before task 5.2 decomposes the joint spec into `sub_models`.
+
+*Added 2026-09-25, from task 5.2b.* The surface landed with the gaps and choices
+below. Each needs a review verdict (accept as-is, amend the spec, or schedule the
+work) before `abmcem` lands.
+
+- **[resolved 2026-09-25: scheduled as task 6.1] mirai path never run.** mirai is not installed on the development
+  machine, so `dynes_daemons_start()` / `dynes_parallel_map()` /
+  `dynes_daemons_stop()` (`R/map_seam_dynes.R`) have never run. The
+  cross-`n_cores` tests stand in for them with an in-process map that returns
+  its results in reverse order, which proves the keying and the index-ordered
+  reduction but not the daemon plumbing. A real-daemon test (`skip_if_not_installed("mirai")`,
+  `skip_on_cran()`) is still owed.
+  *Update 2026-09-25:* mirai 2.7.3 is now installed and the plumbing was run
+  by hand from a `load_all()` session: daemons start under their own compute
+  profile, `mirai_map()` results come back in input order, a worker error
+  surfaces through `[mirai::.stop]`, and `daemons(0)` stops them. The
+  real-task test is still owed and is **blocked by the next item**: from a dev
+  tree it fails on the first goldfish-internal task. Unblocked by that item's
+  verdict (A); the test is scheduled as task 6.1.
+- **[resolved 2026-09-25: A] Daemons load the installed goldfish.** Workers run
+  `loadNamespace("goldfish")`, i.e. the *installed* version, not a
+  `load_all()` development tree. So a parallel run from a dev session evaluates
+  with stale code, or fails if the installed version predates these internals.
+  Options: `pkgload::load_all()` on the daemons when goldfish is a dev package,
+  or document "install before running in parallel".
+  *Reproduced 2026-09-25:* with 1.9.31 loaded via `load_all()` and 1.9.28
+  installed, a plain closure (`function(i) i^2`) maps correctly, but a
+  `keyed_draw_task()` closure fails on the daemons with `could not find
+  function "set_rng_state"`. A goldfish closure's environment serializes as a
+  *reference* to the `goldfish` namespace, which each worker resolves to the
+  installed version. So the owed real-daemon test would fail under
+  `devtools::test()` / the `NOT_CRAN=true` gate and pass only under
+  `R CMD check`, which installs first. Options:
+  - **A (proposed):** in `dynes_daemons_start()`, when
+    `pkgload::is_dev_package("goldfish")`, run `pkgload::load_all(<path>)` on
+    the daemons (likely `compile = FALSE`, reusing the built `.so`, so
+    concurrent daemons do not race a compile), and `loadNamespace()`
+    otherwise. The real-daemon test then runs in the dev loop. Costs a few
+    seconds per daemon start; pkgload goes into Suggests (today it arrives
+    only through devtools).
+  - **B:** the test does `skip_if(pkgload::is_dev_package("goldfish"))`, so it
+    runs only under `R CMD check`; the daemon path stays unchecked day to day.
+  - **C:** document "install before running in parallel"; same coverage as B,
+    and a trap for anyone developing.
+  **Verdict (2026-09-25): A.** `dynes_daemons_start()` runs
+  `pkgload::load_all(<path>, compile = FALSE)` on the daemons when
+  `pkgload::is_dev_package("goldfish")`, and `loadNamespace("goldfish")`
+  otherwise; pkgload enters Suggests. B is rejected because it leaves the
+  daemon path out of the `NOT_CRAN=true` gate every commit runs; C for the
+  same reason, plus the silent stale-code trap. Scheduled as task 6.1.
+  Side note: `dynes_map_seam()` sets `n_workers <- n_cores`, so
+  `blas_threads = n_cores %/% n_workers` is always 1. The workers-times-BLAS
+  cap holds, but a split such as 2 workers x 2 BLAS threads never happens; a
+  known v1 simplification.
+- **[resolved 2026-09-25: broadcast-resident] No daemon-resident data (spec
+  deviation).** The D10 requirement
+  says daemons "receive the data once and only parameters and draws per
+  iteration". v1 does not: each `evaluate_sequence_pool()` call ships every
+  sequence again, one task per sequence. The tasks close over the sub-models
+  only (`pool_entry_task()`, `pool_evaluation_task()`), so a task carries one
+  sequence rather than the whole pool, but per-iteration traffic still scales
+  with pool size. Keeping pool sequences on the daemons (`mirai::everywhere()`
+  keyed by sequence id, kept in sync across growth and redraw) is the fix;
+  alternatively amend the spec to per-call dispatch for v1.
+  *Correction, measured 2026-09-25:* the "one sequence rather than the whole
+  pool" claim above is wrong for `pool_evaluation_task()`. It extracts
+  `header` from `pool`, but the forced `pool` argument stays in the closure
+  environment and is serialized with it: on the toy fixture the task payload is
+  0.97 / 1.59 / 2.83 MB at K = 2 / 4 / 8, and mirai ships `.f` with every
+  mirai, so one full-pool evaluation moves traffic quadratic in K. The serial
+  path serializes nothing, so no test sees it. (`pool_entry_task()` is clean:
+  287 KB, sub-models and control only.) One built sequence is ~416 KB, of which
+  `stats` is ~364 KB, on a 6-node toy; realistic panels scale `stats` with
+  events x actors, so even without the bug per-call dispatch re-sends the
+  dominant payload on every SGD batch.
+  **Verdict (2026-09-25): broadcast-resident**, for realistic panel sizes.
+  - A pool store keyed by sequence id, with exactly the two mutations
+    `draw_into_pool()` already performs: **append** a chunk, or **replace**
+    the whole pool. On daemons both go through `mirai::everywhere()`, so every
+    daemon holds the full pool; the serial path implements the same store API
+    over a local environment, so both paths run one code path.
+  - The static header (sub-models, `theta_length`, control) is broadcast once
+    when the seam opens.
+  - Evaluation tasks carry only sequence ids and θ; their payload does not
+    depend on pool size. Evaluation stays deterministic, so the RNG keying is
+    untouched.
+  - The main process keeps its own copy of the pool for the weights and
+    reference bookkeeping and the final `fit_dynes()` evaluation.
+  - Cost: memory (1 + n_workers) x pool, the usual trade for resident workers.
+  - Rejected: **sharded-resident** (one daemon per shard) because mirai's
+    dispatcher cannot route a task to a chosen daemon, so sharding needs one
+    compute profile per daemon plus our own routing and load balancing;
+    recorded future refinement if memory binds. **Per-call dispatch** for v1
+    because at realistic sizes the parallel path would likely be slower than
+    serial.
+  Scheduled as task 6.2; the spec gains the "pool data reaches the daemons
+  once" scenario.
+- **[resolved 2026-09-25: Imports] `parallel` moved to Imports.** The L'Ecuyer-CMRG stream jumps need
+  `parallel::nextRNGStream()`/`nextRNGSubStream()`, so `parallel` moved from
+  Suggests to Imports. It ships with base R (no install cost), but it is a
+  DESCRIPTION dependency change the proposal's Impact section does not list.
+  **Verdict (2026-09-25): keep it in Imports.** `estimate_dynes()` builds the
+  substream keyer on every run, the serial default included: the keying is what
+  makes the drawn pool identical at any `n_cores`, so it is not a parallel-only
+  path. The earlier Suggests placement (commit 280c51e) rested on test helpers
+  being the only consumer, and on Imports forcing an install. The first no
+  longer holds, and the second never did for a base package. Every call is
+  `parallel::` with no NAMESPACE import, so the namespace loads lazily on first
+  use and `R CMD check` sees the use. *Rejected:* Suggests with a
+  `requireNamespace()` guard, because CRAN requires conditional use of
+  Suggests and the serial path has no fallback short of re-implementing the
+  CMRG jump matrices. The `requireNamespace("parallel")` guards in
+  `tests/testthat/helper-baselines.R` are now always true; they stay, since
+  they are harmless test code. The proposal's Impact section now lists the
+  move.
+- **[resolved 2026-09-25: default `n_cores = 1L`] Parallel only on an explicit
+  `n_cores`.** The default `n_cores = 2L`
+  runs serially; only an explicit `n_cores > 1` asks for daemons, matching the
+  existing `set_algorithm_em()` roxygen. D10 reads as if the default could be
+  parallel. Confirm that serial-by-default is the intended reading.
+  **Verdict (2026-09-25): serial by default, expressed as `n_cores = 1L`.**
+  Serial is the right default: under broadcast-resident pool data, opening
+  the seam costs daemon start-up (a `load_all()` per daemon in a dev tree) and
+  (1 + n_workers) x pool memory, which small and example-sized runs do not
+  repay; and D10 makes the estimates identical at any `n_cores`, so the
+  default decides only speed and resources. The v1 encoding, though (a
+  default of `2L` plus a `missing()`-derived `n_cores_explicit` flag), made
+  `set_algorithm_em()` and `set_algorithm_em(n_cores = 2L)` equal in value but
+  different in behavior, and the flag was lost silently whenever a control was
+  copied or rebuilt (`modifyList()`, reconstruction from a stored fit), while
+  a fit recorded `n_cores = 2` for a serial run. With the default at `1L`, any
+  value above 1 was set by the user by construction, so the seam tests only
+  `n_cores > 1`, the "warn only on an explicit request" rule holds without the
+  flag, and the recorded value matches how the run executed. `1L` is within
+  CRAN's two-core check limit. *Rejected:* keeping `2L` plus the flag, for
+  the value/behavior split above. Scheduled as task 6.5; the spec gains the
+  "default core count runs serially" scenario.
+- **[resolved 2026-09-25: joint likelihood] The pool evaluator scored each
+  process on its own.** Found while checking the flavored fix: pool entry
+  preprocessed each sub-model separately
+  (`estimate_wrapper(..., preprocessing_only = TRUE)`), so no fid saw the other
+  processes' events as censoring boundaries. On `dynes_multiwave_spec()` (no
+  flavors), compared with the joint walk:
+  - the pinned friendship rate ended at its own last event (t = 4) instead of
+    the window end (t = 5), so the fixed-only log-likelihood was off by exactly
+    1.0 (rate 1 x the missing [4, 5] interval)
+  - the calls rate had 5 intervals instead of 8, with no censoring rows at the
+    friendship events
+
+  Every `estimate_dynes()` input is a joint spec, and no other goldfish path
+  estimates one, so every DyNES run so far evaluated the per-process
+  likelihood. **Verdict:** the target is the joint single-clock likelihood
+  with cross-process right-censoring, the contract the merged walk implements
+  (D3 amended). This is a correctness change to every DyNES likelihood, not
+  only to flavored specs. Frozen coefficient baselines are not involved (no
+  baseline covers a joint spec), but DyNES test expectations computed on the
+  old path may shift. Scheduled as task 6.3.
+- **[resolved 2026-09-25: lift in abmcem, via the joint likelihood] Flavored
+  processes abort in the decomposition.**
+  `decompose_joint_spec()` aborts on any fid with a flavor: the pool evaluator
+  (D3) scores a layer's events through a formula with no flavor filter, so a
+  flavored fid would be scored on the wrong events. This makes a pre-existing
+  evaluator limit loud rather than adding scope, but it means flavored joint
+  specifications cannot reach `estimate_dynes()` until the evaluator (or the
+  `dynes-augmentation` batched evaluator) filters by flavor.
+  *Root cause:* `preprocess_pool_sequence()` preprocesses each sub-model
+  separately through `estimate_wrapper(sm$engine_formula, ...,
+  preprocessing_only = TRUE)`, the unflavored path with no flavor key. Every
+  flavor on a layer is scored with all of that layer's events as its dependent
+  events, where a flavor's own events should be dependent and the other
+  flavors' events only state changes and, on timed rate sub-models,
+  right-censoring boundaries.
+  **Verdict (2026-09-25): lift the limit in abmcem.** Pool entry runs one
+  `preprocess_joint()` walk per sequence, the merged single-clock walk ordinary
+  flavored estimation already uses through `preprocess_flavored()`, over the
+  joint spec pointed at that sequence's data, and files the resulting
+  `goldfishStat`s by fid. That is one walk per sequence instead of one per
+  sub-model, with dependent/censoring routing correct by construction.
+  *Verified 2026-09-25 (scratchpad probes):*
+  - Swapping a flavored spec's `$data` gives stats identical to a spec rebuilt
+    on the new data. The walk reads only `joint_spec$data`; tested on a single
+    flavored spec, and a multi-member joint spec's stale member `$data` copies
+    are not yet exercised.
+  - Per-fid joint stats through the zero-iteration engine reproduce the
+    ordinary flavored fit's log-likelihood per fid to 1e-8, with score ≈ 0 at
+    its estimates.
+  - **Correction:** fixed-only fids do *not* pass through unchanged. The joint
+    walk aborts on their effect-free bundles ("A model needs at least one
+    effect term"), hence the pool engine spec in D3.
+
+  Flavor keys are stamped from the data by `add_flavor()`, so augmented
+  sequences must carry them. That is a requirement on the augmenter, and 6.3a
+  pre-checks it.
+  *Why now:* `dynes-augmentation`'s first goal (panel layers estimable with a
+  Stage-A flavored specification) needs flavored specs, and the change lands
+  at the pool entry task 6.2 is already reshaping, so the `dynes-augmentation`
+  batched evaluator becomes an optimization of a correct path rather than its
+  fix. Scheduled as task 6.3; the spec gains the "flavored processes are
+  scored on their own events" scenario.
+- **[resolved] Citation author order.** `inst/REFERENCES.bib` lists the
+  sample-reuse reference as Levine & Casella (2001). This design, D4/D5, and
+  older roxygen/comments said "Casella & Levine". The new `estimate_dynes()`
+  roxygen uses the bib order; the older text was untouched. **Resolved
+  (2026-09-25): the bib order wins everywhere.** This design, the
+  `abmcem-optimization` spec delta and task 2.1b now say Levine & Casella;
+  task 6.4 carries the code side (comments, roxygen, the bib key renamed to
+  the `firstauthorYEARword` convention as `levine2001implementations`, and a
+  bib entry for Ruth (2024), which D9 cites but the bib lacked).
+- **[resolved] Pinned-rate entry warning added beyond the task text.** Landing
+  `estimate_dynes()` tripped three `skip_if_not(exists("estimate_dynes"))`
+  placeholders in `test-intercept_only_rate.R`. Resolved (user decision) by
+  calling `warn_pinned_rates(completed, "estimate_dynes")` at entry, mirroring
+  `simulate()`, and replacing the placeholders with real tests: the entry
+  warning, the re-fire across both consumers, and pool score/Fisher unchanged
+  by a pinned rate's sub-model. Review that this entry warning belongs in this
+  change's `dynes-estimation` spec delta, which does not yet state it.
+  **Resolved (2026-09-25): no `dynes-estimation` delta.** The entry warning is
+  already required by the living `intercept-only-rate` spec ("Each consumer
+  warns that the rate is pinned, worded for its source"), so the call fills that
+  requirement and is not extra scope. The review found that requirement's
+  wording wrong: it follows the consumer, but the pin's count source follows how
+  the layer is observed, so the `estimate_dynes()` entry snapshot claims a
+  Hamming-diff pin for the event-observed `emails` layer. A completed rate also
+  warned twice and was named `Rate 3`. The fix is a separate change,
+  `pinned-rate-warning-source`, which re-records that snapshot.
