@@ -915,27 +915,43 @@ test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchan
   expect_false(isTRUE(all.equal(with_pin$loglik, without$loglik)))
 })
 
-# Context-aware pinned-rate warning (Session 5.3): each consumer warns at its
-# OWN entry, worded for its count source (D6) -- estimate_dynes() names the
-# wave Hamming diff, no SE, excluded from estimation; simulate() names the
-# observed event count, no SE language. The warning is NOT suppressed on
-# re-entry: cli::cli_warn() fires every call by default, so the same joint
-# spec routed through a second consumer warns again.
-#
-# Neither estimate_dynes() nor a simulate() method for
-# goldfishJointSpec exists yet (grep confirms), so the wording/
-# logic is built and unit-tested directly against warn_pinned_rate(s)() here;
-# the actual consumer-entry snapshots and the "routed through a second
-# consumer" test are deferred behind skip_if_not (see progress.md Session 5).
+# Standalone pinned-rate warning (D4): named by its `layer [› flavor] › rate`
+# label, never the bare fid, worded by the pin's OWN recorded `source`
+# ("event_count" / "hamming_diff" / unknown) -- never by which consumer is
+# calling. The consumer decides only the estimation line: estimate_dynes()
+# adds no SE / excluded from estimation; simulate() adds nothing. An unknown
+# source (NULL) omits the provenance line rather than guess -- the case for
+# an authored pinned rate today, since mark_pinned_rates() attaches no pin
+# object until the known gap (an authored `rate = ~ 1` is not yet pinned) is
+# fixed.
 
-test_that("estimate_dynes wording: Hamming-diff pin, no SE, excluded", {
+test_that("warn_pinned_rate names the process by its label, not the bare fid", {
   local_cli_context()
-  expect_snapshot(warn_pinned_rate("3", consumer = "estimate_dynes"))
+  expect_snapshot(
+    warn_pinned_rate(
+      "friendship › rate",
+      source = "hamming_diff",
+      consumer = "estimate_dynes"
+    )
+  )
 })
 
-test_that("simulate wording: observed-count pin, no SE language", {
+test_that("warn_pinned_rate states a known source, no SE line for simulate", {
   local_cli_context()
-  expect_snapshot(warn_pinned_rate("3", consumer = "simulate"))
+  expect_snapshot(
+    warn_pinned_rate(
+      "emails › rate",
+      source = "event_count",
+      consumer = "simulate"
+    )
+  )
+})
+
+test_that("warn_pinned_rate omits the provenance line for an unknown source", {
+  local_cli_context()
+  expect_snapshot(
+    warn_pinned_rate("calls › rate", source = NULL, consumer = "estimate_dynes")
+  )
 })
 
 # Session 5.4: the remaining test coverage the design calls for -- the
@@ -949,7 +965,10 @@ test_that("simulate wording: observed-count pin, no SE language", {
 # / a simulate() method for goldfishJointSpec exist.
 
 test_that("warn_pinned_rate rejects an unknown consumer", {
-  expect_snapshot(error = TRUE, warn_pinned_rate("3", consumer = "augmenter"))
+  expect_snapshot(
+    error = TRUE,
+    warn_pinned_rate("calls › rate", consumer = "augmenter")
+  )
 })
 
 test_that("warn_pinned_rates warns once per pinned fid, none for an estimated one", {
@@ -975,6 +994,20 @@ test_that("warn_pinned_rates warns once per pinned fid, none for an estimated on
   joint <- make_joint_specification(calls, emails, data = data)
   marked <- clear_completed_marks(mark_pinned_rates(joint))
   expect_length(marked$pinned_rates, 1L)
+
+  # Named by the "emails › rate" label, never the bare fid -- and the pin
+  # descriptor carries no `source` yet (the known gap), so no provenance line.
+  msg <- tryCatch(
+    {
+      warn_pinned_rates(marked, consumer = "estimate_dynes")
+      NA_character_
+    },
+    warning = function(w) conditionMessage(w)
+  )
+  expect_match(msg, "emails › rate", fixed = TRUE)
+  expect_no_match(msg, "Rate 1", fixed = TRUE)
+  expect_no_match(msg, "Hamming", fixed = TRUE)
+  expect_no_match(msg, "observed event count", fixed = TRUE)
 
   expect_snapshot(warn_pinned_rates(marked, consumer = "estimate_dynes"))
 })
