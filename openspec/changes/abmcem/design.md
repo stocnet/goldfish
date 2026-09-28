@@ -1008,6 +1008,8 @@ work) before `abmcem` lands.
   real-task test is still owed and is **blocked by the next item**: from a dev
   tree it fails on the first goldfish-internal task. Unblocked by that item's
   verdict (A); the test is scheduled as task 6.1.
+  *Closed 2026-09-28 (task 6.1):* the real-daemon test now runs in the
+  `NOT_CRAN=true` gate.
 - **[resolved 2026-09-25: A] Daemons load the installed goldfish.** Workers run
   `loadNamespace("goldfish")`, i.e. the *installed* version, not a
   `load_all()` development tree. So a parallel run from a dev session evaluates

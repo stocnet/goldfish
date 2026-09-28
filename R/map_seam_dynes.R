@@ -181,6 +181,13 @@ dynes_mirai_available <- function() {
 # Launch `n_workers` daemons under their own compute profile, each limited to
 # `blas_threads` BLAS threads through the environment it inherits, with
 # goldfish loaded. Returns the profile name.
+#
+# The daemons load the goldfish the coordinator runs: from a load_all() tree
+# they load that same tree, since the installed version may be stale or lack
+# the internals a task calls. The path is the loaded namespace's, not the
+# working directory, so a run from tests/testthat or a second checkout loads
+# the same code on both sides. compile = FALSE reuses the coordinator's built
+# library, so concurrent daemons never race a compile of the shared src/.
 dynes_daemons_start <- function(n_workers, blas_threads) {
   compute <- paste0("goldfish_dynes_", Sys.getpid())
   thread_vars <- c(
@@ -201,9 +208,30 @@ dynes_daemons_start <- function(n_workers, blas_threads) {
     Sys.setenv,
     stats::setNames(as.list(rep(as.character(blas_threads), 4L)), thread_vars)
   )
+  # daemons() draws the daemons' own streams from the host RNG; the seam opens
+  # after the control stream is seeded, so that draw would shift the SGD batch
+  # selection and break identity with the serial run.
+  had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  rng <- if (had_seed) get_rng_state()
   mirai::daemons(n_workers, .compute = compute)
-  mirai::everywhere(loadNamespace("goldfish"), .compute = compute)
+  if (had_seed) {
+    set_rng_state(rng)
+  }
+  if (dynes_dev_package()) {
+    mirai::everywhere(
+      pkgload::load_all(path, compile = FALSE, helpers = FALSE, quiet = TRUE),
+      .args = list(path = getNamespaceInfo("goldfish", "path")),
+      .compute = compute
+    )
+  } else {
+    mirai::everywhere(loadNamespace("goldfish"), .compute = compute)
+  }
   compute
+}
+
+dynes_dev_package <- function() {
+  requireNamespace("pkgload", quietly = TRUE) &&
+    pkgload::is_dev_package("goldfish")
 }
 
 dynes_daemons_stop <- function(compute) {

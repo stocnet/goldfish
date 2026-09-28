@@ -71,7 +71,8 @@ Suggests:
     ggplot2,
     maxLik,
     mitools,
-    mirai
+    mirai,
+    pkgload
 VignetteBuilder: knitr 
 LazyData: true
 Roxygen: list(markdown = TRUE)

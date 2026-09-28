@@ -181,6 +181,15 @@ new_keyed_stub_augmenter <- function() {
   )
 }
 
+# dynes_pinned_raw_spec() with a varying friendship effect, which keeps each
+# sequence's information invertible. Its formulas close over this function's
+# frame, which nothing writes to afterwards, so a fit whose statistics were
+# built on a daemon (from a serialized copy of that frame) stays identical to
+# one built in this process.
+dynes_varying_raw_spec <- function() {
+  dynes_pinned_raw_spec(~ indeg + offset(recip, coef = -0.5))
+}
+
 # Draws dynes_pinned_raw_spec() sequences whose friendship events fall at
 # sorted uniform times inside their own wave period, (0, 2) or (2, 5), so each
 # draw still reaches the observed wave states, with a normal log proposal

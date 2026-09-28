@@ -456,8 +456,7 @@ test_that("real mirai daemons give the serial estimates bit for bit", {
   skip_on_cran()
   skip_if_not_installed("mirai")
   local_dynes_augmenter(new_multiwave_augmenter())
-  # A varying friendship effect keeps each sequence's information invertible.
-  spec <- dynes_pinned_raw_spec(~ indeg + offset(recip, coef = -0.5))
+  spec <- dynes_varying_raw_spec()
   run <- function(n_cores) {
     suppressWarnings(estimate_dynes(
       spec,
@@ -468,6 +467,9 @@ test_that("real mirai daemons give the serial estimates bit for bit", {
   serial <- run(1L)
   parallel <- run(2L)
 
+  # The pool keeps the seam's map, which is the one thing meant to differ.
+  expect_false(identical(parallel$pool$map_fn, serial$pool$map_fn))
+  parallel$pool$map_fn <- serial$pool$map_fn <- NULL
   expect_identical(parallel, serial)
 })
 

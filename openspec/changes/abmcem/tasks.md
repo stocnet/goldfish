@@ -440,7 +440,7 @@
       mocked `dynes_parallel_map()`) and is bit-identical to the serial run.
       Red today from a `load_all()` tree: the daemons load the installed
       goldfish and fail with `could not find function "set_rng_state"`.
-- [ ] 6.1b Implement: in `dynes_daemons_start()`, when
+- [x] 6.1b Implement: in `dynes_daemons_start()`, when
       `pkgload::is_dev_package("goldfish")`, run
       `pkgload::load_all(<path>, compile = FALSE)` on the daemons, else
       `loadNamespace("goldfish")`. Verify that concurrent daemons do not race a
