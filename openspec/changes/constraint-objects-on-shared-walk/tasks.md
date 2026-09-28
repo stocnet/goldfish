@@ -10,15 +10,25 @@
       clean; 9295 PASS / 0 FAIL / 4 SKIP, six baseline files PASS. The
       order-dependent snapshot failure did not occur in this run (nor at
       2.2n); recorded in `progress.md` as not reproduced.
-- [ ] 0.2 Add a fifth reference family to `helper-constraint-atoms.R` on the
+- [x] 0.2 Add a fifth reference family to `helper-constraint-atoms.R` on the
       uncovered shape (`walk_constrained_data()`, `choice ~ inertia`,
       `support_constraint = ~ !tie(emails)`; plus a rate variant) and
       capture its byte-identity reference (mask stream + folded
       `active_sender`/`active_dyad`) with the private walk still
       authoritative. Assert `mask_call_counts()` shows the fallback was
       used, so the reference is known to come from the path being retired.
-- [ ] 0.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `9892125`*: families
+      `uncovered_rate` and `uncovered_choice` (one DyNAM spec, `rate = ~ 1 +
+      indeg`, `choice = ~ inertia`) added to `constraint_atoms_refs.rds`
+      (Alvaro: same file, not a new one); old entries `identical()`. N6
+      emails every node so the rate gates a sender. The fallback pin counts
+      `build_atom_maintainer()` directly (exactly one per family):
+      `mask_call_counts()` sums it with the inline store, so it cannot tell
+      the two apart.
+- [x] 0.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `9892125`'s tree*: 9299 PASS / 0 FAIL / 4
+      SKIP, six baseline files PASS, `_snaps/` unchanged.
 
 ## 1. Simulation harness and the baseline fixture (D5, D6, D7)
 
