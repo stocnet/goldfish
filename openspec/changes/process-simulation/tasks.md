@@ -791,7 +791,7 @@
       PASS (the two-mode REM cell too); none moved beyond 1e-6. The window
       is the formula's combined schedule (ADR-0100), which 2.11b's
       equality test must respect
-- [ ] 2.2n The fit rebuild keeps the support constraint and the modeled
+- [x] 2.2n The fit rebuild keeps the support constraint and the modeled
       flavor (added 2026-09-27, ADR-0099; schedule: after 2.11, before
       2.11b): a fit stores neither today, so `simulate(fit, data =)` on a
       constrained fit draws outside the support it was estimated on, and a
@@ -803,6 +803,21 @@
       drives the walk handle from a specification and parameters", sentence
       and two scenarios. Tests: a constrained fit's simulated events never
       fall on an excluded dyad; a one-flavor fit rebuilds that flavor
+      — *done 2026-09-29 (goldfish-ce), `531a184`*: the fit records
+      `support_constraint` (the user's formula; a flavor's derived mask
+      is re-derived from the data's flavor style at the rebuild) and
+      `modeled_flavor`, both kept when absent; the rebuild passes the
+      constraint and keys the flavor. Alvaro settled: top-level fit
+      components; the user formula, not the composed one; no stale-fit
+      abort and no fit-version bump (dev line before 2.0.0); a flavor
+      selected by a dependent-events name carries it as a `dependent`
+      attribute and rebuilds through `layer =`, deriving no mask, as its
+      estimation did not. Container process fits record their own flavor.
+      Spec delta was already folded (2026-09-27). Tests: constrained REM
+      and DyNAM choice fits equal the specification's run and never land
+      on an excluded dyad; one-flavor, container and both dependent-name
+      paths; guards proven by five mutations. `allow_reflexive` not
+      passed: `make_specification()` has no such argument yet
 - [ ] 2.11b The pin's scalars on every fit, and an approximation for a
       specification (added 2026-09-26, ADR-0098; after 2.11): every DyNAM and
       REM preprocessing, the choice family included, computes `n_dep_events`,
