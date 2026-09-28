@@ -89,7 +89,7 @@ estimate_dynes <- function(
   # provenance (a wave Hamming diff here) is announced by each consumer at its
   # own entry, in its own wording.
   warn_pinned_rates(completed, consumer = "estimate_dynes", call = call)
-  sub_models <- decompose_joint_spec(completed, call = call)
+  decomposition <- decompose_joint_spec(completed, call = call)
   layout <- coef_layout(completed)
   free <- !layout$fixed
   labels <- paste0(layout$process[free], ": ", layout$name[free])
@@ -121,7 +121,7 @@ estimate_dynes <- function(
     control_algo,
     completed,
     labels,
-    sub_models,
+    decomposition,
     augmenter,
     control_prep,
     call = call
@@ -129,7 +129,7 @@ estimate_dynes <- function(
 
   res <- run_abem_loop(
     theta0,
-    sub_models,
+    decomposition,
     augmenter,
     control_algo,
     spec = completed,
@@ -159,32 +159,21 @@ resolve_dynes_augmenter <- function(spec, control, call = rlang::caller_env()) {
   )
 }
 
-# The pool sub-models of a completed joint specification, one per fid in
-# process_map order. Each numbers its free coefficients from coef_layout()'s
-# `index`: the flat theta the loop estimates is that layout's free slots in
-# canonical order (a timed rate's intercept included, offsets never), which is
-# also how the proposal evaluator maps theta onto the walk for rate queries. A
-# completed default or an all-offset fid has no free slot and becomes a
-# fixed-only sub-model; a completed timed rate carries its pinned plateaus. The
-# fid and its rendered label ride along for messages.
+# The pool decomposition of a completed joint specification: one sub-model per
+# fid in process_map order, and the pool engine spec every pooled sequence is
+# walked through. Each sub-model numbers its free coefficients from
+# coef_layout()'s `index`: the flat theta the loop estimates is that layout's
+# free slots in canonical order (a timed rate's intercept included, offsets
+# never), which is also how the proposal evaluator maps theta onto the walk for
+# rate queries. A completed default or an all-offset fid has no free slot and
+# becomes a fixed-only sub-model; a completed timed rate carries its pinned
+# plateaus. A flavored fid needs nothing extra: the joint walk routes each
+# event to its own flavor's fids. The rendered label rides along for messages.
 decompose_joint_spec <- function(spec, call = rlang::caller_env()) {
   map <- spec$process_map
   layout <- coef_layout(spec)
   bundles <- joint_fid_bundles(spec)
-  flavored <- !is.na(map$flavor)
-  if (any(flavored)) {
-    flavored_labels <- render_process_label(map, map$fid[flavored])
-    cli::cli_abort(
-      c(
-        "Flavored processes cannot be estimated by {.fn estimate_dynes} yet.",
-        "x" = "Flavored: {.val {flavored_labels}}.",
-        "i" = "The pool evaluator scores a layer's events without a flavor
-               filter."
-      ),
-      call = call
-    )
-  }
-  lapply(seq_len(nrow(map)), function(i) {
+  sub_models <- lapply(seq_len(nrow(map)), function(i) {
     fid <- map$fid[[i]]
     entry <- bundles[[as.character(fid)]]
     sub_model <- new_pool_submodel(
@@ -193,12 +182,13 @@ decompose_joint_spec <- function(spec, call = rlang::caller_env()) {
       sub_model = entry$sub_model,
       theta_index = layout$index[layout$fid == fid & !layout$fixed],
       pinned_rate = spec$completed_rates[[as.character(fid)]],
+      fid = fid,
       call = call
     )
-    sub_model$fid <- fid
     sub_model$label <- render_process_label(map, fid)
     sub_model
   })
+  new_pool_decomposition(sub_models, pool_engine_spec(spec), call = call)
 }
 
 # theta0 over the free slots `labels`: the warm start when it is on (the
@@ -208,14 +198,14 @@ dynes_initial_theta <- function(
   control,
   spec,
   labels,
-  sub_models,
+  decomposition,
   augmenter,
   control_prep,
   call
 ) {
   if (isTRUE(control$augmenter$warm_start)) {
     return(dynes_warm_start(
-      sub_models,
+      decomposition,
       augmenter,
       length(labels),
       control_prep,
@@ -240,13 +230,14 @@ dynes_initial_theta <- function(
   theta
 }
 
-# One augmentation, drawn at iteration 0 from theta = 0, and an independent
-# default Newton fit per free fid on it. The fits only need to land nearer the
-# optimum than zero, so they need not converge; a fit that fails -- a single
-# sequence easily makes a sub-model's information matrix singular -- leaves
-# that fid at zero with a warning, and the other fids keep their fits.
+# One augmentation, drawn at iteration 0 from theta = 0, walked once as a pool
+# entry is, and an independent default Newton fit per free fid on its joint
+# statistics. The fits only need to land nearer the optimum than zero, so they
+# need not converge; a fit that fails -- a single sequence easily makes a
+# sub-model's information matrix singular -- leaves that fid at zero with a
+# warning, and the other fids keep their fits.
 dynes_warm_start <- function(
-  sub_models,
+  decomposition,
   augmenter,
   n_free,
   control_prep,
@@ -254,14 +245,26 @@ dynes_warm_start <- function(
 ) {
   theta <- numeric(n_free)
   drawn <- augmenter$draw(0L, 1L, theta)[[1L]]
-  for (sm in sub_models) {
+  stats <- tryCatch(
+    preprocess_pool_sequence(
+      decomposition$engine_spec,
+      drawn$data,
+      control_prep = control_prep,
+      call = NULL
+    ),
+    error = function(e) NULL
+  )
+  for (sm in decomposition$sub_models) {
     if (sm$fixed_only) {
       next
     }
-    fitted <- tryCatch(
-      dynes_warm_start_fit(sm, drawn$data, control_prep),
-      error = function(e) NULL
-    )
+    # A walk that failed leaves no statistics, and every fid falls back.
+    fitted <- if (!is.null(stats)) {
+      tryCatch(
+        dynes_warm_start_fit(sm, drawn$data, fid_stats(stats, sm)),
+        error = function(e) NULL
+      )
+    }
     if (length(fitted) != length(sm$theta_index) || !all(is.finite(fitted))) {
       cli::cli_warn(
         c(
@@ -279,18 +282,19 @@ dynes_warm_start <- function(
   theta
 }
 
-# A default set_algorithm_newton() fit of one sub-model on `data`, returning
-# its estimates at the free coefficients. Non-convergence warnings are muffled:
-# a warm start does not need a converged fit.
-dynes_warm_start_fit <- function(sub_model, data, control_prep) {
+# A default set_algorithm_newton() fit of one sub-model over its statistics
+# from the drawn sequence's joint walk, returning its estimates at the free
+# coefficients. Non-convergence warnings are muffled: a warm start does not
+# need a converged fit.
+dynes_warm_start_fit <- function(sub_model, data, stats) {
   sub_model <- with_coefficient_masks(list(sub_model), data, call = NULL)[[1L]]
   fit <- suppressWarnings(estimate_wrapper(
     x = sub_model$engine_formula,
     model = sub_model$model,
     sub_model = sub_model$sub_model,
     data = data,
+    preprocessed = stats,
     control_algo = set_algorithm_newton(),
-    control_prep = control_prep,
     verbose = FALSE,
     progress = FALSE
   ))

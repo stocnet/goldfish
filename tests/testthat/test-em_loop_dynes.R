@@ -18,7 +18,7 @@ test_that("a rejected pass grows the pool, and the retry then accepts", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = augmenter,
     control = analytic_em_control()
   )
@@ -49,7 +49,7 @@ test_that("draw_index is monotonic within an iteration and resets after it", {
 
   run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = augmenter,
     control = analytic_em_control()
   )
@@ -71,7 +71,7 @@ test_that("retry exhaustion aborts and carries the accumulated em_trace", {
   cnd <- tryCatch(
     run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = augmenter,
       control = analytic_em_control(max_retries = 2L)
     ),
@@ -94,7 +94,7 @@ test_that("the retry-exhaustion error explains the stall", {
   expect_snapshot(
     run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = new_stub_augmenter(list(1)),
       control = analytic_em_control(max_retries = 2L)
     ),
@@ -110,7 +110,7 @@ test_that("max_iterations returns the last accepted theta, unconverged", {
   expect_warning(
     res <- run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = augmenter,
       control = analytic_em_control(max_iterations = 3L)
     ),
@@ -134,7 +134,7 @@ test_that("the em_trace records one row per pass with its diagnostics", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = new_stub_augmenter(list(1)),
     control = analytic_em_control()
   )
@@ -186,7 +186,7 @@ test_that("em_trace_se adds standard errors on accepted passes", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = new_stub_augmenter(list(1, 2)),
     control = analytic_em_control(em_trace_se = TRUE)
   )
@@ -206,7 +206,7 @@ test_that("a near-zero-Q acceptance clamps the next pool to max_pool", {
   res <- withCallingHandlers(
     run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = augmenter,
       control = analytic_em_control(
         max_pool = 6L,
@@ -237,7 +237,7 @@ test_that("the max_pool warning names the near-optimum condition", {
   expect_snapshot(
     res <- run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = new_stub_augmenter(list(-0.2, 1)),
       control = analytic_em_control(
         max_pool = 6L,
@@ -254,7 +254,7 @@ test_that("a non-terminal stop-hit falls through and still accepts", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = new_stub_augmenter(list(1)),
     control = analytic_em_control(stop_count = 2L)
   )
@@ -280,7 +280,7 @@ test_that("a stop-rule miss resets the streak", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = new_stub_augmenter(list(1)),
     control = analytic_em_control(stop_count = 2L)
   )
@@ -320,7 +320,7 @@ test_that("the loop consumes Q and its ASE through dispatch alone", {
 
   res <- run_abem_loop(
     theta0 = 0,
-    sub_models = analytic_sub_models(),
+    decomposition = analytic_decomposition(),
     augmenter = new_stub_augmenter(list(1)),
     control = analytic_em_control()
   )
@@ -335,7 +335,12 @@ test_that("each iteration injects a theta_k-closed evaluator over one spec", {
   local_scripted_optimizer(function(theta) theta + 1)
   built <- list()
   local_mocked_bindings(
-    make_proposal_evaluator = function(sub_models, theta, spec = NULL, ...) {
+    make_proposal_evaluator = function(
+      decomposition,
+      theta,
+      spec = NULL,
+      ...
+    ) {
       built[[length(built) + 1L]] <<- list(theta = theta, spec = spec)
       function(candidate_seq, rate_queries = NULL) {
         list(loglik = analytic_loglik(candidate_seq, theta), rates = NULL)
@@ -351,7 +356,7 @@ test_that("each iteration injects a theta_k-closed evaluator over one spec", {
   suppressWarnings(
     run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = augmenter,
       control = analytic_em_control(max_iterations = 3L),
       spec = completed
@@ -390,7 +395,7 @@ test_that("a collapsed persistent pool is redrawn at the current theta", {
   expect_warning(
     res <- run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = augmenter,
       control = analytic_em_control()
     ),
@@ -415,7 +420,7 @@ test_that("a restart-coupled draw warns once per run", {
   withCallingHandlers(
     run_abem_loop(
       theta0 = 0,
-      sub_models = analytic_sub_models(),
+      decomposition = analytic_decomposition(),
       augmenter = new_stub_augmenter(list(100), restarted = TRUE),
       control = analytic_em_control(max_iterations = 3L)
     ),
@@ -432,10 +437,7 @@ test_that("a restart-coupled draw warns once per run", {
 # Fixtures in helper-abem_loop.R.
 
 test_that("the proposal evaluator's loglik carries a pinned rate's term", {
-  eval_fn <- make_proposal_evaluator(
-    list(abem_pinned_submodel()),
-    numeric(0)
-  )
+  eval_fn <- make_proposal_evaluator(abem_pinned_decomposition(), numeric(0))
   path_a <- abem_two_wave_data()
   path_b <- abem_two_wave_data(calls_time = c(1, 3, 6, 8, 10, 15))
 
@@ -449,10 +451,7 @@ test_that("the proposal evaluator's loglik carries a pinned rate's term", {
 })
 
 test_that("a candidate across a wave boundary is scored per period", {
-  eval_fn <- make_proposal_evaluator(
-    list(abem_pinned_submodel()),
-    numeric(0)
-  )
+  eval_fn <- make_proposal_evaluator(abem_pinned_decomposition(), numeric(0))
   # The interval (6, 11] crosses the boundary at 10. Its exposure splits into
   # 4 * 4 at c1 and 4 * 1 at c2, as if an event sat on the boundary.
   straddling <- abem_two_wave_data(calls_time = c(1, 3, 6, 11, 12, 15))
@@ -472,11 +471,13 @@ test_that("a candidate across a wave boundary is scored per period", {
 test_that("the loop ascends a toy to its marginal-likelihood optimum", {
   skip_on_cran()
   candidates <- abem_toy_candidates()
-  sub_models <- list(
-    new_pool_submodel(calls ~ inertia + recip, "DyNAM", "choice", 1:2)
+  decomposition <- hand_decomposition(
+    candidates[[1]],
+    choice = ~ inertia + recip,
+    theta_index = list(choice = 1:2)
   )
   exact_pool <- build_sequence_pool(
-    sub_models,
+    decomposition,
     lapply(candidates, function(d) {
       list(data = d, reference = new_reference_record(c(0, 0), -1, -1))
     }),
@@ -490,7 +491,7 @@ test_that("the loop ascends a toy to its marginal-likelihood optimum", {
 
   res <- run_abem_loop(
     theta0 = c(0.8, -0.6),
-    sub_models = sub_models,
+    decomposition = decomposition,
     augmenter = new_stub_augmenter(candidates),
     control = set_algorithm_em(
       n_sequences = 3L,

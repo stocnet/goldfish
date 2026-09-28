@@ -1,9 +1,9 @@
 # The prototype-path pool evaluator behind the ABMCEM loop's evaluator contract.
 # A pool is a set of endpoint-hitting sequences: each is preprocessed once, on
-# entry, through the existing estimation pipeline, and its per-sub-model
-# statistics are stored so that re-evaluation at any parameter vector reuses them
-# without re-preprocessing. These tests cover the entry path (structure,
-# preprocess-once, reference-record attachment, the serial map seam).
+# entry, by one joint walk, and its per-fid statistics are stored so that
+# re-evaluation at any parameter vector reuses them without re-preprocessing.
+# These tests cover the entry path (structure, preprocess-once,
+# reference-record attachment, the serial map seam).
 
 # A minimal single-sub-model pool over the bundled social_evolution data. Both
 # sequences share the same data object, which is enough to observe the
@@ -11,13 +11,10 @@
 # still exercises "one preprocess per pooled sequence".
 make_pool_fixture <- function(n_sequences = 2L) {
   data("social_evolution", envir = environment())
-  sub_models <- list(
-    new_pool_submodel(
-      calls ~ inertia + recip + trans,
-      model = "DyNAM",
-      sub_model = "choice",
-      theta_index = 1:3
-    )
+  decomposition <- hand_decomposition(
+    social_evolution,
+    choice = ~ inertia + recip + trans,
+    theta_index = list(choice = 1:3)
   )
   sequences <- lapply(seq_len(n_sequences), function(i) {
     list(
@@ -29,7 +26,7 @@ make_pool_fixture <- function(n_sequences = 2L) {
       )
     )
   })
-  list(sub_models = sub_models, sequences = sequences)
+  list(decomposition = decomposition, sequences = sequences)
 }
 
 test_that("the pool runs one joint walk per sequence on entry", {
@@ -67,20 +64,20 @@ test_that("the pool runs one joint walk per sequence on entry", {
 
 test_that("pool entry stores reusable per-sub-model statistics", {
   fx <- make_pool_fixture(n_sequences = 2L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   expect_s3_class(pool, "goldfishDynesPool")
   expect_length(pool$sequences, 2L)
-  # One stored goldfishStat per sub-model, kept with the sequence for reuse.
+  # One stored goldfishStat per fid, kept with the sequence for reuse.
   stored <- pool$sequences[[1]]$stats
-  expect_length(stored, length(fx$sub_models))
+  expect_named(stored, "1")
   expect_s3_class(stored[[1]], "goldfishStat")
   expect_identical(pool$theta_length, 3L)
 })
 
 test_that("pool entry attaches each sequence's reference record", {
   fx <- make_pool_fixture(n_sequences = 2L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   # Reference records travel with their sequence, in pool order.
   expect_equal(pool$sequences[[1]]$reference$loglik_ref, -101)
@@ -101,7 +98,7 @@ test_that("per-sequence entry runs through the injectable map seam", {
     lapply(x, f)
   }
   pool <- build_sequence_pool(
-    fx$sub_models,
+    fx$decomposition,
     fx$sequences,
     theta_length = 3L,
     map_fn = counting_map
@@ -136,7 +133,7 @@ direct_zero_iteration <- function(data, formula, theta, sub_model = "choice") {
 
 test_that("the adapter matches direct zero-iteration engine evaluation", {
   fx <- make_pool_fixture(n_sequences = 1L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
   theta <- c(1.0, 0.5, -0.2)
 
   res <- evaluate_sequence_pool(
@@ -162,7 +159,7 @@ test_that("the adapter matches direct zero-iteration engine evaluation", {
 
 test_that("evaluation reuses stored statistics without re-preprocessing", {
   fx <- make_pool_fixture(n_sequences = 2L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   # Once the pool is built, no evaluation triggers preprocessing again.
   preprocess_calls <- 0L
@@ -179,7 +176,7 @@ test_that("evaluation reuses stored statistics without re-preprocessing", {
 
 test_that("what is honored at the harvest level", {
   fx <- make_pool_fixture(n_sequences = 1L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   loglik_only <- evaluate_sequence_pool(pool, c(0, 0, 0), what = "loglik")
   expect_named(loglik_only, c("loglik", "degenerate"), ignore.order = TRUE)
@@ -193,38 +190,38 @@ test_that("what is honored at the harvest level", {
 
 test_that("the adapter concatenates sub-model scores by theta_index", {
   data("social_evolution", envir = environment())
-  sub_models <- list(
-    new_pool_submodel(
-      calls ~ inertia + recip,
-      model = "DyNAM",
-      sub_model = "choice",
-      theta_index = 1:2
-    ),
-    new_pool_submodel(
-      calls ~ trans,
-      model = "DyNAM",
-      sub_model = "choice",
-      theta_index = 3L
-    )
+  # The choice takes slots 1:2 and the rate 3:4, so the concatenation is not
+  # simply fid order.
+  decomposition <- hand_decomposition(
+    social_evolution,
+    rate = ~ 1 + outdeg,
+    choice = ~ inertia + recip,
+    theta_index = list(rate = 3:4, choice = 1:2)
   )
   sequences <- list(list(
     data = social_evolution,
-    reference = new_reference_record(c(0, 0, 0), -100, -100)
+    reference = new_reference_record(c(0, 0, 0, 0), -100, -100)
   ))
-  pool <- build_sequence_pool(sub_models, sequences, theta_length = 3L)
-  theta <- c(0.4, -0.2, 0.1)
+  pool <- build_sequence_pool(decomposition, sequences, theta_length = 4L)
+  theta <- c(0.4, -0.2, -4, 0.1)
 
   res <- evaluate_sequence_pool(
     pool,
     theta,
     what = c("loglik", "score", "fisher")
   )
+  # One process on one layer: its own walk is the joint walk.
   d1 <- direct_zero_iteration(
     social_evolution,
     calls ~ inertia + recip,
     theta[1:2]
   )
-  d2 <- direct_zero_iteration(social_evolution, calls ~ trans, theta[3])
+  d2 <- direct_zero_iteration(
+    social_evolution,
+    calls ~ 1 + outdeg,
+    theta[3:4],
+    sub_model = "rate"
+  )
 
   # Per-sequence loglik is the sum across sub-models; the score is placed into
   # each sub-model's theta_index positions; the Fisher information is block
@@ -235,18 +232,18 @@ test_that("the adapter concatenates sub-model scores by theta_index", {
     tolerance = 1e-10
   )
   expect_equal(res$score[1, 1:2], d1$final_score, tolerance = 1e-10)
-  expect_equal(res$score[1, 3], d2$final_score, tolerance = 1e-10)
+  expect_equal(res$score[1, 3:4], d2$final_score, tolerance = 1e-10)
   expect_equal(
     res$fisher[[1]][1:2, 1:2],
     d1$final_information_matrix,
     tolerance = 1e-10
   )
   expect_equal(
-    res$fisher[[1]][3, 3],
-    as.numeric(d2$final_information_matrix),
+    res$fisher[[1]][3:4, 3:4],
+    d2$final_information_matrix,
     tolerance = 1e-10
   )
-  expect_true(all(res$fisher[[1]][1:2, 3] == 0))
+  expect_true(all(res$fisher[[1]][1:2, 3:4] == 0))
 })
 
 test_that("a singular sequence yields a non-finite result, not a pool abort", {
@@ -255,7 +252,7 @@ test_that("a singular sequence yields a non-finite result, not a pool abort", {
   # must catch the engine stop() and mark the sequence non-finite rather than
   # aborting the whole pool.
   fx <- make_pool_fixture(n_sequences = 2L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   res <- expect_no_error(
     evaluate_sequence_pool(pool, c(50, 50, 50), what = c("loglik", "score"))
@@ -275,16 +272,16 @@ test_that("a singular sequence yields a non-finite result, not a pool abort", {
 
 test_that("pool entry succeeds with no attachment and takes the from-scratch path", {
   fx <- make_pool_fixture(n_sequences = 1L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   expect_null(pool$sequences[[1]]$attachment)
-  expect_s3_class(pool$sequences[[1]]$stats[[1]], "goldfishStat")
+  expect_s3_class(pool$sequences[[1]]$stats[["1"]], "goldfishStat")
 })
 
 test_that("a supplied attachment is ignored -- byte-identical to no attachment", {
   fx <- make_pool_fixture(n_sequences = 2L)
   baseline <- build_sequence_pool(
-    fx$sub_models,
+    fx$decomposition,
     fx$sequences,
     theta_length = 3L
   )
@@ -304,7 +301,7 @@ test_that("a supplied attachment is ignored -- byte-identical to no attachment",
     seq_along(fx$sequences)
   )
   attached <- build_sequence_pool(
-    fx$sub_models,
+    fx$decomposition,
     attached_sequences,
     theta_length = 3L
   )
@@ -334,7 +331,7 @@ test_that("new_pool_attachment validates its stats and loglik_ref", {
 test_that("make_proposal_evaluator returns a named-list contract", {
   fx <- make_pool_fixture(n_sequences = 1L)
   theta <- c(1.0, 0.5, -0.2)
-  eval_fn <- make_proposal_evaluator(fx$sub_models, theta)
+  eval_fn <- make_proposal_evaluator(fx$decomposition, theta)
   out <- eval_fn(fx$sequences[[1]]$data)
 
   # Named, not positional: a widen from (loglik, rates) to also carry a
@@ -373,7 +370,11 @@ test_that("make_proposal_evaluator answers rate_queries at the mapped theta", {
   theta <- rq_evaluator_theta()
   candidate <- rq_candidate_data()
   queries <- rq_evaluator_queries()
-  eval_fn <- make_proposal_evaluator(rq_layout_submodels(), theta, spec = spec)
+  eval_fn <- make_proposal_evaluator(
+    rq_layout_decomposition(),
+    theta,
+    spec = spec
+  )
 
   out <- suppressWarnings(
     expect_no_error(eval_fn(candidate, rate_queries = queries))
@@ -395,7 +396,7 @@ test_that("make_proposal_evaluator answers rate_queries at the mapped theta", {
 test_that("rate_queries without a specification aborts naming spec", {
   local_cli_context()
   fx <- make_pool_fixture(n_sequences = 1L)
-  eval_fn <- make_proposal_evaluator(fx$sub_models, c(0, 0, 0))
+  eval_fn <- make_proposal_evaluator(fx$decomposition, c(0, 0, 0))
   queries <- list(
     list(after = 1L, layer = "calls", sender = "1", receiver = "2")
   )
@@ -413,7 +414,7 @@ test_that("rate_queries without a specification aborts naming spec", {
 test_that("a sub-model layout off the specification aborts at construction", {
   expect_error(
     make_proposal_evaluator(
-      rq_layout_submodels(calls_choice = c(3L, 7L)),
+      rq_layout_decomposition(calls_choice = c(3L, 7L)),
       rq_evaluator_theta(),
       spec = rq_layout_spec()
     ),
@@ -431,7 +432,7 @@ test_that("an absent rate_queries returns NULL rates and opens no walk", {
     }
   )
   eval_fn <- make_proposal_evaluator(
-    rq_layout_submodels(),
+    rq_layout_decomposition(),
     rq_evaluator_theta(),
     spec = rq_layout_spec()
   )
@@ -448,7 +449,7 @@ test_that("an absent rate_queries returns NULL rates and opens no walk", {
 
 test_that("a degenerate sequence does not stop the rest of the pool", {
   fx <- make_pool_fixture(n_sequences = 2L)
-  pool <- build_sequence_pool(fx$sub_models, fx$sequences, theta_length = 3L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
   # Make only the second sequence's engine call singular; the first must still
   # return a finite result and the pool must complete.
@@ -508,12 +509,23 @@ fixed_only_data <- function(calls_time = c(1, 3, 6, 10, 12, 15)) {
   )
 }
 
-fixed_only_free_submodel <- function() {
-  new_pool_submodel(
-    calls ~ inertia + recip,
-    model = "DyNAM",
-    sub_model = "choice",
-    theta_index = 1:2
+# A free choice alone (slots 1:2), and the same choice beside a fixed-only
+# rate; or a free rate alone (slots 1:2), and the same rate beside a
+# fixed-only choice. A fixed-only fid adds no censoring row, so both pools of a
+# pair walk to the same free statistics.
+fixed_only_free_choice <- function(data = fixed_only_data()) {
+  hand_decomposition(
+    data,
+    choice = ~ inertia + recip,
+    theta_index = list(choice = 1:2)
+  )
+}
+
+fixed_only_free_rate <- function(data = fixed_only_data()) {
+  hand_decomposition(
+    data,
+    rate = ~ 1 + outdeg,
+    theta_index = list(rate = 1:2)
   )
 }
 
@@ -537,9 +549,28 @@ fixed_only_pinned_submodel <- function() {
   )
 }
 
-fixed_only_pool <- function(sub_models, data = fixed_only_data()) {
+fixed_only_with_pinned <- function(data = fixed_only_data()) {
+  hand_decomposition(
+    data,
+    rate = ~1,
+    choice = ~ inertia + recip,
+    theta_index = list(choice = 1:2),
+    pinned_rate = fixed_only_pinned_rate()
+  )
+}
+
+fixed_only_with_choice <- function(choice, data = fixed_only_data()) {
+  hand_decomposition(
+    data,
+    rate = ~ 1 + outdeg,
+    choice = choice,
+    theta_index = list(rate = 1:2)
+  )
+}
+
+fixed_only_pool <- function(decomposition, data = fixed_only_data()) {
   build_sequence_pool(
-    sub_models,
+    decomposition,
     list(list(
       data = data,
       reference = new_reference_record(c(0, 0), -10, -10)
@@ -588,10 +619,8 @@ test_that("a pinned rate is only accepted on a fixed-only rate sub-model", {
 
 test_that("a fixed-only fid adds a log-likelihood, no score or Fisher block", {
   theta <- c(0.3, -0.2)
-  free_only <- fixed_only_pool(list(fixed_only_free_submodel()))
-  with_pinned <- fixed_only_pool(
-    list(fixed_only_free_submodel(), fixed_only_pinned_submodel())
-  )
+  free_only <- fixed_only_pool(fixed_only_free_choice())
+  with_pinned <- fixed_only_pool(fixed_only_with_pinned())
 
   base <- evaluate_sequence_pool(free_only, theta)
   res <- evaluate_sequence_pool(with_pinned, theta)
@@ -617,7 +646,6 @@ test_that("a fixed-only fid adds a log-likelihood, no score or Fisher block", {
 test_that("the fixed-only term is path-dependent but cancels in the reweight", {
   theta <- c(0.3, -0.2)
   theta_ref <- c(0, 0)
-  both <- list(fixed_only_free_submodel(), fixed_only_pinned_submodel())
 
   # Path B moves the event at t = 12 to t = 8, across the wave boundary: the
   # same exposure per period, but one event's log-hazard changes from c2 to c1.
@@ -626,9 +654,12 @@ test_that("the fixed-only term is path-dependent but cancels in the reweight", {
   path_b$ties <- path_b$ties[order(path_b$ties$time), ]
 
   fixed_term <- function(data) {
-    with_pinned <- evaluate_sequence_pool(fixed_only_pool(both, data), theta)
+    with_pinned <- evaluate_sequence_pool(
+      fixed_only_pool(fixed_only_with_pinned(), data),
+      theta
+    )
     free_only <- evaluate_sequence_pool(
-      fixed_only_pool(list(fixed_only_free_submodel()), data),
+      fixed_only_pool(fixed_only_free_choice(), data),
       theta
     )
     with_pinned$loglik[[1]] - free_only$loglik[[1]]
@@ -638,32 +669,23 @@ test_that("the fixed-only term is path-dependent but cancels in the reweight", {
 
   # On one path, the reweight log f(Ω;θ) − log f(Ω;θ_ref) is unchanged by the
   # θ-free term.
-  log_ratio <- function(sub_models) {
-    pool <- fixed_only_pool(sub_models, path_a)
+  log_ratio <- function(decomposition) {
+    pool <- fixed_only_pool(decomposition, path_a)
     evaluate_sequence_pool(pool, theta, what = "loglik")$loglik -
       evaluate_sequence_pool(pool, theta_ref, what = "loglik")$loglik
   }
   expect_equal(
-    log_ratio(both),
-    log_ratio(list(fixed_only_free_submodel())),
+    log_ratio(fixed_only_with_pinned()),
+    log_ratio(fixed_only_free_choice()),
     tolerance = 1e-10
   )
 })
 
 test_that("an authored all-offset fid is scored the same way", {
-  theta <- c(0.3, -0.2)
-  authored <- new_pool_submodel(
-    calls ~ offset(inertia, coef = 0.5),
-    model = "DyNAM",
-    sub_model = "choice",
-    theta_index = integer(0)
-  )
-  base <- evaluate_sequence_pool(
-    fixed_only_pool(list(fixed_only_free_submodel())),
-    theta
-  )
+  theta <- c(-2, 0.3)
+  base <- evaluate_sequence_pool(fixed_only_pool(fixed_only_free_rate()), theta)
   res <- evaluate_sequence_pool(
-    fixed_only_pool(list(fixed_only_free_submodel(), authored)),
+    fixed_only_pool(fixed_only_with_choice(~ offset(inertia, coef = 0.5))),
     theta
   )
 
@@ -727,22 +749,10 @@ test_that("a zero-coefficient column scores -log |support(t)| per event", {
 })
 
 test_that("a completed uniform choice enters the pool as a fixed-only fid", {
-  theta <- c(0.3, -0.2)
-  uniform <- new_pool_submodel(
-    calls ~ 1,
-    model = "DyNAM",
-    sub_model = "choice",
-    theta_index = integer(0)
-  )
-  base <- evaluate_sequence_pool(
-    fixed_only_pool(list(fixed_only_free_submodel())),
-    theta
-  )
+  theta <- c(-2, 0.3)
+  base <- evaluate_sequence_pool(fixed_only_pool(fixed_only_free_rate()), theta)
   res <- expect_no_error(
-    evaluate_sequence_pool(
-      fixed_only_pool(list(fixed_only_free_submodel(), uniform)),
-      theta
-    )
+    evaluate_sequence_pool(fixed_only_pool(fixed_only_with_choice(~1)), theta)
   )
   expect_equal(
     res$loglik[[1]],
@@ -760,15 +770,12 @@ test_that("a pinned rate splits an interval that straddles a wave boundary", {
   straddling <- fixed_only_data(calls_time = c(1, 3, 6, 11, 12, 15))
   theta <- c(0.3, -0.2)
   base <- evaluate_sequence_pool(
-    fixed_only_pool(list(fixed_only_free_submodel()), straddling),
+    fixed_only_pool(fixed_only_free_choice(straddling), straddling),
     theta
   )
   res <- evaluate_sequence_pool(
     expect_no_error(
-      fixed_only_pool(
-        list(fixed_only_free_submodel(), fixed_only_pinned_submodel()),
-        straddling
-      )
+      fixed_only_pool(fixed_only_with_pinned(straddling), straddling)
     ),
     theta
   )
@@ -786,11 +793,13 @@ test_that("a pinned rate splits an interval that straddles a wave boundary", {
 test_that("a sub-model mixing free and offset terms uses its free slots", {
   data("social_evolution", envir = environment())
   formula <- calls ~ inertia + offset(recip, coef = 0.5) + trans
-  sub_models <- list(
-    new_pool_submodel(formula, "DyNAM", "choice", theta_index = 1:2)
+  decomposition <- hand_decomposition(
+    social_evolution,
+    choice = ~ inertia + offset(recip, coef = 0.5) + trans,
+    theta_index = list(choice = 1:2)
   )
   pool <- build_sequence_pool(
-    sub_models,
+    decomposition,
     list(list(
       data = social_evolution,
       reference = new_reference_record(c(0, 0), -100, -100)
@@ -817,11 +826,13 @@ test_that("a sub-model mixing free and offset terms uses its free slots", {
 test_that("a rate sub-model's free slots include its time intercept", {
   data("social_evolution", envir = environment())
   formula <- calls ~ 1 + offset(indeg, coef = 0.2) + outdeg
-  sub_models <- list(
-    new_pool_submodel(formula, "DyNAM", "rate", theta_index = 1:2)
+  decomposition <- hand_decomposition(
+    social_evolution,
+    rate = ~ 1 + offset(indeg, coef = 0.2) + outdeg,
+    theta_index = list(rate = 1:2)
   )
   pool <- build_sequence_pool(
-    sub_models,
+    decomposition,
     list(list(
       data = social_evolution,
       reference = new_reference_record(c(0, 0), -100, -100)
@@ -846,10 +857,12 @@ test_that("a rate sub-model's free slots include its time intercept", {
 test_that("the proposal evaluator scores a sub-model with offset terms", {
   data("social_evolution", envir = environment())
   formula <- calls ~ inertia + offset(recip, coef = 0.5) + trans
-  sub_models <- list(
-    new_pool_submodel(formula, "DyNAM", "choice", theta_index = 1:2)
+  decomposition <- hand_decomposition(
+    social_evolution,
+    choice = ~ inertia + offset(recip, coef = 0.5) + trans,
+    theta_index = list(choice = 1:2)
   )
-  eval_fn <- make_proposal_evaluator(sub_models, c(0.4, -0.1))
+  eval_fn <- make_proposal_evaluator(decomposition, c(0.4, -0.1))
   out <- eval_fn(social_evolution)
 
   direct <- direct_zero_iteration(social_evolution, formula, c(0.4, 0, -0.1))
@@ -858,17 +871,14 @@ test_that("the proposal evaluator scores a sub-model with offset terms", {
 
 test_that("a theta_index not matching the free coefficients aborts at entry", {
   data("social_evolution", envir = environment())
-  sub_models <- list(
-    new_pool_submodel(
-      calls ~ inertia + offset(recip, coef = 0.5) + trans,
-      "DyNAM",
-      "choice",
-      theta_index = 1:3
-    )
+  decomposition <- hand_decomposition(
+    social_evolution,
+    choice = ~ inertia + offset(recip, coef = 0.5) + trans,
+    theta_index = list(choice = 1:3)
   )
   expect_error(
     build_sequence_pool(
-      sub_models,
+      decomposition,
       list(list(
         data = social_evolution,
         reference = new_reference_record(c(0, 0, 0), -100, -100)
@@ -1218,7 +1228,7 @@ test_that("flavored fids are scored as on the ordinary flavored path", {
     loglik <- loglik + ref$log_likelihood
     expect_equal(res$score[1, slots], ref$final_score, tolerance = 1e-10)
     expect_equal(
-      res$fisher[[1]][slots, slots],
+      res$fisher[[1]][slots, slots, drop = FALSE],
       ref$final_information_matrix,
       tolerance = 1e-10
     )

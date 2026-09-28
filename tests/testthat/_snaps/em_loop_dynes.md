@@ -1,7 +1,7 @@
 # the retry-exhaustion error explains the stall
 
     Code
-      run_abem_loop(theta0 = 0, sub_models = analytic_sub_models(), augmenter = new_stub_augmenter(
+      run_abem_loop(theta0 = 0, decomposition = analytic_decomposition(), augmenter = new_stub_augmenter(
         list(1)), control = analytic_em_control(max_retries = 2L))
     Condition
       Error:
@@ -13,9 +13,9 @@
 # the max_pool warning names the near-optimum condition
 
     Code
-      res <- run_abem_loop(theta0 = 0, sub_models = analytic_sub_models(), augmenter = new_stub_augmenter(
-        list(-0.2, 1)), control = analytic_em_control(max_pool = 6L, max_iterations = 1L,
-        tolerance = 1e-08))
+      res <- run_abem_loop(theta0 = 0, decomposition = analytic_decomposition(),
+      augmenter = new_stub_augmenter(list(-0.2, 1)), control = analytic_em_control(
+        max_pool = 6L, max_iterations = 1L, tolerance = 1e-08))
     Condition
       Warning:
       ! The post-acceptance pool size (15) exceeds `max_pool` (6); the next pool is capped.

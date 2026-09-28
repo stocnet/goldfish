@@ -1,16 +1,25 @@
 # The prototype-path pool evaluator behind the ABMCEM loop's evaluator contract
 # (driven by estimate_dynes()). A pool is a set of endpoint-hitting sequences;
-# each is preprocessed once, on pool entry, through the existing estimation
-# pipeline, and its per-sub-model statistics are stored so that re-evaluation at
-# any parameter vector reuses them without re-preprocessing. This file owns the
-# pool structure and the entry path; the zero-iteration evaluation adapter that
-# reads the stored statistics is defined alongside it.
+# each is preprocessed once, on pool entry, by one merged single-clock walk
+# over the whole joint specification, and its per-fid statistics are stored so
+# that re-evaluation at any parameter vector reuses them without
+# re-preprocessing. This file owns the pool structure and the entry path; the
+# zero-iteration evaluation adapter that reads the stored statistics is defined
+# alongside it.
+#
+# The target is the joint single-clock likelihood: a process's own events are
+# dependent events for its fids, while every other modeled process's events --
+# on another layer or another flavor -- are state changes and right-censoring
+# boundaries for the timed rates, each exposed to the end of the observation
+# window. Walking one fid at a time would drop both: a rate would see no
+# censoring rows and its exposure would stop at its own last event.
 #
 # The loop is fid-indexed: theta concatenates each fid's free (non-offset)
 # sub-model parameters, and every pooled sequence carries one goldfishStat per
-# sub-model. A sub-model descriptor is pool-level (shared across sequences,
-# since only the drawn event stream differs from one sequence to the next); the
-# statistics, the data object, and the reference record are per sequence.
+# fid, keyed by fid. A sub-model descriptor is pool-level (shared across
+# sequences, since only the drawn event stream differs from one sequence to the
+# next); the statistics, the data object, and the reference record are per
+# sequence.
 
 # A pool-level sub-model descriptor: the formula/model/sub_model the existing
 # engine preprocesses and evaluates, plus `theta_index`, the positions this
@@ -26,13 +35,15 @@
 # paths are compared. It is θ-free: evaluated once per sequence, never at a new
 # theta, and never part of the score or Fisher information. `pinned_rate` is the
 # frozen intercept-only rate object a completed timed rate carries in the
-# completed specification's `completed_rates`.
+# completed specification's `completed_rates`. `fid` is the process-map row the
+# sub-model scores, which is where its statistics are filed at pool entry.
 new_pool_submodel <- function(
   formula,
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   theta_index,
   pinned_rate = NULL,
+  fid = NULL,
   call = rlang::caller_env()
 ) {
   if (!rlang::is_formula(formula)) {
@@ -76,6 +87,9 @@ new_pool_submodel <- function(
       )
     }
   }
+  if (!is.null(fid) && !rlang::is_scalar_integerish(fid, finite = TRUE)) {
+    cli::cli_abort("{.arg fid} must be a single integer.", call = call)
+  }
   list(
     formula = formula,
     model = model,
@@ -83,8 +97,120 @@ new_pool_submodel <- function(
     theta_index = as.integer(theta_index),
     fixed_only = fixed_only,
     pinned_rate = pinned_rate,
-    engine_formula = pool_engine_formula(formula, model, sub_model)
+    engine_formula = pool_engine_formula(formula, model, sub_model),
+    fid = if (!is.null(fid)) as.integer(fid)
   )
+}
+
+# A pool's decomposition: the pool-level sub-model descriptors and the pool
+# engine spec their statistics come from. Pool entry walks `engine_spec` once
+# per sequence and files each fid's statistics under its fid, so every
+# sub-model must name a fid of that spec and score it through the formula the
+# walk preprocesses there; a sub-model formula that differs from its fid's
+# would evaluate statistics built for another model. A single `goldfishSpec`
+# is accepted and held as its one-process join, the form the walk takes.
+new_pool_decomposition <- function(
+  sub_models,
+  engine_spec,
+  call = rlang::caller_env()
+) {
+  if (!is.list(sub_models) || length(sub_models) == 0) {
+    cli::cli_abort(
+      "{.arg sub_models} must be a non-empty list of sub-model descriptors.",
+      call = call
+    )
+  }
+  if (inherits(engine_spec, "goldfishSpec")) {
+    engine_spec <- single_process_joint(engine_spec)
+  }
+  if (!inherits(engine_spec, "goldfishJointSpec")) {
+    cli::cli_abort(
+      "{.arg engine_spec} must be a {.cls goldfishJointSpec} or
+       {.cls goldfishSpec}.",
+      call = call
+    )
+  }
+  bundles <- joint_fid_bundles(engine_spec)
+  for (j in seq_along(sub_models)) {
+    sm <- sub_models[[j]]
+    entry <- if (!is.null(sm$fid)) bundles[[as.character(sm$fid)]]
+    if (is.null(entry)) {
+      cli::cli_abort(
+        c(
+          "Sub-model {.val {j}} does not name a fid of {.arg engine_spec}.",
+          "i" = "Its {.field fid} must be one of {.val {names(bundles)}}."
+        ),
+        call = call
+      )
+    }
+    if (!identical(format(sm$engine_formula), format(entry$bundle$formula))) {
+      cli::cli_abort(
+        c(
+          "Sub-model {.val {j}} does not score the formula of fid
+           {.val {sm$fid}}.",
+          "x" = "The sub-model evaluates {.code {format(sm$engine_formula)}};
+                 the walk preprocesses
+                 {.code {format(entry$bundle$formula)}}."
+        ),
+        call = call
+      )
+    }
+  }
+  structure(
+    list(sub_models = sub_models, engine_spec = engine_spec),
+    class = c("goldfishDynesDecomposition", "list")
+  )
+}
+
+# The spec pool entry walks: the completed joint specification with every
+# effect-free bundle (a completed uniform choice or pinned rate) swapped for a
+# bundle parsed from its pool_engine_formula(), since the walk refuses a model
+# with no effect term. Built once, at decomposition. The swapped bundle keeps
+# the `completed` mark, so the process map reads the same.
+pool_engine_spec <- function(spec) {
+  swap <- function(submodels, part) {
+    for (family in names(submodels)) {
+      bundle <- submodels[[family]]
+      if (!is_effect_free_formula(bundle$formula)) {
+        next
+      }
+      engine <- pool_engine_formula(
+        bundle$formula,
+        part$model,
+        bundle$sub_model
+      )
+      swapped <- build_specification_bundle(
+        rlang::new_formula(
+          NULL,
+          rlang::f_rhs(engine),
+          env = rlang::f_env(engine)
+        ),
+        arg = family,
+        model = part$model,
+        sub_model = bundle$sub_model,
+        layer = part$focal,
+        envir = rlang::f_env(engine),
+        data = spec$data
+      )
+      swapped$completed <- bundle$completed
+      submodels[[family]] <- swapped
+    }
+    submodels
+  }
+  spec$specifications <- lapply(spec$specifications, function(part) {
+    if (is.null(part$processes)) {
+      part$submodels <- swap(part$submodels, part)
+    } else {
+      for (flavor in names(part$processes)) {
+        part$processes[[flavor]]$submodels <- swap(
+          part$processes[[flavor]]$submodels,
+          part
+        )
+      }
+    }
+    part
+  })
+  spec
 }
 
 # The formula the engine preprocesses and evaluates. The engine refuses an
@@ -146,37 +272,50 @@ new_pool_attachment <- function(
   list(stats = stats, loglik_ref = loglik_ref)
 }
 
-# Preprocess one pooled sequence: run every sub-model's formula through the
-# existing pipeline over the sequence's data object and return the stored
-# goldfishStat objects, one per sub-model, in sub-model order. This is the
-# per-sequence unit the entry map seam drives; it is the only place preprocess
-# runs, so evaluation (which reuses these objects) never re-preprocesses.
+# Preprocess one pooled sequence: one merged walk of the pool engine spec
+# pointed at the sequence's data, returning a goldfishStat per fid, keyed by
+# the character fid. This is the per-sequence unit the entry map seam drives;
+# it is the only place preprocess runs, so evaluation (which reuses these
+# objects) never re-preprocesses. The walk reads only the joint-level data, but
+# every member's copy is rebound too, so no stale copy is left to be read.
 preprocess_pool_sequence <- function(
-  sub_models,
+  engine_spec,
   data,
   control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
-  lapply(sub_models, function(sm) {
-    estimate_wrapper(
-      x = sm$engine_formula,
-      model = sm$model,
-      sub_model = sm$sub_model,
-      data = data,
-      control_prep = control_prep,
-      preprocessing_only = TRUE,
-      verbose = FALSE,
-      progress = FALSE
+  walked <- preprocess_joint(
+    bind_candidate_data(engine_spec, data, call = call),
+    control_preprocessing = control_prep,
+    progress = FALSE,
+    verbose = FALSE
+  )
+  stats <- unclass(walked)
+  attr(stats, "process_map") <- NULL
+  stats
+}
+
+# The statistics a sequence stores for sub-model `sm`. A missing fid must not
+# reach the engine as `preprocessed = NULL`, which would quietly preprocess the
+# sub-model on its own and score it per process.
+fid_stats <- function(stats, sm) {
+  found <- stats[[as.character(sm$fid)]]
+  if (is.null(found)) {
+    cli::cli_abort(
+      "No joint-walk statistics for fid {.val {sm$fid}}.",
+      .internal = TRUE
     )
-  })
+  }
+  found
 }
 
 # Build a sequence pool: preprocess each sequence once, on entry, through the
 # injectable per-sequence map seam (serial lapply by default), and store the
 # statistics, the data object, and the reference record with the sequence.
 #
-# * `sub_models`: a list of new_pool_submodel() descriptors, shared across
-#   sequences.
+# * `decomposition`: a new_pool_decomposition() -- the sub-model descriptors,
+#   shared across sequences, and the pool engine spec each sequence is walked
+#   through.
 # * `sequences`: a list of per-sequence inputs, each a list with `data` (a
 #   stocnet the augmenter drew) and `reference` (a new_reference_record()). An
 #   optional `attachment` slot is accepted and ignored in this version -- the
@@ -187,19 +326,20 @@ preprocess_pool_sequence <- function(
 # * `map_fn`: the per-sequence map seam, `function(x, f)`; the serial lapply
 #   default requires no optional dependency.
 build_sequence_pool <- function(
-  sub_models,
+  decomposition,
   sequences,
   theta_length,
   control_prep = set_preprocessing(),
   map_fn = lapply,
   call = rlang::caller_env()
 ) {
-  if (!is.list(sub_models) || length(sub_models) == 0) {
+  if (!inherits(decomposition, "goldfishDynesDecomposition")) {
     cli::cli_abort(
-      "{.arg sub_models} must be a non-empty list of sub-model descriptors.",
+      "{.arg decomposition} must be a {.cls goldfishDynesDecomposition}.",
       call = call
     )
   }
+  sub_models <- decomposition$sub_models
   if (!is.list(sequences) || length(sequences) == 0) {
     cli::cli_abort(
       "{.arg sequences} must be a non-empty list of pooled sequences.",
@@ -244,11 +384,15 @@ build_sequence_pool <- function(
     call = call
   )
 
-  built <- map_fn(sequences, pool_entry_task(sub_models, control_prep))
+  built <- map_fn(
+    sequences,
+    pool_entry_task(sub_models, decomposition$engine_spec, control_prep)
+  )
 
   structure(
     list(
       sub_models = sub_models,
+      engine_spec = decomposition$engine_spec,
       sequences = built,
       theta_length = theta_length,
       control_prep = control_prep,
@@ -260,11 +404,12 @@ build_sequence_pool <- function(
 
 # The per-sequence pool-entry task: preprocess once and store the statistics
 # and the θ-free fixed-only term with the sequence. Built in its own frame so
-# the map seam ships a worker the sub-models and nothing else of the pool.
-pool_entry_task <- function(sub_models, control_prep) {
+# the map seam ships a worker the sub-models and the engine spec and nothing
+# else of the pool.
+pool_entry_task <- function(sub_models, engine_spec, control_prep) {
   function(seq_i) {
     stats <- preprocess_pool_sequence(
-      sub_models,
+      engine_spec,
       seq_i$data,
       control_prep = control_prep,
       call = NULL
@@ -408,13 +553,12 @@ pool_fixed_loglik <- function(
   call = rlang::caller_env()
 ) {
   loglik <- 0
-  for (j in seq_along(sub_models)) {
-    sm <- sub_models[[j]]
+  for (sm in sub_models) {
     if (!sm$fixed_only) {
       next
     }
     term <- tryCatch(
-      fixed_only_loglik(sm, data, stats[[j]], control_prep, call = call),
+      fixed_only_loglik(sm, data, fid_stats(stats, sm), control_prep, call),
       error = function(e) NULL
     )
     if (is.null(term)) {
@@ -544,8 +688,7 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
   fisher <- matrix(0, p, p)
   degenerate <- sequence$fixed_degenerate
 
-  for (j in seq_along(sub_models)) {
-    sm <- sub_models[[j]]
+  for (sm in sub_models) {
     if (degenerate) {
       break
     }
@@ -556,7 +699,7 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
       pool_engine_eval(
         sm,
         sequence$data,
-        sequence$stats[[j]],
+        fid_stats(sequence$stats, sm),
         theta[sm$theta_index],
         control_prep = pool$control_prep,
         call = call
@@ -643,11 +786,11 @@ evaluate_sequence_pool <- function(
 
 # The theta_k-closed proposal evaluator the ABEM loop builds once per EM
 # iteration and injects into an augmenter's init(), where an MCMC move reads
-# f(candidate) for its acceptance ratio: one preprocess plus one likelihood
-# pass per candidate, over the same engine the pool evaluator uses.
-# `sub_models` is the same pool-level descriptor list `build_sequence_pool()`
-# takes; the loop supplies it decomposed from the joint spec at each
-# iteration, closing over the current `theta`.
+# f(candidate) for its acceptance ratio: one joint walk plus one likelihood
+# pass per candidate, the same pool-entry walk and engine the pool evaluator
+# uses, so the acceptance ratio and the importance weights target one density.
+# `decomposition` is the one `build_sequence_pool()` takes; the loop supplies
+# it at each iteration, closing over the current `theta`.
 #
 # The returned closure answers by NAME, not position -- `list(loglik, rates)`
 # -- so a later fast-follow that reuses a retained MCMC draw's statistics can
@@ -666,20 +809,23 @@ evaluate_sequence_pool <- function(
 # layout, so the sub-models' `theta_index` must number that layout's free slots;
 # this is checked here, once, rather than surfacing as rates evaluated at
 # parameters the likelihood never saw. The log-likelihood path never reads
-# `spec`, and a call without `rate_queries` opens no walk.
+# `spec`, and a call without `rate_queries` opens no rate walk: the two paths
+# stay separate, one walk each.
 make_proposal_evaluator <- function(
-  sub_models,
+  decomposition,
   theta,
   spec = NULL,
   control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
-  if (!is.list(sub_models) || length(sub_models) == 0) {
+  if (!inherits(decomposition, "goldfishDynesDecomposition")) {
     cli::cli_abort(
-      "{.arg sub_models} must be a non-empty list of sub-model descriptors.",
+      "{.arg decomposition} must be a {.cls goldfishDynesDecomposition}.",
       call = call
     )
   }
+  sub_models <- decomposition$sub_models
+  engine_spec <- decomposition$engine_spec
   if (!is.numeric(theta)) {
     cli::cli_abort("{.arg theta} must be a numeric vector.", call = call)
   }
@@ -714,10 +860,13 @@ make_proposal_evaluator <- function(
         call = call
       )
     }
+    # A candidate that does not fit the engine spec's actors aborts here,
+    # outside the loglik guard, so it is never read as a -Inf density.
+    bind_candidate_data(engine_spec, candidate_seq, call = call)
     harvest <- tryCatch(
       {
         stats <- preprocess_pool_sequence(
-          sub_models,
+          engine_spec,
           candidate_seq,
           control_prep = control_prep,
           call = call
@@ -729,8 +878,7 @@ make_proposal_evaluator <- function(
           control_prep = control_prep,
           call = call
         )$loglik
-        for (j in seq_along(candidate_models)) {
-          sm <- candidate_models[[j]]
+        for (sm in candidate_models) {
           if (sm$fixed_only) {
             next
           }
@@ -738,7 +886,7 @@ make_proposal_evaluator <- function(
             pool_engine_eval(
               sm,
               candidate_seq,
-              stats[[j]],
+              fid_stats(stats, sm),
               theta[sm$theta_index],
               control_prep = control_prep,
               call = call

@@ -873,14 +873,15 @@ test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchan
     ),
     data = data
   )))
-  sub_models <- decompose_joint_spec(spec)
+  decomposition <- decompose_joint_spec(spec)
+  sub_models <- decomposition$sub_models
   is_pinned <- vapply(sub_models, function(sm) !is.null(sm$pinned_rate), TRUE)
   expect_identical(sum(is_pinned), 1L)
 
   theta <- c(-1, 0.1, 0.2)
   evaluate <- function(sub_models) {
     pool <- build_sequence_pool(
-      sub_models,
+      new_pool_decomposition(sub_models, decomposition$engine_spec),
       list(list(data = data, reference = list(theta_ref = theta))),
       theta_length = length(theta)
     )

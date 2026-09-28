@@ -148,7 +148,7 @@ test_that("a NULL seed is drawn, recorded, and reproduces the run", {
 test_that("the decomposition of a completed spec passes the layout check", {
   spec <- dynes_multiwave_spec()
 
-  sub_models <- decompose_joint_spec(spec)
+  sub_models <- decompose_joint_spec(spec)$sub_models
 
   expect_length(sub_models, nrow(spec$process_map))
   expect_no_error(assert_theta_layout(spec, sub_models))
@@ -166,7 +166,7 @@ test_that("completed fids decompose into fixed-only sub-models", {
   spec <- dynes_multiwave_spec()
   map <- spec$process_map
 
-  sub_models <- decompose_joint_spec(spec)
+  sub_models <- decompose_joint_spec(spec)$sub_models
 
   completed <- which(map$completed)
   expect_length(completed, 2L)
@@ -190,7 +190,7 @@ test_that("completed fids decompose into fixed-only sub-models", {
 test_that("the offset term never takes a theta slot", {
   spec <- dynes_multiwave_spec()
 
-  sub_models <- decompose_joint_spec(spec)
+  sub_models <- decompose_joint_spec(spec)$sub_models
 
   choice <- which(
     spec$process_map$layer == "friendship" &
@@ -202,10 +202,10 @@ test_that("the offset term never takes a theta slot", {
 
 test_that("a proposal evaluator over the decomposition answers rate queries", {
   spec <- dynes_multiwave_spec()
-  sub_models <- decompose_joint_spec(spec)
+  decomposition <- decompose_joint_spec(spec)
   theta <- c(0.2, -1, 0.1)
 
-  eval_fn <- make_proposal_evaluator(sub_models, theta, spec = spec)
+  eval_fn <- make_proposal_evaluator(decomposition, theta, spec = spec)
   out <- suppressWarnings(eval_fn(
     spec$data,
     rate_queries = list(
@@ -220,7 +220,7 @@ test_that("a proposal evaluator over the decomposition answers rate queries", {
 test_that("the decomposition of the rq layout matches its hand numbering", {
   spec <- rq_layout_spec()
 
-  sub_models <- decompose_joint_spec(spec)
+  sub_models <- decompose_joint_spec(spec)$sub_models
 
   expect_identical(
     lapply(sub_models, `[[`, "theta_index"),
@@ -293,25 +293,34 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
   # calls' choice is singular on the one drawn sequence.
   expect_equal(unname(captured[3:4]), c(0, 0))
   expect_length(grep("calls › choice", out$warnings, fixed = TRUE), 1L)
-  # The two rates keep their fitted starts.
-  sms <- with_coefficient_masks(
-    rq_layout_submodels(),
-    rq_tied_data(),
-    call = NULL
-  )
-  direct <- function(sm) {
+  # The two rates keep their fitted starts: a default Newton fit over the
+  # drawn sequence's joint statistics, here from the raw spec's own walk (it
+  # holds both rates, and the completed uniform emails choice adds no
+  # censoring row). Each rate is censored at the other layer's events.
+  walk <- suppressWarnings(preprocess_joint(
+    rq_layout_raw_spec(),
+    control_preprocessing = set_preprocessing()
+  ))
+  direct <- function(formula, stats) {
     suppressWarnings(estimate_wrapper(
-      x = sm$engine_formula,
-      model = sm$model,
-      sub_model = sm$sub_model,
+      x = formula,
+      model = "DyNAM",
+      sub_model = "rate",
       data = rq_tied_data(),
+      preprocessed = stats,
       control_algo = set_algorithm_newton(),
       verbose = FALSE,
       progress = FALSE
-    ))$parameters[sm$coefficients$free]
+    ))$parameters
   }
-  expect_equal(unname(captured[1:2]), unname(direct(sms[[1]])))
-  expect_equal(unname(captured[5:6]), unname(direct(sms[[3]])))
+  expect_equal(
+    unname(captured[1:2]),
+    unname(direct(calls ~ 1 + indeg(friendship), walk[["1"]]))
+  )
+  expect_equal(
+    unname(captured[5:6]),
+    unname(direct(emails ~ 1 + indeg, walk[["3"]]))
+  )
 })
 
 test_that("the warm-start fallback warning names the fid", {
@@ -321,7 +330,9 @@ test_that("the warm-start fallback warning names the fid", {
       list(parameters = theta0, converged = TRUE, em_trace = NULL)
     },
     new_dynes_fit = function(res, ...) res,
-    dynes_warm_start_fit = function(sub_model, data, control_prep) {
+    # The stub augmenter's draws are not sequences; the walk is not the point.
+    preprocess_pool_sequence = function(...) list(),
+    dynes_warm_start_fit = function(sub_model, data, stats) {
       if (identical(sub_model$sub_model, "choice")) {
         stop("Matrix cannot be inverted")
       }

@@ -62,8 +62,14 @@ rq_candidate_data <- function() {
 # autocompleted uniform choice on emails. Free slots are numbered 1..6 in
 # canonical order: calls rate (1, 2), calls choice (3, 4), emails rate (5, 6).
 rq_layout_spec <- function() {
+  suppressWarnings(complete_generative_spec(rq_layout_raw_spec()))
+}
+
+# rq_layout_spec() before completion: its three authored fids are calls rate
+# (1), calls choice (2) and emails rate (3).
+rq_layout_raw_spec <- function() {
   data <- rq_tied_data()
-  spec <- make_joint_specification(
+  make_joint_specification(
     make_specification(
       rate = ~ 1 + indeg(friendship),
       choice = ~ inertia + offset(tie(friendship), coef = -0.5) + tie(emails),
@@ -79,18 +85,32 @@ rq_layout_spec <- function() {
     ),
     data = data
   )
-  suppressWarnings(complete_generative_spec(spec))
 }
 
 rq_layout_submodels <- function(calls_choice = 3:4) {
   list(
-    new_pool_submodel(calls ~ 1 + indeg(friendship), "DyNAM", "rate", 1:2),
+    new_pool_submodel(
+      calls ~ 1 + indeg(friendship),
+      "DyNAM",
+      "rate",
+      1:2,
+      fid = 1L
+    ),
     new_pool_submodel(
       calls ~ inertia + offset(tie(friendship), coef = -0.5) + tie(emails),
       "DyNAM",
       "choice",
-      calls_choice
+      calls_choice,
+      fid = 2L
     ),
-    new_pool_submodel(emails ~ 1 + indeg, "DyNAM", "rate", 5:6)
+    new_pool_submodel(emails ~ 1 + indeg, "DyNAM", "rate", 5:6, fid = 3L)
+  )
+}
+
+# The hand-numbered sub-models over rq_layout_spec()'s pool engine spec.
+rq_layout_decomposition <- function(calls_choice = 3:4) {
+  new_pool_decomposition(
+    rq_layout_submodels(calls_choice),
+    pool_engine_spec(rq_layout_spec())
   )
 }

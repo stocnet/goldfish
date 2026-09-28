@@ -509,7 +509,7 @@
       compensator (the other processes' censoring rows are not wave times);
       plus the data swap on a multi-member joint spec (stale member `$data`
       copies unread).
-- [ ] 6.3b Implement: build the pool engine spec at decomposition (each
+- [x] 6.3b Implement: build the pool engine spec at decomposition (each
       effect-free bundle swapped for a parsed bundle of its
       `pool_engine_formula()`); `preprocess_pool_sequence()` becomes one
       `preprocess_joint()` walk over that spec pointed at the sequence's data,

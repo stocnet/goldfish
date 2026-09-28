@@ -54,14 +54,14 @@ analytic_loglik <- function(mu, theta) -sum((theta - mu)^2) / 2
 local_analytic_evaluator <- function(env = parent.frame()) {
   local_mocked_bindings(
     build_sequence_pool = function(
-      sub_models,
+      decomposition,
       sequences,
       theta_length,
       ...
     ) {
       structure(
         list(
-          sub_models = sub_models,
+          sub_models = decomposition$sub_models,
           sequences = lapply(sequences, function(s) {
             list(data = s$data, reference = s$reference)
           }),
@@ -92,7 +92,7 @@ local_analytic_evaluator <- function(env = parent.frame()) {
       out$degenerate <- rep(FALSE, length(mu))
       out
     },
-    make_proposal_evaluator = function(sub_models, theta, spec = NULL, ...) {
+    make_proposal_evaluator = function(decomposition, theta, spec = NULL, ...) {
       function(candidate_seq, rate_queries = NULL) {
         list(loglik = analytic_loglik(candidate_seq, theta), rates = NULL)
       }
@@ -127,8 +127,9 @@ analytic_em_control <- function(...) {
   )
 }
 
-analytic_sub_models <- function() {
-  list(list(theta_index = 1L, fixed_only = FALSE))
+# The analytic evaluator reads no decomposition; this stands in for one.
+analytic_decomposition <- function() {
+  list(sub_models = list(list(theta_index = 1L, fixed_only = FALSE)))
 }
 
 local_abem_cli_context <- function(env = parent.frame()) {
@@ -162,12 +163,12 @@ abem_two_wave_data <- function(calls_time = c(1, 3, 6, 10, 12, 15)) {
   )
 }
 
-abem_pinned_submodel <- function() {
-  new_pool_submodel(
-    calls ~ 1,
-    model = "DyNAM",
-    sub_model = "rate",
-    theta_index = integer(0),
+# The calls rate pinned at log-hazard -1 on [0, 10) and -2 on [10, 20], alone:
+# a fixed-only decomposition.
+abem_pinned_decomposition <- function() {
+  hand_decomposition(
+    abem_two_wave_data(),
+    rate = ~1,
     pinned_rate = make_intercept_only_rate(
       c(-1, -2),
       model_type = "DyNAM-M-Rate",
@@ -219,4 +220,49 @@ abem_toy_candidates <- function() {
     one_order(swap(base, c(5L, 12L, 20L))),
     one_order(swap(base, c(8L, 16L, 25L)))
   )
+}
+
+# A pool decomposition of one process on `layer`, built by hand the way
+# decompose_joint_spec() builds one from a completed joint specification.
+# `rate` and `choice` are one-sided sub-model formulas; a `~ 1` one is a
+# completed default, walked through its pool_engine_formula(). `theta_index`
+# lists each family's free slots (none when omitted), and `pinned_rate` is the
+# plateau object of a `~ 1` rate.
+hand_decomposition <- function(
+  data,
+  layer = "calls",
+  rate = NULL,
+  choice = NULL,
+  theta_index = list(),
+  pinned_rate = NULL
+) {
+  formulas <- list(rate = rate, choice = choice)
+  formulas <- formulas[!vapply(formulas, is.null, logical(1))]
+  full <- lapply(formulas, function(f) {
+    rlang::new_formula(as.name(layer), rlang::f_rhs(f), env = rlang::f_env(f))
+  })
+  engine <- Map(
+    function(f, family) {
+      g <- pool_engine_formula(f, "DyNAM", family)
+      rlang::new_formula(NULL, rlang::f_rhs(g), env = rlang::f_env(g))
+    },
+    full,
+    names(full)
+  )
+  spec <- do.call(
+    make_specification,
+    c(engine, list(layer = layer, model = "DyNAM", data = data))
+  )
+  map <- single_process_joint(spec)$process_map
+  sub_models <- lapply(names(full), function(family) {
+    new_pool_submodel(
+      full[[family]],
+      model = "DyNAM",
+      sub_model = family,
+      theta_index = theta_index[[family]] %||% integer(0),
+      pinned_rate = if (family == "rate") pinned_rate,
+      fid = map$fid[map$family == family]
+    )
+  })
+  new_pool_decomposition(sub_models, spec)
 }

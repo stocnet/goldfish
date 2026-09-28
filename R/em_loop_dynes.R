@@ -21,7 +21,8 @@
 
 # Run the loop from the free parameter vector `theta0`.
 #
-# * `sub_models`: the pool-level sub-model descriptors (new_pool_submodel()).
+# * `decomposition`: the pool decomposition (new_pool_decomposition()): the
+#   sub-model descriptors and the pool engine spec sequences are walked through.
 # * `augmenter`: an augmenter honoring the contract above.
 # * `control`: a set_algorithm_em() object.
 # * `spec`: the joint specification completed once by the caller, passed
@@ -37,7 +38,7 @@
 # returned parameters.
 run_abem_loop <- function(
   theta0,
-  sub_models,
+  decomposition,
   augmenter,
   control,
   spec = NULL,
@@ -91,7 +92,7 @@ run_abem_loop <- function(
       any(vapply(drawn, function(d) isTRUE(d$restarted), logical(1)))
     )
     chunk <- build_sequence_pool(
-      sub_models,
+      decomposition,
       lapply(drawn, abem_pool_entry, theta = theta, call = call),
       theta_length = length(theta),
       control_prep = control_prep,
@@ -130,7 +131,7 @@ run_abem_loop <- function(
     if (is.function(augmenter$init)) {
       augmenter$init(
         make_proposal_evaluator(
-          sub_models,
+          decomposition,
           theta_k,
           spec = spec,
           control_prep = control_prep,
