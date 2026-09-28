@@ -122,9 +122,15 @@
       (`fold_active_sender_support()`, `fold_active_dyad_support()`,
       `build_active_dyad_point()` as post-walk steps); settle the open
       question on where the observed-dyad check runs, and snapshot it.
+      *Settled 2026-09-28 (D9):* the walk checks each dependent event
+      against the live mask and active status and aborts there (observed
+      dyad excluded, empty risk set, observed sender gated out), with
+      today's messages; the whole-sequence warnings stay at the end
 - [ ] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
       three warm runs) for a constrained choice and a constrained rate plus
-      choice, before 4.5 and after 4.6.
+      choice, before 4.5 and after 4.6. Include the in-walk observed-event
+      check against the end-of-walk check; if the in-walk check adds walk
+      time the end check avoids, keep the abort at the end (D9)
 - [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
 

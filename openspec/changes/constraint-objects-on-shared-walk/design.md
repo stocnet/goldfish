@@ -283,6 +283,21 @@ request extra snapshot times for the exposure. It works, but it keeps a
 second composition path beside the handle's and a row-time list per
 constrained consumer, the very duplication this change retires.
 
+*Settled 2026-09-28 (Alvaro) — the observed event is checked in the walk.*
+At each dependent event, the walk checks the event against the live mask
+and the active status the risk set is built from. It aborts there, with
+today's message and condition, when the observed dyad is excluded, the
+risk set is empty, or (rate) the observed sender is gated out. With the
+mask live and the sender gate a maintained count, the check reads one mask
+cell, one presence entry and one count per dependent event. So a bad
+event stops preprocessing where it happens instead of after the whole walk.
+The verdicts that describe the whole sequence can only be reached at the
+end, so they stay warnings there: a receiver never an allowed candidate, a
+sender never at risk, forced choices. The exception is time. If task 4.7
+measures the in-walk check adding walk time that the end-of-walk check
+avoids, the abort stays at the end, and the timing is recorded as the
+reason.
+
 ## Risks / Trade-offs
 
 - [Threading touches `build_shared_objects()`/`build_joint_schedule()`, the
@@ -326,8 +341,8 @@ at the end; no archive on the branch.
   walk extent (D4; `observation-tail-right-censoring` D1/D2 own it).
 - Whether the mask rule should later align with statistics and presence at
   a tied stamp (D3's rejected alternative; ADR-0073 open question).
-- Whether the observed-dyad check moves into the walk (abort at the event,
-  D9) or stays in `validate_support_constraint()` after preprocessing with
-  the same message; the snapshot pins whichever is chosen.
+- ~~Whether the observed-dyad check moves into the walk or stays after
+  preprocessing~~ Settled 2026-09-28: in the walk, aborting at the event,
+  unless 4.7 measures a walk-time cost the end check avoids (D9).
 - Whether `preprocess_support_mask()` has a test-only caller worth keeping
   as a helper under ADR-0054's oracle rule, or goes.
