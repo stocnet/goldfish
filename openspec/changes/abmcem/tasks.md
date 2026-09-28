@@ -531,7 +531,7 @@
       `levine2001implementations`; add a `inst/REFERENCES.bib` entry for
       Ruth (2024), which D9 and `R/fit_dynes.R` cite. `grep -rn "Casella &
       Levine"` over `R/`, `man/`, `tests/` returns nothing.
-- [ ] 6.5a Write failing tests for the serial default (design "Open
+- [x] 6.5a Write failing tests for the serial default (design "Open
       Questions", parallel-only-on-an-explicit-`n_cores` verdict; spec scenario
       "default core count runs serially"): in
       `tests/testthat/test-algorithm_controls.R`, `set_algorithm_em()$n_cores`

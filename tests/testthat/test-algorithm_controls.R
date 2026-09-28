@@ -226,7 +226,7 @@ test_that("set_algorithm_em assembles defaults and nests the child controls", {
   expect_null(ctrl$seed)
   expect_null(ctrl$initial_parameters)
   expect_false(ctrl$em_trace_se)
-  expect_equal(ctrl$n_cores, 2L)
+  expect_equal(ctrl$n_cores, 1L)
 
   expect_s3_class(ctrl$augmenter, "goldfishAugmenterCtrl")
   expect_s3_class(ctrl$weights, "goldfishWeightsCtrl")
@@ -248,11 +248,12 @@ test_that("set_algorithm_em resolves a NULL batch_size to min(n_sequences, 10) o
   )
 })
 
-test_that("set_algorithm_em records whether n_cores was set explicitly", {
-  # The loop's warn-once-if-explicit mirai rule (task 5.2) needs this flag,
-  # since missing() is lost by the time the control reaches estimate_dynes().
-  expect_false(set_algorithm_em()$n_cores_explicit)
-  expect_true(set_algorithm_em(n_cores = 2L)$n_cores_explicit)
+test_that("set_algorithm_em control carries no n_cores_explicit field", {
+  # Serial is the default (n_cores = 1L); the map seam now tests n_cores <= 1L
+  # directly (task 6.5), so there is no explicit-vs-default flag to lose track
+  # of when a control is copied or rebuilt.
+  expect_false("n_cores_explicit" %in% names(set_algorithm_em()))
+  expect_false("n_cores_explicit" %in% names(set_algorithm_em(n_cores = 2L)))
 })
 
 test_that("set_algorithm_em rejects invalid own arguments", {
