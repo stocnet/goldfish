@@ -467,9 +467,7 @@ test_that("real mirai daemons give the serial estimates bit for bit", {
   serial <- run(1L)
   parallel <- run(2L)
 
-  # The pool keeps the seam's map, which is the one thing meant to differ.
-  expect_false(identical(parallel$pool$map_fn, serial$pool$map_fn))
-  parallel$pool$map_fn <- serial$pool$map_fn <- NULL
+  # The fit holds no seam or store handle, so nothing is meant to differ.
   expect_identical(parallel, serial)
 })
 

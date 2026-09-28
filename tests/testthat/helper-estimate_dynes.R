@@ -247,3 +247,32 @@ local_reversed_parallel_backend <- function(env = parent.frame()) {
   )
   calls
 }
+
+# Pretend mirai is installed, with in-process daemons that record what crosses
+# the seam: every mapped task function with its inputs (`tasks`), and every
+# broadcast function with its arguments (`broadcasts`). A broadcast mutates
+# the one in-process resident store once and answers for each of the
+# `n_workers` daemons, as everywhere() would.
+local_recording_parallel_backend <- function(env = parent.frame()) {
+  record <- new.env(parent = emptyenv())
+  record$tasks <- list()
+  record$broadcasts <- list()
+  local_mocked_bindings(
+    dynes_mirai_available = function() TRUE,
+    dynes_daemons_start = function(n_workers, blas_threads) "recorded",
+    dynes_daemons_stop = function(compute) invisible(NULL),
+    dynes_parallel_map = function(x, f, compute) {
+      record$tasks[[length(record$tasks) + 1L]] <- list(f = f, x = x)
+      lapply(seq_along(x), function(i) list(index = i, value = f(x[[i]])))
+    },
+    dynes_broadcast = function(f, args, compute, n_workers) {
+      record$broadcasts[[length(record$broadcasts) + 1L]] <- list(
+        f = f,
+        args = args
+      )
+      rep(list(do.call(f, args)), n_workers)
+    },
+    .env = env
+  )
+  record
+}
