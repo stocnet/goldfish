@@ -483,8 +483,15 @@ test_that("the Cauchy combination survives a p-value at the pole", {
 # test of baseline constancy rather than of an effect's functional form.
 
 test_that("the intercept's score is the event indicator minus the compensator", {
+  # Converged tightly, so the score equation below holds at the maximum rather
+  # than wherever a default fit stops.
   fit <- gof_fixture(
-    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+    control_algo = set_algorithm_newton(
+      diagnostics = c("loglik", "scores"),
+      score_tol = 1e-13,
+      step_tol = 1e-13,
+      max_iterations = 200
+    )
   )
   intercept <- which(colnames(fit$event_scores) == "Intercept")
   expect_length(intercept, 1L)

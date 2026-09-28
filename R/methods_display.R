@@ -1030,6 +1030,7 @@ print.goldfishStat <- function(x, ..., width = getOption("width")) {
       "active_dyad_encoding",
       "n_dep_events",
       "total_time",
+      "exposure_entity_time",
       "avg_active_entity",
       "start_time",
       "end_time",
@@ -1066,7 +1067,14 @@ print.goldfishStat <- function(x, ..., width = getOption("width")) {
       "Encoding of active_dyad: 'alter' (receiver vector) or 'outer' (factors).",
       "Intercept scalar: number of dependent events (rate / REM models).",
       "Intercept scalar: total elapsed time (rate / REM models).",
-      "Intercept scalar: average number of active actors (rate / REM models).",
+      paste(
+        "Intercept scalar: sum over rows of interval x active senders",
+        "(DyNAM) or dyads (REM) (rate / REM models)."
+      ),
+      paste(
+        "Intercept scalar: exposure_entity_time / total_time, the",
+        "time-weighted number of active senders or dyads (rate / REM models)."
+      ),
       "Numeric time value of the initial time considered during estimation.",
       "Numeric time value of the final time considered during estimation.",
       "Formula of the model to estimate.",

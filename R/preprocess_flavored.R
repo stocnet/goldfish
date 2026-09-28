@@ -492,7 +492,8 @@ finalize_consumers <- function(
   project_initial_stats,
   finish_output,
   realize_masks = NULL,
-  scalar_entity = "sender"
+  scalar_entity = "sender",
+  drop_self = TRUE
 ) {
   # The writer contract is three staged calls: `finalize()` assembles the
   # default shape, `finish_output()` realizes and folds the support constraint
@@ -529,7 +530,7 @@ finalize_consumers <- function(
     masks,
     finish_output,
     scalar_entity,
-    weight_risk_set = !single,
+    drop_self = drop_self,
     names = if (single) NULL else names(consumers)
   )
 }
@@ -538,15 +539,15 @@ finalize_consumers <- function(
 # finalization so a caller spanning several engines can realize every mask
 # between the two halves.
 #
-# `weight_risk_set` is FALSE for a single-output engine, which averages its
-# intercept scalar per stored event: only competing processes make the intervals
-# uneven enough for the time weighting to differ.
+# An exact-time output's exposure is computed here, after the fold, so it
+# counts the risk set the rate likelihood reads: the entity is `"sender"` or
+# `"dyad"`, and `drop_self` says the self-dyad is not a dyad (one node set).
 render_finalized_consumers <- function(
   finalized,
   masks,
   finish_output,
   scalar_entity,
-  weight_risk_set,
+  drop_self,
   names = NULL
 ) {
   outputs <- lapply(seq_along(finalized), function(i) {
@@ -555,8 +556,17 @@ render_finalized_consumers <- function(
       finalized[[i]]$constraint,
       masks[[i]]
     )
-    if (weight_risk_set && !is.null(out$avg_active_entity)) {
-      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
+    if (!is.null(out$total_time)) {
+      out$exposure_entity_time <- risk_set_exposure(
+        out,
+        scalar_entity,
+        drop_self
+      )
+      out$avg_active_entity <- if (out$total_time > 0) {
+        out$exposure_entity_time / out$total_time
+      } else {
+        0
+      }
     }
     finalized[[i]]$writer$render(out, finalized[[i]]$spec)
   })
@@ -609,62 +619,127 @@ consumer_mask_requests <- function(finalized) {
   })
 }
 
-# A flavor's intercept scalar: the average size of its post-constraint risk set
-# over the observation window, weighted by how long each interval lasts --
-# (1/T) * integral |R_g(t)| dt, the quantity the baseline-rate starting value
-# `log(n_dep_events / total_time / avg_active_entity)` inverts.
-#
-# The single-process writer averages per stored event instead, which coincides
-# only when intervals are equally long. Competing processes make them uneven by
-# construction: each flavor's risk set is re-read at every other flavor's event
-# and at every flip of its own derived mask, so the sizes must be weighted by
-# the time they were in force.
+# The rate's exposure: sum over the stored rows of each row's interval
+# times the entity count in force on it, with the row's presence and
+# support flips applied first, as the likelihood engines apply them before
+# the row. Only then is `n_dep_events / exposure` exactly the
+# intercept-only maximum-likelihood rate; the continuous integral over the
+# change stream is not, because the engine assigns a change to the whole
+# interval ending at the row it maps to.
 #
 # The entity is the one the sub-model's rate is defined over: active senders for
 # the actor-oriented rate, active dyads for the tie-oriented (REM) rate.
-time_weighted_risk_set <- function(out, entity) {
-  n_stored <- length(out$event_time)
-  if (n_stored == 0L) {
-    return(out$avg_active_entity)
+# The sum runs over the stored flips and holds one current state, never a
+# state per row: a dense dyad state per row is about 14 MB on 1899 actors.
+risk_set_exposure <- function(out, entity, drop_self) {
+  if (length(out$event_time) == 0L) {
+    return(0)
   }
-  presence <- if (identical(entity, "dyad")) {
-    walk_dyad_presence(out, n_stored)
-  } else {
-    walk_presence_buffer(
+  if (!identical(entity, "dyad")) {
+    return(presence_exposure(
       out$active_sender_init,
       out$active_sender_update,
       out$active_sender_update_pointer,
-      n_stored
-    )
+      out$intervals
+    ))
   }
-  sizes <- vapply(presence, sum, numeric(1))
-  total_time <- sum(out$intervals)
-  if (total_time <= 0) {
-    return(mean(sizes))
+  if (identical(out$active_dyad_encoding, "point")) {
+    return(point_dyad_exposure(out, drop_self))
   }
-  sum(out$intervals * sizes) / total_time
+  outer_dyad_exposure(out, drop_self)
 }
 
-# Walk the folded dyad availability (the REM point encoding: a dense n1 x n2
-# init plus per-event `(node1, node2, replace)` flips) into one logical matrix
-# per stored event.
-walk_dyad_presence <- function(out, n_stored) {
-  cur <- out$active_dyad_init
+# The exposure of a presence crossings buffer (init + per-event `(node,
+# replace)` flips): its TRUE count per row. The count is re-read only on a row
+# with flips, since a flip may restate a value already held.
+presence_exposure <- function(init, update, pointer, intervals) {
+  current <- init == 1
+  exposure <- 0
+  count <- sum(current)
+  seen <- 0L
+  for (e in seq_along(intervals)) {
+    hi <- if (!is.null(pointer)) pointer[e] else 0L
+    if (hi > seen) {
+      cols <- (seen + 1L):hi
+      current[update[1L, cols]] <- as.logical(update[2L, cols])
+      count <- sum(current)
+      seen <- hi
+    }
+    exposure <- exposure + intervals[e] * count
+  }
+  exposure
+}
+
+# The active dyads of the separable encodings, where cell (i, j) is
+# `active_sender[i] & active_dyad[j]`: the product of the two factor counts,
+# less the senders present on both axes when the self-dyad is not a dyad.
+outer_dyad_exposure <- function(out, drop_self) {
+  senders <- out$active_sender_init == 1
+  receivers <- out$active_dyad_init == 1
+  s_update <- out$active_sender_update
+  s_pointer <- out$active_sender_update_pointer
+  r_update <- out$active_dyad_update
+  r_pointer <- out$active_dyad_update_pointer
+  exposure <- 0
+  count_now <- function() {
+    both <- if (drop_self) sum(senders & receivers) else 0
+    sum(senders) * sum(receivers) - both
+  }
+  count <- count_now()
+  s_seen <- 0L
+  r_seen <- 0L
+  for (e in seq_along(out$intervals)) {
+    s_hi <- if (!is.null(s_pointer)) s_pointer[e] else 0L
+    r_hi <- if (!is.null(r_pointer)) r_pointer[e] else 0L
+    if (s_hi > s_seen || r_hi > r_seen) {
+      if (s_hi > s_seen) {
+        cols <- (s_seen + 1L):s_hi
+        senders[s_update[1L, cols]] <- as.logical(s_update[2L, cols])
+        s_seen <- s_hi
+      }
+      if (r_hi > r_seen) {
+        cols <- (r_seen + 1L):r_hi
+        receivers[r_update[1L, cols]] <- as.logical(r_update[2L, cols])
+        r_seen <- r_hi
+      }
+      count <- count_now()
+    }
+    exposure <- exposure + out$intervals[e] * count
+  }
+  exposure
+}
+
+# The active dyads of the point encoding (a dense n1 x n2 init plus per-event
+# `(node1, node2, replace)` flips), carried by each flip's change of one cell
+# so no row re-reads the grid. The diagonal never counts when the self-dyad is
+# not a dyad, whatever the mask holds there.
+point_dyad_exposure <- function(out, drop_self) {
+  current <- out$active_dyad_init == 1
   update <- out$active_dyad_update
   pointer <- out$active_dyad_update_pointer
-  res <- vector("list", n_stored)
-  prev <- 0L
-  for (e in seq_len(n_stored)) {
-    hi <- if (!is.null(pointer)) pointer[e] else 0L
-    if (hi > prev) {
-      cols <- (prev + 1L):hi
-      cur[cbind(update[1L, cols], update[2L, cols])] <-
-        as.logical(update[3L, cols])
-    }
-    prev <- hi
-    res[[e]] <- cur
+  count <- sum(current)
+  if (drop_self) {
+    count <- count - sum(diag(current))
   }
-  res
+  exposure <- 0
+  seen <- 0L
+  for (e in seq_along(out$intervals)) {
+    hi <- if (!is.null(pointer)) pointer[e] else 0L
+    for (k in seq_len(max(0L, hi - seen)) + seen) {
+      i <- update[1L, k]
+      j <- update[2L, k]
+      value <- update[3L, k] == 1
+      if (current[i, j] != value) {
+        current[i, j] <- value
+        if (!(drop_self && i == j)) {
+          count <- count + if (value) 1 else -1
+        }
+      }
+    }
+    seen <- max(seen, hi)
+    exposure <- exposure + out$intervals[e] * count
+  }
+  exposure
 }
 
 # Route a dependent event over the consumer set: it is the dependent

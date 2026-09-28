@@ -23,10 +23,19 @@ parity_strip_deco <- function(prep) {
     "nodes2",
     "node_lookup",
     "model_spec",
-    "support_validated"
+    "support_validated",
+    parity_intercept_scalars
   )
   prep[setdiff(names(prep), deco)]
 }
+
+# The rate's exposure and the risk set it averages. The recipe loops averaged
+# the risk set over stored events, counting senders even for a REM; the walk
+# now weights it by the interval each row integrates, so the loops' goldens
+# hold a value the walk no longer means to produce. Both scalars are compared
+# against the intercept-only maximum-likelihood rate in
+# test-exposure_entity_time.R instead, and dropped here from both sides.
+parity_intercept_scalars <- c("exposure_entity_time", "avg_active_entity")
 
 parity_prep_by <- function(out, family, flavor = NULL) {
   map <- attr(out, "process_map")
@@ -58,7 +67,11 @@ parity_frozen <- local({
     if (!key %in% names(cache)) {
       stop("no frozen recipe golden for key ", sQuote(key), call. = FALSE)
     }
-    cache[[key]]
+    golden <- cache[[key]]
+    if (!is.list(golden)) {
+      return(golden)
+    }
+    golden[setdiff(names(golden), parity_intercept_scalars)]
   }
 })
 

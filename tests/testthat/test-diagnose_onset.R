@@ -74,7 +74,15 @@ test_that("the paths and the accrual curve need no pass and no replay", {
 })
 
 test_that("the path is a bridge from the estimate back to it", {
-  fit <- onset_fixture()
+  # Converged tightly: the path returns to the maximum, which a default fit
+  # only approaches within its tolerance.
+  fit <- onset_fixture(
+    control_algo = set_algorithm_newton(
+      score_tol = 1e-13,
+      step_tol = 1e-13,
+      max_iterations = 200
+    )
+  )
   onset <- diagnose_onset(fit)
   estimate <- unname(coef(fit, complete = TRUE))
 

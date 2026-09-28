@@ -170,8 +170,7 @@ run_dynami_monolith <- function(
 #
 # `active_dyad_init` seeds that receiver presence. Returns `out` with
 # `active_sender_init`/`_update`/`_update_pointer` rewritten to the folded
-# object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
-# `avg_active_entity` recomputed as the event-averaged active-sender count.
+# object and `active_sender_folded = TRUE`.
 fold_active_sender_support <- function(
   out,
   support_mask,
@@ -206,7 +205,6 @@ fold_active_sender_support <- function(
   change_repl <- vector("list", n_stored)
   folded_init <- NULL
   previous <- NULL
-  active_total <- 0
   prev_ptr <- 0L
   for (e in seq_len(n_stored)) {
     this_ptr <- if (!is.null(ptr)) ptr[e] else 0L
@@ -225,7 +223,6 @@ fold_active_sender_support <- function(
       change_repl[[e]] <- as.numeric(crossing$values)
     }
     previous <- current
-    active_total <- active_total + sum(current)
   }
 
   node_vec <- unlist(change_nodes, use.names = FALSE)
@@ -243,10 +240,6 @@ fold_active_sender_support <- function(
   out$active_sender_update_pointer <- cumsum(n_changes)
   out$active_sender_changes <- list()
   out$active_sender_folded <- TRUE
-
-  if (!is.null(out$avg_active_entity)) {
-    out$avg_active_entity <- active_total / n_stored
-  }
   out
 }
 

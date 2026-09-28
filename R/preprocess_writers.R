@@ -852,7 +852,8 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
 #' Assemble the flat-buffer `goldfishStat` object
 #'
 #' Shared output assembly for the default writer: computes the intercept
-#' scalars (`n_dep_events`, `total_time`, `avg_active_entity`) and the
+#' scalars (`n_dep_events`, `total_time`; the exposure and
+#' `avg_active_entity` follow the support fold) and the
 #' composition-change C-format presence matrices, then wraps the per-event
 #' fields produced by the writer into a `goldfishStat` object.
 #'
@@ -881,35 +882,9 @@ assemble_default_output <- function(
 ) {
   n_dep_events <- NULL
   total_time <- NULL
-  avg_active_entity <- NULL
   if (is_exact_time) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
-    nActors <- sum(active_sender_init)
-    if (length(active_sender_changes) > 0 && n_stored > 0) {
-      changesTime <- vapply(active_sender_changes, `[[`, double(1), "time")
-      changesReplace <- vapply(
-        active_sender_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-      timeAcc <- start_time
-      previousTime <- -Inf
-      activeAcc <- 0
-      for (i in seq_len(n_stored)) {
-        timeAcc <- timeAcc + intervals[i]
-        changesAt <- changesTime > previousTime & changesTime <= timeAcc
-        nActors <- nActors +
-          sum(changesReplace[changesAt]) -
-          sum(!changesReplace[changesAt])
-        activeAcc <- activeAcc + nActors
-        previousTime <- timeAcc
-      }
-      avg_active_entity <- activeAcc / n_stored
-    } else {
-      avg_active_entity <- nActors
-    }
   }
 
   active_sender_update <- NULL
@@ -959,7 +934,10 @@ assemble_default_output <- function(
       end_time = end_time,
       n_dep_events = n_dep_events,
       total_time = total_time,
-      avg_active_entity = avg_active_entity,
+      # The exposure and the risk set it averages are filled once the support
+      # fold has run, since both count the post-gate entities.
+      exposure_entity_time = NULL,
+      avg_active_entity = NULL,
       active_sender_update = active_sender_update,
       active_sender_update_pointer = active_sender_update_pointer,
       active_dyad_update = active_dyad_update,

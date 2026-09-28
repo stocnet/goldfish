@@ -580,11 +580,11 @@ test_that("the relational risk-set source drives a REM tie-oriented pin", {
   expect_equal(exp(intercept), rs$count / rs$duration / rs$risk_set_size)
 })
 
-test_that("a flavored relational layer's completed rate stays on the panel path", {
-  # calls is event-observed but FLAVORED: its creation flavor's missing rate must
-  # route through panel_wave_risk_set() (the is.na(flavor) stopgap), not the
-  # unflavored relational scalar path. Documents the current stopgap boundary --
-  # a later flavor-aware relational risk-set will flip this.
+test_that("a flavored relational layer's completed rate reads its flavor's exposure", {
+  # calls is event-observed but FLAVORED: its creation flavor's missing rate
+  # reads that flavor's own exposure from a rate over every flavor of the
+  # layer, as a flavored rate fit preprocesses it -- not the panel
+  # wave-endpoint/Hamming derivation.
   js <- flavored_relational_join()
   expect_length(js$modeled_panel, 0L)
   cc <- suppressWarnings(
@@ -594,21 +594,23 @@ test_that("a flavored relational layer's completed rate stays on the panel path"
   creation_rate <- map$fid[
     map$layer == "calls" & map$flavor == "creation" & map$family == "rate"
   ]
-  expect_length(creation_rate, 1L)
   expect_true(map$completed[map$fid == creation_rate])
   rate <- cc$completed_rates[[as.character(creation_rate)]]
-  # The pin reproduces the panel wave-endpoint/Hamming derivation for the
-  # creation flavor over calls' own extent -- proof it took the panel path.
-  rs <- goldfish:::panel_wave_risk_set(
-    cc,
+
+  stand_in <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
     layer = "calls",
-    flavor = "creation",
-    entity = "sender",
-    wave_times = NULL
+    model = "DyNAM",
+    data = cc$data
   )
+  prep <- suppressWarnings(suppressMessages(
+    compute_statistics(stand_in, model = "DyNAM", sub_model = "rate")
+  ))
+  prep_map <- attr(prep, "process_map")
+  creation <- prep[[as.character(prep_map$fid[prep_map$flavor == "creation"])]]
   expect_equal(
-    exp(rate$intercept) * rs$duration * rs$risk_set_size,
-    rs$count
+    exp(rate$intercept),
+    creation$n_dep_events / creation$exposure_entity_time
   )
 })
 

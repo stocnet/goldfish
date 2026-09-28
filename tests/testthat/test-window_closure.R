@@ -165,17 +165,24 @@ test_that("the boundary row carries no borrowed identity", {
 test_that("an end_time inside the event stream is unchanged", {
   # The only branch the suite exercised before this change: the walk meets an
   # out-of-window event and closes there. Closing the window a second way must
-  # not disturb it, so the values are pinned as measured beforehand.
+  # not disturb it, so the values are pinned as measured beforehand. The fit
+  # converges tightly so the pin is the maximum itself: where a default fit
+  # stops within its tolerance moves with the intercept's starting value.
   fit <- estimate_dynam(
     depNetwork ~ 1 + indeg + outdeg,
     sub_model = "rate",
     data = dataTest,
-    control_prep = set_preprocessing(end_time = 30)
+    control_prep = set_preprocessing(end_time = 30),
+    control_algo = set_algorithm_newton(
+      score_tol = 1e-13,
+      step_tol = 1e-13,
+      max_iterations = 200
+    )
   )
 
   expect_equal(
     unname(coef(fit)),
-    c(-3.0788893918, 0.5857707195, -0.2372662594),
+    c(-3.07889297524, 0.58577256290, -0.23726638321),
     tolerance = 1e-7
   )
   expect_equal(as.numeric(logLik(fit)), -34.2785521347, tolerance = 1e-7)

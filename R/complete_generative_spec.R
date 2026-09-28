@@ -334,21 +334,18 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
   for (fid in rate_fids) {
     row <- map[map$fid == fid, , drop = FALSE]
     spec <- spec_of_layer(joint_spec, row$layer)
-    # Dispatch the risk-set source on HOW the completed layer is observed: an
-    # UNFLAVORED, fully event-observed relational layer reads goldfish's own
-    # preprocessing scalars (`relational_window_risk_set()`); a modeled panel
-    # layer -- and, as a deliberate stopgap until a flavor-aware relational
-    # risk-set exists, a FLAVORED relational layer -- reads the panel
-    # wave-endpoint/Hamming path (`panel_wave_risk_set()`). The `is.na(flavor)`
-    # guard is what routes a flavored relational layer to the panel path: its
-    # per-flavor gap is not something the bare-formula relational helper can
-    # slice out yet.
-    relational <- is.na(row$flavor) && !(row$layer %in% modeled_panel)
+    # Dispatch the risk-set source on HOW the completed layer is observed: a
+    # fully event-observed relational layer, flavored or not, reads goldfish's
+    # own preprocessing scalars (`relational_window_risk_set()`, per flavor on
+    # a flavored layer); a modeled panel layer reads the panel
+    # wave-endpoint/Hamming path (`panel_wave_risk_set()`).
+    relational <- !(row$layer %in% modeled_panel)
     rs <- if (relational) {
       relational_window_risk_set(
         joint_spec$data,
         layer = row$layer,
-        model = spec$model
+        model = spec$model,
+        flavor = row$flavor
       )
     } else {
       panel_wave_risk_set(
@@ -638,13 +635,31 @@ hamming_count <- function(prev, curr, support_kind, one_mode) {
 # satisfies `exp(intercept_1) == n_dep_events / total_time / avg_active_entity`,
 # exactly goldfish's intercept-only baseline-rate starting value -- the anchor
 # tying the primitive to the estimator.
-relational_window_risk_set <- function(data, layer, model = c("DyNAM", "REM")) {
+#
+# On a flavored layer the stand-in rate is keyed on every flavor of the layer,
+# as a flavored rate fit is preprocessed, so each flavor's rows and derived
+# mask are that fit's; `flavor` picks the completed one's output.
+relational_window_risk_set <- function(
+  data,
+  layer,
+  model = c("DyNAM", "REM"),
+  flavor = NA
+) {
   model <- match.arg(model)
   # The intercept scalars (n_dep_events / total_time / avg_active_entity) are
   # risk-set / event properties, independent of the rate's effects, so any valid
   # rate formula yields the same numbers -- a bare `~ 1` cannot be parsed ("a
   # model without effects cannot be estimated"), so a trivial effect stands in.
-  rate <- if (identical(model, "REM")) ~ 1 + inertia else ~ 1 + indeg
+  rhs <- if (identical(model, "REM")) "1 + inertia" else "1 + indeg"
+  rate <- if (is.na(flavor)) {
+    stats::as.formula(paste("~", rhs), env = baseenv())
+  } else {
+    ties <- as.data.frame(data$ties)
+    flavors <- unique(ties$flavor[ties$layer == layer])
+    lapply(flavors[!is.na(flavors)], function(fl) {
+      stats::as.formula(paste(fl, "~", rhs), env = baseenv())
+    })
+  }
   spec <- make_specification(
     rate = rate,
     layer = layer,
@@ -655,6 +670,10 @@ relational_window_risk_set <- function(data, layer, model = c("DyNAM", "REM")) {
     estimate_rem(spec, sub_model = "rate", preprocessing_only = TRUE)
   } else {
     estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
+  }
+  if (!is.na(flavor)) {
+    prep_map <- attr(prep, "process_map")
+    prep <- prep[[as.character(prep_map$fid[prep_map$flavor == flavor])]]
   }
   list(
     count = prep$n_dep_events,

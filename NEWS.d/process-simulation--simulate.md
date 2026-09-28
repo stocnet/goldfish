@@ -73,3 +73,14 @@
 * Renamed `test_gof()`'s `n_sim` argument to `nsim`, the name `simulate()`
   uses for its replicate count. `test_gof()` now refuses arguments it does
   not take, so a leftover `n_sim` is an error rather than silently ignored.
+* Preprocessing of a timed rate (DyNAM and REM) now stores
+  `exposure_entity_time`, the sum over the rows the rate likelihood
+  integrates of each interval times the entities at risk, and
+  `avg_active_entity` becomes `exposure_entity_time / total_time`, so
+  `n_dep_events / exposure_entity_time` is exactly the intercept-only rate.
+  `avg_active_entity` was an average over stored events; a REM now counts
+  active dyads (without the self-dyad on a one-mode layer) instead of
+  senders. The value seeds the intercept, so estimates move only within the
+  optimizer's tolerance.
+* A completed rate on a flavored, event-observed layer is pinned from that
+  flavor's own exposure instead of the panel wave-endpoint approximation.

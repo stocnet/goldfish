@@ -1756,12 +1756,14 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     requests = consumer_mask_requests(finalized),
     finish_output = finish_output,
     scalar_entity = scalar_entity,
+    # On one node set the self-dyad is not a dyad of the rate's risk set.
+    drop_self = identical(ctx$nodes, ctx$nodes2),
     single = single
   )
 }
 
 # Phase two: fold each consumer's realized mask in, render, and decorate.
-render_walk_engine <- function(pending, masks, weight_risk_set) {
+render_walk_engine <- function(pending, masks) {
   engine <- pending$engine
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -1770,7 +1772,7 @@ render_walk_engine <- function(pending, masks, weight_risk_set) {
     masks,
     pending$finish_output,
     pending$scalar_entity,
-    weight_risk_set = weight_risk_set,
+    drop_self = pending$drop_self,
     names = if (pending$single) NULL else names(engine$consumers)
   )
 
@@ -2226,26 +2228,9 @@ run_merged_walk <- function(
   )
   masks <- realize_pending_masks(pending, recorders)
 
-  # The intercept scalar is the time-weighted average risk-set size only when
-  # the walk has more than one dependent (layer, flavor) stream: competing
-  # processes break a fid's intervals at events it does not own, so the sizes
-  # must be weighted by how long each was in force. A single-process walk -- one
-  # dependent stream, whatever its sub-model families -- has even intervals per
-  # event, so it averages per stored event exactly as the single-process recipe
-  # loop does. Keyed on the dependent streams rather than on the per-engine
-  # consumer machinery, which carries a spec even for one output.
-  weight_risk_set <- nrow(unique(
-    merged$process_map[, c("layer", "flavor")]
-  )) >
-    1L
-
   outputs <- list()
   for (i in seq_along(pending)) {
-    engine_outputs <- render_walk_engine(
-      pending[[i]],
-      masks[[i]],
-      weight_risk_set
-    )
+    engine_outputs <- render_walk_engine(pending[[i]], masks[[i]])
     outputs[names(engine_outputs)] <- engine_outputs
   }
 

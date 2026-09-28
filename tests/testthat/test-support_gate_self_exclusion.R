@@ -181,7 +181,10 @@ test_that("the fixture's rate gates out the sender that can only self-create", {
 
   # N1 is at risk only while it can create a tie it does not already hold.
   expect_identical(at_risk, rate$event_time %in% c(8, 9))
-  expect_equal(rate$avg_active_entity, 3.2)
+  # Three senders at risk on every row and N1 on two more: 32 over the ten
+  # rows, less the first row's three, which integrate a zero interval, over
+  # the nine unit intervals.
+  expect_equal(rate$avg_active_entity, 29 / 9)
 })
 
 test_that("the relational risk set matches the panel endpoint count", {
