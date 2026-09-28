@@ -29,7 +29,7 @@ literal markup.
 - **WHEN** a specification has no `support_constraint` and only one sub-model
 - **THEN** the Support line is omitted and only the present sub-model's formula is shown.
 
-#### Scenario: flavors nested under the dependent layer
+#### Scenario: flavours nested under the dependent layer
 - **WHEN** a flavor-keyed specification is printed
 - **THEN** the flavors are listed beneath the single Dependent layer and each flavor's
   rate/choice formulas are shown under its process label and fid, in the

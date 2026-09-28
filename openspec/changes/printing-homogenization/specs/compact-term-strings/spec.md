@@ -31,7 +31,19 @@ Both SHALL be snapshot-tested under the pinned cli context.
   convergence and likelihood lines carry interpolated values, and the
   coefficient rows are a `printCoefmat()` table with significance stars
 
+## REMOVED Requirements
+
 ### Requirement: One term vocabulary, and an exported way to look it up
+**Reason**: ADR-0071 removes `model_terms()` outright and folds the term
+table into `coef_layout()`, so the two `model_terms` scenarios no longer
+describe anything. A `## MODIFIED` block cannot drop a scenario, so the
+requirement is re-added below under a name that states the new lookup; the
+other four scenarios are carried over unchanged.
+**Migration**: `model_terms(fit, pattern)` becomes `coef_layout(fit, pattern)`.
+
+## ADDED Requirements
+
+### Requirement: One term vocabulary, and coef_layout as the exported way to look it up
 Every surface that takes a model term from a user SHALL resolve it through one
 shared matcher accepting the compact term string, the export form, the
 `coef()` label and an integer position, and SHALL render candidates in error
