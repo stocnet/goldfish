@@ -70,7 +70,7 @@
       suite reports as changed). Review the diff line by line: only the
       provenance line, the label, and the dropped second warning may change.
       Commit the snapshots alone.
-- [ ] 3.2 Write one `NEWS.d/` fragment per `NEWS.d/README.md`: a completed
+- [x] 3.2 Write one `NEWS.d/` fragment per `NEWS.d/README.md`: a completed
       pinned rate is announced once, names its process by label, and states the
       count source it was pinned from. Commit.
 - [ ] 3.3 Closing: `not-cran-test` full suite (NOT_CRAN=true), frozen baselines
