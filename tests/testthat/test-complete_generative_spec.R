@@ -178,6 +178,9 @@ test_that("a missing timed rate completes to a pinned intercept-only rate", {
   expect_true(map$pinned[map$fid == fr_rate])
   rate <- cc$completed_rates[[as.character(fr_rate)]]
   expect_s3_class(rate, "goldfishCteRate")
+  # Modeled panel layer: pinned from the net wave Hamming diff, not the
+  # observed event count -- the source metadata must say so.
+  expect_identical(rate$source, "hamming_diff")
   # Zero free parameters: the pin contributes the empty theta block.
   expect_length(intercept_only_rate_theta_block(rate), 0L)
   # The per-period pin reproduces its count: exp(intercept_w) * T_w * |R_w| = count_w.
@@ -559,6 +562,9 @@ test_that("an unflavored relational layer's completed rate uses the relational s
   expect_true(map$completed[map$fid == calls_rate])
   rate <- cc$completed_rates[[as.character(calls_rate)]]
   expect_s3_class(rate, "goldfishCteRate")
+  # Unflavored, event-observed relational layer: pinned from the observed
+  # event count -- the source metadata must say so.
+  expect_identical(rate$source, "event_count")
   rs <- goldfish:::relational_window_risk_set(cc$data, "calls", model = "DyNAM")
   # The pin reproduces the relational scalars, not the panel Hamming derivation.
   expect_equal(exp(rate$intercept), rs$count / rs$duration / rs$risk_set_size)
@@ -597,6 +603,9 @@ test_that("a flavored relational layer's completed rate stays on the panel path"
   expect_length(creation_rate, 1L)
   expect_true(map$completed[map$fid == creation_rate])
   rate <- cc$completed_rates[[as.character(creation_rate)]]
+  # Flavored relational layer (stopgap): still routed through the panel path,
+  # so the source metadata must say "hamming_diff", not "event_count".
+  expect_identical(rate$source, "hamming_diff")
   # The pin reproduces the panel wave-endpoint/Hamming derivation for the
   # creation flavor over calls' own extent -- proof it took the panel path.
   rs <- goldfish:::panel_wave_risk_set(
