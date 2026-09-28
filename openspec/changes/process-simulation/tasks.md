@@ -768,6 +768,17 @@
       (1k/5k/10k, median of three warm runs; before at `e362b94` recorded in
       `progress.md`): rate, choice, constrained choice and REM preprocessing,
       the pin pass, and the exposure computation itself
+      — *settled 2026-09-28 (Alvaro), the site:* the exposure is computed in
+      ONE place, `render_finalized_consumers()`, where both producers (the
+      joint walk and the flavored driver) finish every output after the
+      fold, and where the flavored path already calls
+      `time_weighted_risk_set()`. It applies to every exact-time output,
+      single-process included (the `weight_risk_set` flag goes). The event
+      average leaves `assemble_default_output()` and
+      `fold_active_sender_support()`; no exposure code goes into the fold,
+      which `constraint-objects-on-shared-walk` D9 retires as a post-walk
+      step. The computation is one loop over the stored output rows, not a
+      second walk through the events
 - [ ] 2.2n The fit rebuild keeps the support constraint and the modeled
       flavor (added 2026-09-27, ADR-0099; schedule: after 2.11, before
       2.11b): a fit stores neither today, so `simulate(fit, data =)` on a
@@ -835,7 +846,10 @@
       flavored layer a flavor-keyed stand-in with the derived mask, so it
       returns that process's exposure. That is also the per-flavor
       exposure 2.11's flavored relational pin reads. Test: its value equals
-      the scalars a fit of the same data and process carries
+      the scalars a fit of the same data and process carries.
+      At 2.11b, decide whether the in-walk running sum the choice needs
+      replaces 2.11's post-walk loop in `render_finalized_consumers()` for
+      every consumer, so the exposure is gathered in the one walk
 
 ## 3. Tests and documentation
 

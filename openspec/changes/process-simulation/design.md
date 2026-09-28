@@ -1392,12 +1392,15 @@ untouched — simulation adds no estimation path).
   matrix branch: it is now a question for goldfish.latent's evaluate step
   and `two-sided-coordination`'s random effects, not for goldfish's
   contract (2026-09-15).
-- **[D5 / 2.11]** Whether a free-running run whose composition drifts from
+- ~~**[D5 / 2.11]** Whether a free-running run whose composition drifts from
   the observed period average should re-pin a completed intercept from the
-  live exposure, or keep the observed pin (2026-09-15; the exposure
+  live exposure, or keep the observed pin~~ (2026-09-15; the exposure
   integral makes the live value available either way). *Note 2026-09-26 (ADR-0098):* still open; 2.11 computes the exposure
   in preprocessing, not live on the simulation walk, so a live re-pin would
-  add that accumulator.
+  add that accumulator. *Resolved 2026-09-28 (Alvaro): keep the observed
+  pin.* The completed rate is a fitted constant per-actor hazard, so the
+  total rate follows the simulated risk set. No exposure accumulator is
+  built on the simulation walk.
 - **[D11 / parametric-rates]** The per-actor time origin of the Weibull
   hazard across a regime switch or a window breakpoint; per-segment
   inversion handles it only if the origin is stored per actor on the handle.
