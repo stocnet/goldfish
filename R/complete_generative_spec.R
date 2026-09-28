@@ -374,6 +374,7 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
       intercept,
       model_type = model_type,
       wave_times = rs$wave_times,
+      source = if (relational) "event_count" else "hamming_diff",
       call = call
     )
   }

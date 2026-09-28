@@ -216,7 +216,9 @@ pin_intercept_only_rate <- function(
 # falls in the sole period). `model_type` selects the timed evaluator the flavor
 # routes through: "DyNAM-M-Rate" for an actor-oriented flavor (per-actor hazard,
 # `.pse_eval_rate`), "REM" for a tie-oriented one (per-dyad hazard,
-# `.pse_eval_rem`).
+# `.pse_eval_rem`). `source` records which count source the pin actually used
+# ("event_count" / "hamming_diff"), decided by the caller's own dispatch and
+# carried on the object unchanged -- never re-derived here.
 #
 # "Compute once and freeze" (D7): the intercept is computed at consumer setup
 # (the pin is a deterministic function of supplied counts/exposures) and stored
@@ -228,9 +230,13 @@ make_intercept_only_rate <- function(
   intercept,
   model_type = c("DyNAM-M-Rate", "REM"),
   wave_times = NULL,
+  source = NULL,
   call = rlang::caller_env()
 ) {
   model_type <- match.arg(model_type)
+  if (!is.null(source)) {
+    source <- match.arg(source, c("event_count", "hamming_diff"))
+  }
   if (!is.numeric(intercept) || length(intercept) < 1L) {
     cli::cli_abort(
       "{.arg intercept} must be a non-empty numeric vector of pinned
@@ -271,7 +277,13 @@ make_intercept_only_rate <- function(
       intercept = intercept,
       wave_times = wave_times,
       n_periods = n_periods,
-      frozen = TRUE
+      frozen = TRUE,
+      # The count source the pin actually used ("event_count" /
+      # "hamming_diff"), fixed by how the completed layer is observed
+      # (`pin_completed_rates()`'s `relational` dispatch) -- never by which
+      # consumer reads the pin. NULL when the object was built outside that
+      # dispatch (no known provenance to report).
+      source = source
     ),
     class = "goldfishCteRate"
   )
