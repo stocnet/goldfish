@@ -18,6 +18,20 @@ the manynet compatibility floor requirement below; manynet functions are
 called only where delegation is DRY (wrapper assembly, legacy conversion), via
 `@importFrom` or `manynet::` — never `manynet:::`.
 
+#### Scenario: Post-stamp mutation is caught at estimation
+- **WHEN** a stamped object is modified after `as_goldfish()` (e.g. piped through
+  `bind_ties()` adding rows with character `time`, or edited by list assignment) and then
+  passed to `estimate_*()`
+- **THEN** the unconditional validation at specification time catches the invalid data
+  and aborts — the surviving stamp does not bypass any check.
+
+#### Scenario: Hand-built structural input accepted
+- **WHEN** a hand-built list with the stocnet structure (plain data.frames, no manynet
+  constructor involved) is passed to `as_goldfish()`
+- **THEN** validation and estimation work — the boundary reads structure, not class
+  provenance, keeping the test fixtures independent of manynet's release cadence.
+
+
 #### Scenario: Raw stocnet accepted directly
 - **WHEN** `estimate_dynam(formula, data = social_evolution, ...)` is called with a valid
   unstamped stocnet object

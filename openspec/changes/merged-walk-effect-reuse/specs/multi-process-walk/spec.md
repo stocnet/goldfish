@@ -45,6 +45,32 @@ specifications SHALL preprocess byte-identically to the outputs of the deleted
 recipe loops, with the frozen 1e-6 coefficient baselines and the C++ goldens
 as the gate.
 
+#### Scenario: cross-process right-censoring
+- **WHEN** a phone-calls event occurs at time t in a friendship + calls
+  multivariate walk with timed rates
+- **THEN** the calls rate fid records a dependent event and every friendship
+  timed rate fid records a right-censored boundary at t.
+
+#### Scenario: cross-process effect computed once
+- **WHEN** `tie(friendship)` appears in both processes' choice formulas
+- **THEN** it occupies one dyad-block column whose updates are computed once
+  and referenced by both processes' effect maps.
+
+#### Scenario: distinct mode-pairs get distinct blocks with cross-mode-pair censoring
+- **WHEN** an advice process `{staff}×{director}` and a nominations process
+  `{director}×{project}` are walked together with timed rates, and a nominations
+  event occurs at time t
+- **THEN** the walk hosts a dyad block per mode-pair (`staff×director` and
+  `director×project`), the nominations rate fid records a dependent event, and
+  every advice timed rate fid records a right-censored boundary at t despite the
+  differing mode-pair.
+
+#### Scenario: no cross-family deduplication
+- **WHEN** `inertia(calls)` appears in a DyNAM-choice formula and a REM rate
+  formula
+- **THEN** each dispatch family computes its own statistic column.
+
+
 
 #### Scenario: a shared node-level quantity is computed once across blocks
 - **WHEN** a layer's rate formula names `indeg` and its choice formula names the

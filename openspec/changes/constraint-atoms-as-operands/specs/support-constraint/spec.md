@@ -9,6 +9,25 @@ stays live across the event loop. An atom whose inputs read the availability mas
 itself SHALL be rejected at parse time with a `cli` error (the mask may not depend on
 itself), keeping the data flow a two-layer DAG: atoms → mask.
 
+#### Scenario: constraint atom produces no estimated column
+- **WHEN** a model with effects `~ inertia(net)` and `support_constraint = ~ tie(other)` is
+  preprocessed
+- **THEN** the output statistics contain exactly the `inertia(net)` column; `tie(other)`
+  appears in `plan$effects` with `role = "constraint"` and contributes no column and no
+  coefficient.
+
+#### Scenario: atom state updated by the existing effect machinery
+- **WHEN** an event updates the network read by a constraint atom
+- **THEN** the atom's `stat_state` is updated by the same `update_*` function an estimated
+  effect would use, and the mask re-evaluates at the touched cells.
+
+#### Scenario: availability-dependent atom rejected
+- **WHEN** a constraint atom's definition reads the active risk set (an availability-derived
+  effect)
+- **THEN** parsing aborts with a `cli` error explaining that a constraint may not depend on
+  the risk set it defines.
+
+
 #### Scenario: the constraint role is read, not only written
 - **WHEN** a constrained model is compiled
 - **THEN** its atoms appear in `plan$effects` with `role = "constraint"`, and
