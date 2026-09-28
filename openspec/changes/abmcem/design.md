@@ -778,6 +778,31 @@ streams. FORK/`mclapply` excluded; PSOCK rejected (the prototype's
 seam removes). MCMC chain generation stays serial by nature — the seam covers
 draws and evaluation, not the chain.
 
+**Resident pool store (added 2026-09-28, task 6.2).** "Hold the data once" is
+a pool store keyed by sequence id, taking exactly the two mutations the loop
+makes (D7): **append** a chunk (growth, a post-acceptance top-up) or
+**replace** the whole pool (the first pool, a `refresh` or ESS-guard redraw).
+A replace clears the old entries, so memory stays (1 + n_workers) x pool: the
+coordinator's own copy (weights, reference records, the D9 covariance pass)
+plus one resident copy per worker. On daemons each mutation is a
+`mirai::everywhere()` with `.min = n_workers`; every daemon's result is
+collected and checked, and a failed or missing daemon aborts
+(`goldfish_dynes_broadcast_failed`). The serial path runs the same resident
+functions over a store in this process, so both paths are one code path. The
+static header (sub-models with their coefficient masks, `theta_length`, the
+preprocessing control) crosses the seam once, when `estimate_dynes()` opens
+the store right after the seam. The masks are read from the completed spec's
+own data, since the coefficient layout depends on the formulas and not on the
+drawn events. Each mutation advances a **pool generation**; the
+coordinator's pool records it, every evaluation task carries it, and the
+resident store aborts on a mismatch (`goldfish_dynes_stale_pool`), so a pool
+object captured before an append or replace can never be scored against
+sequences it does not list. An evaluation task is built from the store key,
+the generation and θ, and maps over sequence ids, so its payload does not
+depend on K. The fit drops the closed store handle, so a serial and a parallel
+fit are identical objects. Evaluation stays deterministic, so the RNG keying
+above is untouched.
+
 **RNG reproducibility (Option B — resolved with dynes-augmentation).** The single
 `seed` seeds an `L'Ecuyer-CMRG` root (`RNGkind()` set at estimation entry,
 `withr`-restored on exit) fanning into three substream families: **augmentation**
@@ -853,6 +878,16 @@ never promised).
   move (`walk_open()` recompiles every formula); caching a live handle across a
   chain's proposals belongs to `augment_seq_mcmc()`'s driver (`rate-queries` D5)
   and is the first place to look if profiling finds it dominant.
+
+- **[Task payload silently grows with the pool]** (added 2026-09-28) → a task
+  closure must not reach the pool, and a closure can reach it without naming
+  it: a forced promise in the task constructor's frame serialized with its
+  caller's frame, so the first store-backed evaluation task still shipped the
+  whole pool (369 KB against 1.2 KB on the toy fixture; the same held for the
+  pool-entry task). The task constructors rebind their arguments as plain
+  values, and `test-pool_store_dynes.R` pins the payload as independent of K
+  and free of `stats`/`data`. The serial path serializes nothing, so only a
+  recording seam (or real daemons) can see this class of regression.
 
 ## Migration Plan
 
@@ -1088,6 +1123,12 @@ work) before `abmcem` lands.
     serial.
   Scheduled as task 6.2; the spec gains the "pool data reaches the daemons
   once" scenario.
+  *Closed 2026-09-28 (task 6.2):* implemented as the resident pool store in
+  D10, with the generation counter on serial and daemon stores alike. The
+  quadratic traffic measured above had a second cause beyond the forced `pool`
+  argument: any forced promise in a task constructor's frame carries the
+  caller's frame, which is why the constructors now rebind their arguments
+  (Risks, "task payload silently grows with the pool").
 - **[resolved 2026-09-25: Imports] `parallel` moved to Imports.** The L'Ecuyer-CMRG stream jumps need
   `parallel::nextRNGStream()`/`nextRNGSubStream()`, so `parallel` moved from
   Suggests to Imports. It ships with base R (no install cost), but it is a
