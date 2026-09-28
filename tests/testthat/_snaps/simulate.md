@@ -187,10 +187,8 @@
       Warning in `simulate()`:
       ! Layer "calls" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
       i Completed because `times = "generated"` was requested; the specification's default is "observed", with no rate.
+      i calls › rate is pinned from the observed event count over the relevant period.
       i The default adds no free parameter; it is auto-supplied for the simulate generative surface.
-      Warning in `simulate()`:
-      ! Rate 1 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
-      i The pin comes from the observed event count over the relevant period.
       Warning in `simulate()`:
       Simulation flagged 1 of 1 replicate.
       ! 1 ran past the end of the observation window at 5; covariate and composition state is held at its value there.

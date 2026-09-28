@@ -8,6 +8,8 @@
       i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
       Warning:
       ! Layer "emails" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
+      i emails › rate is pinned from the observed event count over the relevant period.
+      i It carries no standard error and is excluded from estimation.
       i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
 
 # a mixed ordered+timed composition aborts at join time

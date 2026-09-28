@@ -262,11 +262,9 @@
     Condition
       Warning in `estimate_dynes()`:
       ! Layer "emails" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
-      i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
-      Warning in `estimate_dynes()`:
-      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
-      i The pin comes from the wave Hamming diff between observed states -- a net-change floor.
+      i emails › rate is pinned from the observed event count over the relevant period.
       i It carries no standard error and is excluded from estimation.
+      i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
       Error in `estimate_dynes()`:
       ! No augmenter is available for `routine` = "sim" yet.
       i The sequence augmenters are not part of this version of goldfish.
@@ -278,10 +276,8 @@
     Condition
       Warning in `simulate()`:
       ! Layer "emails" has no rate sub-model; completing it with a pinned intercept-only rate (zero free parameters).
+      i emails › rate is pinned from the observed event count over the relevant period.
       i The default adds no free parameter; it is auto-supplied for the simulate generative surface.
-      Warning in `simulate()`:
-      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
-      i The pin comes from the observed event count over the relevant period.
 
 # mark_pinned_rates rejects an ordered-regime joint specification
 

@@ -65,7 +65,7 @@
 
 ## 3. Snapshots, changelog, and closing
 
-- [ ] 3.1 Re-record the `estimate_dynes()` / `simulate()` entry snapshots in
+- [x] 3.1 Re-record the `estimate_dynes()` / `simulate()` entry snapshots in
       `tests/testthat/_snaps/intercept_only_rate.md` (and any other snapshot the
       suite reports as changed). Review the diff line by line: only the
       provenance line, the label, and the dropped second warning may change.
