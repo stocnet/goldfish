@@ -549,5 +549,5 @@
       `n_cores`; no `blas_threads` knob) and `devtools::document()`. Rename test titles that say
       "explicit n_cores" and re-accept the affected warning snapshot only if
       its text changed.
-- [ ] 6.6 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
+- [x] 6.6 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       commit. No DESCRIPTION version bump, no root `NEWS.md` edit.

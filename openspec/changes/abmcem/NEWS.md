@@ -60,3 +60,13 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   `simulate()` runs the joint specification the fit holds. `logLik()` refuses,
   and `AIC()` and `BIC()` with it, because the estimator ascends a Monte-Carlo
   estimate of the likelihood.
+* Group 6 (review follow-ups) complete. `set_algorithm_em()` now defaults to
+  a serial `n_cores = 1L`, and any value above 1 starts that many mirai
+  daemons, which from a development tree load the same goldfish the session
+  runs. The pool is scored on the joint single-clock likelihood: one merged
+  walk per sequence, where every other process's events are right-censoring
+  boundaries for the timed rates. Flavored joint specifications are accepted.
+  On daemons, pool data stays resident: each sequence's data and statistics
+  are sent once, when it enters the pool, and each evaluation task carries only
+  sequence ids and parameters. A pool generation counter rejects a task from a
+  superseded pool. Citations now use the Levine & Casella (2001) author order.
