@@ -128,17 +128,18 @@ keyed_draw_task <- function(draw, iteration, theta) {
 }
 
 # The seam for one estimation run: `map(x, f)` with the lapply() contract, and
-# `close()` to release any daemons. Parallelism is opt-in: only an explicit
-# `n_cores > 1` asks for it, and without mirai that request warns once and
-# runs serially, which gives the same result. Workers times BLAS threads never
-# exceeds `n_cores`, so the two levels of parallelism do not oversubscribe.
+# `close()` to release any daemons. Serial is the default (n_cores = 1L);
+# only n_cores > 1 asks for parallelism, and without mirai that request warns
+# once and runs serially, which gives the same result. Workers times BLAS
+# threads never exceeds `n_cores`, so the two levels of parallelism do not
+# oversubscribe.
 dynes_map_seam <- function(control, call = rlang::caller_env()) {
   serial <- list(
     map = lapply,
     n_workers = 1L,
     close = function() invisible(NULL)
   )
-  if (!isTRUE(control$n_cores_explicit) || control$n_cores <= 1L) {
+  if (control$n_cores <= 1L) {
     return(serial)
   }
   if (!dynes_mirai_available()) {

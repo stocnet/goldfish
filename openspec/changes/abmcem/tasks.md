@@ -540,7 +540,7 @@
       explicitly" test); in `tests/testthat/test-estimate_dynes.R`, the default
       control opens a serial seam with no daemons and no warning, and
       `n_cores = 2L` without mirai still warns once and runs serially.
-- [ ] 6.5b Implement: `set_algorithm_em(n_cores = 1L)`; drop the `missing()`
+- [x] 6.5b Implement: `set_algorithm_em(n_cores = 1L)`; drop the `missing()`
       check and the `n_cores_explicit` field (`R/algorithm_controls.R`); the
       seam in `R/map_seam_dynes.R` tests `n_cores <= 1L` only, with its
       comment updated; rewrite the `n_cores` roxygen (default `1L`, serial; a

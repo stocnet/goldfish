@@ -388,11 +388,13 @@ set_sgd_options <- function(
 #'   per accepted iteration). Default `FALSE`.
 #' @param n_cores A single positive integer, the core budget for the internal
 #'   per-sequence map (augmentation draws, pool preprocessing, and evaluation).
-#'   Left at its default (`2L`, within CRAN's two-core cap) the map runs
-#'   serially. An explicit value above 1 runs it on that many mirai daemons,
-#'   with workers times BLAS threads kept within `n_cores`; if mirai (a
-#'   Suggests package) is not installed, it warns once and runs serially. The
-#'   worker count never changes the drawn sequences; see "Reproducibility".
+#'   Default `1L`: the map runs serially, silently, with no dependency on
+#'   mirai. A value above 1 runs that many mirai daemons instead, with workers
+#'   times BLAS threads kept within `n_cores`; if mirai (a Suggests package) is
+#'   not installed, it warns once and runs serially. Since v1 always sets
+#'   `n_workers = n_cores`, each worker gets exactly one BLAS thread (there is
+#'   no `blas_threads` knob to split the budget otherwise). The worker count
+#'   never changes the drawn sequences; see "Reproducibility".
 #' @param augmenter,weights,optimizer The nested option bundles, from
 #'   `[set_augmenter_options]`, `[set_weights_options]`, and `[set_sgd_options]`
 #'   respectively. Each defaults to its own constructor's defaults.
@@ -438,13 +440,11 @@ set_algorithm_em <- function(
   seed = NULL,
   initial_parameters = NULL,
   em_trace_se = FALSE,
-  n_cores = 2L,
+  n_cores = 1L,
   augmenter = set_augmenter_options(),
   weights = set_weights_options(),
   optimizer = set_sgd_options()
 ) {
-  n_cores_explicit <- !missing(n_cores)
-
   n_sequences <- check_em_count(n_sequences, "n_sequences")
   max_iterations <- check_em_count(max_iterations, "max_iterations")
   stop_count <- check_em_count(stop_count, "stop_count")
@@ -623,7 +623,6 @@ set_algorithm_em <- function(
     initial_parameters = initial_parameters,
     em_trace_se = em_trace_se,
     n_cores = n_cores,
-    n_cores_explicit = n_cores_explicit,
     augmenter = augmenter,
     weights = weights,
     optimizer = optimizer

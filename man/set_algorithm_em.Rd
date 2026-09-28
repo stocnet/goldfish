@@ -17,7 +17,7 @@ set_algorithm_em(
   seed = NULL,
   initial_parameters = NULL,
   em_trace_se = FALSE,
-  n_cores = 2L,
+  n_cores = 1L,
   augmenter = set_augmenter_options(),
   weights = set_weights_options(),
   optimizer = set_sgd_options()
@@ -78,11 +78,13 @@ per accepted iteration). Default \code{FALSE}.}
 
 \item{n_cores}{A single positive integer, the core budget for the internal
 per-sequence map (augmentation draws, pool preprocessing, and evaluation).
-Left at its default (\code{2L}, within CRAN's two-core cap) the map runs
-serially. An explicit value above 1 runs it on that many mirai daemons,
-with workers times BLAS threads kept within \code{n_cores}; if mirai (a
-Suggests package) is not installed, it warns once and runs serially. The
-worker count never changes the drawn sequences; see "Reproducibility".}
+Default \code{1L}: the map runs serially, silently, with no dependency on
+mirai. A value above 1 runs that many mirai daemons instead, with workers
+times BLAS threads kept within \code{n_cores}; if mirai (a Suggests package) is
+not installed, it warns once and runs serially. Since v1 always sets
+\code{n_workers = n_cores}, each worker gets exactly one BLAS thread (there is
+no \code{blas_threads} knob to split the budget otherwise). The worker count
+never changes the drawn sequences; see "Reproducibility".}
 
 \item{augmenter, weights, optimizer}{The nested option bundles, from
 \verb{[set_augmenter_options]}, \verb{[set_weights_options]}, and \verb{[set_sgd_options]}
