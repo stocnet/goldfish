@@ -450,7 +450,9 @@
       `pkgload::pkg_path()`: a test run from `tests/testthat` or a second
       checkout would otherwise load different code on the daemons.
       pkgload to Suggests in DESCRIPTION (the proposal's Impact section
-      already records it).
+      already records it). Close the design's "mirai path never run" item
+      with a one-line note that the real-daemon test now runs in the
+      `NOT_CRAN=true` gate.
 - [ ] 6.2a Write failing tests for broadcast-resident pool data (design "Open
       Questions", no-daemon-resident-data verdict; spec scenario "pool data
       reaches the daemons once"), against a mocked seam that records payloads:
@@ -520,7 +522,7 @@
       `loglik` and `rates` stay on their two paths; a shared walk is the
       batched evaluator's optimization, not this change's. Keep the analytic
       `pinned_rate_compensator()` straddle cut unchanged (6.3a(ix)).
-- [ ] 6.4 Citation author order (design "Citation author order"): use the
+- [x] 6.4 Citation author order (design "Citation author order"): use the
       `inst/REFERENCES.bib` order, Levine & Casella (2001), in
       `R/weights_dynes.R` (two comments), `R/algorithm_controls.R`
       (`set_weights_options()` roxygen; `devtools::document()` regenerates

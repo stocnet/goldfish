@@ -16,7 +16,7 @@ set_weights_options(
 \arguments{
 \item{weighting}{A character string: \code{"importance"} (default) reweights
 each pooled sequence by the likelihood ratio against its own reference
-record (the Casella & Levine 2001 Monte-Carlo-EM sample-reuse update);
+record (the Levine & Casella 2001 Monte-Carlo-EM sample-reuse update);
 \code{"uniform"} treats every sequence as equally weighted, valid only when
 the pool is drawn exactly from the model's conditional distribution at
 the current parameters.}

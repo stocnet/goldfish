@@ -1,6 +1,6 @@
 # E-step weight state for the ascent-based Monte Carlo EM (ABMCEM) loop driven
 # by estimate_dynes(). Pure functions over a pool of endpoint-hitting sequences:
-# the permanent per-sequence reference record, the Casella & Levine (2001)
+# the permanent per-sequence reference record, the Levine & Casella (2001)
 # likelihood-ratio reweighting, the named-enum log-weight transformation, the
 # effective sample size, the three resampling schemes, and the ESS staleness
 # guard. The estimation loop owns the redraw/refresh/growth mechanics; these
@@ -49,7 +49,7 @@ pool_log_proposal <- function(reference_records) {
 
 # Raw (un-normalized, pre-transformation) log importance weights: the current
 # per-sequence total log-likelihood (summed across sub-models) minus each
-# sequence's stored log proposal density. This is the Casella & Levine (2001)
+# sequence's stored log proposal density. This is the Levine & Casella (2001)
 # Monte-Carlo-EM sample-reuse update -- for MCMC draws `log_proposal` is the
 # log-likelihood at the sequence's own reference parameters, so the weight is
 # exactly the likelihood ratio against that reference. Mixed-reference pools

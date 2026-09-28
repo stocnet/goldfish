@@ -1,6 +1,6 @@
 # Task 2.1a/2.1b (abmcem): the E-step weight-state machinery driving the ABMCEM
 # loop's importance weighting -- permanent per-sequence reference records, the
-# Casella & Levine (2001) likelihood-ratio (own-ratio self-normalized IS)
+# Levine & Casella (2001) likelihood-ratio (own-ratio self-normalized IS)
 # reweighting, the named-enum log-weight transformation, effective sample size,
 # the three resampling schemes, and the ESS staleness guard with its two
 # warnings. Pure functions over hand-computed fixtures; the loop wiring

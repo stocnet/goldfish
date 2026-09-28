@@ -147,7 +147,7 @@ check_move_probs <- function(move_probs, call = rlang::caller_env()) {
 #'
 #' @param weighting A character string: `"importance"` (default) reweights
 #'   each pooled sequence by the likelihood ratio against its own reference
-#'   record (the Casella & Levine 2001 Monte-Carlo-EM sample-reuse update);
+#'   record (the Levine & Casella 2001 Monte-Carlo-EM sample-reuse update);
 #'   `"uniform"` treats every sequence as equally weighted, valid only when
 #'   the pool is drawn exactly from the model's conditional distribution at
 #'   the current parameters.
