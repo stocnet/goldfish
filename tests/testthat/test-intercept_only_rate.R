@@ -979,7 +979,7 @@ test_that("warn_pinned_rates warns once per pinned fid, none for an estimated on
   expect_snapshot(warn_pinned_rates(marked, consumer = "estimate_dynes"))
 })
 
-test_that("warn_pinned_rates leaves a completed rate to the completion warning", {
+test_that("warn_pinned_rates skips a rate the completion announced", {
   data <- pinned_joint_data()
   calls <- make_specification(
     rate = ~ 1 + inertia,
