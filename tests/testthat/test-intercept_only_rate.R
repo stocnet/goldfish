@@ -678,6 +678,23 @@ completion_rate_bundle <- function() {
   )
 }
 
+# Clear every bundle's completion mark on an already-marked joint specification,
+# so its pinned rates stand in for authored ones: the standalone pinned-rate
+# warning is raised only for a pin the completion did not already announce.
+# Covers plain (single-process) specifications, which is all these fixtures use.
+clear_completed_marks <- function(joint_spec) {
+  joint_spec$specifications <- lapply(
+    joint_spec$specifications,
+    function(spec) {
+      for (family in names(spec$submodels)) {
+        spec$submodels[[family]]$completed <- FALSE
+      }
+      spec
+    }
+  )
+  joint_spec
+}
+
 test_that("an intercept-only rate bundle is classified by shape, source-agnostic", {
   data <- pinned_joint_data()
   estimated_rate <- make_specification(
@@ -956,10 +973,40 @@ test_that("warn_pinned_rates warns once per pinned fid, none for an estimated on
   # estimated and must warn about nothing.
   emails$submodels$rate <- completion_rate_bundle()
   joint <- make_joint_specification(calls, emails, data = data)
-  marked <- mark_pinned_rates(joint)
+  marked <- clear_completed_marks(mark_pinned_rates(joint))
   expect_length(marked$pinned_rates, 1L)
 
   expect_snapshot(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+})
+
+test_that("warn_pinned_rates leaves a completed rate to the completion warning", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  emails$submodels$rate <- completion_rate_bundle()
+  marked <- mark_pinned_rates(make_joint_specification(
+    calls,
+    emails,
+    data = data
+  ))
+  expect_length(marked$pinned_rates, 1L)
+
+  # The completion already announced this pin, so a second warning would repeat
+  # the same fact at the same entry.
+  expect_no_warning(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+  expect_no_warning(warn_pinned_rates(marked, consumer = "simulate"))
 })
 
 test_that("warn_pinned_rates emits nothing when no rate is pinned", {
@@ -1021,11 +1068,11 @@ test_that("the warning is not suppressed across repeated calls", {
     data = data
   )
   emails$submodels$rate <- completion_rate_bundle()
-  marked <- mark_pinned_rates(make_joint_specification(
+  marked <- clear_completed_marks(mark_pinned_rates(make_joint_specification(
     calls,
     emails,
     data = data
-  ))
+  )))
 
   # cli::cli_warn() carries no .frequency = "once"/"regularly" here (matching
   # every other cli_warn() in this package), so back-to-back calls each warn --
@@ -1037,11 +1084,14 @@ test_that("the warning is not suppressed across repeated calls", {
   expect_warning(warn_pinned_rates(marked, consumer = "simulate"))
 })
 
-# The consumer-entry warnings, fired by each consumer's own entry point. The
-# pin is announced once per consumer call, in that consumer's wording.
+# The consumer-entry warnings, fired by each consumer's own entry point. A
+# completed rate is announced once per consumer call, by the completion's own
+# warning: its provenance line follows the count source the pin used, and only
+# estimate_dynes() adds the no-SE / excluded-from-estimation line.
 
 # calls fully specified; emails keyed in choice only, so a timed completion
-# pins its missing rate.
+# pins its missing rate. emails is an unflavored, event-observed layer, so the
+# pin reads its observed event count.
 pinned_entry_join <- function() {
   data <- pinned_joint_data()
   make_joint_specification(
@@ -1062,96 +1112,173 @@ pinned_entry_join <- function() {
   )
 }
 
-# The pinned-rate warnings a call raises, muffling every other condition the
-# consumer signals (its completion warnings, and estimate_dynes()'s abort for
-# want of an augmenter, which comes after the entry warning).
-pinned_rate_warnings <- function(expr) {
-  messages <- character(0)
-  withCallingHandlers(
-    tryCatch(expr, goldfish_dynes_no_augmenter = function(e) NULL),
-    goldfish_pinned_rate_warning = function(w) {
-      messages <<- c(messages, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    },
-    warning = function(w) invokeRestart("muffleWarning")
+# friendship (a modeled panel layer, choice-only) completes to a rate pinned
+# from the wave Hamming diff; calls (rate-only) completes to a uniform choice.
+# The friendship-focal specification is built over event-observed data to clear
+# make_specification()'s panel-focal guard, then composed over the panel data.
+pinned_panel_join <- function() {
+  data <- pinned_joint_data()
+  event_data <- data
+  event_data$info$observation[["friendship"]] <- "event"
+  make_joint_specification(
+    make_specification(
+      choice = ~inertia,
+      layer = "friendship",
+      model = "DyNAM",
+      data = event_data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = event_data
+    ),
+    data = data
   )
-  messages
 }
 
-test_that("estimate_dynes() warns at entry with its own wording", {
-  js <- pinned_entry_join()
-  control <- set_algorithm_em(
-    augmenter = set_augmenter_options(routine = "sim")
+# Every warning a consumer call raises, as `list(class, message)` with the
+# message's line wrapping collapsed to single spaces, muffling each one and
+# estimate_dynes()'s abort for want of an augmenter (which comes after the
+# entry warnings).
+entry_warnings <- function(expr) {
+  seen <- list()
+  withCallingHandlers(
+    tryCatch(expr, goldfish_dynes_no_augmenter = function(e) NULL),
+    warning = function(w) {
+      seen[[length(seen) + 1L]] <<- list(
+        class = class(w),
+        message = gsub("\\s+", " ", conditionMessage(w))
+      )
+      invokeRestart("muffleWarning")
+    }
   )
+  seen
+}
 
-  messages <- pinned_rate_warnings(estimate_dynes(js, control))
+# The messages of the recorded warnings carrying condition class `class`.
+warnings_of_class <- function(seen, class) {
+  hits <- Filter(function(w) class %in% w$class, seen)
+  vapply(hits, `[[`, character(1), "message")
+}
 
-  expect_length(messages, 1L)
-  expect_match(messages, "Hamming diff")
-  expect_snapshot(estimate_dynes(js, control), error = TRUE)
-})
+entry_control <- function() {
+  set_algorithm_em(augmenter = set_augmenter_options(routine = "sim"))
+}
 
-test_that("simulate() warns at entry with its own wording", {
-  data <- pinned_joint_data()
-  calls <- make_specification(
-    rate = ~ 1 + indeg,
-    choice = ~ inertia + tie(friendship),
-    layer = "calls",
-    model = "DyNAM",
-    data = data
-  )
-  # `emails` is keyed in choice only: a timed regime completes its missing rate
-  # with the pinned intercept-only default, which is what must be announced.
-  emails <- make_specification(
-    choice = ~inertia,
-    layer = "emails",
-    model = "DyNAM",
-    data = data
-  )
-  js <- make_joint_specification(calls, emails, data = data)
-  # Authored over the specification as written: the completed rate is pinned,
-  # carries no free slot, and is reconciled in at the consumer's entry.
-  parameters <- set_parameters(
+entry_parameters <- function(js) {
+  set_parameters(
     js,
     `calls › rate` = c(-1, 0.1),
     `calls › choice` = c(0.2, 0.3),
     `emails › choice` = c(0.2)
   )
+}
 
-  # The pin's provenance is consumer-specific, so simulate() fires its own
-  # wording rather than estimate_dynes()'s Hamming-diff sentence.
-  expect_warning(
-    simulate(js, coef = parameters, n_events = 2, seed = 1),
-    class = "goldfish_pinned_rate_warning"
+test_that("estimate_dynes() warns at entry with its own wording", {
+  js <- pinned_entry_join()
+  control <- entry_control()
+
+  seen <- entry_warnings(estimate_dynes(js, control))
+
+  # One completed rate, one warning -- no second pinned-rate warning.
+  expect_length(seen, 1L)
+  message <- seen[[1L]]$message
+  expect_match(message, "emails › rate", fixed = TRUE)
+  expect_match(message, "observed event count", fixed = TRUE)
+  expect_match(message, "no standard error", fixed = TRUE)
+  expect_match(message, "excluded from estimation", fixed = TRUE)
+  expect_no_match(message, "Hamming", fixed = TRUE)
+  expect_snapshot(estimate_dynes(js, control), error = TRUE)
+})
+
+test_that("simulate() warns at entry with its own wording", {
+  js <- pinned_entry_join()
+  parameters <- entry_parameters(js)
+
+  seen <- entry_warnings(
+    simulate(js, coef = parameters, n_events = 2, seed = 1)
   )
+
+  # The provenance follows the pin, not the consumer: the same observed event
+  # count as under estimate_dynes(), with no standard-error language.
+  expect_length(seen, 1L)
+  message <- seen[[1L]]$message
+  expect_match(message, "emails › rate", fixed = TRUE)
+  expect_match(message, "observed event count", fixed = TRUE)
+  expect_no_match(message, "standard error", fixed = TRUE)
+  expect_no_match(message, "Hamming", fixed = TRUE)
   expect_snapshot(
     out <- simulate(js, coef = parameters, n_events = 2, seed = 1)
   )
 })
 
+test_that("a panel-layer completed rate names the Hamming-diff source", {
+  seen <- entry_warnings(estimate_dynes(pinned_panel_join(), entry_control()))
+
+  rate <- warnings_of_class(seen, "goldfish_pinned_rate_warning")
+  expect_length(rate, 1L)
+  expect_match(rate, "friendship › rate", fixed = TRUE)
+  expect_match(rate, "Hamming diff", fixed = TRUE)
+  expect_match(rate, "net-change floor", fixed = TRUE)
+  expect_match(rate, "no standard error", fixed = TRUE)
+  expect_match(rate, "excluded from estimation", fixed = TRUE)
+  expect_no_match(rate, "observed event count", fixed = TRUE)
+})
+
+test_that("a completed rate's one warning is caught by either class", {
+  js <- pinned_entry_join()
+  control <- entry_control()
+  catch <- function(class) {
+    handlers <- list(function(w) w)
+    names(handlers) <- class
+    do.call(tryCatch, c(list(quote(estimate_dynes(js, control))), handlers))
+  }
+
+  by_pinned <- catch("goldfish_pinned_rate_warning")
+  by_completed <- catch("goldfish_completed_default_warning")
+
+  # Both handlers stop on the same (only) warning, which carries both classes.
+  expect_s3_class(by_pinned, "goldfish_completed_default_warning")
+  expect_s3_class(by_completed, "goldfish_pinned_rate_warning")
+  expect_identical(conditionMessage(by_pinned), conditionMessage(by_completed))
+})
+
+test_that("a completed choice carries only the completed-default class", {
+  seen <- entry_warnings(estimate_dynes(pinned_panel_join(), entry_control()))
+
+  completed <- Filter(
+    function(w) "goldfish_completed_default_warning" %in% w$class,
+    seen
+  )
+  expect_length(completed, 2L)
+  choice <- Filter(function(w) grepl("no choice sub-model", w$message), seen)
+  expect_length(choice, 1L)
+  # Nothing about a completed choice is pinned.
+  expect_false("goldfish_pinned_rate_warning" %in% choice[[1L]]$class)
+})
+
 test_that("the same spec re-fires when routed through a second consumer", {
   js <- pinned_entry_join()
-  parameters <- set_parameters(
-    js,
-    `calls › rate` = c(-1, 0.1),
-    `calls › choice` = c(0.2, 0.3),
-    `emails › choice` = c(0.2)
+  parameters <- entry_parameters(js)
+
+  first <- warnings_of_class(
+    entry_warnings(estimate_dynes(js, entry_control())),
+    "goldfish_pinned_rate_warning"
   )
-  control <- set_algorithm_em(
-    augmenter = set_augmenter_options(routine = "sim")
+  second <- warnings_of_class(
+    entry_warnings(simulate(js, coef = parameters, n_events = 2, seed = 1)),
+    "goldfish_pinned_rate_warning"
   )
 
-  first <- pinned_rate_warnings(estimate_dynes(js, control))
-  second <- pinned_rate_warnings(
-    simulate(js, coef = parameters, n_events = 2, seed = 1)
-  )
-
-  # The second consumer is not silenced by the first having fired, and each
-  # speaks of its own pin source.
+  # The second consumer is not silenced by the first having fired, and both
+  # state the source the pin actually used; only estimation adds the SE line.
   expect_length(first, 1L)
   expect_length(second, 1L)
-  expect_match(first, "Hamming diff")
-  expect_match(second, "observed event count")
+  expect_match(first, "observed event count", fixed = TRUE)
+  expect_match(second, "observed event count", fixed = TRUE)
+  expect_match(first, "no standard error", fixed = TRUE)
+  expect_no_match(second, "standard error", fixed = TRUE)
 })
 
 # Timed-regime scope guard (Session 6.1/6.2, D3): the primitive is meaningful
