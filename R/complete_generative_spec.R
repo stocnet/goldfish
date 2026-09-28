@@ -157,10 +157,14 @@ complete_generative_spec <- function(
     )
   }
 
-  # 4. Warn once per filled gap, at this consumer's entry (never suppressed).
+  # 4. Warn once per filled gap, at this consumer's entry (never suppressed). A
+  #    completed rate's warning also states the pin's count source, so it needs
+  #    the pins built in step 3 and the rebuilt map to find each rate's fid.
   warn_completed_defaults(
     added,
     consumer = consumer,
+    completed_rates = completed$completed_rates,
+    process_map = completed$process_map,
     rate_requested = rate_requested,
     call = call
   )
@@ -690,10 +694,18 @@ abort_on_degenerate_relational_layer <- function(layer, rs, call) {
 # Warn once per filled gap, worded for the applied default and the consumer.
 # A rate completed only because generated times were requested says so: the
 # specification alone would have simulated at the observed stamps.
+#
+# A completed rate is also pinned, and this is its only announcement: the
+# warning names the count source the pin actually used (read off the pin, never
+# inferred from the consumer), adds the no-SE / excluded line under estimation
+# only, and carries the pinned-rate condition class so handlers on either class
+# still catch it.
 warn_completed_defaults <- function(
   added,
   consumer,
   call,
+  completed_rates = list(),
+  process_map = NULL,
   rate_requested = FALSE
 ) {
   if (length(added) == 0L) {
@@ -701,6 +713,7 @@ warn_completed_defaults <- function(
   }
   add <- do.call(rbind, added)
   for (i in seq_len(nrow(add))) {
+    is_rate <- add$family[i] == "rate"
     default <- switch(
       add$sub_model[i],
       choice = "a uniform choice over the support-legal alternatives",
@@ -714,10 +727,28 @@ warn_completed_defaults <- function(
     } else {
       sprintf(" flavor {.val %s}", add$flavor[i])
     }
-    requested_note <- if (rate_requested && add$family[i] == "rate") {
+    requested_note <- if (rate_requested && is_rate) {
       c(
         "i" = "Completed because {.code times = \"generated\"} was requested;
                the specification's default is {.val observed}, with no rate."
+      )
+    }
+    pin_notes <- NULL
+    if (is_rate) {
+      fid <- completed_fid(process_map, add$layer[i], add$flavor[i], "rate")
+      pin <- if (length(fid) == 1L) completed_rates[[as.character(fid)]]
+      label <- paste(
+        c(add$layer[i], if (!is.na(add$flavor[i])) add$flavor[i], "rate"),
+        collapse = " › "
+      )
+      pin_notes <- c(
+        pinned_rate_source_note(pin$source),
+        if (identical(consumer, "estimate_dynes")) {
+          c(
+            "i" = "It carries no standard error and is excluded from
+                   estimation."
+          )
+        }
       )
     }
     cli::cli_warn(
@@ -734,12 +765,52 @@ warn_completed_defaults <- function(
           "."
         ),
         requested_note,
+        pin_notes,
         "i" = "The default adds no free parameter; it is auto-supplied for the
                {.field {consumer}} generative surface."
       ),
-      class = "goldfish_completed_default_warning",
+      class = c(
+        if (is_rate) "goldfish_pinned_rate_warning",
+        "goldfish_completed_default_warning"
+      ),
       call = call
     )
   }
   invisible(NULL)
+}
+
+# The fid of a completed `(layer, flavor, family)` process in the rebuilt
+# `process_map`. `flavor` is NA for an unflavored layer, and `==` would return
+# NA (dropping the row), so the flavor is matched with `identical()` per row;
+# both columns come from `spec_processes()`, so an unflavored flavor is
+# `NA_character_` on both sides.
+completed_fid <- function(process_map, layer, flavor, family) {
+  if (is.null(process_map)) {
+    return(integer(0))
+  }
+  hit <- process_map$layer == layer &
+    process_map$family == family &
+    vapply(process_map$flavor, identical, logical(1), flavor)
+  process_map$fid[hit]
+}
+
+# The provenance line for a pinned rate, keyed on the count source the pin
+# recorded: the layer's observed event count, or the net wave Hamming diff
+# between observed states. An unknown source omits the line rather than guess.
+# The line is a cli template, interpolated where it is raised, so the raising
+# frame must hold the process label as `label`.
+pinned_rate_source_note <- function(source) {
+  switch(
+    source %||% "unknown",
+    event_count = c(
+      "i" = "{.field {label}} is pinned from the
+             {.strong observed event count} over the relevant period."
+    ),
+    hamming_diff = c(
+      "i" = "{.field {label}} is pinned from the wave
+             {.strong Hamming diff} between observed states -- a net-change
+             floor."
+    ),
+    NULL
+  )
 }

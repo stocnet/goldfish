@@ -952,8 +952,16 @@ warn_pinned_rates <- function(
       call = call
     )
   }
+  # A completed rate was already announced, source and all, by the completion's
+  # own warning at this entry; warning again would repeat the same fact.
+  fid_bundles <- joint_fid_bundles(joint_spec)
   pinned_fid <- names(joint_spec$pinned_rates)
-  for (fid in pinned_fid) {
+  completed <- vapply(
+    pinned_fid,
+    function(fid) isTRUE(fid_bundles[[fid]]$bundle$completed),
+    logical(1)
+  )
+  for (fid in pinned_fid[!completed]) {
     warn_pinned_rate(fid, consumer = consumer, call = call)
   }
   invisible(joint_spec)

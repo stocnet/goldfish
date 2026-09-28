@@ -191,10 +191,10 @@ simulate.goldfishJointSpec <- function(
     times = times,
     call = call
   )
-  # A pinned rate reads no coefficient and carries no standard error, and the
-  # pin's provenance differs per consumer -- an observed event count here, a
-  # wave Hamming diff for joint estimation -- so the warning is the consumer's
-  # to fire, at its own entry, in its own wording.
+  # A pinned rate reads no coefficient. A completed rate's pin was already
+  # announced by the completion above, with the count source it was pinned
+  # from (fixed by how its layer is observed, not by this consumer); this warns
+  # only for a pin it did not announce.
   warn_pinned_rates(completed, consumer = "simulate", call = call)
   provider <- resolve_coef_provider(
     coef,

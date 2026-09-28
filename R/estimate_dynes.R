@@ -85,9 +85,9 @@ estimate_dynes <- function(
   # Completed once, here: every proposal evaluator the loop builds reads this
   # same object, so a pinned rate cannot move between proposals.
   completed <- complete_generative_spec(spec, consumer = "estimate_dynes")
-  # A pinned rate reads no coefficient and gets no standard error; the pin's
-  # provenance (a wave Hamming diff here) is announced by each consumer at its
-  # own entry, in its own wording.
+  # A pinned rate reads no coefficient and gets no standard error. A completed
+  # rate's pin was already announced by the completion above, with the count
+  # source it was pinned from; this warns only for a pin it did not announce.
   warn_pinned_rates(completed, consumer = "estimate_dynes", call = call)
   decomposition <- decompose_joint_spec(completed, call = call)
   layout <- coef_layout(completed)
