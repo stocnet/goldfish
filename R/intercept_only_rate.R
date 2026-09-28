@@ -881,53 +881,52 @@ assert_timed_joint_specification <- function(
   invisible(joint_spec)
 }
 
-# ---- Context-aware pinned-rate warning (D6) ----------------------------------
+# ---- Standalone pinned-rate warning (D4) -------------------------------------
 #
-# Each generative consumer -- estimate_dynes() and the future simulate() method
-# -- warns at its OWN entry that a rate is pinned, worded for its count source
-# (D6/D2): estimate_dynes() reads the wave Hamming diff (a net-change floor),
-# has no standard error, and excludes the rate from estimation; simulate()
-# reads the observed event count and has no standard-error language (SE is not
-# a simulation concept). Neither consumer exists yet (grep confirms no
-# `estimate_dynes()` in R/model_estimate.R and no `simulate.joint_specification.
-# goldfish` method) -- this defines the wording/logic every consumer will call
-# at its entry point, ahead of the wiring.
+# A pinned rate a consumer entry (`estimate_dynes()`, `simulate()`) finds
+# already marked pinned but NOT yet announced by the completion's own warning
+# -- an authored `rate = ~ 1`, once the known gap in `mark_pinned_rates()` is
+# fixed to pin one -- gets its own warning here. The provenance line follows
+# the PIN'S OWN recorded `source` ("event_count" / "hamming_diff" / unknown),
+# exactly like the completed rate's warning (D1) -- never worded by which
+# consumer is calling; an unknown source (`NULL`) omits the line rather than
+# guess. The consumer decides only the estimation line: `estimate_dynes()`
+# states no standard error / excluded from estimation, `simulate()` adds
+# nothing (SE is not a simulation concept). The process is named by its
+# `layer [› flavor] › rate` label, never by its bare fid.
+#
+# `mark_pinned_rates()` pins only a COMPLETED rate today, so this path has no
+# live caller from `complete_generative_spec()`'s own pipeline -- the known
+# out-of-scope gap recorded in the proposal. It stays unit-tested directly and
+# through `warn_pinned_rates()` on a hand-marked specification, so it cannot
+# rot silently.
 #
 # The warning is NOT suppressed on re-entry: `cli::cli_warn()` fires every call
 # by default (no `.frequency = "once"`/"regularly" is set here, matching every
 # other `cli_warn()` call in this package), so the SAME specification routed
-# through a second consumer warns again -- deliberately, since the two
-# consumers' wording differs and a user landing in the second consumer needs
-# its own no-SE/exclusion notice.
+# through a second consumer warns again -- deliberately, since a user landing
+# in the second consumer needs its own no-SE/exclusion notice.
 warn_pinned_rate <- function(
-  fid,
+  label,
+  source = NULL,
   consumer = c("estimate_dynes", "simulate"),
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)
-  switch(
-    consumer,
-    estimate_dynes = cli::cli_warn(
-      c(
-        "!" = "Rate {.field {fid}} is an intercept-only rate ({.code ~ 1}):
-               it is {.strong pinned}, not estimated.",
-        "i" = "The pin comes from the wave {.strong Hamming diff} between
-               observed states -- a net-change floor.",
-        "i" = "It carries no standard error and is excluded from estimation."
-      ),
-      class = "goldfish_pinned_rate_warning",
-      call = call
+  cli::cli_warn(
+    c(
+      "!" = "{.field {label}} is an intercept-only rate ({.code ~ 1}): it is
+             {.strong pinned}, not estimated.",
+      pinned_rate_source_note(source),
+      if (identical(consumer, "estimate_dynes")) {
+        c(
+          "i" = "It carries no standard error and is excluded from
+                 estimation."
+        )
+      }
     ),
-    simulate = cli::cli_warn(
-      c(
-        "!" = "Rate {.field {fid}} is an intercept-only rate ({.code ~ 1}):
-               it is {.strong pinned}, not estimated.",
-        "i" = "The pin comes from the {.strong observed event count} over the
-               relevant period."
-      ),
-      class = "goldfish_pinned_rate_warning",
-      call = call
-    )
+    class = "goldfish_pinned_rate_warning",
+    call = call
   )
   invisible(NULL)
 }
@@ -962,7 +961,17 @@ warn_pinned_rates <- function(
     logical(1)
   )
   for (fid in pinned_fid[!completed]) {
-    warn_pinned_rate(fid, consumer = consumer, call = call)
+    entry <- fid_bundles[[fid]]
+    label <- paste(
+      c(entry$layer, if (!is.na(entry$flavor)) entry$flavor, entry$family),
+      collapse = " › "
+    )
+    warn_pinned_rate(
+      label,
+      source = joint_spec$pinned_rates[[fid]]$source,
+      consumer = consumer,
+      call = call
+    )
   }
   invisible(joint_spec)
 }

@@ -50,14 +50,14 @@
       with both classes. `warn_pinned_rates()` skips fids whose bundle is
       marked `completed`. Interpolate data into cli markup, never paste literal
       markup. `air format` and `lintr`; re-run to GREEN; commit.
-- [ ] 2.2a Write failing tests for the standalone warning on a hand-marked
+- [x] 2.2a Write failing tests for the standalone warning on a hand-marked
       specification (the existing `mark_pinned_rates()` fixtures, with the
       bundle's `completed` mark cleared): it names the process by its
       `layer [› flavor] › rate` label, not `Rate <fid>`; a known source adds the
       matching provenance line, an unknown one (`NULL`) omits it; the no-SE line
       appears only for `estimate_dynes`. Run to confirm RED; commit the tests
       alone.
-- [ ] 2.2b Change `warn_pinned_rate()` / `warn_pinned_rates()` to take the
+- [x] 2.2b Change `warn_pinned_rate()` / `warn_pinned_rates()` to take the
       label and the source, keeping the consumer only for the estimation line.
       Update the section comment above them so it describes the
       observation-keyed provenance (it currently says the wording follows the
