@@ -228,6 +228,38 @@ test_that("the decomposition of the rq layout matches its hand numbering", {
   )
 })
 
+test_that("a flavored joint spec decomposes into one sub-model per fid", {
+  spec <- dynes_flavored_spec()
+
+  decomposition <- decompose_joint_spec(spec)
+
+  expect_s3_class(decomposition, "goldfishDynesDecomposition")
+  expect_s3_class(decomposition$engine_spec, "goldfishJointSpec")
+  sub_models <- decomposition$sub_models
+  expect_identical(
+    vapply(sub_models, `[[`, integer(1), "fid"),
+    spec$process_map$fid
+  )
+  expect_no_error(assert_theta_layout(spec, sub_models))
+})
+
+test_that("estimate_dynes accepts a flavored joint specification", {
+  local_analytic_evaluator()
+  local_grow_redraw_script()
+  local_dynes_augmenter(new_keyed_stub_augmenter())
+  spec <- dynes_flavored_spec()
+
+  res <- suppressWarnings(estimate_dynes(spec, surface_control()))
+
+  layout <- coef_layout(suppressWarnings(complete_generative_spec(spec)))
+  free <- !layout$fixed
+  expect_named(
+    res$parameters,
+    paste0(layout$process[free], ": ", layout$name[free])
+  )
+  expect_true(res$converged)
+})
+
 # --- Warm start --------------------------------------------------------------
 
 test_that("a failed warm-start fit falls back to zero for that fid only", {

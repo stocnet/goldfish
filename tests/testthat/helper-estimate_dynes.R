@@ -60,12 +60,29 @@ dynes_multiwave_data <- function(friendship = "panel") {
 # A completed joint specification carrying every fid kind the decomposition
 # meets: a modeled-panel choice with an offset, an authored timed rate (its
 # intercept free), a completed rate pinned on two wave periods, and a completed
-# uniform choice.
-dynes_multiwave_spec <- function() {
+# uniform choice. Every friendship event creates a new tie, so the default
+# inertia column is always zero and the friendship choice's information matrix
+# is singular: a test that evaluates the likelihood at theta passes a
+# `friendship_choice` with a varying free effect.
+dynes_multiwave_spec <- function(
+  friendship_choice = ~ inertia + offset(recip, coef = -0.5)
+) {
+  suppressWarnings(complete_generative_spec(
+    dynes_pinned_raw_spec(friendship_choice),
+    wave_times = c(0, 2, 5)
+  ))
+}
+
+# The raw joint specification inside dynes_multiwave_spec(): estimate_dynes()
+# completes it at entry, pinning the friendship rate and supplying a uniform
+# calls choice, so three coefficients are free.
+dynes_pinned_raw_spec <- function(
+  friendship_choice = ~ inertia + offset(recip, coef = -0.5)
+) {
   events <- dynes_multiwave_data("event")
-  joint <- make_joint_specification(
+  make_joint_specification(
     make_specification(
-      choice = ~ inertia + offset(recip, coef = -0.5),
+      choice = friendship_choice,
       layer = "friendship",
       model = "DyNAM",
       data = events
@@ -78,28 +95,69 @@ dynes_multiwave_spec <- function() {
     ),
     data = dynes_multiwave_data("panel")
   )
-  suppressWarnings(complete_generative_spec(joint, wave_times = c(0, 2, 5)))
 }
 
-# The raw joint specification inside dynes_multiwave_spec(): estimate_dynes()
-# completes it at entry, pinning the friendship rate and supplying a uniform
-# calls choice, so three coefficients are free.
-dynes_pinned_raw_spec <- function() {
-  events <- dynes_multiwave_data("event")
+# A two-layer sequence for the flavored joint likelihood: `calls` carries the
+# creation/dissolution flavors add_flavor() stamps from the update values, and
+# `emails` three plain events strictly inside the calls span. An emails event
+# then only cuts a calls-rate interval in two: no calls statistic changes there
+# and the window still ends at the last calls event, so each calls fid scores
+# exactly as it does on the ordinary flavored path. A different `seed` is a
+# different draw on the same actors, the shape an augmented sequence has.
+dynes_flavored_data <- function(seed = 3L) {
+  calls <- flavored_event_stream(n_actors = 8L, n_events = 40L, seed = seed)
+  emails <- data.frame(
+    from = c(1L, 3L, 5L),
+    to = c(2L, 4L, 6L),
+    time = c(5.5, 12.5, 30.5),
+    layer = "emails",
+    weight = 1
+  )
+  add_flavor(
+    list(
+      info = list(
+        name = "toy",
+        focal = "calls",
+        update = c(calls = "increment", emails = "increment"),
+        directed = c(calls = TRUE, emails = TRUE),
+        observation = c(calls = "event", emails = "event")
+      ),
+      nodes = data.frame(
+        label = paste0("N", 1:8),
+        mode = "p",
+        stringsAsFactors = FALSE
+      ),
+      ties = rbind(calls, emails)
+    ),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+}
+
+# The flavored calls process (both families, both flavors) beside a plain
+# emails choice. Every fid is authored, so no completion is needed to evaluate
+# it; estimate_dynes() completes it with a pinned emails rate.
+dynes_flavored_spec <- function(data = dynes_flavored_data()) {
   make_joint_specification(
+    dynes_flavored_calls_spec(data),
     make_specification(
-      choice = ~ inertia + offset(recip, coef = -0.5),
-      layer = "friendship",
+      choice = ~ tie(calls),
+      layer = "emails",
       model = "DyNAM",
-      data = events
+      data = data
     ),
-    make_specification(
-      rate = ~ 1 + indeg(friendship),
-      layer = "calls",
-      model = "DyNAM",
-      data = events
-    ),
-    data = dynes_multiwave_data("panel")
+    data = data
+  )
+}
+
+dynes_flavored_calls_spec <- function(data = dynes_flavored_data()) {
+  make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + outdeg),
+    choice = list(creation ~ recip + trans, dissolution ~ recip),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
   )
 }
 

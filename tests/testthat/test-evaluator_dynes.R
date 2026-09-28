@@ -32,28 +32,37 @@ make_pool_fixture <- function(n_sequences = 2L) {
   list(sub_models = sub_models, sequences = sequences)
 }
 
-test_that("the pool preprocesses once per sequence on entry", {
-  fx <- make_pool_fixture(n_sequences = 2L)
+test_that("the pool runs one joint walk per sequence on entry", {
+  # Four fids, so a per-sub-model preprocess would show as four passes.
+  spec <- dynes_multiwave_spec()
+  decomposition <- decompose_joint_spec(spec)
+  sequences <- lapply(1:2, function(i) {
+    list(data = spec$data, reference = new_reference_record(c(0, 0, 0), -1, -1))
+  })
 
-  # Count invocations of the per-sequence preprocessing seam, delegating to the
-  # real implementation so the stored statistics are genuine.
-  preprocess_calls <- 0L
-  real_preprocess <- goldfish:::preprocess_pool_sequence
+  # Count the walks, delegating to the real one so the stored statistics are
+  # genuine, and any preprocess that bypasses the walk.
+  walks <- 0L
+  bypasses <- 0L
+  real_walk <- preprocess_joint
+  real_wrapper <- estimate_wrapper
   local_mocked_bindings(
-    preprocess_pool_sequence = function(...) {
-      preprocess_calls <<- preprocess_calls + 1L
-      real_preprocess(...)
+    preprocess_joint = function(...) {
+      walks <<- walks + 1L
+      real_walk(...)
+    },
+    estimate_wrapper = function(..., preprocessed = NULL) {
+      if (is.null(preprocessed)) {
+        bypasses <<- bypasses + 1L
+      }
+      real_wrapper(..., preprocessed = preprocessed)
     }
   )
 
-  pool <- build_sequence_pool(
-    fx$sub_models,
-    fx$sequences,
-    theta_length = 3L
-  )
+  build_sequence_pool(decomposition, sequences, theta_length = 3L)
 
-  # Exactly one preprocessing pass per pooled sequence, on entry.
-  expect_identical(preprocess_calls, length(fx$sequences))
+  expect_identical(walks, length(sequences))
+  expect_identical(bypasses, 0L)
 })
 
 test_that("pool entry stores reusable per-sub-model statistics", {
@@ -868,4 +877,369 @@ test_that("a theta_index not matching the free coefficients aborts at entry", {
     ),
     class = "goldfish_theta_index_mismatch"
   )
+})
+
+# --- Joint single-clock likelihood ------------------------------------------
+
+# Pool entry scores a sequence under the joint single-clock likelihood: one
+# merged walk per sequence over the pool engine spec (the completed spec with
+# each effect-free bundle swapped for its pool_engine_formula()), stored by
+# fid. A process's own events are dependent events for its fids; any other
+# modeled process's events are state changes and right-censoring boundaries
+# for the timed rates, which are exposed to the end of the observation window.
+#
+# dynes_multiwave_spec() has four fids over six actors, all present:
+#   1 friendship rate, completed and pinned: log(1/12) on [0, 2), log(1/6) on
+#     [2, 5] (one event in two time units, then three in three, six actors);
+#   2 friendship choice, inertia free, recip offset at -0.5;
+#   3 calls rate, intercept and indeg(friendship) free;
+#   4 calls choice, completed uniform over the five other actors.
+# Friendship events fall at t = 1..4 and calls events at t = 1..5, so the walk
+# runs from t = 1 to the window end at t = 5.
+
+multiwave_sequence <- function(data) {
+  list(data = data, reference = new_reference_record(c(0, 0, 0), -1, -1))
+}
+
+multiwave_pool <- function(spec = dynes_multiwave_spec(), data = spec$data) {
+  build_sequence_pool(
+    decompose_joint_spec(spec),
+    list(multiwave_sequence(data)),
+    theta_length = 3L
+  )
+}
+
+# One fid's log-likelihood, score and Fisher information at `parameters` (one
+# value per engine coefficient, offsets included), through the engine at zero
+# iterations over `stats` -- the reference every pool quantity is checked
+# against, computed without the pool.
+zero_iteration_fit <- function(formula, sub_model, data, stats, parameters) {
+  estimate_wrapper(
+    x = formula,
+    model = "DyNAM",
+    sub_model = sub_model,
+    data = data,
+    preprocessed = stats,
+    control_algo = set_algorithm_newton(
+      initial_parameters = parameters,
+      max_iterations = 0L,
+      backend = "r"
+    ),
+    verbose = FALSE,
+    progress = FALSE
+  )
+}
+
+# The free slots coef_layout() numbers for `fid`.
+layout_slots <- function(spec, fid) {
+  layout <- coef_layout(spec)
+  layout$index[layout$fid == fid & !layout$fixed]
+}
+
+# The θ-free part of dynes_multiwave_spec()'s joint log-likelihood, by hand:
+# the pinned friendship rate over the whole window plus the uniform calls
+# choice, -log 5 at each of the five calls events.
+multiwave_fixed_loglik <- function() {
+  c1 <- log(1 / 12)
+  c2 <- log(1 / 6)
+  # Events at t = 1 (period 1) and t = 2, 3, 4 (period 2); the six-actor risk
+  # set is exposed over (1, 2] at c1 and over (2, 5] at c2, the last unit being
+  # the interval after the last friendship event that the per-process walk
+  # dropped.
+  pinned <- c1 + 3 * c2 - 6 * (exp(c1) * 1 + exp(c2) * 3)
+  pinned - 5 * log(5)
+}
+
+test_that("pool-entry statistics are the engine spec's joint walk, by fid", {
+  spec <- dynes_multiwave_spec()
+  decomposition <- decompose_joint_spec(spec)
+  pool <- build_sequence_pool(
+    decomposition,
+    list(multiwave_sequence(spec$data)),
+    theta_length = 3L
+  )
+
+  walked <- preprocess_joint(
+    decomposition$engine_spec,
+    control_preprocessing = set_preprocessing()
+  )
+  stored <- pool$sequences[[1]]$stats
+
+  expect_named(stored, as.character(spec$process_map$fid))
+  for (fid in names(walked)) {
+    expect_equal(stored[[fid]], walked[[fid]])
+  }
+})
+
+test_that("the fixed-only term exposes a pinned rate to the window end", {
+  spec <- dynes_multiwave_spec()
+  expect_equal(
+    spec$completed_rates[["1"]]$intercept,
+    c(log(1 / 12), log(1 / 6))
+  )
+
+  pool <- multiwave_pool(spec)
+
+  # The per-process path stopped the friendship rate at its last event (t = 4)
+  # and scored this term exactly 1 higher: exp(log(1/6)) * 6 actors * (4, 5].
+  expect_equal(
+    pool$sequences[[1]]$fixed_loglik,
+    multiwave_fixed_loglik(),
+    tolerance = 1e-10
+  )
+})
+
+test_that("a multi-process likelihood carries cross-process censoring", {
+  stored <- multiwave_pool()$sequences[[1]]$stats
+
+  # The calls rate: dependent at its own five events, censored at the
+  # friendship events that fall between them, exposed over (1, 5].
+  calls_rate <- stored[["3"]]
+  dependent <- calls_rate$is_dependent == 1L
+  expect_equal(calls_rate$event_time[dependent], c(1, 2, 3, 4, 5))
+  expect_equal(calls_rate$event_time[!dependent], c(2, 3, 4))
+  expect_equal(sum(calls_rate$intervals), 4)
+
+  # The pinned friendship rate: dependent at its own four events, then a
+  # censoring row at the window end rather than stopping at t = 4.
+  friendship_rate <- stored[["1"]]
+  dependent <- friendship_rate$is_dependent == 1L
+  expect_equal(friendship_rate$event_time[dependent], c(1, 2, 3, 4))
+  expect_equal(friendship_rate$event_time[!dependent], 5)
+  expect_equal(sum(friendship_rate$intervals), 4)
+})
+
+# A friendship choice whose free effect varies across the friendship events,
+# so the likelihood can be evaluated at theta (see dynes_multiwave_spec()).
+indeg_friendship_choice <- ~ indeg + offset(recip, coef = -0.5)
+
+# The free fids of dynes_multiwave_spec(indeg_friendship_choice) at `theta` over
+# `data`, from the raw (uncompleted) spec's own joint walk: it holds the same
+# friendship choice and calls rate, and needs no pool engine spec because every
+# raw fid has an effect.
+multiwave_free_fits <- function(spec, data, theta) {
+  raw <- bind_candidate_data(
+    dynes_pinned_raw_spec(indeg_friendship_choice),
+    data
+  )
+  walk <- preprocess_joint(raw, control_preprocessing = set_preprocessing())
+  list(
+    friendship = zero_iteration_fit(
+      friendship ~ indeg + offset(recip, coef = -0.5),
+      "choice",
+      data,
+      walk[["1"]],
+      c(theta[layout_slots(spec, 2L)], -0.5)
+    ),
+    calls = zero_iteration_fit(
+      calls ~ 1 + indeg(friendship),
+      "rate",
+      data,
+      walk[["2"]],
+      theta[layout_slots(spec, 3L)]
+    )
+  )
+}
+
+test_that("pool evaluation is the joint likelihood at theta", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  pool <- multiwave_pool(spec)
+
+  res <- evaluate_sequence_pool(pool, theta)
+
+  fits <- multiwave_free_fits(spec, spec$data, theta)
+  friendship_slot <- layout_slots(spec, 2L)
+  calls_slots <- layout_slots(spec, 3L)
+  expect_equal(
+    res$loglik[[1]],
+    multiwave_fixed_loglik() +
+      fits$friendship$log_likelihood +
+      fits$calls$log_likelihood,
+    tolerance = 1e-10
+  )
+  expect_equal(
+    res$score[1, friendship_slot],
+    fits$friendship$final_score[1],
+    tolerance = 1e-10
+  )
+  expect_equal(
+    res$score[1, calls_slots],
+    fits$calls$final_score,
+    tolerance = 1e-10
+  )
+  expect_equal(
+    res$fisher[[1]][calls_slots, calls_slots],
+    fits$calls$final_information_matrix,
+    tolerance = 1e-10
+  )
+})
+
+test_that("the proposal evaluator scores on the pool's joint likelihood", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  decomposition <- decompose_joint_spec(spec)
+  theta <- c(0.3, -1.2, 0.4)
+  # Calls events moved off the friendship times; the window still ends at 5
+  # and the calls choice still has five events, so the fixed-only term is
+  # unchanged.
+  candidate <- dynes_multiwave_data("panel")
+  candidate$ties$time[candidate$ties$layer == "calls"] <- c(1, 2.5, 3, 4.5, 5)
+
+  pool <- build_sequence_pool(
+    decomposition,
+    list(multiwave_sequence(candidate)),
+    theta_length = 3L
+  )
+  reference <- evaluate_sequence_pool(pool, theta, what = "loglik")$loglik
+  eval_fn <- make_proposal_evaluator(decomposition, theta, spec = spec)
+  loglik <- eval_fn(candidate)$loglik
+
+  # The MCMC ratio f'/f and the importance weights must target one density,
+  # and it is the joint one.
+  expect_equal(loglik, reference, tolerance = 1e-10)
+  fits <- multiwave_free_fits(spec, candidate, theta)
+  expect_equal(
+    loglik,
+    multiwave_fixed_loglik() +
+      fits$friendship$log_likelihood +
+      fits$calls$log_likelihood,
+    tolerance = 1e-10
+  )
+})
+
+test_that("a joint-walk interval across a wave time is cut per plateau", {
+  # Wave times 0, 3.5, 5: friendship events at 1, 2, 3 pin log(3 / (3.5 * 6))
+  # and the one at 4 pins log(1 / (1.5 * 6)).
+  spec <- suppressWarnings(complete_generative_spec(
+    dynes_pinned_raw_spec(),
+    wave_times = c(0, 3.5, 5)
+  ))
+  c1 <- log(3 / (3.5 * 6))
+  c2 <- log(1 / (1.5 * 6))
+  expect_equal(spec$completed_rates[["1"]]$intercept, c(c1, c2))
+
+  pool <- multiwave_pool(spec)
+
+  # The joint walk gives the pinned rate the intervals (1, 2], (2, 3], (3, 4]
+  # and (4, 5]; the calls events share the friendship times or fall at the
+  # window end, so no other process adds a cut at 3.5. (3, 4] straddles 3.5
+  # and is split half at c1, half at c2, as if an event sat on the boundary.
+  pinned <- 3 * c1 + c2 - 6 * (exp(c1) * 2.5 + exp(c2) * 1.5)
+  expect_equal(
+    pool$sequences[[1]]$fixed_loglik,
+    pinned - 5 * log(5),
+    tolerance = 1e-10
+  )
+})
+
+test_that("the joint walk reads the joint-level data, not member copies", {
+  spec <- dynes_multiwave_spec()
+  engine_spec <- decompose_joint_spec(spec)$engine_spec
+  moved <- dynes_multiwave_data("panel")
+  moved$ties$time[moved$ties$layer == "calls"] <- c(1, 2.5, 3, 4.5, 5)
+
+  # Only the joint-level data is swapped; each member keeps its stale copy.
+  joint_only <- engine_spec
+  joint_only$data <- moved
+  walk <- function(s) {
+    preprocess_joint(s, control_preprocessing = set_preprocessing())
+  }
+
+  expect_equal(walk(joint_only), walk(bind_candidate_data(engine_spec, moved)))
+  expect_false(isTRUE(all.equal(walk(joint_only), walk(engine_spec))))
+})
+
+# --- Flavored processes ------------------------------------------------------
+
+# dynes_flavored_spec(): fids 1-4 are the calls creation rate, creation choice,
+# dissolution rate and dissolution choice; fid 5 the emails choice.
+
+test_that("an augmented flavored sequence routes each event to its flavor", {
+  spec <- dynes_flavored_spec()
+  # A different draw on the same actors, its flavor keys stamped by
+  # add_flavor() as an augmented sequence's must be.
+  augmented <- dynes_flavored_data(seed = 11L)
+  timed <- augmented$ties$layer == "calls" & !is.na(augmented$ties$time)
+  expect_false(anyNA(augmented$ties$flavor[timed]))
+
+  walked <- suppressWarnings(preprocess_joint(
+    bind_candidate_data(spec, augmented),
+    control_preprocessing = set_preprocessing()
+  ))
+
+  map <- spec$process_map
+  for (i in which(map$layer == "calls")) {
+    own <- timed & augmented$ties$flavor == map$flavor[[i]]
+    stats <- walked[[as.character(map$fid[[i]])]]
+    expect_equal(
+      stats$event_time[stats$is_dependent == 1L],
+      sort(augmented$ties$time[own]),
+      label = paste("fid", map$fid[[i]], "dependent event times")
+    )
+  }
+})
+
+test_that("flavored fids are scored as on the ordinary flavored path", {
+  spec <- dynes_flavored_spec()
+  map <- spec$process_map
+  theta <- c(-3, 0.2, 0.5, -0.3, -2.5, 0.1, 0.4, 0.6)
+  decomposition <- decompose_joint_spec(spec)
+  pool <- suppressWarnings(build_sequence_pool(
+    decomposition,
+    list(list(
+      data = spec$data,
+      reference = new_reference_record(theta, -1, -1)
+    )),
+    theta_length = length(theta)
+  ))
+
+  res <- evaluate_sequence_pool(pool, theta)
+
+  # The ordinary flavored path: estimate_flavored()'s one preprocessing pass
+  # (keyed family-major, so matched here by flavor and family), then the
+  # engine at zero iterations per process.
+  preps <- suppressWarnings(preprocess_flavored(dynes_flavored_calls_spec()))
+  flavored_map <- attr(preps, "process_map")
+  loglik <- 0
+  for (i in which(map$layer == "calls")) {
+    key <- flavored_map$fid[
+      flavored_map$flavor == map$flavor[[i]] &
+        flavored_map$family == map$family[[i]]
+    ]
+    prep <- preps[[as.character(key)]]
+    slots <- layout_slots(spec, map$fid[[i]])
+    ref <- zero_iteration_fit(
+      prep$formula,
+      map$family[[i]],
+      spec$data,
+      prep,
+      theta[slots]
+    )
+    loglik <- loglik + ref$log_likelihood
+    expect_equal(res$score[1, slots], ref$final_score, tolerance = 1e-10)
+    expect_equal(
+      res$fisher[[1]][slots, slots],
+      ref$final_information_matrix,
+      tolerance = 1e-10
+    )
+  }
+  # The emails choice reads only calls state, so its ordinary single-process
+  # preprocessing is the reference too.
+  emails <- zero_iteration_fit(
+    emails ~ tie(calls),
+    "choice",
+    spec$data,
+    estimate_wrapper(
+      x = emails ~ tie(calls),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = spec$data,
+      preprocessing_only = TRUE
+    ),
+    theta[layout_slots(spec, 5L)]
+  )
+  loglik <- loglik + emails$log_likelihood
+
+  expect_false(res$degenerate[[1]])
+  expect_equal(res$loglik[[1]], loglik, tolerance = 1e-10)
 })

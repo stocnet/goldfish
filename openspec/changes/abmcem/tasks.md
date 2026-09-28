@@ -478,7 +478,7 @@
       store with a pool generation counter that every evaluation task carries
       and the store checks, aborting on a mismatch. The serial store keeps and
       checks the same counter, so both paths run one code path.
-- [ ] 6.3a Write failing tests for the joint likelihood at pool entry (design
+- [x] 6.3a Write failing tests for the joint likelihood at pool entry (design
       D3 as amended; "Open Questions" per-process-scoring and flavored verdicts;
       spec scenarios "a multi-process likelihood carries cross-process
       censoring" and "flavored processes are scored on their own events"):
