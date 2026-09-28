@@ -452,6 +452,25 @@ test_that("estimates are identical across worker counts under real SGD", {
   expect_identical(parallel, serial)
 })
 
+test_that("real mirai daemons give the serial estimates bit for bit", {
+  skip_on_cran()
+  skip_if_not_installed("mirai")
+  local_dynes_augmenter(new_multiwave_augmenter())
+  # A varying friendship effect keeps each sequence's information invertible.
+  spec <- dynes_pinned_raw_spec(~ indeg + offset(recip, coef = -0.5))
+  run <- function(n_cores) {
+    suppressWarnings(estimate_dynes(
+      spec,
+      surface_control(max_iterations = 2L, n_cores = n_cores)
+    ))
+  }
+
+  serial <- run(1L)
+  parallel <- run(2L)
+
+  expect_identical(parallel, serial)
+})
+
 test_that("the default core count stays serial and silent", {
   local_analytic_evaluator()
   local_grow_redraw_script()

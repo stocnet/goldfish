@@ -432,7 +432,7 @@
 > change over the same pool entry, so the expectations are re-derived once, on
 > the serial pool, and the store is built around 6.3's per-fid pool entry.
 
-- [ ] 6.1a Write failing test for the real mirai daemon path (design "Open
+- [x] 6.1a Write failing test for the real mirai daemon path (design "Open
       Questions", daemons-load-installed-goldfish verdict A): in
       `tests/testthat/test-estimate_dynes.R`, under
       `skip_if_not_installed("mirai")` + `skip_on_cran()`, `estimate_dynes()` on

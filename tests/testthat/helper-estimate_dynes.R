@@ -181,6 +181,29 @@ new_keyed_stub_augmenter <- function() {
   )
 }
 
+# Draws dynes_pinned_raw_spec() sequences whose friendship events fall at
+# sorted uniform times inside their own wave period, (0, 2) or (2, 5), so each
+# draw still reaches the observed wave states, with a normal log proposal
+# density, all from the RNG the seam injects. Nothing is mocked in the draw or
+# in the evaluation it feeds, so it runs unchanged on real mirai daemons.
+new_multiwave_augmenter <- function() {
+  base <- dynes_multiwave_data()
+  friendship <- which(base$ties$layer == "friendship")
+  first_wave <- base$ties$time[friendship] <= 2
+  list(
+    draw = function(iteration, draw_index, theta) {
+      lapply(draw_index, function(k) {
+        data <- base
+        data$ties$time[friendship] <- c(
+          sort(stats::runif(sum(first_wave), 0, 2)),
+          sort(stats::runif(sum(!first_wave), 2, 5))
+        )
+        list(data = data, log_proposal = stats::rnorm(1))
+      })
+    }
+  )
+}
+
 # The surface's augmenter slot, pointed at a test augmenter.
 local_dynes_augmenter <- function(augmenter, env = parent.frame()) {
   local_mocked_bindings(
