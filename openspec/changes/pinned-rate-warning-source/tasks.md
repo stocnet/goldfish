@@ -73,7 +73,7 @@
 - [x] 3.2 Write one `NEWS.d/` fragment per `NEWS.d/README.md`: a completed
       pinned rate is announced once, names its process by label, and states the
       count source it was pinned from. Commit.
-- [ ] 3.3 Closing: `not-cran-test` full suite (NOT_CRAN=true), frozen baselines
+- [x] 3.3 Closing: `not-cran-test` full suite (NOT_CRAN=true), frozen baselines
       PASS not SKIP; `bash .plan/opsx-spec-placement-check.sh
       pinned-rate-warning-source` exits 0; add `status: landed (feature/dynes,
       awaiting fold)` to `proposal.md`; commit.
