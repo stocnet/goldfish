@@ -2,7 +2,9 @@
 # preprocessed object per estimated family (a rate, a choice, a REM and a
 # coordination model), each carrying a `support_constraint`. These are the
 # byte-identity targets the migration of the atoms onto the main walk must not
-# move: the mask stream and the folded `active_sender` / `active_dyad`.
+# move: the mask stream and the folded `active_sender` / `active_dyad`. Two
+# more families, a rate and a choice, constrain on an object no formula term
+# reads: the case the shared walk did not carry.
 #
 # The builders are deliberately self-contained (each assembles its own data)
 # so a single test can ask for one family without dragging the others in.
@@ -102,8 +104,56 @@ constraint_atoms_coord_data <- function(n_excluded = 1000L, seed = 1L) {
   ))
 }
 
+# A toy call stream beside an `emails` layer no formula term reads, so a
+# constraint on `emails` is the uncovered case: its object is on no unit's
+# schedule. No emailed dyad is ever called, so `~ !tie(emails)` excludes
+# dyads without excluding an observed one. N6 never calls and emails every
+# other node by t = 3.7, so the rate's row-reduction gates it from then on.
+constraint_atoms_uncovered_data <- function() {
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 3L, 4L, 6L, 6L, 6L, 6L, 6L),
+      to = c(1L, 2L, 3L, 1L, 2L, 3L, 4L, 5L),
+      time = c(1.5, 2.5, 3.5, 4.5, 1.7, 2.2, 2.7, 3.7),
+      layer = "emails"
+    )
+  )
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+}
+
+constraint_atoms_uncovered_spec <- function() {
+  make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = constraint_atoms_uncovered_data(),
+    support_constraint = ~ !tie(emails)
+  )
+}
+
 # The constrained preprocessed object for one estimated family. `family` is one
-# of "rate", "choice", "rem", "coord". Warnings (deprecated data path, forced
+# of `constraint_atoms_families()`. Warnings (deprecated data path, forced
 # choices under the constraint) are silenced: this is a fixture, not an
 # assertion about them.
 constraint_atoms_prep <- function(family) {
@@ -164,11 +214,28 @@ constraint_atoms_prep <- function(family) {
         preprocessing_only = TRUE
       )
     },
+    uncovered_rate = estimate_dynam(
+      constraint_atoms_uncovered_spec(),
+      sub_model = "rate",
+      preprocessing_only = TRUE
+    ),
+    uncovered_choice = estimate_dynam(
+      constraint_atoms_uncovered_spec(),
+      sub_model = "choice",
+      preprocessing_only = TRUE
+    ),
     cli::cli_abort("Unknown constraint-atoms family {.val {family}}.")
   )))
 }
 
-constraint_atoms_families <- function() c("rate", "choice", "rem", "coord")
+constraint_atoms_families <- function() {
+  c("rate", "choice", "rem", "coord", uncovered_constraint_families())
+}
+
+# The families whose constraint reads an object no formula term reads.
+uncovered_constraint_families <- function() {
+  c("uncovered_rate", "uncovered_choice")
+}
 
 # The fields the migration must keep byte-identical: the estimated statistics
 # streams, the presence axes, and the whole support-mask stream. Everything a

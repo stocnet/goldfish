@@ -104,6 +104,25 @@ test_that("a covered constrained model builds no private atom walk", {
   expect_identical(stores, 1L)
 })
 
+test_that("an uncovered constraint's reference comes from the private walk", {
+  # The uncovered families' frozen references were captured while the private
+  # `build_atom_maintainer()` walk still maintained the constraint, so they
+  # are a detector for the path that replaces it, not a copy of that path.
+  private <- 0L
+  orig_build <- build_atom_maintainer
+  local_mocked_bindings(
+    build_atom_maintainer = function(...) {
+      private <<- private + 1L
+      orig_build(...)
+    }
+  )
+  for (family in uncovered_constraint_families()) {
+    private <- 0L
+    invisible(constraint_atoms_prep(family))
+    expect_identical(private, 1L, info = family)
+  }
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {

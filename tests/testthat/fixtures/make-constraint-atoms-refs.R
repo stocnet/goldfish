@@ -9,6 +9,12 @@
 # and support-mask stream for a constrained rate, choice, REM and coordination
 # model. The migration of the constraint atoms onto the main walk must leave all
 # of it identical.
+#
+# The two `uncovered_*` families (a constraint on an object no formula term
+# reads) were added on 2026-09-29 while the private atom walk still
+# maintained them. Regenerating re-captures every family from the current
+# code, so check each entry already in the file is `identical()` to its
+# regenerated value before committing the new file.
 suppressMessages(devtools::load_all(quiet = TRUE))
 source("tests/testthat/helper-parity-fixtures.R")
 source("tests/testthat/helper-constraint-atoms.R")
