@@ -74,6 +74,16 @@
 
 ## 2. Thread constraint-only objects into the shared substrate (D1, D4)
 
+- [ ] 2.0 Cost guard, recorded failing first (added 2026-09-29, per the
+      per-event cost rules; design "Storage and per-event cost"): a test
+      helper generates data where time and memory are measurable (at least
+      1000 actors, so one double grid is 8 MB; a constraint-only layer with
+      enough events to gate senders), and a guard asserts the uncovered
+      constraint is preprocessed in one walk: one `fetch_events()` pass and
+      one state container, and allocation within half a grid of the covered
+      twin (the same constraint with a term reading the layer). It fails on
+      the current tree, where the private walk builds its own container
+      and schedule; record the failing numbers in `progress.md`.
 - [ ] 2.1 `build_merged_blocks()`: compile support constraints before
       `build_shared_objects()`; append each constraint sub-plan's objects
       after every unit's objects; `shared_to_local` `NA` for them;
@@ -114,6 +124,10 @@
       6.5e-3. No frozen baseline carries such a constraint. NEWS.d bullet
       (a constrained rate's estimates move when its constraint reads a
       layer no term reads)
+- [ ] 2.3b Measure walk time, allocation and preprocessed object size on
+      the 2.0 generated fixture (median of three warm runs,
+      `bench::bench_memory()`), uncovered and covered, before 2.1 and after
+      2.3a, against the design's prediction; numbers in `progress.md`.
 - [ ] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; all reference families PASS.
 
@@ -157,6 +171,14 @@
 - [ ] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS; `devtools::document()` for the
       changed signatures.
+- [ ] 4.4a Cost guard for live masks, recorded failing first (added
+      2026-09-29): on the 2.0 generated fixture, a constrained choice and a
+      constrained rate plus choice allocate no `n1 x n2` object per event
+      in the mask fold (total allocation bounded by a small multiple of the
+      stored mask stream, not by events x grid), and no mask is realized
+      after the walk. Measure first whether today's post-walk realization
+      breaks the bound; if it does not, the guard is the no-post-walk
+      realization count alone, and `progress.md` says so.
 - [ ] 4.4 Live masks in the batch walk, references first (D9, added
       2026-09-27; `process-simulation` 2.11b waits for this group, so a
       constrained choice's exposure is a plain running sum): capture folded `active_sender` / `active_dyad` streams and
@@ -181,6 +203,10 @@
       choice, before 4.5 and after 4.6. Include the in-walk observed-event
       check against the end-of-walk check; if the in-walk check adds walk
       time the end check avoids, keep the abort at the end (D9)
+      — *extended 2026-09-29*: also preprocessed object size, and the 2.0
+      generated fixture beside CollegeMsg, each against the design's
+      prediction (object sizes byte-identical, walk time down by the
+      post-walk realization)
 - [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
 

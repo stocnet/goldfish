@@ -320,6 +320,64 @@ measures the in-walk check adding walk time that the end-of-walk check
 avoids, the abort stays at the end, and the timing is recorded as the
 reason.
 
+## Storage and per-event cost (added 2026-09-29)
+
+Required by the per-event cost rules (`.claude/rules/walk-cost.md`),
+which postdate this design. `n1`, `n2` are the sender and receiver counts,
+`E` the dependent events, `C` the rows of the streams only constraints read.
+
+**D1 (constraint-only objects on the shared walk).** New stored object:
+none. The registry gains one row per constraint-only object and the joint
+schedule `C` rows, both built once before the walk. The state container
+gains the object itself, which the private walk already held in its own
+container, so memory moves rather than grows: one copy of the object
+instead of two (the shared state plus the private walk's). Per event: a
+constraint-only row applies its write in place through the shared writers
+and advances the atom store's changed cells, exactly as a covered
+constraint's row does today; nothing of size `n1`, `n2` or `n1 x n2` is
+allocated. Reads: the atom store reads the changed cells only. Prediction
+before implementation: for the uncovered case, walk time and allocation
+fall by the private walk's cost (its own `fetch_events()`, state
+container and event loop over the `C` rows); for unconstrained and covered
+models nothing moves, since the registry and schedule are byte-identical.
+The preprocessed object is byte-identical until task 2.3a.
+
+**Task 2.3a (constraint-only rows close the rate interval).** The
+exact-time rate's stored rows gain one right-censored row per `C` event,
+held in the existing flat stores (statistic update buffer and pointer,
+`event_time`, `is_dependent`), so the object grows by `C` pointer entries
+and the stored rows those events change; no new object, no grid. Per
+event: the same row emission any covariate row triggers. Prediction: rate
+object size grows in proportion to `C / (E + C)`; walk time moves by the
+same proportion at most.
+
+**D3 (the handle's deferred atom moves).** A pending set of the atom
+moves collected at the current clock: at most the cells one event
+changed, cleared when the clock passes the stamp. No grid, no per-event
+allocation beyond those cells.
+
+**D9 (live masks in the batch walk).** Stored objects: unchanged. The
+mask stream and the folded `active_sender` / `active_dyad` keep their
+current shape (initial value, flat update buffer, per-event pointer, at
+their broadcast kind); only when they are written moves, from after the
+walk to during it. Per event: the live mask maintainer updates the cells
+the atom moves touched; the rate's sender gate is a per-sender count of
+allowed present receivers, changed only at a flipped cell or a presence
+change; the choice's `active_dyad` is the net flips of the event sender's
+row, read by linear index on the stored vector (rule 2), never through
+the grid. The observed-event check reads one mask cell, one presence
+entry and one count. Nothing of size `n1 x n2` is allocated per event.
+Prediction: object sizes byte-identical; walk time of a constrained
+choice falls by the post-walk realization's cost (the `realize_pending_masks()`
+replay and the three folds); the in-walk check adds `O(1)` per dependent
+event.
+
+**Guards.** Each group changing per-event code opens with a cost guard
+on a generated fixture large enough that one grid dominates the noise
+(at least 1000 actors: one double grid is 8 MB), recorded failing on the
+unfixed code, and closes with a measurement of walk time, allocation and
+object size against the values before the group.
+
 ## Risks / Trade-offs
 
 - [Threading touches `build_shared_objects()`/`build_joint_schedule()`, the
