@@ -56,3 +56,18 @@ F1: 10 actors, 150 dependent events, seed 42; rate coefficients
 (intercept, indeg, outdeg) = (-1, 0.3, -0.2), choice (recip, trans) =
 (1, 0.4). The window opens at the simulation's clock origin
 (`set_preprocessing(start_time = 0)`).
+
+## Coordination is excluded, by evidence
+
+`sub_model = "choice_coordination"` has no fixture here because it has no
+classical twin to be checked against. Its unordered-dyad log-weight is
+`(s_ij + s_ji)'theta - LSE_i(theta) - LSE_j(theta)`: the two log-sum-exp
+corrections are nonlinear in `theta` and indexed by the dyad's own
+endpoints, so they vary across the alternatives of one event and do not
+cancel in a conditional-logit stratum. The classical references measured
+it (`_references/classical_v1/README.md`): on the Social Evolution calls
+fixture with one weighted inertia term goldfish returns 0.2849 and a
+`clogit` on the summed pair statistics 0.0575, with log-likelihoods
+-2522.8 and -2804.6 -- different models, not a numerical discrepancy. The
+coordination fixtures keep their byte-identity references
+(`fixtures/constraint_atoms_refs.rds`, family `coord`) as their gate.

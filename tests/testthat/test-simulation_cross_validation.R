@@ -7,6 +7,12 @@
 # Each fixture then checks two things: that goldfish's exported statistics
 # are those frames row for row, and that goldfish's estimates equal the
 # classical ones within the package's 1e-6 discipline.
+#
+# `choice_coordination` is excluded: its dyad weight carries two log-sum-exp
+# terms indexed by the dyad's own endpoints, nonlinear in theta, so no
+# conditional logit is the same likelihood (measured 0.2849 against 0.0575
+# in `_references/classical_v1/README.md`). The reasoning and the measured
+# deltas of every fixture are in `_references/simulation_v1/README.md`.
 
 # ---- the harness itself ----------------------------------------------------
 
