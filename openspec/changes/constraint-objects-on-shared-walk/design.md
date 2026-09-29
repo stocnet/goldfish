@@ -182,6 +182,22 @@ but it changes the documented contract, moves every constrained fit with a
 tied stamp, and re-mints the byte-identity references; recorded as the
 alternative to revisit in ADR-0073's open questions, not taken here.
 
+*Revised 2026-09-29 (Alvaro, ADR-0105):* the rule stands, the mechanism
+does not. Deferring the atom moves inside the handle was built and fixed the
+tie for an anchored run and a replay, but it broke free-running simulation
+(seven tests): after an event injected at `t`, or an exogenous breakpoint at
+`t`, the free-running driver evaluates for the next event, strictly after
+`t`, where the moves at `t` must count, and the handle's clock reads `t` in
+both cases. Deferring only the touched set would not do either, since the
+live mask recomputes from the atom buffer. Instead the handle keeps one clock
+rule (the state at its clock includes every row stamped up to it), and a
+driver that evaluates an observed event at its stamp steps strictly before
+the stamp: `walk_advance(t, inclusive = FALSE)` applies the rows stamped
+before `t` and the composition up to and including `t`, and the rows sharing
+the stamp are applied after the event is injected, which is the order the
+batch schedule gives them. The time-anchored driver steps this way; the
+free-running driver is unchanged.
+
 ### D4 — Constraint-only rows are exempt from the walk extent until the censoring change decides
 
 `resolve_walk_extent()` treats constraint-only stream rows like

@@ -204,21 +204,34 @@
       on the uncovered fixture (`walk_replay_against_batch()`,
       `expect_gt(n_excluded, 0)`).
       — *done 2026-09-29, `b1b2103` (see 2.1)*
-- [ ] 3.2 Deferred atom moves: `walk_collect_atom_moves()` holds moves from
+- [x] 3.2 Deferred atom moves: `walk_collect_atom_moves()` holds moves from
       an object event stamped at the current clock in a pending set that
       `walk_advance()` folds once the clock passes the stamp, so
       `walk_evaluate()` at `t` reads atoms strictly before `t`. Fixture: an
       `emails` event at a call's own stamp ordered before it; test
       batch-vs-replay equality there, and that disabling the deferral
       diverges (detector).
-- [ ] 3.3 Update the stale comments: `test-support_mask_sparse.R`'s
+      — *revised 2026-09-29 (Alvaro, ADR-0105)*: no deferral in the handle
+      (it broke free-running simulation). `walk_advance(t, inclusive =
+      FALSE)` stops strictly before `t` (composition up to and including
+      `t`); the time-anchored driver steps with it. Tests: the tied-stamp
+      fixture replayed through the handle with that stepping equals the
+      batch; a time-anchored simulation on it never draws 2 -> 4 at the tie
+      and does draw 2 -> 5; with inclusive stepping it fails (detector).
+      — *done 2026-09-29 (goldfish-ce), `58b806d`*: as revised. 9433 / 0 / 4,
+      six baseline files PASS. Deferral patch kept in the session scratch.
+- [x] 3.3 Update the stale comments: `test-support_mask_sparse.R`'s
       `mask_call_counts()` note about a flavored derived mask,
       `process-simulation` design D4's "refuses user support constraints"
       re-grounding note (a dated correction, not a rewrite, in that
       change's design — claim it first per ADR-0036), and the
       `build_atom_maintainer()` docstring.
-- [ ] 3.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `527a9d2`* (process-simulation claimed
+      for its D4 note).
+- [x] 3.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `527a9d2`'s tree*: 9433 PASS / 0 FAIL / 4 SKIP, six
+      baseline files PASS, `_snaps/` unchanged.
 
 ## 4. Retire the private walk (D2 step three)
 
