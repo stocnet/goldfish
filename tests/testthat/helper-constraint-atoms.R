@@ -356,3 +356,26 @@ constraint_atoms_substrate_families <- function() {
     constraint_atoms_families()
   )
 }
+
+# Families whose constraint serves several outputs of one walk: a rate and a
+# choice sharing one atom store, and a flavored layer's creation and
+# dissolution processes under their derived masks. Captured per fid.
+constraint_atoms_joint_families <- function() {
+  c("joint_rate_choice", "flavored")
+}
+
+constraint_atoms_joint_capture <- function(family) {
+  spec <- suppressWarnings(suppressMessages(switch(
+    family,
+    joint_rate_choice = constraint_atoms_uncovered_spec(),
+    flavored = make_specification(
+      rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+      choice = list(creation ~ trans, dissolution ~ trans),
+      model = "DyNAM",
+      data = flavored_fixture_data()
+    ),
+    cli::cli_abort("Unknown joint constraint-atoms family {.val {family}}.")
+  )))
+  outputs <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+  lapply(outputs, constraint_atoms_capture)
+}

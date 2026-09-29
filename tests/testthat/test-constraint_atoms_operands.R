@@ -47,6 +47,21 @@ test_that("constrained mask and presence axes match the frozen capture", {
   }
 })
 
+test_that("joint constrained outputs match the frozen capture per fid", {
+  refs <- constraint_atoms_refs()
+  for (family in constraint_atoms_joint_families()) {
+    live <- constraint_atoms_joint_capture(family)
+    expect_identical(names(live), names(refs[[family]]), info = family)
+    for (fid in names(live)) {
+      expect_equal(
+        live[[fid]],
+        refs[[family]][[fid]],
+        info = paste(family, fid)
+      )
+    }
+  }
+})
+
 # ---- atoms join the estimated plan's effect registry ----
 
 test_that("a constrained model's plan effects carry the atoms as operands", {

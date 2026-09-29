@@ -18,6 +18,7 @@
 suppressMessages(devtools::load_all(quiet = TRUE))
 source("tests/testthat/helper-parity-fixtures.R")
 source("tests/testthat/helper-constraint-atoms.R")
+source("tests/testthat/helper-flavored-fixtures.R")
 
 suppressWarnings(suppressMessages({
   spec <- parity_toy_spec()
@@ -46,10 +47,19 @@ if (is.null(substrate)) {
   names(substrate) <- constraint_atoms_substrate_families()
 }
 
+# Several outputs of one walk: a rate and a choice sharing an atom store, and
+# a flavored layer's derived masks, captured per fid (added 2026-09-29).
+joint <- suppressWarnings(suppressMessages(lapply(
+  constraint_atoms_joint_families(),
+  constraint_atoms_joint_capture
+)))
+names(joint) <- constraint_atoms_joint_families()
+
 refs <- c(
   list(unconstrained_plan_effects = unconstrained_plan_effects),
   constrained,
-  list(substrate = substrate)
+  list(substrate = substrate),
+  joint
 )
 saveRDS(refs, "tests/testthat/fixtures/constraint_atoms_refs.rds", version = 2)
 cat(
