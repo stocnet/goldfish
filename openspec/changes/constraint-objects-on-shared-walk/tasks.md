@@ -130,7 +130,7 @@
       matches byte-identically, and `mask_call_counts()` reports no
       `build_atom_maintainer` call.
       — *done 2026-09-29, `b1b2103` (see 2.1)*
-- [ ] 2.3a A constraint-only object's event closes the rate interval (added
+- [x] 2.3a A constraint-only object's event closes the rate interval (added
       2026-09-29, ADR-0103; design D1 revision): each row of an object only
       a support constraint reads becomes a right-censored boundary for every
       exact-time rate fid whose mask reads the object, folding no
@@ -146,7 +146,16 @@
       6.5e-3. No frozen baseline carries such a constraint. NEWS.d bullet
       (a constrained rate's estimates move when its constraint reads a
       layer no term reads)
-- [ ] 2.3c Preallocate the atom recorder's log (added 2026-09-29, Alvaro;
+      — *done 2026-09-29 (goldfish-ce), `be71b07`*: per-engine constraint-only
+      oids resolved before the walk; `merged_constraint_boundary()` emits the
+      censored row with no statistic step. Harness oracle: frames identical,
+      Poisson parity. `uncovered_rate` diff = 48 censored rows at the 8
+      emails times, dependent rows unchanged. Moved and refrozen on the
+      branch with Alvaro's approval (exception): parity goldens
+      `user_constraint__rate`, `constraint_bound__rate` (other 38 entries
+      identical). `support_mask_sparse` gate test's twin reads `contignet`.
+      9422 / 0 / 4, six baseline files PASS.
+- [x] 2.3c Preallocate the atom recorder's log (added 2026-09-29, Alvaro;
       found by 2.3b): `advance_constraint_atom_store()` appends one entry
       per constraint event to four vectors (`record_time`, `record_gid`,
       `record_entries`, `record_values`), and in the store each append
@@ -162,12 +171,31 @@
       (compare 1x and 2x the events). The log exists only for the
       post-walk replay, which 4.6 retires with it; this removes the cost
       for covered constraints too until then. Re-measure 2.3b after it.
-- [ ] 2.3b Measure walk time, allocation and preprocessed object size on
+      — *done 2026-09-29 (goldfish-ce), `9738cca`*: doubling buffers taken out
+      of the store before each write, filled to `record_n`; the handle
+      resets the count and keeps the buffers. Guard failed at ratio 4.0,
+      passes after. Recorder allocation 62 / 246 / 981 MB -> 0.5 / 0.2 /
+      0.4 MB at 1500 / 3000 / 6000 events. 9423 / 0 / 4, baselines PASS.
+- [x] 2.3b Measure walk time, allocation and preprocessed object size on
       the 2.0 generated fixture (median of three warm runs,
       `bench::bench_memory()`), uncovered and covered, before 2.1 and after
       2.3a, against the design's prediction; numbers in `progress.md`.
-- [ ] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), at `9738cca`* (median of 3 warm runs,
+      detached worktrees, same script): before `05aad2f` / after:
+      unconstrained choice 0.125 s 146 MB / 0.120 s 146 MB; uncovered
+      choice 0.511 s 543 MB 34.8 MB / 0.490 s 595 MB 34.8 MB; unconstrained
+      rate 0.114 s 94 MB / 0.110 s 95 MB; uncovered rate 0.364 s 465 MB 9.03
+      MB / 0.589 s 699 MB 9.24 MB. Against the prediction: choice time
+      flat (predicted a fall; allocation +9%); rate +62% time, +50%
+      allocation, above the predicted bound of C/(E+C) = 50%. Cause (profile):
+      `fold_active_sender_support()` after the walk costs per stored row
+      (~60 KB each) and 2.3a doubles the rate's rows; 4.6 retires that fold.
+      The first measurement (before 2.3c) found the quadratic recorder log.
+- [x] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; all reference families PASS.
+      — *done 2026-09-29, on `9738cca`'s tree*: 9423 PASS / 0 FAIL / 4 SKIP,
+      six baseline files PASS, every reference family PASS, `_snaps/`
+      unchanged.
 
 ## 3. Handle conformance and the tied stamp (D3)
 
