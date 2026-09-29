@@ -63,10 +63,14 @@
       The frame arm caught the harness's REM `outdeg` (default is the
       receiver, `type = "alter"`). Arms proven by breaking `trans` and
       `dt`. 9339 / 0 / 4, six baseline files PASS.
-- [ ] 1.3 Document the coordination exclusion in that README and in the
+- [x] 1.3 Document the coordination exclusion in that README and in the
       test file header, citing the classical README's numbers.
-- [ ] 1.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `055f1a3`*: README section and test
+      header; cites 0.2849 vs 0.0575 and the `coord` reference as the gate.
+- [x] 1.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `055f1a3`'s tree*: 9339 PASS / 0 FAIL / 4 SKIP,
+      six baseline files PASS, `_snaps/` unchanged.
 
 ## 2. Thread constraint-only objects into the shared substrate (D1, D4)
 
