@@ -48,6 +48,12 @@
 #' handle knows nothing about any particular constraint's expression, which is
 #' what lets several constraints over the same atoms share one maintainer.
 #'
+#' The merged walk no longer builds this private walk: every object a
+#' constraint's atoms read is on the shared schedule, so the atoms are
+#' recorded by `build_constraint_atom_store()` as the walk moves. It remains
+#' the default atom source of `preprocess_pooled_support_masks()` for a
+#' caller that has no recorded store.
+#'
 #' @param sub_plan the compiled constraint sub-plan from
 #'   `compile_support_constraint()`.
 #' @param model the model string (`"DyNAM"` / `"REM"`).

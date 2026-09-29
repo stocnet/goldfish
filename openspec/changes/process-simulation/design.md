@@ -491,6 +491,16 @@ land before a flavored specification with node-composition change
 simulates; `per-family-flavor-modeling` disclaims any effect on
 `simulate()`, and a flavor carrying one family is completed at entry (D5).
 
+*Corrected 2026-09-29 — the residual gap is closed.*
+`constraint-objects-on-shared-walk` (`b1b2103`) threads an object only a
+support constraint reads onto the shared registry and schedule, so
+`walk_open()` refuses no support constraint any more
+(`walk_assert_covered_constraints()` is gone) and the handle maintains
+every mask live. Two follow-ups of the same change bear on simulation: an
+event of such an object closes a constrained rate's interval (`be71b07`,
+ADR-0103), and a time-anchored run evaluates each observed stamp strictly
+before it, as the batch does (ADR-0105).
+
 ### D5 — Simulation requires a generatively-complete spec (see `make-multivariate-spec` D9)
 Drawing a DyNAM event needs a rate (who acts, when) **and** a choice (whom), so
 `simulate()` requires a generatively-complete specification. This closes the gap in
