@@ -63,3 +63,27 @@ test_that("rate core: single-parameter path (golden fixture)", {
   )
   expect_snapshot_value(live, style = "serialize", tolerance = 1e-10)
 })
+
+test_that("REM-ordered score array is each statistic minus its expectation", {
+  set.seed(7)
+  n1 <- 6L
+  n2 <- 4L
+  p <- 3L
+  stats_array <- array(stats::rnorm(n1 * n2 * p), dim = c(n1, n2, p))
+  # an excluded dyad enters with probability zero
+  probabilities <- matrix(stats::runif(n1 * n2), n1, n2)
+  probabilities[2L, 3L] <- 0
+  probabilities <- probabilities / sum(probabilities)
+
+  expected <- array(NA_real_, dim = c(n1, n2, p))
+  for (k in seq_len(p)) {
+    expectation <- sum(stats_array[,, k] * probabilities)
+    expected[,, k] <- stats_array[,, k] - expectation
+  }
+
+  expect_equal(
+    compute_first_derivative_rem(stats_array, probabilities),
+    expected,
+    tolerance = 1e-12
+  )
+})

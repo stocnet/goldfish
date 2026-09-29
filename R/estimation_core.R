@@ -1147,18 +1147,24 @@ compute_first_derivative_choice_coord <- function(
 # calculate the score contribution of one event of the M model
 # to the log(!) likelihood
 # The scores are the differences between expected and observed statistics
-compute_first_derivative_rem <- function(statsArray, eventProbabilities) {
+compute_first_derivative_rem <- function(stats_array, event_probabilities) {
   # nActors <- dim(statsArray)[1]
   # nParams <- dim(statsArray)[3]
+  n_dyads <- dim(stats_array)[1] * dim(stats_array)[2]
+  n_params <- dim(stats_array)[3]
 
-  expectedStatistics <- apply(
-    apply(statsArray, 3, function(m) m * eventProbabilities),
-    2,
-    sum
+  # One row per dyad, one column per statistic. Changing `dim` relabels the
+  # same values in the same order, so no statistic is moved or copied.
+  stats_by_dyad <- stats_array
+  dim(stats_by_dyad) <- c(n_dyads, n_params)
+
+  # E[s_k] = sum over dyads of P(dyad) * s_k(dyad), all k in one product
+  expected_statistics <- drop(
+    crossprod(stats_by_dyad, as.vector(event_probabilities))
   )
-  firstDerivatives <- sweep(statsArray, MARGIN = 3, expectedStatistics, "-")
 
-  firstDerivatives
+  # every dyad of slice k has the same expectation E[s_k] subtracted
+  stats_array - rep(expected_statistics, each = n_dyads)
 }
 
 
