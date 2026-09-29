@@ -406,10 +406,13 @@ dgp_stocnet <- function(sim, n_actors) {
     ties = focal
   )
   if (!is.null(sim$composition)) {
+    # `active`, not its former name `present`: manynet renames `present` on
+    # a node frame only, and a `changes` row saying `present` would be an
+    # ordinary attribute that switches no node in or out.
     changes <- data.frame(
       time = sim$composition$time,
       node = sim$composition$node,
-      var = "present"
+      var = "active"
     )
     changes$value <- lapply(sim$composition$present, list)
     data$changes <- changes

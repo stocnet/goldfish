@@ -79,6 +79,34 @@ test_that("the frames follow the process's risk-set rule", {
   expect_true(all(rate$dt > 0))
 })
 
+test_that("the harness's stocnet switches a departed node out", {
+  sim <- simulate_relational_sequence(
+    n_actors = 5,
+    n_events = 40,
+    processes = list(list(rate = c(0, 0, 0), choice = c(0, 0))),
+    seed = 8,
+    composition = data.frame(time = 1, node = 3L, present = FALSE)
+  )
+  data <- dgp_stocnet(sim, n_actors = 5)
+  spec <- make_specification(
+    choice = ~ recip + trans,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  exported <- suppressMessages(compute_statistics(
+    spec,
+    sub_model = "choice",
+    output = "data.frame",
+    control_prep = set_preprocessing(start_time = 0)
+  ))
+  # The choice reads presence at its own event, so after N3 leaves it is no
+  # event's candidate receiver.
+  after <- exported$event > sum(sim$events$time < 1)
+  expect_gt(sum(after), 0L)
+  expect_false(any(exported$index_j[after] == 3L))
+})
+
 # ---- shared pieces ----------------------------------------------------------
 
 # Independently optimized parity, as in the classical equivalence tests.
