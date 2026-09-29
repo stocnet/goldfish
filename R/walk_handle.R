@@ -1183,7 +1183,7 @@ walk_collect_atom_moves <- function(live, recorders, key) {
   for (s in unique(recorders$by_key[[key]])) {
     store <- recorders$stores[[s]]
     touched <- live$touched[[s]]
-    for (r in seq_along(store$record_gid)) {
+    for (r in seq_len(store$record_n)) {
       entries <- store$record_entries[[r]]
       if (length(entries) == 0L) {
         next
@@ -1192,10 +1192,9 @@ walk_collect_atom_moves <- function(live, recorders, key) {
       touched[[gid]] <- unique(c(touched[[gid]], entries))
     }
     live$touched[[s]] <- touched
-    store$record_time <- numeric(0)
-    store$record_gid <- integer(0)
-    store$record_entries <- list()
-    store$record_values <- list()
+    # Emptied by its count, keeping the buffers, so a stepping walk does not
+    # reallocate the record on every event.
+    store$record_n <- 0L
   }
   invisible(NULL)
 }

@@ -549,12 +549,61 @@ build_constraint_atom_store <- function(
   store$initial <- initial
 
   # The recorded atom-delta stream: one entry per (event, atom) the advance
-  # touches, in walk order. `constraint_replay_atoms()` replays it.
+  # touches, in walk order. `constraint_replay_atoms()` replays it. The
+  # buffers are allocated ahead and filled up to `record_n`
+  # (`record_atom_delta()`).
+  clear_atom_record(store)
+  store
+}
+
+# Empty a store's atom-delta record, keeping no capacity.
+clear_atom_record <- function(store) {
+  store$record_n <- 0L
   store$record_time <- numeric(0)
   store$record_gid <- integer(0)
   store$record_entries <- list()
   store$record_values <- list()
-  store
+  invisible(store)
+}
+
+# Append one atom delta to a store's record. The buffers double when full,
+# and each is taken out of the store before it is written: a vector still
+# bound in the environment has a second reference, so writing into it there
+# copies the whole record on every append, which made the record's cost
+# quadratic in the events.
+record_atom_delta <- function(store, time, gid, entries, values) {
+  n <- store$record_n + 1L
+  capacity <- length(store$record_gid)
+  if (n > capacity) {
+    capacity <- max(64L, 2L * capacity)
+  }
+
+  record_time <- store$record_time
+  store$record_time <- NULL
+  length(record_time) <- capacity
+  record_time[n] <- time
+  store$record_time <- record_time
+
+  record_gid <- store$record_gid
+  store$record_gid <- NULL
+  length(record_gid) <- capacity
+  record_gid[n] <- gid
+  store$record_gid <- record_gid
+
+  record_entries <- store$record_entries
+  store$record_entries <- NULL
+  length(record_entries) <- capacity
+  record_entries[n] <- list(entries)
+  store$record_entries <- record_entries
+
+  record_values <- store$record_values
+  store$record_values <- NULL
+  length(record_values) <- capacity
+  record_values[n] <- list(values)
+  store$record_values <- record_values
+
+  store$record_n <- n
+  invisible(store)
 }
 
 # Advance a constraint's atoms for one shared covariate event and record the
@@ -642,11 +691,7 @@ advance_constraint_atom_store <- function(
         write_entries(buffer, delta$entries, delta$values),
         envir = store$atom_state
       )
-      pos <- length(store$record_time) + 1L
-      store$record_time[[pos]] <- time
-      store$record_gid[[pos]] <- gid
-      store$record_entries[[pos]] <- delta$entries
-      store$record_values[[pos]] <- delta$values
+      record_atom_delta(store, time, gid, delta$entries, delta$values)
     }
   }
   invisible(NULL)
@@ -688,7 +733,7 @@ constraint_replay_atoms <- function(store) {
   touched <- new.env(parent = emptyenv())
   touched$entries <- vector("list", n_atoms)
 
-  times <- store$record_time
+  times <- store$record_time[seq_len(store$record_n)]
   order_idx <- order(times)
   ordered_time <- times[order_idx]
   n_rec <- length(order_idx)

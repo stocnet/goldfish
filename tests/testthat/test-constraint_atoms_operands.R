@@ -213,6 +213,41 @@ test_that("threading a constraint-only stream leaves every other row", {
   }
 })
 
+test_that("the atom recorder's log grows linearly with its events", {
+  # A cost guard: the recorder appends one entry per constraint event. Twice
+  # the events must cost about twice the allocation; a log that copies itself
+  # on every append costs four times as much.
+  orig_advance <- advance_constraint_atom_store
+  allocated <- 0
+  local_mocked_bindings(
+    advance_constraint_atom_store = function(...) {
+      used <- bench::bench_memory(orig_advance(...))
+      allocated <<- allocated + as.numeric(used$mem_alloc)
+      invisible(NULL)
+    }
+  )
+  recorder_allocation <- function(n_emails) {
+    spec <- suppressMessages(make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = constraint_cost_data(n_emails = n_emails),
+      support_constraint = ~ !tie(emails)
+    ))
+    allocated <<- 0
+    invisible(suppressWarnings(estimate_dynam(
+      spec,
+      sub_model = "choice",
+      preprocessing_only = TRUE
+    )))
+    allocated
+  }
+  skip_if_not_installed("bench")
+  ratio <- recorder_allocation(3000L) / recorder_allocation(1500L)
+  expect_lt(ratio, 2.5)
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {
