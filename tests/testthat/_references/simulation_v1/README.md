@@ -1,0 +1,58 @@
+# Simulation cross-validation
+
+`test-simulation_cross_validation.R` checks goldfish's estimators against
+classical fits of the same likelihood on sequences simulated from a known
+process. Nothing is frozen here: the sequences are regenerated under their
+seeds on every run, `stats::glm` ships with R, and `survival` and `mlogit`
+run live behind `skip_if_not_installed()`. This file records what was
+measured, so a later gap can be read against it.
+
+## The harness
+
+`helper-simulate-dgp.R` simulates exact-time DyNAM sequences: an exponential
+waiting time from the total rate over the senders at risk, the sender in
+proportion to its rate, the receiver from the multinomial over the receivers
+it may choose. Inside the same loop, before each event is applied, it writes
+the frames the classical fits use, from its own 0/1 state and with the rule
+the process used (an absent node has no row; a sender with no allowed
+receiver has no rate row; every event that is not a dependent event of the
+process closes the interval with a censored row). It shares no state code
+with goldfish, so an agreement is evidence about goldfish.
+
+The statistics follow each effect's definition on a 0/1 state: the rate's
+`indeg` and `outdeg` count present ties, the choice's `recip` reads the
+reverse tie and `trans` counts two-paths `i -> k -> j`. A REM degree effect
+reads the receiver by default (`type = "alter"`), `outdeg` included; the
+first version of the harness read the sender's out-degree there, and the
+frame-identity arm reported it before any coefficient was compared.
+
+## Two arms per fixture
+
+**Frame identity.** The rows `compute_statistics(output = "data.frame")`
+exports equal the hand-built frame on `(event, index_i, index_j)`, the
+realized outcome, the interval length and every statistic column. This
+proves the risk-set filtering and the statistics before any optimizer runs.
+
+**Oracle parity**, gate `1e-6`, the package's ordinary discipline:
+
+| fixture | comparison | max abs coefficient difference |
+|---|---|---|
+| F1 baseline | DyNAM rate ↔ `glm` Poisson, `offset(log(dt))` | 2.3e-11 |
+| F1 baseline | REM rate ↔ dyadic `glm` Poisson | 2.6e-13 |
+| F1 baseline | DyNAM choice ↔ `survival::clogit` | 1.8e-14 |
+| F1 baseline | DyNAM choice ↔ `mlogit::mlogit` | 2.7e-08 |
+
+The log-likelihoods differ by exactly `sum(log(dt))` over the realized
+intervals on the rate side (measured 6e-13 for the DyNAM rate, 1.3e-12 for
+REM) and agree on the choice side (6e-14 against `clogit`).
+
+goldfish is fitted with `score_tol = 1e-10`, `step_tol = 1e-12`. At its
+default stop (`score_tol = 1e-6`) the choice differs from `clogit` by
+3.5e-07 and the REM from `glm` by 8.8e-07: the whole gap is goldfish's last
+Newton step, most of the gate, so the tests fit to the maximum and compare
+the two optimizers rather than goldfish's stopping rule.
+
+F1: 10 actors, 150 dependent events, seed 42; rate coefficients
+(intercept, indeg, outdeg) = (-1, 0.3, -0.2), choice (recip, trans) =
+(1, 0.4). The window opens at the simulation's clock origin
+(`set_preprocessing(start_time = 0)`).

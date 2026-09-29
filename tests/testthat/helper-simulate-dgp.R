@@ -202,9 +202,11 @@ simulate_relational_sequence <- function(
         outcome = moved_dyad,
         dt = dt,
         dependent = !is.null(mover),
+        # A REM degree effect reads the receiver by default
+        # (`type = "alter"`), the out-degree included.
         stats = cbind(
           indeg = colSums(tie)[dyads[, 2]],
-          outdeg = rowSums(tie)[dyads[, 1]]
+          outdeg = rowSums(tie)[dyads[, 2]]
         )
       )
       n_dyad <- n_dyad + nrow(dyads)

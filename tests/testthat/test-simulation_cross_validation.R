@@ -72,3 +72,192 @@ test_that("the frames follow the process's risk-set rule", {
   expect_identical(chosen$receiver, events$to)
   expect_true(all(rate$dt > 0))
 })
+
+# ---- shared pieces ----------------------------------------------------------
+
+# Independently optimized parity, as in the classical equivalence tests.
+simulation_tolerance <- 1e-6
+
+# goldfish's default Newton stop (`score_tol = 1e-6`) leaves a last step of a
+# few 1e-7 on these fixtures, which is most of the gate. Fitting to the
+# maximum makes the gap the two optimizers' agreement rather than goldfish's
+# stopping rule.
+simulation_tight_fit <- function() {
+  set_algorithm_newton(score_tol = 1e-10, step_tol = 1e-12, max_iterations = 50)
+}
+
+# The window opens at the simulation's clock origin, so the first interval
+# has the length the process drew rather than zero.
+simulation_window <- function() set_preprocessing(start_time = 0)
+
+# goldfish's exported rows against a hand-built frame: the row keys and the
+# realized outcome, the interval length where the frame has one, then every
+# statistic, each under the effect's exported column name.
+expect_frame_identity <- function(exported, frame, stats) {
+  expect_identical(nrow(exported), nrow(frame))
+  expect_equal(exported$event, frame$interval)
+  expect_equal(exported$index_i, frame$sender)
+  if (!all(is.na(frame$receiver))) {
+    expect_equal(exported$index_j, frame$receiver)
+  }
+  expect_equal(exported$chosen, frame$outcome)
+  if (!all(is.na(frame$dt))) {
+    expect_equal(exported$timespan, frame$dt)
+  }
+  for (s in names(stats)) {
+    expect_equal(exported[[stats[[s]]]], frame[[s]], info = s)
+  }
+}
+
+# The Poisson form carries a `log dt` per observed event that the rate
+# likelihood does not, a constant in theta.
+expect_rate_equals_poisson <- function(fit, frame, formula) {
+  twin <- stats::glm(
+    formula,
+    data = frame,
+    family = stats::poisson(),
+    control = stats::glm.control(epsilon = 1e-14, maxit = 100)
+  )
+  expect_equal(
+    unname(coef(fit)),
+    unname(coef(twin)),
+    tolerance = simulation_tolerance
+  )
+  expect_equal(
+    as.numeric(logLik(fit)),
+    as.numeric(logLik(twin)) - sum(log(frame$dt[frame$outcome == 1L])),
+    tolerance = simulation_tolerance
+  )
+}
+
+# ---- F1: the unconstrained baseline -----------------------------------------
+
+f1_simulation <- function() {
+  sim <- simulate_relational_sequence(
+    n_actors = 10,
+    n_events = 150,
+    processes = list(list(rate = c(-1, 0.3, -0.2), choice = c(1, 0.4))),
+    seed = 42,
+    rem = TRUE
+  )
+  sim$data <- dgp_stocnet(sim, n_actors = 10)
+  sim
+}
+
+f1_dynam_spec <- function(sim) {
+  make_specification(
+    rate = ~ 1 + indeg + outdeg,
+    choice = ~ recip + trans,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim$data
+  )
+}
+
+f1_rem_spec <- function(sim) {
+  make_specification(
+    rate = ~ 1 + indeg + outdeg,
+    layer = "calls",
+    model = "REM",
+    data = sim$data
+  )
+}
+
+test_that("F1: goldfish exports the hand-built frames row for row", {
+  sim <- f1_simulation()
+  spec <- f1_dynam_spec(sim)
+  export <- function(x, model, sub_model) {
+    suppressMessages(compute_statistics(
+      x,
+      model = model,
+      sub_model = sub_model,
+      output = "data.frame",
+      control_prep = simulation_window()
+    ))
+  }
+
+  expect_frame_identity(
+    export(spec, "DyNAM", "rate"),
+    sim$rate[[1]],
+    c(indeg = "indeg_calls", outdeg = "outdeg_calls")
+  )
+  expect_frame_identity(
+    export(spec, "DyNAM", "choice"),
+    sim$choice[[1]],
+    c(recip = "recip_calls", trans = "trans_calls")
+  )
+  expect_frame_identity(
+    export(f1_rem_spec(sim), "REM", "rate"),
+    sim$dyad,
+    c(indeg = "indeg_calls", outdeg = "outdeg_calls")
+  )
+})
+
+test_that("F1: the exact-time rate is a Poisson regression with an offset", {
+  sim <- f1_simulation()
+  fit <- estimate_dynam(
+    f1_dynam_spec(sim),
+    sub_model = "rate",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  )
+  expect_rate_equals_poisson(
+    fit,
+    sim$rate[[1]],
+    outcome ~ indeg + outdeg + offset(log(dt))
+  )
+})
+
+test_that("F1: the exact-time REM is a dyadic Poisson regression", {
+  sim <- f1_simulation()
+  fit <- suppressMessages(estimate_rem(
+    f1_rem_spec(sim),
+    sub_model = "rate",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  ))
+  expect_rate_equals_poisson(
+    fit,
+    sim$dyad,
+    outcome ~ indeg + outdeg + offset(log(dt))
+  )
+})
+
+test_that("F1: the choice is a conditional logit over the receivers", {
+  sim <- f1_simulation()
+  frame <- sim$choice[[1]]
+  fit <- estimate_dynam(
+    f1_dynam_spec(sim),
+    sub_model = "choice",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  )
+
+  skip_if_not_installed("survival")
+  withr::local_package("survival")
+  twin <- clogit(outcome ~ recip + trans + strata(interval), data = frame)
+  expect_equal(
+    unname(coef(fit)),
+    unname(coef(twin)),
+    tolerance = simulation_tolerance
+  )
+  expect_equal(
+    as.numeric(logLik(fit)),
+    as.numeric(logLik(twin)),
+    tolerance = simulation_tolerance
+  )
+
+  skip_if_not_installed("mlogit")
+  skip_if_not_installed("dfidx")
+  indexed <- dfidx::dfidx(
+    frame,
+    idx = c("interval", "receiver"),
+    choice = "outcome"
+  )
+  twin <- mlogit::mlogit(outcome ~ recip + trans | 0, data = indexed)
+  expect_equal(
+    unname(coef(fit)),
+    unname(coef(twin)),
+    tolerance = simulation_tolerance
+  )
+})
