@@ -100,8 +100,8 @@
     Message
       i The fit carries the preprocessed statistics it was estimated from (about 24.3 Kb).
       i The fit carries the preprocessed statistics it was estimated from (about 25 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 25.3 Kb).
-      i The fit carries the preprocessed statistics it was estimated from (about 28.3 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 26.1 Kb).
+      i The fit carries the preprocessed statistics it was estimated from (about 26.2 Kb).
       -- <goldfishTimeTest> ----------------------------------------------------------
       Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
       Score test of a "identity" time trend in each coefficient.

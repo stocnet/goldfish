@@ -548,13 +548,15 @@ render_finalized_consumers <- function(
   finish_output,
   scalar_entity,
   drop_self,
-  names = NULL
+  names = NULL,
+  availability = NULL
 ) {
   outputs <- lapply(seq_along(finalized), function(i) {
     out <- finish_output(
       finalized[[i]]$out,
       finalized[[i]]$constraint,
-      masks[[i]]
+      masks[[i]],
+      availability[[i]]
     )
     if (!is.null(out$total_time)) {
       out$exposure_entity_time <- risk_set_exposure(

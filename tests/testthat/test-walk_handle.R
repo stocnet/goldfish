@@ -541,6 +541,50 @@ walk_constrained_data <- function(emails) {
   )
 }
 
+test_that("a constrained risk set is read off the availability effect", {
+  # The handle keeps the availability the batch walk keeps, stepped when it
+  # is read; it does not rebuild a gate or a grid from the mask.
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  handle <- walk_open(spec)
+  walk_advance(handle, 3)
+  rebuilt <- 0L
+  local_mocked_bindings(
+    sender_gate_from_mask = function(...) {
+      rebuilt <<- rebuilt + 1L
+      stop("rebuilt")
+    }
+  )
+  for (fid in handle$process_map$fid) {
+    engine <- walk_engine_of_fid(handle, fid)
+    risk_set <- walk_risk_set(handle, engine, fid)
+    av <- engine$availability[[as.character(fid)]]
+    read <- if (engine$is_sender) {
+      risk_set$active_sender
+    } else {
+      risk_set$active_dyad
+    }
+    expect_identical(read, av$value, info = fid)
+  }
+  expect_identical(rebuilt, 0L)
+  # By then `emails` holds 2 -> 1 and 3 -> 2: the choice grid excludes them.
+  choice <- walk_engine_of_fid(handle, 2L)$availability[["2"]]$value
+  expect_false(choice[2L, 1L])
+  expect_false(choice[3L, 2L])
+  expect_true(choice[4L, 3L])
+})
+
 test_that("a dyadic support constraint is maintained live on the handle", {
   data <- walk_constrained_data(data.frame(
     from = c(2L, 3L, 4L, 6L),

@@ -1290,7 +1290,12 @@ merged_route_dependent <- function(engine, flavor, event_info) {
   own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
   if (!is.null(own)) {
     consumer_write_dependent(own, event_info)
-    merged_live_mask_row(engine, as.character(own_fid), event_info$time)
+    merged_row_availability(
+      engine,
+      as.character(own_fid),
+      event_info$time,
+      event_info$sender
+    )
   }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
@@ -1298,7 +1303,7 @@ merged_route_dependent <- function(engine, flavor, event_info) {
       cs <- engine$rc_consumers[[key]]
       if (!identical(cs, own)) {
         consumer_write_rc(cs, event_info)
-        merged_live_mask_row(engine, key, event_info$time)
+        merged_row_availability(engine, key, event_info$time)
       }
     }
   }
@@ -1310,17 +1315,110 @@ merged_route_dependent <- function(engine, flavor, event_info) {
 merged_route_rc <- function(engine, event_info) {
   for (key in names(engine$rc_consumers)) {
     consumer_write_rc(engine$rc_consumers[[key]], event_info)
-    merged_live_mask_row(engine, key, event_info$time)
+    merged_row_availability(engine, key, event_info$time)
   }
   invisible(NULL)
 }
 
-# A consumer of `engine` stored a row at `time`: read its live mask there.
-merged_live_mask_row <- function(engine, fid, time) {
+# A consumer of `engine` stored a row at `time`: read its live mask there,
+# then step its availability over the row. `sender` is the row's event
+# sender, where an opportunity list sets its row.
+merged_row_availability <- function(engine, fid, time, sender = NA_integer_) {
   if (!is.null(engine$live_masks)) {
     live_mask_row(engine$live_masks, fid, time)
   }
+  av <- engine$availability[[fid]]
+  if (!is.null(av)) {
+    availability_step(
+      av,
+      availability_presence_target(av$changes1, av$cursor1, time),
+      availability_presence_target(av$changes2, av$cursor2, time),
+      sender
+    )
+  }
   invisible(NULL)
+}
+
+# Each output's availability effect, keyed by fid, or NULL where the
+# writer's own stream is the stored one: a rate gated by its constraint, a
+# choice, REM or coordination risk set folded with its constraint or with
+# an opportunity list, and an unconstrained exact-time rate, whose effect
+# keeps only the count at risk. Built before the walk, over the masks as
+# they stand then. The walk handle builds the same effects over its own
+# time-ordered composition changes and keeps no stream (`record = FALSE`);
+# it reads the risk set of an unconstrained fid off presence directly
+# (`unconstrained = FALSE`). `drop_diagonal` is the rate gate's self-dyad
+# rule: on one node set a sender is not its own receiver.
+build_engine_availability <- function(
+  engine,
+  live_masks,
+  opportunities = NULL,
+  changes1 = availability_changes(engine$ctx$active_sender_changes),
+  changes2 = availability_changes(engine$ctx$active_dyad_changes),
+  record = TRUE,
+  unconstrained = TRUE,
+  drop_diagonal = identical(engine$ctx$nodes, engine$ctx$nodes2)
+) {
+  ctx <- engine$ctx
+  # Keyed by fid, not by consumer: the walk handle replaces the consumers
+  # with one recorder of its own.
+  keys <- as.character(
+    if (is.null(engine$consumer_specs)) {
+      engine$fids[1L]
+    } else {
+      engine$fids
+    }
+  )
+  spec <- engine$spec_map
+  effect <- function(variant, entry = NULL, ...) {
+    mask <- if (!is.null(entry)) {
+      live_masks$maintainers[[entry$store]][[entry$maintainer]]
+    }
+    new_availability_effect(
+      variant,
+      ctx$n1,
+      ctx$n2,
+      ctx$active_sender_init,
+      ctx$active_dyad_init,
+      changes1,
+      changes2,
+      mask = mask,
+      stored_kind = entry$stored_kind,
+      record = record,
+      ...
+    )
+  }
+  effects <- lapply(keys, function(key) {
+    constraint <- walk_fid_constraint(engine, as.integer(key))
+    entry <- if (!is.null(live_masks)) live_masks$by_fid[[key]]
+    if (engine$is_sender) {
+      if (!is.null(constraint)) {
+        return(effect("gate", entry, drop_diagonal = drop_diagonal))
+      }
+      if (unconstrained && isTRUE(engine$is_exact_time)) {
+        return(effect("presence"))
+      }
+      return(NULL)
+    }
+    if (is.null(constraint)) {
+      if (!is.null(opportunities) && is_choice_family(spec)) {
+        return(effect("point", opportunities = opportunities))
+      }
+      return(NULL)
+    }
+    if (risk_set_is_dyadic(spec)) {
+      return(effect("dyad", entry, symmetric = risk_set_symmetrize(spec)))
+    }
+    encoding <- active_dyad_encoding_decide(
+      risk_set_encoding(spec),
+      constraint$mask_kind,
+      !is.null(opportunities)
+    )
+    effect(encoding, entry, opportunities = opportunities)
+  })
+  names(effects) <- keys
+  effects <- Filter(Negate(is.null), effects)
+  if (length(effects) == 0L) NULL else effects
 }
 
 # The batch walk's live masks: the mask maintainers the stepping handle builds
@@ -1341,8 +1439,6 @@ build_batch_live_masks <- function(engines, recorders) {
   }
   live$stores <- recorders$stores
   live$union_time <- rep(-Inf, length(recorders$stores))
-  store_of <- vapply(fids, function(f) live$by_fid[[f]]$store, integer(1))
-  live$fids_by_store <- split(fids, store_of)
   live$streams <- new.env(parent = emptyenv())
   for (fid in fids) {
     stream <- new.env(parent = emptyenv())
@@ -1377,8 +1473,11 @@ live_mask_row <- function(live, fid, t) {
     live$touched[[s]] <- vector("list", length(moved))
     for (reader in live$fids_by_store[[as.character(s)]]) {
       stream <- live$streams[[reader]]
-      stream$pending[[length(stream$pending) + 1L]] <-
-        flips[[live$by_fid[[reader]]$maintainer]]
+      reader_flips <- flips[[live$by_fid[[reader]]$maintainer]]
+      stream$pending[[length(stream$pending) + 1L]] <- reader_flips
+      if (!is.null(live$effects[[reader]])) {
+        availability_push_flips(live$effects[[reader]], reader_flips)
+      }
     }
     live$union_time[[s]] <- t
   }
@@ -1921,40 +2020,36 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     project_initial_stats <- function(stats, effect_map) {
       stats[, effect_map, drop = FALSE]
     }
-    finish_output <- function(out, constraint, support_mask = NULL) {
+    finish_output <- function(
+      out,
+      constraint,
+      support_mask = NULL,
+      availability = NULL
+    ) {
       if (is.null(constraint)) {
         return(out)
       }
       out$support_mask <- support_mask
-      # The self-dyad is a receiver only where the two axes name different
-      # node sets; on one node set a sender never acts on itself.
-      fold_active_sender_support(
-        out,
-        out$support_mask,
-        ctx$active_dyad_init,
-        drop_diagonal = identical(ctx$nodes, ctx$nodes2)
-      )
+      availability_finish(availability, out)
     }
     scalar_entity <- "sender"
   } else {
     project_initial_stats <- function(stats, effect_map) {
       stats[,, effect_map, drop = FALSE]
     }
-    finish_output <- function(out, constraint, support_mask = NULL) {
+    finish_output <- function(
+      out,
+      constraint,
+      support_mask = NULL,
+      availability = NULL
+    ) {
       if (!is.null(constraint)) {
         out$support_mask <- support_mask
-        return(fold_active_dyad_support(
-          out,
-          out$support_mask,
-          spec_map,
-          constraint$mask_kind,
-          opportunitiesList = opportunities
-        ))
       }
-      if (!is.null(opportunities) && is_choice_family(spec_map)) {
-        out <- fold_active_dyad_opportunity(out, opportunities)
+      if (is.null(availability)) {
+        return(out)
       }
-      out
+      availability_finish(availability, out)
     }
     scalar_entity <- "dyad"
   }
@@ -2012,8 +2107,21 @@ walk_engine_masks <- function(pending, live_masks) {
   })
 }
 
-# Phase two: fold each consumer's realized mask in, render, and decorate.
-render_walk_engine <- function(pending, masks) {
+# Each finalized consumer's availability effect, in the order
+# `render_walk_engine()` reads them; `NULL` where the writer's stream
+# stands.
+walk_engine_availability <- function(pending) {
+  keys <- if (pending$single) {
+    as.character(pending$engine$fids[1L])
+  } else {
+    names(pending$engine$consumers)
+  }
+  lapply(keys, function(key) pending$engine$availability[[key]])
+}
+
+# Phase two: write each consumer's mask stream and availability onto it,
+# render, and decorate.
+render_walk_engine <- function(pending, masks, availability = NULL) {
   engine <- pending$engine
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -2023,7 +2131,8 @@ render_walk_engine <- function(pending, masks) {
     pending$finish_output,
     pending$scalar_entity,
     drop_self = pending$drop_self,
-    names = if (pending$single) NULL else names(engine$consumers)
+    names = if (pending$single) NULL else names(engine$consumers),
+    availability = availability
   )
 
   # `finalize_consumers()` returns one object for a single output and a
@@ -2193,6 +2302,19 @@ run_merged_walk <- function(
   live_masks <- build_batch_live_masks(engines, recorders)
   for (engine in engines) {
     engine$live_masks <- live_masks
+    engine$availability <- build_engine_availability(
+      engine,
+      live_masks,
+      control_preprocessing$opportunities_list
+    )
+  }
+  # A mask flip reaches a fid's availability through the live masks, which
+  # hand it to every fid reading that mask.
+  if (!is.null(live_masks)) {
+    live_masks$effects <- do.call(
+      c,
+      unname(lapply(engines, function(engine) engine$availability))
+    )
   }
   # An event of an object only a support constraint reads changes the risk
   # set of every exact-time rate whose mask reads it, though no statistic, so
@@ -2512,7 +2634,11 @@ run_merged_walk <- function(
 
   outputs <- list()
   for (i in seq_along(pending)) {
-    engine_outputs <- render_walk_engine(pending[[i]], masks[[i]])
+    engine_outputs <- render_walk_engine(
+      pending[[i]],
+      masks[[i]],
+      walk_engine_availability(pending[[i]])
+    )
     outputs[names(engine_outputs)] <- engine_outputs
   }
 

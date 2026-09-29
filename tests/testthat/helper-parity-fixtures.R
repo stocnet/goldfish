@@ -63,6 +63,16 @@ parity_prep_by <- function(out, family, flavor = NULL) {
 # rate's interval. They differ from the loops' capture only by those
 # right-censored rows and what follows from them (pointers, intervals, the
 # mask snapshot times); the dependent rows' statistics are unchanged.
+#
+# Four more were refrozen from the merged walk when a choice's point
+# availability became the true grid of every sender, with every flipped
+# cell stored, instead of each event sender's row written at its own
+# event: `flavored_oracle__3`, `flavored_oracle__4`,
+# `user_constraint__choice` and `constraint_bound__choice`. Only
+# `active_dyad_init`, `active_dyad_update` and `active_dyad_update_pointer`
+# moved, and every dependent event's sender row -- the only part the
+# likelihood reads -- was checked equal to the loops' before refreezing.
+# `opportunity__choice` did not move.
 parity_frozen <- local({
   cache <- NULL
   function(key) {

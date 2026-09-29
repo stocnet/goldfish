@@ -94,47 +94,57 @@ self_only_sender_data <- function() {
   )
 }
 
-# The folded rate gate, per stored event, for a hand-written mask timeline.
-# Builds the minimal preprocessed object `fold_active_sender_support()`
-# reads -- the stored times, sender presence as crossings, and the receiver
-# presence it counts over -- runs the fold, and decodes the folded
-# `active_sender` back into one logical vector per event.
+# The rate gate, per stored event, for a hand-written mask timeline. Drives
+# the rate's availability effect the way the walk does -- each event's mask
+# flips, then the receiver crossings stamped at or before it -- over a mask
+# that follows the timeline, and returns the gate after every event.
+# `receiver_crossings` is a crossings buffer (`update`, cumulative
+# `pointer`) keyed by the stored event.
 fold_gate_timeline <- function(
   masks,
   stored_kind,
   presence1,
   presence2,
   receiver_crossings = NULL,
-  ...
+  drop_diagonal = FALSE
 ) {
   n_stored <- length(masks)
-  out <- list(
-    event_time = seq_len(n_stored),
-    active_sender_init = presence1,
-    active_sender_update = matrix(0, 2L, 0L),
-    active_sender_update_pointer = integer(n_stored),
-    active_dyad_update = receiver_crossings$update,
-    active_dyad_update_pointer = receiver_crossings$pointer,
-    avg_active_entity = 0
-  )
-  folded <- fold_active_sender_support(
-    out,
-    mask_from_timeline(masks, stored_kind),
+  stream <- mask_from_timeline(masks, stored_kind)
+  current <- stream$initial
+  changes2 <- NULL
+  if (!is.null(receiver_crossings) && ncol(receiver_crossings$update) > 0L) {
+    changes2 <- list(
+      time = rep(
+        seq_len(n_stored),
+        diff(c(0L, receiver_crossings$pointer))
+      ),
+      node = as.integer(receiver_crossings$update[1L, ]),
+      replace = as.logical(receiver_crossings$update[2L, ])
+    )
+  }
+  av <- new_availability_effect(
+    "gate",
+    length(presence1),
+    length(presence2),
+    presence1,
     presence2,
-    ...
+    changes2 = changes2,
+    mask = list(value = function() current),
+    stored_kind = stored_kind,
+    drop_diagonal = drop_diagonal,
+    record = FALSE
   )
-  gate <- folded$active_sender_init
-  update <- folded$active_sender_update
-  pointer <- folded$active_sender_update_pointer
-  seen <- 0L
+  flips_at <- flip_reader(stream$update, stream$update_pointer)
   lapply(seq_len(n_stored), function(e) {
-    hi <- pointer[[e]]
-    if (hi > seen) {
-      cols <- (seen + 1L):hi
-      gate[update[1L, cols]] <<- as.logical(update[2L, cols])
-      seen <<- hi
-    }
-    gate
+    flips <- flips_at(e)
+    current[flips$entries] <<- flips$values
+    availability_push_flips(av, flips)
+    availability_step(
+      av,
+      0L,
+      availability_presence_target(av$changes2, av$cursor2, e)
+    )
+    av$value & TRUE
   })
 }
 

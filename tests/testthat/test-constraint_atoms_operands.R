@@ -47,6 +47,54 @@ test_that("constrained mask and presence axes match the frozen capture", {
   }
 })
 
+test_that("a choice's point availability is the true grid at every row", {
+  # Every sender's row, not only the event sender's: the stored grid is the
+  # present receivers each sender's mask allows, row after row.
+  for (family in c("choice", "uncovered_choice")) {
+    prep <- constraint_atoms_prep(family)
+    expect_identical(prep$active_dyad_encoding, "point")
+    n1 <- nrow(prep$active_dyad_init)
+    mask <- as.logical(prep$support_mask$initial)
+    grid <- prep$active_dyad_init
+    presence <- prep$support_mask$receiver_presence_init
+    mask_seen <- 0
+    grid_seen <- 0
+    presence_seen <- 0
+    for (e in seq_along(prep$event_time)) {
+      hi <- prep$support_mask$update_pointer[[e]]
+      if (hi > mask_seen) {
+        cols <- (mask_seen + 1):hi
+        mask[prep$support_mask$update[1L, cols]] <-
+          as.logical(prep$support_mask$update[2L, cols])
+        mask_seen <- hi
+      }
+      hi <- prep$active_dyad_update_pointer[[e]]
+      if (hi > grid_seen) {
+        cols <- (grid_seen + 1):hi
+        grid[cbind(
+          prep$active_dyad_update[1L, cols],
+          prep$active_dyad_update[2L, cols]
+        )] <- as.logical(prep$active_dyad_update[3L, cols])
+        grid_seen <- hi
+      }
+      pointer <- prep$support_mask$receiver_presence_update_pointer
+      hi <- if (is.null(pointer)) 0 else pointer[[e]]
+      if (hi > presence_seen) {
+        cols <- (presence_seen + 1):hi
+        update <- prep$support_mask$receiver_presence_update
+        presence[update[1L, cols]] <- as.logical(update[2L, cols])
+        presence_seen <- hi
+      }
+      truth <- matrix(mask, n1) & rep(presence, each = n1)
+      expect_identical(
+        as.vector(grid),
+        as.vector(truth),
+        info = paste(family, e)
+      )
+    }
+  }
+})
+
 test_that("joint constrained outputs match the frozen capture per fid", {
   refs <- constraint_atoms_refs()
   for (family in constraint_atoms_joint_families()) {
@@ -267,7 +315,6 @@ test_that("availability per stored row costs the same at any size", {
   # cost from the one-off grids, and the unconstrained twin takes out what
   # the statistics cost per row. The validation is stubbed: it reads the
   # mask once per event and is measured on its own.
-  skip("availability is still folded after the walk, over every sender")
   skip_on_cran()
   skip_if_not_installed("bench")
   local_mocked_bindings(validate_prep_support = function(...) invisible(NULL))
@@ -316,12 +363,17 @@ test_that("a constrained walk composes its masks as it goes", {
   # the walk, not realized afterwards by replaying the atoms to each stored
   # row and folding every row again, which allocates per stored row.
   skip("the masks are still realized and folded after the walk")
-  post_walk <- c(
-    "realize_pending_masks",
+  # The availability folds are gone: the walk keeps availability as an
+  # effect. What is left to count is what may still run after the walk.
+  retired <- c(
     "fold_active_sender_support",
     "fold_active_dyad_support",
-    "build_active_dyad_point"
+    "fold_active_dyad_support_rem"
   )
+  for (name in retired) {
+    expect_false(exists(name, envir = asNamespace("goldfish")), label = name)
+  }
+  post_walk <- c("realize_pending_masks", "build_active_dyad_point")
   calls <- stats::setNames(integer(length(post_walk)), post_walk)
   counting <- lapply(post_walk, function(name) {
     orig <- get(name, envir = asNamespace("goldfish"))

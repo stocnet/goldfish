@@ -15,6 +15,13 @@
 # maintained them. Regenerating re-captures every family from the current
 # code, so check each entry already in the file is `identical()` to its
 # regenerated value before committing the new file.
+#
+# Regenerated on 2026-09-30 when a choice's point availability became the
+# true grid of every sender (every flipped cell stored) instead of each
+# event sender's row: `choice`, `uncovered_choice`, `joint_rate_choice` fid
+# 2 and `flavored` fids 2 and 4 moved in `active_dyad_*` only, each
+# dependent event's sender row checked equal first; every other entry is
+# `identical()` to the previous file.
 suppressMessages(devtools::load_all(quiet = TRUE))
 source("tests/testthat/helper-parity-fixtures.R")
 source("tests/testthat/helper-constraint-atoms.R")
