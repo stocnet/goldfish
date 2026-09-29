@@ -232,6 +232,13 @@ crash or memory bug originates there:
   arguments, objects — and a class string is data, not a name a user calls.
   `tests/testthat/test-class_naming.R` enumerates the package's classes from the
   namespace and enforces this; extend its exemption lists, never its expectations.
+- **Per-event code (the walk) has its own cost rules**: `.claude/rules/walk-cost.md`.
+  A preprocessed output is an initial value + a flat update buffer + a per-event
+  pointer at its broadcast kind, never one value per event; a row or a cell is read
+  by linear index on the stored vector, never by building the `n1 x n2` grid; state
+  is written in place; nothing is allocated per event. The frozen baselines cannot
+  see a violation, so these are checked at design time (`openspec/config.yaml`
+  `rules.design`) and at edit time (a PostToolUse reminder on the hot-path files).
 - **Cross-package calls**: never `pkg:::fn()` on another package's unexported objects
   (R CMD check/CRAN violation). Rule: `@importFrom` when a function is used across
   functions or in hot paths; `pkg::fn()` for occasional calls.

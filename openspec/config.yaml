@@ -38,6 +38,19 @@ context: |
     task commit — only the files that task edited, so the diff stays
     reviewable.
 
+  Cost invariants for per-event code (the preprocessing walk, the
+  simulation step, effect functions, constraint and availability folds,
+  the R gather loops) are in .claude/rules/walk-cost.md — read it before
+  proposing, designing or implementing anything that adds a preprocessed
+  output or runs once per event. In short: a preprocessed output is an
+  initial value + a flat update buffer + a per-event pointer, held at its
+  broadcast kind, never one value per event; rows and cells are read by
+  linear index on the stored vector, never by building the n1 x n2 grid;
+  state is written in place through the shared writers; nothing is
+  allocated or looked up by name per event; one shared walk, one pass.
+  The frozen 1e-6 baselines cannot detect a violation — a slower or
+  larger walk returns the same numbers.
+
   Required skills (hard rules — invoke the skill before doing the work it
   covers; do not rely on memory):
   - r-lib:r-package-development — ALWAYS, for any task touching package
@@ -61,7 +74,16 @@ context: |
   repo work, not only OpenSpec changes.)
 
 rules:
+  proposal:
+    - A change that adds a preprocessed output, a walk consumer, or any code that runs once per event MUST say so under Impact and name the existing shared functions it reuses (R/broadcast_kind.R, the writers, the shared walk registry). A proposal that needs its own walk, its own buffer format, or a second pass MUST state why the shared ones cannot serve — "it was simpler" is not a reason.
+  design:
+    - A design that adds a preprocessed output or per-event code MUST carry a "Storage and per-event cost" section with, for each new object — its broadcast kind; its stored shape as initial value + update buffer + pointer; its size as a function of n1, n2 and the number of events; and what is allocated per event (the expected answer is nothing beyond the entries that changed). A size that grows with events x n1 x n2, or a per-event allocation of size n1, n2 or n1 x n2, is a defect in the design, not an optimization to defer.
+    - For each read the design introduces, state what is read (cell, row, count, whole value) and how it is obtained at the stored kind. Building the n1 x n2 grid, or reshaping with matrix()/array(), to read a row or a cell is not acceptable (.claude/rules/walk-cost.md, rule 2).
+    - State the cost prediction BEFORE implementation — expected walk time and preprocessed object size on the large fixture relative to the current values — so the measurement after implementation confirms or refutes a number rather than producing one.
+  specs:
+    - A requirement that introduces a stored object MUST state its storage shape and include the negative clause (what it SHALL NOT be stored as), following the wording of flat-preprocess-output and support-constraint.
   tasks:
+    - A task group that adds or changes per-event code MUST begin with a task that writes the cost guard (allocation or size assertion on a fixture large enough to separate a per-event copy from noise) and records it FAILING on the unfixed code, and MUST end with a task that measures walk time, allocated memory and preprocessed object size on the large fixture against the values before the group.
     - End every task group with a verification task that runs the tests and, if the group touched roxygen docs or exported APIs, devtools::document()
     - Add an explicit "bump version in DESCRIPTION + NEWS.md entry" task at each phase milestone
     - Any task that deprecates, renames, supersedes, or introduces an experimental API MUST follow the r-lib:lifecycle skill (deprecate_warn / badge + NEWS entry)
