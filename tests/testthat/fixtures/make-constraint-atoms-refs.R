@@ -33,12 +33,18 @@ suppressWarnings(suppressMessages({
 }))
 
 # The merged walk's registry and schedule per family, captured before a
-# constraint-only object joins the shared walk.
-substrate <- suppressWarnings(suppressMessages(lapply(
-  constraint_atoms_substrate_families(),
-  constraint_atoms_substrate
-)))
-names(substrate) <- constraint_atoms_substrate_families()
+# constraint-only object joins the shared walk. That "before" cannot be
+# produced by the code after the threading, so a capture already in the file
+# is kept, never re-taken.
+refs_path <- "tests/testthat/fixtures/constraint_atoms_refs.rds"
+substrate <- if (file.exists(refs_path)) readRDS(refs_path)$substrate
+if (is.null(substrate)) {
+  substrate <- suppressWarnings(suppressMessages(lapply(
+    constraint_atoms_substrate_families(),
+    constraint_atoms_substrate
+  )))
+  names(substrate) <- constraint_atoms_substrate_families()
+}
 
 refs <- c(
   list(unconstrained_plan_effects = unconstrained_plan_effects),

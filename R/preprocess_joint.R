@@ -1311,6 +1311,55 @@ merged_route_rc <- function(engine, event_info) {
   invisible(NULL)
 }
 
+# The shared oids of the objects only a support constraint reads that this
+# engine's masks read. Resolved once before the walk; empty for an engine that
+# stores no interval (an ordered rate or a choice reads its mask at its own
+# events only).
+engine_constraint_only_oids <- function(engine, merged) {
+  if (!isTRUE(engine$is_exact_time)) {
+    return(integer(0))
+  }
+  keys <- unlist(
+    lapply(engine_constraints(engine), function(sub_plan) {
+      constraint_atom_object_keys(sub_plan)$dynamic_keys
+    }),
+    use.names = FALSE
+  )
+  oids <- match(unique(keys), merged$objects$key)
+  oids[merged$objects$name[oids] %in% merged$constraint_only]
+}
+
+# A constraint-only object's event at time `t` for an engine that folds no
+# statistic from it: the engine's clock advances and its open interval closes
+# with a right-censored row, exactly as a covariate event it does read would
+# do, with no statistic update.
+merged_constraint_boundary <- function(
+  engine,
+  t,
+  sender,
+  receiver,
+  is_valid_event
+) {
+  interval <- t - engine$last_time
+  engine$i_total <- engine$i_total + 1L
+  if (is_valid_event) {
+    engine$last_time <- t
+    if (interval > 0) {
+      merged_route_rc(
+        engine,
+        list(
+          is_dependent = 0L,
+          interval = interval,
+          time = t,
+          sender = sender,
+          receiver = receiver
+        )
+      )
+    }
+  }
+  invisible(NULL)
+}
+
 # Build one per-unit walk engine: the recipe context (effects, cache, lookups,
 # composition, imputation policy) reused from `prepare_recipe_context()`, the
 # unit's `initial_stats` and interaction operand state shaped as its recipe loop
@@ -1990,10 +2039,16 @@ run_merged_walk <- function(
     new_writer = new_writer
   )
 
-  # One atom store per covered constraint, maintained over this walk's shared
-  # state instead of a private walk of its own. A constraint the shared schedule
-  # cannot cover keeps its private walk, so this never regresses one.
+  # One atom store per constraint, maintained over this walk's shared state
+  # instead of a private walk of its own: every object a constraint reads is
+  # on the shared schedule.
   recorders <- build_walk_recorders(engines)
+  # An event of an object only a support constraint reads changes the risk
+  # set of every exact-time rate whose mask reads it, though no statistic, so
+  # it closes that rate's open interval like any other non-dependent event.
+  for (engine in engines) {
+    engine$constraint_only_oids <- engine_constraint_only_oids(engine, merged)
+  }
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
@@ -2191,6 +2246,15 @@ run_merged_walk <- function(
     for (engine in engines) {
       loid <- engine$shared_to_local[oid]
       if (is.na(loid)) {
+        if (oid %in% engine$constraint_only_oids) {
+          merged_constraint_boundary(
+            engine,
+            t,
+            ev_sender,
+            ev_receiver,
+            is_valid_event
+          )
+        }
         next
       }
       interval <- t - engine$last_time

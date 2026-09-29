@@ -295,3 +295,68 @@ test_that("F1: the choice is a conditional logit over the receivers", {
     tolerance = simulation_tolerance
   )
 })
+
+# ---- a constraint on a layer no term reads ----------------------------------
+
+# Senders 1-3 email every other node at spread times, so each is gated out
+# of the rate partway through the window, between two dependent events.
+gating_simulation <- function() {
+  n_actors <- 8
+  exogenous <- do.call(
+    rbind,
+    lapply(1:3, function(i) {
+      data.frame(from = i, to = setdiff(seq_len(n_actors), i))
+    })
+  )
+  withr::with_seed(7, {
+    exogenous$time <- sort(stats::runif(nrow(exogenous), 0.5, 20))
+  })
+  sim <- simulate_relational_sequence(
+    n_actors = n_actors,
+    n_events = 120,
+    processes = list(list(rate = c(-1, 0.2, -0.1), choice = c(1, 0.3))),
+    seed = 9,
+    exogenous = exogenous,
+    constraint = function(tie, exogenous_tie) exogenous_tie == 0
+  )
+  sim$data <- dgp_stocnet(sim, n_actors = n_actors)
+  sim
+}
+
+gating_spec <- function(sim) {
+  make_specification(
+    rate = ~ 1 + indeg + outdeg,
+    choice = ~ recip + trans,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim$data,
+    support_constraint = ~ !tie(emails)
+  )
+}
+
+test_that("a constraint-only event closes the constrained rate's interval", {
+  sim <- gating_simulation()
+  spec <- gating_spec(sim)
+  exported <- suppressWarnings(suppressMessages(compute_statistics(
+    spec,
+    sub_model = "rate",
+    output = "data.frame",
+    control_prep = simulation_window()
+  )))
+  expect_frame_identity(
+    exported,
+    sim$rate[[1]],
+    c(indeg = "indeg_calls", outdeg = "outdeg_calls")
+  )
+  fit <- suppressWarnings(suppressMessages(estimate_dynam(
+    spec,
+    sub_model = "rate",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  )))
+  expect_rate_equals_poisson(
+    fit,
+    sim$rate[[1]],
+    outcome ~ indeg + outdeg + offset(log(dt))
+  )
+})

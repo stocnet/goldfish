@@ -56,6 +56,13 @@ parity_prep_by <- function(out, family, flavor = NULL) {
 # already, so an assertion compares `parity_strip_deco(merged)` against the
 # golden directly. Regenerated only by resurrecting the loops; the frozen 1e-6
 # coefficient baselines do not cover a statistics object that changed shape.
+#
+# Two entries are the exception: `user_constraint__rate` and
+# `constraint_bound__rate` were refrozen from the merged walk when an event
+# of a layer only the constraint reads (`net2` there) started closing the
+# rate's interval. They differ from the loops' capture only by those
+# right-censored rows and what follows from them (pointers, intervals, the
+# mask snapshot times); the dependent rows' statistics are unchanged.
 parity_frozen <- local({
   cache <- NULL
   function(key) {

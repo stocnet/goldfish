@@ -380,9 +380,13 @@ test_that("the maintained availability collapses presence and the constraint", {
   expect_gt(gated_while_allowed, 0L)
 })
 
-composition_rate_prep <- function(data, constraint = NULL) {
+composition_rate_prep <- function(
+  data,
+  constraint = NULL,
+  formula = create_bilat ~ 1 + indeg(bilatnet)
+) {
   suppressMessages(suppressWarnings(estimate_dynam(
-    create_bilat ~ 1 + indeg(bilatnet),
+    formula,
     sub_model = "rate",
     data = data,
     preprocessing_only = TRUE,
@@ -399,8 +403,13 @@ test_that("the rate gate follows receiver departures, not only mask flips", {
   # be small enough that a single departure empties it.
   data <- composition_fixture()
   # The unconstrained run supplies both raw timelines the constrained run
-  # folds together.
-  raw <- composition_rate_prep(data)
+  # folds together. An event of a layer only the constraint reads closes the
+  # constrained rate's interval, so the unconstrained run reads `contignet`
+  # through a term to store the same rows; its statistics are not used.
+  raw <- composition_rate_prep(
+    data,
+    formula = create_bilat ~ 1 + indeg(bilatnet) + indeg(contignet)
+  )
   con <- composition_rate_prep(data, ~ tie(contignet))
   n_stored <- length(con$event_time)
   expect_identical(length(raw$event_time), n_stored)
