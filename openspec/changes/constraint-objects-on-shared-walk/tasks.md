@@ -47,7 +47,7 @@
       `composition`, `unmodeled`. Rule test proven by breaking the row
       reduction, composition and the censored break. 9310 / 0 / 4, six
       baseline files PASS.
-- [ ] 1.2 `test-simulation_cross_validation.R`, fixture F1: goldfish rate
+- [x] 1.2 `test-simulation_cross_validation.R`, fixture F1: goldfish rate
       ↔ `glm(poisson, offset(log(dt)))` including the `sum(log dt)`
       log-likelihood offset; REM rate ↔ dyadic `glm`; choice ↔ `mlogit`
       (`dfidx(idx = c("event", "receiver"))`) and `clogit(strata(event))`
@@ -56,6 +56,13 @@
       index_j)` and every statistic column; gate 1e-6. Record the measured
       deltas in a short `_references/simulation_v1/README.md` (no frozen
       numbers).
+      — *done 2026-09-29 (goldfish-ce), `f55b6b5`*: frames identical for
+      DyNAM rate, choice and REM; worst 2.7e-08 (mlogit), rate 2.3e-11,
+      REM 2.6e-13, clogit 1.8e-14. goldfish fitted with `score_tol =
+      1e-10` (default stop leaves 3.5e-07 / 8.8e-07, most of the gate).
+      The frame arm caught the harness's REM `outdeg` (default is the
+      receiver, `type = "alter"`). Arms proven by breaking `trans` and
+      `dt`. 9339 / 0 / 4, six baseline files PASS.
 - [ ] 1.3 Document the coordination exclusion in that README and in the
       test file header, citing the classical README's numbers.
 - [ ] 1.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
