@@ -235,7 +235,7 @@
 
 ## 4. Retire the private walk (D2 step three)
 
-- [ ] 4.1 Delete `build_atom_maintainer()`'s state container, schedule and
+- [x] 4.1 Delete `build_atom_maintainer()`'s state container, schedule and
       event loop (keep only what `build_constraint_atom_store()` still
       calls, or inline it), `recorder_covers_constraint()`,
       `constraint_atom_object_keys()` if unused, the fallback branch of
@@ -245,12 +245,23 @@
       covers every family. Check `preprocess_support_mask()` for test
       callers; delete it or move it to a test helper per ADR-0054, and say
       which in `progress.md`.
-- [ ] 4.2 Tick `constraint-atoms-as-operands` task 3.2 with a dated note
+      — *done 2026-09-29 (goldfish-ce), `0835fb3`*: per ADR-0054 the private
+      walk (`build_atom_maintainer()`) and `preprocess_support_mask()` MOVED
+      to `tests/testthat/helper-atom-maintainer-oracle.R` rather than being
+      deleted: the mask-maintainer tests use them as an independent oracle.
+      `recorder_covers_constraint()` deleted; `constraint_atom_object_keys()`
+      kept (three callers); fallback and default removed. 9440 / 0 / 5 (the
+      fifth skip is another session's cost-budget timing check).
+- [x] 4.2 Tick `constraint-atoms-as-operands` task 3.2 with a dated note
       pointing here (claim that change first), and add a dated note under
       `process-simulation` task 2.0's gap sentence.
-- [ ] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce)*: both changes claimed; notes dated.
+- [x] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS; `devtools::document()` for the
       changed signatures.
+      — *done 2026-09-29, the `0835fb3` run*: 9440 / 0 / 5, six baseline
+      files PASS, every reference family PASS; `document()` changed nothing
+      (the signatures are `@noRd`).
 - [ ] 4.4a Cost guard for live masks, recorded failing first (added
       2026-09-29): on the 2.0 generated fixture, a constrained choice and a
       constrained rate plus choice allocate no `n1 x n2` object per event

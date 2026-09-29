@@ -68,7 +68,10 @@
       ride the same path; replay matches batch exactly on dyadic,
       receiver-axis and flavored fixtures. **Gap:** a constraint on a changing
       object no formula term reads is not stepped by the shared schedule, so
-      the handle aborts on it (`goldfish_walk_unsupported`). (b)+(c)
+      the handle aborts on it (`goldfish_walk_unsupported`) — *closed
+      2026-09-29 by `constraint-objects-on-shared-walk` (`b1b2103`): the
+      object rides the shared schedule and the handle maintains its mask
+      live; the refusal is gone.* (b)+(c)
       `a21b20c`: presence cursors, `walk_schedule()`,
       `walk_next_breakpoint()`; windows already ran on the merged walk
       (`preprocess-one-walk`), so (c) added the breakpoint API and the windowed
