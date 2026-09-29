@@ -32,7 +32,7 @@
 
 ## 1. Spikes and studies (gate design D3/D4 and the mutation move set)
 
-- [ ] 1.1 B1 benchmark spike (scratch branch, results in `.plan/`): pool likelihood
+- [x] 1.1 B1 benchmark spike (scratch branch, results in `.plan/`): pool likelihood
       evaluation with K ∈ {10, 100, 1000, 10000} sequences on the packaged
       `social_evolution` dataset — matrix (a) R loop calling gather + likelihood per
       sequence vs (b) batched evaluation over a list of flat preprocessed objects,
@@ -49,6 +49,10 @@
       stack): keep it as a **bandwidth-ceiling / future-proofing** probe for a
       possible REM-flavored panel layer, but it MUST NOT gate the v1 engine or
       justify building the Option C decode-reduce fusion.
+      **Done 2026-09-29** — results in `.plan/dynes/b1/B1_results.md` (local): the
+      existing `cpp` backend is already the Option C path and wins on rate+choice
+      (faster than A, ~7× lighter; A infeasible at K = 10000); BLAS irrelevant;
+      the large-n dyad cell was not run (non-gating). Task 1.5 folds this into D3/D4/D10.
 - [ ] 1.2 B3 memory/profiling spike: naive in-memory pool over a (n × events × K)
       grid anchored on the packaged `social_evolution` dataset on the broadcast
       representation; acceptance bound set **empirically from the measurements** (no
