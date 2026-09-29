@@ -430,8 +430,7 @@ walk_open <- function(
   # shared state, through the same stores the batch walk records into, and a
   # fid's mask is recomputed from the atom entries that moved since it was last
   # read.
-  walk_assert_covered_constraints(engines, merged$objects$key, call)
-  recorders <- build_walk_recorders(engines, merged$objects$key)
+  recorders <- build_walk_recorders(engines)
   live_masks <- walk_build_live_masks(engines, recorders)
 
   schedule <- merged$schedule
@@ -1079,39 +1078,6 @@ walk_evaluate_choice_matrix <- function(state, theta) {
 # --------------------------------------------------------------------------- #
 # Live risk sets.
 # --------------------------------------------------------------------------- #
-
-# Abort when a constraint's atoms read a dynamic object the shared schedule
-# never visits (a constraint-only network no formula term reads). The batch
-# walk replays such a constraint over a private walk after the fact; a stepping
-# handle has no after, and a mask frozen at its seed would silently simulate a
-# different model.
-walk_assert_covered_constraints <- function(
-  engines,
-  shared_object_keys,
-  call = rlang::caller_env()
-) {
-  uncovered <- character(0)
-  for (engine in engines) {
-    for (sub_plan in engine_constraints(engine)) {
-      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
-        uncovered <- c(uncovered, sub_plan$atom_labels)
-      }
-    }
-  }
-  if (length(uncovered) == 0L) {
-    return(invisible(NULL))
-  }
-  cli::cli_abort(
-    c(
-      "The walk handle cannot maintain this support constraint.",
-      "x" = "Constraint atom{?s} {.val {unique(uncovered)}} read{?s/} a
-             changing object no formula term reads, so the shared walk never
-             steps its events."
-    ),
-    call = call,
-    class = "goldfish_walk_unsupported"
-  )
-}
 
 # The compiled constraint one fid's risk set carries: a multi-output engine
 # reads it off its consumer specs, a single-output engine off its own plan.

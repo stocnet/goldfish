@@ -18,12 +18,3 @@
       x It is a completed default, so the walk compiled no engine for it.
       i Its values come from the simulation's built-in evaluate step over its process's support.
 
-# a constraint on an object no formula reads is refused
-
-    Code
-      walk_open(spec)
-    Condition
-      Error:
-      ! The walk handle cannot maintain this support constraint.
-      x Constraint atom "tie(emails)" reads a changing object no formula term reads, so the shared walk never steps its events.
-

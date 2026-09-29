@@ -104,10 +104,10 @@ test_that("a covered constrained model builds no private atom walk", {
   expect_identical(stores, 1L)
 })
 
-test_that("an uncovered constraint's reference comes from the private walk", {
-  # The uncovered families' frozen references were captured while the private
-  # `build_atom_maintainer()` walk still maintained the constraint, so they
-  # are a detector for the path that replaces it, not a copy of that path.
+test_that("no constrained reference family builds a private atom walk", {
+  # The uncovered families' references were captured while the private
+  # `build_atom_maintainer()` walk still kept their constraint; they now
+  # come from the shared walk, which the byte-identity test above checks.
   private <- 0L
   orig_build <- build_atom_maintainer
   local_mocked_bindings(
@@ -116,17 +116,16 @@ test_that("an uncovered constraint's reference comes from the private walk", {
       orig_build(...)
     }
   )
-  for (family in uncovered_constraint_families()) {
+  for (family in constraint_atoms_families()) {
     private <- 0L
     invisible(constraint_atoms_prep(family))
-    expect_identical(private, 1L, info = family)
+    expect_identical(private, 0L, info = family)
   }
 })
 
 test_that("a constraint on an object no term reads is kept by the one walk", {
   # A cost guard: the constraint's layer is stepped by the shared schedule,
   # not by a second, private walk with its own state and event loop.
-  skip("a constraint-only layer is still kept by the private atom walk")
   spec <- suppressMessages(make_specification(
     rate = ~ 1 + indeg,
     choice = ~inertia,
@@ -157,6 +156,61 @@ test_that("a constraint on an object no term reads is kept by the one walk", {
   )))
   expect_identical(private, 0L)
   expect_contains(schedule_layers, "emails")
+})
+
+test_that("threading a constraint-only object leaves every other oid", {
+  refs <- constraint_atoms_refs()$substrate
+  covered <- setdiff(
+    constraint_atoms_substrate_families(),
+    uncovered_constraint_families()
+  )
+  for (family in covered) {
+    live <- constraint_atoms_substrate(family)$registry
+    expect_identical(live, refs[[family]]$registry, info = family)
+  }
+  # The constraint's own layer joins after every object that was there, so
+  # no oid a term resolved to moves, and no unit reads it.
+  for (family in uncovered_constraint_families()) {
+    live <- constraint_atoms_substrate(family)$registry
+    before <- refs[[family]]$registry
+    kept <- seq_len(nrow(before))
+    expect_identical(live[kept, , drop = FALSE], before, info = family)
+    expect_identical(live$name[-kept], "emails", info = family)
+    expect_identical(live$oid[-kept], nrow(before) + 1L, info = family)
+  }
+})
+
+test_that("threading a constraint-only stream leaves every other row", {
+  refs <- constraint_atoms_refs()$substrate
+  covered <- setdiff(
+    constraint_atoms_substrate_families(),
+    uncovered_constraint_families()
+  )
+  for (family in covered) {
+    live <- constraint_atoms_substrate(family)$schedule
+    expect_identical(live, refs[[family]]$schedule, info = family)
+  }
+  # The constraint's stream is the last one planned, and dropping its rows
+  # gives back the schedule the walk had before, row for row.
+  for (family in uncovered_constraint_families()) {
+    live <- constraint_atoms_substrate(family)$schedule
+    before <- refs[[family]]$schedule
+    added <- live$layer == "emails"
+    expect_gt(sum(added), 0L)
+    expect_true(
+      all(live$stream_index[added] > max(before$stream_index)),
+      info = family
+    )
+    kept <- lapply(
+      live[setdiff(names(live), "n")],
+      function(column) column[!added]
+    )
+    expect_identical(
+      kept,
+      before[setdiff(names(before), "n")],
+      info = family
+    )
+  }
 })
 
 # ---- 1.3 the two-layer DAG check survives the migration --------------------

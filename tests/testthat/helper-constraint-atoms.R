@@ -308,3 +308,51 @@ constraint_cost_data <- function(
     )
   )
 }
+
+# The merged walk's substrate for one family: the shared object registry and
+# the joint schedule, captured as `build_merged_blocks()` builds them. The
+# unconstrained and covered families must keep both byte-identical when a
+# constraint-only object is threaded onto the shared walk; the uncovered
+# ones may only gain rows after the existing ones.
+constraint_atoms_substrate <- function(family) {
+  captured <- list()
+  orig_objects <- build_shared_objects
+  orig_schedule <- build_joint_schedule
+  testthat::local_mocked_bindings(
+    build_shared_objects = function(...) {
+      shared <- orig_objects(...)
+      captured$registry <<- shared$registry
+      shared
+    },
+    build_joint_schedule = function(...) {
+      schedule <- orig_schedule(...)
+      captured$schedule <<- schedule
+      schedule
+    }
+  )
+  if (family %in% c("unconstrained_rate", "unconstrained_choice")) {
+    spec <- suppressMessages(make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = constraint_atoms_uncovered_data()
+    ))
+    suppressWarnings(estimate_dynam(
+      spec,
+      sub_model = sub("unconstrained_", "", family),
+      preprocessing_only = TRUE
+    ))
+  } else {
+    constraint_atoms_prep(family)
+  }
+  captured
+}
+
+constraint_atoms_substrate_families <- function() {
+  c(
+    "unconstrained_rate",
+    "unconstrained_choice",
+    constraint_atoms_families()
+  )
+}

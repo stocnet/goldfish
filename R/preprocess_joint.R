@@ -274,7 +274,11 @@ assemble_process_unit <- function(
 # so a walk that draws them needs its state. Appending keeps every oid a term
 # resolved to where it was, so a model that reads its own focal layer gets the
 # same registry as before.
-build_shared_objects <- function(units) {
+#
+# An object only a support constraint reads joins last, after the focal
+# layers, for the same reason: every oid registered above stays put, and no
+# unit reads it, so each unit's `shared_to_local` is `NA` there.
+build_shared_objects <- function(units, support_constraints = NULL) {
   registry_rows <- list()
   keys <- character(0)
   for (unit in units) {
@@ -302,6 +306,21 @@ build_shared_objects <- function(units) {
       unit$spec_map
     )
   }
+  registered <- c(keys, network_keys)
+  unit_keys <- registered
+  for (sub_plan in support_constraints) {
+    objs <- sub_plan$objects
+    # A static atom object has no events for the walk to step; the atom
+    # store seeds it from the data, so only a changing one joins.
+    dynamic <- constraint_atom_object_keys(sub_plan)$dynamic_keys
+    for (i in seq_len(nrow(objs))) {
+      if (objs$key[i] %in% registered || !objs$key[i] %in% dynamic) {
+        next
+      }
+      registered <- c(registered, objs$key[i])
+      registry_rows[[length(registry_rows) + 1L]] <- objs[i, , drop = FALSE]
+    }
+  }
   registry <- do.call(rbind, registry_rows)
   registry$oid <- seq_len(nrow(registry))
   rownames(registry) <- NULL
@@ -320,7 +339,8 @@ build_shared_objects <- function(units) {
   list(
     registry = registry,
     shared_to_local = shared_to_local,
-    local_to_shared = local_to_shared
+    local_to_shared = local_to_shared,
+    constraint_only = registry$name[!registry$key %in% unit_keys]
   )
 }
 
@@ -450,8 +470,13 @@ schedule_stream_part <- function(
 # before their own covariate stream so an event is evaluated at the state before
 # it is applied. A focal layer registered only because events are written into
 # it has no term to plan its stream, so the stream is added after every other,
-# without moving the ones a term planned.
-build_joint_schedule <- function(units, shared_objects) {
+# without moving the ones a term planned. A stream only a support constraint
+# reads comes last of all, for the same reason.
+build_joint_schedule <- function(
+  units,
+  shared_objects,
+  support_constraints = NULL
+) {
   parts <- list()
   next_index <- 0L
   dep_seen <- character(0)
@@ -508,6 +533,32 @@ build_joint_schedule <- function(units, shared_objects) {
     events <- fetch_events(fetch_plan, src = src)
     for (stream_key in names(events)) {
       add_part(events[[stream_key]], oid, focal, FALSE)
+    }
+  }
+
+  # The layer is not the focal one, so any unit's source fetches it alike.
+  constraint_src <- focal_sources[[1L]]
+  for (sub_plan in support_constraints) {
+    eol <- sub_plan$events_objects_link
+    rows <- seq_len(nrow(eol))[-1]
+    oids <- match(eol$name[rows], shared_objects$registry$name)
+    fresh <- !(eol$events[rows] %in% stream_seen) & !(oids %in% targets_seen)
+    if (!any(fresh)) {
+      next
+    }
+    rows <- rows[fresh]
+    oids <- oids[fresh]
+    wanted <- vapply(
+      sub_plan$fetch_plan,
+      function(entry) entry$stream %in% eol$events[rows],
+      logical(1)
+    )
+    events <- fetch_events(sub_plan$fetch_plan[wanted], src = constraint_src)
+    for (i in seq_along(rows)) {
+      stream_key <- eol$events[rows[i]]
+      stream_seen <- c(stream_seen, stream_key)
+      targets_seen <- c(targets_seen, oids[i])
+      add_part(events[[stream_key]], oids[i], eol$name[rows[i]], FALSE)
     }
   }
 
@@ -616,15 +667,16 @@ build_merged_blocks <- function(
     }
   }
 
-  shared_objects <- build_shared_objects(units)
+  # One compiled sub-plan per `constraint_id`, shared across the families of the
+  # layer that owns it (compile once, snapshot per fid). Compiled before the
+  # registry, which carries the objects only a constraint reads.
+  support_constraints <- build_joint_support_constraints(joint_spec, units)
+
+  shared_objects <- build_shared_objects(units, support_constraints)
   for (key in names(units)) {
     units[[key]]$shared_to_local <- shared_objects$shared_to_local[[key]]
     units[[key]]$local_to_shared <- shared_objects$local_to_shared[[key]]
   }
-
-  # One compiled sub-plan per `constraint_id`, shared across the families of the
-  # layer that owns it (compile once, snapshot per fid).
-  support_constraints <- build_joint_support_constraints(joint_spec, units)
 
   # One source over the shared data drives the shared state; the cross-process
   # effect unions (one per block, deduplicating on resolved effect identity)
@@ -661,7 +713,7 @@ build_merged_blocks <- function(
     joint_spec$data,
     shared_src
   )
-  schedule <- build_joint_schedule(units, shared_objects)
+  schedule <- build_joint_schedule(units, shared_objects, support_constraints)
   # The same pre-walk guards `prepare_recipe_context()` runs when it builds its
   # own state and schedule: a global attribute with a missing initial value or a
   # missing replace event has nothing to summarize from, and a node whose mode
@@ -715,6 +767,10 @@ build_merged_blocks <- function(
         "derived_name"
       ),
       support_constraints = support_constraints,
+      # The objects only a support constraint reads. Their rows move a mask;
+      # whether they may also extend the observation window is not settled,
+      # so for now they leave it where the other rows put it.
+      constraint_only = shared_objects$constraint_only,
       process_map = joint_spec$process_map
     ),
     class = "goldfishBlock"
@@ -1541,21 +1597,19 @@ recorder_covers_constraint <- function(sub_plan, shared_object_keys) {
 }
 
 # Seed one atom store per (model, node sides, atom signature) the engines carry,
-# for every constraint the merged walk can cover, and index them by the object
-# key whose covariate events advance them. The stores are filled during the walk
+# for every constraint, and index them by the object key whose covariate events
+# advance them. The stores are filled during the walk
 # (`advance_recorders_for_event()`) and read back at mask realization
-# (`recorder_atoms_factory()`), replacing the private atom walk for covered
-# constraints while leaving the uncovered ones to it.
-build_walk_recorders <- function(engines, shared_object_keys) {
+# (`recorder_atoms_factory()`). Every object a constraint's atoms read is on the
+# shared schedule, the ones no formula term reads included, so no constraint
+# needs a walk of its own.
+build_walk_recorders <- function(engines) {
   lookup <- new.env(parent = emptyenv())
   by_key <- list()
   stores <- list()
   for (engine in engines) {
     ctx <- engine$ctx
     for (sub_plan in engine_constraints(engine)) {
-      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
-        next
-      }
       signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
       key <- paste(engine$model, ctx$nodes, ctx$nodes2, signature, sep = "\v")
       if (!is.null(lookup[[key]])) {
@@ -1881,6 +1935,7 @@ resolve_walk_extent <- function(merged, control_preprocessing) {
   } else {
     rep(TRUE, schedule$n)
   }
+  real_event <- real_event & !is_constraint_only_row(schedule, merged)
   resolve_walk_window(
     control_preprocessing$start_time,
     control_preprocessing$end_time,
@@ -1888,6 +1943,14 @@ resolve_walk_extent <- function(merged, control_preprocessing) {
     if (any(real_event)) max(schedule$time[real_event]) else 0,
     has_window_effect = has_window_effect
   )
+}
+
+# A row of an object only a support constraint reads is not counted as a real
+# event for the walk's extent: it changes a mask, and whether such a row may
+# extend the observation window is not settled. Kept to this one predicate so
+# the rule changes in one place.
+is_constraint_only_row <- function(schedule, merged) {
+  schedule$layer %in% merged$constraint_only
 }
 
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
@@ -1930,7 +1993,7 @@ run_merged_walk <- function(
   # One atom store per covered constraint, maintained over this walk's shared
   # state instead of a private walk of its own. A constraint the shared schedule
   # cannot cover keeps its private walk, so this never regresses one.
-  recorders <- build_walk_recorders(engines, merged$objects$key)
+  recorders <- build_walk_recorders(engines)
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.

@@ -592,15 +592,13 @@ test_that("a flavored layer's derived masks are maintained live", {
   expect_gt(replay$n_excluded, 0L)
 })
 
-test_that("a constraint on an object no formula reads is refused", {
-  local_cli_context()
-  # The deprecated preprocessing default warns once per session, so whether it
-  # reaches this snapshot depends on test order; the snapshot is the abort.
-  withr::local_options(lifecycle_verbosity = "quiet")
+test_that("a constraint on an object no formula reads replays exactly", {
+  # `emails` is read only by the constraint, so the walk steps it for the
+  # mask alone; the handle maintains that mask live and matches the batch.
   data <- walk_constrained_data(data.frame(
-    from = c(2L, 3L),
-    to = c(1L, 2L),
-    time = c(1.5, 2.5)
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
   ))
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -610,7 +608,9 @@ test_that("a constraint on an object no formula reads is refused", {
     data = data,
     support_constraint = ~ !tie(emails)
   )
-  expect_snapshot(walk_open(spec), error = TRUE)
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
 })
 
 test_that("node-composition changes advance with the handle's clock", {

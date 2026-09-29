@@ -32,9 +32,18 @@ suppressWarnings(suppressMessages({
   names(constrained) <- constraint_atoms_families()
 }))
 
+# The merged walk's registry and schedule per family, captured before a
+# constraint-only object joins the shared walk.
+substrate <- suppressWarnings(suppressMessages(lapply(
+  constraint_atoms_substrate_families(),
+  constraint_atoms_substrate
+)))
+names(substrate) <- constraint_atoms_substrate_families()
+
 refs <- c(
   list(unconstrained_plan_effects = unconstrained_plan_effects),
-  constrained
+  constrained,
+  list(substrate = substrate)
 )
 saveRDS(refs, "tests/testthat/fixtures/constraint_atoms_refs.rds", version = 2)
 cat(
