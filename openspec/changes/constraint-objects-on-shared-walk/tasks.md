@@ -146,6 +146,22 @@
       6.5e-3. No frozen baseline carries such a constraint. NEWS.d bullet
       (a constrained rate's estimates move when its constraint reads a
       layer no term reads)
+- [ ] 2.3c Preallocate the atom recorder's log (added 2026-09-29, Alvaro;
+      found by 2.3b): `advance_constraint_atom_store()` appends one entry
+      per constraint event to four vectors (`record_time`, `record_gid`,
+      `record_entries`, `record_values`), and in the store each append
+      copies the whole vector, so the log grows quadratically (line
+      profile: ~670 MB over three runs on two lines at 1500 actors; the
+      uncovered choice went 543 -> 840 MB and the uncovered rate 465 ->
+      945 MB once threading routed them through it). Keep the log in
+      preallocated buffers that double in capacity with a fill count, as
+      the writers do, trimmed where `constraint_replay_atoms()` and the
+      handle read it; no per-event copy. Guard first, recorded failing: on
+      `constraint_cost_data()`, allocation of advancing the store over its
+      events grows linearly, not quadratically, in the number of events
+      (compare 1x and 2x the events). The log exists only for the
+      post-walk replay, which 4.6 retires with it; this removes the cost
+      for covered constraints too until then. Re-measure 2.3b after it.
 - [ ] 2.3b Measure walk time, allocation and preprocessed object size on
       the 2.0 generated fixture (median of three warm runs,
       `bench::bench_memory()`), uncovered and covered, before 2.1 and after
@@ -221,6 +237,9 @@
       against the live mask and active status and aborts there (observed
       dyad excluded, empty risk set, observed sender gated out), with
       today's messages; the whole-sequence warnings stay at the end
+      — *note 2026-09-29*: the atom recorder's log (`record_*`, made linear
+      by 2.3c) exists only for the replay retired here; it goes with it,
+      the batch walk keeping only per-event moves as the handle does
 - [ ] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
       three warm runs) for a constrained choice and a constrained rate plus
       choice, before 4.5 and after 4.6. Include the in-walk observed-event
