@@ -95,14 +95,24 @@
       walk; schedule layers `calls` only), committed with a `skip()` naming
       the state, removed by the threading commit. 9341 / 0 / 5 (the fifth
       skip is the guard), six baseline files PASS.
-- [ ] 2.1 `build_merged_blocks()`: compile support constraints before
+- [x] 2.1 `build_merged_blocks()`: compile support constraints before
       `build_shared_objects()`; append each constraint sub-plan's objects
       after every unit's objects; `shared_to_local` `NA` for them;
       `build_shared_state()` over the extended registry, atoms realized on
       `shared_src`. Test: the registry of every unconstrained and covered
       reference family is byte-identical before and after (oids, names,
       order).
-- [ ] 2.2 `build_joint_schedule()`: append the constraint sub-plans' streams
+      — *done 2026-09-29 (goldfish-ce), `b1b2103`, with 2.2, 2.3 and 3.1*
+      (none is green alone: registered but unscheduled, the object makes
+      the coverage predicate true and the atoms never move; threaded, the
+      handle's refusal no longer fires). Only a changing constraint object
+      joins (a static one, e.g. `allowedNet`, stays seeded from the data),
+      which keeps the `rem` and `coord` registries byte-identical. Registry
+      and schedule captured per family before the edit into
+      `constraint_atoms_refs.rds` (`substrate`). 9382 / 0 / 4, six baseline
+      files PASS; mutation (no stream append) turns byte-identity, guard
+      and schedule tests red.
+- [x] 2.2 `build_joint_schedule()`: append the constraint sub-plans' streams
       after all unit streams, deduplicated by stream key; `run_merged_walk()`
       covariate branch skips engines with a `NA` local id (no statistic, no
       right-censoring row, `i_total` unchanged — interim, so the threading is
@@ -113,11 +123,13 @@
       schedule of every covered reference is identical; the uncovered
       fixture's constraint stream is present and ordered after the unit
       streams.
-- [ ] 2.3 `build_walk_recorders()` builds a store for every constraint (the
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
+- [x] 2.3 `build_walk_recorders()` builds a store for every constraint (the
       coverage skip removed); `realize_pending_masks()` always receives
       recorders. Assert every reference family, including task 0.2's,
       matches byte-identically, and `mask_call_counts()` reports no
       `build_atom_maintainer` call.
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
 - [ ] 2.3a A constraint-only object's event closes the rate interval (added
       2026-09-29, ADR-0103; design D1 revision): each row of an object only
       a support constraint reads becomes a right-censored boundary for every
@@ -143,10 +155,11 @@
 
 ## 3. Handle conformance and the tied stamp (D3)
 
-- [ ] 3.1 Remove `walk_assert_covered_constraints()` and its snapshot from
+- [x] 3.1 Remove `walk_assert_covered_constraints()` and its snapshot from
       `_snaps/walk_handle.md`; replace the refusal test with a replay test
       on the uncovered fixture (`walk_replay_against_batch()`,
       `expect_gt(n_excluded, 0)`).
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
 - [ ] 3.2 Deferred atom moves: `walk_collect_atom_moves()` holds moves from
       an object event stamped at the current clock in a pending set that
       `walk_advance()` folds once the clock passes the stamp, so
