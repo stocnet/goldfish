@@ -123,10 +123,9 @@
       a support constraint reads becomes a right-censored boundary for every
       exact-time rate fid whose mask reads the object, folding no
       statistic. Detector-first: before the edit, write the expected
-      difference against the task 0.2 references (the `rate` family, whose
-      `call_network` no formula term reads, and `uncovered_rate`): exactly
+      difference against the task 0.2 reference `uncovered_rate`: exactly
       the new censored rows, every existing row's statistics unchanged;
-      then re-capture both into `constraint_atoms_refs.rds` with every other
+      then re-capture it into `constraint_atoms_refs.rds` with every other
       entry `identical()`. The choice families do not move (a choice reads
       its mask at its own events). Test: on the harness's constrained rate
       (the probe shape: `~ !tie(emails)` gating senders mid-interval),

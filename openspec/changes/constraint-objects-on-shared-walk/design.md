@@ -133,9 +133,11 @@ miss the process's likelihood by 6.5e-3; with a rate term reading the same
 layer (`outdeg(emails)`) goldfish already splits the intervals exactly as
 the process does. Sequencing keeps the detector: task 2.2 threads with no
 boundary, byte-identical to the task 0.2 references, and task 2.3a then
-adds the boundary and re-captures the two references it moves (`rate`,
-whose `call_network` no term reads, and `uncovered_rate`), asserting the
-difference is exactly the new censored rows. The presence half of
+adds the boundary and re-captures the one reference it moves
+(`uncovered_rate`), asserting the difference is exactly the new censored
+rows. (*Corrected the same day:* this first named the `rate` family too,
+but its constraint reads its focal layer, whose events are dependent events
+and already close the interval, so it does not move.) The presence half of
 ADR-0103 is `process-simulation` task 2.11c, applied at the trunk merge
 because it moves the fisheries rate and REM baselines.
 

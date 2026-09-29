@@ -95,8 +95,8 @@ continuous-time block.
   each state was in force; it folds no statistic. Today's private walk
   leaves those intervals unsplit and misses the process's likelihood
   (measured 6.5e-3). No frozen baseline carries such a constraint; the
-  `rate` and `uncovered_rate` references are re-captured with the
-  difference asserted. The presence-change half of the same rule is
+  `uncovered_rate` reference is re-captured with the difference
+  asserted. The presence-change half of the same rule is
   `process-simulation` task 2.11c, applied at the trunk merge.
 - **Not changed**: the walk extent. Whether constraint-only rows count as
   real events for the observation tail is decided in
