@@ -880,6 +880,10 @@
       At 2.11b, decide whether the in-walk running sum the choice needs
       replaces 2.11's post-walk loop in `render_finalized_consumers()` for
       every consumer, so the exposure is gathered in the one walk
+      — *note 2026-09-29 (constraint-objects-on-shared-walk D9 amendment)*:
+      the running sum reads the count of entities at risk that the
+      availability tracker (its task 4.5b) keeps per fid during the walk;
+      a choice fid's tracker is advanced at every row a rate would store
 - [ ] 2.11c Presence changes close the rate interval (added 2026-09-29,
       ADR-0103; **applied at the trunk merge**, not on `feature_simulation`):
       every presence (`active`) change inside the window closes the open

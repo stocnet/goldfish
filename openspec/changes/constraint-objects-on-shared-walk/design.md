@@ -338,6 +338,45 @@ measures the in-walk check adding walk time that the end-of-walk check
 avoids, the abort stays at the end, and the timing is recorded as the
 reason.
 
+*Amended 2026-09-29 (Alvaro) — one availability tracker per fid.* The
+live masks landed first (`926a8d9`): the batch walk builds them with the
+handle's `walk_build_live_masks()`, writes the atom moves strictly before
+each stored row, and each fid collapses its flips into its row, so
+`realize_pending_masks()` is not called and every reference matches. The
+availability folds then showed where the memory goes, and it is not the
+masks. `mask_cursor()` hands each reader a fresh copy of the mask per event
+by design, so the observed-event validation copies the whole mask on every
+event to read one row or one cell (about 13 GB on the generated fixture's
+joint rate plus choice, 1500 actors, before and after the live masks), and
+the post-walk folds build size-`n` vectors on every stored row (40-63 KB a
+row). Everything downstream needs little per row: the rate's stored gate
+changes only where a sender's count of allowed present receivers crosses
+zero; the choice needs the event sender's row; the observed-event check
+needs one mask cell, one presence entry and one count; the exposure
+(`process-simulation` 2.11b) needs the number of entities at risk times the
+interval; the handle's `walk_risk_set()` needs the same gate live.
+
+So each constrained fid carries an availability tracker, maintained during
+the walk from the two flip streams the walk already has, the live mask's
+flips and the presence changes. It holds the presence vectors and the
+per-sender allowed-receiver counts, updated in place and only where a flip
+lands; the gate (rate) or the event sender's row read by linear index on
+the stored mask (choice, rule 2), never a grid; and the count of entities at
+risk as a scalar. At each stored row it writes only the availability
+entries that changed, in the buffers the folds produced; at each dependent
+event it answers the observed-event check in constant time; it accumulates
+the counters the whole-sequence warnings need (receivers ever allowed,
+senders ever at risk, forced choices). One tracker type with a variant per
+encoding (rate gate; choice alter, outer, point; REM and coordination)
+replaces `fold_active_sender_support()`, `fold_active_dyad_support()` and
+`build_active_dyad_point()`, and is what the handle reads, so batch and
+simulation share it. Presence is applied with the writer's own rule (a
+composition change lands on the next stored row) until `process-simulation`
+2.11c makes presence changes rows of their own (ADR-0103); the references
+guard the rule. *Rejected:* fixing `mask_cursor()`'s copy alone. It removes
+the 13 GB, but keeps a second, post-walk path beside the handle's and gives
+2.11b no running count.
+
 ## Storage and per-event cost (added 2026-09-29)
 
 Required by the per-event cost rules (`.claude/rules/walk-cost.md`),

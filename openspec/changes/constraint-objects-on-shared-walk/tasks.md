@@ -276,11 +276,33 @@
       mask streams for every constrained reference family (rate, choice,
       rate plus choice, REM, flavored derived masks, coordination) with the
       post-walk realization still authoritative.
-- [ ] 4.5 `run_merged_walk()` builds live masks with the handle's
+- [x] 4.5 `run_merged_walk()` builds live masks with the handle's
       construction (one builder shared by both, not a copy), collects atom
       moves per object event under D3's strictly-before rule, and folds each
       constrained fid's availability at each stored row. Assert every 4.4
       reference byte-identically.
+      — *done 2026-09-29 (goldfish-ce), `926a8d9`, the mask half*: the batch
+      walk builds its masks with `walk_build_live_masks()`, records atom
+      moves without writing them, writes those strictly before each stored
+      row and collapses each fid's flips into its row; `realize_pending_
+      masks()` is not called; every 4.4 reference matches; 9448 / 0 / 6. The
+      availability half is 4.5b (design D9 amendment 2026-09-29).
+- [ ] 4.5b Availability tracker per constrained fid (added 2026-09-29,
+      Alvaro; design D9 amendment): maintained during the walk from the live
+      mask's flips and the presence changes, holding presence and the
+      per-sender allowed-receiver counts in place (updated only where a flip
+      lands), the gate or the event sender's row read by linear index on
+      the stored mask (no grid), and the count of entities at risk. At each
+      stored row it writes only the availability entries that changed, in
+      the buffers `fold_active_sender_support()` / `fold_active_dyad_support()`
+      / `build_active_dyad_point()` produce; one type with a variant per
+      encoding (rate gate; choice alter, outer, point; REM and
+      coordination), which the handle's `walk_risk_set()` also reads.
+      Presence follows the writer's rule (a change lands on the next stored
+      row). Guard first: the fold allocation per stored row, measured on the
+      2.0 fixture at 1x and 2x the events, does not grow with `n` (today
+      40-63 KB a row). Assert every 4.4 reference byte-identically; the 4.4a
+      guard's fold counts reach zero.
 - [ ] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
       (`fold_active_sender_support()`, `fold_active_dyad_support()`,
       `build_active_dyad_point()` as post-walk steps); settle the open
@@ -289,6 +311,11 @@
       against the live mask and active status and aborts there (observed
       dyad excluded, empty risk set, observed sender gated out), with
       today's messages; the whole-sequence warnings stay at the end
+      — *amended 2026-09-29 (D9 amendment)*: the check reads the 4.5b
+      tracker (one mask cell, one presence entry, one count); the
+      whole-sequence warnings read counters the tracker accumulates, so the
+      validation's per-event mask replay (`mask_cursor()`, a full mask copy
+      per event, ~13 GB on the joint generated cell) goes too
       — *note 2026-09-29*: the atom recorder's log (`record_*`, made linear
       by 2.3c) exists only for the replay retired here; it goes with it,
       the batch walk keeping only per-event moves as the handle does
@@ -301,6 +328,11 @@
       generated fixture beside CollegeMsg, each against the design's
       prediction (object sizes byte-identical, walk time down by the
       post-walk realization)
+      — *extended 2026-09-29 (D9 amendment)*: add the generated fixture's
+      joint rate plus choice cell with the observed-event validation ON
+      (the timing script stubs it for CollegeMsg, whose repeats the
+      constraint rejects): 8.3-9.3 s and ~14.3 GB before, ~13 GB of it the
+      validation's mask copies; predicted near zero after 4.6
 - [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
 
