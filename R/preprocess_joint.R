@@ -1290,12 +1290,15 @@ merged_route_dependent <- function(engine, flavor, event_info) {
   own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
   if (!is.null(own)) {
     consumer_write_dependent(own, event_info)
+    merged_live_mask_row(engine, as.character(own_fid), event_info$time)
   }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
-    for (cs in engine$rc_consumers) {
+    for (key in names(engine$rc_consumers)) {
+      cs <- engine$rc_consumers[[key]]
       if (!identical(cs, own)) {
         consumer_write_rc(cs, event_info)
+        merged_live_mask_row(engine, key, event_info$time)
       }
     }
   }
@@ -1305,10 +1308,148 @@ merged_route_dependent <- function(engine, flavor, event_info) {
 # A right-censoring boundary for every right-censoring consumer of a unit (the
 # caller gates on a positive interval). Mirrors `route_right_censored_event()`.
 merged_route_rc <- function(engine, event_info) {
-  for (cs in engine$rc_consumers) {
-    consumer_write_rc(cs, event_info)
+  for (key in names(engine$rc_consumers)) {
+    consumer_write_rc(engine$rc_consumers[[key]], event_info)
+    merged_live_mask_row(engine, key, event_info$time)
   }
   invisible(NULL)
+}
+
+# A consumer of `engine` stored a row at `time`: read its live mask there.
+merged_live_mask_row <- function(engine, fid, time) {
+  if (!is.null(engine$live_masks)) {
+    live_mask_row(engine$live_masks, fid, time)
+  }
+  invisible(NULL)
+}
+
+# The batch walk's live masks: the mask maintainers the stepping handle builds
+# (`walk_build_live_masks()`), shared rather than copied, plus one stream per
+# constrained fid. A fid's mask is read at each row it stores, over the atoms
+# strictly before the row's stamp: the walk records each atom move without
+# writing it (`advance_recorders_for_event(write = FALSE)`), and the first row
+# stored at a new stamp writes the moves before it, recomputes every distinct
+# mask of that atom store once and hands the flips to every fid reading it.
+# Each fid collapses the flips gathered since its previous row into that
+# row's changes, which is the stream the post-walk replay used to produce.
+# `NULL` when no engine carries a constraint.
+build_batch_live_masks <- function(engines, recorders) {
+  live <- walk_build_live_masks(engines, recorders)
+  fids <- names(live$by_fid)
+  if (length(fids) == 0L) {
+    return(NULL)
+  }
+  live$stores <- recorders$stores
+  live$union_time <- rep(-Inf, length(recorders$stores))
+  store_of <- vapply(fids, function(f) live$by_fid[[f]]$store, integer(1))
+  live$fids_by_store <- split(fids, store_of)
+  live$streams <- new.env(parent = emptyenv())
+  for (fid in fids) {
+    stream <- new.env(parent = emptyenv())
+    stream$pending <- list()
+    stream$n_rows <- 0L
+    stream$n_changes <- integer(64L)
+    stream$entries <- vector("list", 64L)
+    stream$values <- vector("list", 64L)
+    live$streams[[fid]] <- stream
+  }
+  live
+}
+
+# The fid `fid` stores a row at `t`: bring its atom store's masks to `t` if no
+# row at `t` has yet, then close the fid's row.
+live_mask_row <- function(live, fid, t) {
+  entry <- live$by_fid[[fid]]
+  if (is.null(entry)) {
+    return(invisible(NULL))
+  }
+  s <- entry$store
+  if (live$union_time[[s]] < t) {
+    live$touched[[s]] <- flush_atom_moves(
+      live$stores[[s]],
+      t,
+      live$touched[[s]]
+    )
+    moved <- live$touched[[s]]
+    flips <- lapply(live$maintainers[[s]], function(mask) {
+      mask$recompute(moved)
+    })
+    live$touched[[s]] <- vector("list", length(moved))
+    for (reader in live$fids_by_store[[as.character(s)]]) {
+      stream <- live$streams[[reader]]
+      stream$pending[[length(stream$pending) + 1L]] <-
+        flips[[live$by_fid[[reader]]$maintainer]]
+    }
+    live$union_time[[s]] <- t
+  }
+  close_mask_row(live$streams[[fid]])
+}
+
+# One stored row of a fid's mask stream: the flips gathered since the previous
+# row, an entry flipped twice kept at its last value, as the replay collapsed
+# them. The buffers double when full and are taken out of the stream before
+# they are written, so a row copies nothing.
+close_mask_row <- function(stream) {
+  k <- stream$n_rows + 1L
+  capacity <- length(stream$n_changes)
+  if (k > capacity) {
+    capacity <- 2L * capacity
+  }
+  n_changes <- stream$n_changes
+  stream$n_changes <- NULL
+  length(n_changes) <- capacity
+  entries <- stream$entries
+  stream$entries <- NULL
+  length(entries) <- capacity
+  values <- stream$values
+  stream$values <- NULL
+  length(values) <- capacity
+
+  n_changes[k] <- 0L
+  at <- unlist(lapply(stream$pending, `[[`, "entries"), use.names = FALSE)
+  if (!is.null(at)) {
+    vv <- unlist(lapply(stream$pending, `[[`, "values"), use.names = FALSE)
+    collapsed <- collapse_entries(at, vv)
+    entries[k] <- list(collapsed$entries)
+    values[k] <- list(collapsed$values)
+    n_changes[k] <- length(collapsed$entries)
+  }
+
+  stream$n_changes <- n_changes
+  stream$entries <- entries
+  stream$values <- values
+  stream$pending <- list()
+  stream$n_rows <- k
+  invisible(NULL)
+}
+
+# A fid's finished mask stream, in the shape the pooled realization returned.
+live_mask_stream <- function(live, fid, constraint, n_stored) {
+  entry <- live$by_fid[[fid]]
+  stream <- live$streams[[fid]]
+  n <- stream$n_rows
+  if (n != n_stored) {
+    cli::cli_abort(
+      "The live mask of fid {fid} has {n} row{?s}, its output {n_stored}.",
+      .internal = TRUE
+    )
+  }
+  rows <- seq_len(n)
+  at_vec <- unlist(stream$entries[rows], use.names = FALSE)
+  val_vec <- unlist(stream$values[rows], use.names = FALSE)
+  list(
+    initial = live$maintainers[[entry$store]][[entry$maintainer]]$initial(),
+    update = if (length(at_vec) > 0L) {
+      rbind(as.numeric(at_vec), as.numeric(val_vec))
+    } else {
+      matrix(0, 2L, 0L)
+    },
+    update_pointer = cumsum(stream$n_changes[rows]),
+    n_stored = n,
+    mask_kind = constraint$mask_kind,
+    stored_kind = entry$stored_kind,
+    symmetric = entry$symmetric
+  )
 }
 
 # The shared oids of the objects only a support constraint reads that this
@@ -1682,7 +1823,8 @@ advance_recorders_for_event <- function(
   shape,
   event_args,
   state,
-  time
+  time,
+  write = TRUE
 ) {
   for (idx in recorders$by_key[[key]]) {
     advance_constraint_atom_store(
@@ -1691,7 +1833,8 @@ advance_recorders_for_event <- function(
       shape,
       event_args,
       state,
-      time
+      time,
+      write = write
     )
   }
   invisible(NULL)
@@ -1844,6 +1987,29 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     drop_self = identical(ctx$nodes, ctx$nodes2),
     single = single
   )
+}
+
+# Each finalized consumer's mask stream, from the live masks the walk kept, in
+# the order `render_walk_engine()` reads them; `NULL` for a consumer with no
+# constraint.
+walk_engine_masks <- function(pending, live_masks) {
+  keys <- if (pending$single) {
+    as.character(pending$engine$fids[1L])
+  } else {
+    names(pending$engine$consumers)
+  }
+  lapply(seq_along(pending$finalized), function(j) {
+    f <- pending$finalized[[j]]
+    if (is.null(f$constraint)) {
+      return(NULL)
+    }
+    live_mask_stream(
+      live_masks,
+      keys[[j]],
+      f$constraint,
+      length(f$out$event_time)
+    )
+  })
 }
 
 # Phase two: fold each consumer's realized mask in, render, and decorate.
@@ -2024,6 +2190,10 @@ run_merged_walk <- function(
   # instead of a private walk of its own: every object a constraint reads is
   # on the shared schedule.
   recorders <- build_walk_recorders(engines)
+  live_masks <- build_batch_live_masks(engines, recorders)
+  for (engine in engines) {
+    engine$live_masks <- live_masks
+  }
   # An event of an object only a support constraint reads changes the risk
   # set of every exact-time rate whose mask reads it, though no statistic, so
   # it closes that rate's open interval like any other non-dependent event.
@@ -2274,7 +2444,15 @@ run_merged_walk <- function(
     # did, so their stores advance here, once per covariate event and before the
     # write, exactly where the private walk applies the same event to its own
     # container.
-    advance_recorders_for_event(recorders, key, shape, event_args, state, t)
+    advance_recorders_for_event(
+      recorders,
+      key,
+      shape,
+      event_args,
+      state,
+      t,
+      write = FALSE
+    )
 
     # The state write, after every reader saw the pre-update state. The
     # container is a plain list, so the subassignment rebinds `state` here; a
@@ -2321,12 +2499,8 @@ run_merged_walk <- function(
     }
   }
 
-  # Finalize every engine's writers first, then realize ALL their masks in one
-  # pooled pass, then render. A `support_constraint` belongs to the
-  # `(layer, flavor)` process, so a layer's rate engine and its choice engine
-  # read one mask over one atom pool -- which needs both timelines in hand, and
-  # is why the realization sits between the two halves rather than inside
-  # either.
+  # Finalize every engine's writers, then render each with the mask streams
+  # its fids read during the walk.
   pending <- lapply(
     engines,
     finalize_walk_engine,
@@ -2334,7 +2508,7 @@ run_merged_walk <- function(
     end_time = end_time,
     opportunities = control_preprocessing$opportunities_list
   )
-  masks <- realize_pending_masks(pending, recorders)
+  masks <- lapply(pending, function(p) walk_engine_masks(p, live_masks))
 
   outputs <- list()
   for (i in seq_along(pending)) {

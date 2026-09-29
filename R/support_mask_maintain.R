@@ -278,6 +278,57 @@ record_atom_delta <- function(store, time, gid, entries, values) {
   invisible(store)
 }
 
+# Keep only the record entries at positions `keep`, in order, at the front of
+# the buffers. The buffers are taken out of the store before the write, as in
+# `record_atom_delta()`, so nothing is copied.
+compact_atom_record <- function(store, keep) {
+  m <- length(keep)
+  for (field in c(
+    "record_time",
+    "record_gid",
+    "record_entries",
+    "record_values"
+  )) {
+    buffer <- store[[field]]
+    store[[field]] <- NULL
+    buffer[seq_len(m)] <- buffer[keep]
+    store[[field]] <- buffer
+  }
+  store$record_n <- m
+  invisible(store)
+}
+
+# Write the recorded atom moves stamped strictly before `before` into the
+# store's atoms and return the entries they touched, per atom, keeping the
+# moves at or after `before` in the record. `touched` is the per-atom list the
+# entries are added to, in record order, each atom's entries unique.
+flush_atom_moves <- function(store, before, touched) {
+  n <- store$record_n
+  if (n == 0L) {
+    return(touched)
+  }
+  due <- store$record_time[seq_len(n)] < before
+  if (!any(due)) {
+    return(touched)
+  }
+  for (r in which(due)) {
+    entries <- store$record_entries[[r]]
+    if (length(entries) == 0L) {
+      next
+    }
+    gid <- store$record_gid[[r]]
+    buffer <- get(as.character(gid), envir = store$atom_state)
+    assign(
+      as.character(gid),
+      write_entries(buffer, entries, store$record_values[[r]]),
+      envir = store$atom_state
+    )
+    touched[[gid]] <- unique(c(touched[[gid]], entries))
+  }
+  compact_atom_record(store, which(!due))
+  touched
+}
+
 # Advance a constraint's atoms for one shared covariate event and record the
 # deltas. `key` names the moved object; when no atom reads it the store
 # is untouched. Mirrors the routing of `apply_atom_event()` inside the test
@@ -286,14 +337,18 @@ record_atom_delta <- function(store, time, gid, entries, values) {
 # reads the pre-update SHARED `state` the caller passes, and appends each atom's
 # `(time, gid, entries, values)` delta to the store's stream instead of only
 # accumulating a touched set. `event_args` are the walk's already-resolved
-# arguments (increment folded to a replace).
+# arguments (increment folded to a replace). With `write = FALSE` the delta
+# is only recorded, and `flush_atom_moves()` writes it once every stored row
+# stamped at `time` has read the mask, so a mask read at `time` sees the
+# atoms strictly before it.
 advance_constraint_atom_store <- function(
   store,
   key,
   shape,
   event_args,
   state,
-  time
+  time,
+  write = TRUE
 ) {
   oid <- store$key_to_oid[[key]]
   if (is.null(oid) || is.na(oid)) {
@@ -359,11 +414,13 @@ advance_constraint_atom_store <- function(
         n1,
         n2
       )
-      assign(
-        as.character(gid),
-        write_entries(buffer, delta$entries, delta$values),
-        envir = store$atom_state
-      )
+      if (write) {
+        assign(
+          as.character(gid),
+          write_entries(buffer, delta$entries, delta$values),
+          envir = store$atom_state
+        )
+      }
       record_atom_delta(store, time, gid, delta$entries, delta$values)
     }
   }

@@ -1181,7 +1181,8 @@ walk_build_live_masks <- function(engines, recorders) {
         store = s,
         maintainer = m,
         mask_kind = mask_kind,
-        stored_kind = stored_kind
+        stored_kind = stored_kind,
+        symmetric = symmetric
       )
     }
   }
