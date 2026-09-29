@@ -884,6 +884,12 @@
       the running sum reads the count of entities at risk that the
       availability tracker (its task 4.5b) keeps per fid during the walk;
       a choice fid's tracker is advanced at every row a rate would store
+      — *revised the same day (Alvaro)*: availability is maintained as an
+      effect, not a tracker type, and `constraint-objects-on-shared-walk`
+      4.6 already switches every exact-time rate's exposure to its running
+      count (replacing `risk_set_exposure()`'s post-walk loop). What stays
+      for 2.11b: the choice fid's scalars, from the same effect advanced at
+      every row a rate would store, and the fit and pin surface
 - [ ] 2.11c Presence changes close the rate interval (added 2026-09-29,
       ADR-0103; **applied at the trunk merge**, not on `feature_simulation`):
       every presence (`active`) change inside the window closes the open

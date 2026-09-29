@@ -377,6 +377,41 @@ guard the rule. *Rejected:* fixing `mask_cursor()`'s copy alone. It removes
 the 13 GB, but keeps a second, post-walk path beside the handle's and gives
 2.11b no running count.
 
+*Revised the same day (Alvaro) — availability is maintained as an effect.*
+Not a new tracker type: availability is kept the way an effect is, which is
+also what `active-availability-stat` already requires (one availability
+object per loop, stored at its minimal encoding, `avg_active_entity`
+computed during the loop from the maintained object) and what the cost
+rules require of a new consumer (the shared writers and `R/broadcast_kind.R`,
+no walk or buffer format of its own). Per fid, the stat is `active_sender`
+(ego kind) or `active_dyad` (alter, outer or point), held in memory and
+updated in place through `write_entries()` / the C++ `set_entries()`; the
+cache holds the per-sender count of allowed present receivers and the count
+of entities at risk. Its inputs are the live mask's flips and the presence
+changes; its outputs are changes written by the existing writers (initial
+value, update buffer, pointer). The handle reads the same stat and cache
+through `walk_risk_set()`, so batch and simulation share one path. The
+effect is maintained for every exact-time rate fid, constrained or not
+(unconstrained, the stat is presence alone), because the exposure
+(`exposure_entity_time`, `avg_active_entity`) now reads its running count
+here rather than `risk_set_exposure()`'s post-walk loop.
+
+The choice's point stream changes. Today it is lazy: the initial grid
+carries the first event's receiver presence in every row but the first
+sender's, and each event emits only the event sender's row, against the
+last time that row was emitted. As an effect the grid is the true
+availability for every row from the start, and every cell that flips is
+emitted when it flips; a receiver presence change writes its whole column.
+Each dependent event's sender row, the only part the likelihood reads, is
+unchanged, and that is asserted before the moved references are refrozen
+(Alvaro approved refreezing on the branch: the point-encoded choice
+families of `constraint_atoms_refs.rds` and the point-choice entries of the
+parity goldens). The stream grows where composition changes meet a
+constraint; 4.7 records the sizes. The REM and coordination fold already
+emits every flipped cell and keeps its stream. When the folds and the
+validation go, `mask_cursor()` and `mask_flips()` lose their last readers
+and are deleted (ADR-0054).
+
 ## Storage and per-event cost (added 2026-09-29)
 
 Required by the per-event cost rules (`.claude/rules/walk-cost.md`),

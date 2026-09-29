@@ -287,22 +287,29 @@
       row and collapses each fid's flips into its row; `realize_pending_
       masks()` is not called; every 4.4 reference matches; 9448 / 0 / 6. The
       availability half is 4.5b (design D9 amendment 2026-09-29).
-- [ ] 4.5b Availability tracker per constrained fid (added 2026-09-29,
-      Alvaro; design D9 amendment): maintained during the walk from the live
-      mask's flips and the presence changes, holding presence and the
-      per-sender allowed-receiver counts in place (updated only where a flip
-      lands), the gate or the event sender's row read by linear index on
-      the stored mask (no grid), and the count of entities at risk. At each
-      stored row it writes only the availability entries that changed, in
-      the buffers `fold_active_sender_support()` / `fold_active_dyad_support()`
-      / `build_active_dyad_point()` produce; one type with a variant per
-      encoding (rate gate; choice alter, outer, point; REM and
-      coordination), which the handle's `walk_risk_set()` also reads.
-      Presence follows the writer's rule (a change lands on the next stored
-      row). Guard first: the fold allocation per stored row, measured on the
-      2.0 fixture at 1x and 2x the events, does not grow with `n` (today
-      40-63 KB a row). Assert every 4.4 reference byte-identically; the 4.4a
-      guard's fold counts reach zero.
+- [ ] 4.5b Availability maintained as an effect (added 2026-09-29, Alvaro;
+      design D9 amendment and its same-day revision): per exact-time rate
+      fid (constrained or not) and per constrained choice / REM /
+      coordination fid, the stat `active_sender` or `active_dyad` at its
+      encoding, held in memory and updated in place (`write_entries()` /
+      `set_entries()`), with a cache of the per-sender count of allowed
+      present receivers and the count of entities at risk; fed by the live
+      mask's flips and the presence changes (presence on the writer's rule,
+      a change lands on the next stored row); its changes written by the
+      existing writers; replaces `fold_active_sender_support()`,
+      `fold_active_dyad_support()` and `build_active_dyad_point()`; the
+      handle's `walk_risk_set()` reads the same stat and cache. The choice
+      point stream changes: the initial grid is the true availability for
+      every row and every flipped cell is emitted (a receiver presence
+      change writes its column). Guard first: fold allocation per stored
+      row on the 2.0 fixture does not grow with `n` (today 40-63 KB a row).
+      Tests: every 4.4 reference byte-identical except the point-encoded
+      choice entries; for those, assert every dependent event's sender row
+      equals the old stream's, then refreeze them in
+      `constraint_atoms_refs.rds` and the point-choice entries of the
+      parity goldens on the branch (Alvaro approved); REM and coordination
+      unchanged; handle replays equal; the 4.4a guard's fold counts reach
+      zero.
 - [ ] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
       (`fold_active_sender_support()`, `fold_active_dyad_support()`,
       `build_active_dyad_point()` as post-walk steps); settle the open
@@ -316,6 +323,12 @@
       whole-sequence warnings read counters the tracker accumulates, so the
       validation's per-event mask replay (`mask_cursor()`, a full mask copy
       per event, ~13 GB on the joint generated cell) goes too
+      — *amended again 2026-09-29 (Alvaro)*: the exposure
+      (`exposure_entity_time`, `avg_active_entity`) switches here to the
+      effect's running count of entities at risk, asserted equal to
+      `risk_set_exposure()` on every fixture (and the 2.11 MLE identity test
+      green) before that post-walk loop is deleted; `mask_cursor()` and
+      `mask_flips()`, left without readers, are deleted (ADR-0054)
       — *note 2026-09-29*: the atom recorder's log (`record_*`, made linear
       by 2.3c) exists only for the replay retired here; it goes with it,
       the batch walk keeping only per-event moves as the handle does
@@ -333,6 +346,8 @@
       (the timing script stubs it for CollegeMsg, whose repeats the
       constraint rejects): 8.3-9.3 s and ~14.3 GB before, ~13 GB of it the
       validation's mask copies; predicted near zero after 4.6
+      — and the stored point-stream sizes of the point-choice cells before
+      and after 4.5b (the stream grows where composition meets a constraint)
 - [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
 
