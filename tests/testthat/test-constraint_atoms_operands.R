@@ -258,6 +258,59 @@ test_that("the atom recorder's log grows linearly with its events", {
   expect_lt(ratio, 2.5)
 })
 
+test_that("availability per stored row costs the same at any size", {
+  # A cost guard: a constrained fid's availability changes only where a mask
+  # cell flips or a node enters or leaves, so keeping it up to date costs
+  # the same per stored row whatever the number of actors. Recomputing it
+  # over every sender at every row costs O(n) a row, and doubling the actors
+  # doubles that. The slope over the number of calls isolates the per-row
+  # cost from the one-off grids, and the unconstrained twin takes out what
+  # the statistics cost per row. The validation is stubbed: it reads the
+  # mask once per event and is measured on its own.
+  skip("availability is still folded after the walk, over every sender")
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  local_mocked_bindings(validate_prep_support = function(...) invisible(NULL))
+  allocation <- function(n_actors, n_calls, sub_model, constrained) {
+    args <- list(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = constraint_cost_data(
+        n_actors = n_actors,
+        n_calls = n_calls,
+        n_emails = n_calls
+      )
+    )
+    if (constrained) {
+      args$support_constraint <- ~ !tie(emails)
+    }
+    spec <- suppressMessages(do.call(make_specification, args))
+    prep <- NULL
+    used <- bench::bench_memory(
+      prep <- suppressWarnings(estimate_dynam(
+        spec,
+        sub_model = sub_model,
+        preprocessing_only = TRUE
+      ))
+    )
+    c(bytes = as.numeric(used$mem_alloc), rows = length(prep$event_time))
+  }
+  per_row <- function(n_actors, sub_model) {
+    small <- allocation(n_actors, 1500L, sub_model, TRUE)
+    large <- allocation(n_actors, 3000L, sub_model, TRUE)
+    extra <- (large[["bytes"]] - small[["bytes"]]) -
+      (allocation(n_actors, 3000L, sub_model, FALSE)[["bytes"]] -
+        allocation(n_actors, 1500L, sub_model, FALSE)[["bytes"]])
+    extra / (large[["rows"]] - small[["rows"]])
+  }
+  for (sub_model in c("rate", "choice")) {
+    growth <- per_row(1500L, sub_model) - per_row(750L, sub_model)
+    expect_lt(growth, 4096, label = paste(sub_model, "per-row growth"))
+  }
+})
+
 test_that("a constrained walk composes its masks as it goes", {
   # A cost guard: the masks and the folded availability are written during
   # the walk, not realized afterwards by replaying the atoms to each stored
