@@ -1,6 +1,6 @@
 ---
 name: cpp-recompile
-description: Regenerate the Rcpp R<->C++ bindings and force a fresh recompile after editing goldfish's src/ C++ (Rcpp/RcppArmadillo). Runs Rcpp::compileAttributes(), shows the RcppExports interface diff to verify a signature/arity change, then devtools::load_all(recompile = TRUE) so tests never run against a stale .o/.so. Use after ANY change to src/*.cpp / src/*.h, before testing.
+description: Regenerate the Rcpp R<->C++ bindings and force a fresh recompile after editing goldfish's src/ C++ (Rcpp/RcppArmadillo). Runs Rcpp::compileAttributes(), shows the RcppExports interface diff to verify a signature/arity change, then a clean, optimized (-O2) rebuild through devtools::load_all(recompile = TRUE, debug = FALSE) so tests never run against a stale or unoptimized .o/.so. Use after ANY change to src/*.cpp / src/*.h, before testing, and before timing or benchmarking a compiled backend.
 ---
 
 # cpp-recompile
@@ -60,10 +60,72 @@ Read the diff before continuing:
   to. Fix the C++ before going further.
 
 ```bash
-# 3. Force a fresh build + reload the session (re-runs compileAttributes
-#    internally — harmless; step 1 already gave you the diff).
-Rscript -e 'suppressMessages(devtools::load_all(".", recompile = TRUE)); cat("recompiled + reloaded OK\n")'
+# 3. Force a fresh, OPTIMIZED build + reload the session (re-runs
+#    compileAttributes internally — harmless; step 1 already gave you the diff).
+PKG_CPPFLAGS="-O2" Rscript -e '
+  pkgbuild::clean_dll(".")
+  suppressMessages(devtools::load_all(".", recompile = TRUE, debug = FALSE))
+  cat("recompiled + reloaded OK\n")'
+
+# 4. Confirm the optimization level reached the compiler. No output here
+#    means the objects carry debug info, i.e. a debug (-O0) build.
+dwarfdump src/REM_default.o 2>/dev/null | grep -m1 DW_AT_producer ||
+  echo "optimized build (no debug info)"
 ```
+
+## Why the build is forced to `-O2`
+
+`devtools::load_all()` does not build the way `R CMD INSTALL` does. It goes
+through `pkgbuild::compile_dll()`, which **replaces** R's compiler flags
+(`CXX17FLAGS = -g -O2`) with its own:
+
+| `debug` | Flags pkgbuild sets | Optimization |
+|---|---|---|
+| `TRUE` (the default) | `-UNDEBUG -Wall -pedantic -g -O0` | none, explicitly |
+| `FALSE` | `-Wall -pedantic` | none, by omission |
+
+So `debug = FALSE` alone is not enough: it removes `-O0` and puts nothing in
+its place, and the compiler's own default is `-O0`. `PKG_CPPFLAGS` is the one
+variable neither pkgbuild nor the package's `Makevars` sets, so an `-O2` given
+there reaches the compile line. All three pieces are needed:
+
+- `PKG_CPPFLAGS="-O2"` supplies the optimization level.
+- `debug = FALSE` keeps pkgbuild from appending `-O0`, which would win by
+  coming later on the command line.
+- `pkgbuild::clean_dll()` removes the old objects. `recompile = TRUE` alone
+  rebuilt only the files `make` considered out of date, leaving the rest at
+  their previous optimization level.
+
+The flag can also live in a personal `~/.R/Makevars` as
+`PKG_CPPFLAGS += -O2`, which makes the environment variable unnecessary on
+that machine. Write `+=`, never `=`: the user file is read after a package's
+own `Makevars`, so a plain assignment would erase the include paths other
+packages put in `PKG_CPPFLAGS`. It replaces only the first of the three
+pieces. `debug = FALSE` and `clean_dll()` are still required, because with
+`debug = TRUE` pkgbuild's `-O0` comes later on the command line and wins. The
+command above keeps the variable so it works on a machine without that line.
+
+Measured on one REM fit (Social_Evolution, 84 actors, 439 intervals,
+`~ 1 + inertia + recip`), identical log-likelihood on both builds:
+
+| Backend | Unoptimized | `-O2` |
+|---|---|---|
+| `cpp` | 1.47 s | 0.80 s |
+| `gather` | 9.45 s | 3.80 s |
+| `r` | 2.35 s | 2.38 s |
+
+Unoptimized, the `gather` backend is slower than the R engine. A timing or a
+benchmark taken on such a build says nothing about the compiled backends.
+
+Two things follow:
+
+- **A later plain `load_all()` keeps the optimized objects** as long as no
+  file under `src/` changed. After a `src/` edit it rebuilds only the changed
+  files, unoptimized, and the build becomes mixed. Run this skill again
+  instead.
+- **For a debugger or AddressSanitizer session you want the opposite**: run
+  `devtools::load_all(".", recompile = TRUE)` after `pkgbuild::clean_dll(".")`
+  to get `-g -O0`, and rebuild with this skill before timing anything.
 
 ## Verify
 
@@ -84,3 +146,5 @@ build — otherwise you may be reading a cached `.so`:
   is unaffected).
 - Never test after a `src/` change without recompiling — the C++ golden and
   coefficient baselines will silently pass on the old `.o`/`.so`.
+- Never record a timing of a compiled backend without checking the build's
+  optimization level first (step 4).
