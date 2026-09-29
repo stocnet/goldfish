@@ -1,0 +1,31 @@
+# Walk cost budget, checked by tests/testthat/test-walk_cost_budget.R.
+#
+# Fixture: first 5000 CollegeMsg messages on the full 1899-actor node set.
+# Models: rate ~ 1 + indeg + outdeg, choice ~ inertia + recip + trans,
+# without and with support_constraint = ~ !tie(msg).
+#
+# metric     what is measured
+# alloc_mb   megabytes allocated by one preprocessing walk
+# size_mb    megabytes held by the preprocessed object
+# time_ratio constrained over unconstrained median seconds, same session
+# seconds    median seconds of a warm walk; checked only where
+#            GOLDFISH_WALK_COST_SECONDS=true, since it is one machine's number
+#
+# The test fails when a measurement exceeds recorded * limit. For time_ratio
+# the limit is the ceiling itself and recorded is what was observed.
+#
+# RAISING A VALUE NEEDS THE MAINTAINER'S APPROVAL. A failure here means the
+# walk now costs more; the first response is to find what made it so, not to
+# move the number. When the extra cost is accepted, the commit that raises
+# the value says what it buys. Lowering a value after an improvement locks
+# the gain in and needs no approval.
+#
+# Recorded 2026-09-29 with tests/testthat/_budgets/record-walk-cost.R.
+metric,cell,recorded,limit
+alloc_mb,unconstrained,43660,1.05
+alloc_mb,constrained,44910,1.05
+size_mb,unconstrained,84.01,1.02
+size_mb,constrained,125.5,1.02
+time_ratio,constrained_over_unconstrained,1.0,1.5
+seconds,unconstrained,2.95,1.5
+seconds,constrained,3.23,1.5
