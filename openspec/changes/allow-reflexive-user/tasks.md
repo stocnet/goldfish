@@ -77,6 +77,34 @@
       `FALSE`, so `correctReflexive` and the `twomode_or_reflexive` broadcast
       fan-out read the model's own rule. Verify: 3.1 passes; the DyNAM-i tests
       are unchanged (its kernels keep their own defaults, design Non-Goals).
+- [ ] 3.2a The `r` backend's per-event diagonal zeroing reads the resolved
+      rule and stops copying the statistics array. `compute_step.default()`
+      in `R/estimation_core.R` (the block commented "patch to avoid collision
+      with dropping absent people") zeroes the self-dyad of every statistic
+      slice on every event of every Newton iteration, under its own condition
+      `!ctx$is_two_mode && !is_rate` — a fifth local derivation of the
+      self-tie rule, and one that would silently erase the diagonal of a
+      reflexive model. Its loop, `diag(statsArrayComp[,, k]) <- 0` per slice,
+      extracts and rewrites each slice.
+      *Added 2026-09-29 (session goldfish-92), from a measurement, not from
+      the design:* on a REM fit (Social_Evolution, 84 actors, `backend =
+      "r"`) the loop is about 30 percent of the fit: 5.30 s as written,
+      3.60 s as one index assignment over all slices, 2.49 s skipped (median
+      of 3, coefficients and log-likelihood identical on that fixture).
+      Tests first: (i) a reflexive one-mode fit on the `r` backend keeps its
+      diagonal statistics — covered by 3.1 once it runs on `backend = "r"`,
+      so assert that backend there; (ii) an allocation guard on one
+      `compute_step.default()` call with a 300 x 300 x 3 array, bounded well
+      below one copy of the array per slice; watch it fail on the loop.
+      Implement: condition on the resolved `allow_reflexive` (2.2), and zero
+      the self-dyads with a single assignment through an index built once per
+      fit, not per event. Keep the code readable for someone who does not
+      read C++: name the index for what it is and say in the comment why the
+      self-dyad is zeroed before absent actors are dropped. Check a fixture
+      with composition change (actors joining or leaving), since that is the
+      collision the original comment guards against. Verify: (i) and (ii)
+      pass; the frozen baselines are unchanged; the `r` backend REM fit is
+      measurably faster on an optimized build (cpp-recompile skill).
 - [ ] 3.3 Verification: `air format` then `lintr`; `NOT_CRAN=true` suite green;
       baselines PASS not SKIP, byte-identical.
 
