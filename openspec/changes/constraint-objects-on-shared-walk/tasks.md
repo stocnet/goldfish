@@ -74,16 +74,27 @@
 
 ## 2. Thread constraint-only objects into the shared substrate (D1, D4)
 
-- [ ] 2.0 Cost guard, recorded failing first (added 2026-09-29, per the
+- [x] 2.0 Cost guard, recorded failing first (added 2026-09-29, per the
       per-event cost rules; design "Storage and per-event cost"): a test
       helper generates data where time and memory are measurable (at least
       1000 actors, so one double grid is 8 MB; a constraint-only layer with
       enough events to gate senders), and a guard asserts the uncovered
-      constraint is preprocessed in one walk: one `fetch_events()` pass and
-      one state container, and allocation within half a grid of the covered
-      twin (the same constraint with a term reading the layer). It fails on
-      the current tree, where the private walk builds its own container
-      and schedule; record the failing numbers in `progress.md`.
+      constraint is preprocessed in one walk: no private atom walk is
+      built, and the shared schedule visits the constraint layer's events.
+      It fails on the current tree, where the private walk builds its own
+      container and schedule; record the failing numbers in `progress.md`.
+      — *revised 2026-09-29 after measuring*: allocation is not asserted.
+      The covered twin (a term reading the layer) carries an extra
+      statistic, so it allocates more (234 against 160 MB at 1000 actors),
+      and threading moves the object from the private container into the
+      shared one rather than removing it. Fixture sized for 2.3b: 1500
+      actors, 3000 calls, 3000 constraint-layer events (uncovered 0.47 s,
+      543 MB, 34.8 MB object; unconstrained 0.12 s, 146 MB, 17.5 MB).
+      — *done 2026-09-29 (goldfish-ce), `95b974f`*: `constraint_cost_data()`
+      in `helper-constraint-atoms.R`; guard recorded failing (one private
+      walk; schedule layers `calls` only), committed with a `skip()` naming
+      the state, removed by the threading commit. 9341 / 0 / 5 (the fifth
+      skip is the guard), six baseline files PASS.
 - [ ] 2.1 `build_merged_blocks()`: compile support constraints before
       `build_shared_objects()`; append each constraint sub-plan's objects
       after every unit's objects; `shared_to_local` `NA` for them;
