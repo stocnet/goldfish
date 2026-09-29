@@ -666,11 +666,12 @@ relational_window_risk_set <- function(
     model = model,
     data = data
   )
-  prep <- if (identical(model, "REM")) {
-    estimate_rem(spec, sub_model = "rate", preprocessing_only = TRUE)
-  } else {
-    estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
-  }
+  prep <- compute_statistics(
+    spec,
+    model = model,
+    sub_model = "rate",
+    output = "preprocessed"
+  )
   if (!is.na(flavor)) {
     prep_map <- attr(prep, "process_map")
     prep <- prep[[as.character(prep_map$fid[prep_map$flavor == flavor])]]
