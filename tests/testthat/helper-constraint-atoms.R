@@ -262,3 +262,49 @@ constraint_atoms_capture <- function(prep) {
   )
   prep[keep]
 }
+
+# Generated data large enough that the cost of a walk is measurable: at 1500
+# actors one double grid is 18 MB, so a second state container or a
+# per-event grid stands out from noise. `emails` is read only by the
+# constraint `~ !tie(emails)`, and no emailed dyad is ever called, so the
+# constraint excludes dyads without excluding an observed one.
+constraint_cost_data <- function(
+  n_actors = 1500L,
+  n_calls = 3000L,
+  n_emails = 3000L,
+  seed = 1L
+) {
+  withr::local_seed(seed)
+  calls <- data.frame(
+    from = sample.int(n_actors, n_calls, replace = TRUE),
+    to = sample.int(n_actors, n_calls, replace = TRUE)
+  )
+  calls <- calls[calls$from != calls$to, ]
+  calls$time <- sort(stats::runif(nrow(calls), 0, 100))
+  emails <- data.frame(
+    from = sample.int(n_actors, n_emails, replace = TRUE),
+    to = sample.int(n_actors, n_emails, replace = TRUE)
+  )
+  emails <- emails[emails$from != emails$to, ]
+  called <- paste(calls$from, calls$to)
+  emails <- emails[!paste(emails$from, emails$to) %in% called, ]
+  emails$time <- sort(stats::runif(nrow(emails), 0, 100))
+  list(
+    info = list(
+      name = "walk cost",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = sprintf("A%04d", seq_len(n_actors)),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      cbind(calls, layer = "calls"),
+      cbind(emails, layer = "emails")
+    )
+  )
+}

@@ -123,6 +123,42 @@ test_that("an uncovered constraint's reference comes from the private walk", {
   }
 })
 
+test_that("a constraint on an object no term reads is kept by the one walk", {
+  # A cost guard: the constraint's layer is stepped by the shared schedule,
+  # not by a second, private walk with its own state and event loop.
+  skip("a constraint-only layer is still kept by the private atom walk")
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = constraint_cost_data(),
+    support_constraint = ~ !tie(emails)
+  ))
+  private <- 0L
+  schedule_layers <- character(0)
+  orig_build <- build_atom_maintainer
+  orig_schedule <- build_joint_schedule
+  local_mocked_bindings(
+    build_atom_maintainer = function(...) {
+      private <<- private + 1L
+      orig_build(...)
+    },
+    build_joint_schedule = function(...) {
+      schedule <- orig_schedule(...)
+      schedule_layers <<- unique(c(schedule_layers, schedule$layer))
+      schedule
+    }
+  )
+  invisible(suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "choice",
+    preprocessing_only = TRUE
+  )))
+  expect_identical(private, 0L)
+  expect_contains(schedule_layers, "emails")
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {
