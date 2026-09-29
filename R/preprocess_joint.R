@@ -1635,16 +1635,6 @@ constraint_atom_object_keys <- function(sub_plan) {
   list(keys = keys, dynamic_keys = keys[dynamic])
 }
 
-# A recorder can maintain a constraint's atoms over the merged walk only when
-# every atom object that CHANGES is one the shared schedule visits. A static
-# atom object never changes, so its seed value is enough; a dynamic one absent
-# from the shared registry (a constraint-only network the units never compiled)
-# is not seen by the walk, and that constraint falls back to the private walk.
-recorder_covers_constraint <- function(sub_plan, shared_object_keys) {
-  dyn <- constraint_atom_object_keys(sub_plan)$dynamic_keys
-  all(dyn %in% shared_object_keys)
-}
-
 # Seed one atom store per (model, node sides, atom signature) the engines carry,
 # for every constraint, and index them by the object key whose covariate events
 # advance them. The stores are filled during the walk
@@ -1707,23 +1697,18 @@ advance_recorders_for_event <- function(
   invisible(NULL)
 }
 
-# Atoms factory for `preprocess_pooled_support_masks()` that returns a covered
-# constraint's recorded-and-replayed atom pool instead of walking it again;
-# absent a recorder (an uncovered constraint) it defers to the private walk.
+# Atoms factory for `preprocess_pooled_support_masks()` that returns a
+# constraint's recorded-and-replayed atom pool instead of walking it again.
+# Every constraint has a store: `build_walk_recorders()` seeds one for each.
 recorder_atoms_factory <- function(recorders) {
   function(sub_plan, model, nodes, nodes2, prep_envir, src) {
     signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
     key <- paste(model, nodes, nodes2, signature, sep = "\v")
-    store <- recorders$lookup[[key]]
-    if (is.null(store)) {
-      build_atom_maintainer(sub_plan, model, nodes, nodes2, prep_envir, src)
-    } else {
-      constraint_replay_atoms(store)
-    }
+    constraint_replay_atoms(recorders$lookup[[key]])
   }
 }
 
-realize_pending_masks <- function(pending, recorders = NULL) {
+realize_pending_masks <- function(pending, recorders) {
   lengths <- vapply(pending, function(p) length(p$requests), integer(1))
   masks <- lapply(lengths, function(n) vector("list", n))
   owner <- rep(seq_along(pending), lengths)
@@ -1748,11 +1733,7 @@ realize_pending_masks <- function(pending, recorders = NULL) {
   for (group in split(seq_along(requests), key)) {
     engine <- pending[[owner[[group[[1L]]]]]]$engine
     ctx <- engine$ctx
-    atoms_factory <- if (is.null(recorders)) {
-      build_atom_maintainer
-    } else {
-      recorder_atoms_factory(recorders)
-    }
+    atoms_factory <- recorder_atoms_factory(recorders)
     realized <- preprocess_pooled_support_masks(
       requests[group],
       model = engine$model,

@@ -86,21 +86,15 @@ test_that("a covered constrained model builds no private atom walk", {
   # store is seeded exactly once for the layer. `constraint_atoms_capture()`
   # already pins that the mask this produces is byte-identical to the private
   # walk's frozen output, so this is the walk COUNT that removing it buys.
-  private <- 0L
   stores <- 0L
   orig_store <- build_constraint_atom_store
   local_mocked_bindings(
-    build_atom_maintainer = function(...) {
-      private <<- private + 1L
-      cli::cli_abort("a covered constraint must not build a private atom walk")
-    },
     build_constraint_atom_store = function(...) {
       stores <<- stores + 1L
       orig_store(...)
     }
   )
   invisible(constraint_atoms_prep("rate"))
-  expect_identical(private, 0L)
   expect_identical(stores, 1L)
 })
 
@@ -108,18 +102,26 @@ test_that("no constrained reference family builds a private atom walk", {
   # The uncovered families' references were captured while the private
   # `build_atom_maintainer()` walk still kept their constraint; they now
   # come from the shared walk, which the byte-identity test above checks.
-  private <- 0L
-  orig_build <- build_atom_maintainer
+  # The private walk is no longer package code (it is the test oracle), so
+  # no preprocessing can reach it; each family's constraint is kept by atom
+  # stores the shared walk seeds.
+  expect_false(exists(
+    "build_atom_maintainer",
+    envir = asNamespace("goldfish"),
+    inherits = FALSE
+  ))
+  stores <- 0L
+  orig_store <- build_constraint_atom_store
   local_mocked_bindings(
-    build_atom_maintainer = function(...) {
-      private <<- private + 1L
-      orig_build(...)
+    build_constraint_atom_store = function(...) {
+      stores <<- stores + 1L
+      orig_store(...)
     }
   )
   for (family in constraint_atoms_families()) {
-    private <- 0L
+    stores <- 0L
     invisible(constraint_atoms_prep(family))
-    expect_identical(private, 0L, info = family)
+    expect_gt(stores, 0L, label = family)
   }
 })
 
@@ -134,15 +136,9 @@ test_that("a constraint on an object no term reads is kept by the one walk", {
     data = constraint_cost_data(),
     support_constraint = ~ !tie(emails)
   ))
-  private <- 0L
   schedule_layers <- character(0)
-  orig_build <- build_atom_maintainer
   orig_schedule <- build_joint_schedule
   local_mocked_bindings(
-    build_atom_maintainer = function(...) {
-      private <<- private + 1L
-      orig_build(...)
-    },
     build_joint_schedule = function(...) {
       schedule <- orig_schedule(...)
       schedule_layers <<- unique(c(schedule_layers, schedule$layer))
@@ -154,7 +150,6 @@ test_that("a constraint on an object no term reads is kept by the one walk", {
     sub_model = "choice",
     preprocessing_only = TRUE
   )))
-  expect_identical(private, 0L)
   expect_contains(schedule_layers, "emails")
 })
 
