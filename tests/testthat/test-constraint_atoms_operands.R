@@ -243,6 +243,45 @@ test_that("the atom recorder's log grows linearly with its events", {
   expect_lt(ratio, 2.5)
 })
 
+test_that("a constrained walk composes its masks as it goes", {
+  # A cost guard: the masks and the folded availability are written during
+  # the walk, not realized afterwards by replaying the atoms to each stored
+  # row and folding every row again, which allocates per stored row.
+  skip("the masks are still realized and folded after the walk")
+  post_walk <- c(
+    "realize_pending_masks",
+    "fold_active_sender_support",
+    "fold_active_dyad_support",
+    "build_active_dyad_point"
+  )
+  calls <- stats::setNames(integer(length(post_walk)), post_walk)
+  counting <- lapply(post_walk, function(name) {
+    orig <- get(name, envir = asNamespace("goldfish"))
+    function(...) {
+      calls[[name]] <<- calls[[name]] + 1L
+      orig(...)
+    }
+  })
+  names(counting) <- post_walk
+  do.call(local_mocked_bindings, counting)
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = constraint_cost_data(n_calls = 300L, n_emails = 300L),
+    support_constraint = ~ !tie(emails)
+  ))
+  for (sub_model in c("rate", "choice")) {
+    invisible(suppressWarnings(estimate_dynam(
+      spec,
+      sub_model = sub_model,
+      preprocessing_only = TRUE
+    )))
+  }
+  expect_identical(sum(calls), 0L)
+})
+
 # ---- 1.3 the two-layer DAG check survives the migration --------------------
 
 test_that("an availability-derived constraint atom is rejected at parse time", {
