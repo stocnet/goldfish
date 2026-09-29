@@ -613,6 +613,98 @@ test_that("a constraint on an object no formula reads replays exactly", {
   expect_gt(replay$n_excluded, 0L)
 })
 
+test_that("an atom moved at an event's own stamp is not yet in force", {
+  # Evaluating an observed event at its stamp, a driver steps strictly
+  # before it, as the batch schedule puts the rows sharing a stamp after the
+  # event. The mask then reads its atoms strictly before the stamp: at N2's
+  # call at t = 2, 2 -> 4 is still excluded (emailed at 1.5, dissolved at 2)
+  # and 2 -> 5 still allowed (emailed at 2).
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 2L),
+      to = c(4L, 4L, 5L),
+      time = c(1.5, 2, 2),
+      layer = "emails",
+      weight = c(1, -1, 1)
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  batch <- suppressWarnings(preprocess_joint(spec))
+  map <- attr(batch, "process_map")
+  choice_fid <- map$fid[map$family == "choice"]
+  out <- batch[[as.character(choice_fid)]]
+  handle <- suppressWarnings(walk_open(spec))
+  calls <- ties[ties$layer == "calls", ]
+  theta <- 0.4
+  for (e in seq_len(nrow(calls))) {
+    walk_advance(handle, calls$time[e], inclusive = FALSE)
+    live <- walk_evaluate(handle, choice_fid, theta)
+    state <- materialize_process_state(
+      out,
+      model_type = "DyNAM-M",
+      event_index = e,
+      has_intercept = FALSE
+    )
+    reference <- evaluate_process_state(state, theta)$value
+    n2 <- state$n_actors2
+    sender <- calls$from[e]
+    expect_equal(
+      live$value[(sender - 1L) * n2 + seq_len(n2)],
+      reference,
+      info = paste("event", e)
+    )
+    walk_inject(
+      handle,
+      list(
+        layer = "calls",
+        sender = sender,
+        receiver = calls$to[e],
+        time = calls$time[e],
+        increment = 1
+      )
+    )
+  }
+  # The tie is reached: at t = 2 the batch excludes 2 -> 4 and allows 2 -> 5.
+  state <- materialize_process_state(
+    out,
+    model_type = "DyNAM-M",
+    event_index = 2L,
+    has_intercept = FALSE
+  )
+  at_tie <- evaluate_process_state(state, theta)$value
+  expect_identical(at_tie[4] == 0, TRUE)
+  expect_identical(at_tie[5] > 0, TRUE)
+})
+
 test_that("node-composition changes advance with the handle's clock", {
   data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
   # N6 is never called and N1 is called only after it returns, so no observed

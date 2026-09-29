@@ -17,7 +17,7 @@ walk_open(
   call = rlang::caller_env()
 )
 
-walk_advance(handle, t, call = rlang::caller_env())
+walk_advance(handle, t, inclusive = TRUE, call = rlang::caller_env())
 
 walk_schedule(handle, event, call = rlang::caller_env())
 
@@ -44,6 +44,11 @@ run, where a DyNAM process without a rate draws at the observed stamps).}
 \item{handle}{a \code{goldfishWalk} from \code{\link[=walk_open]{walk_open()}}.}
 
 \item{t}{the clock time to advance to.}
+
+\item{inclusive}{whether the rows stamped at \code{t} are applied. \code{FALSE}
+stops strictly before \code{t} while moving the composition up to and
+including \code{t}, which is the state the batch preprocessing evaluates an
+observed event at: the rows sharing its stamp come after it.}
 
 \item{event}{a list describing one event to apply: \code{layer} (the object name),
 plus \code{sender} / \code{receiver} (a dyadic layer) or \code{node} (a nodal attribute),

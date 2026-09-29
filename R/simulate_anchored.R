@@ -3,10 +3,12 @@
 #
 # The observed event times are held and only the marks are redrawn. A run
 # walks the dependent rows of the modeled layers in schedule order; at each
-# stamp it advances the walk, so observed covariate rows and replayed rows up
-# to that time are applied first, then draws the marks the stamp's own
-# process models and injects the event. Nothing is drawn about when, so there
-# is no clock: no target, no guard and no total-rate trajectory.
+# stamp it advances the walk, so observed covariate rows and replayed rows
+# strictly before that time are applied first (the rows sharing the stamp
+# come after the event, as in the batch schedule), then draws the marks the
+# stamp's own process models and injects the event. Nothing is drawn about
+# when, so there is no clock: no target, no guard and no total-rate
+# trajectory.
 #
 # A stamp keeps its observed layer and flavor. Redrawing which process fires,
 # from the competing rates at that stamp, would move events between layers,
@@ -48,7 +50,10 @@ simulate_anchored_replicate <- function(
   n_stamps_skipped <- 0L
   for (i in seq_len(n_stamps)) {
     t <- stamps$time[i]
-    walk_advance(handle, t, call = call)
+    # The stamp is evaluated as the batch evaluates an observed event: over
+    # the rows strictly before it, the composition at it included. The rows
+    # sharing its stamp are applied after it is injected.
+    walk_advance(handle, t, inclusive = FALSE, call = call)
     resolved <- provider$at(k, t, handle, latent)
     theta <- provider_parameters(resolved, routing, call)
     latent <- resolved$latent %||% latent

@@ -287,3 +287,57 @@ test_that("a free-running run walks no stamps", {
 
   expect_identical(out$diagnostics$n_stamps_skipped, NA_integer_)
 })
+
+test_that("a stamp is drawn from the mask strictly before it", {
+  # `emails` 2 -> 4 is created at 1.5 and dissolved at N2's own stamp, 2;
+  # 2 -> 5 is created at 2. The observed call at t = 2 is evaluated over the
+  # atoms strictly before its stamp, as the batch evaluates it: 4 is still
+  # excluded there and 5 still allowed.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 2L),
+      to = c(4L, 4L, 5L),
+      time = c(1.5, 2, 2),
+      layer = "emails",
+      weight = c(1, -1, 1)
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  spec <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  pool <- suppressWarnings(suppressMessages(
+    simulate(spec, nsim = 60, seed = 4, coef = 0)
+  ))
+  at_tie <- unlist(lapply(pool, function(run) {
+    run$events$receiver[run$events$time == 2]
+  }))
+  expect_length(at_tie, 60L)
+  expect_false(any(at_tie == 4L))
+  expect_true(any(at_tie == 5L))
+})

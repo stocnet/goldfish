@@ -533,9 +533,18 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
 #' @rdname walk_handle
 #' @param handle a `goldfishWalk` from [walk_open()].
 #' @param t the clock time to advance to.
+#' @param inclusive whether the rows stamped at `t` are applied. `FALSE`
+#'   stops strictly before `t` while moving the composition up to and
+#'   including `t`, which is the state the batch preprocessing evaluates an
+#'   observed event at: the rows sharing its stamp come after it.
 #' @return `walk_advance()` returns the handle invisibly.
 #' @keywords internal
-walk_advance <- function(handle, t, call = rlang::caller_env()) {
+walk_advance <- function(
+  handle,
+  t,
+  inclusive = TRUE,
+  call = rlang::caller_env()
+) {
   walk_assert_open(handle, call)
   if (t < handle$current_time) {
     cli::cli_abort(
@@ -561,7 +570,11 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
       Inf
     }
     next_time <- min(exo_time, queued_time)
-    if (!is.finite(next_time) || next_time > t) {
+    if (
+      !is.finite(next_time) ||
+        next_time > t ||
+        (!inclusive && next_time == t)
+    ) {
       break
     }
     # An observed exogenous row goes before a driver-scheduled event sharing

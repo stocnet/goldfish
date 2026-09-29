@@ -70,7 +70,9 @@ own steps.}
 argument it does not take.}
 
 \item{data}{the stocnet to simulate on. Required on a fitted model, which
-stores its formula and estimates but not the data it was fitted on.}
+stores its formula and estimates but not the data it was fitted on. The
+model is rebuilt with the support constraint and the modeled flavor the
+fit was estimated with.}
 }
 \value{
 For \code{nsim = 1} a \code{goldfishSim}: the simulated \code{events}; the
