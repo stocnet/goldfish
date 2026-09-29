@@ -32,7 +32,7 @@
 
 ## 1. Simulation harness and the baseline fixture (D5, D6, D7)
 
-- [ ] 1.1 `tests/testthat/helper-simulate-dgp.R`:
+- [x] 1.1 `tests/testthat/helper-simulate-dgp.R`:
       `simulate_relational_sequence()` per D5 — exact-time rate
       (`1 + indeg + outdeg` on present-tie counts) and choice
       (`recip + trans` with the two-path count), 0/1 state,
@@ -41,6 +41,12 @@
       hooks (r-lib:testing-r-packages). Test: reproducible under a seed;
       the frame rules of the capability spec hold on a hand-checked tiny
       case.
+      — *done 2026-09-29 (goldfish-ce), `0c4434d`*: `simulate_relational_
+      sequence()` + `dgp_stocnet()`; frames rate / choice / dyad (REM);
+      hooks `processes` (flavors), `exogenous` + `constraint`,
+      `composition`, `unmodeled`. Rule test proven by breaking the row
+      reduction, composition and the censored break. 9310 / 0 / 4, six
+      baseline files PASS.
 - [ ] 1.2 `test-simulation_cross_validation.R`, fixture F1: goldfish rate
       ↔ `glm(poisson, offset(log(dt)))` including the `sum(log dt)`
       log-likelihood offset; REM rate ↔ dyadic `glm`; choice ↔ `mlogit`
