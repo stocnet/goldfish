@@ -287,7 +287,7 @@
       row and collapses each fid's flips into its row; `realize_pending_
       masks()` is not called; every 4.4 reference matches; 9448 / 0 / 6. The
       availability half is 4.5b (design D9 amendment 2026-09-29).
-- [ ] 4.5b Availability maintained as an effect (added 2026-09-29, Alvaro;
+- [x] 4.5b Availability maintained as an effect (added 2026-09-29, Alvaro;
       design D9 amendment and its same-day revision): per exact-time rate
       fid (constrained or not) and per constrained choice / REM /
       coordination fid, the stat `active_sender` or `active_dyad` at its
@@ -310,6 +310,27 @@
       parity goldens on the branch (Alvaro approved); REM and coordination
       unchanged; handle replays equal; the 4.4a guard's fold counts reach
       zero.
+      — *answered 2026-09-30 (Alvaro)*: the opportunity list is a dyadic
+      mask like any other (the event sender's row set from its entry at
+      its row), not a lazy special case; the rate stores the ego logical
+      gate, its per-sender counts are cache; an unconstrained rate keeps
+      the writer's stream (count-only effect); the handle returns the
+      effect's buffer, no copy; guard = per-row slope, constrained minus
+      unconstrained, 750 vs 1500 actors, growth < 4 KB.
+      — *done 2026-09-30 (goldfish-ce), guard `1a08c6d`, code `ec4b3c0`*:
+      `R/availability_effect.R` (variants gate, presence, alter, outer,
+      point, dyad); the three folds and the opportunity fold deleted;
+      `build_active_dyad_point()` kept for the DyNAM-i bridge only. Guard
+      red at +33.2 / +32.5 KB per-row growth (rate / choice), green at -2 B
+      / +13 B, bites when a whole-vector recompute is forced. Moved and
+      refrozen (sender rows asserted equal): refs `choice`,
+      `uncovered_choice`, `joint_rate_choice`/2, `flavored`/2, /4; parity
+      `flavored_oracle__3`, `__4`, `user_constraint__choice`,
+      `constraint_bound__choice`; `opportunity__choice` did not move;
+      `test_time` snapshot sizes follow. Suite 9502 / 1 / 6, the failure
+      that snapshot (accepted, its file re-run 52 / 0); six baseline files
+      PASS; other `_snaps/` md5 unchanged. The 4.4a
+      guard passes unskipped (kept skipped until 4.6 as written).
 - [ ] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
       (`fold_active_sender_support()`, `fold_active_dyad_support()`,
       `build_active_dyad_point()` as post-walk steps); settle the open
