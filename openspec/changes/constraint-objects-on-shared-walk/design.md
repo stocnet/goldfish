@@ -121,6 +121,24 @@ coverage predicate then holds for every constraint by construction.
 guards; a second registry for constraint objects — a second registry is the
 private walk under another name.
 
+*Revised 2026-09-29 (Alvaro, ADR-0103):* a constraint-only object's event
+closes the open interval of every exact-time rate whose mask reads it,
+with a right-censored row, as every non-dependent event does. It still
+folds no statistic: the engine's local id stays `NA`, so no column moves;
+the boundary is emitted because the event changes that rate's risk set.
+Measured before the decision (8 actors, 120 events, 21 `emails` events
+gating three senders under `~ !tie(emails)`): today's private walk stores
+687 rate rows with no boundary, the process defines 834, and the estimates
+miss the process's likelihood by 6.5e-3; with a rate term reading the same
+layer (`outdeg(emails)`) goldfish already splits the intervals exactly as
+the process does. Sequencing keeps the detector: task 2.2 threads with no
+boundary, byte-identical to the task 0.2 references, and task 2.3a then
+adds the boundary and re-captures the two references it moves (`rate`,
+whose `call_network` no term reads, and `uncovered_rate`), asserting the
+difference is exactly the new censored rows. The presence half of
+ADR-0103 is `process-simulation` task 2.11c, applied at the trunk merge
+because it moves the fisheries rate and REM baselines.
+
 ### D2 — The private atom walk is retired, detector-first
 
 Following the predecessor's D4 (the private walk goes last): first capture
@@ -189,6 +207,10 @@ row (the row-reduction), an absent node contributes no row on either axis,
 and every non-dependent event — an exogenous constraint-object event, a
 composition change, an unmodeled-flavor event — closes the open interval
 with a censored rate row (`outcome = 0`, its `dt`) and opens a new one.
+(*2026-09-29, ADR-0103:* this is the rule goldfish adopts, not only the
+oracle's. For a constraint-only object it lands here, task 2.3a; for a
+composition change in `process-simulation` task 2.11c, at the trunk merge,
+so F4's rate arm moves there.)
 Effects are limited to those whose update rule the DGP mirrors exactly on a
 0/1 state matrix: rate `1 + indeg + outdeg` (present-tie counts), choice
 `recip + trans` (`trans` as the two-path count `(S %*% S)[i, j]`, never
@@ -206,7 +228,7 @@ handle — the oracle must not share goldfish's state code.
 | F1 baseline (DyNAM, also REM rate) | `estimate_dynam(rate)` ↔ `glm(poisson, offset(log dt))`; `estimate_rem` ↔ dyadic `glm` | `estimate_dynam(choice)` ↔ `mlogit`/`clogit` | — |
 | F2 creation/dissolution flavors, derived masks | per flavor, gated senders dropped | per flavor over the allowed set | container = standalone single-flavor specs = de-flavored layers |
 | F3 constraint on an object no formula reads | `~ !tie(emails)`, `choice ~ recip` | same | handle replay, `n_excluded > 0` |
-| F4 composition change on F1 | absent nodes: no rows; presence flips: censored rows | absent receivers excluded | handle replay with `walk_advance_presence()` |
+| F4 composition change on F1 | absent nodes: no rows; presence flips: censored rows (rate arm moved to `process-simulation` 2.11c, 2026-09-29) | absent receivers excluded | handle replay with `walk_advance_presence()` |
 | F5 one flavor modeled on F2's data | dissolution events: censored rows | creation only | equals F2's creation blocks |
 
 Arms: (a) goldfish fit versus the oracle on the hand-built frame, gate 1e-6

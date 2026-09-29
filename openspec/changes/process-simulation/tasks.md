@@ -877,6 +877,36 @@
       At 2.11b, decide whether the in-walk running sum the choice needs
       replaces 2.11's post-walk loop in `render_finalized_consumers()` for
       every consumer, so the exposure is gathered in the one walk
+- [ ] 2.11c Presence changes close the rate interval (added 2026-09-29,
+      ADR-0103; **applied at the trunk merge**, not on `feature_simulation`):
+      every presence (`active`) change inside the window closes the open
+      interval of each exact-time rate (DyNAM rate, REM) with a
+      right-censored row and opens a new one, as any other non-dependent
+      event does. Today a presence change is not a row of its own: the
+      engine applies it to the whole interval ending at the next stored row
+      (ADR-0100, superseded). Measured on a simulated sequence (8 actors,
+      120 events, 6 presence changes): goldfish stores 884 rate rows over
+      120 intervals where the process defines 925 over 126, and its
+      estimates miss the process's likelihood by 2.9e-3; the end-of-interval
+      rule reproduces goldfish to 4.4e-13. The ordered rate and the choice
+      condition at events only and do not change. The exposure becomes the
+      continuous integral over the presence stream (fisheries: 145.4176,
+      was 145.4799); 2.11's intercept-only MLE identity holds on the new
+      rows. Baselines: `fish_dynam_rate` and `fish_rem` (fisheries links
+      `sovchanges` as presence) move; they are refrozen on the trunk under
+      ADR-0021 (derive the value, measure, refreeze beside the derivation),
+      which is why this task cannot land on the branch (ADR-0040). The
+      constraint-only object half of ADR-0103 lands on the branch in
+      `constraint-objects-on-shared-walk` (task 2.3a). Spec delta:
+      `multi-process-walk` "Every non-dependent event closes the open rate
+      interval". Tests: the rate arm of `constraint-objects-on-shared-walk`
+      fixture F4 (moved here from its task 5.3): goldfish's exported rate
+      rows equal the harness frame, whose presence changes close intervals,
+      and the fit equals `glm(poisson, offset(log(dt)))` within 1e-6; the
+      fisheries exposure equals the continuous integral; the 2.11 MLE
+      identity on a fixture with presence changes; the ordered-rate and
+      choice fits on fisheries unchanged. NEWS.d bullet (user-visible:
+      exact-time fits with composition changes move)
 
 ## 3. Tests and documentation
 

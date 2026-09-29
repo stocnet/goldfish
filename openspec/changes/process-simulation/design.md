@@ -692,6 +692,15 @@ built. Task 2.11b waits for `constraint-objects-on-shared-walk` D9, which
 composes masks live in the batch walk, so every consumer's exposure is a
 running sum. `relational_window_risk_set()` becomes the exact path only,
 carrying the process's constraint, modeled flavor and derived mask.
+*Amended 2026-09-29 (ADR-0103, supersedes ADR-0100):* the engine's row
+alignment above chose "presence applied at the row" because a presence
+change was not a row of its own. From task 2.11c every presence change
+closes the rate interval with a right-censored row, so the rows the
+exposure sums over are the process's own intervals and the exposure is the
+continuous integral over the presence stream (fisheries 145.4176). The
+intercept-only MLE identity holds on those rows as it did on the old ones.
+2.11c is applied at the trunk merge, because it moves the fisheries rate
+and REM baselines.
 ### D6 — The `times =` axis: free-running and time-anchored, first-class on every family (added 2026-08-19)
 
 One argument on `simulate()`, `times = c("generated", "observed")`, default

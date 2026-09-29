@@ -84,7 +84,9 @@
 - [ ] 2.2 `build_joint_schedule()`: append the constraint sub-plans' streams
       after all unit streams, deduplicated by stream key; `run_merged_walk()`
       covariate branch skips engines with a `NA` local id (no statistic, no
-      right-censoring row, `i_total` unchanged); `resolve_walk_extent()`
+      right-censoring row, `i_total` unchanged — interim, so the threading is
+      byte-identical to the task 0.2 references; the boundary lands in 2.3a,
+      ADR-0103); `resolve_walk_extent()`
       exempts constraint-only rows through one named predicate with a
       comment pointing at the open extent cell (D4). Test: the joint
       schedule of every covered reference is identical; the uncovered
@@ -95,6 +97,23 @@
       recorders. Assert every reference family, including task 0.2's,
       matches byte-identically, and `mask_call_counts()` reports no
       `build_atom_maintainer` call.
+- [ ] 2.3a A constraint-only object's event closes the rate interval (added
+      2026-09-29, ADR-0103; design D1 revision): each row of an object only
+      a support constraint reads becomes a right-censored boundary for every
+      exact-time rate fid whose mask reads the object, folding no
+      statistic. Detector-first: before the edit, write the expected
+      difference against the task 0.2 references (the `rate` family, whose
+      `call_network` no formula term reads, and `uncovered_rate`): exactly
+      the new censored rows, every existing row's statistics unchanged;
+      then re-capture both into `constraint_atoms_refs.rds` with every other
+      entry `identical()`. The choice families do not move (a choice reads
+      its mask at its own events). Test: on the harness's constrained rate
+      (the probe shape: `~ !tie(emails)` gating senders mid-interval),
+      goldfish's exported rate rows equal the harness frame and the fit
+      equals the Poisson oracle within 1e-6; before the edit it missed by
+      6.5e-3. No frozen baseline carries such a constraint. NEWS.d bullet
+      (a constrained rate's estimates move when its constraint reads a
+      layer no term reads)
 - [ ] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; all reference families PASS.
 
@@ -180,6 +199,13 @@
       actors leaving and returning; absent actors have no rows; presence
       flips are censored rows; rate and choice oracles; frame identity;
       handle replay with `walk_advance_presence()`.
+      — *revised 2026-09-29 (ADR-0103)*: goldfish closes the rate interval
+      at a presence change only from `process-simulation` task 2.11c, which
+      is applied at the trunk merge, so F4's rate arm (rate oracle and rate
+      frame identity) moves there. This task keeps the choice oracle and
+      frame, and the handle replay, none of which depends on the boundary.
+      The harness names the variable `active` (`present` is its former
+      name, which manynet renames on a node frame only).
 - [ ] 5.4 F5 one modeled flavor on F2's data: `rate = list(creation ~ ...)`,
       `choice = list(creation ~ ...)`; dissolution events as censored rows
       and state updates; equality with F2's creation blocks; oracle; handle

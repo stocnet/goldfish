@@ -41,3 +41,36 @@ change.
   skipped the completion transform (a flavor with a rate but no choice)
 - **THEN** it aborts naming the incomplete flavor and pointing to `simulate()` /
   `estimate_dynes()`, rather than opening a walk with a mismatched fid set.
+
+## ADDED Requirements
+
+### Requirement: Every non-dependent event closes the open rate interval
+
+The merged walk SHALL close the open interval of every exact-time rate fid
+(DyNAM rate, REM) with a right-censored row at every event in the window
+that is not one of that fid's dependent events: another process's
+dependent event, a covariate or network event of an object a statistic
+reads, a presence (`active`) change, and an event of an object only a
+support constraint reads. The interval that follows SHALL be evaluated
+over the state after that event, so a rate's exposure integrates presence
+and support over the time each was in force, never over the state at the
+interval's end. A presence change or a constraint-only object's event
+SHALL NOT fold a statistic: it changes the risk set, not the statistics.
+The ordered rate and the choice families, which condition on the event
+alone, are unaffected.
+
+#### Scenario: a presence change is a boundary of its own
+- **WHEN** an exact-time DyNAM rate is preprocessed on nodes one of which
+  leaves between two dependent events
+- **THEN** the interval is split at the change by a right-censored row, the
+  departing node is at risk before it and absent after it, and the fit
+  equals a Poisson regression with a log-exposure offset on the frame
+  built by the same rule
+
+#### Scenario: a constraint-only object's event is a boundary
+- **WHEN** an exact-time rate carries a `support_constraint` reading a
+  changing layer no formula term reads, and an event of that layer gates a
+  sender between two dependent events
+- **THEN** the interval is split at that event by a right-censored row, the
+  sender is at risk before it and gated after it, and no statistic column
+  changes at the boundary

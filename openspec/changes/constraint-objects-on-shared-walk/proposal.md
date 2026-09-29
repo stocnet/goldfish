@@ -88,6 +88,16 @@ continuous-time block.
   hand-written mask) agree; and that the handle replays the batch on every
   constrained fixture with a non-empty exclusion. DyNAM-coordination is
   excluded: it has no conditional-logit twin.
+- **A constraint-only object's event closes the rate interval** (added
+  2026-09-29, ADR-0103). Each such event is a right-censored boundary for
+  every exact-time rate whose mask reads the object, as every non-dependent
+  event is, so a constrained rate integrates its risk set over the time
+  each state was in force; it folds no statistic. Today's private walk
+  leaves those intervals unsplit and misses the process's likelihood
+  (measured 6.5e-3). No frozen baseline carries such a constraint; the
+  `rate` and `uncovered_rate` references are re-captured with the
+  difference asserted. The presence-change half of the same rule is
+  `process-simulation` task 2.11c, applied at the trunk merge.
 - **Not changed**: the walk extent. Whether constraint-only rows count as
   real events for the observation tail is decided in
   `observation-tail-right-censoring`; until then they are exempt, like

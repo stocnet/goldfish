@@ -19,8 +19,9 @@ object registry SHALL carry every object any formula term or any support
 constraint atom reads: objects read only by constraint atoms are appended
 after the units' objects, their event streams are appended to the joint
 schedule after the unit streams and deduplicated by stream key, an engine
-with no local id for such an object skips its rows, and those rows emit no
-right-censoring boundary; whether such a row extends the walk extent is
+with no local id for such an object folds no statistic from its rows, and
+each such row is a right-censoring boundary for every timed rate fid whose
+support mask reads the object; whether such a row extends the walk extent is
 governed by the observation-window capability. The walk SHALL return one `goldfishStat`
 object per fid, indexed by fid with the process_map attached, each passing the
 engine-readiness checks; single-process and flavored specifications SHALL
@@ -56,7 +57,9 @@ preprocess byte-identically to their pre-merge outputs (frozen-baseline gate).
   that no effect term reads
 - **THEN** that layer's events are stepped by the shared walk in schedule
   order, its registry id follows every unit object's, no statistic block
-  reads it and no right-censoring boundary is recorded for its events
+  reads it, and each of its events is a right-censored boundary for every
+  timed rate fid whose support mask reads the layer, with no statistic
+  column changing at that boundary
 
 ### Requirement: A stepping walk handle supports evaluation and injection
 
