@@ -48,3 +48,17 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   `routine = "random"` is a sound cold start only near a zero starting
   parameter vector, and that `"sim"` or `"mcmc"` should be preferred away
   from it.
+
+## Pool evaluator (Group 4)
+
+* `estimate_dynes()` now scores its pool of augmented sequences on the
+  compiled likelihood engine, one pass per sequence and sub-model, instead of
+  a zero-iteration Newton fit per sequence: about an order of magnitude
+  faster, with the same log-likelihood, score and Fisher information. A
+  pooled sequence keeps its statistics and no longer its data object, and the
+  start state of the window is held once for the whole pool, so a sequence
+  costs memory in proportion to its events, not to the number of actors.
+* New experimental `compute_lik_seq()` returns the joint log-likelihood of one
+  complete sequence under a joint specification, with its score and Fisher
+  information over the free coefficients: the per-sequence quantities
+  `estimate_dynes()` weights, computed through the same evaluation.
