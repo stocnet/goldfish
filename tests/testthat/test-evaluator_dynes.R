@@ -950,8 +950,11 @@ layout_slots <- function(spec, fid) {
 # the pinned friendship rate over the whole window plus the uniform calls
 # choice, -log 5 at each of the five calls events.
 multiwave_fixed_loglik <- function() {
-  c1 <- log(1 / 12)
-  c2 <- log(1 / 6)
+  # The wave snapshots at 0, 2 and 5 hold 0, 2 and 4 friendship ties (the row
+  # stamped at t = 2 belongs to wave 2), so each period pins 2 flips over the
+  # six-actor risk set: 2 / (2 * 6) and 2 / (3 * 6).
+  c1 <- log(1 / 6)
+  c2 <- log(1 / 9)
   # Events at t = 1 (period 1) and t = 2, 3, 4 (period 2); the six-actor risk
   # set is exposed over (1, 2] at c1 and over (2, 5] at c2, the last unit being
   # the interval after the last friendship event that the per-process walk
@@ -985,13 +988,13 @@ test_that("the fixed-only term exposes a pinned rate to the window end", {
   spec <- dynes_multiwave_spec()
   expect_equal(
     spec$completed_rates[["1"]]$intercept,
-    c(log(1 / 12), log(1 / 6))
+    c(log(1 / 6), log(1 / 9))
   )
 
   pool <- multiwave_pool(spec)
 
   # The per-process path stopped the friendship rate at its last event (t = 4)
-  # and scored this term exactly 1 higher: exp(log(1/6)) * 6 actors * (4, 5].
+  # and scored this term exactly 2/3 higher: exp(log(1/9)) * 6 actors * (4, 5].
   expect_equal(
     pool$sequences[[1]]$fixed_loglik,
     multiwave_fixed_loglik(),

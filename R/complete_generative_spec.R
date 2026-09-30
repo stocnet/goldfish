@@ -448,8 +448,8 @@ abort_on_unmodeled_panel_flavor <- function(joint_spec, modeled_panel, call) {
 # called: a PANEL flavor uses the wave-endpoint average of its post-constraint
 # entity count (the common DyNES / snapshot path, served here); a fully observed
 # RELATIONAL flavor uses goldfish's own time-weighted `avg_active_entity`. Both
-# reuse existing estimation machinery (`network_state_at()` materializer +
-# `assemble_model_mask()` + `active_dyad_count()`; the preprocessed intercept
+# reuse existing estimation machinery (the wave diff's `panel_wave_snapshot()`
+# + `assemble_model_mask()` + `active_dyad_count()`; the preprocessed intercept
 # scalars) so a consumer never re-derives the risk set by hand.
 # =========================================================================== #
 
@@ -507,11 +507,12 @@ default_window <- function(data, layer) {
 }
 
 # Per-period (count_w, T_w, |R_w|) for a PANEL-observed flavor over a wave grid.
-# For each of the K+1 boundaries the flavor's layer state is materialized (the
-# estimation-path materializer, strictly-before semantics) and its
-# post-constraint rate entity counted; `|R_w|` is the endpoint average of the
-# two boundaries of period w, `count_w` the net Hamming diff between them (a
-# net-change floor), and `T_w` the boundary gap. `wave_times` is returned for the
+# For each of the K+1 boundaries the flavor's layer state is read at the wave
+# snapshot the wave diff reads (`panel_wave_snapshot()`, inclusive at the wave:
+# a row stamped at a wave belongs to it, so a period and the interval it pins
+# count the same flips) and its post-constraint rate entity counted; `|R_w|` is
+# the endpoint average of the two boundaries of period w, `count_w` the net
+# Hamming diff between them (a net-change floor), and `T_w` the boundary gap. `wave_times` is returned for the
 # pin's half-open period membership (NULL for a single plateau).
 panel_wave_risk_set <- function(
   joint_spec,
@@ -525,12 +526,8 @@ panel_wave_risk_set <- function(
   data <- joint_spec$data
   spec <- spec_of_layer(joint_spec, layer)
   support_kind <- flavor_support_kind(spec, flavor)
-  directed <- isTRUE(unname(data$info$directed[layer]))
-  info <- data$info %||% list()
-  nodes <- as.data.frame(data$nodes)
-  layers <- unique(as.data.frame(data$ties)$layer)
-  lm <- build_mode_map(info, nodes, layers)$layers[[layer]]
-  one_mode <- !isTRUE(lm$is_two_mode)
+  context <- panel_layer_context(data, layer, call = call)
+  one_mode <- context$one_mode
 
   # A layer with NO timed events at all (every row is `time = NA` history) is a
   # degenerate but VALID panel contribution: the fallback window is [0, 1] and
@@ -561,13 +558,13 @@ panel_wave_risk_set <- function(
     )
   }
   # Coerce once so an explicit POSIXct/Date grid (and the already-numeric
-  # fallback above) both land numeric before `network_state_at()` and
+  # fallback above) both land numeric before the snapshots and
   # `diff()` -- `diff()` on POSIXct/Date returns a non-numeric `difftime`
   # (`is.numeric.difftime` is FALSE by R's own definition), which would
   # otherwise fail `pin_intercept_only_rate()`'s numeric guard downstream.
   wave_times <- coerce_time(wave_times)
   states <- lapply(wave_times, function(w) {
-    unname(network_state_at(data, layer, time = w))
+    panel_wave_snapshot(context, w)
   })
   counts <- vapply(
     states,
