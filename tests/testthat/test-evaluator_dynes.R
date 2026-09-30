@@ -1256,3 +1256,281 @@ test_that("flavored fids are scored as on the ordinary flavored path", {
   expect_false(res$degenerate[[1]])
   expect_equal(res$loglik[[1]], loglik, tolerance = 1e-10)
 })
+
+# --- The cpp-backend pool evaluator ------------------------------------------
+
+# Pool evaluation on the compiled engine: one per-sequence loop over
+# make_engine_evaluator(backend = "cpp") closures built at evaluation time over
+# the stored statistics, harvesting the log-likelihood, score and Fisher
+# information behind `what`. Its reference is the zero-iteration adapter (the
+# default backend of evaluate_pool_sequence()) at 1e-10, on the joint
+# single-clock likelihood the adapter scores.
+
+# Every pooled sequence of `pool` through the cpp backend, one at a time.
+cpp_pool_results <- function(
+  pool,
+  theta,
+  what = c("loglik", "score", "fisher")
+) {
+  lapply(pool$sequences, function(s) {
+    evaluate_pool_sequence(pool, s, theta, what = what, backend = "cpp")
+  })
+}
+
+expect_matches_adapter <- function(pool, theta) {
+  adapter <- evaluate_sequence_pool(pool, theta)
+  cpp <- cpp_pool_results(pool, theta)
+  for (i in seq_along(cpp)) {
+    expect_identical(cpp[[i]]$degenerate, adapter$degenerate[[i]])
+    expect_equal(cpp[[i]]$loglik, adapter$loglik[[i]], tolerance = 1e-10)
+    expect_equal(cpp[[i]]$score, adapter$score[i, ], tolerance = 1e-10)
+    expect_equal(cpp[[i]]$fisher, adapter$fisher[[i]], tolerance = 1e-10)
+  }
+}
+
+test_that("the cpp evaluator matches the adapter over a pool of drawn paths", {
+  withr::local_seed(20260930)
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  drawn <- new_multiwave_augmenter()$draw(1L, 1:10, theta)
+  sequences <- lapply(drawn, function(d) {
+    list(data = d$data, reference = new_reference_record(theta, -1, -1))
+  })
+  pool <- build_sequence_pool(
+    decompose_joint_spec(spec),
+    sequences,
+    theta_length = 3L
+  )
+
+  expect_matches_adapter(pool, theta)
+})
+
+test_that("the cpp evaluator places each sub-model at its theta_index", {
+  data("social_evolution", envir = environment())
+  decomposition <- hand_decomposition(
+    social_evolution,
+    rate = ~ 1 + offset(indeg, coef = 0.2) + outdeg,
+    choice = ~ inertia + offset(recip, coef = 0.5) + trans,
+    theta_index = list(rate = 3:4, choice = 1:2)
+  )
+  pool <- build_sequence_pool(
+    decomposition,
+    list(list(
+      data = social_evolution,
+      reference = new_reference_record(numeric(4), -100, -100)
+    )),
+    theta_length = 4L
+  )
+
+  expect_matches_adapter(pool, c(0.4, -0.1, -4, 0.05))
+})
+
+test_that("the cpp evaluator scores flavored fids on their own events", {
+  spec <- dynes_flavored_spec()
+  theta <- c(-3, 0.2, 0.5, -0.3, -2.5, 0.1, 0.4, 0.6)
+  pool <- suppressWarnings(build_sequence_pool(
+    decompose_joint_spec(spec),
+    list(list(
+      data = spec$data,
+      reference = new_reference_record(theta, -1, -1)
+    )),
+    theta_length = length(theta)
+  ))
+
+  expect_matches_adapter(pool, theta)
+})
+
+test_that("the cpp evaluator runs no adapter and builds closures per call", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
+  sequence <- pool$sequences[[1]]
+
+  builds <- list()
+  real_engine <- make_engine_evaluator
+  local_mocked_bindings(
+    estimate_wrapper = function(...) stop("the adapter was called"),
+    make_engine_evaluator = function(..., backend) {
+      builds[[length(builds) + 1L]] <<- backend
+      real_engine(..., backend = backend)
+    }
+  )
+  first <- evaluate_pool_sequence(
+    pool,
+    sequence,
+    c(1, 0.5, -0.2),
+    backend = "cpp"
+  )
+  evaluate_pool_sequence(pool, sequence, c(0, 0, 0), backend = "cpp")
+
+  expect_false(first$degenerate)
+  # No closure is held with the sequence: one build per free fid per call.
+  expect_identical(builds, list("cpp", "cpp"))
+  expect_null(sequence$engine)
+})
+
+test_that("the cpp evaluator harvests only what is requested", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
+  sequence <- pool$sequences[[1]]
+  theta <- c(1, 0.5, -0.2)
+  full <- evaluate_pool_sequence(pool, sequence, theta, backend = "cpp")
+
+  score_only <- evaluate_pool_sequence(
+    pool,
+    sequence,
+    theta,
+    what = "score",
+    backend = "cpp"
+  )
+  expect_named(score_only, c("score", "degenerate"), ignore.order = TRUE)
+  expect_identical(score_only$score, full$score)
+
+  fisher_only <- evaluate_pool_sequence(
+    pool,
+    sequence,
+    theta,
+    what = "fisher",
+    backend = "cpp"
+  )
+  expect_named(fisher_only, c("fisher", "degenerate"), ignore.order = TRUE)
+  expect_identical(fisher_only$fisher, full$fisher)
+
+  loglik_only <- evaluate_pool_sequence(
+    pool,
+    sequence,
+    theta,
+    what = "loglik",
+    backend = "cpp"
+  )
+  expect_named(loglik_only, c("loglik", "degenerate"), ignore.order = TRUE)
+  expect_identical(loglik_only$loglik, full$loglik)
+})
+
+test_that("the cpp evaluator keeps the singular-information guard", {
+  # The compiled closure never inverts the information matrix, but the
+  # evaluator contract marks a singular sequence non-finite, as the adapter
+  # does, so both backends weight it out of the pool.
+  fx <- make_pool_fixture(n_sequences = 1L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
+
+  res <- expect_no_error(
+    evaluate_pool_sequence(
+      pool,
+      pool$sequences[[1]],
+      c(50, 50, 50),
+      what = c("loglik", "score"),
+      backend = "cpp"
+    )
+  )
+  expect_true(res$degenerate)
+  expect_false(is.finite(res$loglik))
+  expect_true(all(is.na(res$score)))
+})
+
+test_that("the cpp evaluator scores a rate's censored tail to the window end", {
+  # The calls rate alone, so the two paths differ only in its likelihood.
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  decomposition <- decompose_joint_spec(spec)
+  calls_rate <- new_pool_decomposition(
+    Filter(function(sm) identical(sm$fid, 3L), decomposition$sub_models),
+    decomposition$engine_spec
+  )
+  # Calls stop at 3.8; the last friendship event closes the window at
+  # `t_end`, leaving the calls rate a censored tail (3.8, t_end].
+  tail_path <- function(t_end) {
+    data <- dynes_multiwave_data("panel")
+    data$ties$time[data$ties$layer == "calls"] <- c(1, 2, 3, 3.5, 3.8)
+    data$ties$time[data$ties$layer == "friendship"] <- c(1, 2, 3, t_end)
+    data
+  }
+  theta <- c(0.3, -1.2, 0.4)
+  scored <- lapply(c(4, 4.6), function(t_end) {
+    pool <- build_sequence_pool(
+      calls_rate,
+      list(multiwave_sequence(tail_path(t_end))),
+      theta_length = 3L
+    )
+    stats <- pool$sequences[[1]]$stats[["3"]]
+    last <- length(stats$event_time)
+    expect_identical(stats$is_dependent[[last]], 0L)
+    expect_equal(stats$intervals[[last]], t_end - 3.8)
+    evaluate_pool_sequence(
+      pool,
+      pool$sequences[[1]],
+      theta,
+      what = "loglik",
+      backend = "cpp"
+    )$loglik
+  })
+
+  # Friendship ties 1->2, 2->3, 3->4 stand over the tail, so three of the six
+  # senders have indeg(friendship) = 1: Λ = e^{b0} (3 e^{b1} + 3), and the
+  # longer tail adds −0.6 Λ to the log-likelihood.
+  b <- theta[layout_slots(spec, 3L)]
+  lambda <- exp(b[[1]]) * (3 * exp(b[[2]]) + 3)
+  expect_equal(scored[[2]] - scored[[1]], -0.6 * lambda, tolerance = 1e-10)
+})
+
+test_that("fixed-only terms are scored on the compiled engine", {
+  # The fixed-only terms carry the same values as before, now computed without
+  # the zero-iteration adapter: estimate_wrapper() is never reached.
+  offset_choice <- estimate_wrapper(
+    x = calls ~ offset(inertia, coef = 0.5),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = fixed_only_data(),
+    control_algo = set_algorithm_newton(max_iterations = 0L, backend = "r"),
+    verbose = FALSE,
+    progress = FALSE
+  )$log_likelihood
+  local_mocked_bindings(
+    estimate_wrapper = function(...) stop("the adapter was called")
+  )
+  fixed_term <- function(decomposition) {
+    fixed_only_pool(decomposition)$sequences[[1]]$fixed_loglik
+  }
+
+  # The two-plateau pinned rate, read off its per-period offset column.
+  c1 <- -1
+  c2 <- -2
+  pinned <- 3 * c1 + 3 * c2 - exp(c1) * 4 * 9 - exp(c2) * 4 * 5
+  expect_equal(fixed_term(fixed_only_with_pinned()), pinned, tolerance = 1e-10)
+  # The completed uniform choice, with no statistic column: −log 3 per event.
+  expect_equal(
+    fixed_term(fixed_only_with_choice(~1)),
+    -6 * log(3),
+    tolerance = 1e-10
+  )
+  # An authored all-offset fid.
+  expect_equal(
+    fixed_term(fixed_only_with_choice(~ offset(inertia, coef = 0.5))),
+    offset_choice,
+    tolerance = 1e-10
+  )
+  # The pinned rate's censored tail to the window end in the joint walk.
+  expect_equal(
+    multiwave_pool()$sequences[[1]]$fixed_loglik,
+    multiwave_fixed_loglik(),
+    tolerance = 1e-10
+  )
+})
+
+test_that("the cpp evaluator gives a fixed-only fid no score or Fisher block", {
+  theta <- c(0.3, -0.2)
+  base <- fixed_only_pool(fixed_only_free_choice())
+  with_pinned <- fixed_only_pool(fixed_only_with_pinned())
+
+  res <- cpp_pool_results(with_pinned, theta)[[1]]
+  ref <- cpp_pool_results(base, theta)[[1]]
+
+  expect_identical(length(res$score), 2L)
+  expect_identical(dim(res$fisher), c(2L, 2L))
+  expect_equal(res$score, ref$score, tolerance = 1e-12)
+  expect_equal(res$fisher, ref$fisher, tolerance = 1e-12)
+  expect_equal(
+    res$loglik - ref$loglik,
+    with_pinned$sequences[[1]]$fixed_loglik,
+    tolerance = 1e-10
+  )
+  expect_matches_adapter(with_pinned, theta)
+})
