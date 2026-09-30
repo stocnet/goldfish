@@ -224,11 +224,14 @@ run_abem_loop <- function(
         call = call
       )$parameters
 
-      loglik_proposal <- evaluate_sequence_pool(
+      # One pass yields all three quantities: the log-likelihood for Lambda,
+      # the score and information for the E-step object and the sandwich.
+      at_proposal <- evaluate_sequence_pool(
         pool,
         proposal,
-        what = "loglik"
-      )$loglik
+        what = c("loglik", "score", "fisher")
+      )
+      loglik_proposal <- at_proposal$loglik
       lambda <- loglik_proposal - run$loglik
       # A zero-weight (degenerate) sequence contributes nothing; its
       # non-finite difference must not turn 0 * Inf into NaN.
@@ -240,7 +243,9 @@ run_abem_loop <- function(
         scheme = scheme,
         resampling_scheme = weights_ctrl$resampling_scheme,
         resample_indices = resample_indices,
-        mcmc = identical(routine, "mcmc")
+        mcmc = identical(routine, "mcmc"),
+        score = at_proposal$score,
+        fisher = at_proposal$fisher
       )
       q <- compute_q(estep)
       ase <- compute_ase(estep)
@@ -276,8 +281,8 @@ run_abem_loop <- function(
 
       se <- if (accepted && isTRUE(control$em_trace_se)) {
         abem_sandwich_se(
-          pool,
-          proposal,
+          estep,
+          at_proposal$degenerate,
           compute_pool_weights(
             loglik_proposal,
             pool_log_proposal(pool_references(pool)),
@@ -414,11 +419,19 @@ abem_trace_tibble <- function(rows) {
   )
 }
 
-# Per-iteration standard errors at `theta`: the square roots of the sandwich
-# I^-1 (sum_i w_i s_i s_i') I^-1 with I = sum_i w_i I_i, over the whole pool.
-# A singular information yields NA rather than stopping the loop.
-abem_sandwich_se <- function(pool, theta, weights) {
-  sqrt(diag(dynes_covariances(pool, theta, weights)$covariance))
+# Per-iteration standard errors at the pass's proposal: the square roots of
+# the sandwich I^-1 (sum_i w_i s_i s_i') I^-1 with I = sum_i w_i I_i, over the
+# whole pool, read off the per-sequence score and information the E-step
+# object carries. A singular information yields NA rather than stopping the
+# loop.
+abem_sandwich_se <- function(estep, degenerate, weights) {
+  covariances <- sandwich_covariances(
+    estep$score,
+    estep$fisher,
+    degenerate,
+    weights
+  )
+  sqrt(diag(covariances$covariance))
 }
 
 warn_pool_capped <- function(requested, max_pool) {

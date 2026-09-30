@@ -107,14 +107,14 @@ test_that("per-sequence entry runs through the injectable map seam", {
   expect_length(pool$sequences, 3L)
 })
 
-# The zero-iteration evaluation adapter: evaluate_sequence_pool() splits the
-# concatenated theta across sub-models, harvests log-likelihood / score / Fisher
-# information from the existing engine at zero optimizer iterations over the
-# stored statistics, and honors `what` at the harvest level. A per-sequence
-# tryCatch guard keeps a singular sequence from aborting the whole pool.
+# Pool evaluation: evaluate_sequence_pool() splits the concatenated theta
+# across sub-models, harvests log-likelihood / score / Fisher information from
+# one compiled pass per sub-model over the stored statistics, and honors `what`
+# at the harvest level. A per-sequence guard keeps a singular sequence from
+# aborting the whole pool.
 
 # Direct zero-iteration engine evaluation of one sub-model, the reference the
-# adapter must reproduce.
+# pool evaluator must reproduce.
 direct_zero_iteration <- function(data, formula, theta, sub_model = "choice") {
   estimate_wrapper(
     x = formula,
@@ -131,7 +131,7 @@ direct_zero_iteration <- function(data, formula, theta, sub_model = "choice") {
   )
 }
 
-test_that("the adapter matches direct zero-iteration engine evaluation", {
+test_that("pool evaluation matches direct zero-iteration engine evaluation", {
   fx <- make_pool_fixture(n_sequences = 1L)
   pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
   theta <- c(1.0, 0.5, -0.2)
@@ -188,7 +188,7 @@ test_that("what is honored at the harvest level", {
   expect_null(score_only$loglik)
 })
 
-test_that("the adapter concatenates sub-model scores by theta_index", {
+test_that("pool evaluation concatenates sub-model scores by theta_index", {
   data("social_evolution", envir = environment())
   # The choice takes slots 1:2 and the rate 3:4, so the concatenation is not
   # simply fid order.
@@ -458,9 +458,9 @@ test_that("a degenerate sequence does not stop the rest of the pool", {
   # Make only the second sequence's engine call singular; the first must still
   # return a finite result and the pool must complete.
   seam_calls <- 0L
-  real_engine <- goldfish:::pool_engine_eval
+  real_engine <- pool_cpp_eval
   local_mocked_bindings(
-    pool_engine_eval = function(...) {
+    pool_cpp_eval = function(...) {
       seam_calls <<- seam_calls + 1L
       if (seam_calls == 2L) {
         stop(
@@ -1266,29 +1266,69 @@ test_that("flavored fids are scored as on the ordinary flavored path", {
 # Pool evaluation on the compiled engine: one per-sequence loop over
 # make_engine_evaluator(backend = "cpp") closures built at evaluation time over
 # the stored statistics, harvesting the log-likelihood, score and Fisher
-# information behind `what`. Its reference is the zero-iteration adapter (the
-# default backend of evaluate_pool_sequence()) at 1e-10, on the joint
-# single-clock likelihood the adapter scores.
+# information behind `what`. Its reference is the retired zero-iteration
+# adapter, kept here as zero_iteration_reference(), at 1e-10 on the joint
+# single-clock likelihood.
 
-# Every pooled sequence of `pool` through the cpp backend, one at a time.
+# Every pooled sequence of `pool` through the compiled engine, one at a time.
 cpp_pool_results <- function(
   pool,
   theta,
   what = c("loglik", "score", "fisher")
 ) {
   lapply(pool$sequences, function(s) {
-    evaluate_pool_sequence(pool, s, theta, what = what, backend = "cpp")
+    evaluate_pool_sequence(pool, s, theta, what = what)
   })
 }
 
-expect_matches_adapter <- function(pool, theta) {
-  adapter <- evaluate_sequence_pool(pool, theta)
+# The retired adapter: each free sub-model through the Newton engine at zero
+# optimizer iterations over the stored statistics, on the sequence's `data`
+# (pool entries no longer hold it), plus the stored fixed-only term.
+zero_iteration_reference <- function(pool, data, theta) {
+  p <- pool$theta_length
+  lapply(seq_along(pool$sequences), function(i) {
+    s <- pool$sequences[[i]]
+    out <- list(loglik = s$fixed_loglik, score = numeric(p))
+    out$fisher <- matrix(0, p, p)
+    for (sm in pool$sub_models) {
+      if (sm$fixed_only) {
+        next
+      }
+      free <- sm$coefficients$free
+      parameters <- numeric(sm$coefficients$n_params)
+      parameters[free] <- theta[sm$theta_index]
+      fit <- estimate_wrapper(
+        x = sm$engine_formula,
+        model = sm$model,
+        sub_model = sm$sub_model,
+        data = data[[i]],
+        preprocessed = fid_stats(s$stats, sm),
+        control_algo = set_algorithm_newton(
+          initial_parameters = parameters,
+          max_iterations = 0L,
+          backend = "r"
+        ),
+        control_prep = pool$control_prep,
+        verbose = FALSE,
+        progress = FALSE
+      )
+      out$loglik <- out$loglik + fit$log_likelihood
+      out$score[sm$theta_index] <- fit$final_score[free]
+      out$fisher[sm$theta_index, sm$theta_index] <-
+        fit$final_information_matrix[free, free]
+    }
+    out
+  })
+}
+
+expect_matches_adapter <- function(pool, theta, data) {
+  reference <- zero_iteration_reference(pool, data, theta)
   cpp <- cpp_pool_results(pool, theta)
   for (i in seq_along(cpp)) {
-    expect_identical(cpp[[i]]$degenerate, adapter$degenerate[[i]])
-    expect_equal(cpp[[i]]$loglik, adapter$loglik[[i]], tolerance = 1e-10)
-    expect_equal(cpp[[i]]$score, adapter$score[i, ], tolerance = 1e-10)
-    expect_equal(cpp[[i]]$fisher, adapter$fisher[[i]], tolerance = 1e-10)
+    expect_false(cpp[[i]]$degenerate)
+    expect_equal(cpp[[i]]$loglik, reference[[i]]$loglik, tolerance = 1e-10)
+    expect_equal(cpp[[i]]$score, reference[[i]]$score, tolerance = 1e-10)
+    expect_equal(cpp[[i]]$fisher, reference[[i]]$fisher, tolerance = 1e-10)
   }
 }
 
@@ -1306,7 +1346,7 @@ test_that("the cpp evaluator matches the adapter over a pool of drawn paths", {
     theta_length = 3L
   )
 
-  expect_matches_adapter(pool, theta)
+  expect_matches_adapter(pool, theta, lapply(drawn, `[[`, "data"))
 })
 
 test_that("the cpp evaluator places each sub-model at its theta_index", {
@@ -1326,7 +1366,7 @@ test_that("the cpp evaluator places each sub-model at its theta_index", {
     theta_length = 4L
   )
 
-  expect_matches_adapter(pool, c(0.4, -0.1, -4, 0.05))
+  expect_matches_adapter(pool, c(0.4, -0.1, -4, 0.05), list(social_evolution))
 })
 
 test_that("the cpp evaluator scores flavored fids on their own events", {
@@ -1341,7 +1381,7 @@ test_that("the cpp evaluator scores flavored fids on their own events", {
     theta_length = length(theta)
   ))
 
-  expect_matches_adapter(pool, theta)
+  expect_matches_adapter(pool, theta, list(spec$data))
 })
 
 test_that("the cpp evaluator runs no adapter and builds closures per call", {
@@ -1358,13 +1398,8 @@ test_that("the cpp evaluator runs no adapter and builds closures per call", {
       real_engine(..., backend = backend)
     }
   )
-  first <- evaluate_pool_sequence(
-    pool,
-    sequence,
-    c(1, 0.5, -0.2),
-    backend = "cpp"
-  )
-  evaluate_pool_sequence(pool, sequence, c(0, 0, 0), backend = "cpp")
+  first <- evaluate_pool_sequence(pool, sequence, c(1, 0.5, -0.2))
+  evaluate_pool_sequence(pool, sequence, c(0, 0, 0))
 
   expect_false(first$degenerate)
   # No closure is held with the sequence: one build per free fid per call.
@@ -1377,14 +1412,13 @@ test_that("the cpp evaluator harvests only what is requested", {
   pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
   sequence <- pool$sequences[[1]]
   theta <- c(1, 0.5, -0.2)
-  full <- evaluate_pool_sequence(pool, sequence, theta, backend = "cpp")
+  full <- evaluate_pool_sequence(pool, sequence, theta)
 
   score_only <- evaluate_pool_sequence(
     pool,
     sequence,
     theta,
-    what = "score",
-    backend = "cpp"
+    what = "score"
   )
   expect_named(score_only, c("score", "degenerate"), ignore.order = TRUE)
   expect_identical(score_only$score, full$score)
@@ -1393,8 +1427,7 @@ test_that("the cpp evaluator harvests only what is requested", {
     pool,
     sequence,
     theta,
-    what = "fisher",
-    backend = "cpp"
+    what = "fisher"
   )
   expect_named(fisher_only, c("fisher", "degenerate"), ignore.order = TRUE)
   expect_identical(fisher_only$fisher, full$fisher)
@@ -1403,8 +1436,7 @@ test_that("the cpp evaluator harvests only what is requested", {
     pool,
     sequence,
     theta,
-    what = "loglik",
-    backend = "cpp"
+    what = "loglik"
   )
   expect_named(loglik_only, c("loglik", "degenerate"), ignore.order = TRUE)
   expect_identical(loglik_only$loglik, full$loglik)
@@ -1422,8 +1454,7 @@ test_that("the cpp evaluator keeps the singular-information guard", {
       pool,
       pool$sequences[[1]],
       c(50, 50, 50),
-      what = c("loglik", "score"),
-      backend = "cpp"
+      what = c("loglik", "score")
     )
   )
   expect_true(res$degenerate)
@@ -1462,8 +1493,7 @@ test_that("the cpp evaluator scores a rate's censored tail to the window end", {
       pool,
       pool$sequences[[1]],
       theta,
-      what = "loglik",
-      backend = "cpp"
+      what = "loglik"
     )$loglik
   })
 
@@ -1536,7 +1566,7 @@ test_that("the cpp evaluator gives a fixed-only fid no score or Fisher block", {
     with_pinned$sequences[[1]]$fixed_loglik,
     tolerance = 1e-10
   )
-  expect_matches_adapter(with_pinned, theta)
+  expect_matches_adapter(with_pinned, theta, list(fixed_only_data()))
 })
 
 # --- Importance weights as wired to the compiled evaluator -------------------
@@ -1582,7 +1612,11 @@ test_that("pool evaluation never reaches the zero-iteration adapter", {
     tolerance = 1e-10
   )
   calls_slots <- layout_slots(spec, 3L)
-  expect_equal(res$score[1, calls_slots], fits$calls$final_score, 1e-10)
+  expect_equal(
+    res$score[1, calls_slots],
+    fits$calls$final_score,
+    tolerance = 1e-10
+  )
   expect_equal(
     res$fisher[[1]][calls_slots, calls_slots],
     fits$calls$final_information_matrix,
@@ -1663,7 +1697,11 @@ test_that("the loop's reference records feed the weights the adapter gives", {
   for (i in 1:2) {
     expect_equal(references[[i]]$theta_ref, theta0)
     expect_equal(references[[i]]$log_proposal, log_proposal[[i]])
-    expect_equal(references[[i]]$loglik_ref, expected_loglik[[i]], 1e-10)
+    expect_equal(
+      references[[i]]$loglik_ref,
+      expected_loglik[[i]],
+      tolerance = 1e-10
+    )
   }
   expect_equal(res$weights, expected_weights, tolerance = 1e-10)
   expect_equal(
@@ -1676,6 +1714,20 @@ test_that("the loop's reference records feed the weights the adapter gives", {
 test_that("the reference record's fixed-only term is computed once, at entry", {
   spec <- dynes_multiwave_spec(indeg_friendship_choice)
   paths <- weights_wired_paths()
+  theta0 <- c(0.3, -1.2, 0.4)
+  theta_new <- c(0.5, -1, 0.2)
+  free_loglik <- function(theta) {
+    vapply(
+      paths,
+      function(d) {
+        fits <- multiwave_free_fits(spec, d, theta)
+        fits$friendship$log_likelihood + fits$calls$log_likelihood
+      },
+      numeric(1)
+    )
+  }
+  free_ref <- free_loglik(theta0)
+  free_new <- free_loglik(theta_new)
   real_fixed <- fixed_only_loglik
   fixed_calls <- 0L
   local_mocked_bindings(
@@ -1688,7 +1740,7 @@ test_that("the reference record's fixed-only term is computed once, at entry", {
   local_scripted_optimizer(function(theta) theta)
 
   res <- run_abem_loop(
-    theta0 = c(0.3, -1.2, 0.4),
+    theta0 = theta0,
     decomposition = decompose_joint_spec(spec),
     augmenter = new_stub_augmenter(paths, log_proposal = c(-4, -6)),
     control = set_algorithm_em(
@@ -1706,18 +1758,6 @@ test_that("the reference record's fixed-only term is computed once, at entry", {
   # Path dependent: the moved event reads the first period's plateau.
   expect_gt(abs(diff(fixed)), 0.1)
   # Carried in the stored log-likelihood at theta_ref ...
-  free_ref <- vapply(
-    seq_along(paths),
-    function(i) {
-      fits <- multiwave_free_fits(
-        spec,
-        paths[[i]],
-        res$pool$sequences[[i]]$reference$theta_ref
-      )
-      fits$friendship$log_likelihood + fits$calls$log_likelihood
-    },
-    numeric(1)
-  )
   loglik_ref <- vapply(
     pool_references(res$pool),
     `[[`,
@@ -1730,18 +1770,12 @@ test_that("the reference record's fixed-only term is computed once, at entry", {
   without_fixed <- compute_pool_weights(free_ref, c(-4, -6))
   expect_gt(max(abs(with_fixed - without_fixed)), 1e-3)
   # ... and cancels in a path's reweight across theta.
-  pool <- res$pool
-  theta_new <- c(0.5, -1, 0.2)
-  lambda <- evaluate_sequence_pool(pool, theta_new, what = "loglik")$loglik -
+  lambda <- evaluate_sequence_pool(
+    res$pool,
+    theta_new,
+    what = "loglik"
+  )$loglik -
     loglik_ref
-  free_new <- vapply(
-    paths,
-    function(d) {
-      fits <- multiwave_free_fits(spec, d, theta_new)
-      fits$friendship$log_likelihood + fits$calls$log_likelihood
-    },
-    numeric(1)
-  )
   expect_equal(lambda, free_new - free_ref, tolerance = 1e-10)
   expect_identical(fixed_calls, 4L)
 })

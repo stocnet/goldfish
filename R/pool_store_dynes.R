@@ -236,8 +236,7 @@ store_evaluation_task <- function(key, generation, theta) {
     evaluate_pool_sequence(
       resident$header,
       resident$entries[[as.character(id)]],
-      theta,
-      call = NULL
+      theta
     )
   }
 }

@@ -491,7 +491,7 @@ test_that("a candidate across a wave boundary is scored per period", {
 })
 
 # End-to-end: the stub augmenter over a small candidate set, the real
-# zero-iteration adapter, and the real SGD M-step. The candidates are three
+# compiled pool evaluator, and the real SGD M-step. The candidates are three
 # orderings of one event stream, drawn in rotation with the uniform proposal
 # density 1/3, so the loop's target is the marginal likelihood
 # log mean_j L_j(theta), whose maximizer is computed directly.

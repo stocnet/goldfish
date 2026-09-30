@@ -50,6 +50,7 @@ reference:
       - starts_with("set")
       - update-method
       - print-method
+      - compute_lik_seq
   - title: "Simulate"
     contents:
       - simulate

@@ -58,12 +58,19 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call) {
 # rank-1 matrix bounded by the M-step's gradient tolerance, not a variance.
 # A singular information yields all-NA matrices rather than an error.
 dynes_covariances <- function(pool, theta, weights) {
-  p <- length(theta)
   res <- evaluate_sequence_pool(pool, theta, what = c("score", "fisher"))
-  keep <- weights > 0 & !res$degenerate
-  scores <- res$score[keep, , drop = FALSE]
+  sandwich_covariances(res$score, res$fisher, res$degenerate, weights)
+}
+
+# The two estimators above from per-sequence scores (K x p), information
+# matrices (a list of K) and degeneracy flags already evaluated at one theta.
+# A degenerate or zero-weight sequence contributes nothing.
+sandwich_covariances <- function(score, fisher, degenerate, weights) {
+  p <- ncol(score)
+  keep <- weights > 0 & !degenerate
+  scores <- score[keep, , drop = FALSE]
   w <- weights[keep]
-  information <- Reduce(`+`, Map(`*`, res$fisher[keep], w))
+  information <- Reduce(`+`, Map(`*`, fisher[keep], w))
   meat <- crossprod(scores * sqrt(w))
   centered <- sweep(scores, 2L, colSums(scores * w))
   mc_meat <- crossprod(centered * w)

@@ -193,9 +193,10 @@ residual_resample <- function(weights, size = length(weights)) {
   as.integer(indices)
 }
 
-# The classed E-step object. evaluate_sequence_pool() (the pool evaluator)
-# returns one of these; the ABMCEM loop consumes only compute_q()/compute_ase(),
-# so it is written once, scheme-agnostically, and adding a weighting scheme
+# The classed E-step object, built by the ABMCEM loop from the per-sequence
+# quantities evaluate_sequence_pool() returns (the evaluator itself stays
+# scheme-agnostic). The loop consumes only compute_q()/compute_ase(), so it is
+# written once, scheme-agnostically, and adding a weighting scheme
 # means adding methods, not editing the loop. Three schemes, three subclasses
 # sharing the `goldfishDynesEstep` parent:
 #   * "importance" -> goldfishEstepIS         (default; no resampling)
@@ -210,6 +211,11 @@ residual_resample <- function(weights, size = length(weights)) {
 # deterministically testable). When `mcmc = TRUE` a lag-1 autocorrelation index
 # of the Lambda series is recorded for the trace (the ASE treats retained draws
 # as independent given the thinning; a high index earns a raise-thinning hint).
+# `score` (a K x p matrix) and `fisher` (a list of K p x p matrices) are the
+# per-sequence complete-data score and information at the parameters Lambda
+# was evaluated at. Q and its ASE do not read them, but the sandwich covariance
+# does -- its meat sums the per-sequence score outer products and its bread the
+# per-sequence information -- and neither can be recovered from Lambda.
 new_dynes_estep <- function(
   lambda,
   weights = NULL,
@@ -217,6 +223,8 @@ new_dynes_estep <- function(
   resampling_scheme = c("stratified", "residual", "random"),
   resample_indices = NULL,
   mcmc = FALSE,
+  score = NULL,
+  fisher = NULL,
   call = rlang::caller_env()
 ) {
   scheme <- rlang::arg_match(scheme)
@@ -234,10 +242,13 @@ new_dynes_estep <- function(
       )
     }
   }
+  check_estep_derivatives(score, fisher, k, call = call)
   estep <- list(
     lambda = lambda,
     pool_size = k,
     weights = weights,
+    score = score,
+    fisher = fisher,
     autocorrelation = if (isTRUE(mcmc)) {
       lag1_autocorrelation(lambda)
     } else {
@@ -259,6 +270,47 @@ new_dynes_estep <- function(
     estep$resampling_scheme <- resampling_scheme
   }
   structure(estep, class = c(subclass, "goldfishDynesEstep"))
+}
+
+# The per-sequence score and information, when supplied, must cover the `k`
+# pooled sequences on one parameter dimension.
+check_estep_derivatives <- function(score, fisher, k, call) {
+  if (is.null(score) && is.null(fisher)) {
+    return(invisible())
+  }
+  if (!is.matrix(score) || nrow(score) != k) {
+    cli::cli_abort(
+      "{.arg score} must be a matrix with one row per pooled sequence
+       ({.val {k}}).",
+      call = call
+    )
+  }
+  if (!is.list(fisher) || length(fisher) != k) {
+    cli::cli_abort(
+      "{.arg fisher} must be a list with one matrix per pooled sequence
+       ({.val {k}}).",
+      call = call
+    )
+  }
+  p <- ncol(score)
+  square <- vapply(
+    fisher,
+    function(f) is.matrix(f) && identical(dim(f), c(p, p)),
+    logical(1)
+  )
+  if (!all(square)) {
+    bad <- which(!square)
+    cli::cli_abort(
+      c(
+        "Each {.arg fisher} matrix must be {p} x {p}, matching the columns of
+         {.arg score}.",
+        "x" = "{cli::qty(length(bad))}Sequence{?s} {?does/do} not match:
+               {.val {bad}}."
+      ),
+      call = call
+    )
+  }
+  invisible()
 }
 
 # Lag-1 autocorrelation of a scalar series in draw order -- the MCMC mixing

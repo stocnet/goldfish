@@ -1,13 +1,14 @@
-# The prototype-path pool evaluator behind the ABMCEM loop's evaluator contract
-# (driven by estimate_dynes()). A pool is a set of endpoint-hitting sequences;
-# each is preprocessed once, on pool entry, by one merged single-clock walk
-# over the whole joint specification, and its per-fid statistics are stored so
-# that re-evaluation at any parameter vector reuses them without
-# re-preprocessing. This file owns the pool structure and the entry path; the
-# zero-iteration evaluation adapter that reads the stored statistics is defined
-# alongside it, beside the compiled-engine path that reproduces it
-# (evaluate_pool_sequence(backend = "cpp")). Fixed-only terms are always
-# scored on the compiled engine.
+# The pool evaluator behind the ABMCEM loop's evaluator contract (driven by
+# estimate_dynes()). A pool is a set of endpoint-hitting sequences; each is
+# preprocessed once, on pool entry, by one merged single-clock walk over the
+# whole joint specification, and its per-fid statistics are stored so that
+# re-evaluation at any parameter vector reuses them without re-preprocessing.
+# This file owns the pool structure, the entry path, and the evaluation: one
+# compiled-engine pass per free sub-model over the stored statistics, with no
+# optimizer iteration. The proposal evaluator an MCMC chain reads and
+# compute_lik_seq() score a single sequence through the same unit, so the
+# importance weights, the acceptance ratio and the user-facing likelihood
+# target one density.
 #
 # The target is the joint single-clock likelihood: a process's own events are
 # dependent events for its fids, while every other modeled process's events --
@@ -20,8 +21,8 @@
 # sub-model parameters, and every pooled sequence carries one goldfishStat per
 # fid, keyed by fid. A sub-model descriptor is pool-level (shared across
 # sequences, since only the drawn event stream differs from one sequence to the
-# next); the statistics, the data object, and the reference record are per
-# sequence.
+# next); the statistics and the reference record are per sequence. The drawn
+# data object is not kept once its statistics are: nothing evaluates it again.
 
 # A pool-level sub-model descriptor: the formula/model/sub_model the existing
 # engine preprocesses and evaluates, plus `theta_index`, the positions this
@@ -357,7 +358,7 @@ fid_stats <- function(stats, sm) {
 
 # Build a sequence pool: preprocess each sequence once, on entry, through the
 # injectable per-sequence map seam (serial lapply by default), and store the
-# statistics, the data object, and the reference record with the sequence.
+# statistics and the reference record with the sequence.
 #
 # * `decomposition`: a new_pool_decomposition() -- the sub-model descriptors,
 #   shared across sequences, and the pool engine spec each sequence is walked
@@ -546,16 +547,25 @@ pool_entry_task <- function(sub_models, engine_spec, control_prep, layout) {
         call = NULL
       )
     }
-    fixed <- pool_fixed_loglik(sub_models, stats)
-    entry <- list(
-      data = seq_i$data,
-      stats = stats,
-      fixed_loglik = fixed$loglik,
-      fixed_degenerate = fixed$degenerate,
-      reference = seq_i$reference
-    )
+    entry <- new_pool_entry(sub_models, stats)
+    entry$reference <- seq_i$reference
     share_start_state(list(entry), start_state)[[1L]]
   }
+}
+
+# A pooled sequence's evaluable part: its per-fid statistics and the θ-free
+# term its fixed-only sub-models contribute, scored here, once. `NULL`
+# statistics (a walk that failed) make a degenerate entry.
+new_pool_entry <- function(sub_models, stats) {
+  if (is.null(stats)) {
+    return(list(stats = NULL, fixed_loglik = -Inf, fixed_degenerate = TRUE))
+  }
+  fixed <- pool_fixed_loglik(sub_models, stats)
+  list(
+    stats = stats,
+    fixed_loglik = fixed$loglik,
+    fixed_degenerate = fixed$degenerate
+  )
 }
 
 # The fields of a fid's statistics that the window's start state and the
@@ -616,54 +626,6 @@ same_start_field <- function(x, y) {
 # (theta_ref, loglik_ref, log_proposal) triples the E-step weighting reads.
 pool_references <- function(pool) {
   lapply(pool$sequences, function(s) s$reference)
-}
-
-# One zero-iteration engine evaluation of a single sub-model over its stored
-# statistics: run the existing Newton engine for zero optimizer iterations at
-# `theta_block` (the sub-model's slice of the concatenated theta over its free
-# effects), harvesting the log-likelihood, score, and Fisher information the
-# engine computes at that vector. The stored statistics are reused through
-# `preprocessed`, so no re-preprocessing happens. `theta_block` covers only the
-# free coefficients, while the engine takes one value per coefficient: it is
-# placed at the sub-model's free positions (see with_coefficient_masks()), and
-# the engine overwrites the fixed positions with the formula's fixed values.
-# The score and Fisher information are harvested at the free positions only.
-#
-# The engine inverts the information matrix unconditionally and stop()s on a
-# singular one (even for a likelihood-only request), so a singular sequence
-# surfaces here as an error; the per-sequence caller turns that into a
-# non-finite result rather than aborting the pool.
-pool_engine_eval <- function(
-  sub_model,
-  data,
-  stats,
-  theta_block,
-  control_prep = set_preprocessing(),
-  call = rlang::caller_env()
-) {
-  free <- sub_model$coefficients$free
-  parameters <- numeric(sub_model$coefficients$n_params)
-  parameters[free] <- theta_block
-  fit <- estimate_wrapper(
-    x = sub_model$engine_formula,
-    model = sub_model$model,
-    sub_model = sub_model$sub_model,
-    data = data,
-    preprocessed = stats,
-    control_algo = set_algorithm_newton(
-      initial_parameters = parameters,
-      max_iterations = 0L,
-      backend = "r"
-    ),
-    control_prep = control_prep,
-    verbose = FALSE,
-    progress = FALSE
-  )
-  list(
-    loglik = fit$log_likelihood,
-    score = fit$final_score[free],
-    fisher = fit$final_information_matrix[free, free, drop = FALSE]
-  )
 }
 
 # Attach to every sub-model the layout of its engine coefficient vector
@@ -756,14 +718,14 @@ pool_engine_pass <- function(sub_model, stats, parameters) {
   engine$evaluate(parameters, need_scores = FALSE)
 }
 
-# The compiled-engine counterpart of pool_engine_eval(): the log-likelihood,
-# and the score and Fisher information at the free positions, of one free
-# sub-model at `theta_block`. The kernel returns all three on every pass, so
-# no quantity is cheaper to skip here. It never inverts the information
-# matrix, but the evaluator contract marks a sequence whose free block is
-# singular at theta non-finite, exactly as the engine's inversion does on the
-# adapter path, so the check is made here; the block is p x p with p the
-# sub-model's free count, so it costs nothing next to the pass.
+# The log-likelihood, and the score and Fisher information at the free
+# positions, of one free sub-model at `theta_block`: one compiled pass, with no
+# optimizer iteration. The kernel returns all three on every pass, so no
+# quantity is cheaper to skip here. It never inverts the information matrix,
+# but the evaluator contract marks a sequence whose free block is singular at
+# theta non-finite (as the estimator's own inversion would), so the check is
+# made here; the block is p x p with p the sub-model's free count, so it costs
+# nothing next to the pass.
 pool_cpp_eval <- function(sub_model, stats, theta_block) {
   res <- pool_engine_pass(
     sub_model,
@@ -776,7 +738,7 @@ pool_cpp_eval <- function(sub_model, stats, theta_block) {
   if (!is.finite(res$logLikelihood) || anyNA(score) || anyNA(fisher)) {
     cli::cli_abort("The engine could not evaluate the sub-model at theta.")
   }
-  # Errors on a singular block, as the adapter's inversion does.
+  # Errors on a singular block.
   solve(fisher)
   list(loglik = res$logLikelihood, score = score, fisher = fisher)
 }
@@ -897,23 +859,18 @@ pinned_rate_compensator <- function(rate, start, end, exposure, call) {
 # its result is non-finite (-Inf log-likelihood, so its importance weight
 # vanishes), which the caller reports without aborting the pool.
 #
-# `backend` picks the engine each free sub-model is scored on: "r", the
-# zero-iteration adapter through estimate_wrapper(), or "cpp", one compiled
-# pass per sub-model over a closure built at evaluation time
-# (pool_cpp_eval()). The two agree to rounding error, and the compiled pass is
-# an order of magnitude faster. `what` is honored at the harvest level: every
-# pass computes all three quantities, and only the requested ones (plus
-# `degenerate`) are returned.
+# Each free sub-model is one compiled pass over a closure built at evaluation
+# time (pool_cpp_eval()). `what` is honored at the harvest level: every pass
+# computes all three quantities, and only the requested ones (plus
+# `degenerate`) are returned. `pool` needs only the masked `sub_models` and
+# `theta_length`, so a single candidate is evaluated through the same code.
 evaluate_pool_sequence <- function(
   pool,
   sequence,
   theta,
-  what = c("loglik", "score", "fisher"),
-  backend = c("r", "cpp"),
-  call = rlang::caller_env()
+  what = c("loglik", "score", "fisher")
 ) {
   what <- rlang::arg_match(what, multiple = TRUE)
-  backend <- rlang::arg_match(backend)
   sub_models <- pool$sub_models
   p <- pool$theta_length
   # The fixed-only sub-models' θ-free term, stored at pool entry.
@@ -930,22 +887,7 @@ evaluate_pool_sequence <- function(
       next
     }
     harvest <- tryCatch(
-      if (backend == "cpp") {
-        pool_cpp_eval(
-          sm,
-          fid_stats(sequence$stats, sm),
-          theta[sm$theta_index]
-        )
-      } else {
-        pool_engine_eval(
-          sm,
-          sequence$data,
-          fid_stats(sequence$stats, sm),
-          theta[sm$theta_index],
-          control_prep = pool$control_prep,
-          call = call
-        )
-      },
+      pool_cpp_eval(sm, fid_stats(sequence$stats, sm), theta[sm$theta_index]),
       error = function(e) NULL
     )
     if (is.null(harvest)) {
@@ -967,10 +909,10 @@ evaluate_pool_sequence <- function(
   c(harvest[what], list(degenerate = degenerate))
 }
 
-# The evaluator contract's v1 implementation: evaluate every pooled sequence at
-# the concatenated `theta` and return the requested quantities per sequence.
-# `what` is honored at the harvest level -- the engine computes what it does,
-# and only the requested quantities are returned, so a batched evaluator can
+# The evaluator contract: evaluate every pooled sequence at the concatenated
+# `theta` and return the requested quantities per sequence. `what` is honored
+# at the harvest level -- the engine computes what it does, and only the
+# requested quantities are returned, so a loglik- or score-only kernel can
 # later optimize the harvest without changing any call site. Per-sequence
 # granularity is contract: the score is returned per sequence (a K x p matrix,
 # never a pooled total) because the covariance estimators need the per-sequence
@@ -1032,9 +974,9 @@ evaluate_sequence_pool <- function(
 # The returned closure answers by NAME, not position -- `list(loglik, rates)`
 # -- so a later fast-follow that reuses a retained MCMC draw's statistics can
 # widen it to `list(loglik, rates, stats_handle)` without breaking a caller
-# that reads `$loglik`/`$rates`. No reuse logic ships here: a singular
-# candidate reads as `-Inf`, mirroring the pool evaluator's singular-information
-# guard in evaluate_pool_sequence().
+# that reads `$loglik`/`$rates`. No reuse logic ships here: a candidate whose
+# walk fails or whose free block is singular reads as `-Inf`, the pool
+# evaluator's degenerate sequence (evaluate_candidate()).
 #
 # `rate_queries` asks for named-pair intensities at positions inside the
 # candidate -- what a proposal's reverse density is drawn at. Answering it
@@ -1063,14 +1005,12 @@ make_proposal_evaluator <- function(
       call = call
     )
   }
-  sub_models <- decomposition$sub_models
-  engine_spec <- decomposition$engine_spec
   if (!is.numeric(theta)) {
     cli::cli_abort("{.arg theta} must be a numeric vector.", call = call)
   }
   theta_by_fid <- NULL
   if (!is.null(spec)) {
-    assert_theta_layout(spec, sub_models, call = call)
+    assert_theta_layout(spec, decomposition$sub_models, call = call)
     theta_by_fid <- flat_to_fid_theta(spec, theta, call = call)
   }
 
@@ -1097,41 +1037,168 @@ make_proposal_evaluator <- function(
     if (!isTRUE(loglik)) {
       return(list(loglik = NA_real_, rates = rates))
     }
-    candidate_models <- with_coefficient_masks(
-      sub_models,
+    harvest <- evaluate_candidate(
+      decomposition,
       candidate_seq,
+      theta,
+      what = "loglik",
+      control_prep = control_prep,
       call = call
     )
-    # A candidate that does not fit the engine spec's actors aborts here,
-    # outside the loglik guard, so it is never read as a -Inf density.
-    bind_candidate_data(engine_spec, candidate_seq, call = call)
-    harvest <- tryCatch(
-      {
-        stats <- preprocess_pool_sequence(
-          engine_spec,
-          candidate_seq,
-          control_prep = control_prep,
-          call = call
-        )
-        loglik <- pool_fixed_loglik(candidate_models, stats)$loglik
-        for (sm in candidate_models) {
-          if (sm$fixed_only) {
-            next
-          }
-          loglik <- loglik +
-            pool_engine_eval(
-              sm,
-              candidate_seq,
-              fid_stats(stats, sm),
-              theta[sm$theta_index],
-              control_prep = control_prep,
-              call = call
-            )$loglik
-        }
-        loglik
-      },
-      error = function(e) -Inf
-    )
-    list(loglik = harvest, rates = rates)
+    list(loglik = harvest$loglik, rates = rates)
   }
+}
+
+# One sequence outside any pool, scored exactly as a pooled one: walked once
+# (the entry path's walk), its fixed-only term scored, then one pass of
+# evaluate_pool_sequence(). A walk that fails, a fixed-only term the engine
+# cannot score and a singular free block all make the result degenerate
+# (-Inf log-likelihood) rather than an error. A candidate that does not fit
+# the engine spec's actors aborts first, outside that guard, so it is never
+# read as a -Inf density.
+evaluate_candidate <- function(
+  decomposition,
+  data,
+  theta,
+  what = c("loglik", "score", "fisher"),
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  engine_spec <- decomposition$engine_spec
+  sub_models <- with_coefficient_masks(
+    decomposition$sub_models,
+    data,
+    call = call
+  )
+  bind_candidate_data(engine_spec, data, call = call)
+  stats <- tryCatch(
+    preprocess_pool_sequence(
+      engine_spec,
+      data,
+      control_prep = control_prep,
+      call = call
+    ),
+    error = function(e) NULL
+  )
+  evaluate_pool_sequence(
+    list(sub_models = sub_models, theta_length = length(theta)),
+    new_pool_entry(sub_models, stats),
+    theta,
+    what = what
+  )
+}
+
+#' Log-likelihood of one complete sequence under a joint specification
+#'
+#' @description
+#' `r lifecycle::badge("experimental")`
+#'
+#' `compute_lik_seq()` scores one complete event sequence -- every modeled
+#' process observed in continuous time, such as a sequence augmented between
+#' panel waves -- under a joint specification at the parameters `theta`. It
+#' returns the joint single-clock log-likelihood with its score and Fisher
+#' information over the free coefficients: the per-sequence quantities that
+#' DyNES estimation weights over its pool of augmented sequences, computed
+#' through the same evaluation.
+#'
+#' @details
+#' The specification is completed for joint estimation first. A specification
+#' that is already completed, such as the one a DyNES fit holds, is used
+#' unchanged, so its pinned rates keep the plateaus they were pinned on.
+#' Completed defaults (a pinned intercept-only rate, a uniform choice) and
+#' `offset()` effects have no free coefficient: they add their log-likelihood
+#' but no score or Fisher information.
+#'
+#' A sequence whose likelihood cannot be evaluated at `theta` -- its
+#' preprocessing fails, or the Fisher information of a sub-model is singular
+#' there -- is reported as `degenerate`, with a log-likelihood of `-Inf` and
+#' missing score and information, rather than as an error.
+#'
+#' @param sequence The complete sequence: a data object of the specification's
+#'   actors and layers, whose modeled layers hold every event of the sequence.
+#' @param theta The free coefficients, a numeric vector in the order of the
+#'   free rows of [coef_layout()]. A named vector is matched to the composite
+#'   labels `"<process>: <effect>"` instead.
+#' @inheritParams estimate_dynes
+#'
+#' @return A list with the log-likelihood `loglik`, the named `score` vector,
+#'   the Fisher information `fisher` (a matrix named like the score), and the
+#'   `degenerate` flag.
+#' @seealso [coef_layout()], [make_joint_specification()]
+#' @export
+compute_lik_seq <- function(
+  spec,
+  sequence,
+  theta,
+  control_prep = set_preprocessing()
+) {
+  lifecycle::signal_stage("experimental", "compute_lik_seq()")
+  call <- rlang::current_env()
+  if (!inherits(spec, "goldfishJointSpec")) {
+    cli::cli_abort(
+      c(
+        "{.arg spec} must be a {.cls goldfishJointSpec}.",
+        "i" = "Build one with {.fn make_joint_specification}."
+      ),
+      call = call
+    )
+  }
+  # Completing twice is not a no-op: a second pass re-pins every completed
+  # rate on the default single window, dropping the plateaus it was pinned on.
+  completed <- if ("completed" %in% names(spec$process_map)) {
+    spec
+  } else {
+    complete_generative_spec(spec, consumer = "estimate_dynes")
+  }
+  layout <- coef_layout(completed)
+  labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
+  theta <- check_sequence_theta(theta, labels, call = call)
+
+  res <- evaluate_candidate(
+    decompose_joint_spec(completed, call = call),
+    sequence,
+    theta,
+    control_prep = control_prep,
+    call = call
+  )
+  names(res$score) <- labels
+  dimnames(res$fisher) <- list(labels, labels)
+  res
+}
+
+# `theta` as the flat free vector in coef_layout() order: one value per free
+# coefficient, matched by label when named.
+check_sequence_theta <- function(theta, labels, call) {
+  n <- length(labels)
+  if (!is.numeric(theta) || anyNA(theta)) {
+    cli::cli_abort(
+      "{.arg theta} must be a numeric vector without missing values.",
+      call = call
+    )
+  }
+  if (length(theta) != n) {
+    cli::cli_abort(
+      c(
+        "{.arg theta} must have one value per free coefficient.",
+        "x" = "The specification has {n} free coefficient{?s};
+               {.arg theta} has {length(theta)} value{?s}."
+      ),
+      call = call
+    )
+  }
+  if (is.null(names(theta))) {
+    return(unname(theta))
+  }
+  unknown <- setdiff(names(theta), labels)
+  if (length(unknown) > 0L || anyDuplicated(names(theta))) {
+    cli::cli_abort(
+      c(
+        "A named {.arg theta} must name each free coefficient once.",
+        "x" = "Not a free coefficient: {.val {unknown}}.",
+        "i" = "The free coefficients are {.val {labels}}."
+      ),
+      call = call
+    )
+  }
+  unname(theta[labels])
 }
