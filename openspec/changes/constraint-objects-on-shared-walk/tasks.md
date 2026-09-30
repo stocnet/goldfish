@@ -262,7 +262,7 @@
       — *done 2026-09-29, the `0835fb3` run*: 9440 / 0 / 5, six baseline
       files PASS, every reference family PASS; `document()` changed nothing
       (the signatures are `@noRd`).
-- [ ] 4.4a Cost guard for live masks, recorded failing first (added
+- [x] 4.4a Cost guard for live masks, recorded failing first (added
       2026-09-29): on the 2.0 generated fixture, a constrained choice and a
       constrained rate plus choice allocate no `n1 x n2` object per event
       in the mask fold (total allocation bounded by a small multiple of the
@@ -270,12 +270,17 @@
       after the walk. Measure first whether today's post-walk realization
       breaks the bound; if it does not, the guard is the no-post-walk
       realization count alone, and `progress.md` says so.
-- [ ] 4.4 Live masks in the batch walk, references first (D9, added
+      — *done 2026-09-29 (goldfish-ce), `168f22a`* (guard = no post-walk
+      realization or fold call; committed skipped), *unskipped 2026-09-30
+      in `532471a`* with the retired functions asserted absent.
+- [x] 4.4 Live masks in the batch walk, references first (D9, added
       2026-09-27; `process-simulation` 2.11b waits for this group, so a
       constrained choice's exposure is a plain running sum): capture folded `active_sender` / `active_dyad` streams and
       mask streams for every constrained reference family (rate, choice,
       rate plus choice, REM, flavored derived masks, coordination) with the
       post-walk realization still authoritative.
+      — *done 2026-09-29 (goldfish-ce), `8e36702`* (joint and flavored
+      families per fid; ticked 2026-09-30).
 - [x] 4.5 `run_merged_walk()` builds live masks with the handle's
       construction (one builder shared by both, not a copy), collects atom
       moves per object event under D3's strictly-before rule, and folds each
@@ -331,7 +336,7 @@
       that snapshot (accepted, its file re-run 52 / 0); six baseline files
       PASS; other `_snaps/` md5 unchanged. The 4.4a
       guard passes unskipped (kept skipped until 4.6 as written).
-- [ ] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
+- [x] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
       (`fold_active_sender_support()`, `fold_active_dyad_support()`,
       `build_active_dyad_point()` as post-walk steps); settle the open
       question on where the observed-dyad check runs, and snapshot it.
@@ -353,6 +358,26 @@
       — *note 2026-09-29*: the atom recorder's log (`record_*`, made linear
       by 2.3c) exists only for the replay retired here; it goes with it,
       the batch walk keeping only per-event moves as the handle does
+      — *answered 2026-09-30 (Alvaro)*: the deferred path keeps a verdict
+      on the output that estimation raises (an object without one asks to
+      be preprocessed again); the choice's candidate warning reads its
+      sender's row per dependent event (linear, accepted)
+      — *done 2026-09-30 (goldfish-ce), guard `8021b82`, code `532471a`*:
+      check in the walk off the effect (rate O(1); choice one row); the
+      whole-sequence warnings from crossings the effect follows;
+      `validate_support_constraint()` raises a verdict (snapshots
+      unchanged); exposure = the effect's running sum, asserted
+      `identical()` to `risk_set_exposure()` over the whole suite, then the
+      loop deleted. Retired: the post-walk validation and its readers,
+      `mask_cursor()`, `mask_flips()`, the stale-mask refusal,
+      `realize_pending_masks()`, the replay; the batch record already held
+      only pending moves (compacted at each flush). The pooled realization
+      and `flip_reader()` moved to test helpers (oracle). Guard red +16.7 KB
+      / +3.18 MB, green -0.45 KB / +17.7 KB; rate bound tightened to 1 KB
+      when a per-event recount slipped under 4 KB. 4.4a guard unskipped.
+      Suite 9513 / 0 / 5, six baseline files PASS, `_snaps/` unchanged but
+      the deleted `support_mask_sparse.md`. Budget constrained alloc 44270
+      MB (recorded 44910; inside the band).
 - [ ] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
       three warm runs) for a constrained choice and a constrained rate plus
       choice, before 4.5 and after 4.6. Include the in-walk observed-event
