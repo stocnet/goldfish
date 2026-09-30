@@ -203,28 +203,6 @@ abort_without_modeled_panel <- function(spec, call = rlang::caller_env()) {
   )
 }
 
-# The augmenter the control selects, built once over the compiled recipe. The
-# augment_seq_*() augmenters land with the sequence-augmentation work; until
-# then no routine has one, and estimate_dynes() stays unexported so no user can
-# reach this abort.
-resolve_dynes_augmenter <- function(
-  spec,
-  recipe,
-  control,
-  call = rlang::caller_env()
-) {
-  cli::cli_abort(
-    c(
-      "No augmenter is available for {.arg routine} =
-       {.val {control$augmenter$routine}} yet.",
-      "i" = "The sequence augmenters are not part of this version of
-             {.pkg goldfish}."
-    ),
-    class = "goldfish_dynes_no_augmenter",
-    call = call
-  )
-}
-
 # The pool decomposition of a completed joint specification: one sub-model per
 # fid in process_map order, and the pool engine spec every pooled sequence is
 # walked through. Each sub-model numbers its free coefficients from
