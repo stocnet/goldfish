@@ -6,7 +6,8 @@
 #
 # metric     what is measured
 # alloc_mb   megabytes allocated by one preprocessing walk
-# size_mb    megabytes held by the preprocessed object
+# size_mb    megabytes held by the preprocessed object, by lobstr::obj_size(),
+#            which counts an object shared by two sub-models once
 # time_ratio constrained over unconstrained median seconds, same session
 # seconds    median seconds of a warm walk; checked only where
 #            GOLDFISH_WALK_COST_SECONDS=true, since it is one machine's number
@@ -14,18 +15,23 @@
 # The test fails when a measurement exceeds recorded * limit. For time_ratio
 # the limit is the ceiling itself and recorded is what was observed.
 #
+# For alloc_mb and size_mb it also fails BELOW recorded * (2 - limit): the
+# walk became cheaper and the recorded value has to come down with it, so
+# the gain cannot be given back unnoticed. Time has no floor; it is noisy.
+#
 # RAISING A VALUE NEEDS THE MAINTAINER'S APPROVAL. A failure here means the
 # walk now costs more; the first response is to find what made it so, not to
 # move the number. When the extra cost is accepted, the commit that raises
 # the value says what it buys. Lowering a value after an improvement locks
 # the gain in and needs no approval.
 #
-# Recorded 2026-09-29 with tests/testthat/_budgets/record-walk-cost.R.
+# Recorded 2026-09-29 with tests/testthat/_budgets/record-walk-cost.R;
+# size_mb re-recorded 2026-09-30 on the move to lobstr::obj_size().
 metric,cell,recorded,limit
 alloc_mb,unconstrained,43660,1.05
 alloc_mb,constrained,44910,1.05
-size_mb,unconstrained,84.01,1.02
-size_mb,constrained,125.5,1.02
+size_mb,unconstrained,84.03,1.02
+size_mb,constrained,111.7,1.02
 time_ratio,constrained_over_unconstrained,1.0,1.5
 seconds,unconstrained,2.95,1.5
 seconds,constrained,3.23,1.5

@@ -84,9 +84,21 @@ measure_walk_cost <- function(specs, n_timed = 7L) {
     suppressWarnings(suppressMessages(preprocess_joint(spec)))
   }
 
+  # `lobstr::obj_size()` counts an object two sub-models share once, as the
+  # session holds it. `utils::object.size()` counts it per reference, which
+  # put the support mask shared by the rate and the choice in the total twice.
+  #
+  # It also follows the environments the object's formulas carry, up to `env`.
+  # Stopping at the environment these helpers are defined in keeps the
+  # measurement to the object: without it the total takes in whatever that
+  # environment holds, 72 MB of other fixtures under `devtools::test()` and
+  # nothing under a plain `source()`.
+  helpers_env <- parent.env(environment())
   size_mb <- vapply(
     specs,
-    function(spec) as.numeric(utils::object.size(walk(spec))) / 2^20,
+    function(spec) {
+      as.numeric(lobstr::obj_size(walk(spec), env = helpers_env)) / 2^20
+    },
     numeric(1)
   )
   seconds <- matrix(
@@ -130,7 +142,7 @@ walk_cost_budget <- function(
   utils::read.csv(path, comment.char = "#", stringsAsFactors = FALSE)
 }
 
-walk_cost_ceiling <- function(budget, metric, cell) {
+walk_cost_row <- function(budget, metric, cell) {
   row <- budget[budget$metric == metric & budget$cell == cell, ]
   if (nrow(row) != 1L) {
     cli::cli_abort(
@@ -138,5 +150,19 @@ walk_cost_ceiling <- function(budget, metric, cell) {
        {.val {cell}}, found {nrow(row)}."
     )
   }
+  row
+}
+
+walk_cost_ceiling <- function(budget, metric, cell) {
+  row <- walk_cost_row(budget, metric, cell)
   if (metric == "time_ratio") row$limit else row$recorded * row$limit
+}
+
+# The mirror of the ceiling: a limit of 1.05 allows 5 percent above the
+# recorded value and 5 percent below it. A measurement under the floor means
+# the walk became cheaper and the recorded value was not lowered with it, so
+# the budget would let that gain be given back unnoticed.
+walk_cost_floor <- function(budget, metric, cell) {
+  row <- walk_cost_row(budget, metric, cell)
+  row$recorded * (2 - row$limit)
 }

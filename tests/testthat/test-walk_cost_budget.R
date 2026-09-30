@@ -5,6 +5,7 @@
 test_that("the preprocessing walk stays within its recorded cost budget", {
   skip_on_cran()
   skip_if_not_installed("bench")
+  skip_if_not_installed("lobstr")
 
   budget <- walk_cost_budget()
   measured <- measure_walk_cost(walk_cost_specs())
@@ -15,6 +16,13 @@ test_that("the preprocessing walk stays within its recorded cost budget", {
       expect_lte(
         measured[[metric]][[i]],
         walk_cost_ceiling(budget, metric, cells[[i]]),
+        label = paste(metric, "of the", cells[[i]], "walk")
+      )
+      # Allocation and size repeat exactly run to run, so a value under the
+      # floor is an improvement the budget has not been lowered to keep.
+      expect_gte(
+        measured[[metric]][[i]],
+        walk_cost_floor(budget, metric, cells[[i]]),
         label = paste(metric, "of the", cells[[i]], "walk")
       )
     }
