@@ -155,7 +155,10 @@ test_that("every flip is a one-step chain on its own dyad", {
 
 test_that("an incomplete wave snapshot aborts before diffing", {
   local_cli_context()
-  data <- wave_panel_data(wave_rows(c(3L, 4L), c(4L, 5L), 5, c(1, NA)))
+  # add_flavor() refuses a missing value, so the gap is set after flavoring,
+  # as an unobserved dyad at wave 5.
+  data <- wave_panel_data(wave_rows(c(3L, 4L), c(4L, 5L), 5, 1))
+  data$ties$weight[data$ties$from == 4L & data$ties$to == 5L] <- NA
 
   expect_snapshot(
     diff_panel_waves(data, "friendship", wave_times = c(0, 5, 10)),
@@ -171,7 +174,7 @@ test_that("a state outside the flavor mapping aborts", {
   local_cli_context()
   # Two creations on one dyad accumulate a state of 2, which no dichotomous
   # creation/dissolution flavor reaches.
-  data <- wave_panel_data(wave_rows(3L, 4L, c(2, 4), 1))
+  data <- suppressWarnings(wave_panel_data(wave_rows(3L, 4L, c(2, 4), 1)))
 
   expect_snapshot(
     diff_panel_waves(data, "friendship", wave_times = c(0, 5, 10)),
