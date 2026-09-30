@@ -261,10 +261,11 @@ test_that("a singular sequence yields a non-finite result, not a pool abort", {
   expect_false(any(is.finite(res$loglik)))
 })
 
-# The v1 attachment-optional conformance pin: the pool-entry path always takes
-# the from-scratch preprocess, whether or not a precomputed attachment is
-# supplied -- a supplied one is stored but never consulted, so the pin is that
-# its presence changes nothing observable.
+# The attachment-optional conformance pin: the pool-entry path takes the
+# from-scratch preprocess unless a precomputed attachment is supplied AND is
+# consistent with the pool (same reference theta, same layout tag); an
+# inconsistent one is never consulted, so its presence changes nothing
+# observable. Adoption of a consistent one is pinned in test-pool_entry_dynes.R.
 # make_proposal_evaluator() is the other half of the same seam: its return is
 # a NAMED list, pinned by name rather than position, so a later widen from
 # `(loglik, rates)` to add a stats handle cannot break a caller that reads it
@@ -278,7 +279,7 @@ test_that("pool entry succeeds with no attachment and takes the from-scratch pat
   expect_s3_class(pool$sequences[[1]]$stats[["1"]], "goldfishStat")
 })
 
-test_that("a supplied attachment is ignored -- byte-identical to no attachment", {
+test_that("an inconsistent attachment is ignored -- identical to none", {
   fx <- make_pool_fixture(n_sequences = 2L)
   baseline <- build_sequence_pool(
     fx$decomposition,
@@ -286,14 +287,17 @@ test_that("a supplied attachment is ignored -- byte-identical to no attachment",
     theta_length = 3L
   )
 
-  # Deliberately bogus attachment content: if the pool-entry path ever
-  # consulted it instead of preprocessing from scratch, the stored statistics
-  # would differ from the baseline built with no attachment at all.
+  # Deliberately bogus attachment content under a layout tag no pool has: if
+  # the pool-entry path ever consulted it instead of preprocessing from
+  # scratch, the stored statistics would differ from the baseline built with
+  # no attachment at all.
   attached_sequences <- Map(
     function(seq_i, i) {
       seq_i$attachment <- new_pool_attachment(
         stats = list("bogus"),
-        loglik_ref = -999 - i
+        loglik_ref = -999 - i,
+        theta_ref = seq_i$reference$theta_ref,
+        layout = "bogus"
       )
       seq_i
     },
