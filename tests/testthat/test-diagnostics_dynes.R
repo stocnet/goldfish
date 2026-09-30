@@ -138,22 +138,52 @@ test_that("ESS-collapse recommendation is scoped to importance-weighted routines
 test_that("restart-coupling warning fires exactly once per run", {
   local_reproducible_output()
   state <- new_run_warning_state()
+  constraint <- "friendship: ~tie(friendship) | recip(friendship)"
   # The first restart at any iteration/draw warns, naming the coupled constraint.
   expect_snapshot(
-    first <- warn_restart_coupling_once(state, restarted = TRUE)
+    first <- warn_restart_coupling_once(
+      state,
+      restarted = TRUE,
+      routine = "sim",
+      constraint = constraint
+    )
   )
   expect_true(first)
   # Every later restart in the same run is deduplicated to silence.
   expect_no_warning(
-    second <- warn_restart_coupling_once(state, restarted = TRUE)
+    second <- warn_restart_coupling_once(
+      state,
+      restarted = TRUE,
+      routine = "sim",
+      constraint = constraint
+    )
   )
   expect_false(second)
+})
+
+test_that("a random augmenter's redraws emit no restart warning", {
+  # random's legality normalizer is a theta-free constant that cancels in the
+  # normalized weights, so its redraws carry no plug-in bias to warn about.
+  state <- new_run_warning_state()
+  expect_no_warning(
+    fired <- warn_restart_coupling_once(
+      state,
+      restarted = TRUE,
+      routine = "random",
+      constraint = "friendship: ~outdeg(friendship) < 1"
+    )
+  )
+  expect_false(fired)
 })
 
 test_that("a coupling-free run emits no restart warning", {
   state <- new_run_warning_state()
   expect_no_warning(
-    fired <- warn_restart_coupling_once(state, restarted = FALSE)
+    fired <- warn_restart_coupling_once(
+      state,
+      restarted = FALSE,
+      routine = "sim"
+    )
   )
   expect_false(fired)
 })

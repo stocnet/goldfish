@@ -127,12 +127,11 @@ local_scripted_optimizer <- function(step_fn, env = parent.frame()) {
 
 # A loop control over the analytic fixtures: small pools, the defaults
 # otherwise.
-analytic_em_control <- function(...) {
-  set_algorithm_em(
-    n_sequences = 4L,
-    augmenter = set_augmenter_options(routine = "random"),
-    ...
-  )
+analytic_em_control <- function(
+  ...,
+  augmenter = set_augmenter_options(routine = "random")
+) {
+  set_algorithm_em(n_sequences = 4L, augmenter = augmenter, ...)
 }
 
 # The analytic evaluator reads no decomposition; this stands in for one.

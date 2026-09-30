@@ -416,6 +416,33 @@ test_that("a restart-coupled draw warns once per run", {
   local_analytic_evaluator()
   local_scripted_optimizer(function(theta) theta + 1)
 
+  augmenter <- new_stub_augmenter(list(100), restarted = TRUE)
+  augmenter$coupling <- "friendship: ~tie(friendship) | recip(friendship)"
+  warnings <- character()
+  withCallingHandlers(
+    run_abem_loop(
+      theta0 = 0,
+      decomposition = analytic_decomposition(),
+      augmenter = augmenter,
+      control = analytic_em_control(
+        max_iterations = 3L,
+        augmenter = set_augmenter_options(routine = "sim")
+      )
+    ),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  restart <- grepl("reject and\\s+restart", warnings)
+  expect_identical(sum(restart), 1L)
+  expect_match(warnings[restart], "recip(friendship)", fixed = TRUE)
+})
+
+test_that("a random augmenter's redraws never warn in the loop", {
+  local_analytic_evaluator()
+  local_scripted_optimizer(function(theta) theta + 1)
+
   warnings <- character()
   withCallingHandlers(
     run_abem_loop(
@@ -429,7 +456,7 @@ test_that("a restart-coupled draw warns once per run", {
       invokeRestart("muffleWarning")
     }
   )
-  expect_identical(sum(grepl("reject and\\s+restart", warnings)), 1L)
+  expect_false(any(grepl("reject and\\s+restart", warnings)))
 })
 
 # The closure the loop injects scores fixed-only fids too: their θ-free term is
