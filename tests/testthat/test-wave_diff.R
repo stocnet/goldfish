@@ -407,3 +407,135 @@ test_that("a pinned period's risk set is read at the inclusive snapshots", {
   # Senders holding a tie: {1, 2} at 0, {2, 3, 4} at 5, {3, 4, 5} at 10.
   expect_identical(rs$risk_set_size, c(2.5, 3))
 })
+
+# --- Count panels -------------------------------------------------------------
+
+# An unflavored count panel (calls, the cumulative number of calls per dyad as
+# of each wave) beside an observed emails stream, on four actors, with waves 5
+# and 10 after the observation start 0. `rows` are the timed calls rows (from,
+# to, time, weight); `history` the counts before the observation start.
+count_panel_data <- function(rows, history = NULL, update = "increment") {
+  calls <- rbind(history, rows)
+  list(
+    info = list(
+      name = "toy",
+      focal = "emails",
+      update = c(calls = update, emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "panel", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      cbind(calls, layer = "calls"),
+      data.frame(from = 1L, to = 3L, time = 2, weight = 1, layer = "emails")
+    )
+  )
+}
+
+test_that("a count wave difference yields a multiset of unflavored events", {
+  # 3 calls on (1, 2) by the first wave and 7 by the second: four
+  # indistinguishable calls in the second interval.
+  data <- count_panel_data(wave_rows(1L, 2L, c(5, 10), c(3, 4)))
+
+  diff <- diff_panel_waves(data, "calls", wave_times = c(0, 5, 10))
+
+  expect_identical(diff$kind, "count")
+  expect_null(diff$transitions)
+  second <- diff$flips[diff$flips$interval == 2L, , drop = FALSE]
+  expect_identical(nrow(second), 4L)
+  expect_identical(unique(second$from), 1L)
+  expect_identical(unique(second$to), 2L)
+  expect_true(all(is.na(second$flavor)))
+  # One chain per dyad and interval, as long as the count difference; its
+  # steps run the cumulative count up from the entering to the leaving wave.
+  expect_identical(length(unique(second$chain)), 1L)
+  expect_identical(second$step, 1:4)
+  expect_identical(second$from_value, c(3, 4, 5, 6))
+  expect_identical(second$to_value, c(4, 5, 6, 7))
+  expect_identical(diff$counts, c(3L, 4L))
+})
+
+test_that("a replace-encoded count panel diffs to the same multiset", {
+  increment <- count_panel_data(wave_rows(c(1L, 2L), c(2L, 3L), 5, c(3, 2)))
+  replace <- count_panel_data(
+    wave_rows(c(1L, 2L), c(2L, 3L), 5, c(3, 2)),
+    update = "replace"
+  )
+
+  a <- diff_panel_waves(increment, "calls", wave_times = c(0, 5, 10))
+  b <- diff_panel_waves(replace, "calls", wave_times = c(0, 5, 10))
+
+  expect_identical(a$flips, b$flips)
+  expect_identical(a$counts, c(5L, 0L))
+})
+
+test_that("a count panel's first interval starts from its initial counts", {
+  # With no history the entering counts are zero; the calls stamped at the
+  # first wave are events of the first modeled interval, not history.
+  no_history <- count_panel_data(wave_rows(1L, 2L, 5, 2))
+  diff <- diff_panel_waves(no_history, "calls", wave_times = c(0, 5, 10))
+  expect_identical(sum(diff$snapshots[[1L]]), 0)
+  expect_identical(diff$counts, c(2L, 0L))
+
+  # History counts are the initial condition and are never diffed.
+  with_history <- count_panel_data(
+    wave_rows(1L, 2L, 5, 2),
+    history = wave_rows(1L, 2L, NA_real_, 6)
+  )
+  diff <- diff_panel_waves(with_history, "calls", wave_times = c(0, 5, 10))
+  expect_identical(unname(diff$snapshots[[1L]][1, 2]), 6)
+  expect_identical(diff$counts, c(2L, 0L))
+  expect_identical(diff$flips$from_value, c(6, 7))
+})
+
+test_that("a decreasing count aborts as a data error", {
+  local_cli_context()
+  data <- count_panel_data(
+    wave_rows(1L, 2L, c(5, 10), c(3, 4)),
+    update = "replace"
+  )
+  data$ties$weight[data$ties$layer == "calls" & data$ties$time == 10] <- 1
+
+  expect_snapshot(
+    diff_panel_waves(data, "calls", wave_times = c(0, 5, 10)),
+    error = TRUE
+  )
+  expect_error(
+    diff_panel_waves(data, "calls", wave_times = c(0, 5, 10)),
+    class = "goldfish_decreasing_count_panel"
+  )
+})
+
+test_that("a count panel's snapshots must hold whole non-negative counts", {
+  data <- count_panel_data(wave_rows(1L, 2L, 5, 2.5))
+
+  expect_error(
+    diff_panel_waves(data, "calls", wave_times = c(0, 5, 10)),
+    class = "goldfish_invalid_wave_state"
+  )
+})
+
+test_that("a count sequence of unit calls inside the intervals hits the waves", {
+  diff <- diff_panel_waves(
+    count_panel_data(wave_rows(c(1L, 2L), c(2L, 3L), c(5, 10), c(2, 1))),
+    "calls",
+    wave_times = c(0, 5, 10)
+  )
+  augmented <- count_panel_data(
+    wave_rows(c(1L, 1L, 2L), c(2L, 2L, 3L), c(1, 4.5, 7), 1)
+  )
+  expect_no_error(validate_endpoint_hitting(augmented, diff))
+
+  # An extra call on (1, 2) overshoots the second wave's count.
+  overshoot <- count_panel_data(
+    wave_rows(c(1L, 1L, 2L, 1L), c(2L, 2L, 3L, 2L), c(1, 4.5, 7, 8), 1)
+  )
+  expect_error(
+    validate_endpoint_hitting(overshoot, diff),
+    class = "goldfish_endpoint_violation"
+  )
+})
