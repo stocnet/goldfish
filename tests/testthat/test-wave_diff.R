@@ -277,3 +277,133 @@ test_that("a sequence missing a flip does not reach the next wave", {
     class = "goldfish_endpoint_violation"
   )
 })
+# --- Shared wave snapshot ---------------------------------------------------
+
+# The task-1.4 toy shape on a flavored state panel: the observation start 0,
+# waves 5 and 10, and every friendship change stamped at the wave that first
+# records it. friendship is modeled choice-only for both flavors, so a timed
+# completion pins each flavor's rate from the wave snapshots; calls carries the
+# authored rate that makes the joint specification timed.
+toy_wave_data <- function() {
+  friendship <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 1L, 5L, 2L),
+    to = c(2L, 3L, 4L, 5L, 2L, 6L, 3L),
+    time = c(NA, NA, 5, 5, 5, 10, 10),
+    weight = c(1, 1, 1, 1, -1, 1, -1),
+    layer = "friendship"
+  )
+  calls <- data.frame(
+    from = c(1L, 2L, 3L, 6L),
+    to = c(3L, 4L, 5L, 1L),
+    time = c(1, 3, 6, 8),
+    weight = 1,
+    layer = "calls"
+  )
+  add_flavor(
+    list(
+      info = list(
+        name = "toy",
+        focal = "calls",
+        update = c(friendship = "increment", calls = "increment"),
+        directed = c(friendship = TRUE, calls = TRUE),
+        observation = c(friendship = "panel", calls = "event")
+      ),
+      nodes = data.frame(
+        label = paste0("N", 1:6),
+        mode = "p",
+        stringsAsFactors = FALSE
+      ),
+      ties = rbind(friendship, calls)
+    ),
+    layer = "friendship",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+}
+
+toy_wave_spec <- function() {
+  data <- toy_wave_data()
+  make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg, dissolution ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# A flavor's flips per interval in the wave diff.
+diff_counts <- function(diff, flavor) {
+  tabulate(
+    diff$flips$interval[diff$flips$flavor == flavor],
+    nbins = length(diff$counts)
+  )
+}
+
+test_that("the pin's per-period counts are the wave diff's per-interval counts", {
+  js <- toy_wave_spec()
+  waves <- c(0, 5, 10)
+  diff <- diff_panel_waves(js$data, "friendship", wave_times = waves)
+
+  for (flavor in c("creation", "dissolution")) {
+    rs <- panel_wave_risk_set(
+      js,
+      layer = "friendship",
+      flavor = flavor,
+      entity = "sender",
+      wave_times = waves
+    )
+    expect_identical(rs$count, as.numeric(diff_counts(diff, flavor)))
+  }
+  expect_identical(diff_counts(diff, "creation"), c(2L, 1L))
+})
+
+test_that("a row stamped at the first wave is pinned in the first period", {
+  completed <- suppressWarnings(
+    complete_generative_spec(toy_wave_spec(), wave_times = c(0, 5, 10))
+  )
+  map <- completed$process_map
+  pinned <- map$fid[map$layer == "friendship" & map$family == "rate"]
+  expect_length(pinned, 2L)
+  diff <- diff_panel_waves(completed$data, "friendship", c(0, 5, 10))
+
+  for (fid in pinned) {
+    rate <- completed$completed_rates[[as.character(fid)]]
+    flavor <- map$flavor[map$fid == fid]
+    # A finite first plateau, not the zero-hazard pin of an empty period.
+    expect_true(all(is.finite(rate$intercept)))
+    rs <- panel_wave_risk_set(
+      completed,
+      layer = "friendship",
+      flavor = flavor,
+      entity = "sender",
+      wave_times = c(0, 5, 10)
+    )
+    expect_equal(
+      exp(rate$intercept) * rs$duration * rs$risk_set_size,
+      as.numeric(diff_counts(diff, flavor))
+    )
+  }
+})
+
+test_that("a pinned period's risk set is read at the inclusive snapshots", {
+  js <- toy_wave_spec()
+  rs <- panel_wave_risk_set(
+    js,
+    layer = "friendship",
+    flavor = "dissolution",
+    entity = "sender",
+    wave_times = c(0, 5, 10)
+  )
+  # Senders holding a tie: {1, 2} at 0, {2, 3, 4} at 5, {3, 4, 5} at 10.
+  expect_identical(rs$risk_set_size, c(2.5, 3))
+})
