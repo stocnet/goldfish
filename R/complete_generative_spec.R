@@ -620,16 +620,18 @@ endpoint_entity_count <- function(state, entity, support_kind, one_mode) {
 
 # The net Hamming diff between two wave states, restricted to the flavor's
 # direction: creation counts 0 -> 1 cells, dissolution 1 -> 0, an unconstrained
-# flavor every changed (non-self-loop) cell.
+# flavor every changed (non-self-loop) cell by the size of its change. On a
+# dichotomous layer that is one per changed cell; on a count panel it is the
+# count's rise, the number of events the wave diff places on the dyad.
 hamming_count <- function(prev, curr, support_kind, one_mode) {
   diff_cells <- switch(
     support_kind,
-    none = prev != curr,
+    none = abs(curr - prev),
     creation = (prev == 0) & (curr == 1),
     dissolution = (prev == 1) & (curr == 0)
   )
   if (one_mode) {
-    diag(diff_cells) <- FALSE
+    diag(diff_cells) <- 0
   }
   sum(diff_cells)
 }
