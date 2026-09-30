@@ -125,15 +125,33 @@ recommend_mcmc_on_ess_collapse <- function(
 # dedup so exactly one warning fires per estimation run (the first restart at any
 # iteration or draw), naming the coupled constraint and its plug-in-normalizer
 # bias -- never one warning per iteration or per draw. A coupling-free run (no
-# restart ever fires) emits none.
-warn_restart_coupling_once <- function(state, restarted) {
-  if (!isTRUE(restarted) || isTRUE(state$restart_coupling_warned)) {
+# restart ever fires) emits none, and neither does `random`: its redraws are
+# normalized by a theta-free constant that cancels in the normalized weights,
+# so they carry no plug-in bias.
+warn_restart_coupling_once <- function(
+  state,
+  restarted,
+  routine = "sim",
+  constraint = NULL
+) {
+  if (
+    !identical(routine, "sim") ||
+      !isTRUE(restarted) ||
+      isTRUE(state$restart_coupling_warned)
+  ) {
     return(invisible(FALSE))
   }
   state$restart_coupling_warned <- TRUE
+  coupled <- if (length(constraint) > 0L) {
+    c(
+      "i" = "Coupled support {cli::qty(length(constraint))}
+             constraint{?s}: {.val {constraint}}."
+    )
+  }
   cli::cli_warn(c(
     "!" = "A coupled constraint forced the {.val sim} augmenter to reject and
            restart at least one interval during this run.",
+    coupled,
     "i" = "Restart-conditioning normalizes the proposal density by an estimated
            completion probability, a plug-in normalizer that biases the
            importance weights.",

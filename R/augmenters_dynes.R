@@ -36,7 +36,7 @@
 # work; until a routine has one, estimate_dynes() stays unexported so no user
 # can reach resolve_dynes_augmenter()'s abort.
 dynes_augmenter_constructors <- function() {
-  list(random = augment_seq_random)
+  list(random = augment_seq_random, sim = augment_seq_sim)
 }
 
 # The augmenter the control selects, built once over the compiled recipe.
@@ -73,12 +73,15 @@ resolve_dynes_augmenter <- function(
 
 # Assemble and check an augmenter. `draw` is required; `init` and
 # `diagnostics` are optional and left out of the object when NULL, so the
-# loop's `is.function()` probes read their absence.
+# loop's `is.function()` probes read their absence. `coupling` labels the
+# support constraints a restart can come from, which the loop's coupling
+# warning names.
 new_dynes_augmenter <- function(
   draw,
   routine,
   init = NULL,
   diagnostics = NULL,
+  coupling = character(0),
   call = rlang::caller_env()
 ) {
   check_augmenter_function(draw, "draw", c("iteration", "draw_index", "theta"))
@@ -91,6 +94,7 @@ new_dynes_augmenter <- function(
   augmenter <- list(draw = draw, init = init, diagnostics = diagnostics)
   augmenter <- augmenter[!vapply(augmenter, is.null, logical(1))]
   augmenter$routine <- routine
+  augmenter$coupling <- coupling
   structure(augmenter, class = "goldfishAugmenter")
 }
 

@@ -178,18 +178,10 @@ random_legal_pilot <- function(plan, checker, seed, call) {
 # are never reached. The walk is opened on the candidate itself because its
 # clock starts at the first scheduled time, which a drawn event may precede.
 new_legality_checker <- function(context) {
-  specs <- context$spec$specifications
-  constrained <- Filter(function(spec) !is.null(spec$support_constraint), specs)
-  if (length(constrained) == 0L) {
+  constraint <- support_constraint_labels(context$spec)
+  if (length(constraint) == 0L) {
     return(NULL)
   }
-  constraint <- vapply(
-    constrained,
-    function(spec) {
-      paste0(spec$focal, ": ", deparse1(spec$support_constraint))
-    },
-    character(1)
-  )
   recipe <- context$recipe
   waves <- recipe$wave_times
   placeholder <- legality_placeholder_times(recipe)
@@ -233,6 +225,20 @@ new_legality_checker <- function(context) {
     TRUE
   }
   list(legal = legal, constraint = constraint)
+}
+
+# The user support constraints of a joint specification, labeled by the layer
+# they constrain, as the restart abort and the coupling warning name them.
+support_constraint_labels <- function(spec) {
+  constrained <- Filter(
+    function(spec) !is.null(spec$support_constraint),
+    spec$specifications
+  )
+  vapply(
+    constrained,
+    function(spec) paste0(spec$focal, ": ", deparse1(spec$support_constraint)),
+    character(1)
+  )
 }
 
 # Distinct in-interval times for every recipe event, in step order per chain,

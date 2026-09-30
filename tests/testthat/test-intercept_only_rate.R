@@ -1198,7 +1198,14 @@ warnings_of_class <- function(seen, class) {
   vapply(hits, `[[`, character(1), "message")
 }
 
-entry_control <- function() {
+# The entry tests stop estimate_dynes() right after its entry warnings, at the
+# missing-augmenter abort entry_warnings() catches; with the sim augmenter
+# registered, the calling test's registry is emptied to keep that stop.
+entry_control <- function(env = parent.frame()) {
+  local_mocked_bindings(
+    dynes_augmenter_constructors = function() list(),
+    .env = env
+  )
   set_algorithm_em(augmenter = set_augmenter_options(routine = "sim"))
 }
 

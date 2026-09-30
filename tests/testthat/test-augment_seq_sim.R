@@ -49,7 +49,7 @@ log_trunc_exp <- function(wait, rate, width) {
   log(rate) - rate * wait - log(-expm1(-rate * width))
 }
 
-# --- Fixtures ------------------------------------------------------------------
+# --- Fixtures -----------------------------------------------------------------
 
 # A count panel `calls` (one rise 1 -> 2 by wave 5, observation start 0) whose
 # rate reads the outdegree of an unmodeled `visits` layer, beside a modeled
@@ -177,18 +177,18 @@ pinned_spec <- function(data = pinned_data()) {
 # that places the dissolution first strands the creation, so the first
 # interval completes only when the creation is selected first: with the pinned
 # plateaus e^-3 (creation) and e^log(1/5) (dissolution) that is
-# 0.05 / (0.05 + 0.2) = 0.2. Calls at 2 and 7 are observed relational events.
-coupled_data <- function(initial_tie = TRUE) {
+# 0.05 / (0.05 + 0.2) = 0.2. N1 dissolves 1 -> 2 by wave 10, which nothing
+# couples. Calls at 2 and 7 are observed relational events. With `holder` 3
+# the initial tie is 3 -> 1 instead, so 2 -> 1 never stands and no draw of the
+# first interval completes.
+coupled_data <- function(holder = 2L) {
   friendship <- data.frame(
-    from = c(2L, 2L, 1L, 3L),
-    to = c(1L, 1L, 2L, 4L),
+    from = c(holder, holder, 1L, 1L),
+    to = c(1L, 1L, 2L, 2L),
     time = c(NA, 5, 5, 10),
-    weight = c(1, -1, 1, 1),
+    weight = c(1, -1, 1, -1),
     layer = "friendship"
   )
-  if (!initial_tie) {
-    friendship <- friendship[-c(1L, 2L), , drop = FALSE]
-  }
   calls <- data.frame(
     from = c(3L, 4L),
     to = c(4L, 1L),
@@ -284,7 +284,7 @@ test_that("the draws run as supplied steps on the simulation driver", {
   expect_null(steps$evaluate)
 })
 
-# --- Endpoint hitting ----------------------------------------------------------
+# --- Endpoint hitting ---------------------------------------------------------
 
 test_that("every draw hits every wave with times strictly inside", {
   built <- sim_augmenter(coupled_spec(coupled = FALSE))
@@ -299,7 +299,7 @@ test_that("every draw hits every wave with times strictly inside", {
   }
 })
 
-# --- Proposal density ----------------------------------------------------------
+# --- Proposal density ---------------------------------------------------------
 
 test_that("a breakpoint-free interval draws one truncated exponential", {
   # The visit falls after the last wave, so the calls rate is e^theta1 over
@@ -385,7 +385,7 @@ test_that("a relational-event selection enters the density", {
   }
 })
 
-test_that("the proposal normalizes over the observed flips, the target over the support", {
+test_that("the proposal normalizes over observed flips, the target over all", {
   # N1's inertia choice is uniform over N2 and N3, both structurally
   # supported, but only 1 -> 2 is an observed flip. The proposal places the
   # receiver with probability 1 (no receiver term in the density); the
@@ -407,19 +407,14 @@ test_that("the proposal normalizes over the observed flips, the target over the 
   expect_false(isTRUE(all.equal(full / observed, 1)))
 })
 
-# --- Pinned-fid time pin ---------------------------------------------------------
+# --- Pinned-fid time pin ------------------------------------------------------
 
 test_that("a pinned rate's waiting times use the period's plateau, not theta", {
   built <- sim_augmenter(pinned_spec())
   pin <- built$spec$completed_rates
-  creation <- pin[[as.character(
-    built$spec$process_map$fid[
-      built$spec$process_map$flavor %in%
-        "creation" &
-        built$spec$process_map$family == "rate"
-    ]
-  )]]
-  plateau <- exp(creation$intercept)
+  map <- built$spec$process_map
+  rate_fid <- map$fid[map$family == "rate" & map$layer == "friendship"]
+  plateau <- exp(pin[[as.character(rate_fid)]]$intercept)
   # The two periods pin different plateaus, so reading the wrong one shows.
   expect_false(isTRUE(all.equal(plateau[[1L]], plateau[[2L]])))
 
@@ -459,7 +454,7 @@ test_that("a pinned rate's waiting times use the period's plateau, not theta", {
   )
 })
 
-# --- Reject-and-restart ------------------------------------------------------------
+# --- Reject-and-restart -------------------------------------------------------
 
 test_that("a coupling-free specification never restarts", {
   built <- sim_augmenter(coupled_spec(coupled = FALSE))
@@ -481,7 +476,7 @@ test_that("a stranded draw restarts and its density is restart-normalized", {
     # Every delivered draw is support-legal: the creation precedes the
     # dissolution that would disable it.
     rows <- layer_rows(draw, "friendship")
-    create <- rows$time[rows$from == 1L & rows$to == 2L]
+    create <- rows$time[rows$from == 1L & rows$to == 2L & rows$time < 5]
     dissolve <- rows$time[rows$from == 2L & rows$to == 1L & rows$time > 0]
     expect_lt(create, dissolve)
 
@@ -512,7 +507,7 @@ test_that("an interval no draw can complete aborts at the ceiling", {
   local_cli_context()
   local_mocked_bindings(restart_ceiling = function() 5L)
   # 2 -> 1 never stands, so N1's creation of 1 -> 2 never has support.
-  built <- sim_augmenter(coupled_spec(coupled_data(initial_tie = FALSE)))
+  built <- sim_augmenter(coupled_spec(coupled_data(holder = 3L)))
   expect_snapshot(
     draw_sim(built, 1L, c(0.2, 0.2, -1, 0.5)),
     error = TRUE

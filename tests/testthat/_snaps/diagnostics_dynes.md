@@ -21,10 +21,12 @@
 # restart-coupling warning fires exactly once per run
 
     Code
-      first <- warn_restart_coupling_once(state, restarted = TRUE)
+      first <- warn_restart_coupling_once(state, restarted = TRUE, routine = "sim",
+        constraint = constraint)
     Condition
       Warning:
       ! A coupled constraint forced the "sim" augmenter to reject and restart at least one interval during this run.
+      i Coupled support constraint: "friendship: ~tie(friendship) | recip(friendship)".
       i Restart-conditioning normalizes the proposal density by an estimated completion probability, a plug-in normalizer that biases the importance weights.
       i Consider `augment_seq_mcmc()`, or loosening the coupled constraint, if the coupling is severe.
 

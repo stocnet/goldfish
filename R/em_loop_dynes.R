@@ -93,7 +93,9 @@ run_abem_loop <- function(
     drawn <- augmenter$draw(iteration, draw_index, theta)
     warn_restart_coupling_once(
       run_state,
-      any(vapply(drawn, function(d) isTRUE(d$restarted), logical(1)))
+      any(vapply(drawn, function(d) isTRUE(d$restarted), logical(1))),
+      routine = routine,
+      constraint = augmenter$coupling
     )
     entries <- lapply(drawn, abem_pool_entry, theta = theta, call = call)
     fresh <- replace || is.null(run$pool)
