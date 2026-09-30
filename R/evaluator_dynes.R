@@ -5,7 +5,9 @@
 # that re-evaluation at any parameter vector reuses them without
 # re-preprocessing. This file owns the pool structure and the entry path; the
 # zero-iteration evaluation adapter that reads the stored statistics is defined
-# alongside it.
+# alongside it, beside the compiled-engine path that reproduces it
+# (evaluate_pool_sequence(backend = "cpp")). Fixed-only terms are always
+# scored on the compiled engine.
 #
 # The target is the joint single-clock likelihood: a process's own events are
 # dependent events for its fids, while every other modeled process's events --
@@ -483,13 +485,7 @@ pool_entry_task <- function(sub_models, engine_spec, control_prep) {
       control_prep = control_prep,
       call = NULL
     )
-    fixed <- pool_fixed_loglik(
-      sub_models,
-      seq_i$data,
-      stats,
-      control_prep = control_prep,
-      call = NULL
-    )
+    fixed <- pool_fixed_loglik(sub_models, stats)
     list(
       data = seq_i$data,
       stats = stats,
@@ -555,21 +551,21 @@ pool_engine_eval <- function(
   )
 }
 
-# Attach to every free sub-model the layout of its engine coefficient vector
-# ([intercept?, effects..., interactions...]): its length and the positions the
-# formula leaves free. The fixed positions come from the same
-# assemble_fixed_parameters() the estimator reads (offset() terms, operand-only
-# interaction columns), and the intercept follows the estimator's rule that a
-# timed rate always carries one and no other sub-model does. A `theta_index`
-# whose length differs from the free count would put theta at the wrong
-# coefficients, so it aborts here rather than surfacing as a degenerate
-# sequence.
+# Attach to every sub-model the layout of its engine coefficient vector
+# ([intercept?, effects..., interactions...]): its length, the positions the
+# formula leaves free, and the fixed positions with their values. The fixed
+# positions come from the same assemble_fixed_parameters() the estimator reads
+# (offset() terms, operand-only interaction columns), and the intercept follows
+# the estimator's rule that a timed rate always carries one and no other
+# sub-model does. The compiled engine takes the whole vector as given, so the
+# fixed values must be placed by the caller. A `theta_index` whose length
+# differs from the free count would put theta at the wrong coefficients, so it
+# aborts here rather than surfacing as a degenerate sequence. A fixed-only
+# sub-model claims no slot and is not checked: a pinned rate leaves its
+# intercept free in the engine formula and sets it itself.
 with_coefficient_masks <- function(sub_models, data, call) {
   lapply(seq_along(sub_models), function(j) {
     sm <- sub_models[[j]]
-    if (sm$fixed_only) {
-      return(sm)
-    }
     parsed <- parse_formula(
       sm$engine_formula,
       realize_windows = FALSE,
@@ -592,7 +588,7 @@ with_coefficient_masks <- function(sub_models, data, call) {
       offset_coef = NULL
     ))
     free <- setdiff(seq_len(n_params), fixed_spec$idx)
-    if (length(free) != length(sm$theta_index)) {
+    if (!sm$fixed_only && length(free) != length(sm$theta_index)) {
       cli::cli_abort(
         c(
           "Sub-model {.val {j}} has {length(free)} free coefficient{?s} but
@@ -605,29 +601,85 @@ with_coefficient_masks <- function(sub_models, data, call) {
         call = call
       )
     }
-    sm$coefficients <- list(n_params = n_params, free = free)
+    sm$coefficients <- list(
+      n_params = n_params,
+      free = free,
+      fixed = as.integer(fixed_spec$idx),
+      fixed_values = as.numeric(fixed_spec$values),
+      has_intercept = has_intercept
+    )
     sm
   })
 }
 
+# The full engine coefficient vector of a masked sub-model: `theta_block` at
+# the free positions and the formula's values at the fixed ones.
+pool_engine_parameters <- function(sub_model, theta_block = numeric(0)) {
+  coefficients <- sub_model$coefficients
+  parameters <- numeric(coefficients$n_params)
+  parameters[coefficients$free] <- theta_block
+  parameters[coefficients$fixed] <- coefficients$fixed_values
+  parameters
+}
+
+# One compiled-engine pass of a masked sub-model over its stored statistics at
+# the full coefficient vector `parameters`. The closure is built here, at
+# evaluation time, and dropped with the call: held with the sequence it would
+# keep a dense copy of the start state (`stat_mat_init`) per sequence, which
+# on a large-n choice fid outweighs the rest of the pooled sequence. The
+# intercept is never seeded -- an evaluation uses the vector verbatim.
+pool_engine_pass <- function(sub_model, stats, parameters) {
+  engine <- make_engine_evaluator(
+    spec = stats$model_spec,
+    stats_list = stats,
+    parameters = parameters,
+    backend = "cpp",
+    has_intercept = sub_model$coefficients$has_intercept,
+    is_two_mode = isTRUE(stats$model_spec$is_two_mode),
+    seed_intercept = FALSE
+  )
+  engine$evaluate(parameters, need_scores = FALSE)
+}
+
+# The compiled-engine counterpart of pool_engine_eval(): the log-likelihood,
+# and the score and Fisher information at the free positions, of one free
+# sub-model at `theta_block`. The kernel returns all three on every pass, so
+# no quantity is cheaper to skip here. It never inverts the information
+# matrix, but the evaluator contract marks a sequence whose free block is
+# singular at theta non-finite, exactly as the engine's inversion does on the
+# adapter path, so the check is made here; the block is p x p with p the
+# sub-model's free count, so it costs nothing next to the pass.
+pool_cpp_eval <- function(sub_model, stats, theta_block) {
+  res <- pool_engine_pass(
+    sub_model,
+    stats,
+    pool_engine_parameters(sub_model, theta_block)
+  )
+  free <- sub_model$coefficients$free
+  score <- as.numeric(res$derivative)[free]
+  fisher <- res$fisher[free, free, drop = FALSE]
+  if (!is.finite(res$logLikelihood) || anyNA(score) || anyNA(fisher)) {
+    cli::cli_abort("The engine could not evaluate the sub-model at theta.")
+  }
+  # Errors on a singular block, as the adapter's inversion does.
+  solve(fisher)
+  list(loglik = res$logLikelihood, score = score, fisher = fisher)
+}
+
 # The θ-free log-likelihood a sequence's fixed-only sub-models contribute,
 # summed. Computed once per sequence (at pool entry, or once per candidate in
-# the proposal evaluator), since no parameter value can change it. An engine
-# failure marks the sequence degenerate, like a singular free sub-model.
-pool_fixed_loglik <- function(
-  sub_models,
-  data,
-  stats,
-  control_prep = set_preprocessing(),
-  call = rlang::caller_env()
-) {
+# the proposal evaluator), since no parameter value can change it. The
+# sub-models must carry their coefficient masks (with_coefficient_masks()). An
+# engine failure marks the sequence degenerate, like a singular free
+# sub-model.
+pool_fixed_loglik <- function(sub_models, stats) {
   loglik <- 0
   for (sm in sub_models) {
     if (!sm$fixed_only) {
       next
     }
     term <- tryCatch(
-      fixed_only_loglik(sm, data, fid_stats(stats, sm), control_prep, call),
+      fixed_only_loglik(sm, fid_stats(stats, sm)),
       error = function(e) NULL
     )
     if (is.null(term)) {
@@ -639,25 +691,16 @@ pool_fixed_loglik <- function(
 }
 
 # One fixed-only sub-model's log-likelihood over its stored statistics, at the
-# values its formula fixes. An authored all-offset fid or a completed uniform
-# choice is a plain likelihood-only engine pass. A pinned rate is scored
-# through its per-period column instead: see pinned_rate_loglik().
-fixed_only_loglik <- function(sub_model, data, stats, control_prep, call) {
+# values its formula fixes: one compiled-engine pass, of which only the
+# log-likelihood is read. An authored all-offset fid or a completed uniform
+# choice is that pass as is. A pinned rate is scored through its per-period
+# column instead: see pinned_rate_loglik().
+fixed_only_loglik <- function(sub_model, stats) {
   if (!is.null(sub_model$pinned_rate)) {
-    return(pinned_rate_loglik(sub_model, data, stats, control_prep, call))
+    return(pinned_rate_loglik(sub_model, stats))
   }
-  fit <- estimate_wrapper(
-    x = sub_model$engine_formula,
-    model = sub_model$model,
-    sub_model = sub_model$sub_model,
-    data = data,
-    preprocessed = stats,
-    control_algo = set_algorithm_newton(max_iterations = 0L, backend = "r"),
-    control_prep = control_prep,
-    verbose = FALSE,
-    progress = FALSE
-  )
-  fit$log_likelihood
+  res <- pool_engine_pass(sub_model, stats, pool_engine_parameters(sub_model))
+  res$logLikelihood
 }
 
 # A pinned timed rate is not one fixed value: it has one plateau c_w per wave
@@ -676,25 +719,15 @@ fixed_only_loglik <- function(sub_model, data, stats, control_prep, call) {
 # coefficient fixed at 1. An interval that crosses an interior wave boundary
 # has no single plateau, so its exposure is split at the boundary (see
 # pinned_rate_compensator()). A single-plateau pin is the K = 1 case.
-pinned_rate_loglik <- function(sub_model, data, stats, control_prep, call) {
+pinned_rate_loglik <- function(sub_model, stats, call = NULL) {
   rate <- sub_model$pinned_rate
-  fit <- estimate_wrapper(
-    x = sub_model$engine_formula,
-    model = sub_model$model,
-    sub_model = sub_model$sub_model,
-    data = data,
-    preprocessed = stats,
-    control_algo = set_algorithm_newton(
-      initial_parameters = c(Intercept = 0),
-      max_iterations = 0L,
-      backend = "r",
-      diagnostics = "loglik"
-    ),
-    control_prep = control_prep,
-    verbose = FALSE,
-    progress = FALSE
+  # The intercept is the engine formula's one free coefficient.
+  res <- pool_engine_pass(
+    sub_model,
+    stats,
+    pool_engine_parameters(sub_model, 0)
   )
-  exposure <- -fit$interval_log_lik
+  exposure <- -as.numeric(res$intervalLogL)
   end <- stats$event_time
   start <- end - stats$intervals
 
@@ -748,7 +781,24 @@ pinned_rate_compensator <- function(rate, start, end, exposure, call) {
 # information matrix is singular at theta makes the whole sequence degenerate:
 # its result is non-finite (-Inf log-likelihood, so its importance weight
 # vanishes), which the caller reports without aborting the pool.
-evaluate_pool_sequence <- function(pool, sequence, theta, call) {
+#
+# `backend` picks the engine each free sub-model is scored on: "r", the
+# zero-iteration adapter through estimate_wrapper(), or "cpp", one compiled
+# pass per sub-model over a closure built at evaluation time
+# (pool_cpp_eval()). The two agree to rounding error, and the compiled pass is
+# an order of magnitude faster. `what` is honored at the harvest level: every
+# pass computes all three quantities, and only the requested ones (plus
+# `degenerate`) are returned.
+evaluate_pool_sequence <- function(
+  pool,
+  sequence,
+  theta,
+  what = c("loglik", "score", "fisher"),
+  backend = c("r", "cpp"),
+  call = rlang::caller_env()
+) {
+  what <- rlang::arg_match(what, multiple = TRUE)
+  backend <- rlang::arg_match(backend)
   sub_models <- pool$sub_models
   p <- pool$theta_length
   # The fixed-only sub-models' θ-free term, stored at pool entry.
@@ -765,14 +815,22 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
       next
     }
     harvest <- tryCatch(
-      pool_engine_eval(
-        sm,
-        sequence$data,
-        fid_stats(sequence$stats, sm),
-        theta[sm$theta_index],
-        control_prep = pool$control_prep,
-        call = call
-      ),
+      if (backend == "cpp") {
+        pool_cpp_eval(
+          sm,
+          fid_stats(sequence$stats, sm),
+          theta[sm$theta_index]
+        )
+      } else {
+        pool_engine_eval(
+          sm,
+          sequence$data,
+          fid_stats(sequence$stats, sm),
+          theta[sm$theta_index],
+          control_prep = pool$control_prep,
+          call = call
+        )
+      },
       error = function(e) NULL
     )
     if (is.null(harvest)) {
@@ -790,7 +848,8 @@ evaluate_pool_sequence <- function(pool, sequence, theta, call) {
     fisher <- matrix(NA_real_, p, p)
   }
 
-  list(loglik = loglik, score = score, fisher = fisher, degenerate = degenerate)
+  harvest <- list(loglik = loglik, score = score, fisher = fisher)
+  c(harvest[what], list(degenerate = degenerate))
 }
 
 # The evaluator contract's v1 implementation: evaluate every pooled sequence at
@@ -939,13 +998,7 @@ make_proposal_evaluator <- function(
           control_prep = control_prep,
           call = call
         )
-        loglik <- pool_fixed_loglik(
-          sub_models,
-          candidate_seq,
-          stats,
-          control_prep = control_prep,
-          call = call
-        )$loglik
+        loglik <- pool_fixed_loglik(candidate_models, stats)$loglik
         for (sm in candidate_models) {
           if (sm$fixed_only) {
             next
