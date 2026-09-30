@@ -30,6 +30,12 @@
 #' @param spec A joint specification from [make_joint_specification()].
 #' @param control_algo The algorithm controls, from [set_algorithm_em()].
 #' @param control_prep The preprocessing controls, from [set_preprocessing()].
+#' @param wave_times The wave grid the latent sequences are augmented on: the
+#'   observation start followed by every wave, strictly increasing. By default
+#'   it is inferred from the data, as the distinct times of the modeled panel
+#'   layers' rows, opened by the `start_time` of `control_prep` when one is
+#'   set and otherwise by the first recorded wave, whose state is then the
+#'   initial condition.
 #'
 #' @return A `goldfishDynesFit`: the last accepted `parameters` (named by the
 #'   composite labels of [coef_layout()]), `converged`, the number of accepted
@@ -61,7 +67,8 @@
 estimate_dynes <- function(
   spec,
   control_algo = set_algorithm_em(),
-  control_prep = set_preprocessing()
+  control_prep = set_preprocessing(),
+  wave_times = NULL
 ) {
   lifecycle::signal_stage("experimental", "estimate_dynes()")
   if (!inherits(spec, "goldfishJointSpec")) {
@@ -82,6 +89,12 @@ estimate_dynes <- function(
   }
   call <- rlang::current_env()
   abort_without_modeled_panel(spec, call = call)
+  wave_times <- panel_wave_grid(
+    spec,
+    start_time = control_prep$start_time,
+    wave_times = wave_times,
+    call = call
+  )
 
   # Completed once, here: every proposal evaluator the loop builds reads this
   # same object, so a pinned rate cannot move between proposals.
@@ -103,7 +116,15 @@ estimate_dynes <- function(
       call = call
     )
   }
-  augmenter <- resolve_dynes_augmenter(completed, control_algo, call = call)
+  # The wave diffs, chains and wave states are theta-free and the same for
+  # every draw, so they are compiled once, here, and shared by every draw.
+  recipe <- compile_augmentation_recipe(completed, wave_times, call = call)
+  augmenter <- resolve_dynes_augmenter(
+    completed,
+    recipe,
+    control_algo,
+    call = call
+  )
 
   seed <- control_algo$seed %||% sample.int(.Machine$integer.max, 1L)
   restore_rng <- set_dynes_rng(seed)
@@ -182,10 +203,16 @@ abort_without_modeled_panel <- function(spec, call = rlang::caller_env()) {
   )
 }
 
-# The augmenter the control selects. The augment_seq_*() augmenters land with
-# the sequence-augmentation work; until then no routine has one, and
-# estimate_dynes() stays unexported so no user can reach this abort.
-resolve_dynes_augmenter <- function(spec, control, call = rlang::caller_env()) {
+# The augmenter the control selects, built once over the compiled recipe. The
+# augment_seq_*() augmenters land with the sequence-augmentation work; until
+# then no routine has one, and estimate_dynes() stays unexported so no user can
+# reach this abort.
+resolve_dynes_augmenter <- function(
+  spec,
+  recipe,
+  control,
+  call = rlang::caller_env()
+) {
   cli::cli_abort(
     c(
       "No augmenter is available for {.arg routine} =

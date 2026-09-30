@@ -7,7 +7,8 @@
 estimate_dynes(
   spec,
   control_algo = set_algorithm_em(),
-  control_prep = set_preprocessing()
+  control_prep = set_preprocessing(),
+  wave_times = NULL
 )
 }
 \arguments{
@@ -16,6 +17,13 @@ estimate_dynes(
 \item{control_algo}{The algorithm controls, from \code{\link[=set_algorithm_em]{set_algorithm_em()}}.}
 
 \item{control_prep}{The preprocessing controls, from \code{\link[=set_preprocessing]{set_preprocessing()}}.}
+
+\item{wave_times}{The wave grid the latent sequences are augmented on: the
+observation start followed by every wave, strictly increasing. By default
+it is inferred from the data, as the distinct times of the modeled panel
+layers' rows, opened by the \code{start_time} of \code{control_prep} when one is
+set and otherwise by the first recorded wave, whose state is then the
+initial condition.}
 }
 \value{
 A \code{goldfishDynesFit}: the last accepted \code{parameters} (named by the

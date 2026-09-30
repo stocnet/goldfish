@@ -295,18 +295,22 @@ test_that("the injective flavor map is validated once per panel layer", {
   expect_identical(calls, 1L)
 })
 
-test_that("a non-injective flavor map aborts at compilation", {
+test_that("a non-injective flavor map aborts", {
   local_cli_context()
-  spec <- recipe_state_spec()
-  # Two flavors on one transition: a wave change could not name its flavor.
-  spec$data$info$values_equivalence$friendship <- c(creation = 1, renewal = 1)
+  # Data validation already refuses such a dichotomous mapping; the diff's
+  # check is the guard any other mapping meets.
+  transitions <- data.frame(
+    from_value = c(0, 0),
+    to_value = c(1, 1),
+    flavor = c("creation", "renewal")
+  )
 
   expect_snapshot(
-    compile_augmentation_recipe(spec, c(0, 5, 10)),
+    check_flavor_map_injective(transitions, "friendship", call = NULL),
     error = TRUE
   )
   expect_error(
-    compile_augmentation_recipe(spec, c(0, 5, 10)),
+    check_flavor_map_injective(transitions, "friendship", call = NULL),
     class = "goldfish_noninjective_flavor_map"
   )
 })

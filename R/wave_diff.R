@@ -120,6 +120,10 @@ panel_transition_map <- function(data, layer, call) {
     flavor = names(mapping),
     stringsAsFactors = FALSE
   )
+  check_flavor_map_injective(transitions, layer, call = call)
+}
+
+check_flavor_map_injective <- function(transitions, layer, call) {
   key <- paste(transitions$from_value, transitions$to_value)
   if (anyDuplicated(key) > 0L) {
     cli::cli_abort(
@@ -128,6 +132,7 @@ panel_transition_map <- function(data, layer, call) {
         "x" = "Two flavors share a state transition, so a wave change could
                not name its flavor."
       ),
+      class = "goldfish_noninjective_flavor_map",
       call = call
     )
   }
