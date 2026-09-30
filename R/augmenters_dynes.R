@@ -36,7 +36,11 @@
 # work; until a routine has one, estimate_dynes() stays unexported so no user
 # can reach resolve_dynes_augmenter()'s abort.
 dynes_augmenter_constructors <- function() {
-  list(random = augment_seq_random, sim = augment_seq_sim)
+  list(
+    mcmc = augment_seq_mcmc,
+    random = augment_seq_random,
+    sim = augment_seq_sim
+  )
 }
 
 # The augmenter the control selects, built once over the compiled recipe.

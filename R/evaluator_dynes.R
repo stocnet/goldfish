@@ -873,7 +873,9 @@ evaluate_sequence_pool <- function(
 # this is checked here, once, rather than surfacing as rates evaluated at
 # parameters the likelihood never saw. The log-likelihood path never reads
 # `spec`, and a call without `rate_queries` opens no rate walk: the two paths
-# stay separate, one walk each.
+# stay separate, one walk each. `loglik = FALSE` answers the rate queries
+# alone: an MCMC move reads its forward rates on the current sequence, whose
+# log-likelihood it already holds, before it can draw the candidate.
 make_proposal_evaluator <- function(
   decomposition,
   theta,
@@ -898,12 +900,7 @@ make_proposal_evaluator <- function(
     theta_by_fid <- flat_to_fid_theta(spec, theta, call = call)
   }
 
-  function(candidate_seq, rate_queries = NULL) {
-    candidate_models <- with_coefficient_masks(
-      sub_models,
-      candidate_seq,
-      call = call
-    )
+  function(candidate_seq, rate_queries = NULL, loglik = TRUE) {
     rates <- NULL
     if (!is.null(rate_queries)) {
       if (is.null(spec)) {
@@ -923,6 +920,14 @@ make_proposal_evaluator <- function(
         call = call
       )
     }
+    if (!isTRUE(loglik)) {
+      return(list(loglik = NA_real_, rates = rates))
+    }
+    candidate_models <- with_coefficient_masks(
+      sub_models,
+      candidate_seq,
+      call = call
+    )
     # A candidate that does not fit the engine spec's actors aborts here,
     # outside the loglik guard, so it is never read as a -Inf density.
     bind_candidate_data(engine_spec, candidate_seq, call = call)

@@ -201,7 +201,7 @@ flavor_data <- function() {
   )
 }
 
-# theta: creation indeg, dissolution indeg, calls intercept.
+# theta: creation indeg, dissolution indeg, calls intercept, calls outdeg.
 flavor_spec <- function(data = flavor_data()) {
   make_joint_specification(
     make_specification(
@@ -211,7 +211,7 @@ flavor_spec <- function(data = flavor_data()) {
       data = data
     ),
     make_specification(
-      rate = ~1,
+      rate = ~ 1 + outdeg,
       layer = "calls",
       model = "DyNAM",
       data = data
@@ -280,7 +280,7 @@ legal_spec <- function() {
         outdeg(friendship, type = "ego") < 1
     ),
     make_specification(
-      rate = ~1,
+      rate = ~ 1 + outdeg,
       layer = "calls",
       model = "DyNAM",
       data = data
@@ -775,7 +775,7 @@ test_that("the rates-only evaluator call skips the likelihood", {
   built <- mcmc_build(flavor_spec())
   evaluator <- make_proposal_evaluator(
     decompose_joint_spec(built$spec),
-    c(0.2, 0.3, -1),
+    c(0.2, 0.3, -1, 0.1),
     spec = built$spec,
     control_prep = set_preprocessing(start_time = 0, end_time = 10)
   )
@@ -798,7 +798,7 @@ test_that("the rates-only evaluator call skips the likelihood", {
 
 test_that("q_rev reads the walk rates at the candidate's preceding event", {
   built <- mcmc_build(flavor_spec())
-  theta <- c(0.2, 0.3, -1)
+  theta <- c(0.2, 0.3, -1, 0.1)
   control_prep <- set_preprocessing(start_time = 0, end_time = 10)
   evaluator <- make_proposal_evaluator(
     decompose_joint_spec(built$spec),
@@ -871,7 +871,7 @@ test_that("a pinned rate's compensator enters f'/f", {
   built <- mcmc_build(flavor_spec())
   evaluator <- make_proposal_evaluator(
     decompose_joint_spec(built$spec),
-    c(0.2, 0.3, -1),
+    c(0.2, 0.3, -1, 0.1),
     spec = built$spec,
     control_prep = set_preprocessing(start_time = 0, end_time = 10)
   )
