@@ -378,7 +378,7 @@
       Suite 9513 / 0 / 5, six baseline files PASS, `_snaps/` unchanged but
       the deleted `support_mask_sparse.md`. Budget constrained alloc 44270
       MB (recorded 44910; inside the band).
-- [ ] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
+- [x] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
       three warm runs) for a constrained choice and a constrained rate plus
       choice, before 4.5 and after 4.6. Include the in-walk observed-event
       check against the end-of-walk check; if the in-walk check adds walk
@@ -394,8 +394,26 @@
       validation's mask copies; predicted near zero after 4.6
       — and the stored point-stream sizes of the point-choice cells before
       and after 4.5b (the stream grows where composition meets a constraint)
-- [ ] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-30 (goldfish-ce), tree `8890bfb`, detached worktree,
+      alone*: allocation down in every cell (CollegeMsg 10k: choice 1589 ->
+      801 MB, rate 1226 -> 496, joint 2423 -> 1371; generated joint 1036 ->
+      597), object sizes identical (+0.03 MB where the point stream grew).
+      Walk time UP 2-28% (10k joint 1.60 -> 1.89 s; generated joint 0.74 ->
+      0.91 s): the prediction (time down) is refuted. Split in one session:
+      the in-walk check is 5-19% (10k joint +0.31 s; it runs under the
+      script's stub, which only stubs the raise, while "before" skipped
+      validation entirely); without it the walk is still +4-18% (per-row
+      effect stepping in R against the old vectorized post-walk folds).
+      Validated joint generated cell (validation ON): 1.60 s / 14335 MB at
+      `8e36702` -> 0.98 s / 597 MB, so the in-walk check costs less than the
+      end-of-walk check it replaced; the abort stays in the walk (D9).
+      Point streams (update cols): CollegeMsg 1k 464 -> 547, 5k 1846 ->
+      2019, 10k 3506 -> 3766; generated 1722 -> 2990 (every flipped cell,
+      not only event senders' rows; <= 0.09 MB).
+- [x] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
+      — *done 2026-09-30, the `532471a` run* (4.7 changed no code): 9513 /
+      0 / 5, six baseline files PASS, every reference family PASS.
 
 ## 5. Fixtures F2–F5 with oracle and replay arms (D6, D8)
 
