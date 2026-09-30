@@ -25,3 +25,26 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   by the first wave, and takes an optional `wave_times` override. It compiles
   the wave diffs, per-dyad chains and per-wave states once at entry and shares
   them with every augmented draw.
+
+## Sequence augmenters (Group 3)
+
+* `estimate_dynes()` now draws the latent panel events between waves with one
+  of three augmenters, picked by `set_augmenter_options(routine =)`:
+  `"random"` places each interval's events at uniform times,
+  `"sim"` draws them from the model at the current parameters, and `"mcmc"`
+  runs one Metropolis-Hastings chain of permute and shift moves over the
+  whole sequence. Every draw reaches each observed wave state exactly and
+  records the log density it was proposed with.
+* Under a support constraint that couples dyads, `"random"` redraws an
+  ordering until it is support-legal, `"sim"` restarts an interval it cannot
+  complete and warns once per run about the plug-in normalizer this needs,
+  and `"mcmc"` rejects an illegal move. When no legal draw is found within
+  the restart ceiling, estimation aborts naming the constraint.
+* Each draw depends only on the random number stream it is given, so a pool
+  drawn from one `seed` is the same at any `n_cores`. Drawn sequences carry
+  the flavor keys `add_flavor()` stamps, so each event is scored under its
+  own flavor.
+* The documentation of `set_augmenter_options()` now states that
+  `routine = "random"` is a sound cold start only near a zero starting
+  parameter vector, and that `"sim"` or `"mcmc"` should be preferred away
+  from it.
