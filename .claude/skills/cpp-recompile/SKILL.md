@@ -96,14 +96,19 @@ there reaches the compile line. All three pieces are needed:
   rebuilt only the files `make` considered out of date, leaving the rest at
   their previous optimization level.
 
-The flag can also live in a personal `~/.R/Makevars` as
-`PKG_CPPFLAGS += -O2`, which makes the environment variable unnecessary on
-that machine. Write `+=`, never `=`: the user file is read after a package's
-own `Makevars`, so a plain assignment would erase the include paths other
-packages put in `PKG_CPPFLAGS`. It replaces only the first of the three
-pieces. `debug = FALSE` and `clean_dll()` are still required, because with
-`debug = TRUE` pkgbuild's `-O0` comes later on the command line and wins. The
-command above keeps the variable so it works on a machine without that line.
+The flag can also live in a personal `~/.R/Makevars` as `CPPFLAGS += -O2`,
+which makes the environment variable unnecessary on that machine (verified
+2026-09-30: `-DNDEBUG -O2` on the compile line with `debug = FALSE` and no
+variable set). `CPPFLAGS` is the right name there: it is the user's own
+variable, where `PKG_CPPFLAGS` belongs to the package being built. Write
+`+=`, never `=`, so the line adds to what the file already sets. It replaces
+only the first of the three pieces. `debug = FALSE` and `clean_dll()` are
+still required, because with `debug = TRUE` pkgbuild's `-O0` comes later on
+the command line and wins. The command above uses `PKG_CPPFLAGS` from the
+environment instead, because a `~/.R/Makevars` that assigns `CPPFLAGS`
+overrides a `CPPFLAGS` environment variable, and it works on a machine
+without the line. cmdstan is untouched by either: it builds through its own
+`make/local`.
 
 Measured on one REM fit (Social_Evolution, 84 actors, 439 intervals,
 `~ 1 + inertia + recip`), identical log-likelihood on both builds:

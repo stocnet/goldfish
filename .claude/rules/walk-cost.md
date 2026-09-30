@@ -20,10 +20,21 @@ paths:
 
 Rules for any code that runs once per event: the preprocessing walk, the
 simulation step, the effect functions, the constraint and availability
-folds, and the R gather loops. Each rule below was broken, fixed, and then
-broken again in a later change, and every time it was found by a benchmark
-or by review, never by a test. The frozen 1e-6 baselines cannot see any of
-them: a slower or larger walk returns the same numbers.
+folds, the R gather loops, and the likelihood — the per-event contribution
+loop of the `r` backend in `R/estimation_core.R`, re-run on every Newton
+iteration, and the C++ kernels in `src/`. Each rule below was broken, fixed,
+and then broken again in a later change, and every time it was found by a
+benchmark or by review, never by a test. The frozen 1e-6 baselines cannot
+see any of them: a slower or larger walk, or a slower fit, returns the same
+numbers.
+
+The likelihood has its own reading of the rules. Its state is the
+statistics array the walk hands it; it reconstructs that array by applying
+the flat updates, and within an event it uses staged linear algebra
+(`%*%`, `crossprod`, `dim<-`) with no per-cell or per-row R closure and no
+copy of the array (`likelihood-computation` living spec). A cost paid on
+every Newton iteration is paid ten to twenty times per fit, so a per-event
+allocation there counts that many times over.
 
 `n1`, `n2` are the sender and receiver counts. A grid is an `n1 x n2`
 object. On the 1899-actor CollegeMsg data one logical grid is 13.8 MB.
@@ -107,18 +118,27 @@ summed afterwards.
 first 5000 CollegeMsg messages, without and with a dyadic support
 constraint, and compares it with `tests/testthat/_budgets/walk_cost.csv`:
 
-| Measured | Fails above |
-|---|---|
-| Memory allocated by the walk | recorded + 5% |
-| Size of the preprocessed object | recorded + 2% |
-| Constrained over unconstrained time, same session | 1.5 |
-| Median seconds, only with `GOLDFISH_WALK_COST_SECONDS=true` | recorded + 50% |
+| Measured | Fails above | Fails below |
+|---|---|---|
+| Memory allocated by the walk | recorded + 5% | recorded - 5% |
+| Size of the preprocessed object (`lobstr::obj_size()`) | recorded + 2% | recorded - 2% |
+| Constrained over unconstrained time, same session | 1.5 | no floor |
+| Median seconds, only with `GOLDFISH_WALK_COST_SECONDS=true` | recorded + 50% | no floor |
 
-It runs under `NOT_CRAN=true`. A failure means the walk costs more than it
-did: find the cause before considering the number. Raising a recorded value
-or a limit needs the maintainer's approval, and the commit that does it
-says what the extra cost buys. After an improvement, lower the recorded
-value in the same commit so the gain cannot be given back unnoticed.
+It covers preprocessing only. Estimation has no recorded budget yet; the
+standing cost gate for it, a ratio between two fits in one session, is the
+`exact-time-diagnostic-cost` change.
+
+It runs under `NOT_CRAN=true`. A failure above means the walk costs more
+than it did: find the cause before considering the number. Raising a
+recorded value or a limit needs the maintainer's approval, and the commit
+that does it says what the extra cost buys.
+
+A failure below means the walk became cheaper. That is the intended
+outcome of an improvement, and the test fails so that the recorded value
+is lowered in the same commit; otherwise the budget would let the gain be
+given back unnoticed. Allocation and size repeat exactly run to run, which
+is what makes a floor usable. Time has none because it is noisy.
 `Rscript tests/testthat/_budgets/record-walk-cost.R` prints the current
 measurements and writes nothing.
 
