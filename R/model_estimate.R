@@ -1056,234 +1056,6 @@ compute_statistics <- function(
   )
 }
 
-# Preprocessing-time set-size validation for a support_constraint.
-# Fails fast — before the C++ likelihood — with event context. Cases:
-#   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
-#   B dependent event's own sender has 0 live receivers                  -> error
-#   D the whole risk set is empty at a dependent event                   -> error
-#   C the risk set has exactly 1 candidate (forced choice)               -> warn
-#   E a node is never at risk / never a candidate across the sequence    -> warn
-# Case E is per family: choice warns on a receiver never an allowed candidate
-# AND on a sender allowed no receiver at any event; rate warns on a sender never
-# at risk. A never-observed such node is a legitimate wider-population model, so
-# it warns rather than errors.
-# Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
-# not an error) — only the dependent event's own sender triggers A/B.
-# `process_label` names the process the failing object belongs to when several
-# are preprocessed together, so the message identifies which one is empty. It is
-# rendered for display only, never parsed back.
-validate_support_constraint <- function(
-  support_mask,
-  event_sender,
-  event_receiver,
-  is_dependent,
-  active_1,
-  active_2,
-  family,
-  drop_diagonal,
-  process_label = NULL,
-  active_2_update = NULL,
-  active_2_update_pointer = NULL
-) {
-  # A cursor over the flip stream: the validation already walks the dependent
-  # events in ascending order, so this is a change of source, not of logic.
-  mask_at <- mask_cursor(support_mask)
-  stored_kind <- support_mask$stored_kind %||% 0L
-  in_process <- if (is.null(process_label)) {
-    NULL
-  } else {
-    c("i" = "Process {.field {process_label}}.")
-  }
-  dep <- which(is_dependent == 1L)
-  n1 <- length(active_1)
-  n2 <- length(active_2)
-  forced <- integer(0)
-
-  if (family == "choice") {
-    ever_candidate <- logical(n2)
-    ever_present <- logical(n2)
-    ever_at_risk_sender <- logical(n1)
-    # All four verdicts below are defined over "allowed AND present receivers",
-    # so the receiver presence is read at the event, the way the rate branch
-    # does. Freezing it at time zero is wrong in both directions: an observed
-    # receiver that joined late reads as an excluded dyad, and a receiver that
-    # joins mid-sequence and is never allowed goes unnamed.
-    receivers_at <- presence_cursor(
-      active_2,
-      active_2_update,
-      active_2_update_pointer
-    )
-    count_at <- receiver_count_tracker(
-      support_mask,
-      active_2,
-      active_2_update,
-      active_2_update_pointer,
-      n1,
-      n2,
-      drop_diagonal
-    )
-    for (e in dep) {
-      mask_e <- mask_at(e)
-      present <- receivers_at(e)
-      ever_present <- ever_present | present
-      allowed <- which(
-        support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
-          present &
-          # The sender is not among its own candidates on one node set,
-          # whatever the mask allows on the diagonal.
-          !(drop_diagonal & seq_len(n2) == event_sender[[e]])
-      )
-      ever_candidate[allowed] <- TRUE
-      # Sender-side counterpart of the never-a-candidate warning: which senders
-      # ever have an allowed, present receiver. The count is carried from the
-      # mask's flips and the receiver crossings, as the rate fold carries it,
-      # rather than recomputed from the whole mask at each event.
-      gate <- count_at(e) > 0L
-      ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
-      if (length(allowed) == 0L) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: empty risk set at event {e}.",
-          "x" = "Sender {event_sender[[e]]} has no allowed, present receiver.",
-          in_process
-        ))
-      }
-      if (!(event_receiver[[e]] %in% allowed)) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: the observed dyad is excluded.",
-          "x" = "Event {e}: receiver {event_receiver[[e]]} is not allowed for
-                 sender {event_sender[[e]]}.",
-          in_process
-        ))
-      }
-      if (length(allowed) == 1L) {
-        forced <- c(forced, e)
-      }
-    }
-    # "Present" here means present at some event across the sequence, not at
-    # time zero: a receiver that joins mid-sequence and is never allowed is
-    # named, and one absent throughout is not (it is not part of any risk set).
-    never <- which(ever_present & !ever_candidate)
-    if (length(never) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} receiver{?s} present
-               at some event, never an allowed candidate.",
-        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
-      ))
-    }
-    # A sender allowed no receiver at any event is a legitimate model -- the
-    # constraint may describe a wider population than the observed events -- so
-    # this is a warning, not an error, and mirrors the rate family's
-    # "never at risk". An observed sender in this set errors above at its own
-    # event; this names the pattern over the whole sequence for the rest.
-    never_sender <- which(active_1 & !ever_at_risk_sender)
-    if (length(never_sender) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never_sender)} present
-               sender{?s} allowed no receiver at any event.",
-        "i" = "{cli::qty(length(never_sender))}Node{?s}: {.val {never_sender}}."
-      ))
-    }
-  } else {
-    ever_active <- logical(n1)
-    # The gate is the same per-sender allowed-receiver count the fold
-    # maintains, carried the same way: each event's mask flips, then its
-    # receiver crossings. Both of its inner axes move, so the receiver
-    # presence is followed through the events too; freezing it at time zero
-    # would keep a sender whose only allowed receivers have departed on the
-    # allowed side of the check.
-    count_at <- receiver_count_tracker(
-      support_mask,
-      active_2,
-      active_2_update,
-      active_2_update_pointer,
-      n1,
-      n2,
-      drop_diagonal
-    )
-    for (e in dep) {
-      gate <- count_at(e) > 0L
-      ever_active <- ever_active | (active_1 & gate)
-      if (!gate[event_sender[[e]]]) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: the observed sender is gated out.",
-          "x" = "Event {e}: sender {event_sender[[e]]} has no allowed, present
-                 receiver.",
-          in_process
-        ))
-      }
-      if (sum(active_1 & gate) == 1L) {
-        forced <- c(forced, e)
-      }
-    }
-    never <- which(active_1 & !ever_active)
-    if (length(never) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} present sender{?s}
-               never at risk (always gated out).",
-        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
-      ))
-    }
-  }
-
-  if (length(forced) > 0) {
-    cli::cli_warn(c(
-      "!" = "{.arg support_constraint}: {length(forced)} event{?s} with a
-             single candidate (forced choice; contributes 0 to the
-             log-likelihood).",
-      "i" = "{cli::qty(length(forced))}Event{?s}: {.val {forced}}."
-    ))
-  }
-  invisible(NULL)
-}
-
-# Run the set-size validation on a preprocessed object, picking the presence
-# vectors the check needs. Rate reads the raw sender presence stashed by the
-# fold (the object's own `active_sender_init` is already the folded
-# availability), and the dyad fold likewise overwrites `active_dyad_init`, so
-# both read the unfolded vectors the mask stashed. A constraint-free object has
-# no mask and nothing to validate.
-validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
-  if (is.null(prep$support_mask)) {
-    return(invisible(NULL))
-  }
-  # One node set, so a sender is never among its own allowed receivers. The
-  # preprocessed object names both sides, whatever produced it.
-  drop_diagonal <- !isTRUE(prep$model_spec$is_two_mode)
-  validate_support_constraint(
-    prep$support_mask,
-    prep$event_sender,
-    prep$event_receiver,
-    prep$is_dependent,
-    if (is_rate_family && !is.null(prep$support_mask$sender_presence_init)) {
-      prep$support_mask$sender_presence_init
-    } else {
-      prep$active_sender_init
-    },
-    if (!is.null(prep$support_mask$receiver_presence_init)) {
-      prep$support_mask$receiver_presence_init
-    } else {
-      prep$active_dyad_init
-    },
-    family = if (is_rate_family) "rate" else "choice",
-    drop_diagonal = drop_diagonal,
-    process_label = process_label,
-    # Both branches read the receiver presence as the composition moves. The
-    # rate fold leaves the raw receiver crossings in `active_dyad_update`; the
-    # dyad fold rewrites that buffer into the folded availability, so the choice
-    # branch reads the raw crossings the fold stashed before overwriting it.
-    active_2_update = if (is_rate_family) {
-      prep$active_dyad_update
-    } else {
-      prep$support_mask$receiver_presence_update
-    },
-    active_2_update_pointer = if (is_rate_family) {
-      prep$active_dyad_update_pointer
-    } else {
-      prep$support_mask$receiver_presence_update_pointer
-    }
-  )
-}
-
 # The sub-model vocabulary the effect constructors and the stored objects use:
 # an ordinal rate compiles and reports as `rate`, and an REM process as
 # `choice`, since its dyadic hazard runs on the choice effects' dyad kernel.
@@ -3057,13 +2829,20 @@ estimate_wrapper <- function(
     # Fail fast before the likelihood: excluded observed dyads / empty risk sets
     # error; forced choices and never-active nodes warn. The rate (sender-axis)
     # family uses the sender-gate policy; choice and REM check the observed dyad
-    # directly. A multi-flavor object was validated at preprocessing time, so
-    # re-running here would only duplicate every warning it emitted.
+    # directly. The walk checked every observed event as it went and kept
+    # the verdict on the object; it is raised here. A multi-flavor object
+    # was validated at preprocessing time, so raising it again would only
+    # duplicate every warning it emitted.
     if (!isTRUE(prep$support_validated)) {
-      validate_prep_support(
-        prep,
-        identical(risk_set_axis(model_spec), "sender")
-      )
+      if (is.null(prep$support_verdict)) {
+        cli::cli_abort(c(
+          "This preprocessed object carries no {.arg support_constraint}
+           check.",
+          "i" = "It was preprocessed by an earlier version of goldfish;
+                 preprocess it again."
+        ))
+      }
+      validate_support_constraint(prep$support_verdict)
     }
     # Every wired family folds its availability during preprocessing — a rate
     # constraint into `active_sender`, a choice / REM / coordination constraint

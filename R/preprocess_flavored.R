@@ -529,8 +529,6 @@ finalize_consumers <- function(
     finalized,
     masks,
     finish_output,
-    scalar_entity,
-    drop_self = drop_self,
     names = if (single) NULL else names(consumers)
   )
 }
@@ -539,15 +537,13 @@ finalize_consumers <- function(
 # finalization so a caller spanning several engines can realize every mask
 # between the two halves.
 #
-# An exact-time output's exposure is computed here, after the fold, so it
-# counts the risk set the rate likelihood reads: the entity is `"sender"` or
-# `"dyad"`, and `drop_self` says the self-dyad is not a dyad (one node set).
+# An exact-time output's exposure is the running sum its availability
+# effect kept during the walk (`availability_step()`): it counts the risk
+# set the rate likelihood reads, row by row.
 render_finalized_consumers <- function(
   finalized,
   masks,
   finish_output,
-  scalar_entity,
-  drop_self,
   names = NULL,
   availability = NULL
 ) {
@@ -559,11 +555,14 @@ render_finalized_consumers <- function(
       availability[[i]]
     )
     if (!is.null(out$total_time)) {
-      out$exposure_entity_time <- risk_set_exposure(
-        out,
-        scalar_entity,
-        drop_self
-      )
+      if (is.null(availability[[i]])) {
+        cli::cli_abort(
+          "An exact-time output has no availability to read its exposure
+           from.",
+          .internal = TRUE
+        )
+      }
+      out$exposure_entity_time <- availability[[i]]$exposure
       out$avg_active_entity <- if (out$total_time > 0) {
         out$exposure_entity_time / out$total_time
       } else {
@@ -619,129 +618,6 @@ consumer_mask_requests <- function(finalized) {
       symmetric = identical(f$spec$sub_model, "choice_coordination")
     )
   })
-}
-
-# The rate's exposure: sum over the stored rows of each row's interval
-# times the entity count in force on it, with the row's presence and
-# support flips applied first, as the likelihood engines apply them before
-# the row. Only then is `n_dep_events / exposure` exactly the
-# intercept-only maximum-likelihood rate; the continuous integral over the
-# change stream is not, because the engine assigns a change to the whole
-# interval ending at the row it maps to.
-#
-# The entity is the one the sub-model's rate is defined over: active senders for
-# the actor-oriented rate, active dyads for the tie-oriented (REM) rate.
-# The sum runs over the stored flips and holds one current state, never a
-# state per row: a dense dyad state per row is about 14 MB on 1899 actors.
-risk_set_exposure <- function(out, entity, drop_self) {
-  if (length(out$event_time) == 0L) {
-    return(0)
-  }
-  if (!identical(entity, "dyad")) {
-    return(presence_exposure(
-      out$active_sender_init,
-      out$active_sender_update,
-      out$active_sender_update_pointer,
-      out$intervals
-    ))
-  }
-  if (identical(out$active_dyad_encoding, "point")) {
-    return(point_dyad_exposure(out, drop_self))
-  }
-  outer_dyad_exposure(out, drop_self)
-}
-
-# The exposure of a presence crossings buffer (init + per-event `(node,
-# replace)` flips): its TRUE count per row. The count is re-read only on a row
-# with flips, since a flip may restate a value already held.
-presence_exposure <- function(init, update, pointer, intervals) {
-  current <- init == 1
-  exposure <- 0
-  count <- sum(current)
-  seen <- 0L
-  for (e in seq_along(intervals)) {
-    hi <- if (!is.null(pointer)) pointer[e] else 0L
-    if (hi > seen) {
-      cols <- (seen + 1L):hi
-      current[update[1L, cols]] <- as.logical(update[2L, cols])
-      count <- sum(current)
-      seen <- hi
-    }
-    exposure <- exposure + intervals[e] * count
-  }
-  exposure
-}
-
-# The active dyads of the separable encodings, where cell (i, j) is
-# `active_sender[i] & active_dyad[j]`: the product of the two factor counts,
-# less the senders present on both axes when the self-dyad is not a dyad.
-outer_dyad_exposure <- function(out, drop_self) {
-  senders <- out$active_sender_init == 1
-  receivers <- out$active_dyad_init == 1
-  s_update <- out$active_sender_update
-  s_pointer <- out$active_sender_update_pointer
-  r_update <- out$active_dyad_update
-  r_pointer <- out$active_dyad_update_pointer
-  exposure <- 0
-  count_now <- function() {
-    both <- if (drop_self) sum(senders & receivers) else 0
-    sum(senders) * sum(receivers) - both
-  }
-  count <- count_now()
-  s_seen <- 0L
-  r_seen <- 0L
-  for (e in seq_along(out$intervals)) {
-    s_hi <- if (!is.null(s_pointer)) s_pointer[e] else 0L
-    r_hi <- if (!is.null(r_pointer)) r_pointer[e] else 0L
-    if (s_hi > s_seen || r_hi > r_seen) {
-      if (s_hi > s_seen) {
-        cols <- (s_seen + 1L):s_hi
-        senders[s_update[1L, cols]] <- as.logical(s_update[2L, cols])
-        s_seen <- s_hi
-      }
-      if (r_hi > r_seen) {
-        cols <- (r_seen + 1L):r_hi
-        receivers[r_update[1L, cols]] <- as.logical(r_update[2L, cols])
-        r_seen <- r_hi
-      }
-      count <- count_now()
-    }
-    exposure <- exposure + out$intervals[e] * count
-  }
-  exposure
-}
-
-# The active dyads of the point encoding (a dense n1 x n2 init plus per-event
-# `(node1, node2, replace)` flips), carried by each flip's change of one cell
-# so no row re-reads the grid. The diagonal never counts when the self-dyad is
-# not a dyad, whatever the mask holds there.
-point_dyad_exposure <- function(out, drop_self) {
-  current <- out$active_dyad_init == 1
-  update <- out$active_dyad_update
-  pointer <- out$active_dyad_update_pointer
-  count <- sum(current)
-  if (drop_self) {
-    count <- count - sum(diag(current))
-  }
-  exposure <- 0
-  seen <- 0L
-  for (e in seq_along(out$intervals)) {
-    hi <- if (!is.null(pointer)) pointer[e] else 0L
-    for (k in seq_len(max(0L, hi - seen)) + seen) {
-      i <- update[1L, k]
-      j <- update[2L, k]
-      value <- update[3L, k] == 1
-      if (current[i, j] != value) {
-        current[i, j] <- value
-        if (!(drop_self && i == j)) {
-          count <- count + if (value) 1 else -1
-        }
-      }
-    }
-    seen <- max(seen, hi)
-    exposure <- exposure + out$intervals[e] * count
-  }
-  exposure
 }
 
 # Route a dependent event over the consumer set: it is the dependent

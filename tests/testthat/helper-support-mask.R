@@ -7,8 +7,98 @@
 # ABOUT the representation asserts on `initial` / `update` / `update_pointer`
 # directly, and should not come through this helper.
 mask_timeline <- function(support_mask) {
-  cursor <- mask_cursor(support_mask)
-  lapply(seq_along(support_mask$update_pointer), cursor)
+  value <- support_mask$initial
+  flips_at <- flip_reader(support_mask$update, support_mask$update_pointer)
+  lapply(seq_along(support_mask$update_pointer), function(e) {
+    flips <- flips_at(e)
+    value[flips$entries] <<- flips$values
+    value
+  })
+}
+
+# The per-event slice of any flat `(entry, replace)` buffer -- a support
+# mask's update stream or a presence crossings buffer: entries in the first
+# row, replacements in the second, keyed by a cumulative per-event pointer.
+# Returns a function of the stored event index, called with ascending
+# indices.
+flip_reader <- function(update, pointer) {
+  seen <- 0L
+  function(e) {
+    hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
+    if (hi <= seen) {
+      return(list(entries = integer(0), values = logical(0)))
+    }
+    cols <- (seen + 1L):hi
+    seen <<- hi
+    list(
+      entries = as.integer(update[1L, cols]),
+      values = as.logical(update[2L, cols])
+    )
+  }
+}
+
+# The observed-event check over a hand-written mask stream, driven the way
+# the walk drives it: each event's mask flips and the receiver crossings
+# stamped at or before it, then the check at a dependent event, and the
+# verdict raised at the end. `active_1` is the sender presence at the start;
+# `active_2_update` / `active_2_update_pointer` a receiver crossings buffer
+# keyed by the event.
+validate_support_stream <- function(
+  support_mask,
+  event_sender,
+  event_receiver,
+  is_dependent,
+  active_1,
+  active_2,
+  family,
+  drop_diagonal,
+  process_label = NULL,
+  active_2_update = NULL,
+  active_2_update_pointer = NULL
+) {
+  current <- support_mask$initial
+  changes2 <- NULL
+  if (!is.null(active_2_update) && ncol(active_2_update) > 0L) {
+    changes2 <- list(
+      time = rep(
+        seq_along(active_2_update_pointer),
+        diff(c(0L, active_2_update_pointer))
+      ),
+      node = as.integer(active_2_update[1L, ]),
+      replace = as.logical(active_2_update[2L, ])
+    )
+  }
+  av <- new_availability_effect(
+    "gate",
+    length(active_1),
+    length(active_2),
+    active_1,
+    active_2,
+    changes2 = changes2,
+    mask = list(value = function() current),
+    stored_kind = support_mask$stored_kind %||% 0L,
+    drop_diagonal = drop_diagonal,
+    record = FALSE
+  )
+  availability_enable_check(av, family, label = process_label)
+  flips_at <- flip_reader(support_mask$update, support_mask$update_pointer)
+  for (e in seq_along(event_sender)) {
+    flips <- flips_at(e)
+    current[flips$entries] <- flips$values
+    availability_push_flips(av, flips)
+    availability_step(
+      av,
+      0L,
+      availability_presence_target(av$changes2, av$cursor2, e)
+    )
+    if (is_dependent[[e]] == 1L) {
+      availability_check_event(av, e, event_sender[[e]], event_receiver[[e]])
+    }
+  }
+  validate_support_constraint(
+    availability_verdict(av),
+    process_label = process_label
+  )
 }
 
 # The inverse: a `support_mask` encoding a timeline given outright. Lets a test

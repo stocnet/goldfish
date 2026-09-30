@@ -313,11 +313,13 @@ test_that("availability per stored row costs the same at any size", {
   # over every sender at every row costs O(n) a row, and doubling the actors
   # doubles that. The slope over the number of calls isolates the per-row
   # cost from the one-off grids, and the unconstrained twin takes out what
-  # the statistics cost per row. The validation is stubbed: it reads the
-  # mask once per event and is measured on its own.
+  # the statistics cost per row. The observed-event check is stubbed: a
+  # choice's reads its sender's row, and it has its own guard below.
   skip_on_cran()
   skip_if_not_installed("bench")
-  local_mocked_bindings(validate_prep_support = function(...) invisible(NULL))
+  local_mocked_bindings(
+    availability_check_event = function(...) invisible(NULL)
+  )
   allocation <- function(n_actors, n_calls, sub_model, constrained) {
     args <- list(
       rate = ~ 1 + indeg,
@@ -364,7 +366,6 @@ test_that("the observed-event check reads no mask copy per event", {
   # per row does not grow with the actors; a choice reads its sender's row
   # (as its likelihood does), so its cost grows with one row, never with
   # the grid. Copying the mask to answer each event costs n1 x n2 a row.
-  skip("the observed events are still checked after the walk")
   skip_on_cran()
   skip_if_not_installed("bench")
   allocation <- function(n_actors, n_calls, family, constrained) {
@@ -396,7 +397,7 @@ test_that("the observed-event check reads no mask copy per event", {
         allocation(n_actors, 1500L, family, FALSE)[["bytes"]])
     extra / (large[["rows"]] - small[["rows"]])
   }
-  bound <- c(rate = 4096, choice = 65536)
+  bound <- c(rate = 1024, choice = 65536)
   for (family in names(bound)) {
     growth <- per_row(1500L, family) - per_row(750L, family)
     expect_lt(growth, bound[[family]], label = paste(family, "per-row growth"))
@@ -407,18 +408,25 @@ test_that("a constrained walk composes its masks as it goes", {
   # A cost guard: the masks and the folded availability are written during
   # the walk, not realized afterwards by replaying the atoms to each stored
   # row and folding every row again, which allocates per stored row.
-  skip("the masks are still realized and folded after the walk")
-  # The availability folds are gone: the walk keeps availability as an
-  # effect. What is left to count is what may still run after the walk.
+  # The availability folds, the post-walk realization and the readers that
+  # replayed the mask after the walk are gone: the walk keeps the masks live
+  # and availability as an effect. What is left to count is what may still
+  # run after the walk.
   retired <- c(
     "fold_active_sender_support",
     "fold_active_dyad_support",
-    "fold_active_dyad_support_rem"
+    "fold_active_dyad_support_rem",
+    "realize_pending_masks",
+    "recorder_atoms_factory",
+    "constraint_replay_atoms",
+    "mask_cursor",
+    "mask_flips",
+    "risk_set_exposure"
   )
   for (name in retired) {
     expect_false(exists(name, envir = asNamespace("goldfish")), label = name)
   }
-  post_walk <- c("realize_pending_masks", "build_active_dyad_point")
+  post_walk <- "build_active_dyad_point"
   calls <- stats::setNames(integer(length(post_walk)), post_walk)
   counting <- lapply(post_walk, function(name) {
     orig <- get(name, envir = asNamespace("goldfish"))

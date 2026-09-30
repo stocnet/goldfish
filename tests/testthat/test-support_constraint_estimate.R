@@ -250,6 +250,57 @@ test_that("an observed dyad excluded by its own constraint errors", {
   )
 })
 
+test_that("a deferred check keeps its verdict for estimation to raise", {
+  # Preprocessed on its own, the object is not rejected: the walk checks
+  # each observed event and keeps what it found. Estimating from it raises
+  # the error there, without reading the mask again.
+  fx <- make_estimate_fixture(n_events = 60L)
+  prep <- suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ tie(call_network)
+  ))
+  expect_identical(prep$support_verdict$failure$type, "empty")
+  expect_identical(prep$support_verdict$failure$event, 1L)
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      calls_dependent ~ inertia + recip,
+      sub_model = "choice",
+      data = fx$data,
+      preprocessed = prep,
+      control_algo = set_algorithm_newton(backend = "r"),
+      support_constraint = ~ tie(call_network)
+    )),
+    "empty risk set at event 1"
+  )
+})
+
+test_that("a constrained object without a verdict is not estimated", {
+  fx <- make_estimate_fixture(n_events = 60L)
+  prep <- suppressWarnings(estimate_dynam(
+    calls_dependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE,
+    support_constraint = ~ tie(allowedNet)
+  ))
+  expect_null(prep$support_verdict$failure)
+  prep$support_verdict <- NULL
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      calls_dependent ~ inertia + recip,
+      sub_model = "choice",
+      data = fx$data,
+      preprocessed = prep,
+      control_algo = set_algorithm_newton(backend = "r"),
+      support_constraint = ~ tie(allowedNet)
+    )),
+    "preprocess it again"
+  )
+})
+
 test_that("a no-intercept REM rate constraint adds the intercept and runs", {
   fx <- make_estimate_fixture(n_events = 60L)
   # Dropping auto-ordinal: `sub_model = "rate"` without a time intercept is a

@@ -296,7 +296,7 @@ test_that("the candidate set of a validated event excludes the sender", {
   masks <- list(s, s)
 
   expect_error(
-    validate_support_constraint(
+    validate_support_stream(
       mask_from_timeline(masks),
       event_sender = c(1L, 2L),
       event_receiver = c(2L, 3L),
@@ -315,7 +315,7 @@ test_that("the candidate set of a validated event excludes the sender", {
   s2[1L, c(1L, 2L)] <- TRUE
   s2[2L, c(1L, 3L)] <- TRUE
   expect_warning(
-    validate_support_constraint(
+    validate_support_stream(
       mask_from_timeline(list(s2, s2)),
       event_sender = c(1L, 2L),
       event_receiver = c(2L, 3L),

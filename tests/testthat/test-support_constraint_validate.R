@@ -1,7 +1,8 @@
-# Preprocessing-time set-size validation. Unit tests over
-# validate_support_constraint() with synthetic masks so each case A-E (and the
-# rate silent gated-out case) is exercised in isolation, under a pinned cli
-# context for reproducible conditions.
+# Preprocessing-time set-size validation. Unit tests of the observed-event
+# check the walk runs, driven over synthetic masks by
+# validate_support_stream() and raised by validate_support_constraint(), so
+# each case A-E (and the rate silent gated-out case) is exercised in
+# isolation, under a pinned cli context for reproducible conditions.
 
 # A 4x4 fixture on one node set: two dependent events, sender 1 -> receiver 2,
 # sender 2 -> 3. One node set, so a sender is never its own candidate.
@@ -23,7 +24,7 @@ all_true <- function() matrix(TRUE, 4L, 4L)
 
 call_validate <- function(support, family) {
   a <- make_validate_inputs(support)
-  validate_support_constraint(
+  validate_support_stream(
     a$support_mask,
     a$event_sender,
     a$event_receiver,
@@ -122,7 +123,7 @@ call_validate_choice_moving <- function(
   pointer
 ) {
   a <- make_validate_inputs(support)
-  validate_support_constraint(
+  validate_support_stream(
     a$support_mask,
     a$event_sender,
     a$event_receiver,
@@ -174,7 +175,7 @@ test_that("choice: an observed receiver that joined after t0 does not abort", {
 # one whose only allowed receiver has departed is.
 call_validate_rate_moving <- function(support, active_2, update, pointer) {
   a <- make_validate_inputs(support)
-  validate_support_constraint(
+  validate_support_stream(
     a$support_mask,
     a$event_sender,
     a$event_receiver,

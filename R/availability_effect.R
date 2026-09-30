@@ -15,6 +15,10 @@
 #            per-sender count of such receivers is the cache.
 #   presence rate without a constraint: presence alone. Nothing is stored
 #            (the writer keeps its own stream); the count at risk is kept.
+#   presence_dyad
+#            REM without a constraint: the present senders times the
+#            present receivers, less the self-dyads on one node set. As
+#            above, only the count at risk is kept.
 #   alter    choice with a column-broadcast mask: one receiver vector.
 #   outer    choice with a sender-only mask: receiver presence alone.
 #   point    choice with a dyadic mask or an opportunity list: the grid of
@@ -35,7 +39,12 @@
 # row of event `e` the event sender's row of an opportunity mask is set to
 # the receivers it lists (all of them when the entry is NULL), and every
 # sender's row keeps its last setting, so it is a dyadic mask like any
-# other. `record = FALSE` keeps no stream.
+# other. `record = FALSE` keeps no stream. `count = TRUE` keeps the
+# per-sender count of allowed present receivers for a variant that does not
+# need it to store its value, so the observed-event check can read it.
+# `drop_diagonal` says the self-dyad is not a dyad (one node set): a sender
+# is not its own receiver in the counts, and the self-dyads are not counted
+# at risk.
 new_availability_effect <- function(
   variant,
   n1,
@@ -49,7 +58,8 @@ new_availability_effect <- function(
   drop_diagonal = FALSE,
   symmetric = FALSE,
   opportunities = NULL,
-  record = TRUE
+  record = TRUE,
+  count = identical(variant, "gate")
 ) {
   av <- new.env(parent = emptyenv())
   av$variant <- variant
@@ -77,7 +87,10 @@ new_availability_effect <- function(
   av$init <- NULL
   av$rows <- 0L
   av$n_at_risk <- 0
-  if (identical(variant, "gate")) {
+  av$exposure <- 0
+  av$check <- NULL
+  av$count <- NULL
+  if (count && !is.null(mask)) {
     av$count <- as.double(initial_receiver_count(
       mask$value(),
       stored_kind,
@@ -89,6 +102,11 @@ new_availability_effect <- function(
   }
   if (identical(variant, "presence")) {
     av$n_at_risk <- sum(av$p1)
+  }
+  if (identical(variant, "presence_dyad")) {
+    av$n_senders <- sum(av$p1)
+    av$n_both <- if (drop_diagonal) sum(av$p1 & av$p2[seq_len(n1)]) else 0
+    av$n_at_risk <- av$n_senders * av$n_present2 - av$n_both
   }
   av$record <- record
   if (record) {
@@ -128,19 +146,58 @@ availability_presence_target <- function(changes, cursor, t) {
 # Step the effect over one row: the queued mask flips, then the receiver
 # side's changes up to `target2`, then the sender side's up to `target1`,
 # the order the folds applied them in. `sender` is the row's event sender
-# (an opportunity row is set there).
-availability_step <- function(av, target1, target2, sender = NA_integer_) {
+# (an opportunity row is set there). `interval` is the row's exposure
+# time: the count at risk after the row's changes, times the interval, is
+# the row's share of the exposure, as the rate likelihood reads the row.
+#
+# The exposure is that sum over the stored rows, with each row's presence
+# and mask changes applied first, as the likelihood engines apply them
+# before the row. Only then is `n_dep_events / exposure` exactly the
+# intercept-only maximum-likelihood rate; the continuous integral over the
+# change stream is not, because the engine assigns a change to the whole
+# interval ending at the row it maps to. The entity counted is the one the
+# rate is defined over: active senders for the actor-oriented rate, active
+# dyads for the tie-oriented (REM) rate.
+availability_step <- function(
+  av,
+  target1,
+  target2,
+  sender = NA_integer_,
+  interval = 0
+) {
   first <- is.null(av$value)
   moved1 <- availability_take_changes(av, 1L, target1)
-  switch(
-    av$variant,
-    gate = availability_step_gate(av, moved1, target2, first),
-    presence = availability_step_presence(av, moved1, target2),
-    alter = ,
-    outer = availability_step_receivers(av, moved1, target2, first),
-    point = availability_step_point(av, moved1, target2, sender, first),
-    dyad = availability_step_dyad(av, moved1, target2, first)
-  )
+  moved2 <- availability_take_changes(av, 2L, target2)
+  if (av$variant %in% c("presence", "presence_dyad")) {
+    availability_step_presence(av, moved1, moved2)
+  } else {
+    touched <- integer(0)
+    if (is.null(av$count)) {
+      receivers <- availability_write_presence(av, 2L, moved2)
+    } else {
+      for (flips in av$pending) {
+        touched <- c(touched, availability_gate_flips(av, flips))
+      }
+      for (k in seq_along(moved2$node)) {
+        touched <- c(
+          touched,
+          availability_gate_receiver(av, moved2$node[[k]], moved2$replace[[k]])
+        )
+      }
+      receivers <- unique(moved2$node)
+      availability_track_positive(av, touched)
+    }
+    senders <- availability_write_presence(av, 1L, moved1)
+    switch(
+      av$variant,
+      gate = availability_step_gate(av, c(touched, senders), first),
+      alter = ,
+      outer = availability_step_receivers(av, receivers, first),
+      point = availability_step_point(av, receivers, sender, first),
+      dyad = availability_step_dyad(av, senders, receivers, first)
+    )
+  }
+  av$exposure <- av$exposure + interval * av$n_at_risk
   av$pending <- list()
   av$rows <- av$rows + 1L
   invisible(NULL)
@@ -182,22 +239,9 @@ availability_write_presence <- function(av, side, moved) {
 # kind: a point flip one sender, a column flip every sender but the one it
 # names, a row flip one sender outright, a scalar flip everyone. A receiver
 # arriving or leaving moves the count of every sender allowed to reach it.
-availability_step_gate <- function(av, moved1, target2, first) {
-  n1 <- av$n1
-  affected <- integer(0)
-  for (flips in av$pending) {
-    affected <- c(affected, availability_gate_flips(av, flips))
-  }
-  moved2 <- availability_take_changes(av, 2L, target2)
-  if (!is.null(moved2)) {
-    for (k in seq_along(moved2$node)) {
-      affected <- c(
-        affected,
-        availability_gate_receiver(av, moved2$node[[k]], moved2$replace[[k]])
-      )
-    }
-  }
-  affected <- c(affected, availability_write_presence(av, 1L, moved1))
+# The counts are moved before this runs (`availability_step()`); `affected`
+# names the senders whose count or presence moved on the row.
+availability_step_gate <- function(av, affected, first) {
   if (first) {
     availability_open(av, av$p1 & (av$count > 0))
     return(invisible(NULL))
@@ -310,18 +354,51 @@ availability_gate_receiver <- function(av, node, value) {
   buffer <- write_entries(buffer, node, value)
   av$p2 <- buffer
   av$n_present2 <- av$n_present2 + delta
+  availability_track_receiver(av, node, value)
   reached
 }
 
 ## Rate presence ----
 
 # No constraint: the stored stream is the writer's; only the count at risk
-# is kept.
-availability_step_presence <- function(av, moved1, target2) {
-  availability_take_changes(av, 2L, target2)
-  if (!is.null(moved1)) {
-    availability_write_presence(av, 1L, moved1)
-    av$n_at_risk <- sum(av$p1)
+# is kept, moved one change at a time, since a change may restate a value
+# already held.
+availability_step_presence <- function(av, moved1, moved2) {
+  dyad <- identical(av$variant, "presence_dyad")
+  for (side in c(2L, 1L)) {
+    moved <- if (side == 1L) moved1 else moved2
+    if (is.null(moved) || (side == 2L && !dyad)) {
+      next
+    }
+    name <- if (side == 1L) "p1" else "p2"
+    for (k in seq_along(moved$node)) {
+      node <- moved$node[[k]]
+      value <- moved$replace[[k]]
+      buffer <- av[[name]]
+      delta <- as.integer(value) - as.integer(buffer[[node]])
+      if (delta == 0L) {
+        next
+      }
+      if (dyad && av$drop_diagonal && node <= av$n1) {
+        other <- if (side == 1L) av$p2 else av$p1
+        if (other[[node]]) {
+          av$n_both <- av$n_both + delta
+        }
+      }
+      av[[name]] <- NULL
+      buffer <- write_entries(buffer, node, value)
+      av[[name]] <- buffer
+      if (side == 1L) {
+        av$n_senders <- av$n_senders + delta
+      } else {
+        av$n_present2 <- av$n_present2 + delta
+      }
+    }
+  }
+  av$n_at_risk <- if (dyad) {
+    av$n_senders * av$n_present2 - av$n_both
+  } else {
+    sum(av$p1)
   }
   invisible(NULL)
 }
@@ -331,13 +408,8 @@ availability_step_presence <- function(av, moved1, target2) {
 # The alter encoding reads presence and the column-broadcast mask; the outer
 # encoding reads presence alone (its mask gates senders, which the choice
 # likelihood never reads off its own observed sender).
-availability_step_receivers <- function(av, moved1, target2, first) {
-  availability_write_presence(av, 1L, moved1)
-  affected <- availability_write_presence(
-    av,
-    2L,
-    availability_take_changes(av, 2L, target2)
-  )
+availability_step_receivers <- function(av, receivers, first) {
+  affected <- receivers
   alter <- identical(av$variant, "alter")
   if (alter) {
     for (flips in av$pending) {
@@ -375,17 +447,11 @@ availability_step_receivers <- function(av, moved1, target2, first) {
 # Cell (i, j) is receiver j present, allowed for i by the mask, and listed
 # for i by its last opportunity set. A receiver arriving or leaving moves
 # its column, a mask flip its cells, an opportunity row its row.
-availability_step_point <- function(av, moved1, target2, sender, first) {
+availability_step_point <- function(av, receivers, sender, first) {
   n1 <- av$n1
   n2 <- av$n2
-  availability_write_presence(av, 1L, moved1)
-  moved2 <- availability_write_presence(
-    av,
-    2L,
-    availability_take_changes(av, 2L, target2)
-  )
   cells <- integer(0)
-  for (j in moved2) {
+  for (j in receivers) {
     cells <- c(cells, (j - 1L) * n1 + seq_len(n1))
   }
   for (flips in av$pending) {
@@ -464,15 +530,9 @@ availability_set_opportunity <- function(av, sender) {
 # Both presences and the mask on the grid. A sender moving reaches its row,
 # a receiver its column, a mask flip the cells its kind projects onto;
 # coordination's symmetrised grid is closed under transposition.
-availability_step_dyad <- function(av, moved1, target2, first) {
+availability_step_dyad <- function(av, senders, receivers, first) {
   n1 <- av$n1
   n2 <- av$n2
-  senders <- availability_write_presence(av, 1L, moved1)
-  receivers <- availability_write_presence(
-    av,
-    2L,
-    availability_take_changes(av, 2L, target2)
-  )
   # Each flipped cell once, at its last flip: the order the cells are
   # visited in is the order the row's changes are stored in.
   mask_entries <- unlist(
@@ -536,6 +596,9 @@ transposed_entries <- function(entries, n1) {
 availability_open <- function(av, value) {
   av$value <- value & TRUE
   av$n_at_risk <- sum(av$value)
+  if (availability_drops_self(av)) {
+    av$n_at_risk <- av$n_at_risk - sum(diag(av$value))
+  }
   if (av$record) {
     av$init <- value
     availability_emit(av, integer(0), logical(0))
@@ -543,11 +606,25 @@ availability_open <- function(av, value) {
   invisible(NULL)
 }
 
+# Whether the self-dyads of the grid are left out of the count at risk: a
+# REM or coordination grid on one node set, where the self-dyad is not a
+# dyad whatever the mask holds there.
+availability_drops_self <- function(av) {
+  identical(av$variant, "dyad") && av$drop_diagonal
+}
+
 availability_write_value <- function(av, flips) {
   if (length(flips$entries) == 0L) {
     return(invisible(NULL))
   }
-  av$n_at_risk <- av$n_at_risk + sum(flips$values) - sum(!flips$values)
+  counted <- if (availability_drops_self(av)) {
+    ((flips$entries - 1L) %% av$n1) != ((flips$entries - 1L) %/% av$n1)
+  } else {
+    TRUE
+  }
+  av$n_at_risk <- av$n_at_risk +
+    sum(flips$values & counted) -
+    sum(!flips$values & counted)
   value <- av$value
   av$value <- NULL
   value <- write_entries(value, flips$entries, flips$values)
@@ -635,8 +712,11 @@ availability_stream <- function(av) {
 # fail-fast validation reads (the raw presences the stored value no longer
 # shows) stashed on its support mask.
 availability_finish <- function(av, out) {
+  if (!is.null(av$check) && !av$check$immediate) {
+    out$support_verdict <- availability_verdict(av)
+  }
   n_stored <- length(out$event_time)
-  if (identical(av$variant, "presence") || n_stored == 0L) {
+  if (av$variant %in% c("presence", "presence_dyad") || n_stored == 0L) {
     return(out)
   }
   if (av$rows != n_stored) {
@@ -688,4 +768,310 @@ availability_changes <- function(changes) {
     node = vapply(changes, `[[`, integer(1), "node"),
     replace = vapply(changes, `[[`, logical(1), "replace")
   )
+}
+
+## The observed-event check ----
+#
+# Each dependent event of a constrained output is checked against the
+# availability as the walk keeps it, at the event:
+#   rate    the observed sender is gated out (its count is zero)  -> error
+#   choice  the sender has no allowed present receiver            -> error
+#           the observed receiver is not among them               -> error
+#   both    exactly one candidate (forced)                        -> warn
+# and what describes the whole sequence is accumulated for the end:
+#   rate    a sender present at the start never at risk           -> warn
+#   choice  a receiver present at some event, never a candidate   -> warn
+#           a sender present at the start allowed no receiver     -> warn
+# "At risk" and "allowed a receiver" are the sender's count being positive
+# at a dependent event. The count moves only where a mask cell flips or a
+# receiver enters or leaves, so the senders that were ever positive at a
+# dependent event are followed through those crossings: a sender turning
+# positive notes how many events were checked; turning back, it was
+# positive at an event iff more have been checked since. Receivers present
+# at some event are followed the same way. A rate's check reads one gate
+# entry and one count; a choice's reads its sender's row, as its likelihood
+# does, to know which receivers were candidates.
+
+# Start checking an effect's dependent events. `family` is "rate" (the
+# sender-gate check) or "choice"; `label` names the process in the
+# messages; `immediate` raises an error at its event, otherwise the verdict
+# is kept for estimation to raise. Called before the first step, so the
+# sender presence it keeps is the one at the start.
+availability_enable_check <- function(
+  av,
+  family,
+  label = NULL,
+  immediate = TRUE
+) {
+  ck <- new.env(parent = emptyenv())
+  ck$family <- family
+  ck$label <- label
+  ck$immediate <- immediate
+  ck$init1 <- av$p1 & TRUE
+  ck$n_dep <- 0
+  positive <- av$count > 0
+  ck$positive <- positive
+  ck$since1 <- ifelse(positive, 0, NA_real_)
+  ck$ever1 <- logical(av$n1)
+  ck$n_init_positive <- sum(ck$init1 & positive)
+  if (identical(family, "choice")) {
+    # Row `i` of a point mask is `i + n1 * (j - 1)` over the receivers `j`;
+    # the column offsets are the same for every row, so they are built once.
+    ck$row_offsets <- as.integer(av$n1) * (seq_len(av$n2) - 1L)
+    ck$since2 <- ifelse(av$p2, 0, NA_real_)
+    ck$ever2 <- logical(av$n2)
+    ck$candidate <- logical(av$n2)
+  }
+  ck$forced <- integer(64L)
+  ck$n_forced <- 0L
+  ck$failure <- NULL
+  av$check <- ck
+  invisible(NULL)
+}
+
+# Follow the senders whose count moved across zero on this row.
+availability_track_positive <- function(av, touched) {
+  ck <- av$check
+  if (is.null(ck) || length(touched) == 0L) {
+    return(invisible(NULL))
+  }
+  touched <- unique(touched)
+  now <- av$count[touched] > 0
+  crossed <- now != ck$positive[touched]
+  if (!any(crossed)) {
+    return(invisible(NULL))
+  }
+  up <- touched[crossed & now]
+  down <- touched[crossed & !now]
+  since <- ck$since1
+  ck$since1 <- NULL
+  if (length(down) > 0L) {
+    seen <- down[ck$n_dep > since[down]]
+    if (length(seen) > 0L) {
+      ever <- ck$ever1
+      ck$ever1 <- NULL
+      ck$ever1 <- write_entries(ever, seen, rep(TRUE, length(seen)))
+    }
+    since <- write_entries(since, down, rep(NA_real_, length(down)))
+  }
+  since <- write_entries(since, up, rep(ck$n_dep, length(up)))
+  ck$since1 <- since
+  positive <- ck$positive
+  ck$positive <- NULL
+  ck$positive <- write_entries(
+    positive,
+    c(up, down),
+    c(
+      rep(TRUE, length(up)),
+      rep(FALSE, length(down))
+    )
+  )
+  ck$n_init_positive <- ck$n_init_positive +
+    sum(ck$init1[up]) -
+    sum(ck$init1[down])
+  invisible(NULL)
+}
+
+# Follow one receiver entering or leaving (a choice's check only).
+availability_track_receiver <- function(av, node, value) {
+  ck <- av$check
+  if (is.null(ck) || is.null(ck$since2)) {
+    return(invisible(NULL))
+  }
+  since <- ck$since2
+  ck$since2 <- NULL
+  if (value) {
+    since <- write_entries(since, node, as.double(ck$n_dep))
+  } else {
+    if (ck$n_dep > since[[node]]) {
+      ever <- ck$ever2
+      ck$ever2 <- NULL
+      ck$ever2 <- write_entries(ever, node, TRUE)
+    }
+    since <- write_entries(since, node, NA_real_)
+  }
+  ck$since2 <- since
+  invisible(NULL)
+}
+
+# Check the dependent event just stored on row `row`. The first failure is
+# kept, and raised here when the check is immediate. A kept verdict checks
+# no later event, since that failure is what estimation reports.
+availability_check_event <- function(av, row, sender, receiver) {
+  ck <- av$check
+  if (is.null(ck) || (!ck$immediate && !is.null(ck$failure))) {
+    return(invisible(NULL))
+  }
+  failure <- NULL
+  single <- FALSE
+  if (identical(ck$family, "rate")) {
+    if (!ck$positive[[sender]]) {
+      failure <- list(type = "gated", event = row, sender = sender)
+    } else {
+      single <- ck$n_init_positive == 1
+    }
+  } else {
+    n2 <- av$n2
+    mask <- av$mask$value()
+    allowed_row <- if (av$kind == 0L) {
+      as.logical(mask[sender + ck$row_offsets])
+    } else {
+      support_row(mask, av$kind, sender, av$n1, n2)
+    }
+    allowed_row <- allowed_row & av$p2
+    # The sender is not among its own candidates on one node set, whatever
+    # the mask allows on the diagonal.
+    if (av$drop_diagonal && sender <= n2) {
+      allowed_row[[sender]] <- FALSE
+    }
+    n_allowed <- sum(allowed_row)
+    # Only the receivers not yet named a candidate are written.
+    fresh <- which(allowed_row & !ck$candidate)
+    if (length(fresh) > 0L) {
+      candidate <- ck$candidate
+      ck$candidate <- NULL
+      ck$candidate <- write_entries(candidate, fresh, rep(TRUE, length(fresh)))
+    }
+    if (n_allowed == 0L) {
+      failure <- list(type = "empty", event = row, sender = sender)
+    } else if (!allowed_row[[receiver]]) {
+      failure <- list(
+        type = "excluded",
+        event = row,
+        sender = sender,
+        receiver = receiver
+      )
+    } else {
+      single <- n_allowed == 1L
+    }
+  }
+  ck$n_dep <- ck$n_dep + 1
+  if (single) {
+    forced <- ck$forced
+    ck$forced <- NULL
+    if (ck$n_forced == length(forced)) {
+      length(forced) <- 2L * length(forced)
+    }
+    ck$n_forced <- ck$n_forced + 1L
+    forced[ck$n_forced] <- row
+    ck$forced <- forced
+  }
+  if (!is.null(failure) && is.null(ck$failure)) {
+    ck$failure <- failure
+    if (ck$immediate) {
+      validate_support_constraint(
+        list(failure = failure),
+        process_label = ck$label
+      )
+    }
+  }
+  invisible(NULL)
+}
+
+# What the check found over the whole sequence, in the form estimation
+# raises it from (`validate_support_constraint()`).
+availability_verdict <- function(av) {
+  ck <- av$check
+  seen <- function(ever, since) {
+    ever | (!is.na(since) & ck$n_dep > since)
+  }
+  at_risk <- seen(ck$ever1, ck$since1)
+  verdict <- list(
+    family = ck$family,
+    failure = ck$failure,
+    forced = ck$forced[seq_len(ck$n_forced)],
+    never_sender = which(ck$init1 & !at_risk)
+  )
+  if (identical(ck$family, "choice")) {
+    present <- seen(ck$ever2, ck$since2)
+    verdict$never_receiver <- which(present & !ck$candidate)
+  }
+  verdict
+}
+
+# Raise a support-constraint verdict: the error of its first failing event,
+# or the warnings describing the whole sequence. `process_label` names the
+# process the verdict belongs to when several are preprocessed together; it
+# is rendered for display only, never parsed back.
+validate_support_constraint <- function(verdict, process_label = NULL) {
+  in_process <- if (is.null(process_label)) {
+    NULL
+  } else {
+    c("i" = "Process {.field {process_label}}.")
+  }
+  failure <- verdict$failure
+  if (!is.null(failure)) {
+    e <- failure$event
+    sender <- failure$sender
+    receiver <- failure$receiver
+    switch(
+      failure$type,
+      empty = cli::cli_abort(c(
+        "{.arg support_constraint}: empty risk set at event {e}.",
+        "x" = "Sender {sender} has no allowed, present receiver.",
+        in_process
+      )),
+      excluded = cli::cli_abort(c(
+        "{.arg support_constraint}: the observed dyad is excluded.",
+        "x" = "Event {e}: receiver {receiver} is not allowed for
+               sender {sender}.",
+        in_process
+      )),
+      gated = cli::cli_abort(c(
+        "{.arg support_constraint}: the observed sender is gated out.",
+        "x" = "Event {e}: sender {sender} has no allowed, present
+               receiver.",
+        in_process
+      ))
+    )
+  }
+
+  if (identical(verdict$family, "choice")) {
+    # "Present" here means present at some event across the sequence, not
+    # at time zero: a receiver that joins mid-sequence and is never allowed
+    # is named, and one absent throughout is not (it is not part of any
+    # risk set).
+    never <- verdict$never_receiver
+    if (length(never) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never)} receiver{?s} present
+               at some event, never an allowed candidate.",
+        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+    # A sender allowed no receiver at any event is a legitimate model -- the
+    # constraint may describe a wider population than the observed events --
+    # so this is a warning, not an error, and mirrors the rate family's
+    # "never at risk". An observed sender in this set errors above at its
+    # own event; this names the pattern over the whole sequence for the
+    # rest.
+    never_sender <- verdict$never_sender
+    if (length(never_sender) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never_sender)} present
+               sender{?s} allowed no receiver at any event.",
+        "i" = "{cli::qty(length(never_sender))}Node{?s}: {.val {never_sender}}."
+      ))
+    }
+  } else {
+    never <- verdict$never_sender
+    if (length(never) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never)} present sender{?s}
+               never at risk (always gated out).",
+        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+  }
+
+  forced <- verdict$forced
+  if (length(forced) > 0) {
+    cli::cli_warn(c(
+      "!" = "{.arg support_constraint}: {length(forced)} event{?s} with a
+             single candidate (forced choice; contributes 0 to the
+             log-likelihood).",
+      "i" = "{cli::qty(length(forced))}Event{?s}: {.val {forced}}."
+    ))
+  }
+  invisible(NULL)
 }

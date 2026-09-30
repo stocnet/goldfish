@@ -187,30 +187,30 @@ moving_mask_fixture <- function() {
 }
 
 test_that("a carried receiver count gates senders as the whole mask does", {
+  # The rate's availability carries each sender's count of allowed present
+  # receivers through the mask flips and the receiver crossings; its gate
+  # has to be the one the whole mask gives at every event.
   fx <- moving_mask_fixture()
-  for (visit in list(seq_along(fx$masks), c(2L, 5L, 8L))) {
-    count_at <- receiver_count_tracker(
-      fx$support_mask,
-      rep(TRUE, fx$n),
-      fx$update,
-      fx$pointer,
-      fx$n,
-      fx$n,
-      drop_diagonal = TRUE
+  gate <- fold_gate_timeline(
+    fx$masks,
+    0L,
+    rep(TRUE, fx$n),
+    rep(TRUE, fx$n),
+    receiver_crossings = list(update = fx$update, pointer = fx$pointer),
+    drop_diagonal = TRUE
+  )
+  for (e in seq_along(fx$masks)) {
+    expect_identical(
+      gate[[e]],
+      sender_gate_from_mask(
+        fx$masks[[e]],
+        0L,
+        fx$present[[e]],
+        fx$n,
+        fx$n,
+        drop_diagonal = TRUE
+      ),
+      label = paste("event", e)
     )
-    for (e in visit) {
-      expect_identical(
-        count_at(e) > 0,
-        sender_gate_from_mask(
-          fx$masks[[e]],
-          0L,
-          fx$present[[e]],
-          fx$n,
-          fx$n,
-          drop_diagonal = TRUE
-        ),
-        label = paste("event", e, "of", length(visit))
-      )
-    }
   }
 })

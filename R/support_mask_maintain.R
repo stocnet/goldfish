@@ -26,8 +26,8 @@
 # EVALUATION (projecting the atoms through a constraint's boolean tree).
 # Maintenance happens on the merged walk: `build_constraint_atom_store()`
 # seeds the atoms and `advance_constraint_atom_store()` moves them with the
-# shared state, recording the atom entries each event moved
-# (`constraint_replay_atoms()` exposes that record as an atom source).
+# shared state, recording the atom entries each event moved until the live
+# masks write them (`flush_atom_moves()`, `walk_collect_atom_moves()`).
 # Evaluation is one maintainer per constraint, `build_mask_maintainer()`,
 # whose `recompute()` takes that moved set and returns the mask entries that
 # flipped: the tree is elementwise, so an atom entry can only move the mask
@@ -110,9 +110,9 @@ call_constraint_atom_template <- function(
 #' kind-shaped values (seeded from the objects' pre-event state), and the
 #' object-key → routing map — WITHOUT the private walk's own state container,
 #' event fetch or schedule. The atoms are advanced by the merged walk as its
-#' shared state moves, and each advance records the atom deltas it produced so a
-#' mask can later be projected from them (`constraint_replay_atoms()`), the same
-#' deltas the private walk would have replayed from its own container.
+#' shared state moves, and each advance records the atom deltas it produced
+#' until the live masks write them, the same deltas the private walk would
+#' have replayed from its own container.
 #'
 #' @param sub_plan the compiled constraint sub-plan.
 #' @param model the model string (`"DyNAM"` / `"REM"`).
@@ -221,7 +221,7 @@ build_constraint_atom_store <- function(
   store$initial <- initial
 
   # The recorded atom-delta stream: one entry per (event, atom) the advance
-  # touches, in walk order. `constraint_replay_atoms()` replays it. The
+  # touches, in walk order, held until the live masks write it. The
   # buffers are allocated ahead and filled up to `record_n`
   # (`record_atom_delta()`).
   clear_atom_record(store)
@@ -427,94 +427,6 @@ advance_constraint_atom_store <- function(
   invisible(NULL)
 }
 
-#' Replay a recorded atom-delta stream as a `build_mask_maintainer()` handle
-#'
-#' The merged walk computed each atom's deltas once, off the shared state, and
-#' `build_constraint_atom_store()` recorded them. This exposes that record with
-#' the exact interface `build_mask_maintainer()` / `walk_mask_streams()` expect
-#' from an atom source (the one the test oracle `build_atom_maintainer()` also
-#' provides) — `advance(t)`, `atom_value`, `atom_kind`,
-#' `take_touched`, `n1`, `n2`, `atom_labels`, `atom_kinds` — but its `advance()`
-#' only WRITES the recorded values (no state read, no template call, no second
-#' container), so the atom pool is walked once and projected here cheaply.
-#'
-#' @param store a store from `build_constraint_atom_store()` whose stream the
-#'   merged walk has filled.
-#' @return an atom-source handle, with the interface the test oracle
-#'   `build_atom_maintainer()` returns.
-#' @noRd
-constraint_replay_atoms <- function(store) {
-  n_atoms <- store$n_atoms
-  atom_labels <- store$atom_labels
-  atom_kinds <- store$atom_kinds
-  n1 <- store$n1
-  n2 <- store$n2
-
-  atom_state <- new.env(parent = emptyenv())
-  for (a in seq_len(n_atoms)) {
-    # A fresh copy per replay: `write_entries()` mutates in place, so replaying
-    # must not scribble on the store's pristine `initial` (several fids replay
-    # the same store).
-    assign(
-      as.character(a),
-      copy_atom_buffer(store$initial[[a]]),
-      envir = atom_state
-    )
-  }
-
-  touched <- new.env(parent = emptyenv())
-  touched$entries <- vector("list", n_atoms)
-
-  times <- store$record_time[seq_len(store$record_n)]
-  order_idx <- order(times)
-  ordered_time <- times[order_idx]
-  n_rec <- length(order_idx)
-  cursor <- new.env(parent = emptyenv())
-  cursor$next_rec <- 1L
-
-  advance <- function(tt) {
-    while (cursor$next_rec <= n_rec && ordered_time[cursor$next_rec] < tt) {
-      r <- order_idx[cursor$next_rec]
-      gid <- store$record_gid[[r]]
-      entries <- store$record_entries[[r]]
-      buffer <- get(as.character(gid), envir = atom_state)
-      assign(
-        as.character(gid),
-        write_entries(buffer, entries, store$record_values[[r]]),
-        envir = atom_state
-      )
-      touched$entries[[gid]] <- unique(c(touched$entries[[gid]], entries))
-      cursor$next_rec <- cursor$next_rec + 1L
-    }
-    invisible(NULL)
-  }
-
-  atom_value <- function(label) {
-    get(as.character(match(label, atom_labels)), envir = atom_state)
-  }
-  atom_kind <- function(label) {
-    atom_kinds[[match(label, atom_labels)]]
-  }
-  take_touched <- function() {
-    moved <- lapply(touched$entries, function(at) {
-      if (is.null(at)) NULL else unique(at)
-    })
-    touched$entries <- vector("list", n_atoms)
-    moved
-  }
-
-  list(
-    n1 = n1,
-    n2 = n2,
-    atom_labels = atom_labels,
-    atom_kinds = atom_kinds,
-    advance = advance,
-    atom_value = atom_value,
-    atom_kind = atom_kind,
-    take_touched = take_touched
-  )
-}
-
 #' Maintain one constraint's mask incrementally over a shared atom pool
 #'
 #' The mask is a value at its own kind, maintained the way every other
@@ -534,8 +446,9 @@ constraint_replay_atoms <- function(store) {
 #' two buffers, the raw mask at its own kind and the stored symmetrised mask at
 #' point, and the stored entries recomputed are closed under transposition.
 #'
-#' @param atoms an atom-source handle: `constraint_replay_atoms()`, a stepping
-#'   walk's live atoms, or in tests the oracle `build_atom_maintainer()`.
+#' @param atoms an atom-source handle: a walk's live atoms
+#'   (`walk_live_atoms()`), or in tests the oracle
+#'   `build_atom_maintainer()`.
 #' @param expr the evaluable mask expression over `.a{k}` placeholders.
 #' @param atom_labels the constraint's atom labels, aligned with `.a{k}`.
 #' @param symmetric symmetrise the dyad grid (coordination / undirected REM).
@@ -665,259 +578,4 @@ build_mask_maintainer <- function(
     value = function() stored,
     recompute = recompute
   )
-}
-
-# Walk a shared atom pool once and encode each constraint's mask as a stream.
-#
-# `masks` are the DISTINCT mask maintainers over `atoms`; `request_times` gives
-# one timeline per consumer and `slot` says which mask each consumer reads, so
-# two consumers of one expression share its maintainer and its flips. The union
-# of the timelines is walked once, the touched set is read once per union time
-# and handed to every distinct mask, and each consumer's flips are then bucketed
-# into its own requested intervals: a flip emitted while advancing to union time
-# `u` belongs to the first requested time at or after `u`, because `advance()`
-# applies the events strictly before its argument.
-#
-# Requested times must be ascending. The stream encodes a mask as a prefix sum,
-# so out-of-order times would not describe the timeline they claim to.
-walk_mask_streams <- function(atoms, masks, request_times, slot) {
-  for (times in request_times) {
-    if (is.unsorted(times)) {
-      cli::cli_abort(
-        "Support-mask snapshot times must be ascending.",
-        .internal = TRUE
-      )
-    }
-  }
-  initials <- lapply(masks, function(mask) mask$initial())
-  union_times <- sort(unique(unlist(request_times, use.names = FALSE)))
-  # One recompute per DISTINCT mask per union time. Two fids reading the same
-  # expression share a maintainer, and recomputing it twice would find the
-  # buffer already written and report nothing the second time.
-  n_union <- length(union_times)
-
-  per_union <- lapply(masks, function(mask) vector("list", n_union))
-  for (u in seq_len(n_union)) {
-    atoms$advance(union_times[[u]])
-    moved <- atoms$take_touched()
-    for (m in seq_along(masks)) {
-      per_union[[m]][[u]] <- masks[[m]]$recompute(moved)
-    }
-  }
-
-  lapply(seq_along(request_times), function(r) {
-    m <- slot[[r]]
-    times <- request_times[[r]]
-    n_stored <- length(times)
-    flips <- vector("list", n_stored)
-    if (n_stored > 0L && n_union > 0L) {
-      # The requested index each union time's flips land in; a union time past
-      # the last requested one is never read and is dropped.
-      bucket <- findInterval(union_times, times, left.open = TRUE) + 1L
-      for (u in seq_len(n_union)) {
-        k <- bucket[[u]]
-        if (k <= n_stored) {
-          flips[[k]] <- c(flips[[k]], list(per_union[[m]][[u]]))
-        }
-      }
-    }
-    n_changes <- integer(n_stored)
-    entries <- vector("list", n_stored)
-    values <- vector("list", n_stored)
-    for (k in seq_len(n_stored)) {
-      at <- unlist(lapply(flips[[k]], "[[", "entries"), use.names = FALSE)
-      if (is.null(at)) {
-        # `[[<-` with NULL DELETES the element rather than emptying it, which
-        # would shorten the list under the loop that is walking it.
-        next
-      }
-      vv <- unlist(lapply(flips[[k]], "[[", "values"), use.names = FALSE)
-      # One entry may flip twice between two requested times; only its last
-      # value is observable, and emitting both would make the pointer lie about
-      # how many entries changed.
-      collapsed <- collapse_entries(at, vv)
-      entries[[k]] <- collapsed$entries
-      values[[k]] <- collapsed$values
-      n_changes[[k]] <- length(entries[[k]])
-    }
-    at_vec <- unlist(entries, use.names = FALSE)
-    val_vec <- unlist(values, use.names = FALSE)
-    list(
-      initial = initials[[m]],
-      update = if (length(at_vec) > 0L) {
-        rbind(as.numeric(at_vec), as.numeric(val_vec))
-      } else {
-        matrix(0, 2L, 0L)
-      },
-      update_pointer = cumsum(n_changes),
-      n_stored = n_stored
-    )
-  })
-}
-
-#' Maintain a shared atom pool once, project a per-fid mask from it
-#'
-#' Several constraints over the SAME atoms (a `mutually_exclusive` layer's
-#' `!tie(L)` / `tie(L)` derived constraints, or those AND-composed with a shared
-#' user constraint) differ only in their boolean expression, not in the atom
-#' stream they walk. Maintaining that stream once and projecting each
-#' constraint's own expression from it removes the redundant walks a per-output
-#' realization would incur, while evaluation correctly stays per
-#' constraint — each fid keeps its own mask at its own snapshot times.
-#'
-#' Constraints are grouped by atom signature (their sorted labels): within a
-#' group the maintenance machinery is identical, so one maintainer serves all of
-#' them; across groups (disjoint atoms) separate maintainers run. Each group is
-#' advanced over the UNION of its fids' snapshot times once, every distinct
-#' expression is evaluated at each union time, and each fid slices its own subset
-#' back out — exact because the support is piecewise-constant and the snapshot at
-#' a time depends only on the atoms strictly before it (so a superset walk
-#' sliced to a subset equals the subset walk).
-#'
-#' Partial atom overlap across DISTINCT signatures (the multivariate case, where
-#' processes over different layers share some but not all atoms) is not pooled
-#' here; it belongs to the merged single-clock walk. Within a single flavored
-#' process all of a layer's flavors carry the same atom signature, so this pools
-#' them to one walk.
-#'
-#' @param requests a list of `list(constraint, snapshot_times)`, one per fid, in
-#'   the caller's order; `constraint = NULL` yields a `NULL` result (no mask).
-#' @param model the model string (`"DyNAM"` / `"REM"`).
-#' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prep_envir`.
-#' @param symmetric symmetrise the support (coordination / undirected REM);
-#'   uniform across the family.
-#' @param prep_envir environment holding the realized data objects.
-#' @param src data source over `prep_envir`; built when `NULL`.
-#' @param atoms_factory a function of `(sub_plan, model, nodes, nodes2,
-#'   prep_envir, src)` returning the atom source for one atom signature: the
-#'   merged walk's recorded store (`recorder_atoms_factory()`), or in tests
-#'   the oracle `build_atom_maintainer()`.
-#' @return a list aligned with `requests`; each element is a `support_mask`
-#'   list (`support` or the flip stream, `initial`, `mask_kind`, `n_stored`,
-#'   `symmetric`), or `NULL` for a `NULL` constraint.
-#' @noRd
-preprocess_pooled_support_masks <- function(
-  requests,
-  model,
-  nodes,
-  nodes2,
-  symmetric = FALSE,
-  prep_envir = new.env(),
-  src = NULL,
-  atoms_factory
-) {
-  result <- vector("list", length(requests))
-  has_constraint <- vapply(
-    requests,
-    function(r) !is.null(r$constraint),
-    logical(1)
-  )
-  if (!any(has_constraint)) {
-    return(result)
-  }
-
-  # A request may carry its own `symmetric`, because a constraint belongs to the
-  # process and its sub-models need not agree: a layer's rate and its
-  # coordination choice share one atom pool and one evaluation, and differ only
-  # in whether the stored mask is symmetrised. Absent one, the caller's applies.
-  request_symmetric <- vapply(
-    requests,
-    function(r) isTRUE(r$symmetric %||% symmetric),
-    logical(1)
-  )
-
-  con_idx <- which(has_constraint)
-  signature <- vapply(
-    con_idx,
-    function(i) {
-      paste(sort(requests[[i]]$constraint$atom_labels), collapse = "\r")
-    },
-    character(1)
-  )
-
-  for (group in split(con_idx, signature)) {
-    constraints <- lapply(group, function(i) requests[[i]]$constraint)
-    # The atom pool is built by the factory: the default private walk maintains
-    # it over its own state container, but the merged walk passes a factory that
-    # replays the atom deltas it already recorded off the shared state, so the
-    # pool is not walked a second time.
-    atoms <- atoms_factory(
-      constraints[[1L]],
-      model,
-      nodes,
-      nodes2,
-      prep_envir,
-      src
-    )
-
-    # Distinct MASKS within the group. Two requests read the same mask when they
-    # evaluate the same expression over the same atoms and store it the same
-    # way, which is what this key says. Comparing the compiled sub-plans instead
-    # would answer no for two independent compilations of one constraint --
-    # closures carry their environments -- and a layer's rate and choice compile
-    # theirs separately, which is exactly the case worth sharing.
-    keys <- vapply(
-      seq_along(group),
-      function(i) {
-        paste(
-          paste(deparse(constraints[[i]]$expr), collapse = ""),
-          paste(constraints[[i]]$atom_labels, collapse = "\r"),
-          constraints[[i]]$mask_kind,
-          request_symmetric[[group[i]]],
-          sep = "\v"
-        )
-      },
-      character(1)
-    )
-    distinct_keys <- unique(keys)
-    slot <- match(keys, distinct_keys)
-    distinct <- constraints[match(distinct_keys, keys)]
-    distinct_symmetric <- request_symmetric[group][match(distinct_keys, keys)]
-
-    # Each distinct expression keeps its own stored kind: constraints sharing an
-    # atom pool need not share an axis-union. Symmetrising destroys separability
-    # -- `m & t(m)` of a row-constant mask is an outer product -- so a symmetric
-    # mask is stored at point whatever its atoms' axis-union says.
-    stored_kinds <- vapply(
-      seq_along(distinct),
-      function(di) {
-        if (distinct_symmetric[[di]]) {
-          0L
-        } else {
-          as.integer(distinct[[di]]$mask_kind)
-        }
-      },
-      integer(1)
-    )
-    masks <- lapply(seq_along(distinct), function(di) {
-      build_mask_maintainer(
-        atoms,
-        distinct[[di]]$expr,
-        distinct[[di]]$atom_labels,
-        distinct_symmetric[[di]],
-        as.integer(distinct[[di]]$mask_kind),
-        stored_kinds[[di]]
-      )
-    })
-
-    # One mask maintainer per distinct expression, but one stream per fid: two
-    # fids sharing an expression read it at different times, so each asks for
-    # its own timeline and the walker buckets the shared flips into both.
-    request_times <- lapply(group, function(i) requests[[i]]$snapshot_times)
-    streams <- walk_mask_streams(atoms, masks, request_times, slot)
-
-    for (i in seq_along(group)) {
-      ri <- group[i]
-      result[[ri]] <- c(
-        streams[[i]],
-        list(
-          mask_kind = constraints[[i]]$mask_kind,
-          stored_kind = stored_kinds[[slot[i]]],
-          symmetric = distinct_symmetric[[slot[i]]]
-        )
-      )
-    }
-  }
-
-  result
 }

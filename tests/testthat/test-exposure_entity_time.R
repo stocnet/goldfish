@@ -179,15 +179,20 @@ test_that("each flavor of a flavored rate carries its own exposure", {
 })
 
 test_that("an output with no stored rows has zero exposure and risk set", {
-  out <- list(
-    event_time = numeric(0),
-    intervals = numeric(0),
-    active_sender_init = c(TRUE, TRUE, TRUE),
-    active_dyad_init = c(TRUE, TRUE, TRUE),
-    active_dyad_encoding = "outer"
-  )
-  expect_identical(risk_set_exposure(out, "sender", drop_self = TRUE), 0)
-  expect_identical(risk_set_exposure(out, "dyad", drop_self = TRUE), 0)
+  # The exposure is summed as the walk steps each stored row, so an output
+  # that stores none has none, whichever entity its rate counts.
+  for (variant in c("presence", "presence_dyad")) {
+    av <- new_availability_effect(
+      variant,
+      3L,
+      3L,
+      c(TRUE, TRUE, TRUE),
+      c(TRUE, TRUE, TRUE),
+      drop_diagonal = TRUE,
+      record = FALSE
+    )
+    expect_identical(av$exposure, 0, label = variant)
+  }
 })
 
 test_that("an ordered rate carries no exposure", {

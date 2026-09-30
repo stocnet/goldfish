@@ -1290,12 +1290,7 @@ merged_route_dependent <- function(engine, flavor, event_info) {
   own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
   if (!is.null(own)) {
     consumer_write_dependent(own, event_info)
-    merged_row_availability(
-      engine,
-      as.character(own_fid),
-      event_info$time,
-      event_info$sender
-    )
+    merged_row_availability(engine, as.character(own_fid), event_info)
   }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
@@ -1303,7 +1298,7 @@ merged_route_dependent <- function(engine, flavor, event_info) {
       cs <- engine$rc_consumers[[key]]
       if (!identical(cs, own)) {
         consumer_write_rc(cs, event_info)
-        merged_row_availability(engine, key, event_info$time)
+        merged_row_availability(engine, key, event_info)
       }
     }
   }
@@ -1315,15 +1310,16 @@ merged_route_dependent <- function(engine, flavor, event_info) {
 merged_route_rc <- function(engine, event_info) {
   for (key in names(engine$rc_consumers)) {
     consumer_write_rc(engine$rc_consumers[[key]], event_info)
-    merged_row_availability(engine, key, event_info$time)
+    merged_row_availability(engine, key, event_info)
   }
   invisible(NULL)
 }
 
-# A consumer of `engine` stored a row at `time`: read its live mask there,
-# then step its availability over the row. `sender` is the row's event
-# sender, where an opportunity list sets its row.
-merged_row_availability <- function(engine, fid, time, sender = NA_integer_) {
+# A consumer of `engine` stored the row `event_info` describes: read its
+# live mask there, step its availability over the row, and check the row's
+# observed event against it when the row is a dependent one.
+merged_row_availability <- function(engine, fid, event_info) {
+  time <- event_info$time
   if (!is.null(engine$live_masks)) {
     live_mask_row(engine$live_masks, fid, time)
   }
@@ -1333,8 +1329,17 @@ merged_row_availability <- function(engine, fid, time, sender = NA_integer_) {
       av,
       availability_presence_target(av$changes1, av$cursor1, time),
       availability_presence_target(av$changes2, av$cursor2, time),
-      sender
+      event_info$sender,
+      event_info$interval
     )
+    if (event_info$is_dependent == 1L) {
+      availability_check_event(
+        av,
+        av$rows,
+        event_info$sender,
+        event_info$receiver
+      )
+    }
   }
   invisible(NULL)
 }
@@ -1385,6 +1390,7 @@ build_engine_availability <- function(
       mask = mask,
       stored_kind = entry$stored_kind,
       record = record,
+      drop_diagonal = drop_diagonal,
       ...
     )
   }
@@ -1393,7 +1399,7 @@ build_engine_availability <- function(
     entry <- if (!is.null(live_masks)) live_masks$by_fid[[key]]
     if (engine$is_sender) {
       if (!is.null(constraint)) {
-        return(effect("gate", entry, drop_diagonal = drop_diagonal))
+        return(effect("gate", entry))
       }
       if (unconstrained && isTRUE(engine$is_exact_time)) {
         return(effect("presence"))
@@ -1404,17 +1410,27 @@ build_engine_availability <- function(
       if (!is.null(opportunities) && is_choice_family(spec)) {
         return(effect("point", opportunities = opportunities))
       }
+      if (unconstrained && isTRUE(engine$is_exact_time)) {
+        return(effect("presence_dyad"))
+      }
       return(NULL)
     }
+    # The observed-event check reads each sender's allowed-receiver count,
+    # which only the rate gate needs for its own value.
     if (risk_set_is_dyadic(spec)) {
-      return(effect("dyad", entry, symmetric = risk_set_symmetrize(spec)))
+      return(effect(
+        "dyad",
+        entry,
+        symmetric = risk_set_symmetrize(spec),
+        count = record
+      ))
     }
     encoding <- active_dyad_encoding_decide(
       risk_set_encoding(spec),
       constraint$mask_kind,
       !is.null(opportunities)
     )
-    effect(encoding, entry, opportunities = opportunities)
+    effect(encoding, entry, opportunities = opportunities, count = record)
   })
   names(effects) <- keys
   effects <- Filter(Negate(is.null), effects)
@@ -1877,11 +1893,11 @@ constraint_atom_object_keys <- function(sub_plan) {
 
 # Seed one atom store per (model, node sides, atom signature) the engines carry,
 # for every constraint, and index them by the object key whose covariate events
-# advance them. The stores are filled during the walk
-# (`advance_recorders_for_event()`) and read back at mask realization
-# (`recorder_atoms_factory()`). Every object a constraint's atoms read is on the
-# shared schedule, the ones no formula term reads included, so no constraint
-# needs a walk of its own.
+# advance them. The stores are moved during the walk
+# (`advance_recorders_for_event()`), and the live masks read the moves as
+# each stored row asks for them. Every object a constraint's atoms read is
+# on the shared schedule, the ones no formula term reads included, so no
+# constraint needs a walk of its own.
 build_walk_recorders <- function(engines) {
   lookup <- new.env(parent = emptyenv())
   by_key <- list()
@@ -1939,68 +1955,11 @@ advance_recorders_for_event <- function(
   invisible(NULL)
 }
 
-# Atoms factory for `preprocess_pooled_support_masks()` that returns a
-# constraint's recorded-and-replayed atom pool instead of walking it again.
-# Every constraint has a store: `build_walk_recorders()` seeds one for each.
-recorder_atoms_factory <- function(recorders) {
-  function(sub_plan, model, nodes, nodes2, prep_envir, src) {
-    signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
-    key <- paste(model, nodes, nodes2, signature, sep = "\v")
-    constraint_replay_atoms(recorders$lookup[[key]])
-  }
-}
-
-realize_pending_masks <- function(pending, recorders) {
-  lengths <- vapply(pending, function(p) length(p$requests), integer(1))
-  masks <- lapply(lengths, function(n) vector("list", n))
-  owner <- rep(seq_along(pending), lengths)
-  requests <- unlist(lapply(pending, function(p) p$requests), recursive = FALSE)
-  if (length(requests) == 0L) {
-    return(masks)
-  }
-
-  key <- vapply(
-    seq_along(requests),
-    function(i) {
-      ctx <- pending[[owner[[i]]]]$engine$ctx
-      paste(
-        pending[[owner[[i]]]]$engine$model,
-        ctx$nodes,
-        ctx$nodes2,
-        sep = "\v"
-      )
-    },
-    character(1)
-  )
-  for (group in split(seq_along(requests), key)) {
-    engine <- pending[[owner[[group[[1L]]]]]]$engine
-    ctx <- engine$ctx
-    atoms_factory <- recorder_atoms_factory(recorders)
-    realized <- preprocess_pooled_support_masks(
-      requests[group],
-      model = engine$model,
-      nodes = ctx$nodes,
-      nodes2 = ctx$nodes2,
-      prep_envir = engine$prep_envir,
-      src = ctx$src,
-      atoms_factory = atoms_factory
-    )
-    for (k in seq_along(group)) {
-      i <- group[[k]]
-      slot <- i -
-        (if (owner[[i]] > 1L) sum(lengths[seq_len(owner[[i]] - 1L)]) else 0L)
-      masks[[owner[[i]]]][[slot]] <- realized[[k]]
-    }
-  }
-  masks
-}
-
 # Phase one of finalizing an engine: build the tail, pick the family's fold, and
-# finalize every consumer's writer WITHOUT realizing a mask. A constraint
-# belongs to the `(layer, flavor)` process rather than to a sub-model family, so
-# a layer's rate engine and its choice engine have to reach one atom pool, and
-# that is only possible once both timelines exist. `run_merged_walk()` realizes
-# them all between this and `render_walk_engine()`.
+# finalize every consumer's writer. The masks and the availability were kept
+# by the walk as it went (a constraint belongs to the `(layer, flavor)`
+# process, so a layer's rate engine and its choice engine read one atom
+# store); `render_walk_engine()` writes them onto each output.
 finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -2032,7 +1991,6 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
       out$support_mask <- support_mask
       availability_finish(availability, out)
     }
-    scalar_entity <- "sender"
   } else {
     project_initial_stats <- function(stats, effect_map) {
       stats[,, effect_map, drop = FALSE]
@@ -2051,7 +2009,6 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
       }
       availability_finish(availability, out)
     }
-    scalar_entity <- "dyad"
   }
 
   single <- is.null(engine$consumer_specs)
@@ -2075,11 +2032,7 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   list(
     engine = engine,
     finalized = finalized,
-    requests = consumer_mask_requests(finalized),
     finish_output = finish_output,
-    scalar_entity = scalar_entity,
-    # On one node set the self-dyad is not a dyad of the rate's risk set.
-    drop_self = identical(ctx$nodes, ctx$nodes2),
     single = single
   )
 }
@@ -2107,6 +2060,17 @@ walk_engine_masks <- function(pending, live_masks) {
   })
 }
 
+# The availability effect of output `key`, whichever engine holds it.
+walk_output_availability <- function(engines, key) {
+  for (engine in engines) {
+    av <- engine$availability[[key]]
+    if (!is.null(av)) {
+      return(av)
+    }
+  }
+  NULL
+}
+
 # Each finalized consumer's availability effect, in the order
 # `render_walk_engine()` reads them; `NULL` where the writer's stream
 # stands.
@@ -2129,8 +2093,6 @@ render_walk_engine <- function(pending, masks, availability = NULL) {
     pending$finalized,
     masks,
     pending$finish_output,
-    pending$scalar_entity,
-    drop_self = pending$drop_self,
     names = if (pending$single) NULL else names(engine$consumers),
     availability = availability
   )
@@ -2307,6 +2269,34 @@ run_merged_walk <- function(
       live_masks,
       control_preprocessing$opportunities_list
     )
+  }
+  # Each constrained output's dependent events are checked in the walk. On
+  # the deferred path (`validate_support = FALSE`) the verdict is kept on
+  # the output for estimation, which picks the check by the risk set's
+  # axis; the immediate path picks it by the process's family and names
+  # the process.
+  process_map <- merged$process_map
+  for (engine in engines) {
+    for (key in names(engine$availability)) {
+      av <- engine$availability[[key]]
+      if (is.null(av$count)) {
+        next
+      }
+      row <- match(as.integer(key), process_map$fid)
+      family <- if (validate_support) {
+        identical(process_map$family[row], "rate")
+      } else {
+        identical(risk_set_axis(engine$model_spec), "sender")
+      }
+      availability_enable_check(
+        av,
+        if (family) "rate" else "choice",
+        label = if (validate_support) {
+          render_process_label(process_map, process_map$fid[row])
+        },
+        immediate = validate_support
+      )
+    }
   }
   # A mask flip reaches a fid's availability through the live masks, which
   # hand it to every fid reading that mask.
@@ -2642,24 +2632,26 @@ run_merged_walk <- function(
     outputs[names(engine_outputs)] <- engine_outputs
   }
 
-  # Engine-readiness: fail fast, per fid, when a derived mask contradicts the
-  # user constraint and leaves an empty risk set -- naming the process the empty
-  # set belongs to via the label rendered from the map. The check is stamped so
-  # estimation does not re-run it, exactly as the flavored driver does.
-  # `validate_support = FALSE` defers it, as the recipe estimation surface does:
-  # the recipe loops validate at estimation, not at preprocessing, so a
-  # single-process spec preprocessed on its own (`compute_statistics()`) is not
-  # rejected for a constraint an estimation would reject. The stamp is withheld
-  # too, so estimation re-runs the check on the deferred path.
-  process_map <- merged$process_map
+  # Engine-readiness: an observed event a constraint contradicts failed at
+  # its own event during the walk, naming the process via the label
+  # rendered from the map; what describes the whole sequence is warned here,
+  # per fid. The check is stamped so estimation does not re-run it, exactly
+  # as the flavored driver does. `validate_support = FALSE` defers it, as
+  # the recipe estimation surface does: the recipe loops validate at
+  # estimation, not at preprocessing, so a single-process spec preprocessed
+  # on its own (`compute_statistics()`) is not rejected for a constraint an
+  # estimation would reject. The walk keeps its verdict on the output
+  # instead, and the stamp is withheld, so estimation raises it.
   if (validate_support) {
     for (i in seq_len(nrow(process_map))) {
       key <- as.character(process_map$fid[i])
-      validate_prep_support(
-        outputs[[key]],
-        is_rate_family = identical(process_map$family[i], "rate"),
-        process_label = render_process_label(process_map, process_map$fid[i])
-      )
+      av <- walk_output_availability(engines, key)
+      if (!is.null(av$check)) {
+        validate_support_constraint(
+          availability_verdict(av),
+          process_label = av$check$label
+        )
+      }
       outputs[[key]]$support_validated <- TRUE
     }
   }

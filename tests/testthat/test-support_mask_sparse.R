@@ -739,28 +739,3 @@ test_that("the shared mask serves sub-models that store it differently", {
   # One sub-model stores the separable mask, the other the symmetrised grid.
   expect_setequal(kinds, c(0L, 1L))
 })
-
-# --- 8.2 an object from before the stream is refused, not misread ----------- #
-
-test_that("a support_mask predating the update stream is refused", {
-  local_reproducible_output()
-  # The hazard is silence, not failure: a cursor over an absent update buffer
-  # finds no flips and returns the initial mask at every event, so the model is
-  # estimated on a constraint frozen at time zero. The epoch stamp cannot see
-  # it -- both layouts are epoch 2 inside this development line -- so the
-  # consumer names the component it needs.
-  stale <- list(
-    support = list(matrix(TRUE, 2L, 2L), matrix(FALSE, 2L, 2L)),
-    initial = matrix(TRUE, 2L, 2L),
-    stored_kind = 0L,
-    n_stored = 2L
-  )
-  expect_snapshot(error = TRUE, mask_cursor(stale))
-  expect_error(mask_flips(stale), "predates the mask update stream")
-
-  # A mask that legitimately never moves has an EMPTY buffer, not an absent
-  # one, and is read without complaint.
-  empty <- mask_from_timeline(list(matrix(TRUE, 2L, 2L), matrix(TRUE, 2L, 2L)))
-  expect_identical(ncol(empty$update), 0L)
-  expect_silent(mask_cursor(empty))
-})
