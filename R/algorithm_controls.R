@@ -9,7 +9,14 @@
 #'
 #' @param routine A character string naming the augmentation routine,
 #'   matching the `augment_seq_*()` constructor it drives. One of `"mcmc"`
-#'   (default), `"random"`, or `"sim"`.
+#'   (default), `"random"`, or `"sim"`. `"random"` draws event times
+#'   uniformly and orders them uniformly, which is what the model generates
+#'   when every parameter is zero. It is therefore a sound cold start only
+#'   near \eqn{\theta_0 = 0} (`initial_parameters = NULL`, no `warm_start`).
+#'   Away from 0 the uniform draws sit far from the target, and the
+#'   importance weights collapse onto a few sequences, which drawing more
+#'   uniform sequences does not repair. There, prefer the model-driven
+#'   `"sim"` or `"mcmc"` routines.
 #' @param burn_in,thinning Single non-negative integers counting sweeps (one
 #'   sweep = as many proposals as there are panel events), so the same
 #'   setting means the same thing at every dataset size. MCMC-only. Default

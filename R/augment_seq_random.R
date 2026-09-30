@@ -25,6 +25,12 @@
 # For it to be the same constant in every draw it is estimated once, when the
 # augmenter is built, as the acceptance rate of a pilot of redraws on a private
 # stream; a per-draw 1/attempts would vary across draws and not cancel.
+#
+# At theta = 0 every rate is equal and every choice uniform, so the model's
+# own endpoint-conditioned path distribution is this proposal: the sanctioned
+# cold start. Away from 0 the target depends on the timing and order the
+# uniform draws ignore and the importance weights degenerate, which a redraw
+# cannot fix; set_augmenter_options() documents the caveat for users.
 # =========================================================================== #
 
 # The fewest attempts the pilot spends on a coupled interval.

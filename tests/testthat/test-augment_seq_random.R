@@ -311,3 +311,101 @@ test_that("a panel no legal ordering reaches aborts at the ceiling", {
     class = "goldfish_dynes_restart_ceiling"
   )
 })
+
+# --- Cold start ---------------------------------------------------------------
+
+# A count panel (calls, cumulative counts at waves 5 and 10) whose rate reads
+# its own outdegree and whose choice reads inertia, beside an observed emails
+# stream. At theta = 0 every rate is 1 and every choice uniform, so the model
+# is the uniform proposal: event times are uniform order statistics and
+# orderings uniform. A non-zero outdegree/inertia effect makes the target
+# depend on the timing and order the random draws ignore.
+# theta: calls intercept, calls outdeg, calls inertia, emails intercept,
+# emails indeg.
+cold_start_spec <- function() {
+  data <- list(
+    info = list(
+      name = "cold",
+      focal = "emails",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "panel", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      data.frame(
+        from = c(1L, 1L, 2L),
+        to = c(2L, 2L, 3L),
+        time = c(5, 10, 10),
+        weight = c(2, 3, 1),
+        layer = "calls"
+      ),
+      # The last email's receivers differ in indegree, so the emails choice
+      # is identified on every draw.
+      data.frame(
+        from = c(1L, 2L, 4L),
+        to = c(3L, 3L, 1L),
+        time = c(2, 4, 7),
+        weight = 1,
+        layer = "emails"
+      )
+    )
+  )
+  make_joint_specification(
+    make_specification(
+      rate = ~ 1 + outdeg,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~indeg,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# The effective sample size of a pool of random draws importance-weighted to
+# the target at `theta`. The window is the estimation window [t0, t_M]: left
+# to open at the first event, it would move with the first latent draw and
+# every rate's exposure with it.
+cold_start_ess <- function(built, draws, theta) {
+  evaluator <- make_proposal_evaluator(
+    decompose_joint_spec(built$spec),
+    theta,
+    control_prep = set_preprocessing(start_time = 0, end_time = 10)
+  )
+  loglik <- vapply(draws, function(d) evaluator(d$data)$loglik, numeric(1))
+  log_proposal <- vapply(draws, `[[`, numeric(1), "log_proposal")
+  effective_sample_size(compute_pool_weights(loglik, log_proposal))
+}
+
+test_that("at theta0 = 0 the random pool is not degenerate", {
+  built <- random_augmenter(cold_start_spec())
+  n_draws <- 40L
+  draws <- draw_random(built, n_draws)
+  expect_equal(cold_start_ess(built, draws, rep(0, 5)), n_draws)
+})
+
+test_that("a theta0 far from 0 drives the random pool's ESS toward 1", {
+  built <- random_augmenter(cold_start_spec())
+  n_draws <- 40L
+  draws <- draw_random(built, n_draws)
+  ess <- vapply(
+    c(0, 1, 4),
+    function(s) cold_start_ess(built, draws, c(0, s, s, 0, 0)),
+    numeric(1)
+  )
+  expect_equal(ess[[1L]], n_draws)
+  expect_true(all(diff(ess) < 0))
+  expect_lt(ess[[3L]], 1.5)
+})

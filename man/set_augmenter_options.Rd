@@ -17,7 +17,14 @@ set_augmenter_options(
 \arguments{
 \item{routine}{A character string naming the augmentation routine,
 matching the \verb{augment_seq_*()} constructor it drives. One of \code{"mcmc"}
-(default), \code{"random"}, or \code{"sim"}.}
+(default), \code{"random"}, or \code{"sim"}. \code{"random"} draws event times
+uniformly and orders them uniformly, which is what the model generates
+when every parameter is zero. It is therefore a sound cold start only
+near \eqn{\theta_0 = 0} (\code{initial_parameters = NULL}, no \code{warm_start}).
+Away from 0 the uniform draws sit far from the target, and the
+importance weights collapse onto a few sequences, which drawing more
+uniform sequences does not repair. There, prefer the model-driven
+\code{"sim"} or \code{"mcmc"} routines.}
 
 \item{burn_in, thinning}{Single non-negative integers counting sweeps (one
 sweep = as many proposals as there are panel events), so the same
