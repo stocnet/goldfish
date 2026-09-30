@@ -539,3 +539,38 @@ test_that("unit calls strictly inside their intervals hit the count waves", {
     class = "goldfish_endpoint_violation"
   )
 })
+test_that("a count panel's pinned periods count its events, not its dyads", {
+  # (1, 2) rises by 3 then 4, (2, 3) by 2 in the second interval: 3 and 6
+  # events, on 1 and 2 changed dyads.
+  data <- count_panel_data(
+    wave_rows(c(1L, 1L, 2L), c(2L, 2L, 3L), c(5, 10, 10), c(3, 4, 2))
+  )
+  js <- make_joint_specification(
+    make_specification(
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+  diff <- diff_panel_waves(data, "calls", wave_times = c(0, 5, 10))
+
+  rs <- panel_wave_risk_set(
+    js,
+    layer = "calls",
+    flavor = NA_character_,
+    entity = "sender",
+    wave_times = c(0, 5, 10)
+  )
+
+  expect_identical(rs$count, as.numeric(diff$counts))
+  expect_identical(rs$count, c(3, 6))
+})
