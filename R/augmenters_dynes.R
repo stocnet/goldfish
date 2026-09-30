@@ -36,7 +36,7 @@
 # work; until a routine has one, estimate_dynes() stays unexported so no user
 # can reach resolve_dynes_augmenter()'s abort.
 dynes_augmenter_constructors <- function() {
-  list()
+  list(random = augment_seq_random)
 }
 
 # The augmenter the control selects, built once over the compiled recipe.
@@ -100,7 +100,11 @@ check_augmenter_function <- function(
   formals_expected,
   call = rlang::caller_env()
 ) {
-  if (!is.function(fn) || !identical(names(formals(fn)), formals_expected)) {
+  # as.character(): a function without arguments has NULL formals names.
+  if (
+    !is.function(fn) ||
+      !identical(as.character(names(formals(fn))), formals_expected)
+  ) {
     cli::cli_abort(
       "An augmenter's {.fn {name}} must be a function of
        {.arg {formals_expected}}.",

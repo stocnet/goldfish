@@ -53,6 +53,7 @@ test_that("estimate_dynes is internal until a real augmenter exists", {
 })
 
 test_that("estimate_dynes without an augmenter aborts informatively", {
+  local_mocked_bindings(dynes_augmenter_constructors = function() list())
   expect_error(
     estimate_dynes(dynes_surface_spec(), surface_control()),
     class = "goldfish_dynes_no_augmenter"
@@ -118,6 +119,7 @@ test_that("estimate_dynes aborts to estimate_dynam without a modeled panel", {
 
 test_that("estimate_dynes accepts a modeled panel process", {
   # Past the gate, the run stops only for want of an augmenter.
+  local_mocked_bindings(dynes_augmenter_constructors = function() list())
   expect_error(
     suppressWarnings(estimate_dynes(direct_panel_spec(), surface_control())),
     class = "goldfish_dynes_no_augmenter"
