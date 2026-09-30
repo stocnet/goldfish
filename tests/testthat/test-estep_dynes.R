@@ -159,3 +159,49 @@ test_that("MCMC draws record a lag-1 autocorrelation index for the trace", {
   non_mcmc <- new_dynes_estep(ramp, weights = rep(1 / 8, 8), "importance")
   expect_true(is.na(non_mcmc$autocorrelation))
 })
+
+# The E-step object carries the per-sequence score and information the loop
+# harvested at the proposal alongside Lambda: the sandwich covariance needs both
+# (the meat sums the per-sequence score outer products, the bread the
+# per-sequence information), and neither can be rebuilt from Lambda.
+test_that("the E-step object carries per-sequence score and information", {
+  lambda <- c(-1, 0.5, 2)
+  w <- c(0.2, 0.3, 0.5)
+  score <- matrix(c(1, -2, 0.5, 0.1, 0, 3), nrow = 3)
+  fisher <- list(diag(2), 2 * diag(2), matrix(c(2, 1, 1, 2), 2))
+
+  withr::local_seed(1L)
+  for (scheme in c("importance", "resampling", "uniform")) {
+    estep <- new_dynes_estep(
+      lambda,
+      weights = if (scheme != "uniform") w,
+      scheme = scheme,
+      score = score,
+      fisher = fisher
+    )
+    expect_identical(estep$score, score)
+    expect_identical(estep$fisher, fisher)
+  }
+})
+
+test_that("per-sequence score and information must match the pool", {
+  local_abem_cli_context()
+  lambda <- c(-1, 0.5, 2)
+  w <- c(0.2, 0.3, 0.5)
+
+  expect_snapshot(error = TRUE, {
+    new_dynes_estep(lambda, w, score = matrix(0, 2, 2), fisher = list())
+    new_dynes_estep(
+      lambda,
+      w,
+      score = matrix(0, 3, 2),
+      fisher = list(diag(2), diag(2))
+    )
+    new_dynes_estep(
+      lambda,
+      w,
+      score = matrix(0, 3, 2),
+      fisher = list(diag(2), diag(2), diag(3))
+    )
+  })
+})

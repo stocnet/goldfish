@@ -1538,3 +1538,270 @@ test_that("the cpp evaluator gives a fixed-only fid no score or Fisher block", {
   )
   expect_matches_adapter(with_pinned, theta)
 })
+
+# --- Importance weights as wired to the compiled evaluator -------------------
+# The adapter retires: every target-density path (pool evaluation, the proposal
+# evaluator, compute_lik_seq()) runs on the compiled engine, so the weights the
+# loop assembles from the stored reference records are those of the compiled
+# per-sequence quantities. The zero-iteration fits the reference values come
+# from are computed before the adapter is shut off.
+
+local_no_adapter <- function(env = parent.frame()) {
+  local_mocked_bindings(
+    estimate_wrapper = function(...) stop("the adapter was called"),
+    .env = env
+  )
+}
+
+# dynes_multiwave_spec(indeg_friendship_choice) on two paths that differ in
+# one friendship event, moved from the interior wave t = 2 (which belongs to
+# the second period) to t = 1.5, in the first: the pinned term then differs
+# between them.
+weights_wired_paths <- function() {
+  moved <- dynes_multiwave_data()
+  moved$ties$time[moved$ties$layer == "friendship"] <- c(1, 1.5, 3, 4)
+  moved$ties <- moved$ties[order(moved$ties$time), ]
+  list(dynes_multiwave_data(), moved)
+}
+
+test_that("pool evaluation never reaches the zero-iteration adapter", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  fits <- multiwave_free_fits(spec, spec$data, theta)
+  pool <- multiwave_pool(spec)
+  local_no_adapter()
+
+  res <- evaluate_sequence_pool(pool, theta)
+
+  expect_false(res$degenerate[[1]])
+  expect_equal(
+    res$loglik[[1]],
+    multiwave_fixed_loglik() +
+      fits$friendship$log_likelihood +
+      fits$calls$log_likelihood,
+    tolerance = 1e-10
+  )
+  calls_slots <- layout_slots(spec, 3L)
+  expect_equal(res$score[1, calls_slots], fits$calls$final_score, 1e-10)
+  expect_equal(
+    res$fisher[[1]][calls_slots, calls_slots],
+    fits$calls$final_information_matrix,
+    tolerance = 1e-10
+  )
+})
+
+test_that("the proposal evaluator never reaches the zero-iteration adapter", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  expected <- evaluate_sequence_pool(multiwave_pool(spec), theta)$loglik[[1]]
+  local_no_adapter()
+
+  eval_fn <- make_proposal_evaluator(decompose_joint_spec(spec), theta)
+
+  expect_equal(eval_fn(spec$data)$loglik, expected, tolerance = 1e-10)
+})
+
+test_that("the evaluator has one engine: no backend argument, no adapter", {
+  expect_false("backend" %in% names(formals(evaluate_pool_sequence)))
+  expect_false(exists("pool_engine_eval", envir = asNamespace("goldfish")))
+})
+
+test_that("a resident pool entry holds no data object", {
+  pool <- multiwave_pool(dynes_multiwave_spec(indeg_friendship_choice))
+
+  entry <- pool$sequences[[1]]
+  expect_null(entry$data)
+  expect_setequal(
+    names(entry),
+    c("stats", "fixed_loglik", "fixed_degenerate", "reference")
+  )
+  resident <- resident_pool_store(pool$store$key)$entries
+  for (e in resident) {
+    expect_null(e$data)
+  }
+})
+
+test_that("the loop's reference records feed the weights the adapter gives", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  paths <- weights_wired_paths()
+  theta0 <- c(0.3, -1.2, 0.4)
+  log_proposal <- c(-4, -6)
+  # The reference: each path's joint log-likelihood at theta0 from the
+  # zero-iteration fits plus its θ-free fixed-only term at entry.
+  fixed <- vapply(
+    paths,
+    function(d) multiwave_pool(spec, d)$sequences[[1]]$fixed_loglik,
+    numeric(1)
+  )
+  free <- vapply(
+    paths,
+    function(d) {
+      fits <- multiwave_free_fits(spec, d, theta0)
+      fits$friendship$log_likelihood + fits$calls$log_likelihood
+    },
+    numeric(1)
+  )
+  expected_loglik <- fixed + free
+  expected_weights <- stable_softmax(
+    expected_loglik - log_proposal
+  )$probabilities
+
+  local_no_adapter()
+  local_scripted_optimizer(function(theta) theta)
+  res <- run_abem_loop(
+    theta0 = theta0,
+    decomposition = decompose_joint_spec(spec),
+    augmenter = new_stub_augmenter(paths, log_proposal = log_proposal),
+    control = set_algorithm_em(
+      n_sequences = 2L,
+      augmenter = set_augmenter_options(routine = "random")
+    ),
+    spec = spec
+  )
+
+  references <- pool_references(res$pool)
+  for (i in 1:2) {
+    expect_equal(references[[i]]$theta_ref, theta0)
+    expect_equal(references[[i]]$log_proposal, log_proposal[[i]])
+    expect_equal(references[[i]]$loglik_ref, expected_loglik[[i]], 1e-10)
+  }
+  expect_equal(res$weights, expected_weights, tolerance = 1e-10)
+  expect_equal(
+    res$em_trace$ess[[1]],
+    effective_sample_size(expected_weights),
+    tolerance = 1e-10
+  )
+})
+
+test_that("the reference record's fixed-only term is computed once, at entry", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  paths <- weights_wired_paths()
+  real_fixed <- fixed_only_loglik
+  fixed_calls <- 0L
+  local_mocked_bindings(
+    fixed_only_loglik = function(...) {
+      fixed_calls <<- fixed_calls + 1L
+      real_fixed(...)
+    }
+  )
+  local_no_adapter()
+  local_scripted_optimizer(function(theta) theta)
+
+  res <- run_abem_loop(
+    theta0 = c(0.3, -1.2, 0.4),
+    decomposition = decompose_joint_spec(spec),
+    augmenter = new_stub_augmenter(paths, log_proposal = c(-4, -6)),
+    control = set_algorithm_em(
+      n_sequences = 2L,
+      augmenter = set_augmenter_options(routine = "random")
+    ),
+    spec = spec
+  )
+
+  # Two fixed-only fids (the pinned friendship rate and the uniform calls
+  # choice) on each of two sequences, scored once each at entry although the
+  # pool is evaluated at theta0 and at the proposal, and again below.
+  expect_identical(fixed_calls, 4L)
+  fixed <- vapply(res$pool$sequences, `[[`, numeric(1), "fixed_loglik")
+  # Path dependent: the moved event reads the first period's plateau.
+  expect_gt(abs(diff(fixed)), 0.1)
+  # Carried in the stored log-likelihood at theta_ref ...
+  free_ref <- vapply(
+    seq_along(paths),
+    function(i) {
+      fits <- multiwave_free_fits(
+        spec,
+        paths[[i]],
+        res$pool$sequences[[i]]$reference$theta_ref
+      )
+      fits$friendship$log_likelihood + fits$calls$log_likelihood
+    },
+    numeric(1)
+  )
+  loglik_ref <- vapply(
+    pool_references(res$pool),
+    `[[`,
+    numeric(1),
+    "loglik_ref"
+  )
+  expect_equal(loglik_ref, fixed + free_ref, tolerance = 1e-10)
+  # ... so it moves the normalized weights across the two paths ...
+  with_fixed <- compute_pool_weights(loglik_ref, c(-4, -6))
+  without_fixed <- compute_pool_weights(free_ref, c(-4, -6))
+  expect_gt(max(abs(with_fixed - without_fixed)), 1e-3)
+  # ... and cancels in a path's reweight across theta.
+  pool <- res$pool
+  theta_new <- c(0.5, -1, 0.2)
+  lambda <- evaluate_sequence_pool(pool, theta_new, what = "loglik")$loglik -
+    loglik_ref
+  free_new <- vapply(
+    paths,
+    function(d) {
+      fits <- multiwave_free_fits(spec, d, theta_new)
+      fits$friendship$log_likelihood + fits$calls$log_likelihood
+    },
+    numeric(1)
+  )
+  expect_equal(lambda, free_new - free_ref, tolerance = 1e-10)
+  expect_identical(fixed_calls, 4L)
+})
+
+# --- compute_lik_seq(): per-sequence sugar over the pool evaluator -----------
+
+test_that("compute_lik_seq() is one sequence of the pool evaluator", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  sequence <- weights_wired_paths()[[2]]
+  pooled <- evaluate_sequence_pool(multiwave_pool(spec, sequence), theta)
+  local_no_adapter()
+
+  res <- expect_no_warning(compute_lik_seq(spec, sequence, theta))
+
+  layout <- coef_layout(spec)
+  labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
+  expect_named(res, c("loglik", "score", "fisher", "degenerate"))
+  expect_false(res$degenerate)
+  expect_equal(res$loglik, pooled$loglik[[1]], tolerance = 1e-10)
+  expect_equal(unname(res$score), pooled$score[1, ], tolerance = 1e-10)
+  expect_named(res$score, labels)
+  expect_equal(unname(res$fisher), pooled$fisher[[1]], tolerance = 1e-10)
+  expect_identical(dimnames(res$fisher), list(labels, labels))
+})
+
+test_that("compute_lik_seq() and the proposal evaluator share one density", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  sequence <- weights_wired_paths()[[2]]
+  eval_fn <- make_proposal_evaluator(decompose_joint_spec(spec), theta)
+
+  expect_equal(
+    compute_lik_seq(spec, sequence, theta)$loglik,
+    eval_fn(sequence)$loglik,
+    tolerance = 1e-10
+  )
+})
+
+test_that("compute_lik_seq() reads a named theta by the coefficient labels", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  layout <- coef_layout(spec)
+  labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
+  named <- rev(stats::setNames(theta, labels))
+
+  expect_equal(
+    compute_lik_seq(spec, spec$data, named),
+    compute_lik_seq(spec, spec$data, theta)
+  )
+})
+
+test_that("compute_lik_seq() validates its specification and theta", {
+  local_cli_context()
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+
+  expect_snapshot(error = TRUE, {
+    compute_lik_seq(list(), spec$data, c(0, 0, 0))
+    compute_lik_seq(spec, spec$data, c(0, 0))
+    compute_lik_seq(spec, spec$data, "a")
+    compute_lik_seq(spec, spec$data, c(a = 0, b = 0, c = 0))
+  })
+})

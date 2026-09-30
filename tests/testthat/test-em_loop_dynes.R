@@ -539,3 +539,72 @@ test_that("the loop ascends a toy to its marginal-likelihood optimum", {
   expect_true(any(res$em_trace$accepted))
   expect_equal(res$parameters, optimum, tolerance = 0.1)
 })
+
+# Each decision pass evaluates the pool once at the proposal for its
+# log-likelihood, score and information together -- one compiled pass yields
+# all three -- and hands the per-sequence score and information to the E-step
+# object, which the per-pass standard errors then read instead of evaluating
+# the pool again.
+test_that("each pass builds its E-step from per-sequence score and Fisher", {
+  local_analytic_evaluator()
+  local_scripted_optimizer(function(theta) theta + 1)
+  built <- list()
+  real_estep <- new_dynes_estep
+  local_mocked_bindings(
+    new_dynes_estep = function(lambda, ...) {
+      estep <- real_estep(lambda, ...)
+      built[[length(built) + 1L]] <<- estep
+      estep
+    }
+  )
+
+  run_abem_loop(
+    theta0 = 0,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1, 2)),
+    control = analytic_em_control(max_iterations = 1L)
+  ) |>
+    suppressWarnings()
+
+  estep <- built[[1]]
+  mu <- rep(c(1, 2), 2)
+  # The analytic score at the proposal theta = 1 is mu - 1, the information 1.
+  expect_equal(estep$score, matrix(mu - 1, ncol = 1))
+  expect_equal(estep$fisher, rep(list(diag(1)), 4))
+})
+
+test_that("per-pass standard errors reuse the pass's E-step quantities", {
+  local_analytic_evaluator()
+  real_evaluate <- evaluate_sequence_pool
+  requests <- list()
+  local_mocked_bindings(
+    evaluate_sequence_pool = function(pool, theta, what, ...) {
+      requests[[length(requests) + 1L]] <<- what
+      real_evaluate(pool, theta, what, ...)
+    }
+  )
+  proposals <- c(0.5, 0.5 + 1e-5)
+  pass <- 0L
+  local_scripted_optimizer(function(theta) {
+    pass <<- pass + 1L
+    proposals[[pass]]
+  })
+
+  res <- run_abem_loop(
+    theta0 = 0,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1, 2)),
+    control = analytic_em_control(em_trace_se = TRUE)
+  )
+
+  # Draw-time log-likelihoods, then one full evaluation per pass.
+  full <- vapply(requests, function(w) "fisher" %in% w, logical(1))
+  expect_identical(sum(full), nrow(res$em_trace))
+  # The SE is the sandwich over the pass's pool at the proposal theta = 0.5:
+  # with score mu - theta and unit information, the bread is 1 and the meat
+  # sum w (mu - theta)^2, w the weights at the proposal.
+  mu <- c(1, 2, 1, 2)
+  w <- compute_pool_weights(-(mu - 0.5)^2 / 2, rep(-log(2), 4))
+  expected <- sqrt(sum(w * (mu - 0.5)^2))
+  expect_equal(res$em_trace$se[[1]], expected)
+})
