@@ -358,6 +358,51 @@ test_that("availability per stored row costs the same at any size", {
   }
 })
 
+test_that("the observed-event check reads no mask copy per event", {
+  # A cost guard: each dependent event is checked against the availability
+  # the walk keeps. A rate reads one gate entry and one count, so its cost
+  # per row does not grow with the actors; a choice reads its sender's row
+  # (as its likelihood does), so its cost grows with one row, never with
+  # the grid. Copying the mask to answer each event costs n1 x n2 a row.
+  skip("the observed events are still checked after the walk")
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  allocation <- function(n_actors, n_calls, family, constrained) {
+    args <- list(
+      layer = "calls",
+      model = "DyNAM",
+      data = constraint_cost_data(
+        n_actors = n_actors,
+        n_calls = n_calls,
+        n_emails = n_calls
+      )
+    )
+    args[[family]] <- if (family == "rate") ~ 1 + indeg else ~inertia
+    if (constrained) {
+      args$support_constraint <- ~ !tie(emails)
+    }
+    spec <- suppressMessages(do.call(make_specification, args))
+    prep <- NULL
+    used <- bench::bench_memory(
+      prep <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
+    )
+    c(bytes = as.numeric(used$mem_alloc), rows = length(prep[[1L]]$event_time))
+  }
+  per_row <- function(n_actors, family) {
+    small <- allocation(n_actors, 1500L, family, TRUE)
+    large <- allocation(n_actors, 3000L, family, TRUE)
+    extra <- (large[["bytes"]] - small[["bytes"]]) -
+      (allocation(n_actors, 3000L, family, FALSE)[["bytes"]] -
+        allocation(n_actors, 1500L, family, FALSE)[["bytes"]])
+    extra / (large[["rows"]] - small[["rows"]])
+  }
+  bound <- c(rate = 4096, choice = 65536)
+  for (family in names(bound)) {
+    growth <- per_row(1500L, family) - per_row(750L, family)
+    expect_lt(growth, bound[[family]], label = paste(family, "per-row growth"))
+  }
+})
+
 test_that("a constrained walk composes its masks as it goes", {
   # A cost guard: the masks and the folded availability are written during
   # the walk, not realized afterwards by replaying the atoms to each stored
