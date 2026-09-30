@@ -36,7 +36,8 @@ new_pool_store_key <- function() {
 
 # The static part of every evaluation: the sub-models with their coefficient
 # masks, the theta length, and the preprocessing control, plus the pool engine
-# spec pool entry walks. The coefficient layout depends on the formulas, not
+# spec pool entry walks and the layout tag a precomputed attachment must carry
+# to stand in for that walk. The coefficient layout depends on the formulas, not
 # on the drawn events, so any data object of the specification resolves it.
 pool_store_header <- function(
   decomposition,
@@ -53,7 +54,8 @@ pool_store_header <- function(
     ),
     engine_spec = decomposition$engine_spec,
     theta_length = as.integer(theta_length),
-    control_prep = control_prep
+    control_prep = control_prep,
+    layout = pool_layout_tag(decomposition$sub_models, control_prep)
   )
 }
 
@@ -67,6 +69,8 @@ open_pool_store <- function(seam, header) {
   store$header <- header
   store$generation <- 0L
   store$next_id <- 1L
+  # The coordinator's per-fid start state, which every entry refers to.
+  store$start_state <- new.env(parent = emptyenv())
   class(store) <- "goldfishDynesPoolStore"
   # A serial store's resident copy lives in this process; drop it with the
   # handle, so pools built outside an estimation run do not accumulate.
@@ -144,6 +148,9 @@ pool_store_broadcast <- function(store, f, args) {
 # Resident side ----
 # These run where the store lives: in this process on the serial path, on
 # every daemon otherwise. Each returns pool_store_state() for the check above.
+# A broadcast delivers every entry as its own serialized copy, so each
+# resident copy points the entries it receives at its own per-fid start state
+# (share_start_state()); on the serial path they already arrive shared.
 
 open_resident_pool_store <- function(key, header) {
   resident <- new.env(parent = emptyenv())
@@ -151,12 +158,14 @@ open_resident_pool_store <- function(key, header) {
   resident$entries <- list()
   resident$ids <- integer(0)
   resident$generation <- 0L
+  resident$start_state <- new.env(parent = emptyenv())
   assign(key, resident, envir = dynes_pool_stores)
   pool_store_state(key)
 }
 
 append_resident_pool_store <- function(key, ids, entries, generation) {
   resident <- resident_pool_store(key)
+  entries <- share_start_state(entries, resident$start_state)
   names(entries) <- as.character(ids)
   resident$entries <- c(resident$entries, entries)
   resident$ids <- c(resident$ids, ids)
@@ -166,6 +175,7 @@ append_resident_pool_store <- function(key, ids, entries, generation) {
 
 replace_resident_pool_store <- function(key, ids, entries, generation) {
   resident <- resident_pool_store(key)
+  entries <- share_start_state(entries, resident$start_state)
   names(entries) <- as.character(ids)
   resident$entries <- entries
   resident$ids <- ids

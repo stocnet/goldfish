@@ -249,17 +249,21 @@ is_effect_free_formula <- function(formula) {
   identical(rhs, 1) || identical(rhs, 1L)
 }
 
-# A precomputed attachment for a pooled sequence: the per-sub-model statistics
-# and the log-likelihood at the theta the sequence was evaluated under
-# already materialized elsewhere (e.g. inside an MCMC chain's acceptance-ratio
-# pass). Accepted on pool entry and ignored in this version -- every routine
-# takes the from-scratch preprocess path, which is never slower than reuse
-# and needs no agreement on the statistics layout -- present only so a later
-# fast-follow that reuses a retained MCMC draw's statistics is a drop-in with
-# no signature change on the pool-entry path.
+# A precomputed attachment for a pooled sequence: the per-fid statistics and
+# the log-likelihood at the theta the sequence was drawn under, already
+# materialized elsewhere (e.g. inside an MCMC chain's acceptance-ratio pass,
+# where evaluating the target density cannot skip the statistics). Pool entry
+# adopts it in place of its own walk only when it is consistent with the pool
+# (see attachment_adoptable()); anything else is recomputed from scratch, so a
+# stale or foreign attachment costs a walk and never corrupts the pool.
+# `theta_ref` is the parameter vector the statistics and `loglik_ref` were
+# computed at, and `layout` the pool_layout_tag() of the pool they were
+# computed for.
 new_pool_attachment <- function(
   stats,
   loglik_ref,
+  theta_ref,
+  layout,
   call = rlang::caller_env()
 ) {
   if (!is.list(stats)) {
@@ -271,7 +275,47 @@ new_pool_attachment <- function(
       call = call
     )
   }
-  list(stats = stats, loglik_ref = loglik_ref)
+  if (!is.numeric(theta_ref)) {
+    cli::cli_abort("{.arg theta_ref} must be a numeric vector.", call = call)
+  }
+  if (!rlang::is_string(layout)) {
+    cli::cli_abort("{.arg layout} must be a single string.", call = call)
+  }
+  list(
+    stats = stats,
+    loglik_ref = loglik_ref,
+    theta_ref = theta_ref,
+    layout = layout
+  )
+}
+
+# The layout of the statistics a pool's entry walk produces: which fids are
+# scored, through which engine formulas, over which preprocessing window. Two
+# walks with the same tag file the same statistics under the same fids, so a
+# precomputed attachment carrying the pool's tag can stand in for the pool's
+# own walk.
+pool_layout_tag <- function(sub_models, control_prep) {
+  rlang::hash(list(
+    sub_models = lapply(sub_models, function(sm) {
+      list(
+        fid = sm$fid,
+        formula = format(sm$engine_formula),
+        model = sm$model,
+        sub_model = sm$sub_model,
+        theta_index = sm$theta_index
+      )
+    }),
+    control_prep = unclass(control_prep)
+  ))
+}
+
+# An attachment is adopted only when it was computed at the sequence's own
+# reference theta (the theta the sequence was drawn under) for this pool's
+# layout.
+attachment_adoptable <- function(attachment, reference, layout) {
+  !is.null(attachment) &&
+    identical(attachment$layout, layout) &&
+    identical(attachment$theta_ref, reference$theta_ref)
 }
 
 # Preprocess one pooled sequence: one merged walk of the pool engine spec
@@ -320,9 +364,9 @@ fid_stats <- function(stats, sm) {
 #   through.
 # * `sequences`: a list of per-sequence inputs, each a list with `data` (a
 #   stocnet the augmenter drew) and `reference` (a new_reference_record()). An
-#   optional `attachment` slot is accepted and ignored in this version -- the
-#   from-scratch entry path is uniform for every augmenter -- so a later
-#   precomputed-statistics fast path is a drop-in with no signature churn.
+#   optional `attachment` (new_pool_attachment()) is adopted in place of the
+#   entry walk when it is consistent with the pool, and otherwise ignored:
+#   the random and simulation augmenters never carry one.
 # * `theta_length`: the length of the concatenated parameter vector the pool is
 #   evaluated at.
 # * `map_fn`: the per-sequence map seam, `function(x, f)`; the serial lapply
@@ -456,45 +500,116 @@ check_pool_sequences <- function(sequences, call) {
   }
 }
 
-# Preprocess `sequences` once each through the store's map seam.
+# Preprocess `sequences` once each through the store's map seam, then point
+# their start states at the store's: entries built on daemons arrive as
+# serialized copies, and a later chunk must share with the earlier ones.
 pool_entries <- function(store, sequences) {
   header <- store$header
-  store$seam$map(
+  built <- store$seam$map(
     sequences,
     pool_entry_task(
       header$sub_models,
       header$engine_spec,
-      header$control_prep
+      header$control_prep,
+      header$layout
     )
   )
+  share_start_state(built, store$start_state)
 }
 
-# The per-sequence pool-entry task: preprocess once and store the statistics
-# and the θ-free fixed-only term with the sequence. Built in its own frame so
-# the map seam ships a worker the sub-models and the engine spec and nothing
-# else of the pool; the arguments are rebound as plain values, since a forced
+# The per-sequence pool-entry task: preprocess once (or adopt a consistent
+# precomputed attachment) and store the statistics and the θ-free fixed-only
+# term with the sequence. The attachment is not kept: adopted, its statistics
+# are the entry's own; refused, they are stale. Built in its own frame so the
+# map seam ships a worker the sub-models and the engine spec and nothing else
+# of the pool; the arguments are rebound as plain values, since a forced
 # promise can serialize with its caller's frame, which holds every sequence.
-pool_entry_task <- function(sub_models, engine_spec, control_prep) {
+# `start_state` is a cache for share_start_state(): on the serial path every
+# task of one map runs in this process, so each entry drops its duplicate
+# start state as soon as it is built rather than after the whole chunk.
+pool_entry_task <- function(sub_models, engine_spec, control_prep, layout) {
   sub_models <- sub_models
   engine_spec <- engine_spec
   control_prep <- control_prep
+  layout <- layout
+  start_state <- new.env(parent = emptyenv())
   function(seq_i) {
-    stats <- preprocess_pool_sequence(
-      engine_spec,
-      seq_i$data,
-      control_prep = control_prep,
-      call = NULL
-    )
+    stats <- if (
+      attachment_adoptable(seq_i$attachment, seq_i$reference, layout)
+    ) {
+      seq_i$attachment$stats
+    } else {
+      preprocess_pool_sequence(
+        engine_spec,
+        seq_i$data,
+        control_prep = control_prep,
+        call = NULL
+      )
+    }
     fixed <- pool_fixed_loglik(sub_models, stats)
-    list(
+    entry <- list(
       data = seq_i$data,
       stats = stats,
       fixed_loglik = fixed$loglik,
       fixed_degenerate = fixed$degenerate,
-      reference = seq_i$reference,
-      attachment = seq_i$attachment
+      reference = seq_i$reference
     )
+    share_start_state(list(entry), start_state)[[1L]]
   }
+}
+
+# The fields of a fid's statistics that the window's start state and the
+# specification fix, not the drawn path: the statistics at t0, the initial
+# risk sets, the node tables, and the formula and likelihood spec. Every
+# endpoint-hitting sequence opens the window [t0, t_M] in the same observed
+# state, so these are identical across the pool; on a choice fid the n x n x p
+# `initial_stats` is most of an unshared entry once n reaches the hundreds.
+pool_start_state_fields <- c(
+  "initial_stats",
+  "active_sender_init",
+  "active_dyad_init",
+  "node_lookup",
+  "nodes",
+  "nodes2",
+  "model_spec",
+  "formula"
+)
+
+# Point every entry's start-state fields at one object per fid held in
+# `cache` (an environment, one per process and pool), so the pool holds each
+# window's start state once rather than once per sequence. The first entry to
+# reach a fid seeds the cache. A field is only replaced by the cached one when
+# the two are equal, so a sequence whose start state differs keeps its own
+# rather than being scored on another's.
+share_start_state <- function(entries, cache) {
+  lapply(entries, function(entry) {
+    for (fid in names(entry$stats)) {
+      stat <- entry$stats[[fid]]
+      held <- cache[[fid]]
+      if (is.null(held)) {
+        fields <- intersect(pool_start_state_fields, names(stat))
+        held <- stat[fields]
+        cache[[fid]] <- held[!vapply(held, is.null, logical(1))]
+        next
+      }
+      for (field in names(held)) {
+        if (same_start_field(stat[[field]], held[[field]])) {
+          stat[[field]] <- held[[field]]
+        }
+      }
+      entry$stats[[fid]] <- stat
+    }
+    entry
+  })
+}
+
+# identical() compares environments by address, so a formula or likelihood
+# spec that crossed a process boundary never matches the cached one although
+# it is the same value; those are compared by their serialization instead.
+same_start_field <- function(x, y) {
+  identical(x, y) ||
+    ((is.language(x) || is.recursive(x)) &&
+      identical(serialize(x, NULL), serialize(y, NULL)))
 }
 
 # The pool's reference records, in sequence order -- the per-sequence
