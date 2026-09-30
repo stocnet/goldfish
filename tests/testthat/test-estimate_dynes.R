@@ -18,6 +18,10 @@ collect_warnings <- function(expr) {
   list(value = value, warnings = messages)
 }
 
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
 # grow, accept, then (after the ESS guard redraws the degenerate pool) stop.
 local_grow_redraw_script <- function(env = parent.frame()) {
   proposals <- c(-0.5, 0.5, 0.5 + 1e-5)
@@ -60,6 +64,63 @@ test_that("estimate_dynes rejects a non-joint spec and a non-EM control", {
   expect_error(
     estimate_dynes(dynes_surface_spec(), set_algorithm_newton()),
     "goldfishAlgoEm"
+  )
+})
+
+# --- Panel-augmentation trigger ---------------------------------------------
+
+# friendship is panel-observed and modeled by its own specification, built
+# directly on the panel data (no event-observed copy), so it is a modeled panel
+# process: the augmentation target.
+direct_panel_spec <- function() {
+  data <- dynes_multiwave_data("panel")
+  make_joint_specification(
+    make_specification(
+      choice = ~ inertia + offset(recip, coef = -0.5),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+test_that("a panel layer modeled as a process is the augmentation target", {
+  data <- dynes_multiwave_data("panel")
+  # No separate panel-semantics flag: the observation metadata plus the layer
+  # being a modeled process is the whole trigger.
+  expect_null(data$info$panel_semantics)
+  expect_identical(direct_panel_spec()$modeled_panel, "friendship")
+})
+
+test_that("an exogenous-only panel reference is not an augmentation target", {
+  # friendship is panel-observed but only read as a covariate.
+  expect_length(dynes_surface_spec()$modeled_panel, 0)
+})
+
+test_that("estimate_dynes aborts to estimate_dynam without a modeled panel", {
+  local_cli_context()
+  expect_snapshot(
+    estimate_dynes(dynes_surface_spec(), surface_control()),
+    error = TRUE
+  )
+  expect_error(
+    estimate_dynes(dynes_surface_spec(), surface_control()),
+    class = "goldfish_dynes_no_modeled_panel"
+  )
+})
+
+test_that("estimate_dynes accepts a modeled panel process", {
+  # Past the gate, the run stops only for want of an augmenter.
+  expect_error(
+    suppressWarnings(estimate_dynes(direct_panel_spec(), surface_control())),
+    class = "goldfish_dynes_no_augmenter"
   )
 })
 

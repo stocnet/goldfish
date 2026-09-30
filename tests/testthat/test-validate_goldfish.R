@@ -75,11 +75,13 @@ test_that("mixed time axes abort", {
   expect_snapshot(validate_goldfish_data(x), error = TRUE)
 })
 
-test_that("panel focal layer aborts", {
-  local_cli_context()
+test_that("a panel focal layer is valid data", {
+  # Whether a panel focal can be estimated is the estimator's call, not the
+  # data object's: estimate_dynes() models it, the event-stream estimators
+  # refuse it at their own entry.
   x <- make_stocnet_fixture()
   x$info$observation <- c(calls = "panel")
-  expect_snapshot(validate_goldfish_data(x), error = TRUE)
+  expect_identical(validate_goldfish_data(x), x)
 })
 
 test_that("partially overlapping mode sets abort", {
