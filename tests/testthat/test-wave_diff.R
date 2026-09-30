@@ -519,7 +519,7 @@ test_that("a count panel's snapshots must hold whole non-negative counts", {
   )
 })
 
-test_that("a count sequence of unit calls inside the intervals hits the waves", {
+test_that("unit calls strictly inside their intervals hit the count waves", {
   diff <- diff_panel_waves(
     count_panel_data(wave_rows(c(1L, 2L), c(2L, 3L), c(5, 10), c(2, 1))),
     "calls",

@@ -7,6 +7,12 @@
 # a modeled interval whose entering state is the initial condition, and no
 # wave is ever history.
 #
+# Two panel kinds diff differently. A flavored state panel records the tie
+# state, so a change is one flip named by its flavor. An unflavored count panel
+# records the cumulative count of a monotone process, so a dyad whose count
+# rises by Delta carries Delta indistinguishable, unflavored events; a count
+# cannot be un-made, which is what makes that diff exact.
+#
 # A snapshot is inclusive at its wave: a change-list row stamped exactly at a
 # wave time is part of that wave's snapshot, and so a flip of the interval
 # ending there. The pinned rate of a completed panel process reads the same
@@ -98,17 +104,9 @@ check_wave_grid <- function(wave_times, call) {
 # so no two flavors may share a transition.
 panel_transition_map <- function(data, layer, call) {
   mapping <- data$info$values_equivalence[[layer]]
+  # An unflavored panel layer is a count panel: no flavor to map.
   if (is.null(mapping)) {
-    cli::cli_abort(
-      c(
-        "Wave diffing needs a flavored state panel layer.",
-        "x" = "Layer {.val {layer}} carries no flavor mapping.",
-        "i" = "Mark its creation and dissolution flavors with
-               {.fn add_flavor}."
-      ),
-      class = "goldfish_unsupported_panel_kind",
-      call = call
-    )
+    return(NULL)
   }
   update <- unname(data$info$update[layer])
   to_value <- if (identical(update, "replace")) {
@@ -152,6 +150,9 @@ check_wave_snapshots <- function(snapshots, wave_times, layer, states, call) {
       call = call
     )
   }
+  if (is.null(states)) {
+    return(check_count_snapshots(snapshots, wave_times, layer, call = call))
+  }
   invalid <- which(vapply(
     snapshots,
     function(s) !all(s %in% states),
@@ -175,11 +176,56 @@ check_wave_snapshots <- function(snapshots, wave_times, layer, states, call) {
   invisible(snapshots)
 }
 
+# A count panel's snapshots hold whole non-negative counts that never fall
+# from one wave to the next.
+check_count_snapshots <- function(snapshots, wave_times, layer, call) {
+  invalid <- which(vapply(
+    snapshots,
+    function(s) any(s < 0 | s != round(s)),
+    logical(1)
+  ))
+  if (length(invalid) > 0L) {
+    waves <- wave_times[invalid]
+    cli::cli_abort(
+      c(
+        "A count panel's snapshots must hold whole non-negative counts.",
+        "x" = "Layer {.val {layer}} holds another value at
+               {cli::qty(length(waves))}wave{?s} {.val {waves}}."
+      ),
+      class = "goldfish_invalid_wave_state",
+      call = call
+    )
+  }
+  decreasing <- which(vapply(
+    seq_len(length(snapshots) - 1L),
+    function(k) any(snapshots[[k + 1L]] < snapshots[[k]]),
+    logical(1)
+  ))
+  if (length(decreasing) > 0L) {
+    waves <- wave_times[decreasing + 1L]
+    cli::cli_abort(
+      c(
+        "A count panel's cumulative counts cannot decrease.",
+        "x" = "Layer {.val {layer}} records a lower count at
+               {cli::qty(length(waves))}wave{?s} {.val {waves}} than at the
+               wave before.",
+        "i" = "A layer whose ties are dissolved is a state panel: mark its
+               creation and dissolution flavors with {.fn add_flavor}."
+      ),
+      class = "goldfish_decreasing_count_panel",
+      call = call
+    )
+  }
+  invisible(snapshots)
+}
+
 #' Diff a panel layer's waves into candidate flip sets
 #'
-#' Reads the wave snapshots of a flavored state panel layer and returns, for
-#' every modeled interval between consecutive boundaries, the flips an
-#' endpoint-hitting sequence must place in it.
+#' Reads the wave snapshots of a panel layer and returns, for every modeled
+#' interval between consecutive boundaries, the events an endpoint-hitting
+#' sequence must place in it: one flip per changed dyad of a flavored state
+#' panel, or as many unflavored events as a dyad's cumulative count rises on an
+#' unflavored count panel.
 #'
 #' @param data a validated stocnet object.
 #' @param layer the panel-observed layer to diff.
@@ -187,11 +233,13 @@ check_wave_snapshots <- function(snapshots, wave_times, layer, states, call) {
 #'   wave, strictly increasing.
 #' @param call the calling environment for error reporting.
 #'
-#' @return a `goldfishWaveDiff`: `layer`, `wave_times`, `transitions` (the
-#'   injective (from-value, to-value) -> flavor map), `snapshots` (one state
-#'   matrix per boundary, local indices), `flips` (one row per flip: `interval`,
-#'   global node indices `from`/`to`, `flavor`, `from_value`, `to_value`, the
-#'   per-dyad `chain` id and its `step`), and `counts` (flips per interval).
+#' @return a `goldfishWaveDiff`: `layer`, `kind` (`"state"` or `"count"`),
+#'   `wave_times`, `transitions` (the injective (from-value, to-value) ->
+#'   flavor map; `NULL` for a count panel), `snapshots` (one state matrix per
+#'   boundary, local indices), `flips` (one row per event: `interval`, global
+#'   node indices `from`/`to`, `flavor` (`NA` on a count panel), `from_value`,
+#'   `to_value`, the per-dyad `chain` id and its `step`), and `counts` (events
+#'   per interval).
 #' @noRd
 diff_panel_waves <- function(
   data,
@@ -203,11 +251,14 @@ diff_panel_waves <- function(
   wave_times <- coerce_time(wave_times)
   check_wave_grid(wave_times, call = call)
   transitions <- panel_transition_map(data, layer, call = call)
+  kind <- if (is.null(transitions)) "count" else "state"
   context <- panel_layer_context(data, layer, call = call)
   snapshots <- lapply(wave_times, function(w) {
     panel_wave_snapshot(context, w)
   })
-  states <- sort(unique(c(transitions$from_value, transitions$to_value)))
+  states <- if (!is.null(transitions)) {
+    sort(unique(c(transitions$from_value, transitions$to_value)))
+  }
   check_wave_snapshots(snapshots, wave_times, layer, states, call = call)
 
   mask <- panel_dyad_mask(context)
@@ -216,33 +267,59 @@ diff_panel_waves <- function(
     curr <- snapshots[[k + 1L]]
     cells <- which(mask & prev != curr, arr.ind = TRUE)
     cells <- cells[order(cells[, 1L], cells[, 2L]), , drop = FALSE]
-    from_value <- prev[cells]
-    to_value <- curr[cells]
-    flavor <- transitions$flavor[match(
-      paste(from_value, to_value),
-      paste(transitions$from_value, transitions$to_value)
-    )]
+    # A dichotomous state changes by one step, so its chain is one flip long;
+    # a count rising by Delta is a Delta-step chain of unit events.
+    n_steps <- if (kind == "count") curr[cells] - prev[cells] else 1
+    n_steps <- rep_len(as.integer(n_steps), nrow(cells))
+    at <- rep(seq_len(nrow(cells)), n_steps)
+    step <- sequence(n_steps)
+    from_value <- if (kind == "count") {
+      prev[cells][at] + step - 1
+    } else {
+      prev[cells]
+    }
+    to_value <- if (kind == "count") from_value + 1 else curr[cells]
+    flavor <- if (kind == "count") {
+      rep(NA_character_, length(at))
+    } else {
+      transitions$flavor[match(
+        paste(from_value, to_value),
+        paste(transitions$from_value, transitions$to_value)
+      )]
+    }
     data.frame(
-      interval = rep(k, nrow(cells)),
-      from = as.integer(context$side1[cells[, 1L]]),
-      to = as.integer(context$side2[cells[, 2L]]),
+      interval = rep(k, length(at)),
+      from = as.integer(context$side1[cells[at, 1L]]),
+      to = as.integer(context$side2[cells[at, 2L]]),
       flavor = flavor,
       from_value = from_value,
       to_value = to_value,
+      dyad = at,
+      step = step,
       stringsAsFactors = FALSE
     )
   })
   flips <- do.call(rbind, flips)
   flips$interval <- as.integer(flips$interval)
-  # A dichotomous state changes by one step, so every chain is one flip long;
-  # the chain id still keys each dyad's flips within its interval.
-  flips$chain <- seq_len(nrow(flips))
-  flips$step <- rep(1L, nrow(flips))
+  # The chain id keys each dyad's events within its interval.
+  flips$chain <- cumsum(!duplicated(flips[c("interval", "dyad")]))
+  flips <- flips[c(
+    "interval",
+    "from",
+    "to",
+    "flavor",
+    "from_value",
+    "to_value",
+    "chain",
+    "step"
+  )]
+  rownames(flips) <- NULL
   counts <- tabulate(flips$interval, nbins = length(wave_times) - 1L)
 
   structure(
     list(
       layer = layer,
+      kind = kind,
       wave_times = wave_times,
       transitions = transitions,
       snapshots = snapshots,

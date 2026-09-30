@@ -37,3 +37,13 @@
       x Interval 1 leaves 1 flip unplaced.
       x Interval 2 places an event on "N3" -> "N4" outside its flip set.
 
+# a decreasing count aborts as a data error
+
+    Code
+      diff_panel_waves(data, "calls", wave_times = c(0, 5, 10))
+    Condition
+      Error:
+      ! A count panel's cumulative counts cannot decrease.
+      x Layer "calls" records a lower count at wave 10 than at the wave before.
+      i A layer whose ties are dissolved is a state panel: mark its creation and dissolution flavors with `add_flavor()`.
+
