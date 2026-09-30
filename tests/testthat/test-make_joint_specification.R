@@ -11,11 +11,11 @@ local_cli_context <- function(env = parent.frame()) {
 }
 
 # One node set, three layers: friendship (observation configurable), calls and
-# emails (event). Built with friendship = "event" when a friendship-focal spec has
-# to pass make_specification()'s panel-focal guard, then composed under
-# friendship = "panel" so the join sees a modeled panel layer -- the only way to
-# exercise a *modeled* panel at this stage, since make_specification() still
-# rejects a panel focal directly.
+# emails (event). A friendship-focal spec is built with friendship = "event",
+# then composed under friendship = "panel" so the join sees a modeled panel
+# layer. The event build dates from when make_specification() refused a panel
+# focal; it no longer does (the refusal moved to the event-stream estimators),
+# and the join resolves the same modeled panel layer either way.
 joint_data <- function(friendship = "panel") {
   nodes <- data.frame(
     label = paste0("N", 1:6),
@@ -160,8 +160,8 @@ exogenous_only_join <- function() {
   make_joint_specification(calls_spec, emails_spec, data = data)
 }
 
-# Compose a friendship-focal spec (built while friendship is an event layer, so it
-# clears the panel-focal guard) with a calls spec, under data marking friendship
+# Compose a friendship-focal spec (built while friendship is an event layer, a
+# holdover from the former panel-focal guard) with a calls spec, under data marking friendship
 # panel -- so friendship is a *modeled* panel layer of the join. `calls_choice` is
 # the choice formula whose coupling is under test.
 modeled_panel_join <- function(calls_choice, support_constraint = NULL) {
@@ -194,7 +194,7 @@ coupled_of <- function(js, layer) {
 # ---- Mode-map composition fixtures (D8) --------------------------------------
 #
 # One shared node universe, layers over distinct mode-pairs. Each is built with
-# its panel layer as "event" (so a panel-focal spec clears make_specification()'s
+# its panel layer as "event" (a holdover from make_specification()'s former
 # panel-focal guard) and composed under that layer marked "panel".
 
 # Whole-shared-mode multilevel: advice staff -> director, nominations

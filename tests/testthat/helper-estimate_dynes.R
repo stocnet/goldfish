@@ -4,9 +4,11 @@
 # reverse arrival order, so a reduction that trusted arrival order would show.
 
 # A raw (fully specified, so completion adds nothing) joint specification with
-# seven free coefficients and one offset.
-dynes_surface_spec <- function() {
-  data <- rq_tied_data()
+# seven free coefficients and one offset. `calls` panel-observed makes it a
+# modeled panel process, which estimate_dynes() requires; declared "event",
+# friendship is the only panel layer and only a covariate, so nothing is latent.
+dynes_surface_spec <- function(calls = "panel") {
+  data <- rq_tied_data(calls)
   make_joint_specification(
     make_specification(
       rate = ~ 1 + indeg(friendship),
@@ -104,7 +106,8 @@ dynes_pinned_raw_spec <- function(
 # and the window still ends at the last calls event, so each calls fid scores
 # exactly as it does on the ordinary flavored path. A different `seed` is a
 # different draw on the same actors, the shape an augmented sequence has.
-dynes_flavored_data <- function(seed = 3L) {
+# `observation = "panel"` makes calls a modeled panel process.
+dynes_flavored_data <- function(seed = 3L, observation = "event") {
   calls <- flavored_event_stream(n_actors = 8L, n_events = 40L, seed = seed)
   emails <- data.frame(
     from = c(1L, 3L, 5L),
@@ -120,7 +123,7 @@ dynes_flavored_data <- function(seed = 3L) {
         focal = "calls",
         update = c(calls = "increment", emails = "increment"),
         directed = c(calls = TRUE, emails = TRUE),
-        observation = c(calls = "event", emails = "event")
+        observation = c(calls = observation, emails = "event")
       ),
       nodes = data.frame(
         label = paste0("N", 1:8),

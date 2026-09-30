@@ -62,8 +62,7 @@ validate_goldfish_data <- function(
   check_nodes_labels(nodes, call = call)
   check_syntactic_names(nodes, ties, x$changes, x$global, layers, call = call)
   check_layer_coverage(info, layers, call = call)
-  focal_layer <- check_focal(info, focal, layers, call = call)
-  check_dependent_panel(info, focal_layer, call = call)
+  check_focal(info, focal, layers, call = call)
   check_time_contract(ties, x$changes, x$global, call = call)
   check_pool_membership(nodes, ties, x$changes, call = call)
   check_flavor(ties, call = call)
@@ -292,34 +291,6 @@ check_focal <- function(info, focal, layers, call) {
     )
   }
   focal_layer
-}
-
-# Panel layers enter DyNAM/REM as change-list exogenous covariates: their tie
-# rows are updates applied at their wave times (per info$update), dissolutions
-# must be explicit value-0 rows, and windowing such an effect aborts (see
-# ds_realize_derivations()). A richer snapshot interpretation -- diffing waves
-# and augmenting with latent formation/dissolution events between them -- is the
-# future DyNES model's, and it is keyed off a RESERVED per-layer info flag
-# (`info$panel_semantics`, named per layer) that this validator neither requires
-# nor consults: the slot is defined for that change to own, with no machinery
-# built here.
-check_dependent_panel <- function(info, focal_layer, call) {
-  if (is.null(focal_layer)) {
-    return(invisible(TRUE))
-  }
-  if (identical(unname(info$observation[focal_layer]), "panel")) {
-    cli::cli_abort(
-      c(
-        "A {.val panel} layer cannot be the focal (dependent) process.",
-        "x" = "Layer {.val {focal_layer}} is declared {.field observation} = \\
-               {.val panel}.",
-        "i" = "goldfish models event-stream dependents; panel-dependent \\
-               processes are SAOM/RSiena territory."
-      ),
-      call = call
-    )
-  }
-  invisible(TRUE)
 }
 
 # Time is required on event streams; classes limited to numeric/POSIXct/Date;

@@ -19,32 +19,30 @@
 # estimate_dynam rejects a panel-focal single specification
 
     Code
-      estimate_dynam(make_specification(rate = ~1, layer = "calls", model = "DyNAM",
-        data = x))
+      estimate_dynam(spec, sub_model = "rate")
     Condition
-      Error in `make_specification()`:
-      ! A "panel" layer cannot be the focal (dependent) process.
-      x Layer "calls" is declared observation = "panel".
-      i goldfish models event-stream dependents; panel-dependent processes are SAOM/RSiena territory.
+      Error in `estimate_dynam()`:
+      ! A "panel" layer cannot be the dependent process of an event-stream estimator.
+      x Layer "calls" is declared observation = "panel": its event times between waves are not observed.
+      i Estimate a panel-observed dependent process with `estimate_dynes()`.
 
 # estimate_rem rejects a panel-focal single specification
 
     Code
-      estimate_rem(make_specification(rate = ~1, layer = "calls", model = "REM",
-        data = x))
+      estimate_rem(spec)
     Condition
-      Error in `make_specification()`:
-      ! A "panel" layer cannot be the focal (dependent) process.
-      x Layer "calls" is declared observation = "panel".
-      i goldfish models event-stream dependents; panel-dependent processes are SAOM/RSiena territory.
+      Error in `estimate_rem()`:
+      ! A "panel" layer cannot be the dependent process of an event-stream estimator.
+      x Layer "calls" is declared observation = "panel": its event times between waves are not observed.
+      i Estimate a panel-observed dependent process with `estimate_dynes()`.
 
-# the panel-focal guard fires on the shared preprocessing path
+# event-stream estimators reject a panel focal on the formula path
 
     Code
-      validate_goldfish_data(x)
+      estimate_dynam(calls ~ inertia, sub_model = "rate", data = x)
     Condition
-      Error:
-      ! A "panel" layer cannot be the focal (dependent) process.
-      x Layer "calls" is declared observation = "panel".
-      i goldfish models event-stream dependents; panel-dependent processes are SAOM/RSiena territory.
+      Error in `estimate_dynam()`:
+      ! A "panel" layer cannot be the dependent process of an event-stream estimator.
+      x Layer "calls" is declared observation = "panel": its event times between waves are not observed.
+      i Estimate a panel-observed dependent process with `estimate_dynes()`.
 

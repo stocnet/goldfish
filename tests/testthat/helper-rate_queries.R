@@ -6,7 +6,7 @@
 # read. Stamps are tied on purpose. The schedule at t = 2 runs: the dependent
 # rows of calls events 2 and 3 (rows 4, 5), friendship 3 -> 4 (row 6), the
 # realizations of calls events 2 and 3 (rows 7, 8), emails 2 -> 1 (row 9).
-rq_tied_data <- function() {
+rq_tied_data <- function(calls = "event") {
   ties <- rbind(
     data.frame(
       from = c(1L, 3L, 4L),
@@ -37,7 +37,7 @@ rq_tied_data <- function() {
         emails = "increment"
       ),
       directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
-      observation = c(friendship = "panel", calls = "event", emails = "event")
+      observation = c(friendship = "panel", calls = calls, emails = "event")
     ),
     nodes = data.frame(
       label = paste0("N", 1:6),
@@ -61,14 +61,14 @@ rq_candidate_data <- function() {
 # (a leading intercept), an offset between two free choice effects, and an
 # autocompleted uniform choice on emails. Free slots are numbered 1..6 in
 # canonical order: calls rate (1, 2), calls choice (3, 4), emails rate (5, 6).
-rq_layout_spec <- function() {
-  suppressWarnings(complete_generative_spec(rq_layout_raw_spec()))
+rq_layout_spec <- function(calls = "event") {
+  suppressWarnings(complete_generative_spec(rq_layout_raw_spec(calls)))
 }
 
 # rq_layout_spec() before completion: its three authored fids are calls rate
 # (1), calls choice (2) and emails rate (3).
-rq_layout_raw_spec <- function() {
-  data <- rq_tied_data()
+rq_layout_raw_spec <- function(calls = "event") {
+  data <- rq_tied_data(calls)
   make_joint_specification(
     make_specification(
       rate = ~ 1 + indeg(friendship),

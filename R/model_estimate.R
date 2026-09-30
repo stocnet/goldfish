@@ -420,6 +420,42 @@ reject_joint_specification <- function(x, call = rlang::caller_env()) {
   invisible(x)
 }
 
+# The event-stream estimators model a fully observed dependent stream, so a
+# panel-observed focal layer -- whose between-wave event times are latent -- is
+# refused here, at their own entry, rather than by the data validator: the same
+# layer is a valid specification and a modeled panel process for
+# estimate_dynes(). The focal is the specification's, or the formula's LHS with
+# a dependent-events alias resolved to its layer.
+abort_panel_focal <- function(x, data, call = rlang::caller_env()) {
+  if (inherits(x, "goldfishSpec")) {
+    focal <- x$focal
+    data <- data %||% x$data
+  } else if (inherits(x, "formula") && length(x) == 3L) {
+    focal <- deparse1(x[[2L]])
+    focal <- data$info$dependents[[focal]]$layer %||% focal
+  } else {
+    return(invisible(x))
+  }
+  if (!is.list(data) || is.data.frame(data) || !is.character(focal)) {
+    return(invisible(x))
+  }
+  if (!identical(unname(data$info$observation[focal]), "panel")) {
+    return(invisible(x))
+  }
+  cli::cli_abort(
+    c(
+      "A {.val panel} layer cannot be the dependent process of an event-stream
+       estimator.",
+      "x" = "Layer {.val {focal}} is declared {.field observation} =
+             {.val panel}: its event times between waves are not observed.",
+      "i" = "Estimate a panel-observed dependent process with
+             {.fn estimate_dynes}."
+    ),
+    class = "goldfish_panel_focal",
+    call = call
+  )
+}
+
 # Reject a legacy `data.goldfish` environment at the public surface. Every model
 # family now assembles to a stocnet (`make_data()` / `make_groups_interaction()`
 # return one, or abort), so no public entrypoint needs an environment; the only
@@ -489,6 +525,7 @@ estimate_dynam <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
+  abort_panel_focal(x, data)
   if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
@@ -570,6 +607,7 @@ estimate_dynami <- function(
   # rejected at joint composition, so it cannot appear in a joint object. An
   # explicit rejection is deferred to when DyNAM-i becomes composable.
   abort_legacy_environment(data)
+  abort_panel_focal(x, data)
   if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,
@@ -649,6 +687,7 @@ estimate_rem <- function(
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
   abort_legacy_environment(data)
+  abort_panel_focal(x, data)
   if (inherits(x, "goldfishSpec")) {
     return(estimate_from_specification(
       spec = x,

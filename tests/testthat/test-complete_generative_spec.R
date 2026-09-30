@@ -11,9 +11,9 @@ local_cli_context <- function(env = parent.frame()) {
 # --- Fixtures ----------------------------------------------------------------
 
 # A directed one-mode object: friendship (observation configurable, no flavor)
-# and calls (event). Built with friendship = "event" so a friendship-focal spec
-# clears make_specification()'s panel-focal guard, then composed under
-# friendship = "panel".
+# and calls (event). A friendship-focal spec is built with friendship = "event"
+# (a holdover from make_specification()'s former panel-focal guard), then
+# composed under friendship = "panel".
 plain_data <- function(friendship = "panel") {
   nodes <- data.frame(
     label = paste0("N", 1:6),

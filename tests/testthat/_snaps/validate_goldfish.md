@@ -73,16 +73,6 @@
       x Mixed axes: ties and changes on "temporal" and "numeric".
       i Integer/numeric wave times are only comparable when every stream uses them; convert to a common POSIXct/Date axis.
 
-# panel focal layer aborts
-
-    Code
-      validate_goldfish_data(x)
-    Condition
-      Error:
-      ! A "panel" layer cannot be the focal (dependent) process.
-      x Layer "calls" is declared observation = "panel".
-      i goldfish models event-stream dependents; panel-dependent processes are SAOM/RSiena territory.
-
 # partially overlapping mode sets abort
 
     Code

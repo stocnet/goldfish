@@ -1124,9 +1124,11 @@ test_that("the warning is not suppressed across repeated calls", {
 
 # calls fully specified; emails keyed in choice only, so a timed completion
 # pins its missing rate. emails is an unflavored, event-observed layer, so the
-# pin reads its observed event count.
+# pin reads its observed event count. calls is declared panel-observed so the
+# join models a panel process, which estimate_dynes() requires at entry.
 pinned_entry_join <- function() {
   data <- pinned_joint_data()
+  data$info$observation[["calls"]] <- "panel"
   make_joint_specification(
     make_specification(
       rate = ~ 1 + indeg,
@@ -1147,8 +1149,9 @@ pinned_entry_join <- function() {
 
 # friendship (a modeled panel layer, choice-only) completes to a rate pinned
 # from the wave Hamming diff; calls (rate-only) completes to a uniform choice.
-# The friendship-focal specification is built over event-observed data to clear
-# make_specification()'s panel-focal guard, then composed over the panel data.
+# The friendship-focal specification is built over event-observed data (a
+# holdover from make_specification()'s former panel-focal guard), then composed
+# over the panel data.
 pinned_panel_join <- function() {
   data <- pinned_joint_data()
   event_data <- data

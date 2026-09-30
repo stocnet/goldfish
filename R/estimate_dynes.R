@@ -81,6 +81,7 @@ estimate_dynes <- function(
     )
   }
   call <- rlang::current_env()
+  abort_without_modeled_panel(spec, call = call)
 
   # Completed once, here: every proposal evaluator the loop builds reads this
   # same object, so a pinned rate cannot move between proposals.
@@ -155,6 +156,30 @@ estimate_dynes <- function(
   res$seed <- seed
   res$spec <- completed
   new_dynes_fit(res, spec, control_algo, fit_call = sys.call(), call = call)
+}
+
+# Something must be latent for DyNES to estimate. A panel layer is augmented
+# iff a composed specification models it as its dependent process -- no
+# separate flag -- and make_joint_specification() records exactly those layers
+# in `modeled_panel`. The gate is that, not the `coupled` column: a modeled
+# panel layer deriving no support constraint (a count panel) can have every
+# fid separable while its event times are wholly latent. With no modeled panel
+# process every panel reference is a static step-covariate, which is a DyNAM.
+abort_without_modeled_panel <- function(spec, call = rlang::caller_env()) {
+  if (length(spec$modeled_panel) > 0L) {
+    return(invisible(spec))
+  }
+  cli::cli_abort(
+    c(
+      "No panel layer of {.arg spec} is a modeled dependent process.",
+      "x" = "Nothing is latent, so this specification is a DyNAM, not a DyNES.",
+      "i" = "Its panel layers would only be considered as static exogenous
+             covariates, jumping at their wave times.",
+      "i" = "Estimate its processes with {.fn estimate_dynam}."
+    ),
+    class = "goldfish_dynes_no_modeled_panel",
+    call = call
+  )
 }
 
 # The augmenter the control selects. The augment_seq_*() augmenters land with

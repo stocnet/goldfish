@@ -57,8 +57,10 @@
 #'
 #' goldfish models two `observation` types. An **`"event"`** layer is a stream
 #' of time-stamped relational events. A **`"panel"`** layer is a covariate
-#' observed at survey waves whose rows are applied at their wave times; a panel
-#' layer cannot be `focal`, and a panel layer only knows what its rows say -- to
+#' observed at survey waves whose rows are applied at their wave times; the
+#' event-stream estimators refuse a panel layer as their dependent process (a
+#' panel-observed process is estimated with `estimate_dynes()`, which reads its
+#' rows as wave snapshots), and a panel layer only knows what its rows say -- to
 #' *remove* a tie at a wave you must include an **explicit value-`0` row**,
 #' since goldfish cannot infer a dissolution from the absence of a row.
 #'

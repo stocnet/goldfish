@@ -62,8 +62,10 @@ Alternatively \code{manynet::make_stocnet()} builds the whole object from the
 \section{Observation types: event and panel layers}{
 goldfish models two \code{observation} types. An \strong{\code{"event"}} layer is a stream
 of time-stamped relational events. A \strong{\code{"panel"}} layer is a covariate
-observed at survey waves whose rows are applied at their wave times; a panel
-layer cannot be \code{focal}, and a panel layer only knows what its rows say -- to
+observed at survey waves whose rows are applied at their wave times; the
+event-stream estimators refuse a panel layer as their dependent process (a
+panel-observed process is estimated with \code{estimate_dynes()}, which reads its
+rows as wave snapshots), and a panel layer only knows what its rows say -- to
 \emph{remove} a tie at a wave you must include an \strong{explicit value-\code{0} row},
 since goldfish cannot infer a dissolution from the absence of a row.
 }

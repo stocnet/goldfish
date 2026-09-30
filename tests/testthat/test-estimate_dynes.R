@@ -101,17 +101,17 @@ test_that("a panel layer modeled as a process is the augmentation target", {
 
 test_that("an exogenous-only panel reference is not an augmentation target", {
   # friendship is panel-observed but only read as a covariate.
-  expect_length(dynes_surface_spec()$modeled_panel, 0)
+  expect_length(dynes_surface_spec(calls = "event")$modeled_panel, 0)
 })
 
 test_that("estimate_dynes aborts to estimate_dynam without a modeled panel", {
   local_cli_context()
   expect_snapshot(
-    estimate_dynes(dynes_surface_spec(), surface_control()),
+    estimate_dynes(dynes_surface_spec(calls = "event"), surface_control()),
     error = TRUE
   )
   expect_error(
-    estimate_dynes(dynes_surface_spec(), surface_control()),
+    estimate_dynes(dynes_surface_spec(calls = "event"), surface_control()),
     class = "goldfish_dynes_no_modeled_panel"
   )
 })
@@ -308,7 +308,7 @@ test_that("estimate_dynes accepts a flavored joint specification", {
   local_analytic_evaluator()
   local_grow_redraw_script()
   local_dynes_augmenter(new_keyed_stub_augmenter())
-  spec <- dynes_flavored_spec()
+  spec <- dynes_flavored_spec(dynes_flavored_data(observation = "panel"))
 
   res <- suppressWarnings(estimate_dynes(spec, surface_control()))
 
@@ -337,7 +337,7 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
     draw = function(iteration, draw_index, theta) {
       drawn[[length(drawn) + 1L]] <<- list(iteration, draw_index, theta)
       lapply(draw_index, function(k) {
-        list(data = rq_tied_data(), log_proposal = 0)
+        list(data = rq_tied_data("panel"), log_proposal = 0)
       })
     }
   ))
@@ -345,7 +345,7 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
     augmenter = set_augmenter_options(routine = "sim", warm_start = TRUE)
   )
 
-  out <- collect_warnings(estimate_dynes(rq_layout_spec(), control))
+  out <- collect_warnings(estimate_dynes(rq_layout_spec("panel"), control))
 
   # The warm-start draw is keyed at iteration 0, from theta = 0.
   expect_identical(drawn[[1]][[1]], 0L)
@@ -367,7 +367,7 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
       x = formula,
       model = "DyNAM",
       sub_model = "rate",
-      data = rq_tied_data(),
+      data = rq_tied_data("panel"),
       preprocessed = stats,
       control_algo = set_algorithm_newton(),
       verbose = FALSE,
@@ -405,7 +405,7 @@ test_that("the warm-start fallback warning names the fid", {
     augmenter = set_augmenter_options(routine = "sim", warm_start = TRUE)
   )
 
-  expect_snapshot(res <- estimate_dynes(rq_layout_spec(), control))
+  expect_snapshot(res <- estimate_dynes(rq_layout_spec("panel"), control))
 })
 
 # --- RNG keying and the map seam --------------------------------------------

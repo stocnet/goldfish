@@ -1,7 +1,18 @@
+# estimate_dynes aborts to estimate_dynam without a modeled panel
+
+    Code
+      estimate_dynes(dynes_surface_spec(calls = "event"), surface_control())
+    Condition
+      Error in `estimate_dynes()`:
+      ! No panel layer of `spec` is a modeled dependent process.
+      x Nothing is latent, so this specification is a DyNAM, not a DyNES.
+      i Its panel layers would only be considered as static exogenous covariates, jumping at their wave times.
+      i Estimate its processes with `estimate_dynam()`.
+
 # the warm-start fallback warning names the fid
 
     Code
-      res <- estimate_dynes(rq_layout_spec(), control)
+      res <- estimate_dynes(rq_layout_spec("panel"), control)
     Condition
       Warning in `estimate_dynes()`:
       ! The warm-start fit for "calls › choice" failed on the drawn sequence; its free parameters start at zero.

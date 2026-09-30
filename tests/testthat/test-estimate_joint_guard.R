@@ -135,7 +135,7 @@ test_that("estimate_rem rejects a panel-focal single specification", {
   expect_error(estimate_rem(spec), class = "goldfish_panel_focal")
 })
 
-test_that("the event-stream estimators reject a panel focal on the formula path", {
+test_that("event-stream estimators reject a panel focal on the formula path", {
   local_cli_context()
   x <- panel_focal_fixture()
   expect_snapshot(
