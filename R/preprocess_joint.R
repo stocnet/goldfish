@@ -2009,6 +2009,11 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     project_initial_stats <- function(stats, effect_map) {
       stats[,, effect_map, drop = FALSE]
     }
+    # The dyad loop stores one object, `active_dyad`. Only a REM or
+    # coordination object at the outer encoding has a sender side, its own
+    # second factor; a choice never folds the sender and a point grid
+    # already holds it, so the writer's raw sender presence is not kept.
+    dyadic <- risk_set_is_dyadic(engine$spec_map)
     finish_output <- function(
       out,
       constraint,
@@ -2018,10 +2023,15 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
       if (!is.null(constraint)) {
         out$support_mask <- support_mask
       }
-      if (is.null(availability)) {
-        return(out)
+      if (!is.null(availability)) {
+        out <- availability_finish(availability, out)
       }
-      availability_finish(availability, out)
+      if (!dyadic || !identical(out$active_dyad_encoding, "outer")) {
+        out$active_sender_init <- NULL
+        out$active_sender_update <- NULL
+        out$active_sender_update_pointer <- NULL
+      }
+      out
     }
   }
 

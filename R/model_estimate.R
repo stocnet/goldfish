@@ -1656,8 +1656,11 @@ warn_probabilities_footprint <- function(
   spec,
   call = rlang::caller_env()
 ) {
-  n_senders <- length(prep$active_sender_init)
-  n_receivers <- length(prep$active_dyad_init)
+  # The statistics array has the sides' sizes on every loop; the availability
+  # fields do not (a dyad loop stores no sender vector, a point one a grid).
+  dims <- dim(prep$initial_stats)
+  n_senders <- if (length(dims) > 0L) dims[[1L]] else 0L
+  n_receivers <- if (length(dims) == 3L) dims[[2L]] else 0L
   if (n_senders == 0 && n_receivers == 0) {
     return(invisible())
   }

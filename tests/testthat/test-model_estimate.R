@@ -58,17 +58,24 @@ test_that("preprocess init", {
 })
 
 test_that("probabilities guardrail warns with the estimated footprint", {
-  prep <- list(
-    active_sender_init = rep(TRUE, 10),
-    active_dyad_init = rep(TRUE, 10),
+  # The sides' sizes are read off the statistics array: n1 x n2 x p on a dyad
+  # loop, n1 x p on the sender loop.
+  dyad_prep <- list(
+    initial_stats = array(0, c(10, 10, 1)),
     is_dependent = rep(1L, 100)
   )
+  prep <- dyad_prep
   expect_snapshot(
     warn_probabilities_footprint(prep, list(behavior = list(axis = "dyad")))
+  )
+  prep <- list(
+    initial_stats = matrix(0, 10, 1),
+    is_dependent = rep(1L, 100)
   )
   expect_snapshot(
     warn_probabilities_footprint(prep, list(behavior = list(axis = "sender")))
   )
+  prep <- dyad_prep
   expect_snapshot(
     warn_probabilities_footprint(
       prep,

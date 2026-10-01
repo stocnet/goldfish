@@ -372,7 +372,7 @@ test_that("the maintained availability collapses presence and the constraint", {
   )
   sm <- con$support_mask
   n2 <- length(raw$active_dyad_init)
-  n1 <- length(con$active_sender_init)
+  n1 <- dim(con$initial_stats)[1]
 
   # The composition really moves, otherwise the rest of this test is vacuous.
   expect_gt(length(unique(vapply(presence, sum, numeric(1)))), 1L)

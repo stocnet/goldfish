@@ -54,8 +54,21 @@ availability_retired_mask_fields <- c(
   "receiver_presence_update_pointer"
 )
 
+# A dyad loop's output keeps a sender side only as an outer object's own
+# factor, so the fields are compared on the sender loop alone; the outer
+# factors are checked cell by cell by `test-availability_vector_fold.R`.
+availability_sender_fields <- c(
+  "active_sender_init",
+  "active_sender_update",
+  "active_sender_update_pointer"
+)
+
 availability_kept <- function(prep) {
-  prep <- prep[setdiff(names(prep), availability_retired_fields)]
+  retired <- availability_retired_fields
+  if (length(dim(prep$initial_stats)) == 3L) {
+    retired <- c(retired, availability_sender_fields)
+  }
+  prep <- prep[setdiff(names(prep), retired)]
   if (is.list(prep$support_mask)) {
     mask <- prep$support_mask
     prep$support_mask <- mask[

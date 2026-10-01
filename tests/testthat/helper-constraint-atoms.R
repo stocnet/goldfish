@@ -257,7 +257,7 @@ constraint_atoms_capture <- function(prep) {
     "support_mask",
     "event_time"
   )
-  prep[keep]
+  prep[intersect(keep, names(prep))]
 }
 
 # Generated data large enough that the cost of a walk is measurable: at 1500

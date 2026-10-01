@@ -70,7 +70,7 @@ test_that("an ego-kind choice constraint folds to the outer encoding", {
   # `active_dyad` is the length-n2 receiver vector, NOT a dense n1 x n2 grid.
   expect_identical(prep$active_dyad_encoding, "outer")
   expect_false(is.matrix(prep$active_dyad_init))
-  expect_length(prep$active_dyad_init, length(prep$active_sender_init))
+  expect_length(prep$active_dyad_init, dim(prep$initial_stats)[1])
 
   # Moving the encoding expectation to match new behavior is how a regression
   # gets ratified, so the edit is licensed only by the fit holding: the folded

@@ -809,7 +809,8 @@ active_dyad_row <- function(
   if (identical(encoding, "point")) {
     active_dyad[sender_i, ]
   } else if (identical(encoding, "outer")) {
-    if (isTRUE(active_sender[sender_i] == 1)) {
+    # No sender factor is a choice object, whose sender is given.
+    if (is.null(active_sender) || isTRUE(active_sender[sender_i] == 1)) {
       active_dyad
     } else {
       active_dyad & FALSE
@@ -831,7 +832,7 @@ active_dyad_cell <- function(
     return(as.logical(active_dyad[sender_i, receiver_j]))
   }
   avail_j <- active_dyad[receiver_j]
-  if (identical(encoding, "outer")) {
+  if (identical(encoding, "outer") && !is.null(active_sender)) {
     avail_j & isTRUE(active_sender[sender_i] == 1)
   } else {
     avail_j

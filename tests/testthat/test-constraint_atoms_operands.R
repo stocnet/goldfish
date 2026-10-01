@@ -60,12 +60,12 @@ test_that("a choice's point availability is the true grid at every row", {
     n1 <- nrow(prep$active_dyad_init)
     mask <- as.logical(prep$support_mask$initial)
     grid <- prep$active_dyad_init
-    # One-mode, so receiver presence is the sender presence the choice output
-    # stores unfolded (the choice loop never folds the sender axis).
-    presence <- prep$active_sender_init == 1
+    # Neither fixture carries a composition change (Social Evolution's actors
+    # are all present throughout, the toy data has no changes), so receiver
+    # presence is every node at every row.
+    presence <- rep(TRUE, ncol(grid))
     mask_seen <- 0
     grid_seen <- 0
-    presence_seen <- 0
     for (e in seq_along(prep$event_time)) {
       hi <- prep$support_mask$update_pointer[[e]]
       if (hi > mask_seen) {
@@ -82,14 +82,6 @@ test_that("a choice's point availability is the true grid at every row", {
           prep$active_dyad_update[2L, cols]
         )] <- as.logical(prep$active_dyad_update[3L, cols])
         grid_seen <- hi
-      }
-      pointer <- prep$active_sender_update_pointer
-      hi <- if (is.null(pointer)) 0 else pointer[[e]]
-      if (hi > presence_seen) {
-        cols <- (presence_seen + 1):hi
-        update <- prep$active_sender_update
-        presence[update[1L, cols]] <- as.logical(update[2L, cols])
-        presence_seen <- hi
       }
       truth <- matrix(mask, n1) & rep(presence, each = n1)
       expect_identical(

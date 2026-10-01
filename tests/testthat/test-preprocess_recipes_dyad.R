@@ -37,9 +37,12 @@ test_that("dynam choice recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_entity)
-  expect_identical(nrow(preproData$active_sender_update), 2L)
+  # The choice loop folds no sender side, so composition reaches the output
+  # through the receiver buffer alone.
+  expect_null(preproData$active_sender_update)
+  expect_identical(nrow(preproData$active_dyad_update), 2L)
   expect_length(
-    preproData$active_sender_update_pointer,
+    preproData$active_dyad_update_pointer,
     length(preproData$is_dependent)
   )
 })

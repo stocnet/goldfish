@@ -59,7 +59,12 @@ test_that("the buffer walk and the time filter agree at every stored row", {
     prep <- preps[[family]]
     row_time <- as.numeric(prep$event_time)
     expect_true(any(change_time %in% row_time[prep$is_dependent == 1L]))
-    for (axis in c("active_sender", "active_dyad")) {
+    # A choice output stores no sender side; its loop never folds one.
+    axes <- intersect(
+      c("active_sender", "active_dyad"),
+      sub("_init$", "", names(prep))
+    )
+    for (axis in axes) {
       walked <- prep[[paste0(axis, "_init")]] == 1
       filtered <- walked
       update <- prep[[paste0(axis, "_update")]]
@@ -148,6 +153,20 @@ test_that("a preprocessed object stores its availability as buffers only", {
   for (prep in preps) {
     expect_disjoint(names(prep), retired)
   }
+  # The dyad loop stores one object: a choice keeps no sender presence (its
+  # loop never folds the sender), an outer REM keeps it as its own factor.
+  sender_fields <- c(
+    "active_sender_init",
+    "active_sender_update",
+    "active_sender_update_pointer"
+  )
+  expect_disjoint(names(preps[[2]]), sender_fields)
+  expect_disjoint(names(preps[[4]]), sender_fields)
+  expect_identical(preps[[1]]$active_dyad_encoding, "outer")
+  expect_contains(names(preps[[1]]), sender_fields)
+  point_rem <- suppressWarnings(suppressMessages(constraint_atoms_prep("rem")))
+  expect_identical(point_rem$active_dyad_encoding, "point")
+  expect_disjoint(names(point_rem), sender_fields)
 })
 
 test_that("a constrained object's support mask is its stream alone", {

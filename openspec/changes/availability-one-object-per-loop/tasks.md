@@ -150,6 +150,25 @@
 - [x] 4.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; every reference family PASS.
 
+- [x] 4.5 Added in apply (Alvaro, 2026-10-01, from goldfish-0c's review): a
+      dyad-loop output stores no raw sender presence. A choice output keeps
+      no `active_sender_*` (its loop never folds the sender), nor does a
+      point-encoded REM or coordination output; an outer-encoded one keeps
+      them as the object's own sender factor. Readers rerouted
+      (`model_estimate.R`'s sender count, the R engine's sender filter and
+      row accessor, the gather paths); tests that used the field as a
+      presence oracle move to an independent source. Test: numbers
+      unchanged (baselines, goldens, backend parity); the retired-field
+      assertion of 2.3 extends to `active_sender_*` on choice and point
+      outputs.
+- [ ] 4.6 Added in apply (Alvaro, 2026-10-01): the observed-event check
+      allocates no per-event row. `n_allowed` comes from the count cache,
+      the observed receiver is one cell read at the mask's kind, and the
+      candidate set is written only when a candidate can be new. Guard,
+      recorded failing first: on the 3.1 fixture the constrained walk's
+      allocation exceeds the unconstrained one by less than the n2-length
+      rows of its dependent events would take (today 69 MB of rows).
+
 ## 5. Close
 
 - [x] 5.1 `bash .plan/opsx-spec-placement-check.sh
