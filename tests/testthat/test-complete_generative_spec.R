@@ -1359,7 +1359,18 @@ test_that("a rate with no stored pin inherits the stored pins' grid", {
   # result is the spec completed once on c(0, 2, 5).
   held <- cc
   held$completed_rates[[pinned_fid(cc, "support")]] <- NULL
-  out <- suppressWarnings(complete_generative_spec(held))
+  # Every completed rate is announced: the two kept pins as kept, the re-pinned
+  # one as pinned at this entry.
+  seen <- condition_log(out <- complete_generative_spec(held))
+  expect_length(seen, 3L)
+  for (w in seen) {
+    expect_s3_class(w, "goldfish_pinned_rate_warning")
+    expect_s3_class(w, "goldfish_completed_default_warning")
+  }
+  msgs <- vapply(seen, flat_message, character(1))
+  repinned <- grepl("no stored pin", msgs, fixed = TRUE)
+  expect_identical(sum(repinned), 1L)
+  expect_match(msgs[repinned], "\"support\"", fixed = TRUE)
   expect_identical(out, cc)
 })
 

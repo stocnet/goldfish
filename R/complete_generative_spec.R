@@ -167,8 +167,9 @@ complete_generative_spec <- function(
   # 4. Warn once per filled gap, at this consumer's entry (never suppressed). A
   #    completed rate's warning also states the pin's count source, so it needs
   #    the pins built in step 3 and the rebuilt map to find each rate's fid.
-  #    A pin kept from the input fills no gap but is still announced: the
-  #    pinned-rate warning is owed at every consumer entry.
+  #    A completed rate this call did not fill is still announced: the
+  #    pinned-rate warning is owed at every consumer entry, whether the pin was
+  #    kept from the input or re-pinned because its stored entry was missing.
   warn_completed_defaults(
     added,
     consumer = consumer,
@@ -177,8 +178,14 @@ complete_generative_spec <- function(
     rate_requested = rate_requested,
     call = call
   )
-  warn_kept_pinned_rates(
-    intersect(names(stored), names(completed$completed_rates)),
+  filled_rates <- unlist(lapply(added, function(a) {
+    if (a$family == "rate") {
+      completed_fid(completed$process_map, a$layer, a$flavor, "rate")
+    }
+  }))
+  warn_reentry_pinned_rates(
+    setdiff(names(completed$completed_rates), as.character(filled_rates)),
+    kept = names(stored),
     consumer = consumer,
     completed_rates = completed$completed_rates,
     process_map = completed$process_map,
@@ -932,15 +939,18 @@ warn_completed_defaults <- function(
   invisible(NULL)
 }
 
-# Announce each completed pinned rate kept from the input specification, once
-# per fid at this consumer's entry. Nothing is completed here, so the headline
-# says the stored pin is kept -- not recomputed for this call -- while the
-# source line, the estimation-only no-SE line and both condition classes match
-# the fill warning, so handlers and the one-warning-per-completed-rate count
-# see a re-entry exactly as they saw the first completion. A completed uniform
-# choice owes no pinned-rate warning and is not announced again.
-warn_kept_pinned_rates <- function(
+# Announce each completed pinned rate this call did not fill, once per fid at
+# this consumer's entry. Nothing is completed here, so the headline says
+# whether the stored pin is kept -- not recomputed for this call -- or, for a
+# fid whose stored entry was missing (a hand-built or older specification),
+# that it is pinned now. The source line, the estimation-only no-SE line and
+# both condition classes match the fill warning, so handlers and the
+# one-warning-per-completed-rate count see a re-entry exactly as they saw the
+# first completion. A completed uniform choice owes no pinned-rate warning and
+# is not announced again.
+warn_reentry_pinned_rates <- function(
   fids,
+  kept,
   consumer,
   completed_rates,
   process_map,
@@ -954,14 +964,23 @@ warn_kept_pinned_rates <- function(
       c(layer, if (!is.na(flavor)) flavor, "rate"),
       collapse = " › "
     )
-    headline <- if (is.na(flavor)) {
-      "Layer {.val {layer}} has a completed {.field rate} sub-model; keeping
-       its stored pinned intercept-only rate, not re-pinned at this entry."
+    process <- if (is.na(flavor)) {
+      "Layer {.val {layer}}"
     } else {
-      "Layer {.val {layer}} flavor {.val {flavor}} has a completed
-       {.field rate} sub-model; keeping its stored pinned intercept-only rate,
-       not re-pinned at this entry."
+      "Layer {.val {layer}} flavor {.val {flavor}}"
     }
+    action <- if (fid %in% kept) {
+      "keeping its stored pinned intercept-only rate, not re-pinned at this
+       entry."
+    } else {
+      "it has no stored pin, so it is pinned with an intercept-only rate (zero
+       free parameters) at this entry."
+    }
+    headline <- paste(
+      process,
+      "has a completed {.field rate} sub-model;",
+      action
+    )
     cli::cli_warn(
       c(
         "!" = headline,
