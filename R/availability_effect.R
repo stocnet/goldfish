@@ -196,6 +196,12 @@ availability_step <- function(
   first <- is.null(av$value)
   moved1 <- availability_take_changes(av, 1L, target1)
   moved2 <- availability_take_changes(av, 2L, target2)
+  if (
+    !is.null(av$check$epoch) &&
+      (length(av$pending) > 0L || length(moved2$node) > 0L)
+  ) {
+    av$check$epoch <- av$check$epoch + 1
+  }
   if (av$variant %in% c("presence", "presence_dyad")) {
     availability_step_presence(av, moved1, moved2)
   } else {
@@ -1007,6 +1013,14 @@ availability_enable_check <- function(
     ck$since2 <- ifelse(av$p2, 0, NA_real_)
     ck$ever2 <- logical(av$n2)
     ck$candidate <- logical(av$n2)
+    # A sender's allowed receivers move only with a mask flip or a receiver
+    # entering or leaving; each such row starts a new epoch, and a sender's
+    # row is read for candidates once per epoch it checks an event in.
+    ck$epoch <- 0
+    ck$marked <- rep(-1, av$n1)
+    ck$shared_epoch <- -1
+    ck$first_sender <- NA_integer_
+    ck$complete <- FALSE
   }
   ck$forced <- integer(64L)
   ck$n_forced <- 0L
@@ -1097,32 +1111,15 @@ availability_check_event <- function(av, row, sender, receiver) {
       single <- ck$n_init_positive == 1
     }
   } else {
-    n2 <- av$n2
-    mask <- av$mask$value()
-    allowed_row <- if (av$kind == 0L) {
-      as.logical(mask[sender + ck$row_offsets])
-    } else if (symmetric_vector_mask(av)) {
-      as.logical(mask) & isTRUE(as.logical(mask[[sender]]))
-    } else {
-      support_row(mask, av$kind, sender, av$n1, n2)
-    }
-    allowed_row <- allowed_row & av$p2
-    # The sender is not among its own candidates on one node set, whatever
-    # the mask allows on the diagonal.
-    if (av$drop_diagonal && sender <= n2) {
-      allowed_row[[sender]] <- FALSE
-    }
-    n_allowed <- sum(allowed_row)
-    # Only the receivers not yet named a candidate are written.
-    fresh <- which(allowed_row & !ck$candidate)
-    if (length(fresh) > 0L) {
-      candidate <- ck$candidate
-      ck$candidate <- NULL
-      ck$candidate <- write_entries(candidate, fresh, rep(TRUE, length(fresh)))
-    }
-    if (n_allowed == 0L) {
+    # The sender's allowed, present receivers are counted by the cache the
+    # walk keeps, and the observed one is a single cell, so an event reads no
+    # row. The row is read only to name new candidates, and only when the
+    # sender's allowed receivers may have changed since it was last read.
+    n_allowed <- av$count[[sender]]
+    availability_mark_candidates(av, ck, sender)
+    if (n_allowed == 0) {
       failure <- list(type = "empty", event = row, sender = sender)
-    } else if (!allowed_row[[receiver]]) {
+    } else if (!availability_check_cell(av, sender, receiver)) {
       failure <- list(
         type = "excluded",
         event = row,
@@ -1130,7 +1127,7 @@ availability_check_event <- function(av, row, sender, receiver) {
         receiver = receiver
       )
     } else {
-      single <- n_allowed == 1L
+      single <- n_allowed == 1
     }
   }
   ck$n_dep <- ck$n_dep + 1
@@ -1154,6 +1151,113 @@ availability_check_event <- function(av, row, sender, receiver) {
     }
   }
   invisible(NULL)
+}
+
+# The receivers sender `i` is allowed and finds present, as one row read at
+# the mask's kind. The sender is not among its own candidates on one node
+# set, whatever the mask allows on the diagonal.
+availability_allowed_row <- function(av, sender) {
+  n2 <- av$n2
+  mask <- av$mask$value()
+  allowed_row <- if (av$kind == 0L) {
+    as.logical(mask[sender + av$check$row_offsets])
+  } else if (symmetric_vector_mask(av)) {
+    as.logical(mask) & isTRUE(as.logical(mask[[sender]]))
+  } else {
+    support_row(mask, av$kind, sender, av$n1, n2)
+  }
+  allowed_row <- allowed_row & av$p2
+  if (av$drop_diagonal && sender <= n2) {
+    allowed_row[[sender]] <- FALSE
+  }
+  allowed_row
+}
+
+# Name the sender's allowed receivers as candidates. A point mask gives
+# each sender its own row, read once per epoch the sender checks an event
+# in. Any other mask gives every sender the same row R, gated at most by the
+# sender's own entry, so the candidates of an epoch are R less the first
+# sender's own cell while one sender has checked, and all of R from the
+# second distinct sender on: R is read once per epoch, the cell once.
+availability_mark_candidates <- function(av, ck, sender) {
+  if (av$kind == 0L) {
+    if (ck$marked[[sender]] < ck$epoch) {
+      availability_name_candidates(ck, availability_allowed_row(av, sender))
+      marked <- ck$marked
+      ck$marked <- NULL
+      ck$marked <- write_entries(marked, sender, ck$epoch)
+    }
+    return(invisible(NULL))
+  }
+  if (!availability_sender_gate(av, sender)) {
+    return(invisible(NULL))
+  }
+  if (ck$shared_epoch < ck$epoch) {
+    availability_name_candidates(ck, availability_allowed_row(av, sender))
+    ck$shared_epoch <- ck$epoch
+    ck$first_sender <- sender
+    ck$complete <- !av$drop_diagonal
+  } else if (!ck$complete && sender != ck$first_sender) {
+    first <- ck$first_sender
+    if (first <= av$n2 && availability_check_cell(av, sender, first)) {
+      availability_name_candidates(ck, first)
+    }
+    ck$complete <- TRUE
+  }
+  invisible(NULL)
+}
+
+# Name receivers as candidates: a logical row, or receiver indices. Only the
+# ones not yet named are written.
+availability_name_candidates <- function(ck, receivers) {
+  fresh <- if (is.logical(receivers)) {
+    which(receivers & !ck$candidate)
+  } else {
+    receivers[!ck$candidate[receivers]]
+  }
+  if (length(fresh) > 0L) {
+    candidate <- ck$candidate
+    ck$candidate <- NULL
+    ck$candidate <- write_entries(candidate, fresh, rep(TRUE, length(fresh)))
+  }
+  invisible(NULL)
+}
+
+# Whether a sender may have any allowed receiver under a mask that is not a
+# point grid: its own entry for an ego or a symmetric vector mask, the
+# scalar for a global one, always for an alter one.
+availability_sender_gate <- function(av, sender) {
+  mask <- av$mask$value()
+  if (av$kind == 2L || symmetric_vector_mask(av)) {
+    return(isTRUE(as.logical(mask[[sender]])))
+  }
+  if (av$kind == 3L) {
+    return(isTRUE(as.logical(mask)))
+  }
+  TRUE
+}
+
+# Whether the observed receiver is allowed and present for the sender: one
+# cell, read at the mask's kind.
+availability_check_cell <- function(av, sender, receiver) {
+  if (!av$p2[[receiver]] || (av$drop_diagonal && sender == receiver)) {
+    return(FALSE)
+  }
+  mask <- av$mask$value()
+  if (symmetric_vector_mask(av)) {
+    return(
+      isTRUE(as.logical(mask[[sender]])) &&
+        isTRUE(as.logical(mask[[receiver]]))
+    )
+  }
+  isTRUE(as.logical(read_value_at_entries(
+    mask,
+    av$kind,
+    sender + av$n1 * (receiver - 1L),
+    0L,
+    av$n1,
+    av$n2
+  )))
 }
 
 # What the check found over the whole sequence, in the form estimation

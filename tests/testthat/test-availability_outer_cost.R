@@ -37,3 +37,26 @@ test_that("a vector-kind REM constraint allocates no grid in the walk", {
   invisible(availability_cost_rem_prep(data, ~ alter(allow) > 0))
   expect_identical(grids(~ alter(allow) > 0), grids(NULL))
 })
+
+test_that("the observed-event check reads no row per event", {
+  # Recorded before the check read its counts: the constrained walk allocated
+  # 82.4 MB more than the unconstrained one, 69 MB of it the check's n2-length
+  # row (and its `which()`) at every dependent event. A row is now read only
+  # when the sender's allowed receivers may have changed since it was read.
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  data <- availability_cost_rem_data()
+  n_actors <- nrow(data$nodes)
+  constraint <- ~ alter(allow) > 0
+  invisible(availability_cost_rem_prep(data, NULL))
+  prep <- availability_cost_rem_prep(data, constraint)
+  allocated <- function(constraint) {
+    as.numeric(
+      bench::bench_memory(
+        availability_cost_rem_prep(data, constraint)
+      )$mem_alloc
+    )
+  }
+  rows_bytes <- sum(prep$is_dependent == 1L) * n_actors * 4
+  expect_lt(allocated(constraint) - allocated(NULL), rows_bytes)
+})

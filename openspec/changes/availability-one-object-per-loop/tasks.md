@@ -161,7 +161,7 @@
       unchanged (baselines, goldens, backend parity); the retired-field
       assertion of 2.3 extends to `active_sender_*` on choice and point
       outputs.
-- [ ] 4.6 Added in apply (Alvaro, 2026-10-01): the observed-event check
+- [x] 4.6 Added in apply (Alvaro, 2026-10-01): the observed-event check
       allocates no per-event row. `n_allowed` comes from the count cache,
       the observed receiver is one cell read at the mask's kind, and the
       candidate set is written only when a candidate can be new. Guard,
