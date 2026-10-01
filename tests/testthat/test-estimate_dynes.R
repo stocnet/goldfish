@@ -596,9 +596,14 @@ test_that("the parallel seam keeps workers times BLAS threads within n_cores", {
 # --- Fixed-term degeneracy ----------------------------------------------------
 
 # A store whose tally is set by hand: the helper reads nothing else.
-tallied_store <- function(built, fixed_term, labels) {
+tallied_store <- function(built, fixed_term, labels, pool_dropped = FALSE) {
   store <- new.env(parent = emptyenv())
-  store$tally <- list(built = built, fixed_term = fixed_term, labels = labels)
+  store$tally <- list(
+    built = built,
+    fixed_term = fixed_term,
+    labels = labels,
+    pool_dropped = pool_dropped
+  )
   store
 }
 
@@ -625,6 +630,15 @@ test_that("the fixed-term degeneracy warning", {
   expect_snapshot(
     warn_fixed_term_degenerate(
       tallied_store(12L, 5L, c("friendship (rate)", "calls (choice)"))
+    )
+  )
+})
+
+test_that("the fixed-term degeneracy warning after a full pool drop", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_fixed_term_degenerate(
+      tallied_store(4L, 4L, "friendship (rate)", pool_dropped = TRUE)
     )
   )
 })
@@ -658,6 +672,10 @@ test_that("a fixed-only term lost for some sequences warns once, is traced", {
   run <- fixed_term_run()
 
   expect_length(run$warnings, 1L)
+  expect_no_match(
+    conditionMessage(run$warnings[[1]]),
+    "Every sequence in the pool was dropped"
+  )
   trace <- run$fit$em_trace
   expect_type(trace$fixed_degenerate, "integer")
   expect_true(all(trace$fixed_degenerate > 0L))
@@ -680,4 +698,25 @@ test_that("a run with finite fixed-only terms neither warns nor traces one", {
     run$fit$em_trace$fixed_degenerate,
     rep(0L, nrow(run$fit$em_trace))
   )
+})
+
+test_that("a pool lost entirely to a fixed-only term stops unconverged", {
+  skip_on_cran()
+  local_dynes_augmenter(new_multiwave_augmenter())
+  local_fixed_term_loss()
+
+  run <- expect_no_error(fixed_term_run())
+
+  expect_length(run$warnings, 1L)
+  expect_match(
+    conditionMessage(run$warnings[[1]]),
+    "Every sequence in the pool was dropped"
+  )
+  fit <- run$fit
+  expect_s3_class(fit, "goldfishDynesFit")
+  expect_false(fit$converged)
+  expect_equal(unname(fit$parameters), rep(0, length(fit$parameters)))
+  expect_identical(nrow(fit$em_trace), 0L)
+  expect_true(all(is.na(fit$covariance)))
+  expect_true(all(is.na(fit$mc_covariance)))
 })

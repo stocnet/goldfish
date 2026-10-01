@@ -491,6 +491,114 @@ test_that("a candidate across a wave boundary is scored per period", {
   expect_equal(out$loglik, expected, tolerance = 1e-10)
 })
 
+# A pool whose every sequence lost its fixed-only term carries no information:
+# under importance weighting every weight is zero, under uniform weighting Q is
+# NaN. The loop stops before the M-step, unconverged, at its last accepted
+# theta. The real evaluator scores the stub's paths; fixtures in
+# helper-abem_loop.R.
+
+test_that("a fully fixed-term-degenerate pool stops importance weighting", {
+  skip_on_cran()
+  local_fixed_term_loss()
+
+  res <- expect_no_warning(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = analytic_em_control(optimizer = abem_full_sgd())
+    )
+  )
+
+  expect_false(res$converged)
+  expect_identical(res$parameters, c(0.3, -0.2))
+  expect_identical(res$iterations, 0L)
+  expect_identical(nrow(res$em_trace), 0L)
+  expect_true(res$pool$store$tally$pool_dropped)
+})
+
+test_that("a fully fixed-term-degenerate pool stops uniform weighting", {
+  skip_on_cran()
+  local_fixed_term_loss()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = analytic_em_control(
+        augmenter = set_augmenter_options(routine = "mcmc"),
+        weights = set_weights_options(weighting = "uniform", refresh = TRUE),
+        optimizer = abem_full_sgd()
+      )
+    )
+  )
+
+  expect_false(res$converged)
+  expect_identical(res$parameters, c(0.3, -0.2))
+  expect_identical(nrow(res$em_trace), 0L)
+  expect_true(res$pool$store$tally$pool_dropped)
+})
+
+test_that("a refresh into full fixed-term loss stops at the last accept", {
+  skip_on_cran()
+  # The refresh opening iteration 2 replaces a healthy pool by a lost one.
+  lost <- FALSE
+  local_fixed_term_loss(function() lost)
+  stub <- new_stub_augmenter(abem_two_wave_paths())
+  augmenter <- stub
+  augmenter$draw <- function(iteration, draw_index, theta) {
+    lost <<- iteration >= 2L
+    stub$draw(iteration, draw_index, theta)
+  }
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(2, -2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = augmenter,
+      control = analytic_em_control(
+        augmenter = set_augmenter_options(routine = "mcmc"),
+        weights = set_weights_options(weighting = "uniform", refresh = TRUE),
+        optimizer = abem_full_sgd()
+      )
+    )
+  )
+
+  trace <- res$em_trace
+  expect_false(res$converged)
+  expect_identical(res$iterations, 1L)
+  expect_identical(unique(trace$iteration), 1L)
+  expect_identical(trace$decision[[nrow(trace)]], "accept")
+  expect_identical(res$parameters, trace$theta[[nrow(trace)]])
+  expect_true(res$pool$store$tally$pool_dropped)
+})
+
+test_that("a partly fixed-term-degenerate pool does not stop the loop", {
+  skip_on_cran()
+  # Only the first path of each draw is lost.
+  path <- 0L
+  local_fixed_term_loss(function() {
+    path <<- path + 1L
+    path %% 3L == 1L
+  })
+
+  res <- run_abem_loop(
+    theta0 = c(2, -2),
+    decomposition = abem_pinned_choice_decomposition(),
+    augmenter = new_stub_augmenter(abem_two_wave_paths()),
+    control = analytic_em_control(
+      max_iterations = 1L,
+      optimizer = abem_full_sgd()
+    )
+  ) |>
+    suppressWarnings()
+
+  expect_gte(nrow(res$em_trace), 1L)
+  expect_true(all(res$em_trace$fixed_degenerate > 0L))
+  expect_false(res$pool$store$tally$pool_dropped)
+})
+
 # End-to-end: the stub augmenter over a small candidate set, the real
 # compiled pool evaluator, and the real SGD M-step. The candidates are three
 # orderings of one event stream, drawn in rotation with the uniform proposal

@@ -109,7 +109,7 @@
 
 ## 3. A fully fixed-term-degenerate pool stops the run
 
-- [ ] 3.1 (a) Write failing tests, following r-lib:testing-r-packages, in
+- [x] 3.1 (a) Write failing tests, following r-lib:testing-r-packages, in
       `test-em_loop_dynes.R` (stub augmenter) and one `estimate_dynes()`
       run, with `fixed_only_loglik()` mocked to `-Inf` for every sequence on
       the serial seam:

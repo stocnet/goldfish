@@ -184,6 +184,58 @@ abem_pinned_decomposition <- function() {
   )
 }
 
+# Three paths of the two-wave calls stream, and a decomposition that scores
+# them with a free choice (slots 1:2) beside the two-plateau pinned rate: a
+# fixed-only sub-model whose term the fixed-term tests replace.
+abem_two_wave_paths <- function() {
+  list(
+    abem_two_wave_data(),
+    abem_two_wave_data(calls_time = c(1, 3, 6, 8, 10, 15)),
+    abem_two_wave_data(calls_time = c(2, 3, 6, 10, 12, 15))
+  )
+}
+
+abem_pinned_choice_decomposition <- function() {
+  hand_decomposition(
+    abem_two_wave_data(),
+    rate = ~1,
+    choice = ~ inertia + recip,
+    theta_index = list(choice = 1:2),
+    pinned_rate = make_intercept_only_rate(
+      c(-1, -2),
+      model_type = "DyNAM-M-Rate",
+      wave_times = c(0, 10, 20)
+    )
+  )
+}
+
+# Every fixed-only term is -Inf while `lost()` is TRUE at pool entry, and the
+# real term otherwise. Pool entry runs in this process only on the serial seam.
+local_fixed_term_loss <- function(
+  lost = function() TRUE,
+  env = parent.frame()
+) {
+  real_fixed_only_loglik <- fixed_only_loglik
+  local_mocked_bindings(
+    fixed_only_loglik = function(sub_model, stats) {
+      if (lost()) -Inf else real_fixed_only_loglik(sub_model, stats)
+    },
+    .env = env
+  )
+}
+
+# A full-batch SGD M-step that converges in a few hundred steps on the two-wave
+# paths, so no iteration-cap warning muddies a test.
+abem_full_sgd <- function() {
+  set_sgd_options(
+    variant = "full",
+    step_schedule = "adam",
+    step_size = 0.1,
+    max_iterations = 200L,
+    sgd_tolerance = 1e-2
+  )
+}
+
 # Three orderings of one 30-event stream among five actors: the base order and
 # two with a few adjacent events swapped. A choice model scores the order, so
 # the three likelihoods differ.
