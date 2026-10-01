@@ -888,7 +888,10 @@ test_that("mutually dependent panel and event layers estimate jointly", {
   seen <- dynes_entry(spec, wave_times = c(0, 5, 10))
 
   expect_s3_class(seen$spec, "goldfishJointSpec")
-  expect_length(seen$messages, 0L)
+  # Only the emails rate, reading nothing, is separable; the choice that
+  # reads the latent calls path is not.
+  named <- vapply(seen$messages, conditionMessage, character(1))
+  expect_no_match(named, "emails › choice", fixed = TRUE)
 })
 
 test_that("a mixed specification names its separable fids and proceeds", {
@@ -1013,23 +1016,29 @@ test_that("modeled events before the first wave are scored", {
   # No wave is history: the first interval opens at t0, not at wave 5.
   expect_identical(seen$recipe$wave_times[[1]], 0)
   theta <- numeric(sum(!coef_layout(seen$spec)$fixed))
+  withr::local_seed(1L)
   drawn <- seen$augmenter$draw(1L, 1L, theta)[[1]]$data
 
-  score <- function(prep) {
-    evaluate_candidate(
-      seen$decomposition,
+  calls_rate <- Filter(
+    function(sm) identical(sm$label, "calls › rate"),
+    seen$decomposition$sub_models
+  )[[1]]
+  scored <- function(prep) {
+    stats <- suppressWarnings(preprocess_pool_sequence(
+      seen$decomposition$engine_spec,
       drawn,
-      theta,
-      what = "loglik",
       control_prep = prep
-    )$loglik
+    ))
+    calls <- fid_stats(stats, calls_rate)
+    calls$event_time[calls$is_dependent == 1L]
   }
-  from_t0 <- score(seen$loop_prep)
-  from_first_wave <- score(set_preprocessing(start_time = 5, end_time = 10))
 
-  # The calls at 1 and 3 add their own terms to the window from t0.
-  expect_true(is.finite(from_t0))
-  expect_false(isTRUE(all.equal(from_t0, from_first_wave)))
+  # The calls at 1 and 3 fall in the first interval and are scored.
+  expect_identical(scored(seen$loop_prep), c(1, 3, 6, 8))
+  expect_identical(
+    scored(set_preprocessing(start_time = 5, end_time = 10)),
+    c(6, 8)
+  )
 })
 
 test_that("completed fids contribute no theta, pinned per wave period", {

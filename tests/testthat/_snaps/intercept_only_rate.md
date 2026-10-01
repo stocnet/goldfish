@@ -265,6 +265,10 @@
       i emails › rate is pinned from the observed event count over the relevant period.
       i It carries no standard error and is excluded from estimation.
       i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
+    Message
+      i This process reads no modeled panel layer: "emails › choice".
+        Its likelihood terms touch no latent path, so estimating it jointly equals estimating it on its own.
+    Condition
       Error in `estimate_dynes()`:
       ! No augmenter is available for `routine` = "sim" yet.
       i The sequence augmenters are not part of this version of goldfish.

@@ -60,11 +60,24 @@ parameters (the sample-reuse importance weights of Levine and Casella,
 pool, or stops according to the estimated ascent Q and its standard error.
 }
 \details{
+At least one panel layer must be a modeled dependent process, with every
+flavor of a modeled panel layer modeled; without one, nothing is latent and
+the specification is a DyNAM. Windowed effects may read observed layers but
+not a modeled panel layer. A process whose formulas read no modeled panel
+layer is estimated jointly with the rest, which gives what estimating it on
+its own would; a message names such processes.
+
+Estimation runs from the observation start, the first value of
+\code{wave_times}, to the last wave, whatever the \code{start_time} and \code{end_time} of
+\code{control_prep}: modeled events before the first wave are scored, and those
+after the last wave are dropped.
+
 The specification is completed once, on entry: a modeled process missing
 its rate or its choice receives a default with no free parameter (a pinned
-intercept-only rate, or a uniform choice). Completed and all-\code{offset()}
-processes are never estimated, but their log-likelihood still enters the
-density every augmented path is weighted by, since it changes with the path.
+intercept-only rate, bucketed per wave period, or a uniform choice).
+Completed and all-\code{offset()} processes are never estimated, but their
+log-likelihood still enters the density every augmented path is weighted
+by, since it changes with the path.
 
 The starting values are zero over the free coefficients, the
 \code{initial_parameters} of \code{\link[=set_algorithm_em]{set_algorithm_em()}}, or -- with
@@ -83,4 +96,3 @@ Statistics}, 10(3), 422--439. \doi{10.1198/106186001317115045}
 \seealso{
 \code{\link[=set_algorithm_em]{set_algorithm_em()}}, \code{\link[=coef_layout]{coef_layout()}}, \code{\link[=set_parameters]{set_parameters()}}
 }
-\keyword{internal}

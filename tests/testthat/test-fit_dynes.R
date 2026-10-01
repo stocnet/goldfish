@@ -124,7 +124,11 @@ test_that("a completed pinned rate is a fixed layout row, not a coefficient", {
   row <- layout[layout$fid == as.integer(pinned_fid), ]
   expect_identical(nrow(row), 1L)
   expect_true(row$fixed)
-  expect_equal(row$value, fit$spec$completed_rates[[pinned_fid]]$intercept)
+  # One plateau per wave period; the layout row shows the first.
+  expect_equal(
+    row$value,
+    fit$spec$completed_rates[[pinned_fid]]$intercept[[1]]
+  )
   expect_true(is.na(row$se))
   expect_true(is.na(row$mc_se))
 

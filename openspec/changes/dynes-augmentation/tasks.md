@@ -660,7 +660,7 @@
       process in that period, so its fixed-only term is finite and no pooled
       sequence is dropped as fixed-term degenerate;
       cli message snapshots. Run to confirm RED; commit the tests alone.
-- [ ] 6.1b Implement: multi-layer specification validation per design D19
+- [x] 6.1b Implement: multi-layer specification validation per design D19
       (all-or-nothing panel-layer modeling; the DyNES gate testing for a modeled panel
       dependent process, with the `coupled` column consumed only to name the separable
       fids in the mixed-specification cli message; history anchored on the resolved

@@ -4,7 +4,13 @@
 \alias{compute_lik_seq}
 \title{Log-likelihood of one complete sequence under a joint specification}
 \usage{
-compute_lik_seq(spec, sequence, theta, control_prep = set_preprocessing())
+compute_lik_seq(
+  spec,
+  sequence,
+  theta,
+  control_prep = set_preprocessing(),
+  wave_times = NULL
+)
 }
 \arguments{
 \item{spec}{A joint specification from \code{\link[=make_joint_specification]{make_joint_specification()}}.}
@@ -17,6 +23,13 @@ free rows of \code{\link[=coef_layout]{coef_layout()}}. A named vector is matche
 labels \code{"<process>: <effect>"} instead.}
 
 \item{control_prep}{The preprocessing controls, from \code{\link[=set_preprocessing]{set_preprocessing()}}.}
+
+\item{wave_times}{The wave grid the latent sequences are augmented on: the
+observation start followed by every wave, strictly increasing. By default
+it is inferred from the data, as the distinct times of the modeled panel
+layers' rows, opened by the \code{start_time} of \code{control_prep} when one is
+set and otherwise by the first recorded wave, whose state is then the
+initial condition.}
 }
 \value{
 A list with the log-likelihood \code{loglik}, the named \code{score} vector,
@@ -35,10 +48,12 @@ DyNES estimation weights over its pool of augmented sequences, computed
 through the same evaluation.
 }
 \details{
-The specification is completed for joint estimation first. A specification
-that is already completed, such as the one a DyNES fit holds, keeps its
-pinned rates and the plateaus they were pinned on; each pinned rate is
-announced again with a warning.
+The specification is completed for joint estimation first, on the same
+wave grid \code{\link[=estimate_dynes]{estimate_dynes()}} resolves from \code{wave_times} and the \code{start_time}
+of \code{control_prep}, so a pinned rate has one plateau per wave period. A
+specification that is already completed, such as the one a DyNES fit
+holds, keeps its pinned rates and the plateaus they were pinned on; each
+pinned rate is announced again with a warning.
 Completed defaults (a pinned intercept-only rate, a uniform choice) and
 \code{offset()} effects have no free coefficient: they add their log-likelihood
 but no score or Fisher information.

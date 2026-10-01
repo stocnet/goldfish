@@ -1147,10 +1147,12 @@ evaluate_candidate <- function(
 #' through the same evaluation.
 #'
 #' @details
-#' The specification is completed for joint estimation first. A specification
-#' that is already completed, such as the one a DyNES fit holds, keeps its
-#' pinned rates and the plateaus they were pinned on; each pinned rate is
-#' announced again with a warning.
+#' The specification is completed for joint estimation first, on the same
+#' wave grid [estimate_dynes()] resolves from `wave_times` and the `start_time`
+#' of `control_prep`, so a pinned rate has one plateau per wave period. A
+#' specification that is already completed, such as the one a DyNES fit
+#' holds, keeps its pinned rates and the plateaus they were pinned on; each
+#' pinned rate is announced again with a warning.
 #' Completed defaults (a pinned intercept-only rate, a uniform choice) and
 #' `offset()` effects have no free coefficient: they add their log-likelihood
 #' but no score or Fisher information.
@@ -1177,7 +1179,8 @@ compute_lik_seq <- function(
   spec,
   sequence,
   theta,
-  control_prep = set_preprocessing()
+  control_prep = set_preprocessing(),
+  wave_times = NULL
 ) {
   lifecycle::signal_stage("experimental", "compute_lik_seq()")
   call <- rlang::current_env()
@@ -1190,7 +1193,24 @@ compute_lik_seq <- function(
       call = call
     )
   }
-  completed <- complete_generative_spec(spec, consumer = "compute_lik_seq")
+  # An authored spec with a modeled panel layer is pinned on the wave grid
+  # estimate_dynes() would infer, not on completion's single default window,
+  # so a fit's authored and completed specs score a sequence alike. A
+  # completed spec keeps the grid it was pinned on unless one is supplied.
+  authored <- is.null(spec$process_map$completed)
+  if (!is.null(wave_times) || (authored && length(spec$modeled_panel) > 0L)) {
+    wave_times <- panel_wave_grid(
+      spec,
+      start_time = control_prep$start_time,
+      wave_times = wave_times,
+      call = call
+    )
+  }
+  completed <- complete_generative_spec(
+    spec,
+    consumer = "compute_lik_seq",
+    wave_times = wave_times
+  )
   layout <- coef_layout(completed)
   labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
   theta <- check_sequence_theta(theta, labels, call = call)

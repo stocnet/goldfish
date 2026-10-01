@@ -144,11 +144,14 @@ simulate.goldfishDynesFit <- function(
   ...
 ) {
   # The fit holds the joint specification it was estimated from, so unlike a
-  # single-process fit it needs no data and rebuilds no specification.
+  # single-process fit it needs no data and rebuilds no specification. It
+  # simulates the completed one: completion keeps its pins on the wave grid
+  # estimation used, where the authored one would be pinned on a single
+  # default window.
   if (is.null(coef)) {
     coef <- dynes_fit_parameters(object)
   }
-  simulate(object$authored_spec, nsim = nsim, seed = seed, coef = coef, ...)
+  simulate(object$spec, nsim = nsim, seed = seed, coef = coef, ...)
 }
 
 #' @method times_of goldfishDynesFit

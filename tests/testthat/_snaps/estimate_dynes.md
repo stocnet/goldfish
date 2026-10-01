@@ -13,6 +13,9 @@
 
     Code
       res <- estimate_dynes(rq_layout_spec("panel"), control)
+    Message
+      i These processes read no modeled panel layer: "emails › rate" and "emails › choice".
+        Their likelihood terms touch no latent path, so estimating them jointly equals estimating them on their own.
     Condition
       Warning in `estimate_dynes()`:
       ! The warm-start fit for "calls › choice" failed on the drawn sequence; its free parameters start at zero.
@@ -57,4 +60,22 @@
       ! A modeled panel layer must model all of its flavors.
       x Layer "friendship" carries flavor "dissolution" modeled in neither `rate` nor `choice`.
       i A modeled panel layer's augmented path must place events of every flavor its wave-diff produces; model "dissolution" or drop it from the panel layer.
+
+# a mixed specification names its separable fids and proceeds
+
+    Code
+      cat(conditionMessage(seen$messages[[1]]))
+    Output
+      i These processes read no modeled panel layer: "emails › rate" and "emails › choice".
+        Their likelihood terms touch no latent path, so estimating them jointly equals estimating them on their own.
+
+# a window over a modeled panel layer is refused at entry
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10))
+    Condition
+      Error in `estimate_dynes()`:
+      ! A `window` cannot read the modeled panel layer "friendship".
+      x Windows over a modeled panel layer, whose events are augmented between waves, are not supported in this version.
+      i Windows are supported over observed layers only; drop the `window` argument.
 

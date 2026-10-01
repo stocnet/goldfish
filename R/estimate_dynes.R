@@ -12,11 +12,24 @@
 #' pool, or stops according to the estimated ascent Q and its standard error.
 #'
 #' @details
+#' At least one panel layer must be a modeled dependent process, with every
+#' flavor of a modeled panel layer modeled; without one, nothing is latent and
+#' the specification is a DyNAM. Windowed effects may read observed layers but
+#' not a modeled panel layer. A process whose formulas read no modeled panel
+#' layer is estimated jointly with the rest, which gives what estimating it on
+#' its own would; a message names such processes.
+#'
+#' Estimation runs from the observation start, the first value of
+#' `wave_times`, to the last wave, whatever the `start_time` and `end_time` of
+#' `control_prep`: modeled events before the first wave are scored, and those
+#' after the last wave are dropped.
+#'
 #' The specification is completed once, on entry: a modeled process missing
 #' its rate or its choice receives a default with no free parameter (a pinned
-#' intercept-only rate, or a uniform choice). Completed and all-`offset()`
-#' processes are never estimated, but their log-likelihood still enters the
-#' density every augmented path is weighted by, since it changes with the path.
+#' intercept-only rate, bucketed per wave period, or a uniform choice).
+#' Completed and all-`offset()` processes are never estimated, but their
+#' log-likelihood still enters the density every augmented path is weighted
+#' by, since it changes with the path.
 #'
 #' The starting values are zero over the free coefficients, the
 #' `initial_parameters` of [set_algorithm_em()], or -- with
@@ -63,7 +76,7 @@
 #' Monte Carlo EM algorithm. *Journal of Computational and Graphical
 #' Statistics*, 10(3), 422--439. \doi{10.1198/106186001317115045}
 #' @seealso [set_algorithm_em()], [coef_layout()], [set_parameters()]
-#' @keywords internal
+#' @export
 estimate_dynes <- function(
   spec,
   control_algo = set_algorithm_em(),
@@ -89,20 +102,35 @@ estimate_dynes <- function(
   }
   call <- rlang::current_env()
   abort_without_modeled_panel(spec, call = call)
+  abort_on_panel_window(spec, call = call)
   wave_times <- panel_wave_grid(
     spec,
     start_time = control_prep$start_time,
     wave_times = wave_times,
     call = call
   )
+  # Every path that scores a sequence -- pool entry, the proposal evaluator,
+  # the warm start -- runs from the observation start to the last wave:
+  # modeled events before the first wave are scored, later ones are dropped,
+  # and each timed rate's trailing compensator ends at the last wave.
+  control_prep$start_time <- wave_times[[1L]]
+  control_prep$end_time <- wave_times[[length(wave_times)]]
 
-  # Completed once, here: every proposal evaluator the loop builds reads this
-  # same object, so a pinned rate cannot move between proposals.
-  completed <- complete_generative_spec(spec, consumer = "estimate_dynes")
+  # Completed once, here, on the wave grid the recipe is compiled on: every
+  # proposal evaluator the loop builds reads this same object, so a pinned
+  # rate cannot move between proposals. Without the grid a multi-wave pin
+  # would fall back to one flat plateau over the data's event times.
+  completed <- complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = wave_times
+  )
+  assert_pins_on_wave_grid(completed, wave_times, call = call)
   # A pinned rate reads no coefficient and gets no standard error. A completed
   # rate's pin was already announced by the completion above, with the count
   # source it was pinned from; this warns only for a pin it did not announce.
   warn_pinned_rates(completed, consumer = "estimate_dynes", call = call)
+  inform_separable_fids(spec)
   decomposition <- decompose_joint_spec(completed, call = call)
   layout <- coef_layout(completed)
   free <- !layout$fixed
@@ -234,6 +262,98 @@ abort_without_modeled_panel <- function(spec, call = rlang::caller_env()) {
     ),
     class = "goldfish_dynes_no_modeled_panel",
     call = call
+  )
+}
+
+# A window over a modeled panel layer would decay events whose placement
+# differs across augmented paths; the data path only knows panel layers as
+# wave snapshots, so it is refused here, before anything is drawn. Windows
+# over observed layers are fine.
+abort_on_panel_window <- function(spec, call = rlang::caller_env()) {
+  windowed <- unlist(lapply(joint_fid_bundles(spec), function(entry) {
+    vapply(
+      entry$bundle$parsed$window_derivations,
+      `[[`,
+      character(1),
+      "source_name"
+    )
+  }))
+  layers <- intersect(unique(windowed), spec$modeled_panel)
+  if (length(layers) == 0L) {
+    return(invisible(spec))
+  }
+  cli::cli_abort(
+    c(
+      "A {.arg window} cannot read the modeled panel
+       {cli::qty(length(layers))}layer{?s} {.val {layers}}.",
+      "x" = "Windows over a modeled panel layer, whose events are augmented
+             between waves, are not supported in this version.",
+      "i" = "Windows are supported over observed layers only; drop the
+             {.arg window} argument."
+    ),
+    class = "goldfish_dynes_panel_window",
+    call = call
+  )
+}
+
+# Every pin of a modeled panel layer's rate must be bucketed on the grid the
+# augmenters draw on. A pin on another grid can be -Inf over a period in which
+# the draws place events, and every such sequence would be dropped as fixed-
+# term degenerate. Both come from the one grid estimate_dynes() resolves, so a
+# mismatch is a goldfish bug.
+assert_pins_on_wave_grid <- function(spec, wave_times, call) {
+  map <- spec$process_map
+  panel_fids <- as.character(map$fid[map$layer %in% spec$modeled_panel])
+  pins <- spec$completed_rates[intersect(
+    names(spec$completed_rates),
+    panel_fids
+  )]
+  off_grid <- Filter(
+    function(pin) {
+      !identical(as.numeric(stored_pin_grid(pin)), as.numeric(wave_times))
+    },
+    pins
+  )
+  if (length(off_grid) == 0L) {
+    return(invisible(spec))
+  }
+  labels <- render_process_label(map, as.integer(names(off_grid)))
+  cli::cli_abort(
+    c(
+      "The pinned {cli::qty(length(labels))}rate{?s} of {.val {labels}}
+       {?is/are} not bucketed on the augmentation wave grid
+       {.val {as.numeric(wave_times)}}."
+    ),
+    class = "goldfish_dynes_pin_grid_mismatch",
+    .internal = TRUE,
+    call = call
+  )
+}
+
+# A fid reading no modeled panel layer touches no latent path, so estimating
+# it jointly gives what estimating it on its own would. Joint estimation
+# handles it correctly; the message only points out the alternative. The
+# separability is make_joint_specification()'s (a fid on a modeled panel
+# layer is never separable), read off the authored specification so that the
+# defaults completion adds, which carry no coefficient, are not named.
+inform_separable_fids <- function(spec) {
+  separable <- joint_separable(spec)
+  if (!any(separable)) {
+    return(invisible(spec))
+  }
+  labels <- render_process_label(
+    spec$process_map,
+    spec$process_map$fid[separable]
+  )
+  cli::cli_inform(
+    c(
+      "i" = "{cli::qty(length(labels))}{?This process reads/These processes
+             read} no modeled panel layer: {.val {labels}}.",
+      " " = "{cli::qty(length(labels))}{?Its/Their} likelihood terms touch no
+             latent path, so estimating {?it/them} jointly equals estimating
+             {?it/them} on {?its/their} own."
+    ),
+    class = "goldfish_dynes_separable_fids"
   )
 }
 
