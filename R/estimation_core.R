@@ -1291,9 +1291,8 @@ compute_step.default <- function(spec, state, i, ctx) {
   # CHANGED MARION: fixed wrong initialization of compositions,
   #   removed next lines
 
-  current_time <- statsList$event_time[[i]]
-  if (ctx$active_sender_folded) {
-    # Maintain the folded `active_sender` by walking its per-event crossings
+  if (!is.null(ctx$active_sender_update)) {
+    # Maintain `active_sender` by walking its per-event crossings
     # slice: apply this event's flips before its likelihood.
     lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
     cols <- .availability_event_cols(lo, ctx$active_sender_update_pointer[i])
@@ -1301,17 +1300,10 @@ compute_step.default <- function(spec, state, i, ctx) {
       state$presence[ctx$active_sender_update[1L, cols]] <-
         as.logical(ctx$active_sender_update[2L, cols])
     }
-  } else if (ctx$updatepresence) {
-    update <-
-      ctx$compChange1[
-        ctx$compChange1$time <= current_time &
-          ctx$compChange1$time > state$oldTime,
-      ]
-    state$presence[update$node] <- update$replace
   }
 
-  if (ctx$active_dyad_folded) {
-    # Maintain the folded `active_dyad` by its per-event crossings slice
+  if (ctx$receiver_filter && !is.null(ctx$active_dyad_update)) {
+    # Maintain `active_dyad` by its per-event crossings slice
     # applied before this event's likelihood. At the point encoding
     # `state$presence2` is the dense n1 x n2 matrix and the buffer carries
     # (node1, node2, replace); the broadcast encodings maintain a length-n2
@@ -1329,15 +1321,7 @@ compute_step.default <- function(spec, state, i, ctx) {
           as.logical(ctx$active_dyad_update[2L, cols])
       }
     }
-  } else if (ctx$updatepresence2) {
-    update2 <-
-      ctx$compChange2[
-        ctx$compChange2$time <= current_time &
-          ctx$compChange2$time > state$oldTime,
-      ]
-    state$presence2[update2$node] <- update2$replace
   }
-  state$oldTime <- current_time
 
   # patch to avoid collision with dropping absent people
   if (!ctx$is_two_mode && !is_rate) {
@@ -1366,7 +1350,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # assignment (receiver) shadows the first (sender).
   sender_slots <- NULL
   receiver_slots <- NULL
-  if ((ctx$updatepresence || ctx$active_sender_folded) && !ctx$dyad_point) {
+  if (ctx$sender_filter && !ctx$dyad_point) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
@@ -1401,28 +1385,26 @@ compute_step.default <- function(spec, state, i, ctx) {
     )
   }
   if (
-    (ctx$updatepresence2 ||
-      ctx$updateopportunities ||
-      ctx$active_dyad_folded) &&
+    (ctx$receiver_filter || ctx$updateopportunities) &&
       !ctx$dyad_point
   ) {
-    # When folded, the receiver filter is read through the encoding accessor
-    # `state$presence2` is the folded receiver availability and
-    # already includes the support, so `opportunities` is not conjoined.
+    # The receiver filter is read through the encoding accessor:
+    # `state$presence2` is the folded receiver availability and already
+    # includes the support and a folded opportunity list, so `opportunities`
+    # stays all TRUE unless a list is still recomputed per event.
     # A dyadic family's receiver filter is its receiver factor whole: every
     # sender is in its risk set, so the event's sender (a placeholder on a
     # right-censored interval) must not gate it.
-    keepIn <- if (ctx$active_dyad_folded && ctx$is_dyadic) {
+    keepIn <- if (ctx$is_dyadic) {
       state$presence2
-    } else if (ctx$active_dyad_folded) {
+    } else {
       active_dyad_row(
         ctx$active_dyad_encoding,
         posSender,
         state$presence2,
         state$presence
-      )
-    } else {
-      state$presence2 & state$opportunities
+      ) &
+        state$opportunities
     }
     # reducing stats array alters the correspondence between row/col
     # it needs to consider the reflexive case to avoid wrong calculation
@@ -1945,40 +1927,6 @@ make_r_engine_evaluator <- function(
     is_sender = is_rate_model
   )
 
-  ## GET COMPOSITION CHANGES
-  has_comp_change1 <- length(stats_list$active_sender_changes) > 0
-  has_comp_change2 <- length(stats_list$active_dyad_changes) > 0 &&
-    !is_rate_model
-
-  compChange1 <- if (has_comp_change1) {
-    data.frame(
-      time = vapply(stats_list$active_sender_changes, `[[`, double(1), "time"),
-      node = vapply(stats_list$active_sender_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        stats_list$active_sender_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-  compChange2 <- if (has_comp_change2) {
-    data.frame(
-      time = vapply(stats_list$active_dyad_changes, `[[`, double(1), "time"),
-      node = vapply(stats_list$active_dyad_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        stats_list$active_dyad_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-
   presence <- stats_list$active_sender_init
   presence2 <- stats_list$active_dyad_init
 
@@ -2011,12 +1959,8 @@ make_r_engine_evaluator <- function(
     statsList = stats_list,
     nodes = nodes,
     nodes2 = nodes2,
-    updatepresence = has_comp_change1,
     presence = presence,
-    compChange1 = compChange1,
-    updatepresence2 = has_comp_change2,
     presence2 = presence2,
-    compChange2 = compChange2,
     hasIntercept = has_intercept,
     spec = spec,
     parallelize = parallelize,
@@ -2074,12 +2018,8 @@ compute_iteration_step <- function(
   statsList,
   nodes,
   nodes2,
-  updatepresence,
   presence,
-  compChange1,
-  updatepresence2,
   presence2,
-  compChange2,
   hasIntercept,
   parameters,
   spec,
@@ -2130,13 +2070,19 @@ compute_iteration_step <- function(
   # presence AND the per-event sender gate as net crossings, so the engine
   # maintains it by walking its flat buffer per event (by index) and uses it
   # directly as the sender filter — no separate estimation-time recombination.
-  active_sender_folded <- isTRUE(statsList$active_sender_folded)
   # A DyNAM-choice support_constraint is folded into `active_dyad` at
   # preprocessing: the receiver-axis availability already
   # carries receiver presence AND the folded support, so the engine maintains
   # it by walking its flat buffer per event and reads the receiver filter
-  # through the encoding accessor — no separate opportunities/compChange2 step.
-  active_dyad_folded <- isTRUE(statsList$active_dyad_folded)
+  # through the encoding accessor — no separate opportunities step.
+  # Composition changes reach both objects the same way, as their update
+  # buffers. An axis filters only when it can exclude someone: it has a
+  # buffer, or an actor starts out unavailable.
+  sender_filter <- !is.null(statsList$active_sender_update) ||
+    any(statsList$active_sender_init != 1)
+  receiver_filter <- !is_rate &&
+    (!is.null(statsList$active_dyad_update) ||
+      any(statsList$active_dyad_init != 1))
   # A standard- or ordinal-REM support_constraint folds both presences ∩ support
   # into a dense point `active_dyad`: the maintained matrix IS the
   # per-event risk mask, so the presence axis-reductions are skipped and it is
@@ -2184,16 +2130,12 @@ compute_iteration_step <- function(
     is_two_mode = is_two_mode,
     reduceArrayToMatrix = reduceArrayToMatrix,
     correctReflexive = correctReflexive,
-    updatepresence = updatepresence,
-    updatepresence2 = updatepresence2,
     updateopportunities = updateopportunities,
-    compChange1 = compChange1,
-    compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
-    active_sender_folded = active_sender_folded,
+    sender_filter = sender_filter,
+    receiver_filter = receiver_filter,
     active_sender_update = statsList$active_sender_update,
     active_sender_update_pointer = statsList$active_sender_update_pointer,
-    active_dyad_folded = active_dyad_folded,
     active_dyad_update = statsList$active_dyad_update,
     active_dyad_update_pointer = statsList$active_dyad_update_pointer,
     active_dyad_encoding = statsList$active_dyad_encoding,
@@ -2232,7 +2174,6 @@ compute_iteration_step <- function(
     time = statsList$start_time,
     flatPointer = 0L,
     bcPointer = 0L,
-    oldTime = -Inf,
     presence = presence,
     presence2 = presence2,
     opportunities = rep(TRUE, nrow(nodes2)),

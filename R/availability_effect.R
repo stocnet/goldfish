@@ -732,8 +732,6 @@ availability_finish <- function(av, out) {
     out$active_sender_init <- stream$init
     out$active_sender_update <- stream$update
     out$active_sender_update_pointer <- stream$pointer
-    out$active_sender_changes <- list()
-    out$active_sender_folded <- TRUE
     return(out)
   }
   if (identical(av$variant, "dyad")) {
@@ -753,7 +751,6 @@ availability_finish <- function(av, out) {
   } else {
     av$variant
   }
-  out$active_dyad_folded <- TRUE
   out
 }
 

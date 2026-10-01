@@ -248,15 +248,12 @@ constraint_atoms_capture <- function(prep) {
     "stat_mat_broadcast",
     "stat_mat_broadcast_pointer",
     "active_sender_init",
-    "active_sender_changes",
     "active_sender_update",
     "active_sender_update_pointer",
     "active_dyad_init",
-    "active_dyad_changes",
     "active_dyad_encoding",
     "active_dyad_update",
     "active_dyad_update_pointer",
-    "active_dyad_folded",
     "support_mask",
     "event_time"
   )

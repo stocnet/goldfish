@@ -22,6 +22,12 @@
 # 2 and `flavored` fids 2 and 4 moved in `active_dyad_*` only, each
 # dependent event's sender row checked equal first; every other entry is
 # `identical()` to the previous file.
+#
+# Regenerated on 2026-10-01 when the preprocessed object stopped storing the
+# per-change composition lists and the fold flags beside the update buffers
+# (`active_sender_changes`, `active_dyad_changes`, `active_dyad_folded` left
+# the capture). Every remaining field of every entry was checked
+# `identical()` to the previous file first.
 suppressMessages(devtools::load_all(quiet = TRUE))
 source("tests/testthat/helper-parity-fixtures.R")
 source("tests/testthat/helper-constraint-atoms.R")

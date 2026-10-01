@@ -154,7 +154,7 @@ test_that("the folded active_sender buffer carries only crossings", {
   prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
   # A static gate over a static (present) composition never crosses after the
   # init, so no flip is emitted.
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
   expect_equal(ncol(prep$active_sender_update), 0L)
 })
 

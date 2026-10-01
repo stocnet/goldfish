@@ -75,7 +75,7 @@ test_that("a receiver-axis constraint folds active_dyad at the alter encoding", 
     preprocessing_only = TRUE
   )
   expect_identical(prep$active_dyad_encoding, "alter")
-  expect_true(isTRUE(prep$active_dyad_folded))
+  expect_false(is.null(prep$active_dyad_update))
   # alter is a length-n2 vector — no dense n1 x n2 allocation.
   expect_true(is.null(dim(prep$active_dyad_init)))
   expect_length(prep$active_dyad_init, fx$n2)
@@ -178,7 +178,7 @@ test_that("opportunity folds active_dyad at the point encoding (dense)", {
     control_prep = set_preprocessing(opportunities_list = fx$opp)
   )
   expect_identical(prep$active_dyad_encoding, "point")
-  expect_true(isTRUE(prep$active_dyad_folded))
+  expect_false(is.null(prep$active_dyad_update))
   # A dense n1 x n2 init and a 3-row (node1, node2, replace) buffer appear ONLY
   # at the point encoding.
   expect_true(is.matrix(prep$active_dyad_init))

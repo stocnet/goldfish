@@ -64,7 +64,7 @@ test_that("an ego-kind choice constraint folds to the outer encoding", {
     support_constraint = fx$constraint,
     preprocessing_only = TRUE
   ))
-  expect_true(isTRUE(prep$active_dyad_folded))
+  expect_false(is.null(prep$active_dyad_update))
   # The decision function returns "outer" for an ego-kind choice constraint;
   # the fold now produces it. The availability is two factor vectors, so
   # `active_dyad` is the length-n2 receiver vector, NOT a dense n1 x n2 grid.

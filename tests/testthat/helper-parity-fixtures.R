@@ -65,16 +65,14 @@ availability_kept <- function(prep) {
   prep
 }
 
-# A merged-walk output against its frozen recipe golden, on every field and
-# on the fields that survive the availability retirement.
+# A merged-walk output against its frozen recipe golden on every field but
+# the retired availability ones, which the goldens still carry and an output
+# no longer does.
 expect_parity_golden <- function(prep, key) {
-  live <- parity_strip_deco(prep)
-  golden <- parity_frozen(key)
-  testthat::expect_equal(live, golden, info = key)
   testthat::expect_equal(
-    availability_kept(live),
-    availability_kept(golden),
-    info = paste(key, "(kept fields)")
+    availability_kept(parity_strip_deco(prep)),
+    availability_kept(parity_frozen(key)),
+    info = key
   )
 }
 

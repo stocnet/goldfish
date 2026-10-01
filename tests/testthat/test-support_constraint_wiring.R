@@ -118,7 +118,7 @@ test_that("a rate-only spec accepts a dyadic support_constraint via the row-redu
     "row-reduction"
   )
   expect_s3_class(prep, "goldfishStat")
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
 })
 
 test_that("a specification threads its support_constraint into estimation", {

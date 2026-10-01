@@ -665,7 +665,7 @@ test_that("the sender gate emits only zero-crossings", {
     preprocessing_only = TRUE,
     support_constraint = ~ indeg(call_network) >= 0
   )))
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
   expect_identical(ncol(prep$active_sender_update), 0L)
   expect_true(all(prep$active_sender_init))
 

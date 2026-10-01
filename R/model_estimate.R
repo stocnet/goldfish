@@ -2816,7 +2816,7 @@ estimate_wrapper <- function(
   if (
     is.null(constraint_plan) &&
       !is.null(opportunities_effective) &&
-      isTRUE(prep$active_dyad_folded)
+      identical(prep$active_dyad_encoding, "point")
   ) {
     opportunities_effective <- NULL
   }
@@ -2850,10 +2850,7 @@ estimate_wrapper <- function(
     # no standalone mask or sender gate is assembled here. A folded one-sided
     # choice constraint already carries any user opportunity list, so the
     # per-iteration opportunity recompute is skipped.
-    if (
-      identical(risk_set_axis(model_spec), "receiver_given_sender") &&
-        isTRUE(prep$active_dyad_folded)
-    ) {
+    if (identical(risk_set_axis(model_spec), "receiver_given_sender")) {
       opportunities_effective <- NULL
     }
   }

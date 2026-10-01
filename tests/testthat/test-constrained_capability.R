@@ -82,7 +82,7 @@ test_that("constrained REM / REM-ordered / coordination always arrive folded", {
     support_constraint = fx$constraint,
     preprocessing_only = TRUE
   ))
-  expect_true(isTRUE(rem$active_dyad_folded))
+  expect_false(is.null(rem$active_dyad_update))
   rem_ordered <- suppressWarnings(estimate_rem(
     fx$formula_ordinal,
     sub_model = "rate_ordered",
@@ -90,7 +90,7 @@ test_that("constrained REM / REM-ordered / coordination always arrive folded", {
     support_constraint = fx$constraint,
     preprocessing_only = TRUE
   ))
-  expect_true(isTRUE(rem_ordered$active_dyad_folded))
+  expect_false(is.null(rem_ordered$active_dyad_update))
   coord <- suppressWarnings(estimate_dynam(
     fx$formula_coord,
     sub_model = "choice_coordination",
@@ -98,5 +98,5 @@ test_that("constrained REM / REM-ordered / coordination always arrive folded", {
     support_constraint = fx$constraint,
     preprocessing_only = TRUE
   ))
-  expect_true(isTRUE(coord$active_dyad_folded))
+  expect_false(is.null(coord$active_dyad_update))
 })

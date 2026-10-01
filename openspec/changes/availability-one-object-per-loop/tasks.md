@@ -54,7 +54,7 @@
 
 ## 2. Availability stored once, as buffers (D2)
 
-- [ ] 2.1 Cost guard, recorded failing first: on a composition-change fixture
+- [x] 2.1 Cost guard, recorded failing first: on a composition-change fixture
       with `C` changes (Fisheries, 62; and a generated one with 10x), the R
       backend's allocation for one `compute_step.default` call on an
       unconstrained choice and rate does not grow with `C`. Measure first;
@@ -62,12 +62,12 @@
       from noise at 10x, the guard is the absence of the data-frame filter
       (no `compChange` binding in the engine context) and `progress.md`
       says so.
-- [ ] 2.2 Unit test, written before the deletion: over a sequence with a
+- [x] 2.2 Unit test, written before the deletion: over a sequence with a
       composition change stamped at a dependent event's own time, the
       pointer-buffer walk and the `<= t` data-frame filter give the same
       presence at every stored row (the writer's rule: a change lands on the
       next stored row). Record which rule the buffer encodes in the test.
-- [ ] 2.3 `R/preprocess_writers.R`: the writers emit `active_*_init`,
+- [x] 2.3 `R/preprocess_writers.R`: the writers emit `active_*_init`,
       `active_*_update`, `active_*_update_pointer` only (no
       `active_*_changes`); `R/dynami_bridge.R`, `R/methods_display.R`'s
       field list, `R/preprocess_joint.R`'s `finish_output()` follow.

@@ -538,7 +538,6 @@ build_active_dyad_point <- function(
   }
   out$active_dyad_update_pointer <- cumsum(n_changes)
   out$active_dyad_encoding <- "point"
-  out$active_dyad_folded <- TRUE
   out
 }
 

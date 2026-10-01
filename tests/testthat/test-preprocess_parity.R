@@ -619,7 +619,7 @@ test_that("a windowed term on a timed engine preprocesses identically", {
       merged_prep[parity_extent_fields],
       frozen[parity_extent_fields]
     )
-    expect_equal(merged_prep, frozen)
+    expect_equal(availability_kept(merged_prep), availability_kept(frozen))
   }
 })
 
@@ -634,7 +634,7 @@ test_that("a windowed REM rate preprocesses identically", {
     merged_prep[parity_extent_fields],
     frozen[parity_extent_fields]
   )
-  expect_equal(merged_prep, frozen)
+  expect_equal(availability_kept(merged_prep), availability_kept(frozen))
 })
 
 test_that("a REM rate without `1` carries an intercept on both entries", {
@@ -840,7 +840,7 @@ test_that("an opportunity list actually restricts, on both substrates", {
   ))
   plain <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
-  expect_true(isTRUE(parity_prep_by(restricted, "choice")$active_dyad_folded))
+  expect_false(is.null(parity_prep_by(restricted, "choice")$active_dyad_update))
   expect_false(identical(
     parity_prep_by(restricted, "choice")$active_dyad_init,
     parity_prep_by(plain, "choice")$active_dyad_init
