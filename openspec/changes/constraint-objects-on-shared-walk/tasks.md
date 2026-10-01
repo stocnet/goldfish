@@ -417,16 +417,28 @@
 
 ## 5. Fixtures F2–F5 with oracle and replay arms (D6, D8)
 
-- [ ] 5.1 F2 creation/dissolution: the harness's flavored mode (mutually
+- [x] 5.1 F2 creation/dissolution: the harness's flavored mode (mutually
       exclusive, derived masks); per-flavor rate and choice oracles; three
       goldfish routes (container, standalone single-flavor specs,
       de-flavored layers with hand-written masks) equal within 1e-6 per
       process; frame identity per process; handle replay with exclusion.
-- [ ] 5.2 F3 constraint on an object no formula reads: exogenous `emails`
+      — *done 2026-10-01 (goldfish-ce), `25766e4`*: 8 actors, 200 events
+      (111 creation, 89 dissolution); frames identical per flavor and
+      family; routes equal exactly; oracle worst 5.6e-12 (dissolution
+      choice). `walk_replay_against_batch()` moved to
+      `helper-walk-replay.R`. Bites when both flavors derive `!tie`.
+      9971 / 0 / 5, six baseline files PASS.
+- [x] 5.2 F3 constraint on an object no formula reads: exogenous `emails`
       stream driving `~ !tie(emails)` on `choice ~ recip` (and a rate
       variant with the row-reduction); oracle, frame identity, handle
       replay with exclusion.
-- [ ] 5.3 F4 composition change on F1: `present`/`active` changes with
+      — *done 2026-10-01 (goldfish-ce), `445e3cc`*: the gating fixture (8
+      actors, 120 events, senders 1-3 email every other node); choice
+      frame identical, clogit 1.7e-14; replay 240 checks, 8 excluded; the
+      rate variant is 2.3a's test on the same fixture (frame + glm). Bites
+      when the choice's availability effect is dropped. 10221 / 0 / 5, six
+      baseline files PASS.
+- [x] 5.3 F4 composition change on F1: `present`/`active` changes with
       actors leaving and returning; absent actors have no rows; presence
       flips are censored rows; rate and choice oracles; frame identity;
       handle replay with `walk_advance_presence()`.
@@ -437,12 +449,26 @@
       frame, and the handle replay, none of which depends on the boundary.
       The harness names the variable `active` (`present` is its former
       name, which manynet renames on a node frame only).
-- [ ] 5.4 F5 one modeled flavor on F2's data: `rate = list(creation ~ ...)`,
+      — *done 2026-10-01 (goldfish-ce), `759873f`*: N3 and N7 leave and return
+      (10 actors, 150 events); choice frame identical, no row for an absent
+      node, clogit 2.0e-11; replay 300 checks, 13 excluded. Bites when the
+      writer gets no receiver presence changes. 10533 / 0 / 5, six baseline
+      files PASS.
+- [x] 5.4 F5 one modeled flavor on F2's data: `rate = list(creation ~ ...)`,
       `choice = list(creation ~ ...)`; dissolution events as censored rows
       and state updates; equality with F2's creation blocks; oracle; handle
       replay.
-- [ ] 5.5 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-10-01 (goldfish-ce), `d47139b`*: creation alone keyed on
+      F2's sequence; 89 dissolution events are censored rows; equals F2's
+      creation blocks; glm 3.1e-14, clogit 1.8e-12; replay 222 checks, 377
+      excluded (the replay helper now maps an unflavored dependent row to
+      the layer's processes). Bites when a focal-layer covariate event
+      closes no interval. 10774 / 0 / 5, six baseline files PASS.
+- [x] 5.5 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; the simulation README's delta table filled for every fixture.
+      — *done 2026-10-01, the `d47139b` run* (5.5 adds only the README,
+      `3fff624`): 10774 / 0 / 5, six baseline files PASS; the delta table
+      covers F1-F5.
 
 ## 6. Close
 
