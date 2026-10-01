@@ -586,3 +586,58 @@ test_that("F2: the handle replays both flavors, masks excluding", {
   expect_gt(replay$n_checked, 0L)
   expect_gt(replay$n_excluded, 0L)
 })
+
+# ---- F3: a constraint on an object no formula term reads, the choice -------
+
+# The gating fixture above, read by a choice: `~ !tie(emails)` removes the
+# receivers a sender has emailed, and senders 1-3 end up with none.
+gating_choice_spec <- function(sim) {
+  make_specification(
+    choice = ~recip,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim$data,
+    support_constraint = ~ !tie(emails)
+  )
+}
+
+test_that("F3: the constrained choice exports the allowed receivers only", {
+  sim <- gating_simulation()
+  exported <- simulation_quiet(compute_statistics(
+    gating_choice_spec(sim),
+    sub_model = "choice",
+    output = "data.frame",
+    control_prep = simulation_window()
+  ))
+  expect_frame_identity(exported, sim$choice[[1]], c(recip = "recip_calls"))
+})
+
+test_that("F3: the constrained choice is a conditional logit", {
+  sim <- gating_simulation()
+  fit <- simulation_quiet(estimate_dynam(
+    gating_choice_spec(sim),
+    sub_model = "choice",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  ))
+  expect_choice_equals_clogit(
+    fit,
+    sim$choice[[1]],
+    outcome ~ recip + strata(interval)
+  )
+})
+
+test_that("F3: the handle replays the constraint, receivers excluded", {
+  sim <- gating_simulation()
+  spec <- make_specification(
+    rate = ~ 1 + indeg + outdeg,
+    choice = ~recip,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim$data,
+    support_constraint = ~ !tie(emails)
+  )
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
