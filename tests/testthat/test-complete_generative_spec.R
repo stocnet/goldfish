@@ -1062,19 +1062,354 @@ test_that("an RE (event) focal layer modeling a subset of flavors is not aborted
 
 # --- Idempotence, single-process untouched, process_map$completed ------------
 
+# --- Re-entry on an already-completed spec keeps its pins --------------------
+
+# Every warning `expr` raises, as condition objects, muffled so the caller can
+# count them and read both their classes and messages.
+condition_log <- function(expr) {
+  seen <- list()
+  withCallingHandlers(
+    expr,
+    warning = function(w) {
+      seen[[length(seen) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+  seen
+}
+
+# A warning's message with cli's line wrapping collapsed, for matching.
+flat_message <- function(w) {
+  gsub("\\s+", " ", conditionMessage(w))
+}
+
+pinned_fid <- function(joint_spec, layer) {
+  map <- joint_spec$process_map
+  as.character(map$fid[map$layer == layer & map$family == "rate"])
+}
+
+# Three modeled panel layers (friendship, advice, support), each choice-only, so
+# each completes to its own pinned rate; calls carries the authored waiting-time
+# rate that makes the composition timed. It is the smallest join holding several
+# completed panel rates, which a stored-pin state with one entry missing (or
+# entries on two grids) needs.
+three_panel_data <- function(observation = "panel") {
+  data <- plain_data(observation)
+  data$ties <- rbind(
+    data$ties,
+    data.frame(
+      from = c(2L, 3L, 5L, 6L),
+      to = c(1L, 2L, 6L, 1L),
+      time = c(1, 2, 3, 4),
+      layer = "advice"
+    ),
+    data.frame(
+      from = c(3L, 4L, 1L, 6L),
+      to = c(1L, 6L, 5L, 2L),
+      time = c(1, 2, 3, 4),
+      layer = "support"
+    )
+  )
+  data$info$update <- c(
+    data$info$update,
+    advice = "increment",
+    support = "increment"
+  )
+  data$info$directed <- c(data$info$directed, advice = TRUE, support = TRUE)
+  data$info$observation <- c(
+    data$info$observation,
+    advice = observation,
+    support = observation
+  )
+  data
+}
+
+three_panel_join <- function() {
+  ev <- three_panel_data("event")
+  choice_only <- function(layer) {
+    make_specification(
+      choice = ~inertia,
+      layer = layer,
+      model = "DyNAM",
+      data = ev
+    )
+  }
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  make_joint_specification(
+    choice_only("friendship"),
+    choice_only("advice"),
+    choice_only("support"),
+    calls,
+    data = three_panel_data("panel")
+  )
+}
+
 test_that("completion is idempotent on an already-complete spec", {
   js <- timed_panel_join()
   cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
-  # Re-entering finds no gap: no warning, identical map and completed marks.
-  cc2 <- expect_no_warning(
-    complete_generative_spec(cc, wave_times = c(0, 2, 5))
+  # Re-entering on the same grid finds no gap and re-pins nothing: the whole
+  # object comes back unchanged, and the pinned rate is announced once, exactly
+  # as on a re-entry with no grid.
+  seen <- condition_log(
+    cc2 <- complete_generative_spec(
+      cc,
+      consumer = "estimate_dynes",
+      wave_times = c(0, 2, 5)
+    )
   )
-  expect_identical(cc2$process_map$completed, cc$process_map$completed)
-  expect_identical(nrow(cc2$process_map), nrow(cc$process_map))
-  expect_equal(
-    cc2$completed_rates[[1L]]$intercept,
-    cc$completed_rates[[1L]]$intercept
+  expect_identical(cc2, cc)
+  expect_length(seen, 1L)
+  expect_s3_class(seen[[1L]], "goldfish_pinned_rate_warning")
+  expect_s3_class(seen[[1L]], "goldfish_completed_default_warning")
+  expect_identical(
+    flat_message(seen[[1L]]),
+    flat_message(condition_log(complete_generative_spec(cc))[[1L]])
   )
+})
+
+test_that("re-entry without a grid keeps the wave pins", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  seen <- condition_log(
+    cc2 <- complete_generative_spec(cc, consumer = "estimate_dynes")
+  )
+
+  # Nothing is re-pinned on the default window: both plateaus and the grid stay.
+  expect_identical(cc2, cc)
+  pin <- cc2$completed_rates[[pinned_fid(cc2, "friendship")]]
+  expect_length(pin$intercept, 2L)
+  expect_identical(pin$wave_times, c(0, 2, 5))
+  expect_identical(pin$pin_grid, c(0, 2, 5))
+
+  # The pinned rate is announced once, under both classes, with its source and
+  # the estimation line, and says its stored pin is kept rather than that a
+  # sub-model is being completed now.
+  expect_length(seen, 1L)
+  expect_s3_class(seen[[1L]], "goldfish_pinned_rate_warning")
+  expect_s3_class(seen[[1L]], "goldfish_completed_default_warning")
+  message <- flat_message(seen[[1L]])
+  expect_match(message, "Hamming diff", fixed = TRUE)
+  expect_match(message, "no standard error", fixed = TRUE)
+  expect_no_match(message, "completing it with", fixed = TRUE)
+})
+
+test_that("the re-entry warning snapshot keeps the stored pin", {
+  local_cli_context()
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  expect_snapshot(
+    invisible(complete_generative_spec(cc, consumer = "estimate_dynes"))
+  )
+})
+
+test_that("re-entry on a different grid aborts and re-pins nothing", {
+  local_cli_context()
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  expect_error(
+    complete_generative_spec(cc, wave_times = c(0, 3, 5)),
+    class = "goldfish_completion_repin"
+  )
+  expect_snapshot(
+    complete_generative_spec(cc, wave_times = c(0, 3, 5)),
+    error = TRUE
+  )
+})
+
+test_that("a date-time grid is compared exactly, to the second", {
+  js <- timed_panel_join_cast("POSIXct")
+  wave_times <- cast_wave_times(c(0, 2, 5), "POSIXct")
+  cc <- suppressWarnings(
+    complete_generative_spec(js, wave_times = wave_times)
+  )
+
+  # The same grid, cast back to POSIXct, coerces to the pinned boundaries.
+  expect_warning(
+    same <- complete_generative_spec(cc, wave_times = wave_times),
+    class = "goldfish_pinned_rate_warning"
+  )
+  expect_identical(same, cc)
+
+  # One interior boundary one second later: a tolerance comparison at
+  # epoch-second scale (about 1.6e9) would call these grids equal.
+  moved <- wave_times
+  moved[2L] <- moved[2L] + 1
+  expect_error(
+    complete_generative_spec(cc, wave_times = moved),
+    class = "goldfish_completion_repin"
+  )
+})
+
+test_that("a single-period panel pin records the default window as its grid", {
+  local_cli_context()
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js))
+  pin <- cc$completed_rates[[pinned_fid(cc, "friendship")]]
+  expect_identical(pin$pin_grid, default_window(cc$data, "friendship"))
+  # The recorded window is what a different one-period grid is checked against.
+  expect_error(
+    complete_generative_spec(cc, wave_times = c(0, 5)),
+    class = "goldfish_completion_repin"
+  )
+  expect_snapshot(
+    complete_generative_spec(cc, wave_times = c(0, 5)),
+    error = TRUE
+  )
+})
+
+test_that("a grid-independent pin accepts any grid and is re-announced", {
+  # emails is event-observed and unflavored: its completed rate is pinned from
+  # the observed event count and reads no grid.
+  js <- rate_only_choice_join()
+  cc <- suppressWarnings(complete_generative_spec(js))
+  expect_null(cc$completed_rates[[pinned_fid(cc, "emails")]]$pin_grid)
+  seen <- condition_log(
+    cc2 <- complete_generative_spec(cc, wave_times = c(0, 3, 5))
+  )
+  expect_identical(cc2, cc)
+  # One warning, for the pinned rate only: calls' uniform choice fills no gap
+  # on re-entry and is not announced again.
+  expect_length(seen, 1L)
+  expect_s3_class(seen[[1L]], "goldfish_pinned_rate_warning")
+  expect_s3_class(seen[[1L]], "goldfish_completed_default_warning")
+  expect_match(flat_message(seen[[1L]]), "observed event count", fixed = TRUE)
+})
+
+test_that("a completed spec with no pinned rate re-enters silently", {
+  # Both rates are authored; only calls' choice is completed, to a uniform
+  # choice, so the timed spec holds no pin at all.
+  data <- plain_data("event")
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  friendship <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = data
+  )
+  js <- make_joint_specification(calls, friendship, data = data)
+  cc <- suppressWarnings(complete_generative_spec(js))
+  expect_length(cc$completed_rates, 0L)
+  expect_no_warning(
+    cc2 <- complete_generative_spec(cc, wave_times = c(0, 3, 5))
+  )
+  expect_identical(cc2, cc)
+})
+
+test_that("a completed rate-less spec still gains a generated clock", {
+  spec <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = sim_fixture_data()
+  )
+  raw <- single_process_joint(spec)
+  # The default (observed) variant completes no rate: no clock, no pin.
+  expect_no_warning(
+    once <- complete_generative_spec(raw, consumer = "simulate")
+  )
+  expect_false(is.null(once$process_map$completed))
+  expect_null(once$completed_rates)
+
+  seen <- condition_log(
+    clocked <- complete_generative_spec(
+      once,
+      consumer = "simulate",
+      times = "generated"
+    )
+  )
+  expect_length(seen, 1L)
+  expect_s3_class(seen[[1L]], "goldfish_pinned_rate_warning")
+  oracle <- suppressWarnings(
+    complete_generative_spec(raw, consumer = "simulate", times = "generated")
+  )
+  expect_identical(clocked, oracle)
+  expect_length(clocked$completed_rates, 1L)
+})
+
+test_that("a legacy multi-period pin is checked against its boundaries", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  # A pin built before grids were recorded carries only its period boundaries.
+  fid <- pinned_fid(cc, "friendship")
+  cc$completed_rates[[fid]]$pin_grid <- NULL
+  expect_identical(cc$completed_rates[[fid]]$wave_times, c(0, 2, 5))
+  expect_error(
+    complete_generative_spec(cc, wave_times = c(0, 3, 5)),
+    class = "goldfish_completion_repin"
+  )
+})
+
+test_that("a rate with no stored pin inherits the stored pins' grid", {
+  js <- three_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  expect_length(cc$completed_rates, 3L)
+  # Losing one entry is reachable only by hand; re-entry with no grid pins it
+  # on the grid the remaining pins share, not on the default window, so the
+  # result is the spec completed once on c(0, 2, 5).
+  held <- cc
+  held$completed_rates[[pinned_fid(cc, "support")]] <- NULL
+  out <- suppressWarnings(complete_generative_spec(held))
+  expect_identical(out, cc)
+})
+
+test_that("stored pins on two grids leave no grid to inherit", {
+  js <- three_panel_join()
+  on_a <- suppressWarnings(complete_generative_spec(
+    js,
+    wave_times = c(0, 2, 5)
+  ))
+  on_b <- suppressWarnings(complete_generative_spec(
+    js,
+    wave_times = c(0, 3, 5)
+  ))
+  mixed <- on_a
+  advice <- pinned_fid(on_a, "advice")
+  mixed$completed_rates[[advice]] <- on_b$completed_rates[[advice]]
+  mixed$completed_rates[[pinned_fid(on_a, "support")]] <- NULL
+  expect_error(
+    complete_generative_spec(mixed),
+    class = "goldfish_completion_repin"
+  )
+})
+
+test_that("a pinned rate is re-announced at a second consumer's entry", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(
+    complete_generative_spec(js, consumer = "estimate_dynes")
+  )
+  seen <- condition_log(complete_generative_spec(cc, consumer = "simulate"))
+  expect_length(seen, 1L)
+  expect_s3_class(seen[[1L]], "goldfish_pinned_rate_warning")
+  expect_s3_class(seen[[1L]], "goldfish_completed_default_warning")
+  message <- flat_message(seen[[1L]])
+  expect_match(message, "Hamming diff", fixed = TRUE)
+  expect_no_match(message, "standard error", fixed = TRUE)
+
+  # End to end: simulating from the completed spec says the rate is pinned.
+  parameters <- set_parameters(
+    js,
+    `friendship › choice` = 0.2,
+    `calls › rate` = c(-1, 0.1)
+  )
+  sim_seen <- condition_log(
+    simulate(cc, coef = parameters, n_events = 2, seed = 1)
+  )
+  pinned <- Filter(
+    function(w) inherits(w, "goldfish_pinned_rate_warning"),
+    sim_seen
+  )
+  expect_length(pinned, 1L)
 })
 
 test_that("process_map$completed marks exactly the auto-supplied fids", {
