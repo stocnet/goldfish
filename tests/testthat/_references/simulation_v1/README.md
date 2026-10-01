@@ -41,6 +41,15 @@ proves the risk-set filtering and the statistics before any optimizer runs.
 | F1 baseline | REM rate ↔ dyadic `glm` Poisson | 2.6e-13 |
 | F1 baseline | DyNAM choice ↔ `survival::clogit` | 1.8e-14 |
 | F1 baseline | DyNAM choice ↔ `mlogit::mlogit` | 2.7e-08 |
+| F2 creation | DyNAM rate ↔ `glm` Poisson | 3.1e-14 |
+| F2 creation | DyNAM choice ↔ `survival::clogit` | 1.8e-12 |
+| F2 dissolution | DyNAM rate ↔ `glm` Poisson | 1.3e-13 |
+| F2 dissolution | DyNAM choice ↔ `survival::clogit` | 5.6e-12 |
+| F3 constraint-only layer | DyNAM rate ↔ `glm` Poisson | 3.2e-14 |
+| F3 constraint-only layer | DyNAM choice ↔ `survival::clogit` | 1.7e-14 |
+| F4 composition change | DyNAM choice ↔ `survival::clogit` | 2.0e-11 |
+| F5 creation alone | DyNAM rate ↔ `glm` Poisson | 3.1e-14 |
+| F5 creation alone | DyNAM choice ↔ `survival::clogit` | 1.8e-12 |
 
 The log-likelihoods differ by exactly `sum(log(dt))` over the realized
 intervals on the rate side (measured 6e-13 for the DyNAM rate, 1.3e-12 for
@@ -56,6 +65,46 @@ F1: 10 actors, 150 dependent events, seed 42; rate coefficients
 (intercept, indeg, outdeg) = (-1, 0.3, -0.2), choice (recip, trans) =
 (1, 0.4). The window opens at the simulation's clock origin
 (`set_preprocessing(start_time = 0)`).
+
+On every constrained fixture the log-likelihoods agree to within 3.7e-13
+after the `sum(log(dt))` offset on the rate side.
+
+## The constrained fixtures
+
+**F2**, creation and dissolution under their derived masks: a mutually
+exclusive layer, 8 actors, 200 events (111 creations, 89 dissolutions), a
+third of the dyads tied at the start, seed 21. Each flavor's risk set is its
+derived mask, so a sender with no absent (creation) or present (dissolution)
+tie is not at risk. Three goldfish routes agree exactly, coefficients and
+log-likelihoods: the flavored container, a standalone single-flavor
+specification per flavor, and a de-flavored data object where each flavor
+is its own layer and the mask is written by hand (`~ !tie(calls)`,
+`~ tie(calls)`). Each equals its oracle.
+
+**F3**, a constraint on an object no formula term reads: senders 1-3 email
+every other node at spread times (8 actors, 120 events, seed 9) and
+`~ !tie(emails)` removes the emailed receivers, so each of them is gated out
+of the rate partway through. Each `emails` event closes the rate's interval
+with a censored row (ADR-0103). The choice is fitted as `~ recip`.
+
+**F4**, composition change: F1's process with N3 and N7 leaving and
+returning (10 actors, 150 events, seed 42). The choice arm only: closing the
+rate interval at a presence change is `process-simulation` task 2.11c,
+applied at the trunk merge with the move of the fisheries baselines, so the
+rate arm lands there.
+
+**F5**, one modeled flavor: F2's sequence with creation alone keyed. The
+dissolution events still change the state and close the creation rate's
+interval as censored rows, and the creation estimates equal F2's creation
+blocks.
+
+## The handle replay
+
+Every constrained fixture is replayed through the walk handle
+(`walk_replay_against_batch()`, `helper-walk-replay.R`), which compares the
+handle's evaluation at each dependent event with the batch's and counts the
+alternatives the compared risk sets excluded: F2 400 checks and 609
+exclusions, F3 240 and 8, F4 300 and 13 (absent receivers), F5 222 and 377.
 
 ## Coordination is excluded, by evidence
 
