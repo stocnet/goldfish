@@ -641,3 +641,75 @@ test_that("F3: the handle replays the constraint, receivers excluded", {
   expect_gt(replay$n_checked, 0L)
   expect_gt(replay$n_excluded, 0L)
 })
+
+# ---- F4: composition change, the choice ------------------------------------
+
+# F1's process with N3 and N7 leaving and returning. An absent node is no
+# sender and no candidate receiver while it is away. The rate arm waits for
+# presence changes to close the rate interval (process-simulation 2.11c).
+f4_simulation <- function() {
+  composition <- data.frame(
+    time = c(1.5, 2.5, 4, 6),
+    node = c(3L, 7L, 3L, 7L),
+    present = c(FALSE, FALSE, TRUE, TRUE)
+  )
+  sim <- simulate_relational_sequence(
+    n_actors = 10,
+    n_events = 150,
+    processes = list(list(rate = c(-1, 0.3, -0.2), choice = c(1, 0.4))),
+    seed = 42,
+    composition = composition
+  )
+  sim$data <- dgp_stocnet(sim, n_actors = 10)
+  sim
+}
+
+f4_spec <- function(sim) {
+  make_specification(
+    rate = ~ 1 + indeg + outdeg,
+    choice = ~ recip + trans,
+    layer = "calls",
+    model = "DyNAM",
+    data = sim$data
+  )
+}
+
+test_that("F4: the choice exports no row for an absent node", {
+  sim <- f4_simulation()
+  exported <- simulation_quiet(compute_statistics(
+    f4_spec(sim),
+    sub_model = "choice",
+    output = "data.frame",
+    control_prep = simulation_window()
+  ))
+  expect_frame_identity(
+    exported,
+    sim$choice[[1]],
+    c(recip = "recip_calls", trans = "trans_calls")
+  )
+  time <- sim$events$time[exported$event]
+  away <- (exported$index_j == 3L & time > 1.5 & time <= 4) |
+    (exported$index_j == 7L & time > 2.5 & time <= 6)
+  expect_false(any(away))
+})
+
+test_that("F4: the choice under composition change is a conditional logit", {
+  sim <- f4_simulation()
+  fit <- simulation_quiet(estimate_dynam(
+    f4_spec(sim),
+    sub_model = "choice",
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  ))
+  expect_choice_equals_clogit(
+    fit,
+    sim$choice[[1]],
+    outcome ~ recip + trans + strata(interval)
+  )
+})
+
+test_that("F4: the handle replays the composition, absent nodes excluded", {
+  replay <- walk_replay_against_batch(f4_spec(f4_simulation()))
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
