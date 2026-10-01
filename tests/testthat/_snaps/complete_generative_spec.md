@@ -41,3 +41,38 @@
       x Layer "friendship" carries flavor "dissolution" modeled in neither `rate` nor `choice`.
       i A modeled panel layer's augmented path must place events of every flavor its wave-diff produces; model "dissolution" or drop it from the panel layer.
 
+# the re-entry warning snapshot keeps the stored pin
+
+    Code
+      invisible(complete_generative_spec(cc, consumer = "estimate_dynes"))
+    Condition
+      Warning:
+      ! Layer "friendship" has a completed rate sub-model; keeping its stored pinned intercept-only rate, not re-pinned at this entry.
+      i friendship › rate is pinned from the wave Hamming diff between observed states -- a net-change floor.
+      i It carries no standard error and is excluded from estimation.
+      i The default adds no free parameter; it is auto-supplied for the estimate_dynes generative surface.
+
+# re-entry on a different grid aborts and re-pins nothing
+
+    Code
+      complete_generative_spec(cc, wave_times = c(0, 3, 5))
+    Condition
+      Error:
+      ! Cannot re-pin a completed specification on a different `wave_times`.
+      x friendship is pinned on 0, 2, and 5.
+      x `wave_times` supplied: 0, 3, and 5.
+      i Complete the authored (uncompleted) specification on the grid you want; a DyNES fit keeps it as authored_spec.
+      i A DyNES fit's spec and a simulation result's spec are already completed.
+
+# a single-period panel pin records the default window as its grid
+
+    Code
+      complete_generative_spec(cc, wave_times = c(0, 5))
+    Condition
+      Error:
+      ! Cannot re-pin a completed specification on a different `wave_times`.
+      x friendship is pinned on 1 and 4.
+      x `wave_times` supplied: 0 and 5.
+      i Complete the authored (uncompleted) specification on the grid you want; a DyNES fit keeps it as authored_spec.
+      i A DyNES fit's spec and a simulation result's spec are already completed.
+

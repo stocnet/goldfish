@@ -218,7 +218,11 @@ pin_intercept_only_rate <- function(
 # `.pse_eval_rate`), "REM" for a tie-oriented one (per-dyad hazard,
 # `.pse_eval_rem`). `source` records which count source the pin actually used
 # ("event_count" / "hamming_diff"), decided by the caller's own dispatch and
-# carried on the object unchanged -- never re-derived here.
+# carried on the object unchanged -- never re-derived here. `pin_grid` records
+# the boundaries a grid-derived pin was computed on, including a single-period
+# pin's window (which `wave_times` leaves NULL so membership stays "every time
+# is in the sole period"); NULL for a pin that read no grid. Completion checks a
+# later `wave_times` against it rather than silently re-pinning.
 #
 # "Compute once and freeze" (D7): the intercept is computed at consumer setup
 # (the pin is a deterministic function of supplied counts/exposures) and stored
@@ -231,6 +235,7 @@ make_intercept_only_rate <- function(
   model_type = c("DyNAM-M-Rate", "REM"),
   wave_times = NULL,
   source = NULL,
+  pin_grid = NULL,
   call = rlang::caller_env()
 ) {
   model_type <- match.arg(model_type)
@@ -276,6 +281,9 @@ make_intercept_only_rate <- function(
       # once at setup and never recomputed from generated events.
       intercept = intercept,
       wave_times = wave_times,
+      # The grid the pin was computed on (K+1 boundaries, a single-period
+      # window included); NULL when the pin read no grid.
+      pin_grid = pin_grid,
       n_periods = n_periods,
       frozen = TRUE,
       # The count source the pin actually used ("event_count" /

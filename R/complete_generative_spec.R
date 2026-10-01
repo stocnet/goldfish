@@ -44,6 +44,9 @@ expected_families <- function(model) {
 # `completed` column set, timed rates pinned (`$completed_rates`), and one
 # warning per filled gap. Idempotent: a spec with no gap is returned unchanged
 # (aside from a `completed` column of all-FALSE, so downstream code can read it).
+# An already-completed spec keeps its pins when `wave_times` is NULL or the grid
+# they were pinned on, and aborts (`goldfish_completion_repin`) on any other
+# grid; its pinned rates are announced again for this consumer.
 #
 # `wave_times` is the K+1 period boundaries a timed pin buckets on (the panel
 # waves, or a single window). When NULL a single window spanning the data's event
@@ -146,13 +149,17 @@ complete_generative_spec <- function(
   # 3. Timed rates: mark them pinned (asserting the timed regime -- the first
   #    real caller of the primitive's timed-only guard) and pin every COMPLETED
   #    intercept-only rate from the consumer-supplied (count_w, T_w, |R_w|).
-  #    Pinning reads the bundle marks (not this call's `added`), so a re-entry on
-  #    an already-completed spec re-pins the same fids deterministically.
+  #    The rebuild in step 2 dropped the input's pins, so they are handed over
+  #    from `joint_spec`: a completed rate that already holds a pin keeps it
+  #    (a re-entry never re-pins, and a different grid aborts), and only a
+  #    completed rate with no pin is pinned here.
+  stored <- joint_spec$completed_rates
   if (timed) {
     completed <- mark_pinned_rates(completed, call = call)
     completed <- pin_completed_rates(
       completed,
       wave_times = wave_times,
+      stored = stored,
       call = call
     )
   }
@@ -160,12 +167,21 @@ complete_generative_spec <- function(
   # 4. Warn once per filled gap, at this consumer's entry (never suppressed). A
   #    completed rate's warning also states the pin's count source, so it needs
   #    the pins built in step 3 and the rebuilt map to find each rate's fid.
+  #    A pin kept from the input fills no gap but is still announced: the
+  #    pinned-rate warning is owed at every consumer entry.
   warn_completed_defaults(
     added,
     consumer = consumer,
     completed_rates = completed$completed_rates,
     process_map = completed$process_map,
     rate_requested = rate_requested,
+    call = call
+  )
+  warn_kept_pinned_rates(
+    intersect(names(stored), names(completed$completed_rates)),
+    consumer = consumer,
+    completed_rates = completed$completed_rates,
+    process_map = completed$process_map,
     call = call
   )
 
@@ -324,9 +340,18 @@ rebuild_completed_joint <- function(joint_spec, specs) {
 # |R_w|), storing the frozen intercept-only rate object per fid in
 # `$completed_rates`. The numbers come from the shared panel helper (the common
 # DyNES / snapshot path); the transform itself reads no event stream. Driven by
-# the process_map's `completed` marks (persisted on the bundles), so a re-entry
-# on an already-completed spec pins the same fids deterministically.
-pin_completed_rates <- function(joint_spec, wave_times, call) {
+# the process_map's `completed` marks (persisted on the bundles).
+#
+# `stored` is the input specification's `completed_rates` (NULL on a raw spec).
+# A completed rate with a stored pin keeps it unchanged: its grid is checked
+# against an explicit `wave_times` (exact equality after `coerce_time()`, the
+# coercion the pin itself was computed under), and any mismatch aborts rather
+# than re-pinning. Fids are stable across the rebuild (same specifications,
+# same order), so `stored` is keyed like the rebuilt map; an entry whose fid is
+# no longer a completed rate is dropped. A completed rate with no stored pin is
+# pinned on `wave_times`, or else on the one grid the kept pins share, so a
+# specification never holds pins on two grids.
+pin_completed_rates <- function(joint_spec, wave_times, call, stored = NULL) {
   map <- joint_spec$process_map
   rate_fids <- map$fid[map$completed & map$family == "rate"]
   if (length(rate_fids) == 0L) {
@@ -334,8 +359,31 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
     return(joint_spec)
   }
   modeled_panel <- joint_spec$modeled_panel %||% character(0)
+  is_relational <- function(row) {
+    is.na(row$flavor) && !(row$layer %in% modeled_panel)
+  }
+
+  kept_fids <- intersect(as.character(rate_fids), names(stored))
+  kept <- stored[kept_fids]
+  if (!is.null(wave_times)) {
+    abort_on_repinned_grid(kept, map, coerce_time(wave_times), call = call)
+  }
+  new_fids <- setdiff(as.character(rate_fids), kept_fids)
+  needs_grid <- vapply(
+    new_fids,
+    function(fid) !is_relational(map[map$fid == fid, , drop = FALSE]),
+    logical(1)
+  )
+  if (is.null(wave_times) && any(needs_grid)) {
+    wave_times <- inherited_pin_grid(kept, map, call = call)
+  }
+
   pinned <- list()
   for (fid in rate_fids) {
+    if (as.character(fid) %in% kept_fids) {
+      pinned[[as.character(fid)]] <- kept[[as.character(fid)]]
+      next
+    }
     row <- map[map$fid == fid, , drop = FALSE]
     spec <- spec_of_layer(joint_spec, row$layer)
     # Dispatch the risk-set source on HOW the completed layer is observed: an
@@ -347,7 +395,7 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
     # guard is what routes a flavored relational layer to the panel path: its
     # per-flavor gap is not something the bare-formula relational helper can
     # slice out yet.
-    relational <- is.na(row$flavor) && !(row$layer %in% modeled_panel)
+    relational <- is_relational(row)
     rs <- if (relational) {
       relational_window_risk_set(
         joint_spec$data,
@@ -379,11 +427,114 @@ pin_completed_rates <- function(joint_spec, wave_times, call) {
       model_type = model_type,
       wave_times = rs$wave_times,
       source = if (relational) "event_count" else "hamming_diff",
+      # A relational pin reads no grid, so no later grid can invalidate it.
+      pin_grid = if (!relational) rs$grid,
       call = call
     )
   }
   joint_spec$completed_rates <- pinned
   joint_spec
+}
+
+# The grid a stored pin was computed on. A pin built before grids were recorded
+# has no `pin_grid`, but a multi-period one carries the same coerced boundaries
+# as `wave_times`; only a legacy single-period pin comes back NULL and is then
+# treated as grid-independent.
+stored_pin_grid <- function(pin) {
+  pin$pin_grid %||% pin$wave_times
+}
+
+# A stored pin's process label for messages: "layer", or "layer › flavor".
+stored_pin_label <- function(map, fid) {
+  row <- map[map$fid == as.integer(fid), , drop = FALSE]
+  paste(c(row$layer, if (!is.na(row$flavor)) row$flavor), collapse = " › ")
+}
+
+# Abort when an explicit grid differs from the grid any kept pin was computed
+# on. Every kept pin is checked first so the message lists each conflicting
+# layer. No tolerance: both sides come out of the same `coerce_time()`, and at
+# POSIXct epoch-second scale `all.equal()`'s relative tolerance would accept
+# boundaries tens of seconds apart.
+abort_on_repinned_grid <- function(kept, map, supplied, call) {
+  mismatched <- Filter(
+    function(fid) {
+      grid <- stored_pin_grid(kept[[fid]])
+      !is.null(grid) && !identical(as.numeric(grid), as.numeric(supplied))
+    },
+    names(kept)
+  )
+  if (length(mismatched) == 0L) {
+    return(invisible(NULL))
+  }
+  bullets <- vapply(
+    mismatched,
+    function(fid) {
+      label <- stored_pin_label(map, fid)
+      grid <- as.numeric(stored_pin_grid(kept[[fid]]))
+      cli::format_inline("{.field {label}} is pinned on {.val {grid}}.")
+    },
+    character(1)
+  )
+  names(bullets) <- rep("x", length(bullets))
+  repin_abort(
+    c(
+      "Cannot re-pin a completed specification on a different
+       {.arg wave_times}.",
+      bullets,
+      "x" = "{.arg wave_times} supplied: {.val {as.numeric(supplied)}}."
+    ),
+    call = call
+  )
+}
+
+# The grid a newly pinned rate inherits when no `wave_times` is supplied: the
+# one grid the kept grid-dependent pins share, or NULL (the default window) when
+# none records a grid. Kept pins on different grids leave no single grid to
+# inherit, which only a hand-built or pre-grid object can hold, so abort rather
+# than choose.
+inherited_pin_grid <- function(kept, map, call) {
+  grids <- Filter(Negate(is.null), lapply(kept, stored_pin_grid))
+  grids <- lapply(grids, as.numeric)
+  distinct <- unique(grids)
+  if (length(distinct) <= 1L) {
+    return(if (length(distinct) == 1L) distinct[[1L]])
+  }
+  bullets <- vapply(
+    names(grids),
+    function(fid) {
+      label <- stored_pin_label(map, fid)
+      grid <- grids[[fid]]
+      cli::format_inline("{.field {label}} is pinned on {.val {grid}}.")
+    },
+    character(1)
+  )
+  names(bullets) <- rep("x", length(bullets))
+  repin_abort(
+    c(
+      "Cannot pin a completed rate: the stored pins do not share one grid.",
+      bullets
+    ),
+    call = call
+  )
+}
+
+# Raise `goldfish_completion_repin` with the shared pointer to the authored
+# specification, which is what a caller holding a completed one should
+# complete on the grid it wants. `message` is interpolated in the caller's
+# frame, where its templates' variables live.
+repin_abort <- function(message, call, .envir = parent.frame()) {
+  cli::cli_abort(
+    c(
+      message,
+      "i" = "Complete the authored (uncompleted) specification on the grid you
+             want; a DyNES fit keeps it as {.field authored_spec}.",
+      "i" = "A DyNES fit's {.field spec} and a simulation result's
+             {.field spec} are already completed."
+    ),
+    class = "goldfish_completion_repin",
+    call = call,
+    .envir = .envir
+  )
 }
 
 # The flavor's rate entity: active dyads for a tie-oriented (REM) flavor,
@@ -584,7 +735,10 @@ panel_wave_risk_set <- function(
     count = count_w,
     duration = diff(wave_times),
     risk_set_size = risk,
-    wave_times = if (n_periods > 1L) wave_times else NULL
+    wave_times = if (n_periods > 1L) wave_times else NULL,
+    # The coerced boundaries actually read, kept even for one period so a later
+    # completion can tell whether it is asking for the same grid.
+    grid = wave_times
   )
 }
 
@@ -770,6 +924,59 @@ warn_completed_defaults <- function(
       ),
       class = c(
         if (is_rate) "goldfish_pinned_rate_warning",
+        "goldfish_completed_default_warning"
+      ),
+      call = call
+    )
+  }
+  invisible(NULL)
+}
+
+# Announce each completed pinned rate kept from the input specification, once
+# per fid at this consumer's entry. Nothing is completed here, so the headline
+# says the stored pin is kept -- not recomputed for this call -- while the
+# source line, the estimation-only no-SE line and both condition classes match
+# the fill warning, so handlers and the one-warning-per-completed-rate count
+# see a re-entry exactly as they saw the first completion. A completed uniform
+# choice owes no pinned-rate warning and is not announced again.
+warn_kept_pinned_rates <- function(
+  fids,
+  consumer,
+  completed_rates,
+  process_map,
+  call
+) {
+  for (fid in fids) {
+    row <- process_map[process_map$fid == as.integer(fid), , drop = FALSE]
+    layer <- row$layer
+    flavor <- row$flavor
+    label <- paste(
+      c(layer, if (!is.na(flavor)) flavor, "rate"),
+      collapse = " › "
+    )
+    headline <- if (is.na(flavor)) {
+      "Layer {.val {layer}} has a completed {.field rate} sub-model; keeping
+       its stored pinned intercept-only rate, not re-pinned at this entry."
+    } else {
+      "Layer {.val {layer}} flavor {.val {flavor}} has a completed
+       {.field rate} sub-model; keeping its stored pinned intercept-only rate,
+       not re-pinned at this entry."
+    }
+    cli::cli_warn(
+      c(
+        "!" = headline,
+        pinned_rate_source_note(completed_rates[[fid]]$source),
+        if (identical(consumer, "estimate_dynes")) {
+          c(
+            "i" = "It carries no standard error and is excluded from
+                   estimation."
+          )
+        },
+        "i" = "The default adds no free parameter; it is auto-supplied for the
+               {.field {consumer}} generative surface."
+      ),
+      class = c(
+        "goldfish_pinned_rate_warning",
         "goldfish_completed_default_warning"
       ),
       call = call
