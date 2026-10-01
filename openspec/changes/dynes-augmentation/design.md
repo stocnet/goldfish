@@ -7,7 +7,10 @@ event sequence between waves latent. The living `single-data-object` spec carrie
 covariates; `make-multivariate-spec` landed the `make_joint_specification()` composition
 surface and the `multi-process-walk` handle (`walk_open`/`walk_advance`/
 `walk_evaluate`/`walk_inject`) — the family-agnostic stepping + injection substrate a
-model-driven sequence draw drives. Panel augmentation is triggered by a panel layer
+model-driven sequence draw drives; `process-simulation` has since widened it
+(`walk_replay`, `walk_schedule`, `walk_next_breakpoint`,
+`walk_evaluate(sender =)`) and lifted its refusals of support constraints,
+composition change and windowed effects (D9 amendment). Panel augmentation is triggered by a panel layer
 being **referenced in the multivariate specification's formulas** (as a modeled
 process or an exogenous covariate); there is no separate reserved flag.
 Prototypes in `.plan/DyNES/` implement the full algorithm against goldfish 1.6.10:
@@ -36,7 +39,12 @@ markers pointing at these decisions.
 
 Decisions below marked **[spike-gated]** are written from the prototypes and the OQ
 answers but are revised from the Phase-1 spike measurements before their implementing
-phase starts.
+phase starts. **That revision was made on 2026-09-30 (task 1.5):** D2, D3, D4, D5, D6,
+D10, D15 and D19 carry dated revision blocks folding in B1
+(`.plan/dynes/b1/B1_results.md`), B3 (`.plan/dynes/b3/B3_results.md`), the move-set
+note (`.plan/dynes/rsiena_mle_notes.md`) and the toy prototype
+(`.plan/dynes/toy/TOY_results.md`). No decision remains spike-gated. Where a revision
+block and the older text above it disagree, the revision block governs.
 
 **Carve-out**: the ABMCEM algorithm core — the `set_algorithm_em()` surface (D1), the
 result contract (D7), the weighting/Q-ASE/M-step/EM-control decisions
@@ -66,8 +74,12 @@ process simulation, specification validation, and the recovery study.
   takes a multivariate spec (D1); the batched evaluator reads the merged walk's
   per-fid preprocessed outputs.
 - The general `simulate()` primitive (`process-simulation` change) — consumed
-  here; `augment_seq_sim()` reuses its per-step drawing core. GoF statistics/plots
-  (`gof-dynes`) are a follow-up.
+  here; `augment_seq_sim()` reuses its per-step drawing core as a set of supplied
+  steps (D12), and the recovery study draws its panels from it. Its exported
+  surface (`simulate()`, `set_simulation_steps()`, `set_parameter_provider()`,
+  `set_simulation_guard()`, `filter_simulation()`, the handle accessors) is not
+  this change's to build or to re-document. GoF statistics/plots (`gof-dynes`)
+  are a follow-up.
 - Modeling the rate part of choice-only (ordered) data by treating timings as
   latent and imputing them through the augmentation machinery — a genuinely new
   estimand the DyNES core makes reachable, recorded as a future extension
@@ -77,6 +89,14 @@ process simulation, specification validation, and the recovery study.
   loudly** on `NA` tie values rather than silently coercing them to tie-absence (which
   would manufacture spurious flips); handling item nonresponse / structural missingness
   in a wave is the deferred work.
+- Per-interval factorized augmentation (independent pools, weights and chains per
+  between-wave interval) — **declined for v1** in D19, recorded there as a future
+  development for specifications carrying no latent-timing statistic across a wave
+  boundary.
+- Ordinal / multistate panel layers (K > 2 states, the `(from,to) → flavor` chains D8
+  describes) — out of v1 and currently unconstructible: `add_flavor()` stamps
+  dichotomous mappings only. The **count** (multiplicity) panel kind *is* in v1; it is
+  a different cell, not a weaker form of this one (D24).
 
 ## Decisions
 
@@ -196,7 +216,40 @@ Three constructor families, each returning an object with `init(spec, waves, con
 shape) — the three prototype scripts diverged precisely because steps weren't
 separable; the writer contract demonstrated the modular alternative in this codebase.
 
-### D3 — Engine contract: batched C++ over flat preprocessed pools **[spike-gated]**
+*Revised 2026-09-30 (task 1.5, from the task-1.4 toy prototype) — the signatures
+as landed by `abmcem` are the contract; the shapes above are superseded where they
+differ.*
+
+- **Augmenter.** There is no `augment(data_window, theta, control)` call and no
+  `init(spec, waves, control)` / step / `finalize()` hook set. An augmenter is an
+  object built **once** by its constructor, `augment_seq_*(recipe, control)`,
+  which closes over the compiled `augmentation_recipe` (D22). The data window is
+  therefore bound at construction, not passed per call. The loop
+  (`run_abem_loop()`) calls three slots:
+  `draw(iteration, draw_index, theta)` returns one
+  `list(data, log_proposal, restarted)` per entry of `draw_index` (`restarted`
+  optional, feeding the one-per-run coupling warning); the optional
+  `init(proposal_evaluator, theta)` receives the θ_k-closed evaluator once per
+  EM iteration (MCMC only); the optional `diagnostics()` return goes into
+  `em_trace`. `resolve_dynes_augmenter(spec, control)` in `estimate_dynes()` is
+  the factory seam: it gains the recipe compiled once at entry and dispatches on
+  `control$augmenter$routine`. The map seam wraps `draw` so each draw runs on its
+  keyed substream (`keyed_augmenter()`), which is how the D20 "pure function of
+  an injected substream" rule is met without the augmenter seeing the key. The
+  toy's prototype `random` augmenter needed nothing beyond these three slots.
+- **Emission.** `data` is a whole stocnet: the panel layer's rows retimed, the
+  layer's change list re-sorted chronologically, and `info` **byte-identical** to
+  the specification's data (`bind_candidate_data()` refuses any other `info`).
+- **Evaluator.** `evaluate_sequence_pool(pool, theta, what)` returns a plain
+  `list(loglik, score, fisher, degenerate)` per sequence. The classed E-step
+  object is built by the **loop** (`new_dynes_estep()`), not the evaluator, which
+  keeps the evaluator scheme-agnostic (D15 revised to match).
+- **Optimizer.** `optimize_abem_sgd(theta, score_fn, weights, control, use,
+  resample_indices)`, where `score_fn(theta, indices)` is a closure over the
+  score-only evaluator. There is no `step(e_stats, theta)` object. This change
+  never calls the optimizer directly.
+
+### D3 — Engine contract: batched C++ over flat preprocessed pools **[revised 2026-09-30 from B1 — see "Phase-1 revision" at the end of D3]**
 The evaluator's engine is one C++ call over a list/pool of preprocessed objects,
 returning per-sequence logLik/score/Fisher at theta with zero optimizer iterations.
 The pooled unit is the **`multi-process-walk` merged walk's per-fid output** (one
@@ -211,7 +264,13 @@ prototypes' hand-rolled `getDyNAMRates()`/`getDyNAMChoices()`. This is
 `make-multivariate-spec` D6 landed. The B1 spike (K ∈ {10, 100, 1000, 10000}
 sequences on the packaged `social_evolution` dataset, wall time + peak RSS,
 R-loop-per-sequence vs batched C++) confirms or revises this before the evaluator
-phase. *Rejected:* per-spec R calls as the engine
+phase. *Note (2026-09-28, `abmcem` D3 as amended):* the target the evaluator must
+reproduce is the **joint single-clock likelihood**: pool entry is one merged
+`preprocess_joint()` walk per sequence over `abmcem`'s pool engine spec, so each
+timed rate fid is right-censored at every other process's events (other layers,
+other flavors) and exposed to the end of the window, and each flavor is scored on
+its own events. The 1e-10 swap equivalence against the adapter (task 4.1a) carries
+this over; no separate scenario restates it here. *Rejected:* per-spec R calls as the engine
 (sugar only — K×event-loop overhead in R); gather-format pools (the stacked event rows
 duplicate what broadcasting avoids; no collective-estimation gain, OQ A1/B1 answers).
 
@@ -308,6 +367,45 @@ becomes relevant only if a REM-flavored panel layer is ever in scope. B1's dyad-
 large-n cell is a bandwidth-ceiling / future-proofing probe, **not** a gate on the v1
 engine decision — the actor-oriented rate+choice cells are the load-bearing measurement.
 
+**Phase-1 revision (2026-09-30, task 1.5 from B1 — supersedes the Option-A
+conclusion above).** The load-bearing rate+choice cells (`social_evolution`,
+`.plan/dynes/b1/B1_results.md`) **reverse** it:
+
+- **The engine is Option C, and it already exists.** The `cpp` backend
+  (`make_engine_evaluator(backend = "cpp")` → `estimate_DyNAM_rate` /
+  `estimate_DyNAM_choice`) decodes the flat broadcast form in C++ and never
+  materializes the dense stack. That is the "decode-reduce fusion" this decision
+  called deferred. On rate+choice it is **faster than A (19.8 vs 24.2 ms per
+  sequence per θ) and ~7× lighter (0.54 vs 3.95 MB per sequence)**. A reaches
+  only K ≈ 3000 on an 18 GB machine (12.1 GB peak) and is infeasible at
+  K = 10 000 (≈ 40 GB). The dyad family agrees: C is 8× faster and ~350× lighter
+  than A on REM.
+- **The family table's "rate is light" premise was wrong at pool scale.** The rate
+  stack is O(**intervals** · n · p), not O(events · n · p): every exogenous change
+  opens a right-censored interval, and a DyNES pool carries the whole panel's
+  covariate stream (122 MB per rate stack at n = 1000 on a synthetic fixture).
+- **No batching wrapper and no new kernel.** The R glue per sequence is ~2% of
+  the kernel call, so the v1 evaluator is a plain per-sequence loop over
+  `cpp`-backend engine closures. The new work is the **harvest** (per-sequence
+  loglik / score / Fisher at the free positions) and the `what`-flag plumbing.
+  The kernels compute Fisher on every call today, so a loglik/score-only kernel
+  flag is an optional optimization, not a v1 requirement. "A for rate" survives
+  only as a possible opt-in for small-n, few-covariate pools (1.4× per row on
+  the rate kernel); it is not built in v1.
+- **BLAS is irrelevant** for these p ≈ 3–5 kernels (reference ≈ vecLib, threads
+  default ≈ pinned), so the D10 thread budget stays as hygiene with no crossover
+  to tune.
+- **The adapter is the cost to retire.** abmcem's zero-iteration adapter is
+  ~9× slower than C (172–199 ms per sequence). The task-1.4 toy spent
+  350–550 s on K = 30 × 15 iterations, almost all of it in the M-step's
+  score-only passes through the adapter. That makes the task-4.3 swap the
+  first-order runtime fix.
+
+Everything above this revision about the two substrates (augmenter's R mirror vs
+the evaluator's compiled kernels) and the 1e-10 `q`/`f` pin stands. The A/B/C
+triangle and the "collapses to Option A" paragraph are kept as the reasoning the
+measurement overturned.
+
 ### D4 — Pool storage: in-memory flat objects; budget set by measurement; DBI spill fallback **[spike-gated]**
 The pool is an in-memory list of flat preprocessed objects. There is **no fixed byte
 threshold in this decision**: the OQ B3 answer's original ~2 GB and this design's
@@ -325,6 +423,42 @@ the budget is exceeded, the fallback order is (1) a broadcast-exploiting on-disk
 variant of the default format, (2) the existing DBI writer — noting its caveat that
 the gather event stack is itself the memory/disk heavy part. No new storage format is
 invented, and no threshold is fixed, before the measurements.
+
+**Phase-1 revision (2026-09-30, task 1.5 from B3 — the storage decision).** Measured
+on abmcem's real `pool_entry_task()` over a DyNES-shaped 4-fid joint spec, on
+peak footprint (`.plan/dynes/b3/B3_results.md`):
+
+- **In memory. Neither the on-disk variant nor DBI is built in v1.** The
+  condition is that the **per-window start state is held once per process**, not
+  once per sequence (D5). With it shared, a pooled sequence costs 0.53–0.55 MB at
+  every n from 84 to 1000 (1205 path events), about 2 MB at 4820 events:
+  ≈ 0.24–0.45 KB per path event, independent of n. Unshared, today's entry is
+  O(n²): 59 MB per sequence at n = 1000, 97% of it the choice fids' dense
+  n × n × p `initial_stats`.
+- **The acceptance bound task 4.2a asserts:** a pooled sequence's marginal memory
+  is **≤ 1 KB per path event** (≥ 2× headroom over the measured range), and the
+  start state is stored **once per window per process**, checked by object
+  identity (one address per window, not one per sequence). Still no fixed byte
+  threshold.
+- **The cpp closure must not re-duplicate the start state.**
+  `make_engine_evaluator()` holds `stat_mat_init`, a dense reshape of
+  `initial_stats`, in every choice closure (48 MB per sequence at n = 1000 even
+  with the entry shared). v1 builds closures **at evaluation time** by default
+  (20–45 ms per build, ≤ 3% overhead from n = 250). Caching `stat_mat_init` with
+  the start state, which needs a small `make_engine_evaluator()` signature change,
+  is the large-n option.
+- **Drop `data` from the resident entry** once the adapter retires (task 4.3):
+  the adapter is its only resident reader, and it is 10–30% of the shared
+  per-sequence cost at `social_evolution` scale.
+- **The replicated resident store is the bound that binds** once sharing is in:
+  abmcem's seam keeps (1 + W) copies, so at W = 5 and 12 GB it reaches
+  K ≈ 850 at 4820 path events, versus ≈ 2700 with a **sharded** store (the
+  coordinator plus 1/W of the pool per daemon). Sharding is abmcem's seam,
+  flagged there, not built here.
+- **Spill threshold, for the record:** at 0.44 KB per event and 12 GB, the
+  in-memory design stops clearing K = 1000 near 2.7 × 10⁴ path events per
+  sequence serial, 1.2 × 10⁴ sharded (W = 5), and 4 × 10³ replicated (W = 5).
+  Past it, the fallback order above applies.
 
 ### D5 — Full re-preprocess per sequence entering the pool (OQ B4)
 Each sequence entering the pool is preprocessed from scratch through the existing
@@ -360,6 +494,38 @@ interior-wave RC boundary for every timed rate fid at every wave time** (new beh
 its own test), and is easy to get wrong precisely because the merged-walk RC contract
 *looks* complete. So the per-wave-window choice is load-bearing for D20 invariant 3, not
 just for cheap start states / θ-free caching.
+
+*Revised 2026-09-30 (task 1.5, from the task-1.4 toy) — the one-stream route needs no
+injected boundary, so per-window preprocessing is not load-bearing.* The paragraph above
+over-states what the interior wave boundary does. Checked on the toy
+(`.plan/dynes/toy/TOY_results.md`, finding 5):
+
+- **The trailing compensator comes from `end_time`, not from windowing.** One merged
+  walk over the whole sequence with `set_preprocessing(end_time = t_M)` emits the
+  timed rates' trailing interval up to the last wave (the ordinary
+  end-of-observation right-censoring). The only requirement is that the observation
+  end **is** the last wave, and the start `t0`.
+- **An interval straddling an interior wave is harmless for a θ-rate.** Rates are
+  constant between state changes, and a wave time is not a state change of a modeled
+  layer: exogenous panel covariates enter as change-list rows, which are already
+  interval boundaries. Splitting such an interval at the wave gives the same
+  `−Δt·Λ`. (The trailing compensator at an *interior* wave is not a separate term
+  on the one-stream route; the interval simply continues across it.)
+- **The pinned plateau is already handled on the evaluator side.** The one place a
+  straddle matters is a completed rate's per-period `intercept_w` (D20 invariant 2
+  amendment), and `pinned_rate_compensator()` (landed with abmcem) already splits a
+  straddling interval's exposure at interior waves, with the identical result an
+  injected boundary would give.
+
+So v1 keeps abmcem's **one-stream** pool entry, and the per-wave start-state cache
+(above) stays a **memory** decision, not a correctness one. What becomes load-bearing
+instead: **`estimate_dynes()` MUST pin the preprocessing window to `[t0, t_M]`** (the
+resolved observation start and the last wave) for every `f` path: pool entry, the
+MCMC closure, and warm start. Today it takes the user's `control_prep` unchanged; the
+toy passed the window by hand. This joins task 6.1's entry wiring (the same wave grid
+feeds `complete_generative_spec(wave_times =)`). The "no interval straddles a wave"
+test task 4.2b asked for is replaced by two assertions: the trailing interval ends at
+`t_M`, and a pinned rate's straddling interval is split.
 
 **MCMC caveat (interacts with D20).** For `augment_seq_mcmc()` this "from scratch"
 pass is a *second* preprocess of a sequence the D20 proposal evaluator already
@@ -421,6 +587,37 @@ RSiena. **Accepted limitation:** the no-excursion assumption cannot represent a 
 between-wave flicker; it is the minimal-flip interpretation, recorded as a D16 future
 extension. Skipping the RSiena study forgoes RSiena's *quantification* of that cost, not
 the assumption itself.
+
+*Qualified 2026-09-30 (task 1.5, from the 1.3 note `.plan/dynes/rsiena_mle_notes.md`).*
+"Ergodic at the desk" holds on the **product** space: orderings (linear extensions
+of the per-dyad chain poset, connected under adjacent cross-dyad transpositions) ×
+the open order polytope of times (shift alone is irreducible there) × intervals.
+Aperiodicity follows from continuous proposals with positive rejection probability,
+and the pick probabilities are ordering-invariant (valid permute pairs
+`C(n_w, 2) − Σ_j C(c_j, 2)` per wave), so they cancel in α as D20 requires. Under
+cross-dyad support coupling the target support is a strict subset of that product,
+and irreducibility means the **legal** set must be connected under legal moves:
+
+- it **holds** on coupling-free specs, when legality is a **precedence order** (the
+  legal set is the linear extensions of a larger poset), and for **one-sided counter
+  bounds** such as max-outdegree `≤ c` (every legal ordering reaches the legal
+  "dissolves first" ordering through legal swaps);
+- it is **not guaranteed** for general state-dependent constraints (two-sided
+  bounds, constraints reading another latent layer). The legal set can split into
+  pieces joined only through illegal intermediates; the chain is then **reducible**,
+  not merely slow, and D14's weights are computed over the piece the chain started
+  in. **Recorded as a known v1 gap**, beside D20's V2 cycle-structured note; no
+  detector is built in v1. The practical check is comparing chains started from
+  `initialize = "random"` and `"sim"` (D16).
+
+The minimal-flip limitation above is also **directional**: the latent event count is
+the Hamming distance, a lower bound on the true count, so on a state panel creation
+and dissolution rates are biased **downward** by `O(((λ_c + λ_d)·Δt)²)` per
+dyad-interval — negligible when `(λ_c + λ_d)·Δt ≪ 1`, material in the sparse-wave
+regime DyNES targets. `summary()`'s MC error cannot show it (it is in the estimand,
+not the pool); task 6.2 measures it because `simulate()` draws excursions, and the
+optional two-state-CTMC sibling of 6.2b measures it rather than passing to MC error.
+Count panels (D24) carry no such bias.
 
 RSiena's ML estimator (Snijders, Koskinen &
 Schweinberger 2010, *AoAS*) samples the latent micro-sequence between two observed
@@ -578,6 +775,48 @@ unconditioned generative driver. One substrate, several drivers — this is the
 compute/emit separability `flavored-processes` D10 reserved and
 `make-multivariate-spec` D6 realized.
 
+*Emission contract (added 2026-09-28, `abmcem` D3 as amended):* an augmenter's
+emitted sequence must carry, on every flavored layer, the flavor keys
+`add_flavor()` stamps from the data. `abmcem`'s pool entry is one merged
+`preprocess_joint()` walk per sequence, and it routes each event to its flavor by
+those keys, so a sequence without them would score every flavor on the wrong
+events. Asserted per augmenter in task 3.6.
+
+*Amended 2026-09-18 — the handle the augmenters actually get is wider than the
+original four.* `process-simulation` tasks 2.0/2.0e/2.0f landed on
+`feature_simulation` and grew the substrate while building its own driver; the
+augmenters inherit all of it without asking:
+
+- **`walk_evaluate(handle, fid, theta, sender =)`** — `sender` slices one
+  sender's receiver distribution out of the choice evaluator instead of
+  materializing the full `n1 × n2` matrix and discarding all but one row. This
+  is exactly `augment_seq_sim()`'s access pattern (draw the sender, then its
+  receiver among the remaining observed ones), so the augmenter reads per-sender
+  and never pays the matrix. `.pse_eval_choice()` also stopped building the index
+  `data.frame` its callers discard; the return is parallel integer vectors.
+- **`walk_next_breakpoint(handle)`** — the time of the next change the handle
+  applies on its own clock (an exogenous row, a scheduled event, a composition
+  change), or `Inf`. Between now and it every rate is constant unless the driver
+  injects. This is the frozen-rate interval `sim`'s truncated exponential must
+  respect: the anchor is `min(next unplaced RE time, wave end, walk_next_breakpoint())`,
+  not `min(next unplaced RE time, wave end)` as the D20 bullet still reads.
+- **`walk_schedule(handle, event)`** — queue an event at a future time, applied
+  when `walk_advance()` reaches it, resolved against the state *then*. This is
+  how window expiries self-schedule; an augmenter that places a flip inside a
+  windowed spec needs no expiry bookkeeping of its own.
+- **`walk_replay(handle, rows)`** — register observed rows of a focal layer as
+  exogenous, so a flavor no process models keeps its observed events while the
+  driver draws the modeled ones around them. Registered once, before stepping.
+  This is the substrate for a DyNES spec whose panel layer carries an unmodeled
+  flavor (D19's partially-modeled RE layers).
+
+Three guards the augmenters were blocked on are also gone (see the resolved Open
+Question at the end of this document): user and derived support constraints are
+maintained live on the handle, composition changes advance through
+`walk_advance()`, and windowed effects run on the merged walk. One refusal
+remains (`goldfish_walk_unsupported`): a constraint reading a *changing* object
+no formula term reads, which `constraint-objects-on-shared-walk` is open against.
+
 The augmenter-side risk-set restriction (observed pairs with remaining
 support-applicable events, D20) happens **in R**: the driver reads the
 `walk_evaluate()` rate/choice vectors and subsets + renormalizes — no risk-set mask
@@ -589,7 +828,7 @@ loop** and no longer modifies `preprocess-output-writers` — that capability's
 extension points (sampling writer, parallel chunking) stay documentation-only,
 untouched by this change.
 
-### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[spike-gated]** (map seam → abmcem)
+### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[revised 2026-09-30 from B1]** (map seam → abmcem)
 Every expensive step of an ABEM iteration (augmentation, the D5 full re-preprocess,
 likelihood evaluation) is per-sequence independent, so the **sequence is the only
 sanctioned unit of parallelism**; within a sequence the event loop is a serial state
@@ -631,6 +870,15 @@ C++ call as the primary axis (only accelerates evaluation, requires an R-API-fre
 region, and pthread-OpenBLAS inside OpenMP regions is a known hazard) — it remains a
 measured, optional second layer under the same thread budget.
 
+*Revised 2026-09-30 (task 1.5, from B1).* Sequence-level parallelism is confirmed:
+W = 5 sharded workers give 4.6–4.7× for every engine up to K = 10 000, and
+per-sequence dispatch through abmcem's seam matches sharding on time (dispatch
+overhead is negligible at ~20 ms tasks). The measured crossover the adaptive BLAS
+budget was meant to tune **does not exist**: nothing in these kernels reaches BLAS.
+The binding cost of the seam is **memory**: the replicated resident store pays
+(1 + W)× (C at K = 1000: 4.7 GB replicated vs 2.1 GB sharded). Sharding the resident
+store is flagged to `abmcem` (D4 revision); it is not this change's to build.
+
 ### D11 — Large-n dyadic models: risk-set sampling is the real lever, out of scope here
 For REM-family (dyad-indexed) models the per-event cost is m = n² rows: at n = 5,000
 that is ~2 GB streamed per event, which no threading strategy rescues. The standard
@@ -649,9 +897,67 @@ evaluator-compatible pool output — is **no longer this change's**. It is a
 family-agnostic S3 generic driving the `multi-process-walk` handle, and it lives in
 the standalone `process-simulation` change (that change's design records the
 decisions and rejected alternatives — including the rejected nonparametric-baseline
-recovery for ordinal fits). This change **consumes** it: `augment_seq_sim()` (D20)
-reuses that change's per-step drawing core under wave-endpoint conditioning, and the
-recovery study (D19) simulates panels through it.
+recovery for ordinal fits). That change's D11 (added 2026-09-09, revised
+2026-09-15 under ADR-0074) crystallizes the per-step drawing core into **five**
+named plug points on a `goldfishSimSteps` object from the exported
+`set_simulation_steps(parameters, evaluate, clock, mark, accept)`, every slot
+defaulting to goldfish's own descriptor-keyed step:
+
+```
+per replicate:  P0  params$init(r, handle)            replicate-level draws
+per step:       P1  params$at(k, t, handle, latent)   parameters per fid for this step
+                PE  evaluate(stats, theta, risk, meta) values over the fid's candidate space
+                P2  clock(rates, t, handle)           the waiting-time draw
+                P3  mark(fid, evaluation, handle)     who acts on whom
+                P4  accept(event, handle)             keep or redraw the step
+                    walk_inject(handle, event)
+```
+
+`coef` is likewise a **provider**: a numeric vector, a `goldfishParams`
+(`joint-parameters`), or a `goldfishParamProvider` from the exported
+`set_parameter_provider(init, at)`; `at()` resolves to the length-`p_fid` vector
+PE's default step accepts, and may also return a `breakpoint` the clock treats as
+a competing exit. Step closures reach the handle only through the exported
+accessors (`n_actors()`, `process_map()`, `current_time()`, `regime_of()`,
+`times_of()`, `risk_set_axis()`) — the `walk_*` handle itself stays internal, so
+an augmenter written as steps never learns what the walk is.
+
+**Which plugs `augment_seq_sim()` actually supplies.** D11's table lists "DyNES
+endpoint conditioning" under `accept` alone, and its prose says the augmenter "is
+P1 plus P4 and never touches PE". That is the shorthand, and it is narrower than
+what D20 specifies: wave-endpoint conditioning is not a post-hoc filter on a
+freely drawn event but a **restriction of the draw itself**, so
+`augment_seq_sim()` supplies
+
+- **P3 `mark`** — the sender–flavor set restricted in R to observed pairs with
+  remaining support-applicable events plus the single globally-next unplaced
+  modeled RE, renormalized, then the receiver drawn among that pair's remaining
+  observed receivers (D20). Drawing the unrestricted mark and rejecting would
+  discard almost every step and destroy the proposal-density bookkeeping.
+- **P2 `clock`** — a truncated exponential on `(0, anchor − t)` at the selected
+  pair's rate rather than the free competing exponential, with `anchor =
+  min(next unplaced RE time, wave end, walk_next_breakpoint())` (D9 amendment).
+- **P4 `accept`** — the completion / reject-and-restart guard (D20): a step that
+  strands the interval rejects the whole interval draw, which is what feeds the
+  success-conditioned `P̂(complete)` normalizer.
+- **P1 `parameters`** — θ_k held constant within an EM iteration; a plain
+  numeric vector suffices, no provider needed.
+
+It never touches **PE**: the augmenter draws from the model's own rates and
+choices at `θ_k` (the time-domain fid-for-fid pin of D20 invariant 2 *requires*
+the default evaluator), so a supplied `evaluate` step would break the `q`/`f`
+pin. The one claim D11 and D20 agree on unconditionally is that the augmenter is
+a **caller of the one loop, not a fork of it**. Reconciling D11's table entry
+with this list is `process-simulation`'s to do at its task 2.1/2.2 review; this
+change implements against the list above, and task 3.4b names all four plugs.
+
+The recovery study (D19) simulates panels through the same driver, and inherits
+what the loop grew around it: `nsim > 1` returns a `goldfishSimPool` (one
+replicate is a `goldfishSim`), `filter_simulation()` drops replicates by a stated
+criterion, and the stopping targets and explosion guard travel in one
+`control_sim = set_simulation_guard()` object (ADR-0085/ADR-0089 — a runaway
+reaches `max_events` and is flagged-and-kept by default; rate-trajectory early
+stops are opt-in).
 
 ### D13 — Augmenter × weighting validity matrix **[→ abmcem]**
 Uniform weighting of the E-step is valid exactly when the proposal *is* the model's
@@ -707,6 +1013,42 @@ Two staleness defenses, one code path:
   Warnings: when the guard is disabled but the condition is met anyway, and when
   the guard fires (informing that new draws are generated); never at startup.
 
+**What ESS measures, and what it must not be asked to mean** *(added 2026-09-18).*
+`1/Σw̄²` is a property of the **proposal**, not of the estimand. Two quite different
+situations print the same low number, and the calls/emails case is the second one:
+
+- a **diffuse, high-dimensional** path posterior — many paths are about equally
+  plausible, so no proposal concentrates and the weights spread thin (the
+  flips-per-interval axis);
+- a **sharply concentrated** posterior that the proposal cannot find. Coupling a panel
+  layer to a densely observed event-stream layer is *information*: if the email rate
+  reads recent calls, a burst of emails is evidence about when a call happened. That
+  evidence sits in the events **after** the placement a forward draw is making, and
+  `sim` places each event knowing only the past — so its weights degenerate **because**
+  the coupling is informative, not despite it.
+
+Both diagnoses call for the same remedy (`augment_seq_mcmc()`, whose target is the whole
+path and therefore sees the later evidence), so ESS remains the right **trigger**. It is
+the wrong **verdict**: a richly coupled specification can be better identified than an
+uncoupled one while scoring worse on ESS. Trustworthiness is the D7 result contract's
+**MC standard error against the asymptotic SE** — is Monte-Carlo noise small relative to
+statistical uncertainty — which is augmenter-invariant and is what the operating envelope
+is stated in. ESS is an input to that ratio, never a substitute for it.
+
+Two ESS notions, one name, **no shared threshold**. The guard above is importance-sampling
+ESS. Under `routine = "mcmc"` with `weighting = "uniform"` (valid within the drawing
+iteration, D13) every weight is equal, so IS-ESS is trivially K: it reads "recovered" the
+moment a user follows the switch recommendation, whether or not the chain mixes. The MCMC
+analogue is the autocorrelation-based effective size `em_trace` already carries separately
+(D15/D18). The numeric floor the 6.2 sweep sets is an **IS-ESS** floor and applies only to
+the `random`/`sim` path; the MCMC path is judged on acceptance rate and autocorrelation.
+
+Because `coupled` is θ-free and known at construction, the recommendation does not have to
+wait for a measured collapse: a specification with coupled fids is predictably hard for
+importance sampling, so `set_algorithm_em()` can recommend `routine = "mcmc"` up front
+(D1's cross-object rules, implemented in abmcem) rather than spending EM iterations to
+discover it.
+
 **Cold-start diagnostic — distinct from the guard [→ abmcem].** The "never at
 startup" rule above silences the *recurring* ESS-guard warning at iteration 1, where
 low ESS is expected and a redraw is pointless (see the cold-start resolution in Open
@@ -754,6 +1096,15 @@ class — are `abmcem`'s (the accept/grow/stop machinery consumes them). So this
 owns the object and its class contract; abmcem owns the methods that read it. The
 `sequence-augmentation` spec states the classed return; abmcem's spec states the
 generics.
+
+*Revised 2026-09-30 (task 1.5, from the task-1.4 toy):* the seam landed the other
+way and it stays that way. `evaluate_sequence_pool()` returns the raw per-sequence
+`list(loglik, score, fisher, degenerate)`; the ABMCEM loop forms the per-sequence
+log-likelihood differences and weights and builds the classed object
+(`new_dynes_estep()`, `R/weights_dynes.R`). The evaluator therefore never needs to
+know the weighting scheme. This change's evaluator owns the per-sequence
+quantities (score **and** information, D7); abmcem owns the classed object and its
+generics. The `sequence-augmentation` spec is amended to match.
 
 ### D16 — MCMC chain lifecycle: warm starts, burn-in at every restart
 The first chain initializes per `initialize`: a random endpoint-consistent draw
@@ -852,25 +1203,53 @@ result reports all of them (D7). RE layers and flavors may be modeled or
 exogenous-only (exogenous REs merge into the schedule like covariate changes: they
 update state, contribute no likelihood terms, never compete in the simulation); PE
 layers are modeled all-or-nothing (D8). Windowed/memory effects are **allowed** in
-v1 — the price is that the likelihood does not factorize over between-wave
-intervals, so the MCMC augmenter runs one global chain over the whole sequence
-(D20) and wave-level parallelism is off the table (D10).
+v1 over **observed** layers (a window over a modeled panel layer is out of v1, see
+the 2026-09-30 narrowing under "Interval factorization" below). v1 still runs one
+global MCMC chain over the whole sequence (D20) and no wave-level parallelism (D10):
+one pool and weight structure, whether or not a given specification would factorize.
 
 **Separability: consume the multivariate spec's coupling detection, don't
 re-derive it.** `make-multivariate-spec` D4 already marks each fid `coupled` iff any
 of its effect arguments or support-constraint atoms reads a **modeled** panel layer's
 state (direct reference; not transitive). A fid reading only a static exogenous panel
-covariate is *not* coupled — nothing about it is latent. `estimate_dynes()` reads that
-`coupled` column rather than recomputing PE-independence at sub-model granularity.
+covariate is *not* coupled — nothing about it is latent, and a panel layer referenced
+only that way is a static step-covariate, so a specification built entirely of such
+references really is a DyNAM. `estimate_dynes()` reads that `coupled` column rather
+than recomputing PE-independence at sub-model granularity.
+
+*Amended 2026-09-18 — `coupled` is the right input for the message and the wrong one
+for the gate.* Latent dependence has **two** sources and D4 detects one:
+
+- **(a) the fid BELONGS to a modeled panel layer** — its event *times* are latent,
+  whatever its formulas read;
+- **(b) the fid READS a modeled panel layer's state** — its *statistics* are latent.
+
+`coupled` is (b). For a dichotomous `mutually_exclusive` layer (a) implies (b) by
+accident rather than by design: `derive_flavor_constraint()` emits `~ tie(L)` /
+`~ !tie(L)`, whose atoms read L, so every fid of such a layer is coupled and the two
+criteria agree. A modeled panel layer that derives **no** constraint breaks the
+implication — an unflavored count panel (D24), or any `redundant`-style layer — because
+its own fids can read nothing latent while its events are entirely latent. Reading the
+gate off `coupled` would then bounce a perfectly good DyNES specification to
+`estimate_dynam()`, which cannot estimate it either (its focal layer is panel-observed)
+and points back: two errors and nowhere to go. So the **gate** is (a) — *is any panel
+layer a modeled dependent process?*, which D8's augmentation trigger already answers —
+and the `coupled` column keeps its narrower job of naming which fids are separable in
+the mixed message.
+
 Behavior on the resulting cases, aligned with `make-multivariate-spec` D4 (the newer
 decision):
-- **All fids separable** → abort: no panel layer is a modeled dependent process, so
-  nothing is latent. The error names `estimate_dynam()`, explaining the specification
-  fits DyNAM (not DyNES) and that its panel layers would only be considered as static
-  exogenous covariates. This is **reachable** through `make_joint_specification()`
-  whenever every panel reference is exogenous-only (D2 composes such specs; the
-  DyNES-viability check is estimation-time) — catching a user who reached for
-  `estimate_dynes()` on what is really a DyNAM model.
+- **No panel layer is a modeled dependent process** → abort: nothing is latent. (The
+  gate is criterion (a); on a flavored state panel this coincides with "all fids
+  separable", which is why the earlier wording read that way.) The error names
+  `estimate_dynam()`, explaining the specification fits DyNAM (not DyNES) and that its
+  panel layers would only be considered as static exogenous covariates. This is
+  **reachable** through `make_joint_specification()` whenever every panel reference is
+  exogenous-only (D2 composes such specs; the DyNES-viability check is estimation-time)
+  — catching a user who reached for `estimate_dynes()` on what is really a DyNAM model.
+  The paradigm instance is an emails specification reading `tie(calls)` with no call
+  formulas of its own: calls is a static step-covariate jumping at wave times, nothing
+  is latent, and DyNAM is genuinely the right estimator.
 - **Mixed** (some coupled, some separable) → **proceed** with a cli message naming
   the separable fids (their likelihood terms touch no latent path, so joint
   estimation equals separate estimation for them). This supersedes this design's
@@ -890,11 +1269,89 @@ development), so `estimate_dynes()` never sees one; the augmenter and the batche
 evaluator therefore evaluate every coupled fid on its own mode-pair block with no
 subset projection required. The two-mode panel case (D8) is the concrete driver.
 
-**History spans**: modeled REs before the first wave are history — they inform the
-process state at the first wave but contribute no likelihood terms; modeled REs
-after the last wave are discarded. (A spec wanting full RE history with no PE
-coupling is exactly the fully-independent case that aborts to `estimate_dynam()`,
-which has no such trimming.)
+**History spans** *(reworked 2026-09-18 — no wave is ever history)*: the left edge of
+the estimand is the **resolved observation start** `t0` (the `observation-window`
+capability's `start_time`, defaulting to the span of the non-window event streams), not
+the first wave. Events before `t0` are burn-in exactly as they already are on the
+event-stream path: they advance process state and the per-event order counter and
+contribute no likelihood terms. The first wave `t1` is the **right** endpoint of the
+first modeled interval `[t0, t1]`, whose entering state is the initial condition (the
+data object's starting network, or zero counts for a layer with no prior history) and
+whose flips are diffed against that state. A panel of M waves therefore yields **M
+modeled intervals over M+1 boundaries** `t0 < t1 < … < tM`, and modeled REs inside
+`[t0, t1]` contribute likelihood terms like any others. Modeled REs after `tM` are
+discarded. This matters most where the RE layer is the data-rich one: under the
+superseded reading, a calls-panel + emails-stream specification silently dropped every
+email likelihood term before the first wave. The grid D21 hands
+`complete_generative_spec()` is this M+1 boundary set, `t0` included.
+
+**Interval factorization: what it is, and why v1 declines it.** Given the wave
+snapshots the complete-data likelihood *would* split into one factor per interval,
+`f(Ω | θ) = ∏_m f(Ω_m | S(t_m), θ)`, because the state entering each interval is
+observed rather than sampled: the panel layer's state at `t_m` is the snapshot every
+endpoint-hitting sequence reproduces exactly (D20 — and D22 caches those start states
+for precisely this reason), the RE layers are observed throughout, and exogenous
+covariates are given. **Coupling does not break this.** A calls/emails specification
+whose layers read each other's state still factorizes: the emails are observed
+everywhere and the calls' state at each wave is known.
+
+What breaks it is a statistic whose value depends on **when** events fell in an
+*earlier* interval — a window or memory effect **over a modeled panel layer**
+(`inertia(calls, window = 30d)` at `t_m` counts calls whose placement differs across
+sampled paths, whereas plain `inertia(calls)` at `t_m` *is* the snapshot), and
+`recency_*` once `recency-effects` lands. A window over an **observed** layer does not
+break it, and a window much shorter than the interval leaks only within a `w`-wide
+boundary band. This is the precise condition; "windowed effects are allowed, so nothing
+factorizes" is the coarse statement it replaces.
+
+*Narrowed 2026-09-30 (task 1.5, from the task-1.4 toy) — a window over a modeled panel
+layer is out of v1.* The toy could not construct one: `tie(friendship, window = 3)`
+on the modeled panel layer is refused at pool entry by the panel-window rule in
+`data_source.R`, which was written for **exogenous** panel covariates, where expiry
+would reset every snapshot tie at once. Re-declaring the drawn layer as an event layer
+is refused in turn by `bind_candidate_data()`, which requires `info` to be identical.
+For a *modeled* panel layer the rule is wrong in principle (an augmented path is an
+event stream, so expiry decays one event), but lifting it means separating the two
+cases in the refusal and giving augmented paths an event-observed view of the layer.
+That is recorded as a **future development**, not v1 work. v1 therefore allows windows
+over **observed** layers only (the toy's `window_observed` variant runs end to end,
+expiries self-scheduled on the walk). The refusal stays, and its message SHOULD
+name the modeled-panel case and point to this limitation (a message-only change
+riding task 6.1's validation work).
+
+A consequence worth recording: with windows over modeled panel layers out of v1 and
+`recency_*` not landed, **no v1 specification carries a latent-timing statistic
+across a wave boundary**, so every v1 specification factorizes across intervals. v1
+still declines the per-interval scheme below (the decision is about maintaining one
+pool/weight structure, not about whether factorization holds). What changes is the
+future development's trigger: per-interval pools become available as soon as they are
+built, and the static check stays necessary only once modeled-panel windows or
+recency effects arrive.
+
+Nothing about the unfactorized case is *wrong*: per-path statistics are correct on each
+path and the M-step aggregates over them without bias. What factorization buys is the
+**dimension of the sampling problem**, and the two augmenter families cash it
+differently:
+- **`random` / `sim` + importance weights** — the score is a sum of per-interval terms
+  and the path posterior factorizes with it, so a factorized scheme runs M independent
+  importance-sampling problems of dimension `N_m` in place of one of dimension
+  `N = Σ N_m`. Weight variance grows roughly exponentially in that dimension (the same
+  premise behind the runtime ESS-collapse note), so this is a **statistical** lever, not
+  a speed one.
+- **`mcmc`** — M independent shorter chains instead of one global chain, and a move
+  re-evaluates one factor rather than everything downstream of it. MCMC pays no
+  IS-dimension tax, so here the lever is **mixing and compute**.
+
+**v1 declines it, deliberately and unconditionally.** The pool is a list of
+whole-sequence objects with per-sequence weights (D4/D14); a factorized scheme is a
+different pool and weight structure, per interval — not a flag on this one. v1 therefore
+pays the global cost even for specifications that would factorize cleanly: the price of
+admitting windowed/memory effects without maintaining a second algorithm path. Recorded
+as a **future development**: for a specification carrying no latent-timing statistic
+across a wave boundary — statically checkable, since it asks only whether any
+window/memory effect reads a modeled panel layer — per-interval pools, weights and
+chains become available and divide the IS dimension by the number of intervals.
+Deferred, not rejected.
 
 ### D20 — Augmenter internals: moves, windows, proposal densities, evaluator injection
 Shared rules: augmented sequences span [first wave, last wave]; sampled times lie in
@@ -926,7 +1383,13 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   coupled constraint named if a legal ordering is vanishingly likely. Log proposal
   density per interval: Σ_j log(c_j!) − n·log L − log P(legal), where P(legal) is the
   legal-ordering fraction (estimated by the redraw acceptance rate, ≡ 1 on any
-  coupling-free spec).
+  coupling-free spec). *Amended 2026-09-30 (task 3.3, user decision):* the rate is
+  estimated **once, when the augmenter is built**: a pilot of redraws per coupled
+  interval, run on a private L'Ecuyer-CMRG stream seeded from the run seed, which
+  leaves the session stream untouched. Every draw records that same constant. A
+  per-draw `1/attempts` is all a substream-pure draw can see, but it varies across
+  draws, so it would not cancel (and `E[1/N] ≠ p`). Draws still redraw until legal;
+  their own attempt counts only set `restarted`.
 
   **Why the normalizer cancels — random's redraw is pool hygiene, not weight
   correction.** Unlike `sim`'s θ-dependent, per-draw `P̂(complete)`, random's `q_raw =
@@ -953,8 +1416,36 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   generative path). If a PE pair wins: draw the receiver among its remaining
   observed receivers by conditional choice probabilities, then draw the waiting
   time from a **truncated exponential** — the selected pair's rate, support
-  (0, next anchor − t) with anchor = min(next unplaced RE time, wave end) — by
-  inverse CDF (never rejects). Repeat until every flip is placed.
+  (0, next anchor − t) with anchor = min(next unplaced RE time, wave end,
+  `walk_next_breakpoint(handle)`) — by inverse CDF (never rejects). Repeat until
+  every flip is placed. *Amended 2026-09-18:* the breakpoint term is the third
+  one, added once the handle grew the API (D9 amendment). It is not cosmetic:
+  the frozen-rate draw is only exact while the rate is constant, and an
+  exogenous row, a queued window expiry or a composition change inside the
+  interval breaks that constancy. Truncating at the breakpoint, advancing, and
+  redrawing keeps `q` piecewise-exact at the same `Λ` the compensator uses —
+  invariant 2 below — where truncating only at the RE/wave anchor would silently
+  draw from a rate the target never had. A windowed DyNES spec (D19 allows them,
+  and the substrate now runs them) is exactly where this fires.
+
+  *Amended 2026-09-30 (task 3.4b, user decision): what "bounded at the
+  breakpoint" means, and what a restart redraws.* A breakpoint is a
+  **censoring** bound, not a truncation. Before a breakpoint `b` that is earlier
+  than the anchor `A = min(next unplaced RE time, wave end)`, the waiting time is
+  an untruncated exponential at the pair's rate. If it would pass `b`, the walk
+  advances to `b` with survival factor `e^{−λ(b−t)}`, and the **same selected
+  pair** redraws at the rate the walk holds there. Only the segment ending at
+  `A` is a truncated exponential on `(0, A − t)`. The per-step density is then
+  `π_pair · ∏_censored e^{−λ_j Δ_j} · λ_last e^{−λ_last w} / (1 − e^{−λ_last (A − t_last)})`,
+  a function of the sequence alone. The pair persists across a censor, so no
+  marginalization over the pair a censored segment might have selected is
+  needed. This is the only reading in which a draw can "reach the bound" and
+  redraw. Truncating at `b` would make that impossible. A restart
+  redraws **only the stranded interval**. Each attempt reopens the walk and
+  replays the observed events up to the interval, plus the earlier intervals
+  as already drawn, contributing nothing to `q`. It then draws the interval from
+  its opening wave. The completion normalizer is therefore per interval,
+  `P̂_k = 1 / attempts_k`, and the recorded `q` is `Σ_k (log q_raw,k − log P̂_k)`.
 
   **Completion is not guaranteed by construction — reject-and-restart (v1).** The
   greedy forward draw hits every wave snapshot only if the risk set never empties with
@@ -1056,6 +1547,63 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   the target ratio, because the recorded density is the density actually drawn
   from and its support covers the whole window.
 
+  **No bias from freezing the rate across intervening REs (shift included).** The
+  frozen-rate simplification above is not an approximation *of* `q` — it is `q`'s
+  exact, closed-form density (a `TruncExp` with a stated support and a stated
+  frozen `λ`), and Metropolis–Hastings is invariant-distribution-exact for *any*
+  proposal whose density is honestly reported in the ratio, however far it
+  diverges from the true state-path-dependent rate. So letting `shift` reposition
+  a PE across an arbitrary number of intervening REs — already licensed by the
+  windows rule above, which never bounds a window at an RE — costs **nothing in
+  correctness**, only in efficiency (below).
+
+  For `shift` specifically the ratio stays exactly as cheap as the no-crossing
+  case. The move touches only slot `i`'s own time, so `λ_i` is evaluated once, at
+  the state right after `pred(i)` — a point that precedes the whole window and is
+  therefore identical under `Ω` and `Ω′` (nothing before `pred(i)` changed) no
+  matter how many REs sit inside `(t*_pred(i), t*_succ(i))` or how much they move
+  the true rate. Window and rate both match forward and backward, so the ratio
+  collapses to
+  `q_rev/q_fwd = exp[λ_i·(t′_i − t*_i)]`, the normalizing constant cancelling
+  exactly as it does today. This is the same cancellation permute's *first*
+  factor gets (its window's lower bound, `pred(h)`, is likewise untouched by the
+  pair being moved); permute's *second* factor is the one exception, because its
+  window's lower bound is the freshly-placed partner event itself (`t′_k` vs.
+  `t*_k`), and that point's downstream state can differ across an RE the two
+  candidate times straddle differently (why q_rev needs a fresh rate query under
+  Ω′ there, below). `shift` has no second factor, so it never inherits that
+  complication: multi-RE crossing changes which regime `λ_i` would "truly" sit in
+  if `q` tried to track the piecewise rate, but since `q` deliberately doesn't
+  try, there is nothing for a forward/backward rule to track. The alternative of
+  staging the draw through each RE crossing (re-truncating and re-freezing at
+  each stage, akin to `sim`'s per-step core) would tighten `q` against `f` and is
+  a legitimate v2 mixing improvement, but it is optional: it changes the
+  acceptance rate, not what the chain converges to.
+
+  **What the simplification actually costs, and how to see it.** Every RE
+  strictly inside a move's window that changes the moved dyad's true rate
+  contributes to `f(Ω′)/f(Ω)` a compensator term the frozen `q` never modeled, so
+  the mismatch shows up as excess rejections, never as a wrong stationary
+  distribution. For a single RE at `t_r` splitting the window into true regimes
+  `λ₀` (before) / `λ₁` (after), the expected log-acceptance penalty for a draw
+  landing at `t′ > t_r` scales with `(λ₁ − λ₀)·(t′ − t_r)` — negligible when the
+  RE barely moves the rate or the draw lands close to `t_r`, real when a large
+  reciprocity/inertia jump combines with a draw deep into the far regime. This is
+  a mixing-cost prediction, testable once the phase-1 toy-likelihood spike exists
+  (D6) by stratifying the per-move acceptance-rate diagnostic (already feeding
+  `em_trace`, D15/D18) by intervening-RE count per window; a measured acceptance
+  crater specifically in the many-RE bins is the signal to consider the staged
+  v2 proposal, not a correctness fix.
+
+  **Support, not just rate magnitude, is the one place a crossing matters for
+  correctness — and it is already handled.** If an intervening RE changes the
+  moved dyad's *support* rather than just its rate's magnitude (the flip becomes
+  cross-dyad-illegal past that point), a frozen-rate draw spanning the boundary
+  can land in `f(Ω′) = 0` territory. That is exactly the cross-dyad
+  support-illegality path specified below (rejected, `α = 0`, counted as an
+  ordinary rejected step) — RE-crossing introduces no new case here, only more
+  opportunities to hit the existing one.
+
   **Acceptance**: α = [f(Ω′)/f(Ω)] × [q_rev/q_fwd], with q_fwd/q_rev the products
   of the truncated-exponential time densities (two for permute, one for shift).
   The move-type and pick probabilities cancel because they depend only on
@@ -1063,7 +1611,16 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   property to protect when extending the move set. q_rev needs the moved pair's
   frozen rate **under Ω′**, emitted as a byproduct of the same pass that computes
   f(Ω′): the engine's `what` surface (D3) gains a named-pair rate-at-position
-  query.
+  query. *Amended 2026-09-24 (`rate-queries`):* the query is **not** a `what`
+  extension of the engine pass — `rate-queries` D1 rejected that path, because a
+  rate read from preprocessed statistics would be a second definition of the
+  state beside the walk and could drift from the `Λ` the time redraws use
+  (invariant 2 below). The rate is read from the walk handle instead: the
+  candidate is replayed to the requested position (`walk_replay_to()`) and the
+  pair's intensity read through the simulation driver's evaluation steps
+  (`pair_intensity()`: DyNAM rate_i × p(j | i), REM the dyad's rate). The
+  closure returns it alongside f(Ω′) in the same call, but from a separate
+  forward pass over the walk.
 
   **Cross-dyad support legality — check without a redraw normalizer.** Two illegality
   sources are handled differently. *Same-dyad chain-order* violations are excluded
@@ -1087,6 +1644,43 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   ABEM loop builds `make_proposal_evaluator(spec, theta_k)` —
   `eval_fn(candidate_seq, rate_queries) → list(loglik, rates)`, one preprocess +
   one likelihood pass per proposal — and hands it to the augmenter's `init()`.
+  *Amended 2026-09-24 (`rate-queries`, landed):* the built signature is
+  `make_proposal_evaluator(sub_models, theta_k, spec = <completed spec>)`, and
+  `rate_queries` is a list of `list(after = k, layer, flavor, sender, receiver)`
+  answered as a numeric vector in query order; `after = k` is the state
+  immediately after the candidate's k-th dependent event is applied (no later
+  row, even one sharing its stamp), so "frozen at the state after the preceding
+  panel event" is `after = ` that event's ordinal among Ω′'s dependent events.
+  A proposal that requests rates also costs one `walk_open()` (a formula
+  recompile) plus one forward replay; `rates = NULL` does no walk work. Caching
+  a live handle across a chain's successive proposals is left to this change's
+  chain driver (`rate-queries` D5), an optimization rather than a contract.
+  *Amended 2026-09-30 (task 3.5b, user decision): where the forward rates come
+  from.* The text above supplies `q_rev` but not the rates `q_fwd` draws with,
+  which are needed **before** the candidate exists. Rates are frozen on the
+  sequence a move **starts from**. Forward rates are read on the current Ω;
+  reverse rates are read on Ω′, since the reverse move starts there. Each
+  placement's rate is anchored at its window's lower bound, which is an unmoved
+  panel event or a wave. `after =` counts Ω's (or Ω′'s) modeled events stamped
+  at or before that bound. For a shift, and for permute's first factor, the
+  anchor lies in the shared prefix, so forward and reverse read the same state.
+  The permute's second anchor is `pred(k)` among unmoved events; after the swap,
+  the state up to it differs between Ω and Ω′. The closure therefore gained a
+  third argument,
+  `eval_fn(candidate_seq, rate_queries = NULL, loglik = TRUE)`. With
+  `loglik = FALSE` it answers the rate queries alone: one walk, no preprocess,
+  and `loglik = NA`. The chain calls it that way on Ω, whose log-likelihood it
+  already holds, draws the times, runs the cross-dyad support lookup, then
+  calls it once on Ω′ for `f(Ω′)` and the reverse rates. Per proposal that is
+  one rates walk on Ω, one legality walk (coupled specifications only), and one
+  preprocess plus one rates walk on Ω′. *Rejected:* a full call on Ω, which
+  repeats a preprocess whose result is discarded; requesting the next move's
+  forward rates inside the candidate's call, which saves a walk after an
+  accept, but a reject still needs a fresh call. That is left as an
+  optimization. A window bounded by a wave reads the walk's clock at the last
+  event before that wave, so a pinned rate there takes the previous period's
+  plateau. The proposal stays exact, since MH corrects any honestly reported
+  `q`, but it is looser.
   θ_k is baked in (no stale-θ hazard), and tests stub `eval_fn` with an analytic
   toy likelihood to verify the chain's acceptance logic and detailed balance with
   no preprocessing at all. *Note for further discussion (not contract)*: a
@@ -1122,7 +1716,13 @@ draw_index)` and the index-ordered reduction (resolved open question; abmcem D10
   primitive; `abmcem` constructs the θ_k-closed `make_proposal_evaluator()` over it and
   owns the injection wiring. Tests here stub `eval_fn` with an analytic toy likelihood
   (no preprocessing) to verify the chain's acceptance logic and detailed balance
-  independently of either side of the seam.
+  independently of either side of the seam. *Amended 2026-09-24:* the rate-query
+  primitive was split out into its own change, **`rate-queries`** (landed on this
+  branch: `walk_replay_to()`, `bind_candidate_data()`, `pair_intensity()`,
+  `query_rate_at_position()` in `R/rate_queries.R`), which also wired
+  `make_proposal_evaluator()`'s `rate_queries` argument. This change therefore
+  **consumes** the rate query rather than shipping it; its evaluator work
+  (D2/D3, task 4) is the batched loglik/score/Fisher pass only.
 
 **Three time-domain invariants (rate family) — the compensator couples the augmenter to
 the kernel.** The rate kernel scores each interval as
@@ -1140,7 +1740,21 @@ jointly satisfy, or the importance weights `f/q` are silently wrong:
    `sim`/`mcmc` draw truncated exponentials at the *same* `Λ` the compensator uses
    (`walk_evaluate()` → `.pse_eval_rate`, pinned R↔C++ at 1e-10). Draw times from any
    other rate and `q` diverges from `f` exactly where it is least visible (weights still
-   normalize; they are just biased).
+   normalize; they are just biased). *Amended 2026-09-25 (pinned fids):* for a completed
+   timed rate, that `Λ` is not computed from θ_k on either side. Both sides read the
+   pin from `spec$completed_rates` of the spec completed once at entry (D21): the walk
+   through `query_rate_at_position(pinned =)`, the evaluator through its fixed-only
+   sub-model. One table and one period rule (`intercept_only_rate_period()`: half-open
+   `[w_{k-1}, w_k)`, the last period closed) serve both sides. The pin has one plateau
+   per wave period, and every interval's compensator must read exactly one
+   `intercept_w`. The merged-walk right-censoring contract does **not** by itself put a
+   boundary at panel wave times (D5). Non-straddling comes from D5's per-wave-window
+   preprocessing, where each wave is a window end, or from the injected interior-wave
+   boundary if a sequence is preprocessed as one stream. On the `q` side it comes from
+   `sim`'s truncation anchor including the wave end. Every `f` path inherits this
+   requirement: the batched pool evaluator, and `make_proposal_evaluator()`'s `loglik`
+   preprocess of an MCMC candidate. A candidate preprocessed as one stream without the
+   injected boundary would score a straddling interval at one plateau.
 3. **The trailing censored interval `[t_last, t_{m+1}]` is a non-cancelling term in both
    `f` and `q`.** `intervalLogL = −Δt·Λ` fires on **every** interval including
    `is_dependent = 0`, so the elapsed event-free stretch to the wave endpoint contributes
@@ -1211,10 +1825,29 @@ flip set, and `evaluate_sequence_pool()` (D2) is a batched pass — none call
 `walk_open`. So completion **cannot** live inside `walk_open`; `estimate_dynes()`
 runs it **once** at entry and hands the single completed spec to all four paths, so
 the augmenters and the evaluator agree fid-for-fid. `make_proposal_evaluator(spec,
-θ_k)` (D20) is built on that completed spec. Completed fids are marked in the
-`process_map` and appear in θ (0 params for a uniform choice, 1 for an added
-baseline hazard), so the result (D7) reports every auto-supplied sub-model. This
-supersedes any reading of D2/D20 in which an augmenter completes its own spec.
+θ_k)` (D20) is built on that completed spec. *Amended 2026-09-24 (`rate-queries`):*
+"none call `walk_open`" no longer holds for `augment_seq_mcmc()` — its injected
+closure opens a walk per proposal whenever it requests rates. The conclusion is
+unchanged, and stronger: that walk is opened over the candidate **rebound** into the
+entry-completed spec (`bind_candidate_data()`, which checks `info`/`nodes` are
+identical and assigns the data), never over a re-completed one, so the pinned rates
+cannot move between proposals (`rate-queries` D6). The signature is
+`make_proposal_evaluator(sub_models, θ_k, spec =)`. Completed fids are marked in the
+`process_map` and contribute **no** θ: a completed timed rate is pinned (a θ-free
+function of the wave counts, exposures and endpoint risk sets), and a uniform draw
+has no coefficient at all. They appear in the result's `coef_layout()` as
+`fixed = TRUE` slots at their frozen value (the pinned log-hazard, or `NA` for a
+uniform draw), so the result (D7) still reports every auto-supplied sub-model, but
+with no standard error and never in `coef()`. Not estimated does not mean absent
+from the likelihood: a completed fid's density is a **θ-free per-path term**. It
+enters the proposal `q` the augmenters record (they draw with it) **and** the target
+`f` wherever paths are compared (the MCMC acceptance ratio, the stored reference
+log-likelihood, the pool's importance weights). It cancels exactly in every cross-θ
+ratio on a fixed path and contributes nothing to Q's score or Fisher information,
+so the M-step never sees it (*resolved 2026-09-25*, see Open Questions). A user who wants the baseline hazard
+estimated writes `rate = ~ 1` explicitly: an authored intercept-only rate is
+modeled and reads its intercept from θ. This supersedes any reading of D2/D20 in
+which an augmenter completes its own spec.
 
 The landed `complete_generative_spec(joint_spec, consumer, wave_times, call)` takes
 `wave_times` as the K+1 period boundaries a timed rate's pin buckets on. `estimate_dynes()`
@@ -1260,6 +1893,21 @@ contract. *Rejected:* each augmenter reading raw snapshots and re-deriving the d
 sequence (the prototype shape — repeats θ-free work every iteration and gives the
 injective-map validation no single home); baking support applicability into the recipe
 (two support views to keep consistent, D9).
+
+*Wave grid source (added 2026-09-30, task 2.3, user decision).* No data field names
+the waves, so the grid the recipe is compiled on is **inferred**: the distinct times of
+the **modeled** panel layers' rows (`panel_wave_grid()`). An exogenous panel covariate
+adds no boundary, since one where the modeled layer records no snapshot would force its
+flips to one side of it. A given `start_time` (`set_preprocessing()`) opens the grid
+(earlier rows are history); without one the **first recorded wave** opens it and its
+snapshot is the initial condition. `estimate_dynes(wave_times =)` overrides the whole
+grid. Accepted limitation of the inferred grid: a wave at which no modeled panel dyad
+changed leaves no row and is invisible, so its two neighboring intervals merge; the
+explicit `wave_times` is the remedy. The compiled recipe (`goldfishAugRecipe`) carries
+`events` (contiguous per chain in step order), `chains` (with `length`, the count-panel
+multiplicity), `pairs` (same-interval, different-chain event pairs), per-layer `kind`,
+flavor map and derived `support`, and the per-wave `start_states` of every network
+layer; the cursor is `new_recipe_cursor()` (`take`, `remaining`, `done`, `reset`).
 
 ### D23 — MCMC retained-draw pool reuse: alternatives and the v1 default **[deferred; seam-gated → abmcem]**
 The D5 MCMC caveat and the D20 evaluator-injection note leave one question open: how a
@@ -1329,12 +1977,79 @@ change's. That single seam-crossing is why v1 ships A0 and the reuse is a coordi
 fast-follow, and why the v1 pool-entry path (task 4.2) is built **attachment-optional** so
 the abmcem-side widening is the only remaining work when A3 lands.
 
+### D24 — Count (multiplicity) panel layers: the second v1 panel kind
+v1 supports **two** kinds of modeled panel layer, distinguished by what a wave records
+rather than by how many flavors the layer carries:
+
+| | state panel | count panel |
+|---|---|---|
+| a wave records | the tie state (0/1) | the cumulative count as of the wave |
+| processes | two competing flavors (creation / dissolution) | one monotone process, **unflavored** |
+| derived support constraint | yes (`~ tie(L)` / `~ !tie(L)`) | none — every dyad is always at risk |
+| events per dyad per interval | 0 or 1 | `Δ = c(t_{m+1}) − c(t_m)` ≥ 0 |
+| diff blind spot | create+dissolve inside one interval is invisible (minimal-flip) | **none** — a call cannot be un-made, so `Δ` is exact |
+
+The motivating case is a phone-call panel estimated jointly with an observed email
+stream. Such a layer is **not** flavored: `add_flavor()` requires a mapping of exactly
+two values matching the layer's ±1 / 1-0 encoding, and a count layer has a single
+monotone process with no inverse — so it is an ordinary unflavored dependent layer that
+happens to be panel-observed. This is the **multiplicity** cell, orthogonal to the
+ordinal (K > 2 states) cell D8's `(from,to) → flavor` chain text anticipates; that one
+stays out of v1, unconstructible until `add_flavor()` accepts a multistate mapping.
+
+What the count kind needs that the state kind does not:
+- **A diff to a multiset.** Per dyad an interval carries `Δ` indistinguishable events,
+  not a flip. `Δ < 0` on a monotone layer is a **data error** and aborts — a layer that
+  genuinely decreases is the ordinal cell, not this one. The `augmentation_recipe` (D22)
+  holds per-dyad remaining counts, which its `sim` cursor already anticipated, in place
+  of chain membership.
+- **Same-dyad moves are identities, not illegalities.** In a state panel a same-dyad
+  permute would violate chain order and is excluded before proposing (D20). In a count
+  panel the two events are indistinguishable, so the swap yields the *same* sequence:
+  excluded at the same place for a different reason, and the pair-count normalizer in
+  `q` must be computed under whichever convention is chosen and applied identically
+  forward and backward.
+- **No support constraint, so `sim` cannot strand.** D20's reject-and-restart exists for
+  cross-dyad support coupling; a count layer derives no support, so its greedy forward
+  draw always completes. The restart path stays, for state panels.
+
+What it gets for free: the likelihood (repeated dyadic events are goldfish's paradigm
+case), the effect machinery — where `weighted =` and `transformer_fn =` become
+*meaningful* rather than decorative, the latent state being valued — and D6's
+fixed-cardinality ergodicity argument, which here holds exactly instead of modulo the
+minimal-flip assumption.
+
+**A closed-form oracle comes with it.** With exogenous-only effects and covariates
+constant between waves, a count panel's dyad counts are Poisson in `λ_ij · Δt` with
+times distributed as uniform order statistics given the counts, so the whole ABEM stack
+must reproduce the Poisson-regression MLE to Monte-Carlo error. That is a stronger test
+than the recovery study, whose target is another draw from the same machinery. (The
+state-panel analogue is the two-state CTMC with closed-form transition probabilities.)
+
+*Rejected:* representing a count layer as a one-flavor flavored layer — `add_flavor()`
+rejects it on two counts, and the flavor would carry no information; the honest
+description is an unflavored dependent layer whose panel observation yields
+multiplicities.
+
 ## Risks / Trade-offs
 
-- **Spike results overturn a gated decision** (batched C++ not worth it; pools blow
-  the 5 GB budget) → D3/D4 are explicitly provisional; Phase 1 ends with a
-  design-revision task that amends them and the affected specs before later phases
-  start.
+- **Spike results overturn a gated decision** — *happened* (2026-09-30): B1
+  reversed D3's Option-A engine to the existing `cpp` backend, B3 fixed D4 as
+  in-memory with a shared per-window start state, and the task-1.4 toy made D5's
+  per-window route non-load-bearing. Task 1.5 amended the design and the
+  `sequence-augmentation` spec before any later phase started.
+- **The completed pin reads wave snapshots one period late** (found by the task-1.4
+  toy): `panel_wave_risk_set()` reads each boundary with strictly-before semantics,
+  so rows stamped at a wave are missing from its snapshot and the first period pins
+  to `−Inf`. Latent today only because `estimate_dynes()` passes no `wave_times`.
+  → fixed inside task 2.2 (added pair 2.2e/2.2f: one inclusive-at-wave snapshot
+  definition shared by the wave diff and the pin), which must land before task 6.1
+  wires `wave_times`.
+- **Defects in `abmcem`'s landed code** (task-1.4 toy): `pool_fixed_loglik()` can
+  return `−Inf` with `degenerate = FALSE`, and the SGD defaults (`step_size =
+  0.001`, constant, on a raw summed score) under-step so every M-step hits its
+  iteration cap. → flagged to `abmcem` as follow-ups; the degenerate flag must be
+  fixed before task 6.1 can expose a `−Inf` pin (2.2f removes the known cause).
 - **Identifiability of separate creation/dissolution parameters from sparse waves** →
   the simulation recovery study (task 6.2) quantifies it on DyNES's own estimand, with
   the optional RSiena cross-check (D6) as supporting prior art only; `summary()` exposes
@@ -1377,9 +2092,10 @@ package.
 
 ## Open Questions
 
-- **[gated by Phase 1]** Final engine batching shape (D3) and pool storage format
-  (D4) — resolved by the B1/B3 spike measurements, folded back into design + specs by
-  the Phase-1 revision task.
+- **[resolved 2026-09-30, task 1.5]** Final engine batching shape (D3) and pool
+  storage format (D4): the existing `cpp` backend as a per-sequence loop (no batching
+  wrapper, no new kernel), and an in-memory pool with the per-window start state held
+  once per process. See the Phase-1 revisions under D3 and D4.
 - **[resolved in design]** Acceptance-ratio bookkeeping for the v1 move set —
   settled by D20 (unified pred/succ windows, frozen-rate truncated-exponential
   proposals, q_fwd/q_rev with the pick-factor cancellation); the RSiena study note
@@ -1403,9 +2119,12 @@ package.
   sub-control pattern, distinct from `set_algorithm_<family>()` since these are
   option bundles, not algorithm objects). abmcem ships the surface and holds final
   say, but the names are settled here to keep both changes in sync.
-- **[gated by Phase 1]** The D10 thread-budget crossover (when, if ever, BLAS threads
-  beat sequence sharding on the large-n cell) — resolved by the B1 spike's
-  BLAS × sharding crossing.
+- **[resolved 2026-09-30, task 1.5]** The D10 thread-budget crossover: none exists
+  on the measured kernels. BLAS (reference ≈ vecLib, default ≈ pinned threads) is
+  irrelevant at p ≈ 3–5, and sequence sharding gives 4.6–4.7× at W = 5 for every
+  engine up to K = 10 000. The "don't nest" invariant stays as hygiene; the adaptive
+  `blas_threads` formula has no measured crossover behind it. The large-n dyad cell
+  was not run (non-gating).
 - **[moved]** The `simulate()` surface questions (entry points/naming, ordered-family
   default mode, legal writer sinks, exogenous horizon, `max_events` default,
   coordination bookkeeping, θ-uncertainty bands) now live in the `process-simulation`
@@ -1484,7 +2203,16 @@ package.
   fires); this change owns the **collapse threshold** — the numeric ESS floor that means
   "switch now" is set by the 6.2/6.3 degeneracy study (the flips-per-interval stress sweep
   that measures the cliff), not guessed at the abmcem desk. Recorded here, mirrored into
-  abmcem's D14.
+  abmcem's D14. *Amended 2026-09-18 (see D14's "What ESS measures"):* the floor is an
+  **IS-ESS** floor, applying to `random`/`sim` only — under MCMC's uniform weighting
+  IS-ESS is trivially K, so the same number must never be read as an all-clear there; and
+  the collapse has a **second axis besides dimension**, namely a posterior sharpened by
+  coupling to a densely observed layer, which a forward proposal cannot track (task 6.2c
+  sweeps it). Both axes recommend MCMC, so the trigger is unchanged; what changes is that
+  the **operating envelope** is stated as MC standard error against the asymptotic SE
+  (D7), not as the ESS cliff, and that a coupled specification can be recommended to MCMC
+  at construction time from the θ-free `coupled` column without waiting for a measured
+  collapse (D1).
 - **[resolved]** Tied observed event times during augmentation. The only tie an
   augmented sequence can carry is **observed-RE ↔ observed-RE**: sampled PE times lie in
   *open* intervals strictly between anchors (D20 numeric guard), so a PE can never tie an
@@ -1503,3 +2231,138 @@ package.
   *Rejected:* sampling the tie order inside augmentation — it conflates two distinct
   missing-data mechanisms (latent PE path vs. unknown observed order) and corrupts `f/q`
   for zero statistical gain.
+- **[resolved 2026-09-18 — no longer blocks task 3.1]** Does the
+  `multi-process-walk` handle actually support what D9/D20 assume it supports?
+  Both gaps below were lifted by `process-simulation`'s substrate tasks, which
+  hit the same two walls from the `simulate()` side and landed the fixes on
+  `feature_simulation` (merged into this branch at `8c8275d`):
+
+  - **Support constraints — lifted** (`process-simulation` task 2.0a, `8641656`).
+    The handle advances the batch walk's own atom stores and recomputes each
+    fid's mask with `build_mask_maintainer()`; user constraints and derived
+    flavor masks ride the same path, and replay matches batch exactly on dyadic,
+    receiver-axis and flavored fixtures. So `walk_evaluate()` does return
+    constraint-masked output and D20's support-applicable risk set is readable
+    off it, as assumed. Task 2.0f (`2026-09-16`, D13) additionally put every
+    compiled unit's focal layer in the shared registry, which is what stops
+    `walk_assert_covered_constraints()` refusing a derived flavor mask whose
+    atoms read the focal layer — the paradigm DyNES case.
+  - **Windowed effects — lifted** (`process-simulation` task 2.0c, `a21b20c`,
+    on top of `preprocess-one-walk` running windows on the merged walk). The
+    `build_walk_engine()` abort is gone and expiries self-schedule through the
+    new `walk_schedule()` / `walk_next_breakpoint()` API. D19's "windowed/memory
+    effects are allowed in v1" is therefore realized rather than aspirational;
+    the trailing-row question windows raise is
+    `observation-tail-right-censoring`'s, and it bears directly on D20 invariant
+    3 (the trailing censored interval must be emitted at the observation extent,
+    not at a window expiry past it).
+  - **Composition change — lifted** (`process-simulation` task 2.0b): presence
+    cursors advance through `walk_advance()`.
+
+  **Residual gap, tracked elsewhere, not blocking:** a support constraint whose
+  atoms read a *changing* object that **no formula term reads** is still not
+  stepped by the shared schedule, and the handle refuses it
+  (`goldfish_walk_unsupported`). That is the whole subject of the
+  `constraint-objects-on-shared-walk` change (its `multi-process-walk` delta
+  makes live maintenance of every constraint a SHALL, with the
+  "constraint on an object no formula reads replays exactly" scenario). DyNES
+  inherits the fix; nothing here needs to duplicate it. Task 3.1 keeps a
+  verification step — assert on a real DyNES fixture that `walk_open()` opens
+  and `walk_evaluate()` masks — rather than an implementation step.
+
+  The original finding, kept for the record:
+  - **Support constraints.** `walk_open()` aborts whenever `merged$support_constraints`
+    is non-`NULL` (`R/walk_handle.R:325-330`), with a message naming "user support
+    constraints." But `spec_constraint_plans()` / `and_compose_constraint()`
+    (`R/make_specification.R:296-313`) compose the **derived** flavor-transition
+    constraint (`derive_flavor_constraint()` — `~ !tie(layer)` / `~ tie(layer)`, emitted
+    automatically for any mutually-exclusive flavored layer) into the same plan a user's
+    own `support_constraint=` would occupy; nothing downstream distinguishes
+    derived-only from user-supplied. Since a mutually-exclusive flavored layer is DyNES's
+    normal case (Stage-A `flavored-processes`), `merged$support_constraints` is non-`NULL`
+    on essentially every real DyNES spec, so `walk_open()` would abort on the paradigm
+    case, not merely on the literal-user-constraint edge the message implies. Batch
+    preprocessing (`run_merged_walk()`) carries no equivalent guard and already masks
+    constraints correctly, so this is a live-handle-specific gap, not a substrate-wide
+    one. D20's augmenter design (reject-and-redraw legality checks, `sim`'s
+    support-applicable risk set) assumes `walk_evaluate()` returns constraint-masked
+    output — task 3.1 ("augmenter as an external driver of the walk handle") has no
+    corresponding task to extend `walk_open`/`walk_evaluate` to carry the constraint
+    through.
+  - **Windowed effects.** `build_walk_engine()` aborts on any windowed effect
+    (`ctx$is_window_effect`, `R/preprocess_joint.R:1116-1120`, `.internal = TRUE`). This
+    guard is shared by both `walk_open()` and batch preprocessing's `run_merged_walk()`
+    (both call `build_walk_engine()`), so it is an inherited `make-multivariate-spec` v1
+    substrate boundary, not specific to the handle or to this change. It does mean D19's
+    "windowed/memory effects are allowed in v1 [for DyNES]" is currently unrealized:
+    nothing in the merged multi-process walk — batch or live — executes a windowed
+    formula yet.
+
+  Both readings were correct when written (2026-09-07) and both are now stale;
+  the resolution path taken was the third one nobody listed — the change that
+  needed the same substrate first paid for it.
+- **[resolved 2026-09-25 — pinned, reported only; θ-free per-path term in f]** Is a
+  completed fid's pinned parameter part of the estimated θ? **No.** The pin is not
+  estimated θ: the baseline hazard stays at its entry-time pin for the whole fit, and
+  D21 is amended to say so (fixed `coef_layout()` slots, no SE, not in `coef()`). The
+  landed code already reads this way, so it stands, and so do `rate-queries` D7 and
+  D6's pinned-rate invariance argument (a pin cannot move between candidates because
+  nothing estimates it). A completed fid's density is still **path-dependent**:
+  `Σ_w e^{c_w} ∫_w |R(t)| dt` moves with where the latent flips land (every creation
+  shrinks a dyad risk set; a saturating sender or a composition change shrinks a
+  sender one; a completed rate on an observed RE layer whose inherited support reads a
+  modeled panel layer follows the latent path). So it is not a constant that can be
+  dropped by a cancellation argument. Where it belongs depends on what a comparison
+  holds fixed:
+
+  ```
+  comparison                           varies     pinned term
+  -----------------------------------  ---------  ---------------------------
+  MCMC acceptance f(Ω')/f(Ω)            path       does not cancel -> in f
+  pool weight f(Ω)/q(Ω), normalized     path       does not cancel -> in f
+  D14 reweight f(Ω;θ)/f(Ω;θ_ref)        θ only     cancels exactly
+  Q's score / Fisher, ascent-test ΔQ    θ only     zero / cancels
+  ```
+
+  So it enters `q` (`sim`'s draw density, MCMC's forward/reverse proposal densities
+  via `rate_queries`: `q` is the density actually drawn from, D20) **and** `f`
+  wherever paths are compared. Leaving it out of `f` would weight toward a
+  posterior different from the one `q` drew under. Because it is θ-free, it is
+  computed once per sequence when the sequence is drawn, added to the stored
+  reference log-likelihood (D14), and never recomputed at a new θ. The landed
+  contract's "constant offset" is correct as constant **per path**, not across the
+  pool. `abmcem` carries this as the fixed-only sub-model rule.
+
+  The question as originally raised: D21 said completed fids "appear in θ (0 params
+  for a uniform choice, 1 for an added baseline hazard)". The landed code treats them
+  as **fixed**: `coef_layout()` on a completed spec renders an autocompleted fid's slot
+  as `fixed = TRUE` at the frozen intercept (`autocompleted_layout_block()`,
+  `R/joint_parameters.R`), `flat_to_fid_theta()` never reads θ for a completed fid, and
+  `assert_theta_layout()` therefore expects no sub-model to claim it. Two readings:
+  - **Pinned, reported only** — the baseline hazard stays at its entry-time pin for
+    the whole fit and D7 merely lists it in the result. Then D21's "appear in θ" is
+    loose wording; amend it to "appear in the result's layout as fixed slots", and
+    the code stands.
+  - **Estimated** — the EM loop moves the baseline hazard. Then the pin is only a
+    starting value, `coef_layout()` must render the slot free on a DyNES spec,
+    `rate-queries` D7 (completed fids read nothing from θ) and D6's pinned-rate
+    invariance argument need revisiting, and the log-likelihood path must carry the
+    fid (see `abmcem`'s open question on fixed-only sub-models).
+  Resolve before `abmcem` task 5.2 decomposes the joint spec into `sub_models`, since
+  the construction-time layout check fixes one reading.
+- **[deferred — v2] Should completion own the wave grid?** (added 2026-10-01,
+  from `completion-idempotency`.) "No grid" has two meanings today:
+  `estimate_dynes(wave_times = NULL)` resolves `panel_wave_grid()`, while
+  `complete_generative_spec(wave_times = NULL)` pins on `default_window()`, one
+  period over the layer's event-time range. v1 keeps completion as it is and
+  has each DyNES consumer (`estimate_dynes()`, `compute_lik_seq()`,
+  `simulate.goldfishDynesFit()`) resolve its grid through `panel_wave_grid()`
+  and pass it in (task 6.1). The v2 alternative is that on a spec with a
+  modeled panel layer, a NULL `wave_times` in completion itself means
+  `panel_wave_grid()`. Gain: every consumer agrees by construction, including
+  plain `simulate()` and any future one, and the per-consumer wiring goes away.
+  Cost: single-window pins change for every panel spec completed without a
+  grid, so `simulate()` snapshots of panel specs need re-recording, and the
+  completion warning's count source changes for them. Revisit once
+  `process-simulation`'s spec is final, so the simulation default is settled
+  before completion's default changes under it.
