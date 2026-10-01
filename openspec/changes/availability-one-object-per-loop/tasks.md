@@ -12,7 +12,7 @@
       (`active_*_init`, `active_*_update`, `active_*_update_pointer`,
       `active_dyad_encoding`, the mask stream, statistics, events, scalars).
       Test: both comparisons PASS on the unfixed tree.
-- [ ] 0.3 Add a reference family for a vector-kind REM constraint
+- [x] 0.3 Add a reference family for a vector-kind REM constraint
       (`~ alter(attr) > 0` with receiver composition changes) and a
       vector-kind coordination constraint on `constraint_atoms_coord_data()`,
       captured on today's point fold: the dense cell values at every stored

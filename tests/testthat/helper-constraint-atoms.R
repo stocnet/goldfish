@@ -477,7 +477,7 @@ availability_vector_coord_data <- function() {
 }
 
 availability_vector_families <- function() {
-  c("rem_alter", "rem_ego", "coord_alter")
+  c("rem_alter", "rem_ego", "rem_global", "coord_alter")
 }
 
 # One vector-kind family's preprocessed object (`backend = NULL`) or fit.
@@ -496,6 +496,7 @@ availability_vector_run <- function(family, backend = NULL) {
     } else {
       fx <- availability_vector_rem_data()
       actors <- fx$actors
+      switches <- fx$switches
       args <- list(
         dep ~ 1 + inertia + recip,
         sub_model = "rate",
@@ -503,7 +504,8 @@ availability_vector_run <- function(family, backend = NULL) {
         support_constraint = switch(
           family,
           rem_alter = ~ alter(actors$allow) > 0,
-          rem_ego = ~ ego(actors$allow) > 0
+          rem_ego = ~ ego(actors$allow) > 0,
+          rem_global = ~ global(switches$on) > 0
         )
       )
       estimator <- estimate_rem
@@ -517,23 +519,52 @@ availability_vector_run <- function(family, backend = NULL) {
   }))
 }
 
-# The dense availability grid at every stored row, replayed from a point-
-# encoded object's stream: one logical vector of length `n1 * n2` per row.
-availability_point_cells <- function(prep) {
-  grid <- as.vector(prep$active_dyad_init)
-  n1 <- nrow(prep$active_dyad_init)
-  update <- prep$active_dyad_update
-  pointer <- prep$active_dyad_update_pointer
-  seen <- 0
-  cells <- vector("list", length(pointer))
-  for (row in seq_along(pointer)) {
-    if (pointer[[row]] > seen) {
-      cols <- (seen + 1):pointer[[row]]
-      grid[update[1L, cols] + n1 * (update[2L, cols] - 1L)] <-
-        as.logical(update[3L, cols])
-      seen <- pointer[[row]]
-    }
-    cells[[row]] <- grid
+# The dense availability at every stored row, replayed from an object's
+# stream whatever its encoding: one logical vector of length `n1 * n2` per
+# row, column-major (cell `(i, j)` at `i + n1 * (j - 1)`). A point object
+# stores the grid and flips cells `(node1, node2, replace)`; an outer object
+# stores the two factors and flips entries `(node, replace)`, its cell being
+# `f1[i] & f2[j]`.
+availability_cells <- function(x) {
+  replay <- function(value, update, pointer, write) {
+    seen <- 0
+    lapply(pointer, function(hi) {
+      if (hi > seen) {
+        value <<- write(value, update[, (seen + 1):hi, drop = FALSE])
+        seen <<- hi
+      }
+      value
+    })
   }
-  cells
+  if (identical(x$active_dyad_encoding, "point")) {
+    n1 <- nrow(x$active_dyad_init)
+    write_cells <- function(value, cols) {
+      value[cols[1L, ] + n1 * (cols[2L, ] - 1L)] <- as.logical(cols[3L, ])
+      value
+    }
+    return(replay(
+      as.vector(x$active_dyad_init) == 1,
+      x$active_dyad_update,
+      x$active_dyad_update_pointer,
+      write_cells
+    ))
+  }
+  stopifnot(identical(x$active_dyad_encoding, "outer"))
+  write_factor <- function(value, cols) {
+    value[cols[1L, ]] <- as.logical(cols[2L, ])
+    value
+  }
+  sender <- replay(
+    x$active_sender_init == 1,
+    x$active_sender_update,
+    x$active_sender_update_pointer,
+    write_factor
+  )
+  receiver <- replay(
+    x$active_dyad_init == 1,
+    x$active_dyad_update,
+    x$active_dyad_update_pointer,
+    write_factor
+  )
+  Map(\(f1, f2) as.vector(outer(f1, f2, "&")), sender, receiver)
 }
