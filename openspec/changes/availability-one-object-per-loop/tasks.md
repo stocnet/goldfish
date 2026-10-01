@@ -18,7 +18,7 @@
       captured on today's point fold: the dense cell values at every stored
       row (from the point grid) plus the estimates on r, cpp and gather.
       These are the oracle D3's outer fold must equal cell-for-cell.
-- [ ] 0.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 0.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP.
 
 ## 1. Kernels take their loop's object (D1)
