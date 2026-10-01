@@ -146,7 +146,7 @@
       degenerate; `estimate_dynes()` warns once with the count and the
       failing sub-models; a run whose whole pool is dropped stops with
       `converged = FALSE`; `em_trace` gains `fixed_degenerate`. Commit it.
-- [ ] 4.2 Close the change: full not-cran-test run in the background
+- [x] 4.2 Close the change: full not-cran-test run in the background
       confirming the frozen 1e-6 baselines PASS (not SKIP). Add
       `status: landed (feature/dynes, awaiting fold)` to `proposal.md`, and
       commit. (`dynes-augmentation` 6.1b's gate needs only group 1: when 1.2
