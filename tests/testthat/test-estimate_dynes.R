@@ -592,3 +592,92 @@ test_that("the parallel seam keeps workers times BLAS threads within n_cores", {
     list(10, 20, 30)
   )
 })
+
+# --- Fixed-term degeneracy -----------------------------------------------------
+
+# A store whose tally is set by hand: the helper reads nothing else.
+tallied_store <- function(built, fixed_term, labels) {
+  store <- new.env(parent = emptyenv())
+  store$tally <- list(built = built, fixed_term = fixed_term, labels = labels)
+  store
+}
+
+# One estimate_dynes() run over the multiwave fixture, with every warning
+# muffled and the fixed-term ones kept.
+fixed_term_run <- function() {
+  kept <- list()
+  fit <- withCallingHandlers(
+    estimate_dynes(
+      dynes_varying_raw_spec(),
+      surface_control(max_iterations = 2L)
+    ),
+    goldfish_dynes_fixed_term_degenerate = function(w) {
+      kept[[length(kept) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+  list(fit = fit, warnings = kept)
+}
+
+test_that("the fixed-term degeneracy warning", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_fixed_term_degenerate(
+      tallied_store(12L, 5L, c("friendship (rate)", "calls (choice)"))
+    )
+  )
+})
+
+test_that("the fixed-term warning is classed and silent at a zero count", {
+  expect_warning(
+    warn_fixed_term_degenerate(tallied_store(4L, 1L, "friendship (rate)")),
+    class = "goldfish_dynes_fixed_term_degenerate"
+  )
+  expect_no_warning(
+    warn_fixed_term_degenerate(tallied_store(4L, 0L, character(0)))
+  )
+})
+
+test_that("a fixed-only term lost for some sequences warns once and is traced", {
+  skip_on_cran()
+  local_dynes_augmenter(new_multiwave_augmenter())
+  real_fixed_only_loglik <- fixed_only_loglik
+  # Keyed on the drawn path, so only some sequences lose the pinned
+  # friendship rate: those whose first friendship event falls early.
+  local_mocked_bindings(
+    fixed_only_loglik = function(sub_model, stats) {
+      dependent <- stats$event_time[stats$is_dependent == 1L]
+      if (!is.null(sub_model$pinned_rate) && min(dependent) < 0.5) {
+        return(-Inf)
+      }
+      real_fixed_only_loglik(sub_model, stats)
+    }
+  )
+
+  run <- fixed_term_run()
+
+  expect_length(run$warnings, 1L)
+  trace <- run$fit$em_trace
+  expect_type(trace$fixed_degenerate, "integer")
+  expect_true(all(trace$fixed_degenerate > 0L))
+  expect_true(all(trace$fixed_degenerate < trace$pool_size))
+})
+
+test_that("a run with finite fixed-only terms neither warns nor traces one", {
+  skip_on_cran()
+  local_dynes_augmenter(new_multiwave_augmenter())
+
+  run <- fixed_term_run()
+
+  expect_length(run$warnings, 0L)
+  columns <- names(run$fit$em_trace)
+  expect_identical(
+    match("fixed_degenerate", columns),
+    match("pool_size", columns) + 1L
+  )
+  expect_identical(
+    run$fit$em_trace$fixed_degenerate,
+    rep(0L, nrow(run$fit$em_trace))
+  )
+})

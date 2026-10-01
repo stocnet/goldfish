@@ -668,7 +668,12 @@ test_that("a -Inf pin over events makes the sequence degenerate", {
 
   expect_identical(
     fixed_only_term(decomposition),
-    list(loglik = -Inf, degenerate = TRUE)
+    list(
+      loglik = -Inf,
+      degenerate = TRUE,
+      cause = "fixed_term",
+      label = NA_character_
+    )
   )
 
   pooled <- evaluate_sequence_pool(fixed_only_pool(decomposition), theta)
@@ -693,7 +698,12 @@ test_that("any non-finite fixed-only term is normalized to a -Inf degenerate", {
     local_mocked_bindings(fixed_only_loglik = function(sub_model, stats) bad)
     expect_identical(
       fixed_only_term(decomposition),
-      list(loglik = -Inf, degenerate = TRUE)
+      list(
+        loglik = -Inf,
+        degenerate = TRUE,
+        cause = "fixed_term",
+        label = NA_character_
+      )
     )
     single <- evaluate_candidate(decomposition, fixed_only_data(), theta)
     expect_true(single$degenerate)
@@ -721,6 +731,79 @@ test_that("a finite pin, or a -Inf pin over no events, stays non-degenerate", {
   pooled <- evaluate_sequence_pool(fixed_only_pool(decomposition, quiet), theta)
   expect_false(pooled$degenerate[[1]])
   expect_true(is.finite(pooled$loglik[[1]]))
+})
+
+# fixed_only_with_pinned() with the rendered label decompose_joint_spec()
+# attaches to every sub-model; the pinned rate is the first sub-model.
+fixed_only_labeled_pinned <- function(plateaus) {
+  decomposition <- fixed_only_with_pinned(
+    pinned_rate = fixed_only_pinned_rate(plateaus)
+  )
+  decomposition$sub_models[[1]]$label <- "calls (rate)"
+  decomposition
+}
+
+fixed_only_sequence <- function() {
+  list(
+    data = fixed_only_data(),
+    reference = new_reference_record(c(0, 0), -10, -10)
+  )
+}
+
+test_that("a pool entry records why it is degenerate and which sub-model", {
+  data <- fixed_only_data()
+  entry <- function(plateaus, walked = TRUE) {
+    decomposition <- fixed_only_labeled_pinned(plateaus)
+    new_pool_entry(
+      with_coefficient_masks(decomposition$sub_models, data),
+      if (walked) preprocess_pool_sequence(decomposition$engine_spec, data)
+    )
+  }
+
+  bad_pin <- entry(c(-Inf, -2))
+  expect_true(bad_pin$fixed_degenerate)
+  expect_identical(bad_pin$degenerate_cause, "fixed_term")
+  expect_identical(bad_pin$degenerate_label, "calls (rate)")
+
+  failed_walk <- entry(c(-1, -2), walked = FALSE)
+  expect_true(failed_walk$fixed_degenerate)
+  expect_identical(failed_walk$degenerate_cause, "walk")
+  expect_identical(failed_walk$degenerate_label, NA_character_)
+
+  clean <- entry(c(-1, -2))
+  expect_false(clean$fixed_degenerate)
+  expect_identical(clean$degenerate_cause, NA_character_)
+  expect_identical(clean$degenerate_label, NA_character_)
+})
+
+test_that("the pool store tallies drawn and fixed-term sequences", {
+  decomposition <- fixed_only_labeled_pinned(c(-Inf, -2))
+  pool <- build_sequence_pool(
+    decomposition,
+    list(fixed_only_sequence()),
+    theta_length = 2L
+  )
+  expect_identical(
+    pool$store$tally,
+    list(built = 1L, fixed_term = 1L, labels = "calls (rate)")
+  )
+
+  pool <- append_sequence_pool(
+    pool,
+    list(fixed_only_sequence(), fixed_only_sequence())
+  )
+  expect_identical(
+    pool$store$tally,
+    list(built = 3L, fixed_term = 3L, labels = "calls (rate)")
+  )
+
+  # A failed walk is a drawn sequence, but not a fixed-term loss.
+  local_mocked_bindings(preprocess_pool_sequence = function(...) NULL)
+  pool <- append_sequence_pool(pool, list(fixed_only_sequence()))
+  expect_identical(
+    pool$store$tally,
+    list(built = 4L, fixed_term = 3L, labels = "calls (rate)")
+  )
 })
 
 test_that("the fixed-only term is path-dependent but cancels in the reweight", {
