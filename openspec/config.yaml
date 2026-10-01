@@ -60,39 +60,82 @@ context: |
   (These are also recorded in the project CLAUDE.md so they apply to all
   repo work, not only OpenSpec changes.)
 
+# Every rule below is a folded block scalar (`- >-`). Rule prose routinely
+# contains "word: word", which in a plain scalar YAML reads as a mapping key —
+# it broke the whole file's parse before 2026-09-18 (the CLI then silently
+# ignored context AND rules). Block scalars make colons literal; keep new rules
+# in the same form.
 rules:
   tasks:
-    - End every task group with a verification task that runs the tests and, if the group touched roxygen docs or exported APIs, devtools::document()
-    - Add an explicit "bump version in DESCRIPTION + NEWS.md entry" task at each phase milestone
-    - Any task that deprecates, renames, supersedes, or introduces an experimental API MUST follow the r-lib:lifecycle skill (deprecate_warn / badge + NEWS entry)
-    - New user-facing output (messages, conditions, print/format methods) MUST be rendered with cli per the r-lib:cli skill; output snapshot tests pin a reproducible cli context
-    - Any task touching package machinery (devtools, roxygen2, NAMESPACE, DESCRIPTION, build) MUST follow the r-lib:r-package-development skill
-    - Any task that creates or reorganises tests MUST follow the r-lib:testing-r-packages skill (testthat 3e)
-    - Any task that edits src/ C++ (Rcpp/RcppArmadillo) MUST run the cpp-recompile skill after the edit and before testing — regenerate the Rcpp bindings (compileAttributes, verify the RcppExports.* diff) and force-recompile (load_all recompile = TRUE), so the coefficient/C++ golden baselines are not validated against a stale .o/.so. Never hand-edit R/RcppExports.R or src/RcppExports.cpp (a PreToolUse hook blocks it); regenerate via the skill.
-    - Every task MUST be verified with the not-cran-test skill before its commit — run it (NOT_CRAN=true; the suite is slow, so run_in_background) and confirm the frozen 1e-6 coefficient/C++ golden baselines report PASS, not SKIP. A bare Rscript run silently SKIPs them and verifies nothing. Then close the task with the close-task skill.
+    - >-
+      Generate and execute tasks as TDD red/green pairs, not test-after: split every
+      implementation unit into two adjacent tasks — an "(a)" task that writes (or
+      extends) a failing test for the behavior, runs it once to confirm RED, and
+      commits the test alone; then a "(b)" task that writes the minimal code to turn
+      it GREEN, re-runs the same test to confirm, and commits the implementation.
+      Never fold red and green into one commit — that is the point of the pair.
+      A "(b)" task still follows every other applicable rule below (document(),
+      cpp-recompile, air format, lifecycle) before its commit.
+    - >-
+      End every task group with one lighter closing task instead of a dedicated
+      group-level "Tests" task: a NOT_CRAN=true full-suite run confirming the frozen
+      baselines PASS (not SKIP), devtools::document() if the group touched roxygen
+      docs or exported APIs, and a commit. The per-pair (a) tasks already prove each
+      behavior red-then-green; this task's job is only the full-suite safety net a
+      single pair's test run doesn't cover (cross-task interaction, baseline drift).
+    - >-
+      Add an explicit "bump version in DESCRIPTION + NEWS.md entry" task at each phase milestone
+    - >-
+      Any task that deprecates, renames, supersedes, or introduces an experimental API MUST follow the r-lib:lifecycle skill (deprecate_warn / badge + NEWS entry)
+    - >-
+      New user-facing output (messages, conditions, print/format methods) MUST be rendered with cli per the r-lib:cli skill; output snapshot tests pin a reproducible cli context
+    - >-
+      Any task touching package machinery (devtools, roxygen2, NAMESPACE, DESCRIPTION, build) MUST follow the r-lib:r-package-development skill
+    - >-
+      Any task that creates or reorganises tests MUST follow the r-lib:testing-r-packages skill (testthat 3e)
+    - >-
+      Any task that edits src/ C++ (Rcpp/RcppArmadillo) MUST run the cpp-recompile skill after the edit and before testing — regenerate the Rcpp bindings (compileAttributes, verify the RcppExports.* diff) and force-recompile (load_all recompile = TRUE), so the coefficient/C++ golden baselines are not validated against a stale .o/.so. Never hand-edit R/RcppExports.R or src/RcppExports.cpp (a PreToolUse hook blocks it); regenerate via the skill.
+    - >-
+      Every task MUST be verified with the not-cran-test skill before its commit — run it (NOT_CRAN=true; the suite is slow, so run_in_background) and confirm the frozen 1e-6 coefficient/C++ golden baselines report PASS, not SKIP. A bare Rscript run silently SKIPs them and verifies nothing. Then close the task with the close-task skill.
   archive:
     # /opsx:archive (or /opsx:close-task) discipline. Replaces the former
     # PreToolUse Bash hook, which matched command substrings and fired on
     # unrelated commands. The tracker now runs only as an explicit archive step.
-    - Before doing anything else in the /opsx:archive flow — FIRST, while the change dir still exists at openspec/changes/<name>/ — run `bash .plan/opsx-archive-track.sh <name>`. It snapshots that change's progress.md to .plan/ (local-only) and appends a version row to the tracked .plan/goldfish_versions.csv ledger (idempotent on the change name).
-    - This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
-    - Then, still BEFORE the delta-spec sync, run `bash .plan/opsx-spec-placement-check.sh <name>`. `openspec validate` does not check `##` section placement, so a `## MODIFIED`/`## REMOVED` block naming a requirement absent from openspec/specs/** validates cleanly and then silently lands as an ADD at archive, leaving the old wording in place. Unlike the tracker above, this one CAN block: a non-zero exit means fix the delta's section placement (or declare the rename in `## RENAMED`) before syncing. It is rename-aware and safe to re-run post-archive as `archive/<date>-<name>`. Tightened 2026-09-07 — a `## RENAMED` block must have its FROM header present in the living spec, because that is the side `openspec archive` resolves and it aborts the whole archive when FROM is missing. Declaring a rename does NOT rescue a FROM that is already gone; if the rename was applied to the living spec by hand during implementation, drop the block as satisfied and say so in the delta.
-    - /opsx:archive runs ONLY on the integration branch (ADR-0040). A change developed on a feature branch stays active — deltas unfolded — until the branch merges; the fold then happens on the trunk, where the living spec's current wording is known. Archiving on a branch is how make-multivariate-spec dissolved in the DyNES merge.
-    - openspec/changes/archive/ is TRACKED (ADR-0041) so archived decision memory (proposal, design, deltas, tasks) travels with every clone and branch. The personal session journal does not — progress*.md is gitignored at any depth, and the tracker script's .plan/ snapshot is its preservation mechanism, so after the tracker runs, delete progress*.md from the change dir before the archive mv. Never edit an archived change; archives are append-only by construction.
-    - If you keep a decision record OUTSIDE this repo (a personal notes vault, described in your own CLAUDE.local.md), re-point its references to the change in the same pass. An archive moves openspec/changes/<name>/ to openspec/changes/archive/<date>-<name>/, so any note naming the old path is left dangling, and nothing inside this repo can detect it — the reference lives somewhere the repo cannot see. Repair PATHS only, never the reasoning; an accepted decision is not reworded to fix a link. **Collaborators who keep no such record skip this step entirely** — it is a no-op, not a missing prerequisite, and no repo artifact, test or gate depends on it. (Added 2026-09-07, after the class-naming-scheme / model-spec-descriptor / fit-class-hierarchy fold left 54 dangling references across 34 notes, seven of them in decisions minted the same day.)
+    - >-
+      Before doing anything else in the /opsx:archive flow — FIRST, while the change dir still exists at openspec/changes/<name>/ — run `bash .plan/opsx-archive-track.sh <name>`. It snapshots that change's progress.md to .plan/ (local-only) and appends a version row to the tracked .plan/goldfish_versions.csv ledger (idempotent on the change name).
+    - >-
+      This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
+    - >-
+      Then, still BEFORE the delta-spec sync, run `bash .plan/opsx-spec-placement-check.sh <name>`. `openspec validate` does not check `##` section placement, so a `## MODIFIED`/`## REMOVED` block naming a requirement absent from openspec/specs/** validates cleanly and then silently lands as an ADD at archive, leaving the old wording in place. Unlike the tracker above, this one CAN block: a non-zero exit means fix the delta's section placement (or declare the rename in `## RENAMED`) before syncing. It is rename-aware and safe to re-run post-archive as `archive/<date>-<name>`. Tightened 2026-09-07 — a `## RENAMED` block must have its FROM header present in the living spec, because that is the side `openspec archive` resolves and it aborts the whole archive when FROM is missing. Declaring a rename does NOT rescue a FROM that is already gone; if the rename was applied to the living spec by hand during implementation, drop the block as satisfied and say so in the delta.
+    - >-
+      /opsx:archive runs ONLY on the integration branch (ADR-0040). A change developed on a feature branch stays active — deltas unfolded — until the branch merges; the fold then happens on the trunk, where the living spec's current wording is known. Archiving on a branch is how make-multivariate-spec dissolved in the DyNES merge.
+    - >-
+      openspec/changes/archive/ is TRACKED (ADR-0041) so archived decision memory (proposal, design, deltas, tasks) travels with every clone and branch. The personal session journal does not — progress*.md is gitignored at any depth, and the tracker script's .plan/ snapshot is its preservation mechanism, so after the tracker runs, delete progress*.md from the change dir before the archive mv. Never edit an archived change; archives are append-only by construction.
+    - >-
+      If you keep a decision record OUTSIDE this repo (a personal notes vault, described in your own CLAUDE.local.md), re-point its references to the change in the same pass. An archive moves openspec/changes/<name>/ to openspec/changes/archive/<date>-<name>/, so any note naming the old path is left dangling, and nothing inside this repo can detect it — the reference lives somewhere the repo cannot see. Repair PATHS only, never the reasoning; an accepted decision is not reworded to fix a link. **Collaborators who keep no such record skip this step entirely** — it is a no-op, not a missing prerequisite, and no repo artifact, test or gate depends on it. (Added 2026-09-07, after the class-naming-scheme / model-spec-descriptor / fit-class-hierarchy fold left 54 dangling references across 34 notes, seven of them in decisions minted the same day.)
   branching:
     # Parallel variant branches, each carrying OpenSpec changes (ADR-0041).
-    - A change completed on a branch is NOT archived there. Flip it to landed instead — add `status: landed (<branch>, awaiting fold)` to its proposal.md — and leave the directory in place. A landed change is inert; its tracked artifacts are the decision memory until the trunk fold.
-    - A change whose deltas build on another un-archived change declares it with `depends-on: <change>` in proposal.md and writes its deltas against the POST-predecessor wording (its `## MODIFIED` may name a requirement that today exists only in the predecessor's `## ADDED`). The placement pre-flight is EXPECTED to fail for such a change until the predecessor folds — that is deferral, not a defect; the check that counts runs at fold time, in dependency order.
-    - Where a completed change is separable from its variant's unlanded siblings (code and deltas independent), prefer landing it on the integration branch via its own small merge over waiting for the variant to mature — fold latency is merge cadence.
+    - >-
+      A change completed on a branch is NOT archived there. Flip it to landed instead — add `status: landed (<branch>, awaiting fold)` to its proposal.md — and leave the directory in place. A landed change is inert; its tracked artifacts are the decision memory until the trunk fold.
+    - >-
+      A change whose deltas build on another un-archived change declares it with `depends-on: <change>` in proposal.md and writes its deltas against the POST-predecessor wording (its `## MODIFIED` may name a requirement that today exists only in the predecessor's `## ADDED`). The placement pre-flight is EXPECTED to fail for such a change until the predecessor folds — that is deferral, not a defect; the check that counts runs at fold time, in dependency order.
+    - >-
+      Where a completed change is separable from its variant's unlanded siblings (code and deltas independent), prefer landing it on the integration branch via its own small merge over waiting for the variant to mature — fold latency is merge cadence.
   merge:
     # Landing a feature branch on the integration branch (ADR-0040). The
     # merge IS the milestone: every fold the branch deferred happens here,
     # once, in this order.
-    - Keep the merge commit PURE (code conflicts only); every fold below lands in its own commit(s) immediately after, so a botched fold reverts without touching the code merge and the bump commit is a clean tag anchor.
-    - Fold NEWS.d/ fragments into NEWS.md under the new version heading (filename order), delete the consumed fragments, and bump DESCRIPTION Version — the single milestone bump for everything the branch landed.
-    - Archive the branch's landed changes on the trunk IN depends-on ORDER (a successor's delta headers resolve only after its predecessor's ADDED requirements fold): for each, the normal rules.archive sequence (tracker first, placement pre-flight, delta sync, journal scrub). Then run `openspec validate` across ALL active changes — the merge may have moved living-spec wording under other changes' deltas.
-    - Regenerate, never hand-merge, generated files: Rcpp bindings via the cpp-recompile skill and man/NAMESPACE via devtools::document() on the merge result.
-    - Full NOT_CRAN=true suite with the frozen 1e-6 baselines reporting PASS, not SKIP. Any intentional baseline move happens here on the trunk under the ADR-0021 bar, never on the branch.
-    - Merge review (vault): capture decisions that arrived embedded in the branch as ADRs, re-ground affected active proposals, append the version row context to .plan/goldfish_versions.csv if the archive tracker did not, and drop a dashboard fragment in the vault _dashboard-inbox/.
-    - After ANY fold lands on the trunk, every still-open variant branch merges the integration branch in promptly and re-runs `bash .plan/opsx-spec-placement-check.sh` across its own active changes, fixing delta headers against the freshly folded spec wording while context is fresh — not months later at its own merge.
+    - >-
+      Keep the merge commit PURE (code conflicts only); every fold below lands in its own commit(s) immediately after, so a botched fold reverts without touching the code merge and the bump commit is a clean tag anchor.
+    - >-
+      Fold NEWS.d/ fragments into NEWS.md under the new version heading (filename order), delete the consumed fragments, and bump DESCRIPTION Version — the single milestone bump for everything the branch landed.
+    - >-
+      Archive the branch's landed changes on the trunk IN depends-on ORDER (a successor's delta headers resolve only after its predecessor's ADDED requirements fold): for each, the normal rules.archive sequence (tracker first, placement pre-flight, delta sync, journal scrub). Then run `openspec validate` across ALL active changes — the merge may have moved living-spec wording under other changes' deltas.
+    - >-
+      Regenerate, never hand-merge, generated files: Rcpp bindings via the cpp-recompile skill and man/NAMESPACE via devtools::document() on the merge result.
+    - >-
+      Full NOT_CRAN=true suite with the frozen 1e-6 baselines reporting PASS, not SKIP. Any intentional baseline move happens here on the trunk under the ADR-0021 bar, never on the branch.
+    - >-
+      Merge review (vault): capture decisions that arrived embedded in the branch as ADRs, re-ground affected active proposals, append the version row context to .plan/goldfish_versions.csv if the archive tracker did not, and drop a dashboard fragment in the vault _dashboard-inbox/.
+    - >-
+      After ANY fold lands on the trunk, every still-open variant branch merges the integration branch in promptly and re-runs `bash .plan/opsx-spec-placement-check.sh` across its own active changes, fixing delta headers against the freshly folded spec wording while context is fresh — not months later at its own merge.
