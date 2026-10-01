@@ -139,7 +139,7 @@
 
 ## 4. Close
 
-- [ ] 4.1 Write `NEWS.d/fixed-loglik-degenerate--non-finite-fixed-term.md`
+- [x] 4.1 Write `NEWS.d/fixed-loglik-degenerate--non-finite-fixed-term.md`
       per `NEWS.d/README.md`, bullets under 81 characters each, naming the
       visible effects: `compute_lik_seq()` and `estimate_dynes()` now drop a
       sequence whose fixed-only term (e.g. a pinned rate) is non-finite as
