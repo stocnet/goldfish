@@ -300,3 +300,15 @@ test_that("the fold skips the reflexive cell in a one-mode broadcast", {
   expect_length(restricted[[1]]$rows, 2L)
   expect_length(reflexive[[1]]$rows, 3L)
 })
+
+test_that("a sender-loop kernel takes the sender availability only", {
+  sender_object <- c(
+    "active_sender_init",
+    "active_sender_update",
+    "active_sender_update_pointer"
+  )
+  for (kernel in list(estimate_DyNAM_rate, estimate_DyNAM_rate_ordered)) {
+    availability <- grep("^active_", names(formals(kernel)), value = TRUE)
+    expect_identical(availability, sender_object)
+  }
+})

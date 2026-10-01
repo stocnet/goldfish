@@ -33,9 +33,6 @@ inline arma::mat reduce_mat_to_vector(
      const arma::vec& active_sender_init,
      const arma::mat& active_sender_update,
      const arma::vec& active_sender_update_pointer,
-     const arma::vec& active_dyad_init,
-     const arma::mat& active_dyad_update,
-     const arma::vec& active_dyad_update_pointer,
      const int n_actors_1,
      const int n_actors_2,
      const bool twomode_or_reflexive,
@@ -149,7 +146,7 @@ inline arma::mat reduce_mat_to_vector(
    }
 
    // Check whether there are composition change and initialize
-   // the presence of actor1 and actor2
+   // the sender presence, the one availability object of the sender loop
    bool has_composition_change1 = true;
    int active_sender_update_id = 0;
    if (active_sender_update.n_elem == 0) {
@@ -157,12 +154,6 @@ inline arma::mat reduce_mat_to_vector(
    }
    arma::vec active_sender = active_sender_init;
    
-   bool has_composition_change2 = true;
-   int active_dyad_update_id = 0;
-   if (active_dyad_update.n_elem == 0) {
-     has_composition_change2 = false;
-   }
-   arma::vec active_dyad = active_dyad_init;
    
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
@@ -200,14 +191,6 @@ inline arma::mat reduce_mat_to_vector(
          [&](int c) {
            active_sender(active_sender_update(0, c) - 1) =
              active_sender_update(1, c);
-         });
-     }
-     if (has_composition_change2) {
-       apply_availability_updates(
-         active_dyad_update_id, active_dyad_update_pointer(id_event),
-         [&](int c) {
-           active_dyad(active_dyad_update(0, c) - 1) =
-             active_dyad_update(1, c);
          });
      }
      

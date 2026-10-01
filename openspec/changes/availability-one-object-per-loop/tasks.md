@@ -23,7 +23,7 @@
 
 ## 1. Kernels take their loop's object (D1)
 
-- [ ] 1.1 `src/DyNAM_rate_default.cpp`, `src/DyNAM_rate_ordered_default.cpp`:
+- [x] 1.1 `src/DyNAM_rate_default.cpp`, `src/DyNAM_rate_ordered_default.cpp`:
       remove the `active_dyad_init`, `active_dyad_update`,
       `active_dyad_update_pointer` arguments and their update walk;
       cpp-recompile (verify the `RcppExports.*` diff shows the three
