@@ -152,12 +152,12 @@
 
 ## 5. Close
 
-- [ ] 5.1 `bash .plan/opsx-spec-placement-check.sh
+- [x] 5.1 `bash .plan/opsx-spec-placement-check.sh
       availability-one-object-per-loop` (the `active-availability-stat` and
       `support-constraint` blocks name living requirements, so a clean exit
       is expected) and `openspec validate availability-one-object-per-loop
       --strict` clean.
-- [ ] 5.2 `NEWS.d/availability-one-object-per-loop--one-object-per-loop.md`
+- [x] 5.2 `NEWS.d/availability-one-object-per-loop--one-object-per-loop.md`
       (developer-facing: engines take one availability object per loop; the
       preprocessed object stores composition changes once and stashes no raw
       presence; REM and coordination vector-kind constraints at outer). No
