@@ -1351,12 +1351,14 @@ compute_step.default <- function(spec, state, i, ctx) {
   # per-event sender gate (a sender is at risk only if it has at least one
   # allowed receiver) into `active_sender` during preprocessing, so
   # `state$presence` already carries presence AND the gate — no separate filter.
-  # A folded REM or coordination constraint carries both presences ∩ support in
-  # the maintained dense `active_dyad` (used whole as `active_dyad_mask` below), so neither
-  # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
-  # dropped. Coordination joins REM here because its two-sided likelihood needs the
-  # full matrix, not a per-sender row.
-  folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
+  # A REM or coordination `active_dyad` at the point encoding carries both
+  # presences ∩ support in the maintained dense grid (used whole as
+  # `active_dyad_mask` below), so neither axis is reduced — an absent or
+  # disallowed dyad is zeroed by the mask, not dropped. Coordination joins REM
+  # here because its two-sided likelihood needs the full matrix, not a
+  # per-sender row. At the outer encoding the same object is two factors, the
+  # sender one in `state$presence` and the receiver one in `state$presence2`,
+  # applied as the two axis filters below.
   # Reduced-position -> global-actor slot maps for the margin reduction: an
   # entry k of the (reduced) risk set belongs to global actor `sender_slots[k]`
   # / `receiver_slots[k]`. `which(keepIn)` when an axis is filtered; identity
@@ -1364,7 +1366,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # assignment (receiver) shadows the first (sender).
   sender_slots <- NULL
   receiver_slots <- NULL
-  if ((ctx$updatepresence || ctx$active_sender_folded) && !folded_full) {
+  if ((ctx$updatepresence || ctx$active_sender_folded) && !ctx$dyad_point) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
@@ -1402,12 +1404,17 @@ compute_step.default <- function(spec, state, i, ctx) {
     (ctx$updatepresence2 ||
       ctx$updateopportunities ||
       ctx$active_dyad_folded) &&
-      !folded_full
+      !ctx$dyad_point
   ) {
     # When folded, the receiver filter is read through the encoding accessor
     # `state$presence2` is the folded receiver availability and
     # already includes the support, so `opportunities` is not conjoined.
-    keepIn <- if (ctx$active_dyad_folded) {
+    # A dyadic family's receiver filter is its receiver factor whole: every
+    # sender is in its risk set, so the event's sender (a placeholder on a
+    # right-censored interval) must not gate it.
+    keepIn <- if (ctx$active_dyad_folded && ctx$is_dyadic) {
+      state$presence2
+    } else if (ctx$active_dyad_folded) {
       active_dyad_row(
         ctx$active_dyad_encoding,
         posSender,
@@ -1480,7 +1487,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # `active_dyad_mask`, and it is passed only when a folded mask is present, so other
   # paths are unaffected. The maintained dense `active_dyad` is the per-event
   # mask, kept whole because no axis reduction was applied above.
-  if (folded_full) {
+  if (ctx$dyad_point) {
     contrib_args$active_dyad_mask <- state$presence2
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
@@ -2192,6 +2199,9 @@ compute_iteration_step <- function(
     active_dyad_encoding = statsList$active_dyad_encoding,
     is_rem = is_rem,
     is_coord = is_coord,
+    is_dyadic = is_rem || is_coord,
+    dyad_point = (is_rem || is_coord) &&
+      identical(statsList$active_dyad_encoding, "point"),
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,

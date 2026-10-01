@@ -1483,7 +1483,14 @@ gather_sender_receiver_model_r <- function(
     id_receiver <- event_mat[2, e] - 1L
     is_dep <- is_dependent[e]
 
-    present1_ids <- which(active_sender == 1) - 1L
+    # Outer: the sender factor names the senders at risk. Point: the grid
+    # already holds sender presence, so a sender is at risk when its row has
+    # an available cell, and the sender factor is not read.
+    present1_ids <- if (is_point) {
+      which(.rowSums(active_dyad, n_actors1, n_actors2) > 0) - 1L
+    } else {
+      which(active_sender == 1) - 1L
+    }
     # Outer: one receiver vector shared by every sender. Point: each sender reads
     # its own dense mask row (both presences n support already folded in).
     present2_ids <- if (is_point) NULL else which(active_dyad == 1) - 1L

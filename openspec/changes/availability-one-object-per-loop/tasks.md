@@ -40,7 +40,7 @@
       goldens PASS; a constrained REM, REM-ordered and coordination fit at
       point equals the pre-change fit to 1e-12 on cpp (reference captured in
       0.2).
-- [ ] 1.3 `R/estimation_core.R`: drop `folded_full`; a point-encoded dyad
+- [x] 1.3 `R/estimation_core.R`: drop `folded_full`; a point-encoded dyad
       object means no sender reduction and the grid as the mask, an
       outer-encoded one the two factors, and the statistics-array sender
       reduction runs only for the sender loop. `R/cpp_interface.R` gather
@@ -48,7 +48,7 @@
       rows at point. Test: r = cpp = gather on the constrained REM,
       coordination and rate fixtures (`test-support_constraint_rem.R`,
       `_coordination.R`, `_rate.R`) within their existing tolerances.
-- [ ] 1.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 1.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; both 0.2 comparisons PASS; `devtools::document()` for the
       regenerated bindings.
 
