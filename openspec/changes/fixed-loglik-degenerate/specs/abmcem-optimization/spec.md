@@ -71,3 +71,59 @@ evaluator implementation can replace this path with no loop changes.
   log-likelihood and `NA` score and Fisher information, its free sub-models
   are not evaluated, and the pool evaluation completes for the remaining
   sequences.
+
+#### Scenario: a single candidate with a non-finite fixed-only term is degenerate
+- **WHEN** the proposal evaluator scores a single candidate outside any pool
+  and the candidate's fixed-only term is non-finite (`-Inf`, `+Inf`, `NaN` or
+  `NA`)
+- **THEN** the result is `degenerate = TRUE` with a `-Inf` log-likelihood and
+  `NA` score and Fisher information, and no error is raised.
+
+## ADDED Requirements
+
+### Requirement: Fixed-term degeneracy is reported
+
+Each pooled sequence SHALL record why it is degenerate: its preprocessing
+walk failed, or a fixed-only log-likelihood term was non-finite or could not
+be evaluated; in the latter case it SHALL also record the label of the
+sub-model whose term failed. DyNES estimation SHALL count, across every pool
+built or grown during the run, the drawn sequences and those among them
+degenerate for the fixed-only cause, and when the latter count is positive
+SHALL emit exactly one warning of class
+`goldfish_dynes_fixed_term_degenerate` after the optimization loop, stating
+both counts, naming the failing sub-models, and asking the user to report it
+as a goldfish bug. Sequences degenerate only because their walk failed SHALL
+NOT count toward it. The fit's `em_trace` SHALL carry an integer column
+`fixed_degenerate` holding, for each pass, the number of sequences in the
+current pool degenerate for the fixed-only cause.
+When every sequence in the current pool is degenerate for the fixed-only
+cause, the optimization loop SHALL stop before evaluating the pool's
+weights or ascent, under either weighting scheme, returning its last
+accepted parameters with `converged = FALSE`; the warning SHALL then also
+state that estimation stopped because every sequence was dropped.
+
+#### Scenario: a bad pin warns once with its count
+- **WHEN** a DyNES estimation runs with a pinned rate that is `-Inf` in a
+  period holding events of the pooled sequences
+- **THEN** exactly one warning of class
+  `goldfish_dynes_fixed_term_degenerate` is emitted, and it states how many
+  of the drawn sequences were dropped for a non-finite fixed-only term and
+  names the pinned rate's sub-model.
+
+#### Scenario: a fully fixed-term-degenerate pool stops unconverged
+- **WHEN** every sequence in the current pool is degenerate for the
+  fixed-only cause, under importance weighting or under uniform weighting
+- **THEN** the loop stops without computing Q, no error is raised, the fit
+  carries the last accepted parameters with `converged = FALSE`, and the
+  warning states that estimation stopped because every sequence was dropped.
+
+#### Scenario: a walk failure does not count as fixed-term degeneracy
+- **WHEN** a pooled sequence is degenerate because its preprocessing walk
+  failed, and no fixed-only term is non-finite
+- **THEN** its recorded cause is the walk, and it contributes neither to the
+  warning's count nor to the `fixed_degenerate` trace column.
+
+#### Scenario: the trace records the per-pass count
+- **WHEN** a DyNES estimation completes
+- **THEN** its `em_trace` has an integer column `fixed_degenerate`, zero on
+  every pass of a run with no non-finite fixed-only term.

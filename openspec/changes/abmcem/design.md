@@ -1289,6 +1289,10 @@ work) before `abmcem` lands.
      so the follow-up is a small fix change that `## MODIFIED`s that
      requirement once this change is archived. **Gate:** `dynes-augmentation`
      task 6.1 must not wire `wave_times` before it lands.
+     → **Taken up by `fixed-loglik-degenerate`** (2026-10-01; its group 1
+     is the 6.1 gate). That change also stops a run whose whole pool is
+     dropped for a fixed term with `converged = FALSE`, which the D7 stop
+     rule otherwise reports as converged.
   2. **SGD defaults under-step (D6).** `step_size = 0.001`, constant, on a raw
      summed score: on the toy (K = 30, 6–11 free θ) every M-step hit the
      100-iteration cap with gradient norm 0.9–14, Q decayed geometrically, and
@@ -1301,3 +1305,20 @@ work) before `abmcem` lands.
      shared (K_max ≈ 850 vs ≈ 2700 sharded at W = 5, 4820 path events, 12 GB).
      Sharding the store (coordinator plus 1/W of the pool per daemon, tasks
      routed by id) is a performance change for its own proposal.
+
+  Found later (2026-10-01, `fixed-loglik-degenerate` explore pass), numbered
+  to follow `progress.md`, where follow-up 4 is a resolved doc-drift item:
+
+  5. **Uniform weighting ignores `degenerate`.** On the MCMC + refresh path
+     the E-step weights are 1/n whatever a sequence's flag, so a degenerate
+     sequence's `lambda` is `−Inf − (−Inf) = NaN`: Q is NaN, nothing is ever
+     accepted, and the loop aborts with `abort_retries_exhausted()`.
+     Importance weighting escapes only because softmax zeroes `−Inf` and the
+     loop sets `lambda[weights == 0] <- 0`. Any degenerate sequence triggers
+     it (walk failure, singular information, fixed term). A fully
+     fixed-term-degenerate pool is caught earlier by
+     `fixed-loglik-degenerate` D6; a *partly* degenerate pool is not. Rare on
+     MCMC, since the chain rejects `−Inf` candidates and stays degenerate
+     only if it starts there. The fix (drop degenerate sequences from the
+     uniform mean, or zero their `lambda` and renormalize) changes the
+     uniform estimator, so it needs its own change.
