@@ -36,16 +36,18 @@ through the same evaluation.
 }
 \details{
 The specification is completed for joint estimation first. A specification
-that is already completed, such as the one a DyNES fit holds, is used
-unchanged, so its pinned rates keep the plateaus they were pinned on.
+that is already completed, such as the one a DyNES fit holds, keeps its
+pinned rates and the plateaus they were pinned on; each pinned rate is
+announced again with a warning.
 Completed defaults (a pinned intercept-only rate, a uniform choice) and
 \code{offset()} effects have no free coefficient: they add their log-likelihood
 but no score or Fisher information.
 
 A sequence whose likelihood cannot be evaluated at \code{theta} -- its
-preprocessing fails, or the Fisher information of a sub-model is singular
-there -- is reported as \code{degenerate}, with a log-likelihood of \code{-Inf} and
-missing score and information, rather than as an error.
+preprocessing fails, a fixed-only term, such as a pinned rate, has a
+non-finite log-likelihood, or the Fisher information of a sub-model is
+singular there -- is reported as \code{degenerate}, with a log-likelihood of
+\code{-Inf} and missing score and information, rather than as an error.
 }
 \seealso{
 \code{\link[=coef_layout]{coef_layout()}}, \code{\link[=make_joint_specification]{make_joint_specification()}}

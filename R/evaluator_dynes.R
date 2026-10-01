@@ -747,8 +747,11 @@ pool_cpp_eval <- function(sub_model, stats, theta_block) {
 # summed. Computed once per sequence (at pool entry, or once per candidate in
 # the proposal evaluator), since no parameter value can change it. The
 # sub-models must carry their coefficient masks (with_coefficient_masks()). An
-# engine failure marks the sequence degenerate, like a singular free
-# sub-model.
+# engine failure, or a term the engine returns non-finite (a pinned rate whose
+# plateau is -Inf over events), marks the sequence degenerate, like a singular
+# free sub-model. Every non-finite term becomes -Inf, the only value
+# stable_softmax() is sure to weight zero: +Inf would take the whole weight and
+# NaN/NA would poison the normalizer.
 pool_fixed_loglik <- function(sub_models, stats) {
   loglik <- 0
   for (sm in sub_models) {
@@ -759,7 +762,7 @@ pool_fixed_loglik <- function(sub_models, stats) {
       fixed_only_loglik(sm, fid_stats(stats, sm)),
       error = function(e) NULL
     )
-    if (is.null(term)) {
+    if (is.null(term) || !is.finite(term)) {
       return(list(loglik = -Inf, degenerate = TRUE))
     }
     loglik <- loglik + term
@@ -1052,7 +1055,8 @@ make_proposal_evaluator <- function(
 # One sequence outside any pool, scored exactly as a pooled one: walked once
 # (the entry path's walk), its fixed-only term scored, then one pass of
 # evaluate_pool_sequence(). A walk that fails, a fixed-only term the engine
-# cannot score and a singular free block all make the result degenerate
+# cannot score or scores non-finite, and a singular free block all make the
+# result degenerate
 # (-Inf log-likelihood) rather than an error. A candidate that does not fit
 # the engine spec's actors aborts first, outside that guard, so it is never
 # read as a -Inf density.
@@ -1111,9 +1115,10 @@ evaluate_candidate <- function(
 #' but no score or Fisher information.
 #'
 #' A sequence whose likelihood cannot be evaluated at `theta` -- its
-#' preprocessing fails, or the Fisher information of a sub-model is singular
-#' there -- is reported as `degenerate`, with a log-likelihood of `-Inf` and
-#' missing score and information, rather than as an error.
+#' preprocessing fails, a fixed-only term, such as a pinned rate, has a
+#' non-finite log-likelihood, or the Fisher information of a sub-model is
+#' singular there -- is reported as `degenerate`, with a log-likelihood of
+#' `-Inf` and missing score and information, rather than as an error.
 #'
 #' @param sequence The complete sequence: a data object of the specification's
 #'   actors and layers, whose modeled layers hold every event of the sequence.

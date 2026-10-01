@@ -15,7 +15,7 @@
 
 ## 1. A non-finite fixed-only term is degenerate
 
-- [ ] 1.1 (a) Write failing tests in `tests/testthat/test-evaluator_dynes.R`,
+- [x] 1.1 (a) Write failing tests in `tests/testthat/test-evaluator_dynes.R`,
       beside "a fixed-only fid adds a log-likelihood, no score or Fisher
       block", following r-lib:testing-r-packages. Build the pin with a `−Inf`
       first plateau: `make_intercept_only_rate(c(-Inf, -2), model_type =
@@ -45,7 +45,7 @@
       `pool_fixed_loglik()` and `evaluate_sequence_pool()` alike.
       Run the file once to confirm (i)–(iv) are RED and (v)–(vi) are GREEN;
       commit the tests alone (`test(fixed-loglik-degenerate): ...`).
-- [ ] 1.2 (b) In `R/evaluator_dynes.R`, `pool_fixed_loglik()`: treat a
+- [x] 1.2 (b) In `R/evaluator_dynes.R`, `pool_fixed_loglik()`: treat a
       non-finite term like the error path, returning `loglik = -Inf`,
       `degenerate = TRUE` as soon as one is found (design D1, D2). Update the
       function's comment to say that a non-finite term, not only an engine
