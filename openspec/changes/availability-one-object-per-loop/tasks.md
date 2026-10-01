@@ -125,7 +125,7 @@
       before 3.2 and after 3.3 against the design's prediction (one grid
       down); numbers in `progress.md`. NEWS.d bullet: a vector-kind
       constraint on REM or coordination no longer allocates a dyad grid.
-- [ ] 3.5 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 3.5 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; 3.1 guard passes.
 
 ## 4. Handle and simulation read the effect (D4, D5)
