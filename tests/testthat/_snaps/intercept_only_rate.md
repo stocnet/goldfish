@@ -236,7 +236,7 @@
       warn_pinned_rate("calls › rate", consumer = "augmenter")
     Condition
       Error in `match.arg()`:
-      ! 'arg' should be one of "estimate_dynes", "simulate"
+      ! 'arg' should be one of "estimate_dynes", "simulate", "compute_lik_seq"
 
 # warn_pinned_rates warns once per pinned fid, none for an estimated one
 

@@ -1789,7 +1789,10 @@ test_that("compute_lik_seq() is one sequence of the pool evaluator", {
   pooled <- evaluate_sequence_pool(multiwave_pool(spec, sequence), theta)
   local_no_adapter()
 
-  res <- expect_no_warning(compute_lik_seq(spec, sequence, theta))
+  expect_warning(
+    res <- compute_lik_seq(spec, sequence, theta),
+    class = "goldfish_pinned_rate_warning"
+  )
 
   layout <- coef_layout(spec)
   labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
@@ -1808,8 +1811,12 @@ test_that("compute_lik_seq() and the proposal evaluator share one density", {
   sequence <- weights_wired_paths()[[2]]
   eval_fn <- make_proposal_evaluator(decompose_joint_spec(spec), theta)
 
+  expect_warning(
+    lik <- compute_lik_seq(spec, sequence, theta),
+    class = "goldfish_pinned_rate_warning"
+  )
   expect_equal(
-    compute_lik_seq(spec, sequence, theta)$loglik,
+    lik$loglik,
     eval_fn(sequence)$loglik,
     tolerance = 1e-10
   )
@@ -1822,10 +1829,15 @@ test_that("compute_lik_seq() reads a named theta by the coefficient labels", {
   labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
   named <- rev(stats::setNames(theta, labels))
 
-  expect_equal(
-    compute_lik_seq(spec, spec$data, named),
-    compute_lik_seq(spec, spec$data, theta)
+  expect_warning(
+    by_label <- compute_lik_seq(spec, spec$data, named),
+    class = "goldfish_pinned_rate_warning"
   )
+  expect_warning(
+    by_order <- compute_lik_seq(spec, spec$data, theta),
+    class = "goldfish_pinned_rate_warning"
+  )
+  expect_equal(by_label, by_order)
 })
 
 test_that("compute_lik_seq() validates its specification and theta", {

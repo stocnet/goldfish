@@ -59,7 +59,7 @@ expected_families <- function(model) {
 # a missing rate of the timed regime is.
 complete_generative_spec <- function(
   joint_spec,
-  consumer = c("estimate_dynes", "simulate"),
+  consumer = c("estimate_dynes", "simulate", "compute_lik_seq"),
   wave_times = NULL,
   times = NULL,
   call = rlang::caller_env()
@@ -896,7 +896,7 @@ warn_completed_defaults <- function(
       )
       pin_notes <- c(
         pinned_rate_source_note(pin$source),
-        if (identical(consumer, "estimate_dynes")) {
+        if (consumer %in% c("estimate_dynes", "compute_lik_seq")) {
           c(
             "i" = "It carries no standard error and is excluded from
                    estimation."
@@ -966,7 +966,7 @@ warn_kept_pinned_rates <- function(
       c(
         "!" = headline,
         pinned_rate_source_note(completed_rates[[fid]]$source),
-        if (identical(consumer, "estimate_dynes")) {
+        if (consumer %in% c("estimate_dynes", "compute_lik_seq")) {
           c(
             "i" = "It carries no standard error and is excluded from
                    estimation."

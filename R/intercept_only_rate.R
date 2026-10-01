@@ -917,7 +917,7 @@ assert_timed_joint_specification <- function(
 warn_pinned_rate <- function(
   label,
   source = NULL,
-  consumer = c("estimate_dynes", "simulate"),
+  consumer = c("estimate_dynes", "simulate", "compute_lik_seq"),
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)
@@ -926,7 +926,7 @@ warn_pinned_rate <- function(
       "!" = "{.field {label}} is an intercept-only rate ({.code ~ 1}): it is
              {.strong pinned}, not estimated.",
       pinned_rate_source_note(source),
-      if (identical(consumer, "estimate_dynes")) {
+      if (consumer %in% c("estimate_dynes", "compute_lik_seq")) {
         c(
           "i" = "It carries no standard error and is excluded from
                  estimation."
@@ -949,7 +949,7 @@ warn_pinned_rate <- function(
 # with no pinned rate warns about nothing.
 warn_pinned_rates <- function(
   joint_spec,
-  consumer = c("estimate_dynes", "simulate"),
+  consumer = c("estimate_dynes", "simulate", "compute_lik_seq"),
   call = rlang::caller_env()
 ) {
   consumer <- match.arg(consumer)

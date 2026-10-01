@@ -1103,8 +1103,9 @@ evaluate_candidate <- function(
 #'
 #' @details
 #' The specification is completed for joint estimation first. A specification
-#' that is already completed, such as the one a DyNES fit holds, is used
-#' unchanged, so its pinned rates keep the plateaus they were pinned on.
+#' that is already completed, such as the one a DyNES fit holds, keeps its
+#' pinned rates and the plateaus they were pinned on; each pinned rate is
+#' announced again with a warning.
 #' Completed defaults (a pinned intercept-only rate, a uniform choice) and
 #' `offset()` effects have no free coefficient: they add their log-likelihood
 #' but no score or Fisher information.
@@ -1143,13 +1144,7 @@ compute_lik_seq <- function(
       call = call
     )
   }
-  # Completing twice is not a no-op: a second pass re-pins every completed
-  # rate on the default single window, dropping the plateaus it was pinned on.
-  completed <- if ("completed" %in% names(spec$process_map)) {
-    spec
-  } else {
-    complete_generative_spec(spec, consumer = "estimate_dynes")
-  }
+  completed <- complete_generative_spec(spec, consumer = "compute_lik_seq")
   layout <- coef_layout(completed)
   labels <- paste0(layout$process, ": ", layout$name)[!layout$fixed]
   theta <- check_sequence_theta(theta, labels, call = call)
