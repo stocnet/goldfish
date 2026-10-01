@@ -606,12 +606,11 @@ test_that("each flavor's mask is its derived half of the allowed set", {
 
 # --- 5.5 the mask as a stream, and the gate as a counter -------------------- #
 
-test_that("a symmetrised mask is stored at point kind whatever its atoms say", {
-  # `m & t(m)` of a row-constant mask is an outer product, so symmetrising
-  # destroys separability: a coordination constraint whose atoms are all
-  # receiver-axis still has to be stored dense. The atoms' axis-union is kept
-  # separately, because it is what the tree is EVALUATED at -- only the storage
-  # is forced.
+test_that("a symmetrised vector mask keeps its own kind", {
+  # `m & t(m)` of a column-constant mask is the outer product m[i] & m[j], so a
+  # coordination constraint whose atoms are all receiver-axis stays a vector:
+  # the mask is stored at its kind, flagged symmetric, and the availability
+  # folds it into both factors instead of a grid.
   fx <- sparse_mask_data()
   prep <- suppressMessages(suppressWarnings(estimate_dynam(
     calls_dependent ~ inertia,
@@ -622,8 +621,11 @@ test_that("a symmetrised mask is stored at point kind whatever its atoms say", {
   )))
   sm <- prep$support_mask
   expect_identical(sm$mask_kind, 1L)
-  expect_identical(sm$stored_kind, 0L)
-  expect_identical(dim(sm$initial), c(fx$n_actors, fx$n_actors))
+  expect_identical(sm$stored_kind, 1L)
+  expect_true(sm$symmetric)
+  expect_null(dim(sm$initial))
+  expect_length(sm$initial, fx$n_actors)
+  expect_identical(prep$active_dyad_encoding, "outer")
 
   # The control: the same constraint on a non-symmetric family keeps its
   # separable storage.
@@ -727,9 +729,11 @@ test_that("a sender-axis-only constraint allocates no dyad mask", {
 
 test_that("the shared mask serves sub-models that store it differently", {
   # A layer's rate and its COORDINATION choice share one atom pool and one
-  # evaluation, and differ only in whether the stored mask is symmetrised. That
-  # is the case the per-request `symmetric` exists for: sharing the pool must
-  # not force one sub-model to store the other's shape.
+  # evaluation, and differ only in whether the mask is symmetrised. That is
+  # the case the per-request `symmetric` exists for: sharing the pool must not
+  # force one sub-model to store the other's shape. A vector mask is stored at
+  # its kind either way, its symmetry left to the coordination availability's
+  # two factors, so both read the one maintainer.
   fx <- sparse_mask_data()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -749,6 +753,11 @@ test_that("the shared mask serves sub-models that store it differently", {
     function(out) out$support_mask$stored_kind,
     integer(1)
   )
-  # One sub-model stores the separable mask, the other the symmetrised grid.
-  expect_setequal(kinds, c(0L, 1L))
+  expect_identical(unname(kinds), c(1L, 1L))
+  symmetric <- vapply(
+    counts$value,
+    function(out) out$support_mask$symmetric,
+    logical(1)
+  )
+  expect_setequal(symmetric, c(FALSE, TRUE))
 })

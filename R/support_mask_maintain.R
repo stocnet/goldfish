@@ -166,7 +166,8 @@ build_constraint_atom_store <- function(
     model = model,
     sub_model = sub_plan$atom_sub_model,
     envir = prep_envir,
-    src = src
+    src = src,
+    at_kind = atom_kinds
   )
 
   net_update_lookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
@@ -209,11 +210,17 @@ build_constraint_atom_store <- function(
   atom_state <- new.env(parent = emptyenv())
   initial <- vector("list", n_atoms)
   for (a in seq_len(n_atoms)) {
-    seeded <- reduce_value(
-      matrix(stat_cache[[a]]$stat, n1, n2),
-      0L,
-      atom_kinds[a]
-    )
+    # A vector-kind atom is seeded at its kind; only a point atom, or one
+    # whose effect has no kind-shaped init, goes through the grid.
+    seeded <- if (identical(stat_cache[[a]]$at_kind, atom_kinds[a])) {
+      stat_cache[[a]]$stat
+    } else {
+      reduce_value(
+        matrix(stat_cache[[a]]$stat, n1, n2),
+        0L,
+        atom_kinds[a]
+      )
+    }
     assign(as.character(a), seeded, envir = atom_state)
     initial[[a]] <- copy_atom_buffer(seeded)
   }

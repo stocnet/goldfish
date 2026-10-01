@@ -23,8 +23,11 @@
 #   outer    choice with a sender-only mask: receiver presence alone.
 #   point    choice with a dyadic mask or an opportunity list: the grid of
 #            present receivers each sender is allowed.
-#   dyad     REM and coordination with a constraint: both presences and the
-#            mask on the grid, coordination symmetrised.
+#   dyad     REM and coordination with a point-kind constraint: both
+#            presences and the mask on the grid, coordination symmetrised.
+#   factors  REM and coordination with an alter-, ego- or global-kind
+#            constraint: two factor vectors, cell (i, j) = f1[i] & f2[j],
+#            each a presence with the mask folded in at its own axis.
 #
 # The stored encodings are the ones the post-walk folds produced, so the
 # engines read them unchanged. The point grid is the true availability of
@@ -91,17 +94,27 @@ new_availability_effect <- function(
   av$check <- NULL
   av$count <- NULL
   if (count && !is.null(mask)) {
-    av$count <- as.double(initial_receiver_count(
-      mask$value(),
-      stored_kind,
-      av$p2,
-      n1,
-      n2,
-      drop_diagonal
-    ))
+    av$count <- if (symmetric_vector_mask(av)) {
+      symmetric_receiver_count(av)
+    } else {
+      as.double(initial_receiver_count(
+        mask$value(),
+        stored_kind,
+        av$p2,
+        n1,
+        n2,
+        drop_diagonal
+      ))
+    }
   }
   if (identical(variant, "presence")) {
     av$n_at_risk <- sum(av$p1)
+  }
+  if (identical(variant, "factors")) {
+    av$value1 <- NULL
+    av$sum1 <- 0
+    av$sum2 <- 0
+    av$sum_self <- 0
   }
   if (identical(variant, "presence_dyad")) {
     av$n_senders <- sum(av$p1)
@@ -115,6 +128,21 @@ new_availability_effect <- function(
     av$node2 <- double(256L)
     av$repl <- double(256L)
     av$n_emitted <- 0L
+    if (identical(variant, "factors")) {
+      # The sender factor's own stream, kept the way the receiver one is.
+      side1 <- new.env(parent = emptyenv())
+      side1$variant <- "alter"
+      side1$n1 <- n1
+      side1$record <- TRUE
+      side1$rows <- 0L
+      side1$init <- NULL
+      side1$n_changes <- integer(64L)
+      side1$node1 <- double(256L)
+      side1$node2 <- NULL
+      side1$repl <- double(256L)
+      side1$n_emitted <- 0L
+      av$side1 <- side1
+    }
   }
   av
 }
@@ -194,7 +222,8 @@ availability_step <- function(
       alter = ,
       outer = availability_step_receivers(av, receivers, first),
       point = availability_step_point(av, receivers, sender, first),
-      dyad = availability_step_dyad(av, senders, receivers, first)
+      dyad = availability_step_dyad(av, senders, receivers, first),
+      factors = availability_step_factors(av, senders, receivers, first)
     )
   }
   av$exposure <- av$exposure + interval * av$n_at_risk
@@ -260,6 +289,18 @@ availability_step_gate <- function(av, affected, first) {
 
 # One batch of mask flips on the counts; returns the senders it touched.
 availability_gate_flips <- function(av, flips) {
+  if (symmetric_vector_mask(av)) {
+    # A flip of m[k] moves every sender's count by receiver k and sender k's
+    # own gate m[k] at once, so the counts are read afresh off the vector.
+    count <- av$count
+    av$count <- NULL
+    av$count <- write_entries(
+      count,
+      seq_len(av$n1),
+      symmetric_receiver_count(av)
+    )
+    return(seq_len(av$n1))
+  }
   entries <- flips$entries
   values <- flips$values
   n1 <- av$n1
@@ -332,13 +373,21 @@ availability_gate_receiver <- function(av, node, value) {
   }
   n1 <- av$n1
   mask <- av$mask$value()
-  reached <- switch(
-    as.character(av$kind),
-    "0" = which(as.logical(mask[(node - 1L) * n1 + seq_len(n1)])),
-    "1" = if (isTRUE(as.logical(mask[[node]]))) seq_len(n1) else integer(0),
-    "2" = which(as.logical(mask)),
-    "3" = if (isTRUE(as.logical(mask))) seq_len(n1) else integer(0)
-  )
+  reached <- if (symmetric_vector_mask(av)) {
+    if (isTRUE(as.logical(mask[[node]]))) {
+      which(as.logical(mask))
+    } else {
+      integer(0)
+    }
+  } else {
+    switch(
+      as.character(av$kind),
+      "0" = which(as.logical(mask[(node - 1L) * n1 + seq_len(n1)])),
+      "1" = if (isTRUE(as.logical(mask[[node]]))) seq_len(n1) else integer(0),
+      "2" = which(as.logical(mask)),
+      "3" = if (isTRUE(as.logical(mask))) seq_len(n1) else integer(0)
+    )
+  }
   if (av$drop_diagonal && node <= n1) {
     reached <- reached[reached != node]
   }
@@ -356,6 +405,22 @@ availability_gate_receiver <- function(av, node, value) {
   av$n_present2 <- av$n_present2 + delta
   availability_track_receiver(av, node, value)
   reached
+}
+
+# Whether the mask is a vector stored at its own kind whose cell is
+# symmetrised: coordination's m[i] & m[j], which no stored grid carries.
+symmetric_vector_mask <- function(av) {
+  isTRUE(av$symmetric) && isTRUE(av$kind %in% c(1L, 2L))
+}
+
+# Each sender's count of allowed present receivers under a symmetric vector
+# mask: m[i] times the present receivers m allows, less its own cell.
+symmetric_receiver_count <- function(av) {
+  allowed <- as.logical(av$mask$value())
+  reachable <- sum(allowed & av$p2)
+  own <- if (av$drop_diagonal) allowed[seq_len(av$n1)] & av$p2[seq_len(av$n1)]
+  as.double(allowed[seq_len(av$n1)]) *
+    (reachable - if (is.null(own)) 0 else own)
 }
 
 ## Rate presence ----
@@ -589,6 +654,128 @@ transposed_entries <- function(entries, n1) {
   (rows - 1L) * n1 + cols
 }
 
+## REM and coordination, factor form ----
+
+# A vector-kind mask on a dyad loop factors: cell (i, j) is f1[i] & f2[j].
+# The mask folds into the factor of its own axis -- an alter-kind or global
+# mask into the receiver factor, an ego-kind one into the sender factor --
+# and, symmetrised for coordination, a vector mask folds into both, since the
+# symmetric cell m[i] & m[j] is the outer product of the vector with itself.
+# A global mask is a scalar, so its symmetric fold is itself. A sender moving
+# reaches its entry of f1, a receiver its entry of f2, a mask flip the entries
+# of the factor it folds into (all of them for a global flip).
+availability_step_factors <- function(av, senders, receivers, first) {
+  if (first) {
+    av$value1 <- availability_factor(av, 1L, seq_len(av$n1)) & TRUE
+    availability_open(av, availability_factor(av, 2L, seq_len(av$n2)))
+    av$sum1 <- sum(av$value1)
+    av$sum2 <- sum(av$value)
+    av$sum_self <- availability_factor_self(av, seq_len(min(av$n1, av$n2)))
+    av$n_at_risk <- av$sum1 * av$sum2 - av$sum_self
+    if (av$record) {
+      av$side1$init <- av$value1 & TRUE
+      av$side1$rows <- av$rows
+      availability_emit(av$side1, integer(0), logical(0))
+    }
+    return(invisible(NULL))
+  }
+  reached1 <- senders
+  reached2 <- receivers
+  for (flips in av$pending) {
+    if (availability_factor_folds(av, 1L)) {
+      reached1 <- c(reached1, flips$entries)
+    }
+    if (availability_factor_folds(av, 2L)) {
+      reached2 <- c(
+        reached2,
+        if (av$kind == 3L) seq_len(av$n2) else flips$entries
+      )
+    }
+  }
+  flips1 <- availability_factor_flips(av, 1L, reached1)
+  flips2 <- availability_factor_flips(av, 2L, reached2)
+  availability_write_factor(av, 1L, flips1)
+  availability_write_factor(av, 2L, flips2)
+  av$n_at_risk <- av$sum1 * av$sum2 - av$sum_self
+  availability_emit(av, flips2$entries, flips2$values)
+  if (av$record) {
+    av$side1$rows <- av$rows
+    availability_emit(av$side1, flips1$entries, flips1$values)
+  }
+  invisible(NULL)
+}
+
+# Whether the mask folds into factor `side` (1 sender, 2 receiver).
+availability_factor_folds <- function(av, side) {
+  kind <- av$kind
+  vector_mask <- kind %in% c(1L, 2L)
+  if (side == 1L) {
+    kind == 2L || (av$symmetric && vector_mask)
+  } else {
+    kind %in% c(1L, 3L) || (av$symmetric && vector_mask)
+  }
+}
+
+# Factor `side` at entries `at`, from presence and the mask.
+availability_factor <- function(av, side, at) {
+  base <- if (side == 1L) av$p1[at] else av$p2[at]
+  if (!availability_factor_folds(av, side)) {
+    return(base)
+  }
+  mask <- av$mask$value()
+  allowed <- if (av$kind == 3L) {
+    rep(as.logical(mask), length(at))
+  } else {
+    as.logical(mask[at])
+  }
+  base & allowed
+}
+
+# How many of the self-dyads at entries `at` both factors hold; zero unless
+# the self-dyad is no dyad (one node set).
+availability_factor_self <- function(av, at) {
+  if (!av$drop_diagonal || length(at) == 0L) {
+    return(0)
+  }
+  sum(av$value1[at] & av$value[at])
+}
+
+availability_factor_flips <- function(av, side, reached) {
+  if (length(reached) == 0L) {
+    return(list(entries = integer(0), values = logical(0)))
+  }
+  reached <- sort(unique(reached))
+  current <- if (side == 1L) av$value1 else av$value
+  changed_entries(current, reached, availability_factor(av, side, reached))
+}
+
+# Write one factor's flips in place and move the sums the count at risk is
+# made of: the factor's own sum, and the self-dyads its flipped entries are
+# half of.
+availability_write_factor <- function(av, side, flips) {
+  entries <- flips$entries
+  if (length(entries) == 0L) {
+    return(invisible(NULL))
+  }
+  values <- flips$values
+  step <- sum(values) - sum(!values)
+  self <- entries[entries <= min(av$n1, av$n2)]
+  self_before <- availability_factor_self(av, self)
+  if (side == 1L) {
+    value <- av$value1
+    av$value1 <- NULL
+    av$value1 <- write_entries(value, entries, values)
+    av$sum1 <- av$sum1 + step
+  } else {
+    value <- av$value
+    av$value <- NULL
+    av$value <- write_entries(value, entries, values)
+    av$sum2 <- av$sum2 + step
+  }
+  av$sum_self <- av$sum_self - self_before + availability_factor_self(av, self)
+  invisible(NULL)
+}
+
 ## Shared bookkeeping ----
 
 # The first row: the value is computed whole, once, and the stream's initial
@@ -734,14 +921,25 @@ availability_finish <- function(av, out) {
     out$active_sender_update_pointer <- stream$pointer
     return(out)
   }
+  if (identical(av$variant, "factors")) {
+    # The outer encoding's sender factor rides as the object's own second
+    # factor, in the sender availability fields.
+    av$side1$rows <- av$rows
+    sender <- availability_stream(av$side1)
+    out$active_sender_init <- sender$init
+    out$active_sender_update <- sender$update
+    out$active_sender_update_pointer <- sender$pointer
+  }
   out$active_dyad_init <- stream$init
   out$active_dyad_update <- stream$update
   out$active_dyad_update_pointer <- stream$pointer
-  out$active_dyad_encoding <- if (av$variant %in% c("dyad", "point")) {
-    "point"
-  } else {
+  out$active_dyad_encoding <- switch(
+    av$variant,
+    dyad = ,
+    point = "point",
+    factors = "outer",
     av$variant
-  }
+  )
   out
 }
 
@@ -903,6 +1101,8 @@ availability_check_event <- function(av, row, sender, receiver) {
     mask <- av$mask$value()
     allowed_row <- if (av$kind == 0L) {
       as.logical(mask[sender + ck$row_offsets])
+    } else if (symmetric_vector_mask(av)) {
+      as.logical(mask) & isTRUE(as.logical(mask[[sender]]))
     } else {
       support_row(mask, av$kind, sender, av$n1, n2)
     }

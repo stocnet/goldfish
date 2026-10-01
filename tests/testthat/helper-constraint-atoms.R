@@ -565,3 +565,64 @@ availability_cells <- function(x) {
   )
   Map(\(f1, f2) as.vector(outer(f1, f2, "&")), sender, receiver)
 }
+
+# A REM on generated data large enough that a dyad grid stands out: at 1500
+# actors one logical grid is 8.6 MB. `allow` excludes five actors no call
+# touches, and ten others leave and re-enter, so `~ alter(allow) > 0` with
+# receiver composition changes excludes no observed event.
+availability_cost_rem_data <- function(
+  n_actors = 1500L,
+  n_calls = 3000L,
+  seed = 1L
+) {
+  withr::local_seed(seed)
+  calls <- data.frame(
+    from = sample.int(n_actors, n_calls, replace = TRUE),
+    to = sample.int(n_actors, n_calls, replace = TRUE)
+  )
+  calls <- calls[calls$from != calls$to, ]
+  calls$time <- sort(stats::runif(nrow(calls), 0, 100))
+  idle <- setdiff(seq_len(n_actors), c(calls$from, calls$to))
+  allow <- rep(1, n_actors)
+  allow[idle[1:5]] <- 0
+  churn <- idle[6:15]
+  changes <- data.frame(
+    time = c(sort(stats::runif(10, 0, 50)), sort(stats::runif(10, 50, 100))),
+    node = c(churn, churn),
+    var = "active"
+  )
+  changes$value <- c(rep(list(list(FALSE)), 10), rep(list(list(TRUE)), 10))
+  changes <- changes[order(changes$time), ]
+  list(
+    info = list(
+      name = "rem availability cost",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = sprintf("A%04d", seq_len(n_actors)),
+      mode = "p",
+      allow = allow,
+      stringsAsFactors = FALSE
+    ),
+    ties = cbind(calls, layer = "calls"),
+    changes = changes
+  )
+}
+
+availability_cost_rem_prep <- function(data, constraint = NULL) {
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + inertia,
+    model = "REM",
+    layer = "calls",
+    data = data,
+    support_constraint = constraint
+  ))
+  suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  ))
+}

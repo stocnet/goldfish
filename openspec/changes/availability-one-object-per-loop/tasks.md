@@ -98,14 +98,14 @@
 
 ## 3. REM and coordination at the outer encoding (D3)
 
-- [ ] 3.1 Cost guard, recorded failing first: on a 1500-actor generated REM
+- [x] 3.1 Cost guard, recorded failing first: on a 1500-actor generated REM
       fixture (`constraint_cost_data()` shape) with `~ alter(attr) > 0` and
       receiver composition changes, `lobstr::obj_size()` of the preprocessed
       object is under 4 x `(n1 + n2)` x 4 bytes above the unconstrained
       object, and `bench::bench_memory()` of the walk shows no allocation of
       `n1 * n2` logicals or doubles. Record the failing numbers (today one
       grid plus columns).
-- [ ] 3.2 `R/preprocess_joint.R` `build_engine_availability()`: a constrained
+- [x] 3.2 `R/preprocess_joint.R` `build_engine_availability()`: a constrained
       REM or coordination fid takes `active_dyad_encoding_decide()`'s
       verdict; point for a point-kind atom or an opportunity list, outer
       otherwise; coordination with `n1 != n2` falls back to point (asserted).

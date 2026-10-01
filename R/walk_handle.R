@@ -1171,12 +1171,17 @@ walk_build_live_masks <- function(engines, recorders) {
       ]]
       s <- which(vapply(recorders$stores, identical, logical(1), store))
       mask_kind <- as.integer(sub_plan$mask_kind)
-      stored_kind <- if (symmetric) 0L else mask_kind
+      # A symmetric point mask is stored symmetrised, on the grid. A symmetric
+      # vector mask is stored at its own kind: its symmetric cell m[i] & m[j]
+      # is the outer product of the vector, which its consumers fold into
+      # both factors of the availability without a grid.
+      symmetrize_grid <- symmetric && mask_kind == 0L
+      stored_kind <- mask_kind
       maintainer_key <- paste(
         paste(deparse(sub_plan$expr), collapse = ""),
         paste(sub_plan$atom_labels, collapse = "\r"),
         mask_kind,
-        symmetric,
+        symmetrize_grid,
         sep = "\v"
       )
       m <- match(maintainer_key, live$maintainer_keys[[s]])
@@ -1185,7 +1190,7 @@ walk_build_live_masks <- function(engines, recorders) {
           walk_live_atoms(store),
           sub_plan$expr,
           sub_plan$atom_labels,
-          symmetric,
+          symmetrize_grid,
           mask_kind,
           stored_kind
         )
@@ -1321,7 +1326,13 @@ walk_risk_set <- function(handle, engine, fid) {
       encoding = "alter"
     ),
     point = ,
-    dyad = list(active_sender = p1, active_dyad = av$value, encoding = "point")
+    dyad = list(active_sender = p1, active_dyad = av$value, encoding = "point"),
+    # REM and coordination with a vector-kind mask: the effect's two factors.
+    factors = list(
+      active_sender = av$value1,
+      active_dyad = av$value,
+      encoding = "outer"
+    )
   )
 }
 

@@ -7,7 +7,10 @@ dyad is active only when both directions are allowed. A mask of alter, ego or
 global kind SHALL be symmetrized without a grid: the symmetric cell `(i, j)` of
 a vector mask `m` is `m[i] & m[j]`, so the availability is stored at the outer
 encoding with the mask vector folded into both factors, and a point value
-SHALL NOT be allocated for it. (Directed-REM asymmetry is out of
+SHALL NOT be allocated for it. Such a mask SHALL itself be maintained and
+stored at its own kind with `symmetric = TRUE` marking that its cell is the
+outer product, and the observed-event check SHALL read sender `i`'s allowed
+receivers as `m[i] & m`. (Directed-REM asymmetry is out of
 scope — deferred to the `review-rem-directed` change.)
 
 #### Scenario: one-directional allowance excludes the coordination dyad

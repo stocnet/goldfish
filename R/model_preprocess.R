@@ -567,7 +567,8 @@ initialize_cache_stat <- function(
   model,
   sub_model,
   envir = environment(),
-  src = NULL
+  src = NULL,
+  at_kind = NULL
 ) {
   obj_table <- get_data_objects(
     list(rownames(objects_effects_link)),
@@ -623,6 +624,13 @@ initialize_cache_stat <- function(
         n1 = n1,
         n2 = n2
       )
+      kind <- if (is.null(at_kind)) 0L else at_kind[[i_eff]]
+      if (kind > 0L) {
+        seeded <- init_at_kind(label_effect, kind, .args_fun)
+        if (!is.null(seeded)) {
+          return(seeded)
+        }
+      }
       call_fun(
         effects,
         i_eff,
@@ -633,6 +641,51 @@ initialize_cache_stat <- function(
       )
     }
   )
+}
+
+# An effect's initial value at a broadcast kind, without the dense n1 x n2
+# grid its dyad init builds. Every vector-kind dyad init is a per-node vector
+# (or a scalar) broadcast down the grid: the attribute itself for `alter`, the
+# sender-side init's value for `ego`, `global` and the degree counts, whose
+# cache it also returns. `NULL` for any other effect, or when the value does
+# not have the kind's length (an empty network's degree init sizes its value
+# by the senders), so the caller takes the grid and reduces it.
+init_at_kind <- function(label, kind, args) {
+  name <- sub("\\(.*$", "", label)
+  n1 <- args$n1
+  n2 <- args$n2
+  seeded <- switch(
+    name,
+    alter = list(stat = as.numeric(args$attribute)),
+    ego = init_DyNAM_rate.ego(
+      args$effect_fun,
+      args$attribute,
+      n1,
+      n2
+    ),
+    global = init_DyNAM_rate.global(args$effect_fun, args$attribute, 1L, n2),
+    indeg = init_DyNAM_rate.indeg(
+      args$effect_fun,
+      args$network,
+      args$window,
+      n1,
+      n2
+    ),
+    outdeg = init_DyNAM_rate.outdeg(
+      args$effect_fun,
+      args$network,
+      args$window,
+      n1,
+      n2
+    ),
+    NULL
+  )
+  if (is.null(seeded) || length(seeded$stat) != kind_length(kind, n1, n2)) {
+    return(NULL)
+  }
+  seeded$stat <- as.numeric(seeded$stat)
+  seeded$at_kind <- kind
+  seeded
 }
 
 

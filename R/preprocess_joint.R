@@ -1417,11 +1417,25 @@ build_engine_availability <- function(
     }
     # The observed-event check reads each sender's allowed-receiver count,
     # which only the rate gate needs for its own value.
+    # A REM or coordination mask of alter, ego or global kind is two factor
+    # vectors; only a point-kind one needs the grid. Coordination's
+    # symmetrisation folds a vector mask into both factors, which needs both
+    # factors on one node set.
     if (risk_set_is_dyadic(spec)) {
+      symmetric <- risk_set_symmetrize(spec)
+      encoding <- active_dyad_encoding_decide(
+        "outer",
+        constraint$mask_kind,
+        has_opportunity = FALSE
+      )
+      factors <- identical(encoding, "outer") &&
+        !is.null(entry) &&
+        entry$stored_kind > 0L &&
+        (!symmetric || ctx$n1 == ctx$n2)
       return(effect(
-        "dyad",
+        if (factors) "factors" else "dyad",
         entry,
-        symmetric = risk_set_symmetrize(spec),
+        symmetric = symmetric,
         count = record
       ))
     }

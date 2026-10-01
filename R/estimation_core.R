@@ -722,7 +722,8 @@ event_contribution_rate <- function(
   allowReflexive,
   is_two_mode,
   isREM,
-  active_dyad_mask = NULL
+  active_dyad_mask = NULL,
+  self_dyads = NULL
 ) {
   activeActor <- activeDyad[1]
   dimMatrix <- dim(statsArray)
@@ -757,7 +758,11 @@ event_contribution_rate <- function(
   dontConsiderSelfConnecting <- isREM &&
     !allowReflexive &&
     !is_two_mode
-  if (dontConsiderSelfConnecting) {
+  if (!is.null(self_dyads)) {
+    # Rows and columns reduced by different sets: the self-dyads are named by
+    # actor rather than read off a square diagonal.
+    idEdgeNotConsidered <- self_dyads
+  } else if (dontConsiderSelfConnecting) {
     idEdgeNotConsidered <- (seq_len(dimMatrix[1]) - 1) *
       dimMatrix[1] +
       seq_len(dimMatrix[1])
@@ -893,7 +898,8 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  active_dyad_mask = NULL
+  active_dyad_mask = NULL,
+  self_dyads = NULL
 ) {
   event_contribution_rate(
     statsArray,
@@ -904,7 +910,8 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
     allowReflexive,
     is_two_mode,
     isREM = TRUE,
-    active_dyad_mask = active_dyad_mask
+    active_dyad_mask = active_dyad_mask,
+    self_dyads = self_dyads
   )
 }
 
@@ -1053,7 +1060,8 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  active_dyad_mask = NULL
+  active_dyad_mask = NULL,
+  self_dyads = NULL
 ) {
   multinomial <-
     getMultinomialProbabilities(
@@ -1062,7 +1070,8 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
       parameters,
       actorNested = FALSE,
       allowReflexive = FALSE,
-      active_dyad_mask = active_dyad_mask
+      active_dyad_mask = active_dyad_mask,
+      self_dyads = self_dyads
     )
   eventProbabilities <- multinomial$probabilities
   # log-space observed logL (finite under underflow)
@@ -1471,6 +1480,22 @@ compute_step.default <- function(spec, state, i, ctx) {
   # mask, kept whole because no axis reduction was applied above.
   if (ctx$dyad_point) {
     contrib_args$active_dyad_mask <- state$presence2
+  }
+  # A REM object at the outer encoding reduces the senders by one factor and
+  # the receivers by the other. A mask on one axis makes the two sets differ,
+  # so the reduced array need not be square and its self-dyads need not lie
+  # on its diagonal: they are named by actor instead.
+  if (
+    ctx$is_rem &&
+      !ctx$dyad_point &&
+      !ctx$is_two_mode &&
+      !allowReflexiveCorrected &&
+      !identical(sender_slots, receiver_slots)
+  ) {
+    self_row <- match(receiver_slots, sender_slots)
+    self_col <- which(!is.na(self_row))
+    contrib_args$self_dyads <- self_row[self_col] +
+      (self_col - 1L) * length(sender_slots)
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
@@ -2583,7 +2608,8 @@ getMultinomialProbabilities <- function(
   actorNested = TRUE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
-  active_dyad_mask = NULL
+  active_dyad_mask = NULL,
+  self_dyads = NULL
 ) {
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
@@ -2608,7 +2634,11 @@ getMultinomialProbabilities <- function(
     dim(statsArray) <- c(matrixSize, length(parameters))
     linearPredictor <- statsArray %*% parameters
     dim(linearPredictor) <- c(nActors1, nActors2)
-    if (!allowReflexive && !is_two_mode) {
+    # `self_dyads` names the self-dyads of an array whose rows and columns
+    # were reduced by different sets, so that they are off its diagonal.
+    if (!is.null(self_dyads)) {
+      linearPredictor[self_dyads] <- -Inf
+    } else if (!allowReflexive && !is_two_mode) {
       diag(linearPredictor) <- -Inf
     }
     # A support_constraint (ordinal REM / coordination) removes disallowed dyads
