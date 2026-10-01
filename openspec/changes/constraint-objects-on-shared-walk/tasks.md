@@ -497,10 +497,18 @@
       by 2.3a) gains the walk, handle and check bullets and the refusal of
       constrained objects from an earlier version (4.6); the
       simulation-tests fragment added. No `NEWS.md` or Version edit.
-- [ ] 6.3 Vault: ADR-0073 `spec:`/open questions current; dashboard
+- [x] 6.3 Vault: ADR-0073 `spec:`/open questions current; dashboard
       fragment in `_dashboard-inbox/`; session note closed; the open extent
       cell handed to `observation-tail-right-censoring` in its own
       `progress.md` note.
-- [ ] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines
+      — *done 2026-10-01 (goldfish-ce)*: ADR-0073 discussion log brought
+      current (ADR-0103, ADR-0105, ADR-0106, ADR-0108, the fixtures; its
+      ADR-0068 link path repaired); dashboard fragment written; session note
+      `2026-10-01-constraint-objects-availability-effect-and-fixtures`
+      closed; the extent cell handed to `observation-tail-right-censoring`
+      in its `progress.md` (claimed for the write, released).
+- [x] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `status: landed (feature_simulation, awaiting fold)` in
       `proposal.md`.
+      — *done 2026-10-01 (goldfish-ce), suite on `d79f200`*: 10774 / 0 / 5,
+      six baseline files PASS; `proposal.md` marked landed.
