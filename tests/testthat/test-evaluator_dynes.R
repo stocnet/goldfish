@@ -534,10 +534,10 @@ fixed_only_free_rate <- function(data = fixed_only_data()) {
 }
 
 # A two-plateau pin, the object `spec$completed_rates` holds for a completed
-# timed rate: log-hazard -1 on [0, 10), -2 on [10, 20].
-fixed_only_pinned_rate <- function() {
+# timed rate: log-hazard -1 on [0, 10), -2 on [10, 20] by default.
+fixed_only_pinned_rate <- function(plateaus = c(-1, -2)) {
   make_intercept_only_rate(
-    c(-1, -2),
+    plateaus,
     model_type = "DyNAM-M-Rate",
     wave_times = c(0, 10, 20)
   )
@@ -553,13 +553,24 @@ fixed_only_pinned_submodel <- function() {
   )
 }
 
-fixed_only_with_pinned <- function(data = fixed_only_data()) {
+fixed_only_with_pinned <- function(
+  data = fixed_only_data(),
+  pinned_rate = fixed_only_pinned_rate()
+) {
   hand_decomposition(
     data,
     rate = ~1,
     choice = ~ inertia + recip,
     theta_index = list(choice = 1:2),
-    pinned_rate = fixed_only_pinned_rate()
+    pinned_rate = pinned_rate
+  )
+}
+
+# The fixed-only term of one sequence, scored the way pool entry scores it.
+fixed_only_term <- function(decomposition, data = fixed_only_data()) {
+  pool_fixed_loglik(
+    with_coefficient_masks(decomposition$sub_models, data),
+    preprocess_pool_sequence(decomposition$engine_spec, data)
   )
 }
 
@@ -645,6 +656,71 @@ test_that("a fixed-only fid adds a log-likelihood, no score or Fisher block", {
   c2 <- -2
   pinned <- 3 * c1 + 3 * c2 - exp(c1) * 4 * 9 - exp(c2) * 4 * 5
   expect_equal(res$loglik[[1]], base$loglik[[1]] + pinned, tolerance = 1e-10)
+})
+
+test_that("a -Inf pin over events makes the sequence degenerate", {
+  theta <- c(0.3, -0.2)
+  # Period 1 holds the events at 1, 3, 6: each adds a -Inf log-hazard, which
+  # the engine sums without erroring.
+  decomposition <- fixed_only_with_pinned(
+    pinned_rate = fixed_only_pinned_rate(c(-Inf, -2))
+  )
+
+  expect_identical(
+    fixed_only_term(decomposition),
+    list(loglik = -Inf, degenerate = TRUE)
+  )
+
+  pooled <- evaluate_sequence_pool(fixed_only_pool(decomposition), theta)
+  expect_true(pooled$degenerate[[1]])
+  expect_identical(pooled$loglik[[1]], -Inf)
+  expect_true(all(is.na(pooled$score)))
+  expect_true(all(is.na(pooled$fisher[[1]])))
+
+  single <- expect_no_error(
+    evaluate_candidate(decomposition, fixed_only_data(), theta)
+  )
+  expect_true(single$degenerate)
+  expect_identical(single$loglik, -Inf)
+  expect_true(all(is.na(single$score)))
+  expect_true(all(is.na(single$fisher)))
+})
+
+test_that("any non-finite fixed-only term is normalized to a -Inf degenerate", {
+  theta <- c(0.3, -0.2)
+  decomposition <- fixed_only_with_pinned()
+  for (bad in list(Inf, NaN, NA_real_)) {
+    local_mocked_bindings(fixed_only_loglik = function(sub_model, stats) bad)
+    expect_identical(
+      fixed_only_term(decomposition),
+      list(loglik = -Inf, degenerate = TRUE)
+    )
+    single <- evaluate_candidate(decomposition, fixed_only_data(), theta)
+    expect_true(single$degenerate)
+    expect_identical(single$loglik, -Inf)
+    expect_true(all(is.na(single$score)))
+    expect_true(all(is.na(single$fisher)))
+  }
+})
+
+test_that("a finite pin, or a -Inf pin over no events, stays non-degenerate", {
+  theta <- c(0.3, -0.2)
+  expect_false(fixed_only_term(fixed_only_with_pinned())$degenerate)
+
+  # Period 2 of this path holds no events, the intended use of a zero-count
+  # pin: its -Inf plateau only zeroes that period's exposure term.
+  quiet <- fixed_only_data(calls_time = c(1, 2, 3, 5, 6, 8))
+  decomposition <- fixed_only_with_pinned(
+    quiet,
+    pinned_rate = fixed_only_pinned_rate(c(-2, -Inf))
+  )
+  term <- fixed_only_term(decomposition, quiet)
+  expect_false(term$degenerate)
+  expect_true(is.finite(term$loglik))
+
+  pooled <- evaluate_sequence_pool(fixed_only_pool(decomposition, quiet), theta)
+  expect_false(pooled$degenerate[[1]])
+  expect_true(is.finite(pooled$loglik[[1]]))
 })
 
 test_that("the fixed-only term is path-dependent but cancels in the reweight", {
