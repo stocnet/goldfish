@@ -1839,3 +1839,22 @@ test_that("compute_lik_seq() validates its specification and theta", {
     compute_lik_seq(spec, spec$data, c(a = 0, b = 0, c = 0))
   })
 })
+
+test_that("compute_lik_seq() names itself in the completion warning", {
+  local_cli_context()
+  spec <- dynes_pinned_raw_spec(indeg_friendship_choice)
+  sequence <- weights_wired_paths()[[2]]
+  theta <- c(0.3, -1.2, 0.4)
+
+  warned <- character()
+  withCallingHandlers(
+    compute_lik_seq(spec, sequence, theta),
+    warning = function(w) {
+      warned <<- c(warned, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_length(warned, 2L)
+  expect_match(warned, "compute_lik_seq", all = TRUE)
+  expect_snapshot(res <- compute_lik_seq(spec, sequence, theta))
+})
