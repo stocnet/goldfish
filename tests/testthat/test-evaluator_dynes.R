@@ -785,7 +785,12 @@ test_that("the pool store tallies drawn and fixed-term sequences", {
   )
   expect_identical(
     pool$store$tally,
-    list(built = 1L, fixed_term = 1L, labels = "calls (rate)")
+    list(
+      built = 1L,
+      fixed_term = 1L,
+      labels = "calls (rate)",
+      pool_dropped = FALSE
+    )
   )
 
   pool <- append_sequence_pool(
@@ -794,7 +799,12 @@ test_that("the pool store tallies drawn and fixed-term sequences", {
   )
   expect_identical(
     pool$store$tally,
-    list(built = 3L, fixed_term = 3L, labels = "calls (rate)")
+    list(
+      built = 3L,
+      fixed_term = 3L,
+      labels = "calls (rate)",
+      pool_dropped = FALSE
+    )
   )
 
   # A failed walk is a drawn sequence, but not a fixed-term loss.
@@ -802,7 +812,12 @@ test_that("the pool store tallies drawn and fixed-term sequences", {
   pool <- append_sequence_pool(pool, list(fixed_only_sequence()))
   expect_identical(
     pool$store$tally,
-    list(built = 4L, fixed_term = 3L, labels = "calls (rate)")
+    list(
+      built = 4L,
+      fixed_term = 3L,
+      labels = "calls (rate)",
+      pool_dropped = FALSE
+    )
   )
 })
 

@@ -70,8 +70,14 @@ open_pool_store <- function(seam, header) {
   store$generation <- 0L
   store$next_id <- 1L
   # The run-long count of drawn sequences and fixed-term losses
-  # (tally_pool_entries()).
-  store$tally <- list(built = 0L, fixed_term = 0L, labels = character(0))
+  # (tally_pool_entries()), and whether the loop stopped because a whole pool
+  # was lost to them.
+  store$tally <- list(
+    built = 0L,
+    fixed_term = 0L,
+    labels = character(0),
+    pool_dropped = FALSE
+  )
   # The coordinator's per-fid start state, which every entry refers to.
   store$start_state <- new.env(parent = emptyenv())
   class(store) <- "goldfishDynesPoolStore"

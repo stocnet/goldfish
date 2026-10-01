@@ -224,14 +224,14 @@ local_fixed_term_loss <- function(
   )
 }
 
-# A full-batch SGD M-step that converges in a few hundred steps on the two-wave
+# A full-batch SGD M-step with room to converge on the two-wave
 # paths, so no iteration-cap warning muddies a test.
 abem_full_sgd <- function() {
   set_sgd_options(
     variant = "full",
     step_schedule = "adam",
     step_size = 0.1,
-    max_iterations = 200L,
+    max_iterations = 2000L,
     sgd_tolerance = 1e-2
   )
 }

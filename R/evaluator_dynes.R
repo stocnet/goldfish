@@ -590,13 +590,10 @@ tally_pool_entries <- function(store, built) {
     function(e) identical(e$degenerate_cause, "fixed_term"),
     logical(1)
   )
-  tally <- store$tally
   failed <- vapply(built[fixed_term], `[[`, character(1), "degenerate_label")
-  store$tally <- list(
-    built = tally$built + length(built),
-    fixed_term = tally$fixed_term + sum(fixed_term),
-    labels = unique(c(tally$labels, failed[!is.na(failed)]))
-  )
+  store$tally$built <- store$tally$built + length(built)
+  store$tally$fixed_term <- store$tally$fixed_term + sum(fixed_term)
+  store$tally$labels <- unique(c(store$tally$labels, failed[!is.na(failed)]))
   invisible(store)
 }
 

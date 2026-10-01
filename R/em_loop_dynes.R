@@ -158,7 +158,9 @@ run_abem_loop <- function(
     # of the whole pool, then a top-up to the size the last acceptance set.
     if (iteration == 1L) {
       new_draws <- draw_into_pool(target_size, iteration, theta_k)
-      cold_start_ess_diagnostic(pool_weights(), weights_ctrl$ess_threshold)
+      if (!pool_lost_to_fixed_terms(run$pool)) {
+        cold_start_ess_diagnostic(pool_weights(), weights_ctrl$ess_threshold)
+      }
     } else if (isTRUE(weights_ctrl$refresh)) {
       new_draws <- draw_into_pool(
         target_size,
@@ -192,13 +194,28 @@ run_abem_loop <- function(
     growth_k <- 2L
 
     for (retry in 0:control$max_retries) {
+      # Every pass follows a build, a redraw or a growth append. A pool whose
+      # every sequence lost its fixed-only term carries no information, and
+      # past this point both weighting schemes fail on it: importance weights
+      # are all zero, so a minibatch M-step has nothing to sample from and a
+      # full-batch one leaves Q = ASE = 0, meeting the stop rule at a theta
+      # that never moved; uniform weights leave Q NaN, which no decision
+      # survives.
+      if (pool_lost_to_fixed_terms(run$pool)) {
+        if (!is.null(run$pool$store)) {
+          run$pool$store$tally$pool_dropped <- TRUE
+        }
+        return(abem_loop_result(
+          theta_k,
+          FALSE,
+          accepted_iterations,
+          run,
+          pool_weights()
+        ))
+      }
       weights <- pool_weights()
       pool_size <- length(weights)
-      fixed_degenerate <- sum(vapply(
-        run$pool$sequences,
-        function(s) identical(s$degenerate_cause, "fixed_term"),
-        logical(1)
-      ))
+      fixed_degenerate <- sum(pool_fixed_term_lost(run$pool))
       resample_indices <- if (identical(scheme, "resampling")) {
         resample_pool(weights, weights_ctrl$resampling_scheme)
       }
@@ -380,6 +397,21 @@ abem_pool_entry <- function(draw, theta, call) {
       log_proposal = draw$log_proposal
     )
   )
+}
+
+# Which pooled sequences are degenerate because a fixed-only term was
+# non-finite or unevaluable, as opposed to a failed walk.
+pool_fixed_term_lost <- function(pool) {
+  vapply(
+    pool$sequences,
+    function(s) identical(s$degenerate_cause, "fixed_term"),
+    logical(1)
+  )
+}
+
+pool_lost_to_fixed_terms <- function(pool) {
+  lost <- pool_fixed_term_lost(pool)
+  length(lost) > 0L && all(lost)
 }
 
 abem_loop_result <- function(theta, converged, iterations, run, weights) {

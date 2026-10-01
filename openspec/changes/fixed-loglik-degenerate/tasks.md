@@ -128,7 +128,7 @@
       "every sequence in the pool was dropped" bullet (cli snapshot);
       a partly dropped run (2.1(iv)) does not.
       Confirm RED and commit the tests alone.
-- [ ] 3.2 (b) Implement design D6: after every pool build and append in
+- [x] 3.2 (b) Implement design D6: after every pool build and append in
       `run_abem_loop()`, before weights, SGD and Q, return
       `abem_loop_result(theta_k, FALSE, ...)` when every sequence in the
       current pool has `degenerate_cause == "fixed_term"`; record the stop

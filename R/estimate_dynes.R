@@ -193,11 +193,19 @@ warn_fixed_term_degenerate <- function(store, call = rlang::caller_env()) {
   n <- tally$fixed_term
   n_drawn <- tally$built
   labels <- tally$labels
+  dropped <- if (isTRUE(tally$pool_dropped)) {
+    c(
+      "!" = "Every sequence in the pool was dropped; estimation stopped at the
+             last accepted parameters and the fit is flagged
+             {.code converged = FALSE}."
+    )
+  }
   cli::cli_warn(
     c(
       "!" = "{n} of {n_drawn} drawn sequences had a non-finite or unevaluable
              fixed-only log-likelihood in {.val {labels}} and were dropped as
              degenerate.",
+      dropped,
       "i" = "This is likely a bug in goldfish; please report it."
     ),
     class = "goldfish_dynes_fixed_term_degenerate",

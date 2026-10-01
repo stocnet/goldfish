@@ -37,3 +37,14 @@
       ! 5 of 12 drawn sequences had a non-finite or unevaluable fixed-only log-likelihood in "friendship (rate)" and "calls (choice)" and were dropped as degenerate.
       i This is likely a bug in goldfish; please report it.
 
+# the fixed-term degeneracy warning after a full pool drop
+
+    Code
+      warn_fixed_term_degenerate(tallied_store(4L, 4L, "friendship (rate)",
+        pool_dropped = TRUE))
+    Condition
+      Warning:
+      ! 4 of 4 drawn sequences had a non-finite or unevaluable fixed-only log-likelihood in "friendship (rate)" and were dropped as degenerate.
+      ! Every sequence in the pool was dropped; estimation stopped at the last accepted parameters and the fit is flagged `converged = FALSE`.
+      i This is likely a bug in goldfish; please report it.
+
