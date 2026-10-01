@@ -453,7 +453,11 @@ List estimate_REM(
        arma::vec weights;
        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
        double shifted_total = arma::sum(weights);
-       arma::vec probabilities = weights / shifted_total;
+       // An empty risk set (every candidate masked) leaves no weight to
+       // normalize: each probability is 0, not 0 / 0.
+       arma::vec probabilities = shifted_total > 0
+         ? arma::vec(weights / shifted_total)
+         : arma::vec(weights.n_elem, fill::zeros);
        if (return_total_rate) {
          conditional_logl(id_event) = NA_REAL;
        }

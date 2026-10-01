@@ -379,3 +379,161 @@ constraint_atoms_joint_capture <- function(family) {
   outputs <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
   lapply(outputs, constraint_atoms_capture)
 }
+
+# Vector-kind constraints on the dyad loops. A REM or coordination model whose
+# mask is a per-actor value (alter or ego kind) is fully described by two
+# factor vectors, yet it has been folded on a dense point grid; these families
+# freeze that point fold so a factor-vector fold can be checked against it cell
+# for cell. Every actor the mask excludes is one no dependent event touches, so
+# no observed event is excluded, and the receiver composition changes and the
+# attribute changes fall on those same idle actors.
+#
+# The node-attribute changes are linked before the composition changes:
+# `link_events()` looks a node set's composition frame up by name, which a
+# function-local frame does not survive.
+availability_vector_rem_data <- function(n_events = 100L) {
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(call_network, calls, nodes = actors)
+  dep <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = call_network
+  )
+  dep <- dep[seq_len(n_events), ]
+  observed <- as.data.frame(dep)
+  lab <- actors$label
+  idle <- setdiff(lab, unique(c(observed$sender, observed$receiver)))
+  start <- min(observed$time)
+  span <- max(observed$time) - start
+  comp <- data.frame(
+    time = start + span * c(0.3, 0.4, 0.6),
+    node = idle[c(1, 2, 1)],
+    replace = c(FALSE, FALSE, TRUE)
+  )
+  actors$allow <- 1
+  actors$allow[match(idle[3:5], lab)] <- 0
+  allow_changes <- data.frame(
+    time = start + span * c(0.5, 0.7),
+    node = idle[c(6, 3)],
+    replace = c(0, 1)
+  )
+  # A global switch that turns off and back on inside the longest gap between
+  # dependent events: while it is off the risk set is empty, an interval with
+  # total rate 0, and no observed event falls in it.
+  gap <- which.max(diff(observed$time))
+  switch_changes <- data.frame(
+    time = observed$time[gap] + diff(observed$time)[gap] * c(0.25, 0.75),
+    replace = c(0, 1)
+  )
+  switches <- make_global_attributes(data.frame(on = 1))
+  switches <- link_events(switches, switch_changes)
+  actors <- make_nodes(actors)
+  actors <- link_events(actors, allow_changes, attribute = "allow")
+  actors <- link_events(actors, comp, attribute = "present")
+  data <- make_data(
+    dep,
+    call_network,
+    calls,
+    actors,
+    comp,
+    allow_changes,
+    switches
+  )
+  list(data = data, actors = actors, switches = switches)
+}
+
+availability_vector_coord_data <- function() {
+  data("Fisheries_Treaties_6070", package = "goldfish", envir = environment())
+  depc <- bilatchanges[bilatchanges$increment == 1, ]
+  lab <- states$label
+  idle <- setdiff(lab, unique(c(depc$sender, depc$receiver)))
+  states$allow <- 1
+  states$allow[match(idle[1:5], lab)] <- 0
+  allow_changes <- data.frame(
+    time = depc$time[c(10, 40)],
+    node = idle[c(6, 1)],
+    replace = c(0, 1)
+  )
+  states <- make_nodes(states)
+  states <- link_events(states, allow_changes, attribute = "allow")
+  states <- link_events(states, sovchanges, attribute = "present")
+  bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+  bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
+  create_bilat <- make_dependent_events(
+    events = depc,
+    nodes = states,
+    default_network = bilatnet
+  )
+  data <- make_data(
+    create_bilat,
+    bilatnet,
+    states,
+    bilatchanges,
+    sovchanges,
+    allow_changes
+  )
+  list(data = data, states = states)
+}
+
+availability_vector_families <- function() {
+  c("rem_alter", "rem_ego", "coord_alter")
+}
+
+# One vector-kind family's preprocessed object (`backend = NULL`) or fit.
+availability_vector_run <- function(family, backend = NULL) {
+  suppressWarnings(suppressMessages({
+    if (family == "coord_alter") {
+      fx <- availability_vector_coord_data()
+      states <- fx$states
+      args <- list(
+        create_bilat ~ inertia + indeg + trans,
+        sub_model = "choice_coordination",
+        data = fx$data,
+        support_constraint = ~ alter(states$allow) > 0
+      )
+      estimator <- estimate_dynam
+    } else {
+      fx <- availability_vector_rem_data()
+      actors <- fx$actors
+      args <- list(
+        dep ~ 1 + inertia + recip,
+        sub_model = "rate",
+        data = fx$data,
+        support_constraint = switch(
+          family,
+          rem_alter = ~ alter(actors$allow) > 0,
+          rem_ego = ~ ego(actors$allow) > 0
+        )
+      )
+      estimator <- estimate_rem
+    }
+    if (is.null(backend)) {
+      args$preprocessing_only <- TRUE
+    } else {
+      args$control_algo <- set_algorithm_newton(backend = backend)
+    }
+    do.call(estimator, args)
+  }))
+}
+
+# The dense availability grid at every stored row, replayed from a point-
+# encoded object's stream: one logical vector of length `n1 * n2` per row.
+availability_point_cells <- function(prep) {
+  grid <- as.vector(prep$active_dyad_init)
+  n1 <- nrow(prep$active_dyad_init)
+  update <- prep$active_dyad_update
+  pointer <- prep$active_dyad_update_pointer
+  seen <- 0
+  cells <- vector("list", length(pointer))
+  for (row in seq_along(pointer)) {
+    if (pointer[[row]] > seen) {
+      cols <- (seen + 1):pointer[[row]]
+      grid[update[1L, cols] + n1 * (update[2L, cols] - 1L)] <-
+        as.logical(update[3L, cols])
+      seen <- pointer[[row]]
+    }
+    cells[[row]] <- grid
+  }
+  cells
+}

@@ -157,6 +157,36 @@ List compute_poisson_selection(
         int id_end = id_start + n_candidates(id_event);
         bool is_dependent_current_event = is_dependent(id_event);
         double timespan_current_event = timespan(id_event);
+        // An interval whose risk set is empty (a global constraint switched
+        // off, every actor absent) has total rate 0: it adds -Dt * 0 to the
+        // log-likelihood and nothing to the score or the information, and it
+        // realizes no mover. An empty slice is not a valid subview, so the
+        // interval is written here and skipped. A dependent event always has
+        // its own dyad at risk, so one with no candidates is a gather defect.
+        if (n_candidates(id_event) == 0) {
+            if (is_dependent_current_event) {
+                Rcpp::stop("A dependent event has an empty risk set.");
+            }
+            conditional_logl(id_event) = NA_REAL;
+            if (return_event_scores) event_scores.row(id_event).zeros();
+            if (return_conditional_scores) {
+                conditional_scores.row(id_event).fill(NA_REAL);
+            }
+            // The shape scatter_event_probabilities() gives this kernel's
+            // axes, with every position off the (empty) risk set at 0.
+            if (return_probabilities) {
+                if (axis_i && axis_j) {
+                    event_probabilities[id_event] = Rcpp::wrap(
+                      arma::mat(n_actors_1, n_actors_2, fill::zeros)
+                    );
+                } else {
+                    event_probabilities[id_event] = Rcpp::wrap(arma::vec(
+                      axis_j ? n_actors_2 : n_actors_1, fill::zeros
+                    ));
+                }
+            }
+            continue;
+        }
         // the subviews of the stat mat and predictors for this event
         const arma::vec& lin_pred_current_event =
           lin_pred.subvec(id_start, id_end - 1);

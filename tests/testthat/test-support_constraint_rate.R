@@ -279,3 +279,29 @@ test_that("a dependent event whose own sender is gated out errors", {
     estimate_dynam(spec, sub_model = "rate", control_algo = opt)
   )
 })
+
+test_that("an emptied rate risk set fits alike on every backend", {
+  fx <- availability_vector_rem_data()
+  switches <- fx$switches
+  fits <- lapply(c("r", "cpp", "gather"), function(backend) {
+    suppressWarnings(suppressMessages(estimate_dynam(
+      dep ~ 1 + indeg,
+      sub_model = "rate",
+      data = fx$data,
+      support_constraint = ~ global(switches$on) > 0,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        return_interval_loglik = TRUE,
+        return_probabilities = TRUE
+      )
+    )))
+  })
+  for (fit in fits[-1]) {
+    expect_equal(coef(fit), coef(fits[[1]]), tolerance = 1e-10)
+    expect_equal(
+      fit$interval_log_lik,
+      fits[[1]]$interval_log_lik,
+      tolerance = 1e-10
+    )
+  }
+})

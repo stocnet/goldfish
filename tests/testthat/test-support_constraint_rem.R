@@ -256,3 +256,41 @@ test_that("a REM support_constraint folds active_dyad at the point encoding", {
   expect_equal(sum(diag(prep$active_dyad_init)), 0)
   expect_false(is.null(prep$support_mask$receiver_presence_init))
 })
+
+test_that("an emptied REM risk set fits alike on every backend", {
+  # While the switch is off no dyad is at risk: the interval has total rate 0
+  # and contributes -Dt * 0. A scalar mask is also the buffer an in-place
+  # write must not touch, since a scalar comparison returns R's shared TRUE.
+  fx <- availability_vector_rem_data()
+  switches <- fx$switches
+  fits <- lapply(c("r", "cpp", "gather"), function(backend) {
+    suppressWarnings(suppressMessages(estimate_rem(
+      dep ~ 1 + inertia + recip,
+      sub_model = "rate",
+      data = fx$data,
+      support_constraint = ~ global(switches$on) > 0,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        return_interval_loglik = TRUE,
+        return_probabilities = TRUE
+      )
+    )))
+  })
+  probabilities <- fits[[1]]$event_probabilities
+  empty <- which(vapply(probabilities, \(p) sum(p) == 0, logical(1)))
+  expect_length(empty, 1L)
+  expect_identical(fits[[1]]$interval_log_lik[empty], 0)
+  for (fit in fits[-1]) {
+    expect_equal(coef(fit), coef(fits[[1]]), tolerance = 1e-10)
+    expect_equal(
+      fit$interval_log_lik,
+      fits[[1]]$interval_log_lik,
+      tolerance = 1e-10
+    )
+    expect_equal(
+      lapply(fit$event_probabilities, as.vector),
+      lapply(probabilities, as.vector),
+      tolerance = 1e-10
+    )
+  }
+})
