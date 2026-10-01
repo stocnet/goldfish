@@ -76,7 +76,7 @@
       `.availability_event_cols()`; the `active_*_folded` flags lose their
       reader and go. Test: Fisheries baselines on r PASS; the 2.1 guard
       passes; `names(prep)` snapshot carries no `_changes` field.
-- [ ] 2.4 `R/availability_effect.R` `availability_finish()`: write the
+- [x] 2.4 `R/availability_effect.R` `availability_finish()`: write the
       stream and the encoding only; no `sender_presence_*` /
       `receiver_presence_*` on `support_mask`. Move any test reading a stash
       (`test-support_mask_sparse.R`, `test-support_mask_maintain.R`,

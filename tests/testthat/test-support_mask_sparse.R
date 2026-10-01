@@ -159,12 +159,25 @@ test_that("the rate gate equals the row reduction of the shared mask", {
     compute_statistics(spec, "DyNAM", "rate")
   ))
   sm <- prep$support_mask
-  n1 <- length(sm$sender_presence_init %||% prep$active_sender_init)
-  n2 <- length(sm$receiver_presence_init %||% rep(TRUE, fx$n_actors))
+  # The presence the gate folded in, from the same model without the
+  # constraint (same stored rows: the constraint reads a term's object).
+  unconstrained <- suppressMessages(suppressWarnings(compute_statistics(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~ inertia + recip,
+      layer = "call_network",
+      data = fx$data
+    ),
+    "DyNAM",
+    "rate"
+  )))
+  expect_identical(unconstrained$event_time, prep$event_time)
+  n1 <- length(prep$active_sender_init)
+  n2 <- fx$n_actors
   presence <- walk_presence_buffer(
-    sm$sender_presence_init %||% prep$active_sender_init,
-    prep$active_sender_update,
-    prep$active_sender_update_pointer,
+    unconstrained$active_sender_init,
+    unconstrained$active_sender_update,
+    unconstrained$active_sender_update_pointer,
     length(prep$event_time)
   )
   gate <- walk_presence_buffer(
@@ -173,7 +186,7 @@ test_that("the rate gate equals the row reduction of the shared mask", {
     prep$active_sender_update_pointer,
     length(prep$event_time)
   )
-  receivers <- sm$receiver_presence_init %||% rep(TRUE, n2)
+  receivers <- unconstrained$active_dyad_init == 1
   for (e in seq_along(prep$event_time)) {
     grid <- mask_grid_at_event(sm, e, n1, n2)
     ref <- rowSums(grid & rep(receivers, each = n1)) > 0

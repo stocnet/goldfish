@@ -60,7 +60,9 @@ test_that("a choice's point availability is the true grid at every row", {
     n1 <- nrow(prep$active_dyad_init)
     mask <- as.logical(prep$support_mask$initial)
     grid <- prep$active_dyad_init
-    presence <- prep$support_mask$receiver_presence_init
+    # One-mode, so receiver presence is the sender presence the choice output
+    # stores unfolded (the choice loop never folds the sender axis).
+    presence <- prep$active_sender_init == 1
     mask_seen <- 0
     grid_seen <- 0
     presence_seen <- 0
@@ -81,11 +83,11 @@ test_that("a choice's point availability is the true grid at every row", {
         )] <- as.logical(prep$active_dyad_update[3L, cols])
         grid_seen <- hi
       }
-      pointer <- prep$support_mask$receiver_presence_update_pointer
+      pointer <- prep$active_sender_update_pointer
       hi <- if (is.null(pointer)) 0 else pointer[[e]]
       if (hi > presence_seen) {
         cols <- (presence_seen + 1):hi
-        update <- prep$support_mask$receiver_presence_update
+        update <- prep$active_sender_update
         presence[update[1L, cols]] <- as.logical(update[2L, cols])
         presence_seen <- hi
       }

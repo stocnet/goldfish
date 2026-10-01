@@ -254,7 +254,10 @@ test_that("a REM support_constraint folds active_dyad at the point encoding", {
   expect_identical(prep$active_dyad_encoding, "point")
   expect_identical(dim(prep$active_dyad_init), c(fx$n, fx$n))
   expect_equal(sum(diag(prep$active_dyad_init)), 0)
-  expect_false(is.null(prep$support_mask$receiver_presence_init))
+  expect_disjoint(
+    names(prep$support_mask),
+    c("sender_presence_init", "receiver_presence_init")
+  )
 })
 
 test_that("an emptied REM risk set fits alike on every backend", {

@@ -708,9 +708,10 @@ availability_stream <- function(av) {
   )
 }
 
-# Write a fid's availability onto its finalized output, with the fields the
-# fail-fast validation reads (the raw presences the stored value no longer
-# shows) stashed on its support mask.
+# Write a fid's availability onto its finalized output: the folded stream and
+# its encoding, and the walk's verdict on the observed events. The raw
+# presences the fold consumed are not kept; the verdict was reached in the
+# walk, so nothing downstream needs them.
 availability_finish <- function(av, out) {
   if (!is.null(av$check) && !av$check$immediate) {
     out$support_verdict <- availability_verdict(av)
@@ -728,20 +729,10 @@ availability_finish <- function(av, out) {
   }
   stream <- availability_stream(av)
   if (identical(av$variant, "gate")) {
-    out$support_mask$sender_presence_init <- out$active_sender_init
     out$active_sender_init <- stream$init
     out$active_sender_update <- stream$update
     out$active_sender_update_pointer <- stream$pointer
     return(out)
-  }
-  if (identical(av$variant, "dyad")) {
-    out$support_mask$sender_presence_init <- out$active_sender_init
-    out$support_mask$receiver_presence_init <- out$active_dyad_init
-  } else if (!is.null(out$support_mask)) {
-    out$support_mask$receiver_presence_init <- out$active_dyad_init
-    out$support_mask$receiver_presence_update <- out$active_dyad_update
-    out$support_mask$receiver_presence_update_pointer <-
-      out$active_dyad_update_pointer
   }
   out$active_dyad_init <- stream$init
   out$active_dyad_update <- stream$update

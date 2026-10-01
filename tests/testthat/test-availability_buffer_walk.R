@@ -149,3 +149,21 @@ test_that("a preprocessed object stores its availability as buffers only", {
     expect_disjoint(names(prep), retired)
   }
 })
+
+test_that("a constrained object's support mask is its stream alone", {
+  # The raw presences the fold consumed are not stashed beside it: the folded
+  # availability is the only presence-bearing object on the output.
+  stream <- c(
+    "initial",
+    "update",
+    "update_pointer",
+    "n_stored",
+    "mask_kind",
+    "stored_kind",
+    "symmetric"
+  )
+  for (family in c("rate", "choice", "rem", "coord")) {
+    mask <- constraint_atoms_prep(family)$support_mask
+    expect_named(mask, stream, info = family)
+  }
+})

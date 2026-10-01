@@ -122,7 +122,19 @@ test_that("the folded active_sender equals the from-scratch gate reduction", {
   # From-scratch predecessor reduction: presence AND
   # (rowSums(support & receiver-availability) > 0), per stored event.
   n1 <- length(prep$active_dyad_init)
-  presence <- prep$support_mask$sender_presence_init
+  unconstrained <- estimate_dynam(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      model = "DyNAM",
+      layer = "calls_dependent",
+      data = d
+    ),
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  )
+  expect_null(unconstrained$active_sender_update)
+  presence <- unconstrained$active_sender_init
   reference <- lapply(mask_timeline(prep$support_mask), function(s) {
     presence & (rowSums(s & rep(prep$active_dyad_init, each = n1)) > 0)
   })

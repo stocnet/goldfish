@@ -94,7 +94,15 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
   # An alter-kind mask is stored as the length-n2 receiver vector, so the
   # from-scratch check reads the vector rather than a row of a dense grid.
   expect_equal(prep$support_mask$stored_kind, 1L)
-  recv0 <- prep$support_mask$receiver_presence_init
+  # Receiver presence base = the unconstrained model's alter vector.
+  base <- estimate_dynam(
+    callsDep ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE
+  )
+  expect_null(base$active_dyad_update)
+  recv0 <- base$active_dyad_init
   cur <- prep$active_dyad_init
   ptr <- prep$active_dyad_update_pointer
   upd <- prep$active_dyad_update
