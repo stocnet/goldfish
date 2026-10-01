@@ -64,6 +64,13 @@ void set_entries(SEXP buffer, Rcpp::IntegerVector at, SEXP values) {
   if (TYPEOF(values) != type) {
     Rcpp::stop("set_entries() needs values of the buffer's own type.");
   }
+  // A scalar logical from R is usually one of three session-wide singletons,
+  // which Rf_ScalarLogical() returns without allocating; writing one in place
+  // changes TRUE, FALSE or NA for the whole session.
+  if (buffer == Rf_ScalarLogical(TRUE) || buffer == Rf_ScalarLogical(FALSE) ||
+      buffer == Rf_ScalarLogical(NA_LOGICAL)) {
+    Rcpp::stop("set_entries() cannot write R's shared logical constant.");
+  }
   const R_xlen_t n = at.size();
   if (XLENGTH(values) != n) {
     Rcpp::stop("set_entries() needs `at` and `values` of one length.");

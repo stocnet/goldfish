@@ -189,6 +189,29 @@ test_that("set_entries refuses a buffer type it cannot write", {
   expect_error(set_entries(c(1, 2), 5L, 1), "index out of bounds")
 })
 
+test_that("write_entries subassigns a scalar buffer", {
+  # A length-1 value is not materialized fresh: a scalar comparison returns
+  # R's shared TRUE or FALSE, and a literal in a byte-compiled function lives
+  # in its constant pool. Writing either in place corrupts every later reader,
+  # so a scalar (a global-kind mask, a global operand) takes subassignment.
+  buffer <- 1 > 0
+  expect_identical(write_entries(buffer, 1L, FALSE), FALSE)
+  expect_identical(1 > 0, TRUE)
+
+  pooled <- compiler::cmpfun(function() {
+    literal <- 0
+    write_entries(literal, 1L, 5)
+    literal
+  })
+  expect_identical(pooled(), 0)
+  expect_identical(pooled(), 0)
+})
+
+test_that("set_entries refuses R's shared logical constants", {
+  expect_error(set_entries(1 > 0, 1L, FALSE), "shared logical constant")
+  expect_error(set_entries(1 < 0, 1L, TRUE), "shared logical constant")
+})
+
 test_that("write_entries is a no-op on an empty delta", {
   buffer <- c(TRUE, FALSE)
   expect_identical(write_entries(buffer, integer(0), logical(0)), buffer)
