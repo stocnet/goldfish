@@ -121,7 +121,7 @@
       the vector-kind REM and coordination fixtures with `n_excluded > 0`
       after 4.1. Re-save the 0.3 references in their outer form once equal;
       every other entry `identical()`.
-- [ ] 3.4 Measure walk time, allocation and object size on the 3.1 fixture
+- [x] 3.4 Measure walk time, allocation and object size on the 3.1 fixture
       before 3.2 and after 3.3 against the design's prediction (one grid
       down); numbers in `progress.md`. NEWS.d bullet: a vector-kind
       constraint on REM or coordination no longer allocates a dyad grid.
