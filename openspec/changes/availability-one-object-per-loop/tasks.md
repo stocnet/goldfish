@@ -181,11 +181,11 @@
       preprocessed object stores composition changes once and stashes no raw
       presence; REM and coordination vector-kind constraints at outer). No
       `NEWS.md` or Version edit on the branch.
-- [ ] 5.3 Vault: ADR-0109 `spec:` and open questions current; dashboard
+- [x] 5.3 Vault: ADR-0109 `spec:` and open questions current; dashboard
       fragment in `_dashboard-inbox/`; session note closed; hand-off notes
       to the estimation-side cost change (the kernels' per-event `allowed`
       vector, the R backend's list-held grid copy) in its proposal once it
       exists, else in this change's `progress.md`.
-- [ ] 5.4 Final verification: full `NOT_CRAN=true` suite green; baselines
+- [x] 5.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       and goldens PASS not SKIP; `status: landed (feature_simulation,
       awaiting fold)` in `proposal.md`.
