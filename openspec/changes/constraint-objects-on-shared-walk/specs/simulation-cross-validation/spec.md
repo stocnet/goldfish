@@ -64,12 +64,13 @@ with the reason that it has no conditional-logit twin.
 - **THEN** the exported statistics frame equals the hand-built frame row for
   row, and the coefficients agree within 1e-6
 
-#### Scenario: composition change drops absent actors from both axes
+#### Scenario: composition change drops absent actors from the choice
 - **WHEN** the composition fixture, where actors leave and return, is
-  fitted and compared
-- **THEN** absent actors have no rows in either frame, each presence flip
-  opens a censored interval, and both families agree with their oracles
-  within 1e-6
+  fitted and compared on the choice
+- **THEN** absent actors have no rows in the choice frame, the exported
+  rows equal it, and the choice agrees with its oracle within 1e-6; the
+  rate arm, where each presence flip closes the rate interval with a
+  censored row, lands with `process-simulation` task 2.11c (ADR-0103)
 
 ### Requirement: flavored processes agree with their standalone and de-flavored twins
 

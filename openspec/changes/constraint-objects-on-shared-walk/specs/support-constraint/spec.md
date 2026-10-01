@@ -49,13 +49,15 @@ mask, on the batch walk and on the handle alike.
 - **THEN** the event sequence is advanced by one walk, with no second state
   container, schedule or event loop maintained for the constraint
 
-#### Scenario: a constraint-only object is threaded without moving anything else
+#### Scenario: a constraint-only object is threaded onto the shared walk
 - **WHEN** a specification whose `support_constraint` reads a changing
   object no formula term reads is preprocessed
 - **THEN** that object's registry id follows every unit object's, its
-  stream follows every unit stream, no engine folds a statistic from it and
-  no right-censoring row is emitted for its events, and an unconstrained or
-  already-covered specification preprocesses byte-identically to before
+  stream follows every unit stream, no engine folds a statistic from it,
+  each of its events closes the open interval of every exact-time rate
+  whose mask reads it with a right-censored row (ADR-0103), and an
+  unconstrained or already-covered specification preprocesses
+  byte-identically to before
 
 #### Scenario: the mask lags a tied atom event on both paths
 - **WHEN** an atom-object event shares a dependent event's stamp and

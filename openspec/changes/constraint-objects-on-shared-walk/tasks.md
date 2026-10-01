@@ -472,12 +472,21 @@
 
 ## 6. Close
 
-- [ ] 6.1 Re-check the three deltas against the living spec and the
+- [x] 6.1 Re-check the three deltas against the living spec and the
       predecessor's wording: `bash .plan/opsx-spec-placement-check.sh
       constraint-objects-on-shared-walk` (the `support-constraint` block is
       written against the post-predecessor text, so a pre-fold failure there
       is expected deferral); `openspec validate
       constraint-objects-on-shared-walk --strict` clean.
+      — *done 2026-10-01 (goldfish-ce)*: two stale scenarios corrected
+      (Alvaro, via goldfish-0c, and the same reversal in the second): the
+      `support-constraint` scenario now says a constraint-only object's
+      events close every exact-time rate interval whose mask reads them
+      (ADR-0103, task 2.3a), renamed "is threaded onto the shared walk";
+      the `simulation-cross-validation` composition scenario now covers the
+      choice and hands the rate arm to `process-simulation` 2.11c (task
+      5.3's revision). Placement check OK (7 placements, no deferral);
+      `validate --strict` clean.
 - [ ] 6.2 `NEWS.d/constraint-objects-on-shared-walk--shared-walk-constraints.md`
       (constraints on any object maintained by the one walk; handle no
       longer refuses them) and
