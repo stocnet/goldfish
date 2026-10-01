@@ -138,16 +138,16 @@
       equal the unconstrained fit when every observed sender is allowed; a
       gated-out observed sender fails fast. Test: every replay fixture
       equal before and after; the new outer fixtures replay.
-- [ ] 4.2 Cost guard, recorded failing first: one deferred-fid evaluation in
+- [x] 4.2 Cost guard, recorded failing first: one deferred-fid evaluation in
       the simulation driver on a constrained REM (point and outer) allocates
       less than one `n1 x n2` logical grid at 1500 actors.
-- [ ] 4.3 `R/simulate_driver.R` deferred-fid path: read the fid's maintained
+- [x] 4.3 `R/simulate_driver.R` deferred-fid path: read the fid's maintained
       availability (step the effect to the cursor, return its value and
       encoding; the buffer, not a copy) instead of `matrix(present2, ...) &
       support_to_grid(...)`. Test: the 4.2 guard passes; a seeded simulation
       from a constrained REM fit draws the same sequence before and after;
       the free-running and time-anchored simulation tests stay green.
-- [ ] 4.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 4.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; every reference family PASS.
 
 ## 5. Close

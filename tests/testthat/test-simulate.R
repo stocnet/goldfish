@@ -1856,3 +1856,35 @@ test_that("a specification named by its dependent events rebuilds so", {
   expect_identical(rebuilt$layer, spec$layer)
   expect_null(rebuilt$derived_constraint)
 })
+
+test_that("a deferred choice reads its sender's row, not a grid", {
+  # Recorded before the row read: one deferred-fid state composed presence
+  # with the mask's grid on every draw, 34.5 MB (point) and 34.3 MB (alter)
+  # at 1500 actors, about four logical grids of 8.6 MB.
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  data <- constraint_cost_data()
+  grid_bytes <- 1500 * 1500 * 4
+  for (constraint in list(~ !tie(emails), ~ indeg(emails) < 3)) {
+    spec <- suppressMessages(make_specification(
+      rate = ~ 1 + indeg + outdeg(emails),
+      layer = "calls",
+      model = "DyNAM",
+      data = data,
+      support_constraint = constraint
+    ))
+    completed <- suppressMessages(suppressWarnings(
+      complete_generative_spec(
+        single_process_joint(spec),
+        consumer = "simulate"
+      )
+    ))
+    handle <- suppressWarnings(walk_open(completed))
+    fid <- handle$deferred$fid
+    invisible(simulation_fid_state(handle, fid, sender = 1L))
+    allocated <- bench::bench_memory(
+      simulation_fid_state(handle, fid, sender = 1L)
+    )$mem_alloc
+    expect_lt(as.numeric(allocated), grid_bytes)
+  }
+})

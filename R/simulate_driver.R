@@ -296,7 +296,7 @@ default_accept <- function(event, handle) TRUE
 # space in one known order, so a step that needs one ego's block takes it
 # (`n_actors2` rows per ego) and a step that couples egos still sees them all.
 evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
-  state <- simulation_fid_state(handle, fid)
+  state <- simulation_fid_state(handle, fid, sender = sender)
   map <- handle$process_map
   row <- match(fid, map$fid)
   stats_rows <- state$stat_mat
@@ -326,8 +326,11 @@ evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
 # live mask survives the deferral, so the deferred fid draws inside the same
 # support the modeled one does: senders gated by the mask's rows, receivers
 # by the drawing sender's row of the mask. Presence alone would let a
-# completed choice pick a receiver the constraint excludes.
-simulation_fid_state <- function(handle, fid) {
+# completed choice pick a receiver the constraint excludes. That row is read
+# off the mask at its kind and handed on at the alter encoding, so no grid
+# is composed per draw; without a `sender` (reading the shapes only) the
+# receivers are presence.
+simulation_fid_state <- function(handle, fid, sender = NULL) {
   if (!fid %in% handle$deferred$fid) {
     return(walk_build_state(handle, fid))
   }
@@ -364,21 +367,24 @@ simulation_fid_state <- function(handle, fid) {
       twomode_or_reflexive = TRUE
     ))
   }
-  receivers <- if (is.null(support)) {
-    list(dyad = present2, encoding = "alter")
+  receivers <- if (is.null(support) || is.null(sender)) {
+    present2
   } else {
-    grid <- support_to_grid(support$value, support$stored_kind, n1, n2)
-    list(
-      dyad = matrix(present2, n1, n2, byrow = TRUE) & grid,
-      encoding = "point"
-    )
+    present2 &
+      as.logical(support_row(
+        support$value,
+        support$stored_kind,
+        sender,
+        n1,
+        n2
+      ))
   }
   list(
     model_type = "DyNAM-M",
     stat_mat = matrix(0, n1 * n2, 0L),
     active_sender = present1,
-    active_dyad = receivers$dyad,
-    active_dyad_encoding = receivers$encoding,
+    active_dyad = receivers,
+    active_dyad_encoding = "alter",
     n_actors1 = n1,
     n_actors2 = n2,
     # Whether the two sides are different node sets, so a self-loop is a legal
