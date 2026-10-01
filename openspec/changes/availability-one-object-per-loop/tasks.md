@@ -130,7 +130,7 @@
 
 ## 4. Handle and simulation read the effect (D4, D5)
 
-- [ ] 4.1 `R/walk_handle.R` `walk_risk_set()`: an outer-encoded REM or
+- [x] 4.1 `R/walk_handle.R` `walk_risk_set()`: an outer-encoded REM or
       coordination fid returns `encoding = "outer"` with the effect's two
       factors; a choice fid keeps the receiver factor with `encoding =
       "alter"` (D4). Update the living scenario's test for the ego-kind

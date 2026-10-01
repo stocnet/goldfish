@@ -122,3 +122,73 @@ test_that("an identity ego mask equals the unconstrained fit", {
     tolerance = 1e-10
   )
 })
+
+# The ego fixture with an `allow` attribute: zero for `gated`, one otherwise.
+make_ego_gate_fixture <- function(gated, n_events = 80L) {
+  suppressWarnings({
+    data("Social_Evolution", package = "goldfish", envir = environment())
+    actors <- get("actors", environment())
+    calls <- get("calls", environment())
+    actors$allow <- as.numeric(!actors$label %in% gated)
+    call_network <- make_network(nodes = actors, directed = TRUE)
+    call_network <- link_events(call_network, calls, nodes = actors)
+    calls_dependent <- make_dependent_events(
+      calls,
+      nodes = actors,
+      default_network = call_network
+    )
+    calls_dependent <- calls_dependent[seq_len(n_events), ]
+    data <- make_data(calls_dependent, call_network, calls, actors)
+  })
+  list(
+    data = data,
+    senders = unique(as.data.frame(calls_dependent)$sender),
+    labels = actors$label,
+    formula = calls_dependent ~ inertia + recip,
+    constraint = ~ ego(actors$allow) > 0
+  )
+}
+
+test_that("an ego choice constraint is validation-only", {
+  # The choice likelihood conditions on the observed sender, so gating senders
+  # that never send cannot move it: the constraint is checked against the
+  # observed events and folded into nothing.
+  probe <- make_ego_gate_fixture(character(0))
+  fx <- make_ego_gate_fixture(setdiff(probe$labels, probe$senders)[1:10])
+  fit <- function(constraint) {
+    args <- list(
+      fx$formula,
+      sub_model = "choice",
+      data = fx$data,
+      control_algo = set_algorithm_newton(diagnostics = "loglik")
+    )
+    args$support_constraint <- constraint
+    suppressWarnings(do.call(estimate_dynam, args))
+  }
+  constrained <- fit(fx$constraint)
+  unconstrained <- fit(NULL)
+  expect_equal(
+    constrained$parameters,
+    unconstrained$parameters,
+    tolerance = 1e-10
+  )
+  expect_equal(
+    constrained$interval_log_lik,
+    unconstrained$interval_log_lik,
+    tolerance = 1e-10
+  )
+})
+
+test_that("an ego choice constraint gating an observed sender fails fast", {
+  probe <- make_ego_gate_fixture(character(0))
+  fx <- make_ego_gate_fixture(probe$senders[1])
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      fx$formula,
+      sub_model = "choice",
+      data = fx$data,
+      support_constraint = fx$constraint
+    )),
+    "empty risk set"
+  )
+})
