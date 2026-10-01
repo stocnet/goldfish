@@ -305,3 +305,121 @@ test_that("the retired-class messages name the cause and the fix", {
   expect_snapshot(print(released), error = TRUE)
   expect_snapshot(summary(dev_line), error = TRUE)
 })
+
+# The data `_fixtures/stale_prep/make-stale-prep.R` preprocessed, rebuilt the
+# same way so a fresh object of today's layout can be fitted beside the stale
+# one.
+stale_prep_data <- function() {
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(call_network, calls, nodes = actors)
+  dep <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = call_network
+  )
+  dep <- dep[seq_len(60L), ]
+  observed <- as.data.frame(dep)
+  idle <- setdiff(actors$label, unique(c(observed$sender, observed$receiver)))
+  comp <- data.frame(
+    time = c(observed$time[10], observed$time[20] + 1, observed$time[30]),
+    node = idle[c(1, 2, 1)],
+    replace = c(FALSE, FALSE, TRUE)
+  )
+  actors <- make_nodes(actors)
+  actors <- link_events(actors, comp, attribute = "present")
+  make_data(dep, call_network, calls, actors, comp)
+}
+
+test_that("an object carrying retired availability fields still estimates", {
+  # Captured before the preprocessed object stopped storing the per-change
+  # composition lists, the fold flags and the support-mask presence stashes.
+  # Within a development series that layout keeps its stamp: the retired
+  # fields are ignored and the buffers beside them are read.
+  stale <- readRDS(test_path("_fixtures", "stale_prep", "pre_buffers.rds"))
+  for (prep in stale) {
+    expect_identical(preprocessed_format_status(prep), "current")
+  }
+  data <- suppressWarnings(stale_prep_data())
+  rate_spec <- suppressWarnings(suppressMessages(
+    constraint_atoms_uncovered_spec()
+  ))
+  fits <- list(
+    rem = function(preprocessed, control) {
+      estimate_rem(
+        dep ~ 1 + inertia,
+        sub_model = "rate",
+        data = data,
+        preprocessed = preprocessed,
+        control_algo = control
+      )
+    },
+    choice = function(preprocessed, control) {
+      estimate_dynam(
+        dep ~ inertia,
+        sub_model = "choice",
+        data = data,
+        preprocessed = preprocessed,
+        control_algo = control
+      )
+    },
+    constrained_rate = function(preprocessed, control) {
+      estimate_dynam(
+        rate_spec,
+        sub_model = "rate",
+        preprocessed = preprocessed,
+        control_algo = control
+      )
+    }
+  )
+  fresh <- suppressWarnings(suppressMessages(list(
+    rem = estimate_rem(
+      dep ~ 1 + inertia,
+      sub_model = "rate",
+      data = data,
+      preprocessing_only = TRUE
+    ),
+    choice = estimate_dynam(
+      dep ~ inertia,
+      sub_model = "choice",
+      data = data,
+      preprocessing_only = TRUE
+    ),
+    constrained_rate = constraint_atoms_prep("uncovered_rate")
+  )))
+  for (model in names(fits)) {
+    for (backend in c("r", "cpp", "gather")) {
+      control <- set_algorithm_newton(backend = backend)
+      old <- suppressWarnings(suppressMessages(
+        fits[[model]](stale[[model]], control)
+      ))
+      new <- suppressWarnings(suppressMessages(
+        fits[[model]](fresh[[model]], control)
+      ))
+      expect_equal(
+        coef(old),
+        coef(new),
+        tolerance = 1e-10,
+        info = paste(model, backend)
+      )
+    }
+  }
+})
+
+test_that("composition changes held only as a list mark the object outdated", {
+  stale <- readRDS(test_path("_fixtures", "stale_prep", "pre_buffers.rds"))
+  listed_only <- stale$rem
+  listed_only$active_sender_update <- NULL
+  listed_only$active_sender_update_pointer <- NULL
+  expect_identical(preprocessed_format_status(listed_only), "outdated")
+  data <- suppressWarnings(stale_prep_data())
+  expect_error(
+    suppressWarnings(estimate_rem(
+      dep ~ 1 + inertia,
+      sub_model = "rate",
+      data = data,
+      preprocessed = listed_only
+    )),
+    "outdated preprocessing"
+  )
+})

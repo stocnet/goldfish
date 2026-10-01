@@ -83,17 +83,17 @@
       `helper-parity-fixtures.R:492`) to the mask stream or to the effect.
       Test: the kept-field comparison of 0.2 PASS for every family; a
       `names(prep$support_mask)` snapshot shows the stream fields only.
-- [ ] 2.5 Stale-object test: a preprocessed object saved before 2.3 (fixture
+- [x] 2.5 Stale-object test: a preprocessed object saved before 2.3 (fixture
       under `_fixtures/`) estimates on every backend with the retired fields
       ignored; an object missing `active_sender_update_pointer` is rejected
       with the outdated-format error. No format version bump (design
       Context).
-- [ ] 2.6 Measure walk time, allocated memory and preprocessed object size on
+- [x] 2.6 Measure walk time, allocated memory and preprocessed object size on
       the CollegeMsg budget fixture (unconstrained and constrained) and on
       Fisheries before 2.3 and after 2.4 against the design's prediction;
       update `tests/testthat/_budgets/walk_cost.csv` if the floor fails,
       saying in the commit what moved. Numbers in `progress.md`.
-- [ ] 2.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 2.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; `devtools::document()` if any roxygen moved.
 
 ## 3. REM and coordination at the outer encoding (D3)
