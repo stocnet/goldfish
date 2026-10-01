@@ -487,12 +487,16 @@
       choice and hands the rate arm to `process-simulation` 2.11c (task
       5.3's revision). Placement check OK (7 placements, no deferral);
       `validate --strict` clean.
-- [ ] 6.2 `NEWS.d/constraint-objects-on-shared-walk--shared-walk-constraints.md`
+- [x] 6.2 `NEWS.d/constraint-objects-on-shared-walk--shared-walk-constraints.md`
       (constraints on any object maintained by the one walk; handle no
       longer refuses them) and
       `NEWS.d/constraint-objects-on-shared-walk--simulation-tests.md`
       (developer-facing: the cross-validation harness). No `NEWS.md` or
       Version edit on the branch.
+      — *done 2026-10-01 (goldfish-ce)*: the shared-walk fragment (created
+      by 2.3a) gains the walk, handle and check bullets and the refusal of
+      constrained objects from an earlier version (4.6); the
+      simulation-tests fragment added. No `NEWS.md` or Version edit.
 - [ ] 6.3 Vault: ADR-0073 `spec:`/open questions current; dashboard
       fragment in `_dashboard-inbox/`; session note closed; the open extent
       cell handed to `observation-tail-right-censoring` in its own
