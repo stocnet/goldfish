@@ -10,6 +10,13 @@
       (DyNAM rate/choice/choice_coordination, REM rate/choice/rate_ordered,
       DyNAMi rate/choice): canonical name, `(model, sub_model)` variants, the
       `init_*`/`update_*` symbols, and `stat_kind`.
+- [ ] 1.1a For each effect and variant, record its `broadcast_kind` under the
+      D2d encoding (`0`-`3`, or `4` when it depends on the `type` argument,
+      resolved to `1`/`2` at `construct_term()`), reproduced from
+      `classify_broadcast_kind()` and checked against the init-shape
+      conformance test `initial-stats-at-kind` adds (added 2026-10-01,
+      ADR-0112; `node_trans`'s classification comes from
+      `closure-effects-refactor`).
 - [ ] 1.2 For each effect, capture its **current** argument set (from `formals()`
       and the formula parser), including which arguments gate runtime `if/else`
       (e.g. `weighted`, `history`, `subType`, `joining`, `type`).
