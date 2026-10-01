@@ -27,3 +27,13 @@
       ! `n_cores` = 3 was requested, but mirai is not installed; running serially.
       i Install mirai to run the per-sequence work in parallel. The result is the same either way.
 
+# the fixed-term degeneracy warning
+
+    Code
+      warn_fixed_term_degenerate(tallied_store(12L, 5L, c("friendship (rate)",
+        "calls (choice)")))
+    Condition
+      Warning:
+      ! 5 of 12 drawn sequences had a non-finite or unevaluable fixed-only log-likelihood in "friendship (rate)" and "calls (choice)" and were dropped as degenerate.
+      i This is likely a bug in goldfish; please report it.
+

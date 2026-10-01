@@ -1806,11 +1806,21 @@ test_that("a resident pool entry holds no data object", {
   expect_null(entry$data)
   expect_setequal(
     names(entry),
-    c("stats", "fixed_loglik", "fixed_degenerate", "reference")
+    c(
+      "stats",
+      "fixed_loglik",
+      "fixed_degenerate",
+      "degenerate_cause",
+      "degenerate_label",
+      "reference"
+    )
   )
   resident <- resident_pool_store(pool$store$key)$entries
   for (e in resident) {
     expect_null(e$data)
+    # The degeneracy cause is a coordinator-side report; no worker reads it.
+    expect_null(e$degenerate_cause)
+    expect_null(e$degenerate_label)
   }
 })
 

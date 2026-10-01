@@ -593,7 +593,7 @@ test_that("the parallel seam keeps workers times BLAS threads within n_cores", {
   )
 })
 
-# --- Fixed-term degeneracy -----------------------------------------------------
+# --- Fixed-term degeneracy ----------------------------------------------------
 
 # A store whose tally is set by hand: the helper reads nothing else.
 tallied_store <- function(built, fixed_term, labels) {
@@ -639,7 +639,7 @@ test_that("the fixed-term warning is classed and silent at a zero count", {
   )
 })
 
-test_that("a fixed-only term lost for some sequences warns once and is traced", {
+test_that("a fixed-only term lost for some sequences warns once, is traced", {
   skip_on_cran()
   local_dynes_augmenter(new_multiwave_augmenter())
   real_fixed_only_loglik <- fixed_only_loglik

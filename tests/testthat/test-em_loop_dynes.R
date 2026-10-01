@@ -154,6 +154,7 @@ test_that("the em_trace records one row per pass with its diagnostics", {
       "accepted",
       "streak",
       "pool_size",
+      "fixed_degenerate",
       "new_draws",
       "pool_capped",
       "ess",

@@ -433,6 +433,7 @@ build_sequence_pool <- function(
   }
 
   built <- pool_entries(store, sequences)
+  tally_pool_entries(store, built)
   ids <- pool_store_mutate(store, built, replace = TRUE)
   header <- store$header
   structure(
@@ -466,6 +467,7 @@ append_sequence_pool <- function(pool, sequences, call = rlang::caller_env()) {
     )
   }
   built <- pool_entries(store, sequences)
+  tally_pool_entries(store, built)
   ids <- pool_store_mutate(store, built, replace = FALSE)
   pool$sequences <- c(pool$sequences, built)
   pool$ids <- c(pool$ids, ids)
@@ -555,17 +557,47 @@ pool_entry_task <- function(sub_models, engine_spec, control_prep, layout) {
 
 # A pooled sequence's evaluable part: its per-fid statistics and the θ-free
 # term its fixed-only sub-models contribute, scored here, once. `NULL`
-# statistics (a walk that failed) make a degenerate entry.
+# statistics (a walk that failed) make a degenerate entry. An entry records why
+# it is degenerate ("walk" or "fixed_term") and, for a fixed term, the failing
+# sub-model's label; only the coordinator reads them, to report the losses.
 new_pool_entry <- function(sub_models, stats) {
   if (is.null(stats)) {
-    return(list(stats = NULL, fixed_loglik = -Inf, fixed_degenerate = TRUE))
+    return(list(
+      stats = NULL,
+      fixed_loglik = -Inf,
+      fixed_degenerate = TRUE,
+      degenerate_cause = "walk",
+      degenerate_label = NA_character_
+    ))
   }
   fixed <- pool_fixed_loglik(sub_models, stats)
   list(
     stats = stats,
     fixed_loglik = fixed$loglik,
-    fixed_degenerate = fixed$degenerate
+    fixed_degenerate = fixed$degenerate,
+    degenerate_cause = fixed$cause,
+    degenerate_label = fixed$label
   )
+}
+
+# Add a chunk of built entries to the store's run-long tally: every drawn
+# sequence, those lost to a fixed-only term, and the sub-models those terms
+# came from. It counts sequences a later redraw replaced, so it is a count of
+# draws, not of the current pool.
+tally_pool_entries <- function(store, built) {
+  fixed_term <- vapply(
+    built,
+    function(e) identical(e$degenerate_cause, "fixed_term"),
+    logical(1)
+  )
+  tally <- store$tally
+  failed <- vapply(built[fixed_term], `[[`, character(1), "degenerate_label")
+  store$tally <- list(
+    built = tally$built + length(built),
+    fixed_term = tally$fixed_term + sum(fixed_term),
+    labels = unique(c(tally$labels, failed[!is.na(failed)]))
+  )
+  invisible(store)
 }
 
 # The fields of a fid's statistics that the window's start state and the
@@ -751,7 +783,9 @@ pool_cpp_eval <- function(sub_model, stats, theta_block) {
 # plateau is -Inf over events), marks the sequence degenerate, like a singular
 # free sub-model. Every non-finite term becomes -Inf, the only value
 # stable_softmax() is sure to weight zero: +Inf would take the whole weight and
-# NaN/NA would poison the normalizer.
+# NaN/NA would poison the normalizer. A degenerate result names its `cause` and
+# the `label` of the sub-model whose term failed, so a run can report which
+# term it lost sequences to.
 pool_fixed_loglik <- function(sub_models, stats) {
   loglik <- 0
   for (sm in sub_models) {
@@ -763,11 +797,21 @@ pool_fixed_loglik <- function(sub_models, stats) {
       error = function(e) NULL
     )
     if (is.null(term) || !is.finite(term)) {
-      return(list(loglik = -Inf, degenerate = TRUE))
+      return(list(
+        loglik = -Inf,
+        degenerate = TRUE,
+        cause = "fixed_term",
+        label = sm$label %||% NA_character_
+      ))
     }
     loglik <- loglik + term
   }
-  list(loglik = loglik, degenerate = FALSE)
+  list(
+    loglik = loglik,
+    degenerate = FALSE,
+    cause = NA_character_,
+    label = NA_character_
+  )
 }
 
 # One fixed-only sub-model's log-likelihood over its stored statistics, at the

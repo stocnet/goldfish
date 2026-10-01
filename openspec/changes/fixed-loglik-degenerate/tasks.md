@@ -61,7 +61,7 @@
 
 ## 2. Fixed-term degeneracy is reported
 
-- [ ] 2.1 (a) Write failing tests, following r-lib:testing-r-packages:
+- [x] 2.1 (a) Write failing tests, following r-lib:testing-r-packages:
       (i) In `test-evaluator_dynes.R`: `new_pool_entry()` records
       `degenerate_cause = "fixed_term"` and `degenerate_label` equal to the
       pinned sub-model's `label` for the `−Inf` pin fixture; `"walk"` with
@@ -90,7 +90,7 @@
       (v) A run with finite pins emits no such warning and has
       `fixed_degenerate` all zero.
       Confirm RED and commit the tests alone.
-- [ ] 2.2 (b) Implement design D3–D5: `pool_fixed_loglik()` returns `cause`
+- [x] 2.2 (b) Implement design D3–D5: `pool_fixed_loglik()` returns `cause`
       and `label`; `new_pool_entry()` stores `degenerate_cause` and
       `degenerate_label` (not added to `pool_store_mutate()`'s resident
       field list); the store keeps the tally (built, fixed-term, distinct

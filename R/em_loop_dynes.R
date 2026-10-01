@@ -194,6 +194,11 @@ run_abem_loop <- function(
     for (retry in 0:control$max_retries) {
       weights <- pool_weights()
       pool_size <- length(weights)
+      fixed_degenerate <- sum(vapply(
+        run$pool$sequences,
+        function(s) identical(s$degenerate_cause, "fixed_term"),
+        logical(1)
+      ))
       resample_indices <- if (identical(scheme, "resampling")) {
         resample_pool(weights, weights_ctrl$resampling_scheme)
       }
@@ -303,6 +308,7 @@ run_abem_loop <- function(
         accepted = accepted,
         streak = as.integer(streak),
         pool_size = as.integer(pool_size),
+        fixed_degenerate = as.integer(fixed_degenerate),
         new_draws = as.integer(new_draws),
         pool_capped = pool_capped,
         ess = effective_sample_size(weights),
@@ -409,6 +415,7 @@ abem_trace_tibble <- function(rows) {
     accepted = scalar("accepted", logical(1)),
     streak = scalar("streak", integer(1)),
     pool_size = scalar("pool_size", integer(1)),
+    fixed_degenerate = scalar("fixed_degenerate", integer(1)),
     new_draws = scalar("new_draws", integer(1)),
     pool_capped = scalar("pool_capped", logical(1)),
     ess = scalar("ess", numeric(1)),

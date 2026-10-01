@@ -173,10 +173,36 @@ estimate_dynes <- function(
     store = store,
     call = call
   )
+  warn_fixed_term_degenerate(store, call = call)
   res$parameters <- stats::setNames(as.numeric(res$parameters), labels)
   res$seed <- seed
   res$spec <- completed
   new_dynes_fit(res, spec, control_algo, fit_call = sys.call(), call = call)
+}
+
+# One warning per run for the drawn sequences a fixed-only term was lost to,
+# from the store's run-long tally. Every fixed-only term (a pinned rate, a
+# completed uniform choice, an all-offset fid) is derived by goldfish from the
+# specification and the data, so a non-finite one is a goldfish bug, not
+# something an argument of the user's could fix.
+warn_fixed_term_degenerate <- function(store, call = rlang::caller_env()) {
+  tally <- store$tally
+  if (tally$fixed_term == 0L) {
+    return(invisible(NULL))
+  }
+  n <- tally$fixed_term
+  n_drawn <- tally$built
+  labels <- tally$labels
+  cli::cli_warn(
+    c(
+      "!" = "{n} of {n_drawn} drawn sequences had a non-finite or unevaluable
+             fixed-only log-likelihood in {.val {labels}} and were dropped as
+             degenerate.",
+      "i" = "This is likely a bug in goldfish; please report it."
+    ),
+    class = "goldfish_dynes_fixed_term_degenerate",
+    call = call
+  )
 }
 
 # Something must be latent for DyNES to estimate. A panel layer is augmented
