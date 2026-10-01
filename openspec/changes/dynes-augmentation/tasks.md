@@ -691,7 +691,9 @@
       **Gates (2026-09-30, revised 2026-10-01):** 2.2f (shared snapshot) and
       task group 1 of `fixed-loglik-degenerate` (`pool_fixed_loglik()` flags
       any non-finite fixed-only term as degenerate; `abmcem` follow-up 1) MUST
-      both have landed on `feature/dynes` first. That change's group 2 (the
+      both have landed on `feature/dynes` first. **Both met (2026-10-01):**
+      2.2f landed earlier; `fixed-loglik-degenerate` group 1 landed as
+      `8bc67c11` (tests) → `c032a6f9` (fix). That change's group 2 (the
       `goldfish_dynes_fixed_term_degenerate` warning and the `em_trace`
       `fixed_degenerate` column) does not gate this task. Neither gate needs
       `abmcem` archived: archiving happens at the merge, in the order `abmcem`,
