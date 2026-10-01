@@ -16,6 +16,10 @@
 # factor vectors re-captures the outer form: check `availability_cells()` of
 # each new entry is identical to the old entry's, and the estimates equal
 # within 1e-10, before committing the new file.
+#
+# Re-saved 2026-10-01 in the outer form once the fold kept these constraints
+# as two factor vectors: every entry's cells identical to the point capture at
+# every row, the estimates within 4e-15 on r and identical on cpp and gather.
 suppressMessages(devtools::load_all(quiet = TRUE))
 source("tests/testthat/helper-constraint-atoms.R")
 

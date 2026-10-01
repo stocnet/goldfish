@@ -774,3 +774,38 @@ test_that("scheduling misuse aborts with cli errors", {
     class = "goldfish_walk_out_of_order"
   )
 })
+
+test_that("a vector-kind REM constraint at outer replays exactly", {
+  # The handle reads the effect's two factors, as the batch stores them.
+  fx <- suppressWarnings(availability_vector_rem_data())
+  actors <- fx$actors
+  for (constraint in list(~ alter(actors$allow) > 0, ~ ego(actors$allow) > 0)) {
+    spec <- suppressWarnings(suppressMessages(make_specification(
+      rate = ~ 1 + inertia + recip,
+      model = "REM",
+      layer = "dep",
+      data = fx$data,
+      support_constraint = constraint
+    )))
+    replay <- walk_replay_against_batch(spec)
+    expect_gt(replay$n_checked, 0L)
+    expect_gt(replay$n_excluded, 0L)
+  }
+})
+
+test_that("a vector-kind coordination constraint at outer replays exactly", {
+  fx <- suppressWarnings(availability_vector_coord_data())
+  states <- fx$states
+  spec <- suppressWarnings(suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + indeg + trans,
+    choice_sub_model = "choice_coordination",
+    model = "DyNAM",
+    layer = "create_bilat",
+    data = fx$data,
+    support_constraint = ~ alter(states$allow) > 0
+  )))
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})

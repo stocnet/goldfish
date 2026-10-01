@@ -53,21 +53,36 @@ walk_replay_against_batch <- function(spec) {
       row <- map[map$fid == fid, ]
       is_rate <- identical(row$family, "rate")
       out <- batch[[key]]
-      n_parameters <- if (is_rate) {
+      # A dyad family's risk set is the whole grid: REM and coordination are
+      # compared on every dyad, the self-dyads aside when counting exclusions.
+      dyadic <- switch(
+        row$stat_block,
+        "REM:rate" = "REM",
+        "REM:rate_ordered" = "REM-ordered",
+        "DyNAM:choice_coordination" = "DyNAM-MM",
+        NULL
+      )
+      n_parameters <- if (length(dim(out$initial_stats)) == 2L) {
         ncol(out$initial_stats) + row$has_intercept
       } else {
-        dim(out$initial_stats)[3]
+        dim(out$initial_stats)[3] +
+          if (is.null(dyadic)) 0L else row$has_intercept
       }
       theta <- rep_len(c(0.4, -0.3, 0.25), n_parameters)
       live <- walk_evaluate(handle, fid, theta)
+      model_type <- dyadic %||% if (is_rate) "DyNAM-M-Rate" else "DyNAM-M"
       state <- materialize_process_state(
         out,
-        model_type = if (is_rate) "DyNAM-M-Rate" else "DyNAM-M",
+        model_type = model_type,
         event_index = which(out$is_dependent == 1L)[dep_count[[key]]],
         has_intercept = row$has_intercept
       )
       reference <- evaluate_process_state(state, theta)$value
-      if (is_rate) {
+      if (!is.null(dyadic)) {
+        expect_equal(live$value, reference)
+        off_diagonal <- live$index[[1L]] != live$index[[2L]]
+        n_excluded <- n_excluded + sum(live$value[off_diagonal] == 0)
+      } else if (is_rate) {
         expect_equal(live$value, reference)
       } else {
         sender <- schedule$sender[k]

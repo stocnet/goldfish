@@ -116,7 +116,7 @@
       sums. Test: on the 0.3 references every cell of the outer fold equals
       the point fold's cell at every stored row (`f1[i] & f2[j]`, read
       through `active_dyad_cell()`), including a global atom.
-- [ ] 3.3 Estimates: the 0.3 families on r, cpp and gather equal the
+- [x] 3.3 Estimates: the 0.3 families on r, cpp and gather equal the
       point-fold references within 1e-10; `walk_replay_against_batch()` on
       the vector-kind REM and coordination fixtures with `n_excluded > 0`
       after 4.1. Re-save the 0.3 references in their outer form once equal;
