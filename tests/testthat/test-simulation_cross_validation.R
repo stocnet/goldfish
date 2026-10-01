@@ -360,3 +360,229 @@ test_that("a constraint-only event closes the constrained rate's interval", {
     outcome ~ indeg + outdeg + offset(log(dt))
   )
 })
+
+# ---- shared by the constrained fixtures --------------------------------------
+
+# The conditional logit stratified by event, over the receivers the frame
+# lists, equals goldfish's choice in coefficients and log-likelihood.
+expect_choice_equals_clogit <- function(fit, frame, formula) {
+  skip_if_not_installed("survival")
+  withr::local_package("survival")
+  twin <- clogit(formula, data = frame)
+  expect_equal(
+    unname(coef(fit)),
+    unname(coef(twin)),
+    tolerance = simulation_tolerance
+  )
+  expect_equal(
+    as.numeric(logLik(fit)),
+    as.numeric(logLik(twin)),
+    tolerance = simulation_tolerance
+  )
+}
+
+simulation_quiet <- function(expr) suppressWarnings(suppressMessages(expr))
+
+# ---- F2: creation and dissolution under their derived masks ----------------
+
+# A mutually exclusive layer: creation may only target an absent tie and
+# dissolution a present one, so each flavor's risk set is its derived mask
+# and a sender with no such receiver is not at risk. A third of the dyads
+# start tied, so both flavors have senders at risk from the first interval.
+f2_simulation <- function(unmodeled = character(0)) {
+  n_actors <- 8
+  initial <- withr::with_seed(5, {
+    which(
+      matrix(stats::runif(n_actors^2) < 0.3, n_actors) & !diag(n_actors),
+      arr.ind = TRUE
+    )
+  })
+  sim <- simulate_relational_sequence(
+    n_actors = n_actors,
+    n_events = 200,
+    processes = list(
+      creation = list(rate = c(-1, 0.2, -0.1), choice = c(0.8, 0.3)),
+      dissolution = list(rate = c(-1.2, -0.1, 0.15), choice = c(-0.5, 0.2))
+    ),
+    seed = 21,
+    initial = initial,
+    unmodeled = unmodeled
+  )
+  sim$data <- dgp_stocnet(sim, n_actors = n_actors)
+  sim
+}
+
+f2_formula <- function(flavor, family) {
+  stats::as.formula(paste(
+    flavor,
+    if (family == "rate") "~ 1 + indeg + outdeg" else "~ recip + trans"
+  ))
+}
+
+# One flavor of one family, alone on the flavored layer.
+f2_standalone_spec <- function(sim, flavor, family) {
+  args <- list(model = "DyNAM", data = sim$data)
+  args[[family]] <- list(f2_formula(flavor, family))
+  do.call(make_specification, args)
+}
+
+f2_container_spec <- function(sim) {
+  make_specification(
+    rate = list(
+      f2_formula("creation", "rate"),
+      f2_formula("dissolution", "rate")
+    ),
+    choice = list(
+      f2_formula("creation", "choice"),
+      f2_formula("dissolution", "choice")
+    ),
+    model = "DyNAM",
+    data = sim$data
+  )
+}
+
+# The same events with no flavor machinery: `calls` is the state both
+# flavors write, and each flavor's events are a plain dependent layer of
+# their own whose risk set is written by hand as the derived mask.
+f2_deflavored_spec <- function(sim, flavor, family) {
+  events <- sim$events
+  own <- events$flavor == flavor
+  layer <- if (flavor == "creation") "create" else "dissolve"
+  ties <- rbind(
+    data.frame(
+      from = sim$initial[, 1],
+      to = sim$initial[, 2],
+      time = NA_real_,
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = events$from,
+      to = events$to,
+      time = events$time,
+      layer = "calls",
+      weight = ifelse(events$flavor == "dissolution", -1, 1)
+    ),
+    data.frame(
+      from = events$from[own],
+      to = events$to[own],
+      time = events$time[own],
+      layer = layer,
+      weight = 1
+    )
+  )
+  layers <- c("calls", layer)
+  data <- list(
+    info = list(
+      name = "deflavored",
+      focal = layer,
+      update = stats::setNames(rep("increment", 2), layers),
+      directed = stats::setNames(rep(TRUE, 2), layers),
+      observation = stats::setNames(rep("event", 2), layers)
+    ),
+    nodes = sim$data$nodes,
+    ties = ties
+  )
+  args <- list(
+    layer = layer,
+    model = "DyNAM",
+    data = data,
+    support_constraint = if (flavor == "creation") {
+      ~ !tie(calls)
+    } else {
+      ~ tie(calls)
+    }
+  )
+  args[[family]] <- if (family == "rate") {
+    ~ 1 + indeg(calls) + outdeg(calls)
+  } else {
+    ~ recip(calls) + trans(calls)
+  }
+  do.call(make_specification, args)
+}
+
+f2_stats <- function(family) {
+  if (family == "rate") {
+    c(indeg = "indeg_calls", outdeg = "outdeg_calls")
+  } else {
+    c(recip = "recip_calls", trans = "trans_calls")
+  }
+}
+
+test_that("F2: each flavor exports its hand-built frames row for row", {
+  sim <- f2_simulation()
+  for (flavor in c("creation", "dissolution")) {
+    for (family in c("rate", "choice")) {
+      exported <- simulation_quiet(compute_statistics(
+        f2_standalone_spec(sim, flavor, family),
+        sub_model = family,
+        output = "data.frame",
+        control_prep = simulation_window()
+      ))
+      frame <- if (family == "rate") {
+        sim$rate[[flavor]]
+      } else {
+        sim$choice[[flavor]]
+      }
+      expect_frame_identity(exported, frame, f2_stats(family))
+    }
+  }
+})
+
+test_that("F2: the three goldfish routes agree and equal the oracle", {
+  sim <- f2_simulation()
+  container <- simulation_quiet(estimate_dynam(
+    f2_container_spec(sim),
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  ))
+  for (flavor in c("creation", "dissolution")) {
+    for (family in c("rate", "choice")) {
+      label <- paste(flavor, family)
+      joint <- fit_of(container, flavor, family)
+      others <- list(
+        standalone = f2_standalone_spec(sim, flavor, family),
+        deflavored = f2_deflavored_spec(sim, flavor, family)
+      )
+      for (route in names(others)) {
+        fit <- simulation_quiet(estimate_dynam(
+          others[[route]],
+          sub_model = family,
+          control_prep = simulation_window(),
+          control_algo = simulation_tight_fit()
+        ))
+        expect_equal(
+          unname(coef(fit)),
+          unname(coef(joint)),
+          tolerance = simulation_tolerance,
+          label = paste(label, route)
+        )
+        expect_equal(
+          as.numeric(logLik(fit)),
+          as.numeric(logLik(joint)),
+          tolerance = simulation_tolerance,
+          label = paste(label, route)
+        )
+      }
+      if (family == "rate") {
+        expect_rate_equals_poisson(
+          joint,
+          sim$rate[[flavor]],
+          outcome ~ indeg + outdeg + offset(log(dt))
+        )
+      } else {
+        expect_choice_equals_clogit(
+          joint,
+          sim$choice[[flavor]],
+          outcome ~ recip + trans + strata(interval)
+        )
+      }
+    }
+  }
+})
+
+test_that("F2: the handle replays both flavors, masks excluding", {
+  replay <- walk_replay_against_batch(f2_container_spec(f2_simulation()))
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})

@@ -1,0 +1,79 @@
+# Shared by the walk-handle tests and the simulation cross-validation
+# fixtures, which replay each constrained fixture through the handle.
+
+# Replay a specification's observed schedule through the handle and compare
+# each fid's live evaluation at its own dependent events against the batch
+# materialization. Returns the number of comparisons and of excluded
+# alternatives among the compared choice rows, so a test can confirm the risk
+# set it compared actually excluded something.
+walk_replay_against_batch <- function(spec) {
+  batch <- suppressWarnings(preprocess_joint(spec))
+  map <- attr(batch, "process_map")
+  handle <- suppressWarnings(walk_open(spec))
+  schedule <- handle$schedule
+  dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
+  n_checked <- 0L
+  n_excluded <- 0L
+  for (k in seq_len(schedule$n)) {
+    # Driven by schedule position, not by time alone: a dependent row is
+    # evaluated before the covariate rows sharing its stamp. An exogenous row is
+    # reached through walk_advance(), which owns its cursor; a focal covariate
+    # row is the realization of a dependent event, which the driver injects.
+    if (
+      !schedule$dependent[k] && !(schedule$layer[k] %in% handle$focal_layers)
+    ) {
+      walk_advance(handle, schedule$time[k])
+      next
+    }
+    if (!schedule$dependent[k]) {
+      event <- list(
+        layer = schedule$layer[k],
+        sender = schedule$sender[k],
+        receiver = schedule$receiver[k],
+        time = schedule$time[k]
+      )
+      event[[schedule$semantics[k]]] <- schedule$value[[k]]
+      walk_inject(handle, event)
+      next
+    }
+    # The composition in force at a dependent event includes changes at its
+    # own stamp; the exogenous rows sharing that stamp come after it.
+    walk_advance_presence(handle, schedule$time[k])
+    own <- map$fid[
+      map$layer == schedule$layer[k] &
+        (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
+    ]
+    for (fid in own) {
+      key <- as.character(fid)
+      dep_count[[key]] <- dep_count[[key]] + 1L
+      row <- map[map$fid == fid, ]
+      is_rate <- identical(row$family, "rate")
+      out <- batch[[key]]
+      n_parameters <- if (is_rate) {
+        ncol(out$initial_stats) + row$has_intercept
+      } else {
+        dim(out$initial_stats)[3]
+      }
+      theta <- rep_len(c(0.4, -0.3, 0.25), n_parameters)
+      live <- walk_evaluate(handle, fid, theta)
+      state <- materialize_process_state(
+        out,
+        model_type = if (is_rate) "DyNAM-M-Rate" else "DyNAM-M",
+        event_index = which(out$is_dependent == 1L)[dep_count[[key]]],
+        has_intercept = row$has_intercept
+      )
+      reference <- evaluate_process_state(state, theta)$value
+      if (is_rate) {
+        expect_equal(live$value, reference)
+      } else {
+        sender <- schedule$sender[k]
+        n2 <- state$n_actors2
+        live_row <- live$value[(sender - 1L) * n2 + seq_len(n2)]
+        expect_equal(live_row, reference)
+        n_excluded <- n_excluded + sum(live_row[-sender] == 0)
+      }
+      n_checked <- n_checked + 1L
+    }
+  }
+  list(n_checked = n_checked, n_excluded = n_excluded)
+}
