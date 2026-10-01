@@ -39,9 +39,9 @@ test_that("a repeated dyad preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("repeated_dyad__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("repeated_dyad__", family)
     )
   }
 })
@@ -198,9 +198,9 @@ test_that("a realistic specification preprocesses identically on real data", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("se_realistic__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("se_realistic__", family)
     )
   }
 })
@@ -313,11 +313,9 @@ test_that("complementary flavor constraints preprocess identically", {
   map <- parity_frozen("flavored_oracle_map")
 
   for (i in seq_len(nrow(map))) {
-    expect_equal(
-      parity_strip_deco(
-        parity_prep_by(merged, map$family[i], flavor = map$flavor[i])
-      ),
-      parity_frozen(paste0("flavored_oracle__", map$fid[i]))
+    expect_parity_golden(
+      parity_prep_by(merged, map$family[i], flavor = map$flavor[i]),
+      paste0("flavored_oracle__", map$fid[i])
     )
   }
 })
@@ -348,9 +346,9 @@ test_that("a network carrying NA preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("missing_identical__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("missing_identical__", family)
     )
   }
 })
@@ -377,9 +375,9 @@ test_that("a missing nodal covariate alone is unaffected", {
   spec <- parity_missing_spec(data)
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
-  expect_equal(
-    parity_strip_deco(parity_prep_by(merged, "rate")),
-    parity_frozen("missing_nodal__rate")
+  expect_parity_golden(
+    parity_prep_by(merged, "rate"),
+    "missing_nodal__rate"
   )
 })
 
@@ -563,9 +561,9 @@ for (case_name in names(parity_window_cases)) {
       ))
 
       for (family in c("rate", "choice")) {
-        expect_equal(
-          parity_strip_deco(parity_prep_by(merged, family)),
-          parity_frozen(paste0("bounded_", label, "__", family))
+        expect_parity_golden(
+          parity_prep_by(merged, family),
+          paste0("bounded_", label, "__", family)
         )
       }
     })
@@ -586,9 +584,9 @@ test_that("a windowed term preprocesses identically on both substrates", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("windowed_plain__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("windowed_plain__", family)
     )
   }
 })
@@ -673,9 +671,9 @@ test_that("a windowed term and a bound compose", {
   ))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("windowed_bound__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("windowed_bound__", family)
     )
   }
 })
@@ -691,9 +689,9 @@ test_that("a window on a list(net1, net2) term derives every member", {
 
   merged_prep <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged_prep, family)),
-      parity_frozen(paste0("window_list__", family))
+    expect_parity_golden(
+      parity_prep_by(merged_prep, family),
+      paste0("window_list__", family)
     )
   }
 })
@@ -757,9 +755,9 @@ test_that("two processes windowing the same source share one derived object", {
   map <- attr(out, "process_map")
   for (family in c("rate", "choice")) {
     fid <- map$fid[map$layer == "calls" & map$family == family]
-    expect_equal(
-      parity_strip_deco(out[[as.character(fid)]]),
-      parity_frozen(paste0("two_proc_calls__", family))
+    expect_parity_golden(
+      out[[as.character(fid)]],
+      paste0("two_proc_calls__", family)
     )
   }
 })
@@ -822,9 +820,9 @@ test_that("an opportunity list preprocesses identically on both substrates", {
     control_preprocessing = control
   ))
 
-  expect_equal(
-    parity_strip_deco(parity_prep_by(merged, "choice")),
-    parity_frozen("opportunity__choice")
+  expect_parity_golden(
+    parity_prep_by(merged, "choice"),
+    "opportunity__choice"
   )
 })
 
@@ -861,9 +859,9 @@ test_that("a user support constraint preprocesses identically, both families", {
   merged <- suppressWarnings(preprocess_joint(single_process_joint(spec)))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("user_constraint__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("user_constraint__", family)
     )
   }
 })
@@ -880,9 +878,9 @@ test_that("a constraint and a bounded window compose on the single unit", {
   ))
 
   for (family in c("rate", "choice")) {
-    expect_equal(
-      parity_strip_deco(parity_prep_by(merged, family)),
-      parity_frozen(paste0("constraint_bound__", family))
+    expect_parity_golden(
+      parity_prep_by(merged, family),
+      paste0("constraint_bound__", family)
     )
   }
 })

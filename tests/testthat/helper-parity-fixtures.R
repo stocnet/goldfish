@@ -37,6 +37,47 @@ parity_strip_deco <- function(prep) {
 # test-exposure_entity_time.R instead, and dropped here from both sides.
 parity_intercept_scalars <- c("exposure_entity_time", "avg_active_entity")
 
+# Availability fields that restate the folded object: the per-change lists
+# beside the update buffers, the fold flags, and the raw presences stashed on
+# the support mask. Every engine reads the folded object, so a comparison
+# restricted to the remaining fields has to hold across their removal.
+availability_retired_fields <- c(
+  "active_sender_changes",
+  "active_dyad_changes",
+  "active_sender_folded",
+  "active_dyad_folded"
+)
+availability_retired_mask_fields <- c(
+  "sender_presence_init",
+  "receiver_presence_init",
+  "receiver_presence_update",
+  "receiver_presence_update_pointer"
+)
+
+availability_kept <- function(prep) {
+  prep <- prep[setdiff(names(prep), availability_retired_fields)]
+  if (is.list(prep$support_mask)) {
+    mask <- prep$support_mask
+    prep$support_mask <- mask[
+      setdiff(names(mask), availability_retired_mask_fields)
+    ]
+  }
+  prep
+}
+
+# A merged-walk output against its frozen recipe golden, on every field and
+# on the fields that survive the availability retirement.
+expect_parity_golden <- function(prep, key) {
+  live <- parity_strip_deco(prep)
+  golden <- parity_frozen(key)
+  testthat::expect_equal(live, golden, info = key)
+  testthat::expect_equal(
+    availability_kept(live),
+    availability_kept(golden),
+    info = paste(key, "(kept fields)")
+  )
+}
+
 parity_prep_by <- function(out, family, flavor = NULL) {
   map <- attr(out, "process_map")
   sel <- map$family == family

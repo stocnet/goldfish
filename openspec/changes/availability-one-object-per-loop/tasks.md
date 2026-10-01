@@ -1,11 +1,11 @@
 ## 0. Gates and references (D6)
 
-- [ ] 0.1 Confirm `constraint-objects-on-shared-walk` groups 0-4 are landed on
+- [x] 0.1 Confirm `constraint-objects-on-shared-walk` groups 0-4 are landed on
       `feature_simulation` (its 4.5b effect and 4.6 retirement are the
       producer this change reshapes) and the tree is clean; `NOT_CRAN=true`
       suite green (not-cran-test; six baseline files and the C++ goldens
       PASS, not SKIP). Record the counts in `progress.md`.
-- [ ] 0.2 Re-capture every byte-identity reference family
+- [x] 0.2 Re-capture every byte-identity reference family
       (`helper-constraint-atoms.R`, including the joint and flavored
       families) and the parity goldens with today's field list, and add a
       second comparison restricted to the fields this change keeps
