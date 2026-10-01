@@ -47,12 +47,14 @@ using namespace arma;
 //'     Then the first 10 colums of stat_mat_update is the update for 
 //'     the first event, the 11th column is  the update for the second event,
 //'     and the 12th to 15th columns are the updates for the third event.
-//' @param active_sender_init An n_actor1 by 1 matrix, which records 
-//'    the initial presence of each actor1.
-//'    If the i-th actor1 is not present in the
-//'    beginning then the i-th entry of active_sender_init is 0, otherwise it's 1.
-//' @param active_sender_update An matrix with two rows, which record the 
-//'    updates of the presence of actor1 through all events.
+//' @param active_dyad_sender_init The sender factor of an outer-encoded
+//'    `active_dyad`: an n_actor1 by 1 matrix, which records
+//'    the initial availability of each actor1.
+//'    If the i-th actor1 is not available in the
+//'    beginning then the i-th entry is 0, otherwise it's 1.
+//'    Zero-length at the point encoding, whose grid already carries it.
+//' @param active_dyad_sender_update An matrix with two rows, which record the
+//'    updates of the sender factor through all events.
 //'    The following is an example.
 //'     \tabular{rrrrr}{
 //'       0 \tab 3 \tab 4 \tab 9 \tab 20\cr
@@ -116,9 +118,9 @@ List estimate_REM(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& active_sender_init,
-    const arma::mat& active_sender_update,
-    const arma::vec& active_sender_update_pointer,
+    const arma::vec& active_dyad_sender_init,
+    const arma::mat& active_dyad_sender_update,
+    const arma::vec& active_dyad_sender_update_pointer,
     const arma::vec& active_dyad_init,
     const arma::mat& active_dyad_update,
     const arma::vec& active_dyad_update_pointer,
@@ -268,11 +270,11 @@ List estimate_REM(
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
    bool has_composition_change1 = true;
-   int active_sender_update_id = 0;
-   if (active_sender_update.n_elem == 0) {
+   int active_dyad_sender_update_id = 0;
+   if (active_dyad_sender_update.n_elem == 0) {
      has_composition_change1 = false;
    }
-   arma::vec active_sender = active_sender_init;
+   arma::vec active_dyad_sender = active_dyad_sender_init;
    
    bool has_composition_change2 = true;
    int active_dyad_update_id = 0;
@@ -281,10 +283,11 @@ List estimate_REM(
    }
    // `active_dyad` is the folded per-event risk mask. At the
    // outer encoding it is the length-n2 receiver vector (cell (i, j) available iff
-   // active_sender(i) & active_dyad(j)). At the point encoding it is a flattened
+   // active_dyad_sender(i) & active_dyad(j), the sender factor being the
+   // object's own second factor). At the point encoding it is a flattened
    // n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j) with both
    // presences n support folded in, maintained by a (node1, node2, replace)
-   // buffer and read cell-wise.
+   // buffer and read cell-wise; the sender factor is then empty and unread.
    arma::vec active_dyad = active_dyad_init;
    
    // Go through all events
@@ -318,10 +321,11 @@ List estimate_REM(
      // update presence
      if (has_composition_change1) {
        apply_availability_updates(
-         active_sender_update_id, active_sender_update_pointer(id_event),
+         active_dyad_sender_update_id,
+         active_dyad_sender_update_pointer(id_event),
          [&](int c) {
-           active_sender(active_sender_update(0, c) - 1) =
-             active_sender_update(1, c);
+           active_dyad_sender(active_dyad_sender_update(0, c) - 1) =
+             active_dyad_sender_update(1, c);
          });
      }
      if (has_composition_change2) {
@@ -356,7 +360,7 @@ List estimate_REM(
      // build the risk-set mask over all n1 * n2 dyads (sender-major)
      arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
      for (int i = 0; i < n_actors_1; ++i) {
-       if (active_sender(i) == 1) {
+       if (active_dyad_is_point || active_dyad_sender(i) == 1) {
          int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
          // point encoding: sender i's row starts at i * n_actors_2; outer
          // encoding: the receiver vector is read directly (offset 0).

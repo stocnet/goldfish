@@ -219,6 +219,14 @@ make_engine_evaluator <- function(
   } else {
     active_dyad_init
   }
+  # An outer-encoded dyad object is two factors, and the sender one reaches
+  # the dyad kernels as their sender factor. A point grid already holds sender
+  # presence, so the kernels receive no sender vector at all.
+  if (dyad_is_point) {
+    active_sender_init <- numeric(0)
+    active_sender_update <- matrix(0, 0, 0)
+    active_sender_update_pointer <- numeric(0)
+  }
 
   evaluate <- function(
     pars,

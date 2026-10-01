@@ -7,8 +7,8 @@
 #'   the log-Likelihood, and the log-likelihood of each event given input data
 #'
 #' @noRd
-estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, active_dyad_is_point = FALSE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_probabilities = FALSE, return_availability = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
-    .Call('_goldfish_estimate_DyNAM_MM', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace)
+estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, active_dyad_is_point = FALSE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_probabilities = FALSE, return_availability = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
+    .Call('_goldfish_estimate_DyNAM_MM', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace)
 }
 
 #' Calculation for estimating an DyNAM choice model
@@ -68,12 +68,14 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'     Then the first 10 colums of stat_mat_update is the update for 
 #'     the first event, the 11th column is  the update for the second event,
 #'     and the 12th to 15th columns are the updates for the third event.
-#' @param active_sender_init An n_actor1 by 1 matrix, which records 
-#'    the initial presence of each actor1.
-#'    If the i-th actor1 is not present in the
-#'    beginning then the i-th entry of active_sender_init is 0, otherwise it's 1.
-#' @param active_sender_update An matrix with two rows, which record the 
-#'    updates of the presence of actor1 through all events.
+#' @param active_dyad_sender_init The sender factor of an outer-encoded
+#'    `active_dyad`: an n_actor1 by 1 matrix, which records
+#'    the initial availability of each actor1.
+#'    If the i-th actor1 is not available in the
+#'    beginning then the i-th entry is 0, otherwise it's 1.
+#'    Zero-length at the point encoding, whose grid already carries it.
+#' @param active_dyad_sender_update An matrix with two rows, which record the
+#'    updates of the sender factor through all events.
 #'    The following is an example.
 #'     \tabular{rrrrr}{
 #'       0 \tab 3 \tab 4 \tab 9 \tab 20\cr
@@ -126,14 +128,14 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'         given the input parameter and data.}
 #' }
 #' @noRd
-estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE, return_conditional_scores = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
-    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace)
+estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE, return_conditional_scores = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
+    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace)
 }
 
 #' Calculation for estimating an REM-choice-ordered model
 #' @noRd
-estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, active_dyad_is_point = FALSE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_probabilities = FALSE, return_availability = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
-    .Call('_goldfish_estimate_REM_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace)
+estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, active_dyad_is_point = FALSE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_probabilities = FALSE, return_availability = FALSE, event_weights = NULL, return_event_information_trace = FALSE) {
+    .Call('_goldfish_estimate_REM_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace)
 }
 
 #' Estimate a DyNAM-coordination model with gathered data

@@ -31,7 +31,7 @@
       rate gather dispatch stop passing them. Test: C++ goldens and the rate
       baselines PASS; a snapshot of `formals(estimate_DyNAM_rate)` names no
       `active_dyad` argument.
-- [ ] 1.2 `src/REM_default.cpp`, `src/REM_ordered_default.cpp`,
+- [x] 1.2 `src/REM_default.cpp`, `src/REM_ordered_default.cpp`,
       `src/DyNAM_MM_default.cpp`: rename the sender-axis arguments to
       `active_dyad_sender_init` / `_update` / `_update_pointer` (the outer
       encoding's first factor), read them only when `!active_dyad_is_point`,

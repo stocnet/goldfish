@@ -25,9 +25,9 @@ List estimate_DyNAM_MM(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& active_sender_init,
-    const arma::mat& active_sender_update,
-    const arma::vec& active_sender_update_pointer,
+    const arma::vec& active_dyad_sender_init,
+    const arma::mat& active_dyad_sender_update,
+    const arma::vec& active_dyad_sender_update_pointer,
     const arma::vec& active_dyad_init,
     const arma::mat& active_dyad_update,
     const arma::vec& active_dyad_update_pointer,
@@ -141,11 +141,11 @@ List estimate_DyNAM_MM(
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
     bool has_composition_change1 = true;
-    int active_sender_update_id = 0;
-    if (active_sender_update.n_elem == 0) {
+    int active_dyad_sender_update_id = 0;
+    if (active_dyad_sender_update.n_elem == 0) {
         has_composition_change1 = false;
     }
-    arma::vec active_sender = active_sender_init;
+    arma::vec active_dyad_sender = active_dyad_sender_init;
 
     bool has_composition_change2 = true;
     int active_dyad_update_id = 0;
@@ -153,11 +153,13 @@ List estimate_DyNAM_MM(
         has_composition_change2 = false;
     }
     // `active_dyad` is the folded per-event risk mask. At the outer encoding it is
-    // the length-n2 receiver vector (dyad (i, j) available iff active_sender(i) &
-    // active_dyad(j)). At the point encoding it is a flattened n1 x n2 mask
-    // (sender-major: dyad (i, j) at i * n_actors_2 + j) — a symmetrised support
-    // constraint folded in — maintained by a (node1, node2, replace)
-    // buffer and read cell-wise.
+    // the length-n2 receiver vector (dyad (i, j) available iff
+    // active_dyad_sender(i) & active_dyad(j), the sender factor being the
+    // object's own second factor). At the point encoding it is a flattened
+    // n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j) — a
+    // symmetrised support constraint folded in — maintained by a
+    // (node1, node2, replace) buffer and read cell-wise; the sender factor is
+    // then empty and unread.
     arma::vec active_dyad = active_dyad_init;
 
 
@@ -191,10 +193,11 @@ List estimate_DyNAM_MM(
         // update presence
         if (has_composition_change1) {
             apply_availability_updates(
-              active_sender_update_id, active_sender_update_pointer(id_event),
+              active_dyad_sender_update_id,
+              active_dyad_sender_update_pointer(id_event),
               [&](int c) {
-                active_sender(active_sender_update(0, c) - 1) =
-                  active_sender_update(1, c);
+                active_dyad_sender(active_dyad_sender_update(0, c) - 1) =
+                  active_dyad_sender_update(1, c);
               });
         }
         if (has_composition_change2) {
@@ -235,7 +238,7 @@ List estimate_DyNAM_MM(
         // support/presence mask, and (twomode_or_reflexive || j != i).
         arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
         for (int i = 0; i < n_actors_1; ++i) {
-            if (active_sender(i) == 1) {
+            if (active_dyad_is_point || active_dyad_sender(i) == 1) {
                 int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
                 // point encoding: sender i's row starts at i * n_actors_2;
                 // outer encoding: the receiver vector is read directly.
