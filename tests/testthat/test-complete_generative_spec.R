@@ -100,8 +100,13 @@ rate_only_choice_join <- function() {
 test_that("a rate-only flavor completes to a uniform choice with a warning", {
   local_cli_context()
   js <- rate_only_choice_join()
+  # Two gaps, two warnings: the inner expectation takes the pinned emails rate,
+  # and the calls choice's plain default warning reaches the outer one.
   expect_warning(
-    complete_generative_spec(js, consumer = "estimate_dynes"),
+    expect_warning(
+      complete_generative_spec(js, consumer = "estimate_dynes"),
+      class = "goldfish_pinned_rate_warning"
+    ),
     class = "goldfish_completed_default_warning"
   )
   cc <- suppressWarnings(complete_generative_spec(
@@ -902,13 +907,21 @@ test_that("a mixed ordered+timed composition aborts at join time", {
 
 test_that("the completion warning re-fires through a second consumer", {
   js <- rate_only_choice_join()
+  # Each entry fills two gaps (the calls choice and the pinned emails rate), so
+  # each warns twice.
   expect_warning(
-    complete_generative_spec(js, consumer = "estimate_dynes"),
+    expect_warning(
+      complete_generative_spec(js, consumer = "estimate_dynes"),
+      class = "goldfish_pinned_rate_warning"
+    ),
     class = "goldfish_completed_default_warning"
   )
   # The SAME half-specified spec through a second consumer warns again.
   expect_warning(
-    complete_generative_spec(js, consumer = "simulate"),
+    expect_warning(
+      complete_generative_spec(js, consumer = "simulate"),
+      class = "goldfish_pinned_rate_warning"
+    ),
     class = "goldfish_completed_default_warning"
   )
 })
