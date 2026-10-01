@@ -695,7 +695,10 @@
       2.2f landed earlier; `fixed-loglik-degenerate` group 1 landed as
       `8bc67c11` (tests) → `c032a6f9` (fix). That change's group 2 (the
       `goldfish_dynes_fixed_term_degenerate` warning and the `em_trace`
-      `fixed_degenerate` column) does not gate this task. Neither gate needs
+      `fixed_degenerate` column) does not gate this task. The whole change
+      has since landed (2026-10-01): group 2 `5782bc90` → `1044580c`, group 3
+      (early stop of a fully dropped pool) `e36962e1` → `65d6427f`, NEWS.d
+      fragment `fd922b76`, `status: landed` `7e58130c`. Neither gate needs
       `abmcem` archived: archiving happens at the merge, in the order `abmcem`,
       `fixed-loglik-degenerate`, then this change. Also pin the preprocessing window to `[t0, t_M]` and
       sharpen the panel-window refusal message for a modeled panel layer

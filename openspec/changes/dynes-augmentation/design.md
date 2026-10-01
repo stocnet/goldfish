@@ -2050,6 +2050,12 @@ multiplicities.
   0.001`, constant, on a raw summed score) under-step so every M-step hits its
   iteration cap. → flagged to `abmcem` as follow-ups; the degenerate flag must be
   fixed before task 6.1 can expose a `−Inf` pin (2.2f removes the known cause).
+  *Amended 2026-10-01:* the degenerate flag (follow-up 1) is fixed by the
+  change `fixed-loglik-degenerate`, landed on `feature/dynes`: any non-finite
+  fixed-only term marks the sequence degenerate, `estimate_dynes()` warns once
+  (`goldfish_dynes_fixed_term_degenerate`) and records `fixed_degenerate` in
+  `em_trace`, and a fully dropped pool stops with `converged = FALSE`. The SGD
+  step-size follow-up remains open.
 - **Identifiability of separate creation/dissolution parameters from sparse waves** →
   the simulation recovery study (task 6.2) quantifies it on DyNES's own estimand, with
   the optional RSiena cross-check (D6) as supporting prior art only; `summary()` exposes
