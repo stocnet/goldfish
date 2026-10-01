@@ -874,7 +874,12 @@ never promised).
 - **[Proposal evaluator's loglik and rates use different compiles]** (added
   2026-09-24) → the loglik path is per-sub-model `estimate_wrapper()`, the rate
   path the merged walk; they agree through `multi-process-walk`'s
-  batch-vs-replay equality. A rate query also pays a second compile per proposed
+  batch-vs-replay equality. *Amended 2026-09-28:* task 6.3 moves the loglik
+  onto the joint likelihood, per-fid engine calls over the stats of one
+  `preprocess_joint()` walk of the pool engine spec, so both paths then read the
+  merged walk. They still compile separately (`loglik` and `rates` stay two
+  paths), and test 6.3a(viii) pins the closure's `loglik` to the pool-entry
+  reference at 1e-10. A rate query also pays a second compile per proposed
   move (`walk_open()` recompiles every formula); caching a live handle across a
   chain's proposals belongs to `augment_seq_mcmc()`'s driver (`rate-queries` D5)
   and is the first place to look if profiling finds it dominant.
@@ -1257,3 +1262,42 @@ work) before `abmcem` lands.
   Hamming-diff pin for the event-observed `emails` layer. A completed rate also
   warned twice and was named `Rate 3`. The fix is a separate change,
   `pinned-rate-warning-source`, which re-records that snapshot.
+- **[deferred — v2] Pinned rates on flavored relational layers.** No
+  flavor-aware relational risk set exists yet. Until one does, a completed rate
+  on a *flavored*, event-observed layer is pinned through the panel
+  wave-endpoint path (`panel_wave_risk_set()`, the stopgap dispatch in
+  `pin_completed_rates()`). Its count is therefore a Hamming diff between wave
+  endpoints, not the flavor's observed event count. Since
+  `completion-idempotency` (D2/D3), such a pin also records its wave grid, and
+  completing it again on a different grid aborts. v2's flavor-aware relational
+  risk set would pin these layers from their own events (`event_count` source),
+  with no grid. Their grid abort then stops applying, and their pinned
+  intercept, which the evaluator's pinned-rate compensator reads, changes
+  value. DyNES fits on flavored relational data will move once at that point,
+  so record it as a behavior change then. No v1 action for this change.
+- **[deferred — follow-up changes] Defects found after landing.** The
+  `dynes-augmentation` task-1.4 toy (and its 1.5 revision) found three problems
+  in this change's code, recorded 2026-09-30. All 46 tasks here are done, so
+  each goes to its own change rather than reopening this one:
+  1. **`pool_fixed_loglik()` does not flag a −Inf fixed-only term as
+     degenerate.** When the engine *returns* −Inf instead of erroring (e.g. a
+     pinned plateau of −Inf with events in its period), the result is
+     `loglik = −Inf, degenerate = FALSE`. The D3 `tryCatch` guard catches only
+     the erroring path, so the sequence reaches the weight normalizer as −Inf.
+     Any non-finite term should set `degenerate = TRUE`. This is a bug against
+     the existing "degenerate sequence does not abort the pool" requirement,
+     so the follow-up is a small fix change that `## MODIFIED`s that
+     requirement once this change is archived. **Gate:** `dynes-augmentation`
+     task 6.1 must not wire `wave_times` before it lands.
+  2. **SGD defaults under-step (D6).** `step_size = 0.001`, constant, on a raw
+     summed score: on the toy (K = 30, 6–11 free θ) every M-step hit the
+     100-iteration cap with gradient norm 0.9–14, Q decayed geometrically, and
+     no 15-iteration run met the stop rule. A scale-aware default
+     (adagrad/adam, or a step normalized by event count or information) is a
+     defaults change that moves results, so it needs its own change with
+     evidence.
+  3. **Resident store replication (D10).** The parallel seam's (1 + W)
+     replicated store is the binding memory bound once the start state is
+     shared (K_max ≈ 850 vs ≈ 2700 sharded at W = 5, 4820 path events, 12 GB).
+     Sharding the store (coordinator plus 1/W of the pool per daemon, tasks
+     routed by id) is a performance change for its own proposal.
