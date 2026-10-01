@@ -48,3 +48,13 @@
       ! Every sequence in the pool was dropped; estimation stopped at the last accepted parameters and the fit is flagged `converged = FALSE`.
       i This is likely a bug in goldfish; please report it.
 
+# a partially modeled panel layer aborts
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10))
+    Condition
+      Error in `estimate_dynes()`:
+      ! A modeled panel layer must model all of its flavors.
+      x Layer "friendship" carries flavor "dissolution" modeled in neither `rate` nor `choice`.
+      i A modeled panel layer's augmented path must place events of every flavor its wave-diff produces; model "dissolution" or drop it from the panel layer.
+

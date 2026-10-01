@@ -48,8 +48,8 @@ surface_control <- function(...) {
 
 # --- Surface ----------------------------------------------------------------
 
-test_that("estimate_dynes is internal until a real augmenter exists", {
-  expect_false("estimate_dynes" %in% getNamespaceExports("goldfish"))
+test_that("estimate_dynes is exported now that real augmenters exist", {
+  expect_contains(getNamespaceExports("goldfish"), "estimate_dynes")
 })
 
 test_that("estimate_dynes without an augmenter aborts informatively", {
@@ -518,7 +518,7 @@ test_that("estimates are identical across worker counts under real SGD", {
 test_that("real mirai daemons give the serial estimates bit for bit", {
   skip_on_cran()
   skip_if_not_installed("mirai")
-  local_dynes_augmenter(new_multiwave_augmenter())
+  local_dynes_augmenter(new_wave_grid_augmenter())
   spec <- dynes_varying_raw_spec()
   run <- function(n_cores) {
     suppressWarnings(estimate_dynes(
@@ -655,14 +655,14 @@ test_that("the fixed-term warning is classed and silent at a zero count", {
 
 test_that("a fixed-only term lost for some sequences warns once, is traced", {
   skip_on_cran()
-  local_dynes_augmenter(new_multiwave_augmenter())
+  local_dynes_augmenter(new_wave_grid_augmenter())
   real_fixed_only_loglik <- fixed_only_loglik
   # Keyed on the drawn path, so only some sequences lose the pinned
-  # friendship rate: those whose first friendship event falls early.
+  # friendship rate: those whose first latent friendship event falls early.
   local_mocked_bindings(
     fixed_only_loglik = function(sub_model, stats) {
       dependent <- stats$event_time[stats$is_dependent == 1L]
-      if (!is.null(sub_model$pinned_rate) && min(dependent) < 0.5) {
+      if (!is.null(sub_model$pinned_rate) && min(dependent) < 1.6) {
         return(-Inf)
       }
       real_fixed_only_loglik(sub_model, stats)
@@ -684,7 +684,7 @@ test_that("a fixed-only term lost for some sequences warns once, is traced", {
 
 test_that("a run with finite fixed-only terms neither warns nor traces one", {
   skip_on_cran()
-  local_dynes_augmenter(new_multiwave_augmenter())
+  local_dynes_augmenter(new_wave_grid_augmenter())
 
   run <- fixed_term_run()
 
@@ -702,7 +702,7 @@ test_that("a run with finite fixed-only terms neither warns nor traces one", {
 
 test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   skip_on_cran()
-  local_dynes_augmenter(new_multiwave_augmenter())
+  local_dynes_augmenter(new_wave_grid_augmenter())
   local_fixed_term_loss()
 
   run <- expect_no_error(fixed_term_run())
@@ -719,4 +719,339 @@ test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   expect_identical(nrow(fit$em_trace), 0L)
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
+})
+
+# --- Specification validation and entry wiring ------------------------------
+
+# One estimate_dynes() entry up to the loop, which is stubbed: what the entry
+# hands every f path (the completed spec, the recipe, the preprocessing
+# controls of the pool store, the warm start and the loop) and every call to
+# complete_generative_spec(). Warnings are muffled; messages are kept.
+dynes_entry <- function(
+  spec,
+  control_prep = set_preprocessing(),
+  wave_times = NULL,
+  warm_start = TRUE,
+  completion = complete_generative_spec
+) {
+  # Forced before the mock below replaces the binding it names.
+  force(completion)
+  seen <- new.env(parent = emptyenv())
+  seen$completions <- list()
+  seen$messages <- list()
+  real_header <- pool_store_header
+  real_recipe <- compile_augmentation_recipe
+  local_mocked_bindings(
+    complete_generative_spec = function(joint_spec, ...) {
+      seen$completions[[length(seen$completions) + 1L]] <- list(...)
+      completion(joint_spec, ...)
+    },
+    compile_augmentation_recipe = function(spec, wave_times, ...) {
+      seen$recipe <- real_recipe(spec, wave_times, ...)
+      seen$recipe
+    },
+    pool_store_header = function(decomposition, n_free, control_prep, ...) {
+      seen$header_prep <- control_prep
+      real_header(decomposition, n_free, control_prep, ...)
+    },
+    dynes_warm_start = function(
+      decomposition,
+      augmenter,
+      n_free,
+      control_prep,
+      call
+    ) {
+      seen$warm_prep <- control_prep
+      numeric(n_free)
+    },
+    run_abem_loop = function(
+      theta0,
+      decomposition,
+      augmenter,
+      control_algo,
+      spec,
+      control_prep,
+      ...
+    ) {
+      seen$loop_prep <- control_prep
+      seen$spec <- spec
+      seen$decomposition <- decomposition
+      seen$augmenter <- augmenter
+      list(parameters = theta0, converged = TRUE, em_trace = NULL)
+    },
+    new_dynes_fit = function(res, ...) res
+  )
+  control <- surface_control(
+    augmenter = set_augmenter_options(
+      routine = "random",
+      warm_start = warm_start
+    )
+  )
+  withCallingHandlers(
+    estimate_dynes(spec, control, control_prep, wave_times = wave_times),
+    warning = function(w) invokeRestart("muffleWarning"),
+    message = function(m) {
+      seen$messages[[length(seen$messages) + 1L]] <- m
+      invokeRestart("muffleMessage")
+    }
+  )
+  seen
+}
+
+# The count panel calls beside the observed emails stream, with formulas
+# chosen per test: calls reads emails, emails reads calls, or neither.
+count_panel_spec <- function(calls_choice, emails_choice) {
+  data <- recipe_count_data()
+  make_joint_specification(
+    make_specification(
+      rate = ~1,
+      choice = calls_choice,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = emails_choice,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# recipe_state_spec() with the calls choice formula replaced.
+state_panel_spec <- function(calls_choice) {
+  data <- recipe_state_data()
+  make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg, dissolution ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = calls_choice,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+test_that("a partially modeled panel layer aborts", {
+  local_cli_context()
+  data <- recipe_state_data()
+  spec <- make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+
+  expect_snapshot(
+    estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10)),
+    error = TRUE
+  )
+})
+
+test_that("a modeled count panel with only separable formulas estimates", {
+  spec <- count_panel_spec(~ tie(emails), ~inertia)
+  calls <- spec$process_map$layer == "calls"
+  expect_false(any(spec$process_map$coupled[calls]))
+
+  seen <- dynes_entry(spec, wave_times = c(0, 5, 10))
+
+  expect_s3_class(seen$spec, "goldfishJointSpec")
+})
+
+test_that("mutually dependent panel and event layers estimate jointly", {
+  spec <- count_panel_spec(~ tie(emails), ~ tie(calls))
+  emails <- spec$process_map$layer == "emails"
+  expect_true(all(spec$process_map$coupled[
+    emails & spec$process_map$family == "choice"
+  ]))
+
+  seen <- dynes_entry(spec, wave_times = c(0, 5, 10))
+
+  expect_s3_class(seen$spec, "goldfishJointSpec")
+  expect_length(seen$messages, 0L)
+})
+
+test_that("a mixed specification names its separable fids and proceeds", {
+  local_cli_context()
+  spec <- count_panel_spec(~inertia, ~inertia)
+
+  seen <- dynes_entry(spec, wave_times = c(0, 5, 10))
+
+  expect_s3_class(seen$spec, "goldfishJointSpec")
+  expect_length(seen$messages, 1L)
+  expect_s3_class(seen$messages[[1]], "goldfish_dynes_separable_fids")
+  expect_snapshot(cat(conditionMessage(seen$messages[[1]])))
+})
+
+test_that("a window over a modeled panel layer is refused at entry", {
+  local_cli_context()
+  spec <- state_panel_spec(~ inertia + tie(friendship, window = 3))
+
+  expect_snapshot(
+    estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10)),
+    error = TRUE
+  )
+  expect_error(
+    estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10)),
+    class = "goldfish_dynes_panel_window"
+  )
+})
+
+test_that("a window over an observed layer passes validation", {
+  spec <- state_panel_spec(~ inertia(calls, window = 3) + tie(friendship))
+
+  seen <- dynes_entry(spec, wave_times = c(0, 5, 10))
+
+  expect_s3_class(seen$spec, "goldfishJointSpec")
+})
+
+test_that("completion runs once at entry, on the panel wave grid", {
+  seen <- dynes_entry(
+    recipe_state_spec(),
+    control_prep = set_preprocessing(start_time = 0)
+  )
+
+  expect_length(seen$completions, 1L)
+  args <- seen$completions[[1]]
+  expect_identical(args$consumer, "estimate_dynes")
+  expect_identical(args$wave_times, c(0, 5, 10))
+  expect_identical(seen$recipe$wave_times, c(0, 5, 10))
+})
+
+test_that("completing without the grid would pin one flat plateau", {
+  spec <- recipe_state_spec()
+
+  flat <- suppressWarnings(complete_generative_spec(spec))
+  waved <- suppressWarnings(
+    complete_generative_spec(spec, wave_times = c(0, 5, 10))
+  )
+
+  for (pin in flat$completed_rates) {
+    expect_length(pin$intercept, 1L)
+  }
+  for (pin in waved$completed_rates) {
+    expect_length(pin$intercept, 2L)
+  }
+})
+
+test_that("every pin shares the recipe's grid", {
+  seen <- dynes_entry(
+    recipe_state_spec(),
+    control_prep = set_preprocessing(start_time = 0)
+  )
+
+  pins <- seen$spec$completed_rates
+  expect_length(pins, 2L)
+  for (pin in pins) {
+    expect_identical(as.numeric(stored_pin_grid(pin)), seen$recipe$wave_times)
+  }
+})
+
+test_that("a pin on a grid other than the recipe's aborts as internal", {
+  # A completion that pins on its own grid: the only route to a -Inf pin
+  # with events in its period.
+  real_completion <- complete_generative_spec
+  off_grid <- function(joint_spec, ...) {
+    args <- list(...)
+    args$wave_times <- c(0, 4, 10)
+    do.call(real_completion, c(list(joint_spec), args))
+  }
+
+  expect_error(
+    dynes_entry(
+      recipe_state_spec(),
+      control_prep = set_preprocessing(start_time = 0),
+      completion = off_grid
+    ),
+    class = "goldfish_dynes_pin_grid_mismatch"
+  )
+})
+
+test_that("every f path runs on the window from t0 to the last wave", {
+  seen <- dynes_entry(
+    recipe_state_spec(),
+    control_prep = set_preprocessing(start_time = 0, end_time = 20)
+  )
+  for (prep in list(seen$header_prep, seen$warm_prep, seen$loop_prep)) {
+    expect_identical(prep$start_time, 0)
+    expect_identical(prep$end_time, 10)
+  }
+
+  # An explicit grid sets the window when the controls set none.
+  seen <- dynes_entry(recipe_state_spec(), wave_times = c(0, 5, 10))
+  for (prep in list(seen$header_prep, seen$warm_prep, seen$loop_prep)) {
+    expect_identical(prep$start_time, 0)
+    expect_identical(prep$end_time, 10)
+  }
+})
+
+test_that("modeled events before the first wave are scored", {
+  seen <- dynes_entry(
+    recipe_state_spec(),
+    control_prep = set_preprocessing(start_time = 0)
+  )
+  # No wave is history: the first interval opens at t0, not at wave 5.
+  expect_identical(seen$recipe$wave_times[[1]], 0)
+  theta <- numeric(sum(!coef_layout(seen$spec)$fixed))
+  drawn <- seen$augmenter$draw(1L, 1L, theta)[[1]]$data
+
+  score <- function(prep) {
+    evaluate_candidate(
+      seen$decomposition,
+      drawn,
+      theta,
+      what = "loglik",
+      control_prep = prep
+    )$loglik
+  }
+  from_t0 <- score(seen$loop_prep)
+  from_first_wave <- score(set_preprocessing(start_time = 5, end_time = 10))
+
+  # The calls at 1 and 3 add their own terms to the window from t0.
+  expect_true(is.finite(from_t0))
+  expect_false(isTRUE(all.equal(from_t0, from_first_wave)))
+})
+
+test_that("completed fids contribute no theta, pinned per wave period", {
+  seen <- dynes_entry(
+    recipe_state_spec(),
+    control_prep = set_preprocessing(start_time = 0)
+  )
+  spec <- seen$spec
+  layout <- coef_layout(spec)
+  map <- spec$process_map
+
+  pinned <- map$fid[map$completed & map$family == "rate"]
+  expect_length(pinned, 2L)
+  for (fid in pinned) {
+    row <- layout[layout$fid == fid, ]
+    pin <- spec$completed_rates[[as.character(fid)]]
+    expect_identical(nrow(row), 1L)
+    expect_true(row$fixed)
+    expect_identical(row$index, NA_integer_)
+    expect_length(pin$intercept, 2L)
+    expect_identical(row$value, as.numeric(pin$intercept)[[1]])
+  }
+  # The free slots are numbered contiguously, skipping the pinned rows.
+  expect_identical(layout$index[!layout$fixed], seq_len(sum(!layout$fixed)))
 })

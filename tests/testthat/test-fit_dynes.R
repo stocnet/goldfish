@@ -195,7 +195,7 @@ test_that("times_of answers from the held specification", {
   expect_identical(times_of(fit), times_of(dynes_pinned_raw_spec()))
 })
 
-test_that("simulate() runs the held specification at the estimates", {
+test_that("simulate() runs the completed specification at the estimates", {
   local_analytic_evaluator()
   local_accept_then_stop()
   local_dynes_augmenter(new_keyed_stub_augmenter())
@@ -211,14 +211,66 @@ test_that("simulate() runs the held specification at the estimates", {
     unname(coef(fit)[paste0(free$process, ": ", free$name)])
   )
 
-  sim <- suppressWarnings(simulate(fit, seed = 1, n_events = 3L))
+  # Re-completing the fit's spec keeps its wave pins and announces them.
+  expect_warning(
+    sim <- simulate(fit, seed = 1, n_events = 3L),
+    class = "goldfish_pinned_rate_warning"
+  )
   expected <- suppressWarnings(simulate(
-    dynes_pinned_raw_spec(),
+    fit$spec,
     seed = 1,
     coef = params,
     n_events = 3L
   ))
   expect_identical(sim$events, expected$events)
+})
+
+test_that("simulate() on a fit pins per wave, as estimation did", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(new_keyed_stub_augmenter())
+  fit <- fit_dynes_toy()
+  simulated <- NULL
+  local_mocked_bindings(
+    resolve_coef_provider = function(coef, completed, ...) {
+      simulated <<- completed
+      rlang::abort("stop", class = "provider_seen")
+    }
+  )
+
+  expect_error(
+    suppressWarnings(simulate(fit, seed = 1, n_events = 3L)),
+    class = "provider_seen"
+  )
+  expect_identical(simulated$completed_rates, fit$spec$completed_rates)
+  waves <- panel_wave_grid(fit$authored_spec)
+  for (pin in simulated$completed_rates) {
+    expect_length(pin$intercept, length(waves) - 1L)
+  }
+})
+
+test_that("compute_lik_seq() resolves an authored spec's grid as the fit did", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(new_keyed_stub_augmenter())
+  fit <- suppressWarnings(estimate_dynes(
+    dynes_varying_raw_spec(),
+    fit_dynes_control()
+  ))
+  sequence <- withr::with_seed(
+    3L,
+    new_wave_grid_augmenter()$draw(1L, 1L, 0)[[1]]$data
+  )
+  theta <- coef(fit)
+
+  authored <- suppressWarnings(
+    compute_lik_seq(fit$authored_spec, sequence, theta)
+  )
+  completed <- suppressWarnings(compute_lik_seq(fit$spec, sequence, theta))
+
+  expect_false(completed$degenerate)
+  expect_equal(authored$loglik, completed$loglik, tolerance = 1e-10)
+  expect_equal(authored$score, completed$score, tolerance = 1e-10)
 })
 
 # --- Display --------------------------------------------------------------

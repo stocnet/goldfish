@@ -315,7 +315,7 @@ test_that("a broadcast answered by fewer daemons than started aborts", {
 
 test_that("an estimation run keeps its evaluation payload off the pool", {
   skip_on_cran()
-  local_dynes_augmenter(new_multiwave_augmenter())
+  local_dynes_augmenter(new_wave_grid_augmenter())
   spec <- dynes_varying_raw_spec()
   run <- function(n_cores) {
     suppressWarnings(estimate_dynes(

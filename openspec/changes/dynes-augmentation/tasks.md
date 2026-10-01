@@ -623,7 +623,7 @@
 
 ## 6. Validation study and documentation
 
-- [ ] 6.1a Write failing tests for multi-layer specification validation: the
+- [x] 6.1a Write failing tests for multi-layer specification validation: the
       all-or-nothing panel-layer modeling rule; the **gate on a modeled panel dependent
       process** rather than on the `coupled` column (design D19) — a modeled count panel
       whose fids are all separable must estimate, an exogenous-only panel reference must

@@ -53,8 +53,23 @@ cross_flavor <- function(data) {
 # friendship rates warn), its recipe, and one augmenter per routine over them.
 # theta: creation indeg, dissolution indeg, calls intercept, calls outdeg.
 cross_build <- function() {
-  data <- cross_data()
-  spec <- make_joint_specification(
+  spec <- cross_spec()
+  waves <- panel_wave_grid(spec, start_time = 0)
+  completed <- suppressWarnings(complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = waves
+  ))
+  list(
+    spec = completed,
+    recipe = compile_augmentation_recipe(completed, waves),
+    waves = waves,
+    theta = c(0.2, -0.2, -1, 0.3)
+  )
+}
+
+cross_spec <- function(data = cross_data()) {
+  make_joint_specification(
     make_specification(
       choice = list(creation ~ indeg, dissolution ~ indeg),
       layer = "friendship",
@@ -68,18 +83,6 @@ cross_build <- function() {
       data = data
     ),
     data = data
-  )
-  waves <- panel_wave_grid(spec, start_time = 0)
-  completed <- suppressWarnings(complete_generative_spec(
-    spec,
-    consumer = "estimate_dynes",
-    wave_times = waves
-  ))
-  list(
-    spec = completed,
-    recipe = compile_augmentation_recipe(completed, waves),
-    waves = waves,
-    theta = c(0.2, -0.2, -1, 0.3)
   )
 }
 
@@ -256,6 +259,81 @@ test_that("the pool entry routes every drawn event to its own flavor", {
           sort(ties$time[own]),
           label = paste(routine, "fid", map$fid[[i]], "dependent event times")
         )
+      }
+    }
+  }
+})
+
+# --- Pins and draws share one grid ------------------------------------------
+
+# What estimate_dynes() hands the augmenters: the specification it completed
+# and the recipe it compiled, at the observation start 0.
+cross_entry <- function() {
+  entry <- NULL
+  local_mocked_bindings(
+    resolve_dynes_augmenter = function(spec, recipe, control, call) {
+      entry <<- list(spec = spec, recipe = recipe)
+      rlang::abort("entry reached", class = "cross_entry_seen")
+    }
+  )
+  expect_error(
+    suppressWarnings(estimate_dynes(
+      cross_spec(),
+      set_algorithm_em(augmenter = set_augmenter_options(routine = "random")),
+      control_prep = set_preprocessing(start_time = 0)
+    )),
+    class = "cross_entry_seen"
+  )
+  entry
+}
+
+test_that("no draw places a pinned process's event in its zero-count period", {
+  entry <- cross_entry()
+  spec <- entry$spec
+  map <- spec$process_map
+  creation <- map$fid[
+    map$completed & map$family == "rate" & map$flavor %in% "creation"
+  ]
+  # The premise: creation records no flip between waves 5 and 10, so its
+  # second plateau is a zero hazard.
+  intercept <- as.numeric(
+    spec$completed_rates[[as.character(creation)]]$intercept
+  )
+  expect_length(intercept, 2L)
+  expect_true(is.finite(intercept[[1]]))
+  expect_identical(intercept[[2]], -Inf)
+  built <- list(
+    spec = spec,
+    recipe = entry$recipe,
+    waves = entry$recipe$wave_times,
+    theta = c(0.2, -0.2, -1, 0.3)
+  )
+  decomposition <- decompose_joint_spec(spec)
+  prep <- set_preprocessing(start_time = 0, end_time = 10)
+
+  for (routine in cross_routines) {
+    for (seed in 1:3) {
+      for (draw in cross_draws(cross_run(built, routine, cross_stream(seed)))) {
+        ties <- as.data.frame(draw$data$ties)
+        late_creation <- ties$layer == "friendship" &
+          ties$flavor %in% "creation" &
+          !is.na(ties$time) &
+          ties$time > 5
+        expect_false(any(late_creation), label = routine)
+
+        stats <- suppressWarnings(
+          preprocess_pool_sequence(
+            decomposition$engine_spec,
+            draw$data,
+            control_prep = prep
+          )
+        )
+        fixed <- pool_fixed_loglik(
+          with_coefficient_masks(decomposition$sub_models, draw$data),
+          stats
+        )
+        expect_false(fixed$degenerate, label = routine)
+        expect_true(is.finite(fixed$loglik), label = routine)
       }
     }
   }
