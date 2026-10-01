@@ -39,9 +39,13 @@ walk_replay_against_batch <- function(spec) {
     # The composition in force at a dependent event includes changes at its
     # own stamp; the exogenous rows sharing that stamp come after it.
     walk_advance_presence(handle, schedule$time[k])
+    # A layer with one modeled flavor schedules its dependent rows with no
+    # flavor: every one of them belongs to that flavor's processes.
     own <- map$fid[
       map$layer == schedule$layer[k] &
-        (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
+        (is.na(map$flavor) |
+          is.na(schedule$flavor[k]) |
+          map$flavor %in% schedule$flavor[k])
     ]
     for (fid in own) {
       key <- as.character(fid)

@@ -713,3 +713,79 @@ test_that("F4: the handle replays the composition, absent nodes excluded", {
   expect_gt(replay$n_checked, 0L)
   expect_gt(replay$n_excluded, 0L)
 })
+
+# ---- F5: one modeled flavor of a two-flavor layer ---------------------------
+
+# F2's sequence with creation alone modeled: dissolution events still happen
+# and move the state, but no process has them as dependent events, so each
+# closes the creation rate's interval with a censored row.
+f5_spec <- function(sim) {
+  make_specification(
+    rate = list(f2_formula("creation", "rate")),
+    choice = list(f2_formula("creation", "choice")),
+    model = "DyNAM",
+    data = sim$data
+  )
+}
+
+test_that("F5: dissolution events are censored rows of the creation rate", {
+  sim <- f2_simulation(unmodeled = "dissolution")
+  expect_named(sim$rate, c("creation", "dissolution"))
+  expect_identical(sim$rate$dissolution[0, ], sim$rate$dissolution)
+  expect_identical(sim$rate$creation, f2_simulation()$rate$creation)
+  exported <- simulation_quiet(compute_statistics(
+    f2_standalone_spec(sim, "creation", "rate"),
+    sub_model = "rate",
+    output = "data.frame",
+    control_prep = simulation_window()
+  ))
+  expect_frame_identity(exported, sim$rate$creation, f2_stats("rate"))
+  censored <- unique(exported$event[
+    !exported$event %in%
+      exported$event[
+        exported$chosen == 1L
+      ]
+  ])
+  expect_length(censored, sum(sim$events$flavor == "dissolution"))
+})
+
+test_that("F5: the creation-only fit equals F2's creation blocks and oracle", {
+  sim <- f2_simulation(unmodeled = "dissolution")
+  both <- simulation_quiet(estimate_dynam(
+    f2_container_spec(f2_simulation()),
+    control_prep = simulation_window(),
+    control_algo = simulation_tight_fit()
+  ))
+  alone <- lapply(c(rate = "rate", choice = "choice"), function(family) {
+    simulation_quiet(estimate_dynam(
+      f5_spec(sim),
+      sub_model = family,
+      control_prep = simulation_window(),
+      control_algo = simulation_tight_fit()
+    ))
+  })
+  for (family in names(alone)) {
+    expect_equal(
+      unname(coef(alone[[family]])),
+      unname(coef(fit_of(both, "creation", family))),
+      tolerance = simulation_tolerance,
+      label = family
+    )
+  }
+  expect_rate_equals_poisson(
+    alone$rate,
+    sim$rate$creation,
+    outcome ~ indeg + outdeg + offset(log(dt))
+  )
+  expect_choice_equals_clogit(
+    alone$choice,
+    sim$choice$creation,
+    outcome ~ recip + trans + strata(interval)
+  )
+})
+
+test_that("F5: the handle replays the modeled flavor, its mask excluding", {
+  replay <- walk_replay_against_batch(f5_spec(f2_simulation()))
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
