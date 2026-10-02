@@ -113,7 +113,17 @@ List estimate_DyNAM_rate_ordered(
     }
     arma::vec active_sender = active_sender_init;
 
-
+    // Event-sized work buffers, allocated once and overwritten at every event.
+    // The risk set of the sender loop is `active_sender` itself, maintained
+    // by its update walk, so it needs no buffer of its own.
+    arma::vec lin_pred(n_actors_1);
+    arma::vec weights;
+    arma::vec probabilities;
+    arma::mat weighted_stat_mat(n_actors_1, n_parameters);
+    std::vector<margin_side> margin_sides;
+    if (return_margins) {
+        margin_sides.push_back(margin_side(&margin_observed, &margin_expected));
+    }
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -145,27 +155,20 @@ List estimate_DyNAM_rate_ordered(
         // Staged, numerically stable softmax over the senders:
         // one GEMV for the linear predictors, the shared max-shift helper for the
         // weights, then a weighted cross-product for the Fisher.
-        arma::vec lin_pred = stat_mat * parameters;
-        arma::vec allowed(n_actors_1, fill::zeros);
-        for (int i = 0; i < n_actors_1; ++i) {
-            if (active_sender(i) == 1) {
-                allowed(i) = 1;
-            }
-        }
-        arma::vec weights;
-        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
+        lin_pred = stat_mat * parameters;
+        double log_normalizer =
+          log_sum_exp_masked(lin_pred, active_sender, weights);
         double normalizer = accu(weights);
         // Opt-in primitives via the shared reductions. Ranks read the shifted
         // weights directly (scale-free); margins take the probability vector
         // with c = 1, which is the multinomial family's only scale.
-        arma::vec probabilities;
-        if (return_margins || return_probabilities || return_event_scores) {
+        if (return_margins || return_probabilities) {
             probabilities = weights / normalizer;
         }
         if (return_availability) {
             availability_seen.zeros();
             mark_availability(
-              n_actors_1, allowed, nullptr, availability_seen
+              n_actors_1, active_sender, nullptr, availability_seen
             );
             accumulate_availability(
               availability_seen, 0.0, true, nullptr,
@@ -174,13 +177,11 @@ List estimate_DyNAM_rate_ordered(
         }
         if (return_ranks) {
             observed_rank[id_event] =
-              rank_of_observed(weights, allowed, id_sender);
+              rank_of_observed(weights, active_sender, id_sender);
         }
         if (return_margins) {
-            std::vector<margin_side> sides;
-            sides.push_back(margin_side(&margin_observed, &margin_expected));
             accumulate_margins(
-              probabilities, 1.0, allowed, id_sender, true, sides
+              probabilities, 1.0, active_sender, id_sender, true, margin_sides
             );
         }
         if (return_probabilities) {
@@ -203,10 +204,12 @@ List estimate_DyNAM_rate_ordered(
                 expected_stat_current_event, 1.0, stat_mat, id_sender, true
               );
         }
-        // fisher matrix: sum_i p_i s_i s_i^T - E E^T
+        // fisher matrix: sum_i p_i s_i s_i^T - E E^T, with the weighted copy
+        // written into its buffer rather than formed as a temporary
+        weighted_stat_mat = stat_mat;
+        weighted_stat_mat.each_col() %= weights;
         fisher_current_event =
-          (stat_mat.each_col() % weights).t() * stat_mat /
-          normalizer -
+          weighted_stat_mat.t() * stat_mat / normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
         accumulate_event_information(
