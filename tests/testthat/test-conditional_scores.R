@@ -118,11 +118,9 @@ test_that("censored intervals carry NA, dependent ones do not", {
 
 test_that("the by-design NAs are not read as a numerical failure", {
   # Both NA guards -- the initial-parameters check and the Newton loop's step
-  # acceptance -- read this list. Forgetting the component here rejects a valid
-  # step as "Estimation not possible with initial parameters" on a model that
-  # estimated fine before the flag existed.
-  expect_true("conditional_scores" %in% diagnostic_components_with_na)
-
+  # acceptance -- read only the estimation components. Reading a diagnostic
+  # would reject a valid step as "Estimation not possible with initial
+  # parameters" on a model that estimated fine before the flag existed.
   pass <- list(
     logLikelihood = -10,
     conditional_scores = matrix(c(1, NA_real_), nrow = 2, ncol = 1)

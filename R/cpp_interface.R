@@ -5,26 +5,23 @@
 #
 ##################### ###
 
-# Both NA guards on the kernel result -- the initial-parameters check and the
-# Newton loop's step acceptance -- read NA as "the likelihood could not be
-# evaluated here". Some opt-in per-event components carry NA by DESIGN and must
-# be excluded, or the guards report a numerical failure that did not happen:
-# `observed_rank` is allocated NA-filled and written only for dependent events,
-# so any model with a right-censored interval leaves NAs behind whenever ranks
-# are requested. `conditional_logl` (the Cox partial-likelihood component of the
-# exact-time loglik) is NA on right-censored intervals for the same reason: a
-# censored interval realizes no mover, so log p_obs is undefined there. This is
-# the ONLY place the by-design-NA exclusion list lives -- any future per-event
-# NA scan MUST route through this guard, never an ad-hoc is.na() sweep.
-diagnostic_components_with_na <- c(
-  "observed_rank",
-  "conditional_logl",
-  "conditional_scores"
+# Both NA guards on a pass -- the initial-parameters check and the Newton
+# loop's step acceptance -- read NA as "the likelihood could not be evaluated
+# here", so they read only what the optimizer reads: the log-likelihood, the
+# score and the information, under either engine's names for them. The
+# diagnostics are evaluated after the loop, and several carry NA by design (a
+# rank or a conditional component on a right-censored interval, which realizes
+# no mover), so scanning them would report a failure that did not happen.
+estimation_components <- c(
+  "logLikelihood",
+  "derivative",
+  "fisher",
+  "score",
+  "informationMatrix"
 )
 
 has_unexpected_na <- function(res) {
-  scanned <- res[setdiff(names(res), diagnostic_components_with_na)]
-  any(is.na(unlist(scanned)))
+  anyNA(unlist(res[intersect(names(res), estimation_components)]))
 }
 
 # One compiled-engine pass, as a closure over the buffers it needs
@@ -472,40 +469,40 @@ estimate_c_int <- function(
     ))
   }
 
+  # The diagnostics are a function of the returned parameters, so the Newton
+  # iterations evaluate without them and one pass at the vector the fit
+  # returns computes every requested one after the loop. A likelihood-only
+  # call evaluates once, so it takes them in that one pass.
+  diagnostics_requested <- returnIntervalLogL ||
+    return_event_scores ||
+    return_ranks ||
+    return_margins ||
+    return_total_rate ||
+    returnEventProbabilities ||
+    return_availability ||
+    return_conditional_scores
+  evaluate_at <- function(pars, with_diagnostics) {
+    engine$evaluate(
+      pars,
+      with_diagnostics && return_event_scores,
+      with_diagnostics && return_ranks,
+      with_diagnostics && return_margins,
+      with_diagnostics && return_total_rate,
+      with_diagnostics && returnEventProbabilities,
+      with_diagnostics && return_availability,
+      with_diagnostics && return_conditional_scores
+    )
+  }
+
   while (TRUE) {
     ## CALCULATE THE LOGLIKELIHOOD,
     ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
 
-    res <- engine$evaluate(
-      parameters,
-      return_event_scores,
-      return_ranks,
-      return_margins,
-      return_total_rate,
-      returnEventProbabilities,
-      return_availability,
-      return_conditional_scores
-    )
+    res <- evaluate_at(parameters, with_diagnostics = likelihood_only)
 
     logLikelihood <- res$logLikelihood
     score <- as.numeric(res$derivative)
     informationMatrix <- res$fisher
-    if (returnIntervalLogL) {
-      intervalLogL <- as.numeric(res$intervalLogL)
-    }
-    if (return_event_scores) {
-      event_scores <- res$event_scores
-    }
-    if (return_ranks) {
-      observed_rank <- res$observed_rank
-    }
-
-    if (returnEventProbabilities) {
-      # One per-event element, actor-indexed over the whole node set and zero
-      # off the risk set, in the same shape the r backend produces: a vector on
-      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
-      eventProbabilities <- res$event_probabilities
-    }
 
     if (
       isInitialEstimation &&
@@ -660,6 +657,27 @@ estimate_c_int <- function(
   } # end of while
 
   ## ESTIMATION: END
+  if (diagnostics_requested) {
+    if (!likelihood_only) {
+      res <- evaluate_at(parameters, with_diagnostics = TRUE)
+    }
+    if (returnIntervalLogL) {
+      intervalLogL <- as.numeric(res$intervalLogL)
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
+    }
+    if (return_ranks) {
+      observed_rank <- res$observed_rank
+    }
+    if (returnEventProbabilities) {
+      # One per-event element, actor-indexed over the whole node set and zero
+      # off the risk set, in the same shape the r backend produces: a vector on
+      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
+      eventProbabilities <- res$event_probabilities
+    }
+  }
+
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)

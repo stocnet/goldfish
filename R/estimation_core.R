@@ -188,19 +188,11 @@ estimate_int_impl <- function(
     cat("Estimating model: ", class(spec)[1])
   }
 
-  nr <- run_nr_loop(
-    spec = spec,
-    parameters = parameters,
-    nParams = nParams,
-    id_unfixed = id_unfixed,
-    id_fixed = id_fixed,
-    likelihood_only = likelihood_only,
-    minDampingFactor = minDampingFactor,
-    maxIterations = maxIterations,
-    dampingIncreaseFactor = dampingIncreaseFactor,
-    dampingDecreaseFactor = dampingDecreaseFactor,
-    score_tol = score_tol,
-    step_tol = step_tol,
+  # The diagnostics are a function of the returned parameters, so the Newton
+  # iterations run without them and one pass at the vector the fit returns
+  # computes every requested one after the loop. A likelihood-only call
+  # evaluates once, so it takes them in that one pass.
+  requested <- list(
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,
@@ -208,23 +200,54 @@ estimate_int_impl <- function(
     return_margins = return_margins,
     return_total_rate = return_total_rate,
     return_availability = return_availability,
-    return_conditional_scores = return_conditional_scores,
-    verbose = verbose,
-    progress = progress,
-    step_args = c(
-      engine$step_args,
+    return_conditional_scores = return_conditional_scores
+  )
+  in_loop <- if (likelihood_only) requested else lapply(requested, `&`, FALSE)
+  nr <- do.call(
+    run_nr_loop,
+    c(
       list(
-        returnIntervalLogL = returnIntervalLogL,
-        returnEventProbabilities = returnEventProbabilities,
-        return_event_scores = return_event_scores,
-        return_ranks = return_ranks,
-        return_margins = return_margins,
-        return_total_rate = return_total_rate,
-        return_availability = return_availability,
-        return_conditional_scores = return_conditional_scores
-      )
+        spec = spec,
+        parameters = parameters,
+        nParams = nParams,
+        id_unfixed = id_unfixed,
+        id_fixed = id_fixed,
+        likelihood_only = likelihood_only,
+        minDampingFactor = minDampingFactor,
+        maxIterations = maxIterations,
+        dampingIncreaseFactor = dampingIncreaseFactor,
+        dampingDecreaseFactor = dampingDecreaseFactor,
+        score_tol = score_tol,
+        step_tol = step_tol,
+        verbose = verbose,
+        progress = progress,
+        step_args = c(engine$step_args, in_loop)
+      ),
+      in_loop
     )
   )
+  if (!likelihood_only && any(unlist(requested))) {
+    nr <- c(
+      nr[c(
+        "parameters",
+        "logLikelihood",
+        "score",
+        "informationMatrix",
+        "inverseInformationUnfixed",
+        "isConverged",
+        "returnCode",
+        "update",
+        "nIterations"
+      )],
+      diagnostics_from_pass(
+        do.call(
+          compute_iteration_step,
+          c(engine$step_args, requested, list(parameters = nr$parameters))
+        ),
+        spec
+      )
+    )
+  }
 
   parameters <- nr$parameters
   logLikelihood <- nr$logLikelihood
@@ -371,15 +394,7 @@ run_nr_loop <- function(
   parameters.old <- parameters
   score.old <- NULL
   informationMatrix.old <- NULL
-  intervalLogL <- NULL
-  event_scores <- NULL
-  eventProbabilities <- NULL
-  observed_rank <- NULL
-  margins <- NULL
-  availability <- NULL
-  conditional_scores <- NULL
-  total_rate <- NULL
-  conditional_logl <- NULL
+  diagnostics <- NULL
 
   ## ESTIMATION: ITERATIONS
   while (TRUE) {
@@ -392,35 +407,7 @@ run_nr_loop <- function(
     logLikelihood <- res[[1]]
     score <- res[[2]]
     informationMatrix <- res[[3]]
-    if (returnIntervalLogL) {
-      intervalLogL <- res[[4]]
-    }
-    if (return_event_scores) {
-      event_scores <- res$event_scores
-    }
-    if (return_ranks) {
-      observed_rank <- res$observed_rank
-    }
-    if (return_margins) {
-      margins <- res$margins
-    }
-    if (return_availability) {
-      availability <- res$availability
-    }
-    if (return_conditional_scores) {
-      conditional_scores <- res$conditional_scores
-    }
-    if (return_total_rate) {
-      total_rate <- res$total_rate
-      conditional_logl <- res$conditional_logl
-    }
-    if (returnEventProbabilities) {
-      eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model class", class(spec)[1])
-      } else {
-        res$pMatrix
-      }
-    }
+    diagnostics <- diagnostics_from_pass(res, spec, returnEventProbabilities)
 
     if (
       isInitialEstimation &&
@@ -572,25 +559,46 @@ run_nr_loop <- function(
     iIteration <- iIteration + 1
   } # end of while
 
+  c(
+    list(
+      parameters = parameters,
+      logLikelihood = logLikelihood,
+      score = score,
+      informationMatrix = informationMatrix,
+      inverseInformationUnfixed = inverseInformationUnfixed,
+      isConverged = isConverged,
+      returnCode = returnCode,
+      update = update,
+      nIterations = iIteration
+    ),
+    diagnostics
+  )
+}
+
+# The diagnostic components of one r-engine pass, under the names the fit is
+# assembled from. A pass carries only the components it was asked for, so the
+# others come back NULL.
+diagnostics_from_pass <- function(
+  res,
+  spec,
+  return_probabilities = !is.null(res$pMatrix)
+) {
   list(
-    parameters = parameters,
-    logLikelihood = logLikelihood,
-    score = score,
-    informationMatrix = informationMatrix,
-    inverseInformationUnfixed = inverseInformationUnfixed,
-    isConverged = isConverged,
-    returnCode = returnCode,
-    update = update,
-    nIterations = iIteration,
-    intervalLogL = intervalLogL,
-    event_scores = event_scores,
-    eventProbabilities = eventProbabilities,
-    observed_rank = observed_rank,
-    margins = margins,
-    availability = availability,
-    conditional_scores = conditional_scores,
-    total_rate = total_rate,
-    conditional_logl = conditional_logl
+    intervalLogL = res$eventLogL,
+    event_scores = res$event_scores,
+    eventProbabilities = if (!return_probabilities) {
+      NULL
+    } else if (is.null(res$pMatrix)) {
+      paste("not implemented for model class", class(spec)[1])
+    } else {
+      res$pMatrix
+    },
+    observed_rank = res$observed_rank,
+    margins = res$margins,
+    availability = res$availability,
+    conditional_scores = res$conditional_scores,
+    total_rate = res$total_rate,
+    conditional_logl = res$conditional_logl
   )
 }
 
