@@ -595,34 +595,63 @@ test_that("the parallel seam keeps workers times BLAS threads within n_cores", {
 
 # --- Fixed-term degeneracy ----------------------------------------------------
 
-# A store whose tally is set by hand: the helper reads nothing else.
-tallied_store <- function(built, fixed_term, labels, pool_dropped = FALSE) {
+# A store whose tally is set by hand: the helpers read nothing else. A dropped
+# pool is lost to the fixed-only cause alone unless `pool_lost` says otherwise.
+tallied_store <- function(
+  built,
+  fixed_term,
+  labels,
+  pool_dropped = FALSE,
+  pool_lost = if (pool_dropped) {
+    c(walk = 0L, fixed_term = fixed_term, evaluation = 0L)
+  }
+) {
   store <- new.env(parent = emptyenv())
   store$tally <- list(
     built = built,
     fixed_term = fixed_term,
     labels = labels,
-    pool_dropped = pool_dropped
+    pool_dropped = pool_dropped,
+    pool_lost = pool_lost
   )
   store
 }
 
 # One estimate_dynes() run over the multiwave fixture, with every warning
-# muffled and the fixed-term ones kept.
-fixed_term_run <- function() {
+# muffled and the fixed-term and pool-degenerate ones kept, by class.
+fixed_term_run <- function(control = surface_control(max_iterations = 2L)) {
   kept <- list()
+  pool <- list()
   fit <- withCallingHandlers(
-    estimate_dynes(
-      dynes_varying_raw_spec(),
-      surface_control(max_iterations = 2L)
-    ),
+    estimate_dynes(dynes_varying_raw_spec(), control),
     goldfish_dynes_fixed_term_degenerate = function(w) {
       kept[[length(kept) + 1L]] <<- w
       invokeRestart("muffleWarning")
     },
+    goldfish_dynes_pool_degenerate = function(w) {
+      pool[[length(pool) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
     warning = function(w) invokeRestart("muffleWarning")
   )
-  list(fit = fit, warnings = kept)
+  list(fit = fit, warnings = kept, pool_warnings = pool)
+}
+
+# The surface control under uniform weighting, whose one valid cell is the
+# mcmc routine with a refreshed pool.
+uniform_surface_control <- function() {
+  surface_control(
+    max_iterations = 2L,
+    augmenter = set_augmenter_options(routine = "mcmc"),
+    weights = set_weights_options(weighting = "uniform", refresh = TRUE)
+  )
+}
+
+expect_stopped_fit <- function(fit) {
+  expect_s3_class(fit, "goldfishDynesFit")
+  expect_false(fit$converged)
+  expect_identical(nrow(fit$em_trace), 0L)
+  expect_true(all(is.na(fit$covariance)))
 }
 
 test_that("the fixed-term degeneracy warning", {
@@ -719,6 +748,138 @@ test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   expect_identical(nrow(fit$em_trace), 0L)
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
+  expect_length(run$pool_warnings, 0L)
+})
+
+test_that("a pool lost to a fixed-only term under uniform weighting", {
+  skip_on_cran()
+  local_dynes_augmenter(new_wave_grid_augmenter())
+  local_fixed_term_loss()
+
+  run <- expect_no_error(fixed_term_run(uniform_surface_control()))
+
+  expect_length(run$warnings, 1L)
+  expect_match(
+    conditionMessage(run$warnings[[1]]),
+    "Every sequence in the pool was dropped"
+  )
+  expect_length(run$pool_warnings, 0L)
+  expect_stopped_fit(run$fit)
+})
+
+# --- Pool degeneracy for other causes ----------------------------------------
+
+test_that("the pool degeneracy warning", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_pool_degenerate(
+      tallied_store(
+        8L,
+        0L,
+        character(0),
+        pool_dropped = TRUE,
+        pool_lost = c(walk = 3L, fixed_term = 0L, evaluation = 1L)
+      )
+    )
+  )
+})
+
+test_that("both degeneracy warnings after a pool lost to mixed causes", {
+  local_reproducible_output(width = 80)
+  store <- tallied_store(
+    4L,
+    2L,
+    "friendship (rate)",
+    pool_dropped = TRUE,
+    pool_lost = c(walk = 2L, fixed_term = 2L, evaluation = 0L)
+  )
+  expect_snapshot({
+    warn_fixed_term_degenerate(store)
+    warn_pool_degenerate(store)
+  })
+})
+
+test_that("the pool degeneracy warning is classed and silent otherwise", {
+  expect_warning(
+    warn_pool_degenerate(
+      tallied_store(
+        4L,
+        0L,
+        character(0),
+        pool_dropped = TRUE,
+        pool_lost = c(walk = 0L, fixed_term = 0L, evaluation = 4L)
+      )
+    ),
+    class = "goldfish_dynes_pool_degenerate"
+  )
+  # No stop, or a stop the fixed-term warning already reports.
+  expect_no_warning(
+    warn_pool_degenerate(tallied_store(4L, 1L, "friendship (rate)"))
+  )
+  expect_no_warning(
+    warn_pool_degenerate(
+      tallied_store(4L, 4L, "friendship (rate)", pool_dropped = TRUE)
+    )
+  )
+})
+
+test_that("a pool whose every walk failed stops with one pool warning", {
+  skip_on_cran()
+  local_dynes_augmenter(new_wave_grid_augmenter())
+  local_walk_failure()
+
+  for (control in list(
+    surface_control(max_iterations = 2L),
+    uniform_surface_control()
+  )) {
+    run <- expect_no_error(fixed_term_run(control))
+
+    expect_length(run$pool_warnings, 1L)
+    expect_length(run$warnings, 0L)
+    expect_stopped_fit(run$fit)
+  }
+})
+
+test_that("a pool with every evaluation non-finite stops with one warning", {
+  skip_on_cran()
+  local_dynes_augmenter(new_wave_grid_augmenter())
+  local_evaluation_failure()
+
+  for (control in list(
+    surface_control(max_iterations = 2L),
+    uniform_surface_control()
+  )) {
+    run <- expect_no_error(fixed_term_run(control))
+
+    expect_length(run$pool_warnings, 1L)
+    expect_length(run$warnings, 0L)
+    expect_stopped_fit(run$fit)
+  }
+})
+
+test_that("a pool lost to mixed causes warns once per cause", {
+  skip_on_cran()
+  local_dynes_augmenter(new_wave_grid_augmenter())
+  entry <- 0L
+  local_walk_failure(function() {
+    entry <<- entry + 1L
+    entry %% 2L == 1L
+  })
+  local_fixed_term_loss()
+
+  run <- expect_no_error(fixed_term_run())
+
+  expect_length(run$warnings, 1L)
+  expect_no_match(
+    conditionMessage(run$warnings[[1]]),
+    "Every sequence in the pool was dropped"
+  )
+  expect_length(run$pool_warnings, 1L)
+  expect_match(
+    conditionMessage(run$pool_warnings[[1]]),
+    "estimation stopped"
+  )
+  expect_stopped_fit(run$fit)
 })
 
 # --- Specification validation and entry wiring ------------------------------

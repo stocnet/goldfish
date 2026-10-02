@@ -599,6 +599,137 @@ test_that("a partly fixed-term-degenerate pool does not stop the loop", {
   expect_false(res$pool$store$tally$pool_dropped)
 })
 
+# A pool can be lost to causes other than a fixed-only term: every walk failed
+# at entry, or every evaluation at the current theta was non-finite, which no
+# entry cause records. The loop reads the log-likelihoods and weights it is
+# about to use, so it stops before Q and before an SGD minibatch is drawn from
+# an all-zero weight vector, under either weighting scheme.
+
+uniform_em_control <- function() {
+  analytic_em_control(
+    augmenter = set_augmenter_options(routine = "mcmc"),
+    weights = set_weights_options(weighting = "uniform", refresh = TRUE)
+  )
+}
+
+expect_stopped_at_start <- function(res, theta0, lost) {
+  expect_false(res$converged)
+  expect_identical(res$parameters, theta0)
+  expect_identical(res$iterations, 0L)
+  expect_identical(nrow(res$em_trace), 0L)
+  expect_true(res$pool$store$tally$pool_dropped)
+  expect_identical(res$pool$store$tally$pool_lost, lost)
+}
+
+test_that("a pool with every evaluation non-finite stops importance weights", {
+  skip_on_cran()
+  local_evaluation_failure()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = analytic_em_control()
+    )
+  )
+
+  expect_stopped_at_start(res, c(0.3, -0.2), pool_lost_counts(evaluation = 4L))
+})
+
+test_that("a pool with every evaluation non-finite stops uniform weighting", {
+  skip_on_cran()
+  local_evaluation_failure()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = uniform_em_control()
+    )
+  )
+
+  expect_stopped_at_start(res, c(0.3, -0.2), pool_lost_counts(evaluation = 4L))
+})
+
+test_that("a pool whose every walk failed stops importance weighting", {
+  skip_on_cran()
+  local_walk_failure()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = analytic_em_control()
+    )
+  )
+
+  expect_stopped_at_start(res, c(0.3, -0.2), pool_lost_counts(walk = 4L))
+})
+
+test_that("a pool whose every walk failed stops uniform weighting", {
+  skip_on_cran()
+  local_walk_failure()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = uniform_em_control()
+    )
+  )
+
+  expect_stopped_at_start(res, c(0.3, -0.2), pool_lost_counts(walk = 4L))
+})
+
+test_that("a fully fixed-term-degenerate pool records its cause", {
+  skip_on_cran()
+  local_fixed_term_loss()
+
+  for (control in list(analytic_em_control(), uniform_em_control())) {
+    res <- run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = control
+    )
+    expect_stopped_at_start(
+      res,
+      c(0.3, -0.2),
+      pool_lost_counts(fixed_term = 4L)
+    )
+  }
+})
+
+test_that("a pool lost to mixed causes records each cause", {
+  skip_on_cran()
+  # Odd-numbered entries fail their walk; the others lose the fixed-only term.
+  entry <- 0L
+  local_walk_failure(function() {
+    entry <<- entry + 1L
+    entry %% 2L == 1L
+  })
+  local_fixed_term_loss()
+
+  res <- expect_no_error(
+    run_abem_loop(
+      theta0 = c(0.3, -0.2),
+      decomposition = abem_pinned_choice_decomposition(),
+      augmenter = new_stub_augmenter(abem_two_wave_paths()),
+      control = analytic_em_control()
+    )
+  )
+
+  expect_stopped_at_start(
+    res,
+    c(0.3, -0.2),
+    pool_lost_counts(walk = 2L, fixed_term = 2L)
+  )
+})
+
 # End-to-end: the stub augmenter over a small candidate set, the real
 # compiled pool evaluator, and the real SGD M-step. The candidates are three
 # orderings of one event stream, drawn in rotation with the uniform proposal

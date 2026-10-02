@@ -224,6 +224,37 @@ local_fixed_term_loss <- function(
   )
 }
 
+# Every pool-entry walk fails while `failed()` is TRUE: the entry is built
+# from no statistics, as a walk that errored leaves it.
+local_walk_failure <- function(
+  failed = function() TRUE,
+  env = parent.frame()
+) {
+  real_new_pool_entry <- new_pool_entry
+  local_mocked_bindings(
+    new_pool_entry = function(sub_models, stats) {
+      real_new_pool_entry(sub_models, if (!failed()) stats)
+    },
+    .env = env
+  )
+}
+
+# Every free sub-model's engine evaluation fails at any theta, so every
+# sequence is degenerate at evaluation time with no cause recorded at entry.
+local_evaluation_failure <- function(env = parent.frame()) {
+  local_mocked_bindings(
+    pool_cpp_eval = function(sub_model, stats, theta_block) {
+      cli::cli_abort("The engine could not evaluate the sub-model at theta.")
+    },
+    .env = env
+  )
+}
+
+# The causes a stopped loop recorded the final pool's sequences as lost to.
+pool_lost_counts <- function(walk = 0L, fixed_term = 0L, evaluation = 0L) {
+  c(walk = walk, fixed_term = fixed_term, evaluation = evaluation)
+}
+
 # A full-batch SGD M-step with room to converge on the two-wave
 # paths, so no iteration-cap warning muddies a test.
 abem_full_sgd <- function() {

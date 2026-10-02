@@ -89,6 +89,17 @@ test_that("uniform weighting ignores the proposal and gives ESS = K", {
   expect_equal(effective_sample_size(w), 4)
 })
 
+test_that("uniform weighting gives a degenerate sequence zero weight", {
+  loglik <- c(-1, -Inf, -2, -9)
+  w <- compute_pool_weights(
+    loglik,
+    log_proposal = c(0, 0, 0, 0),
+    weighting = "uniform"
+  )
+  expect_equal(w, c(1 / 3, 0, 1 / 3, 1 / 3))
+  expect_equal(effective_sample_size(w), 3)
+})
+
 test_that("smoothing transformation equals normalized w^gamma (gamma = 2)", {
   log_proposal <- c(0, 0, 0)
   loglik <- c(0, log(2), log(3))

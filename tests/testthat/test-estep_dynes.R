@@ -55,6 +55,47 @@ test_that("uniform Q/ASE are the plain mean and standard error of the mean", {
   expect_false(ase_floored(compute_ase(estep)))
 })
 
+test_that("a degenerate sequence is left out of the uniform mean", {
+  # The second sequence has a -Inf current log-likelihood, so its Lambda is
+  # -Inf - -Inf = NaN; its uniform weight is zero.
+  loglik_current <- c(-3, -Inf, -1, -2)
+  loglik_proposal <- c(-2.5, -Inf, -1.4, -1.9)
+  weights <- compute_pool_weights(
+    loglik_current,
+    log_proposal = rep(0, 4),
+    weighting = "uniform"
+  )
+  estep <- new_dynes_estep(
+    loglik_proposal - loglik_current,
+    weights = weights,
+    scheme = "uniform"
+  )
+
+  kept <- c(0.5, -0.4, 0.1)
+  expect_equal(compute_q(estep), mean(kept))
+  expect_equal(
+    as.numeric(compute_ase(estep)),
+    sqrt(stats::var(kept) / length(kept))
+  )
+})
+
+test_that("a proposal with no likelihood still rejects under uniform weights", {
+  loglik_current <- c(-3, -2, -1)
+  loglik_proposal <- c(-2.5, -Inf, -1.4)
+  weights <- compute_pool_weights(
+    loglik_current,
+    log_proposal = rep(0, 3),
+    weighting = "uniform"
+  )
+  estep <- new_dynes_estep(
+    loglik_proposal - loglik_current,
+    weights = weights,
+    scheme = "uniform"
+  )
+
+  expect_identical(compute_q(estep), -Inf)
+})
+
 test_that("resampling Q/ASE follow the ratio/delta form over drawn counts", {
   lambda <- c(-1, 0.5, 2, -0.3, 1.1, -0.7)
   w <- c(0.30, 0.05, 0.25, 0.10, 0.20, 0.10)
