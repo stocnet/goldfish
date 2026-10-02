@@ -130,7 +130,7 @@
       numbers in `progress.md`; lower the budget records that fail below in
       the same commit. NEWS.d bullet (compiled kernels allocate once per
       evaluation; the exact-time default path runs one `exp` pass).
-- [ ] 2.6 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
+- [x] 2.6 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS; cpp-reviewer passed on every `src/` diff.
 
 ## 3. Diagnostics once (D4)
