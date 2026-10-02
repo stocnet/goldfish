@@ -223,14 +223,21 @@ List estimate_REM(
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
    // Flat dyad position -> actor id on each axis, for the shared two-sided
-   // margin reduction. `e` is flattened sender-major (dyad (i, j) at
-   // i * n_actors_2 + j), and the map is the same at every event.
-   arma::uvec dyad_sender(n_actors_1 * n_actors_2);
-   arma::uvec dyad_receiver(n_actors_1 * n_actors_2);
-   for (int i = 0; i < n_actors_1; ++i) {
-     for (int j = 0; j < n_actors_2; ++j) {
-       dyad_sender(i * n_actors_2 + j) = i;
-       dyad_receiver(i * n_actors_2 + j) = j;
+   // margin and availability reductions. `e` is flattened sender-major (dyad
+   // (i, j) at i * n_actors_2 + j), and the map is the same at every event.
+   // Built only when one of those reductions is requested.
+   const arma::uword n_dyads =
+     static_cast<arma::uword>(n_actors_1) * n_actors_2;
+   arma::uvec dyad_sender;
+   arma::uvec dyad_receiver;
+   if (return_margins || return_availability) {
+     dyad_sender.set_size(n_dyads);
+     dyad_receiver.set_size(n_dyads);
+     for (int i = 0; i < n_actors_1; ++i) {
+       for (int j = 0; j < n_actors_2; ++j) {
+         dyad_sender(i * n_actors_2 + j) = i;
+         dyad_receiver(i * n_actors_2 + j) = j;
+       }
      }
    }
    // Opt-in probability-scale margins, beside the compensator-scale ones above.
@@ -250,9 +257,8 @@ List estimate_REM(
    arma::vec conditional_logl;
    if (return_total_rate) conditional_logl = arma::vec(n_events, fill::zeros);
    // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
-   // risk set. `weights` is flattened sender-major (dyad (i, j) at
-   // i * n_actors_2 + j) while an arma::mat fills column-major, so the n1 x n2
-   // grid is recovered by reshaping to n2 x n1 and transposing.
+   // risk set. `probabilities` is flattened sender-major (dyad (i, j) at
+   // i * n_actors_2 + j), so cell (i, j) of the n1 x n2 grid is read there.
    List event_probabilities(return_probabilities ? n_events : 0);
    // Opt-in conditional (partial-likelihood) score rows: the same shared
    // reduction the stored score rows use, at UNIT scale instead of the
@@ -308,7 +314,44 @@ List estimate_REM(
    // presences n support folded in, maintained by a (node1, node2, replace)
    // buffer and read cell-wise; the sender factor is then empty and unread.
    arma::vec active_dyad = active_dyad_init;
-   
+
+   // The risk set over all n1 * n2 dyads (sender-major), one buffer per
+   // evaluation. A dyad is at risk when the grid cell (point) or both factors
+   // (outer) allow it, and it is not a self-tie unless the model admits one.
+   // It is filled once here and then rewritten by the same updates that write
+   // the availability, in the cells each flip reaches -- one cell for a point
+   // flip, a sender's row or a receiver's column for a factor flip -- so an
+   // event pays for what changed rather than for the grid.
+   auto at_risk = [&](int i, int j) -> double {
+     if (!twomode_or_reflexive && i == j) return 0;
+     const bool available = active_dyad_is_point
+       ? active_dyad(i * n_actors_2 + j) == 1
+       : active_dyad_sender(i) == 1 && active_dyad(j) == 1;
+     return available ? 1 : 0;
+   };
+   arma::vec allowed(n_dyads);
+   for (int i = 0; i < n_actors_1; ++i) {
+     for (int j = 0; j < n_actors_2; ++j) {
+       allowed(i * n_actors_2 + j) = at_risk(i, j);
+     }
+   }
+
+   // Event-sized work buffers, allocated once and overwritten at every event.
+   arma::vec lin_pred(n_dyads);
+   arma::vec e(n_dyads);
+   arma::mat weighted_stat_mat(n_dyads, n_parameters);
+   arma::vec weights;
+   arma::vec probabilities;
+   std::vector<margin_side> margin_sides;
+   if (return_margins) {
+     margin_sides.push_back(margin_side(
+       &margin_observed_sender, &margin_expected_sender, &dyad_sender
+     ));
+     margin_sides.push_back(margin_side(
+       &margin_observed_receiver, &margin_expected_receiver, &dyad_receiver
+     ));
+   }
+
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
      // update stat_mat with the combined buffer covering all stored events
@@ -328,8 +371,11 @@ List estimate_REM(
          active_dyad_sender_update_id,
          active_dyad_sender_update_pointer(id_event),
          [&](int c) {
-           active_dyad_sender(active_dyad_sender_update(0, c) - 1) =
-             active_dyad_sender_update(1, c);
+           const int i = active_dyad_sender_update(0, c) - 1;
+           active_dyad_sender(i) = active_dyad_sender_update(1, c);
+           for (int j = 0; j < n_actors_2; ++j) {
+             allowed(i * n_actors_2 + j) = at_risk(i, j);
+           }
          });
      }
      if (has_composition_change2) {
@@ -337,19 +383,20 @@ List estimate_REM(
          active_dyad_update_id, active_dyad_update_pointer(id_event),
          [&](int c) {
            if (active_dyad_is_point) {
-             active_dyad(
-               (active_dyad_update(0, c) - 1) * n_actors_2 +
-               (active_dyad_update(1, c) - 1)
-             ) = active_dyad_update(2, c);
+             const int i = active_dyad_update(0, c) - 1;
+             const int j = active_dyad_update(1, c) - 1;
+             active_dyad(i * n_actors_2 + j) = active_dyad_update(2, c);
+             allowed(i * n_actors_2 + j) = at_risk(i, j);
            } else {
-             active_dyad(active_dyad_update(0, c) - 1) =
-               active_dyad_update(1, c);
+             const int j = active_dyad_update(0, c) - 1;
+             active_dyad(j) = active_dyad_update(1, c);
+             for (int i = 0; i < n_actors_1; ++i) {
+               allowed(i * n_actors_2 + j) = at_risk(i, j);
+             }
            }
          });
      }
-     
-     
-     
+
      // We calculate the derivative, log-Likelihood, and fisher matrix of a
      // current event. Staged BLAS form: one GEMV for the linear
      // predictors, a masked exp vector (presence / reflexive / risk-set fold in
@@ -361,21 +408,6 @@ List estimate_REM(
      // declare the ids of the sender and the receiver,
      const int id_sender = dep_event_mat(0, id_event) - 1;
      const int id_receiver = dep_event_mat(1, id_event) - 1;
-     // build the risk-set mask over all n1 * n2 dyads (sender-major)
-     arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
-     for (int i = 0; i < n_actors_1; ++i) {
-       if (active_dyad_is_point || active_dyad_sender(i) == 1) {
-         int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
-         // point encoding: sender i's row starts at i * n_actors_2; outer
-         // encoding: the receiver vector is read directly (offset 0).
-         int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
-         for (int j = 0; j < n_actors_2; j++) {
-           if (active_dyad(dyad_offset + j) == 1 && (j != not_allowed_receiver)) {
-             allowed(i * n_actors_2 + j) = 1;
-           }
-         }
-       }
-     }
      if (return_availability) {
        const bool dependent_interval = is_dependent(id_event) == 1;
        availability_seen_sender.zeros();
@@ -397,12 +429,14 @@ List estimate_REM(
          &availability_exposure_receiver, &availability_opportunities_receiver
        );
      }
-     arma::vec lin_pred = stat_mat * parameters;
+     lin_pred = stat_mat * parameters;
      // exp() first, then zero the masked dyads (avoids Inf * 0 = NaN when a
      // masked row overflows); an allowed dyad may legitimately overflow — that
      // is the divergence signal the damping handles.
-     arma::vec e = arma::exp(lin_pred);
-     e.elem(arma::find(allowed < 0.5)).zeros();
+     e = arma::exp(lin_pred);
+     for (arma::uword k = 0; k < n_dyads; ++k) {
+       if (allowed(k) == 0) e(k) = 0;
+     }
      double normalizer = accu(e);
      if (return_total_rate) total_rate(id_event) = normalizer;
      if (return_margins) {
@@ -410,19 +444,16 @@ List estimate_REM(
        // contribution is Dt * lambda_ij, credited to both endpoints. The
        // observed side is counted in the dependent-event branch below, which is
        // why `dependent` is false here.
-       std::vector<margin_side> sides;
-       sides.push_back(margin_side(
-         &margin_observed_sender, &margin_expected_sender, &dyad_sender
-       ));
-       sides.push_back(margin_side(
-         &margin_observed_receiver, &margin_expected_receiver, &dyad_receiver
-       ));
        accumulate_margins(
-         e, timespan_current_event, allowed, 0, false, sides
+         e, timespan_current_event, allowed, 0, false, margin_sides
        );
      }
      weighted_sum_current_event = e.t() * stat_mat;
-     fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
+     // The Fisher product's weighted copy is written into its buffer and
+     // scaled in place, rather than formed as a fresh n1 * n2 x p temporary.
+     weighted_stat_mat = stat_mat;
+     weighted_stat_mat.each_col() %= e;
+     fisher_current_event = weighted_stat_mat.t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
      // derivative
      derivative -= timespan_current_event * weighted_sum_current_event;
@@ -458,14 +489,15 @@ List estimate_REM(
        return_probabilities || return_margins || return_total_rate ||
        return_conditional_scores
      ) {
-       arma::vec weights;
        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
        double shifted_total = arma::sum(weights);
        // An empty risk set (every candidate masked) leaves no weight to
        // normalize: each probability is 0, not 0 / 0.
-       arma::vec probabilities = shifted_total > 0
-         ? arma::vec(weights / shifted_total)
-         : arma::vec(weights.n_elem, fill::zeros);
+       if (shifted_total > 0) {
+         probabilities = weights / shifted_total;
+       } else {
+         probabilities.zeros(weights.n_elem);
+       }
        if (return_total_rate) {
          conditional_logl(id_event) = NA_REAL;
        }
@@ -497,9 +529,15 @@ List estimate_REM(
          }
        }
        if (return_probabilities) {
-         arma::mat grid =
-           arma::reshape(probabilities, n_actors_2, n_actors_1).t();
-         event_probabilities[id_event] = wrap(grid);
+         // Written straight into the R matrix the fit stores, cell by cell,
+         // instead of through a reshaped and transposed Armadillo copy.
+         NumericMatrix grid(n_actors_1, n_actors_2);
+         for (int i = 0; i < n_actors_1; ++i) {
+           for (int j = 0; j < n_actors_2; ++j) {
+             grid(i, j) = probabilities(i * n_actors_2 + j);
+           }
+         }
+         event_probabilities[id_event] = grid;
        }
      }
      // The stored per-event score comes from the shared reduction over the same
