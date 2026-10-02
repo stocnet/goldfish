@@ -1110,32 +1110,22 @@ compute_first_derivative_choice_coord <- function(
 ) {
   nParams <- dim(statsArray)[3]
   nActors <- dim(statsArray)[1]
-  matrixSize <- nActors * nActors
-  # 2)
-  # multiply each "parameter slice" (third dimension)
-  # with the multinomial probability matrix
-  weightedValues <- statsArray * rep(multinomialProbabilities, nParams)
-  expectedStatistics <- apply(weightedValues, 3, rowSums)
-  # deviation from expected statistic
-  deviationFromExpectation <- statsArray -
-    c(apply(expectedStatistics, 2, rep, nActors))
-
-  # 3)
-  # symmetrize the deviations from expectations. The aperm transpose of the
-  # first two dimensions is a C-level layout swap and stays as-is.
-  symDeviations <- deviationFromExpectation +
-    aperm(deviationFromExpectation, c(2, 1, 3))
-  # the likelihoods have to divided by 2
-  # as the matrix sum is 2 (it includes all likelihoods twice).
-  # colSums(., dims = 2) reduces each parameter slice in one C pass, replacing
-  # the per-slice apply(., 3, sum) closure.
-  constantWeightedDeviations <-
-    colSums(symDeviations * c(likelihoods / 2), dims = 2)
-
-  # 4)
-  derivatives <- symDeviations -
-    rep(constantWeightedDeviations, each = matrixSize)
-
+  # The symmetrized statistics s_ij + s_ji, one array; every step below writes
+  # into it slice by slice, so the derivative takes no further array.
+  derivatives <- statsArray + aperm(statsArray, c(2L, 1L, 3L))
+  for (k in seq_len(nParams)) {
+    slice <- statsArray[,, k]
+    # 2) expected statistic of each sender's choice, E_i = sum_j p_ij s_ijk
+    expected <- .rowSums(multinomialProbabilities * slice, nActors, nActors)
+    # 3) symmetrized deviation s_ij + s_ji - E_i - E_j: E_i recycles down the
+    # rows, E_j across the columns
+    deviation <- derivatives[,, k] - expected - rep(expected, each = nActors)
+    # the likelihoods have to be divided by 2 as the matrix sum is 2 (it
+    # includes all likelihoods twice)
+    constant <- sum(deviation * likelihoods) / 2
+    # 4) the derivative
+    derivatives[,, k] <- deviation - constant
+  }
   derivatives
 }
 
@@ -2517,7 +2507,8 @@ getMultinomialInformationMatrixM <- function(
 # dropped absent senders before normalising.
 stable_softmax <- function(x, rowwise = FALSE) {
   if (rowwise) {
-    shift <- apply(x, 1L, max)
+    # Each row's maximum read at its own column, without a per-row closure.
+    shift <- x[cbind(seq_len(nrow(x)), max.col(x, ties.method = "first"))]
     zeroRow <- !is.finite(shift)
     shift[zeroRow] <- 0 # avoid -Inf shift on a fully-excluded row
     # column-major recycling subtracts shift[i] / divides by norm[i] per row i

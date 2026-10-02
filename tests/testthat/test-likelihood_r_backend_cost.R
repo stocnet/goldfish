@@ -101,3 +101,23 @@ test_that("an r-backend evaluation leaves the preprocessed object untouched", {
     expect_identical(data_fields(prep), before, info = sub_model)
   }
 })
+
+test_that("the coordination contribution runs without a per-row closure", {
+  # The r backend computes a contribution as staged linear algebra; a closure
+  # run once per row or slice is what the coordination path used to carry (the
+  # row maximum of its softmax, the expected statistics of its derivative).
+  # Read from each function's parsed body, so a comment cannot satisfy it.
+  closures <- c("apply", "sapply", "vapply", "lapply", "mapply", "Map")
+  call_path <- list(
+    compute_event_contribution.goldfishLikCoordination = compute_event_contribution.goldfishLikCoordination,
+    getMultinomialProbabilities = getMultinomialProbabilities,
+    stable_softmax = stable_softmax,
+    getLikelihoodMM = getLikelihoodMM,
+    compute_first_derivative_choice_coord = compute_first_derivative_choice_coord,
+    getMultinomialInformationMatrix = getMultinomialInformationMatrix
+  )
+  for (name in names(call_path)) {
+    called <- intersect(closures, all.names(body(call_path[[name]])))
+    expect_identical(called, character(0), info = name)
+  }
+})
