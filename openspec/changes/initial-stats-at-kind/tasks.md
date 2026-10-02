@@ -90,6 +90,12 @@
       store seeds through the same function as the statistics, and retire
       the switch. Verify: the 2.1 conformance test covers the constraint
       atom seed; `build_constraint_atom_store()` has no effect-name switch.
+- [ ] 2.2b A global-kind broadcast writes no grid per update (added
+      2026-10-02, from the `likelihood-site-cleanup-and-cost` conformance
+      report): `write_broadcast_updates()` builds four `n1 x n2` vectors per
+      global-kind update today. Once updates are stored at kind (group 3),
+      a global update is one scalar entry; add the case to the 3.x cost
+      guard so the per-update allocation is bounded by the entries written.
 - [ ] 2.3 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       references PASS; `air format` and `lintr` on the touched files.
 

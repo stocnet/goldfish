@@ -226,3 +226,75 @@
 - [x] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines,
       goldens, pins and budget PASS not SKIP; `status: landed
       (feature_simulation, awaiting fold)` in `proposal.md`.
+
+## 7. Conformance follow-up (added 2026-10-02)
+
+From `.plan/develop/likelihood-site-cleanup-and-cost-conformance.md`
+(evidence in the folder of the same name). The code computes correctly:
+suite 13111 / 0 / 7, six baseline files and both C++ goldens PASS,
+`_baselines/` byte-identical, pins and budget PASS, bindings regenerate
+with no diff. The artifacts claim a cost the r backend does not meet, and
+one kernel path has no detector. 7.1 and 7.2 block the fold.
+
+- [ ] 7.1 **blocks**: the r backend still allocates about 3.5 statistics
+      arrays per REM event (4.7 under an outer-encoded filter) because it
+      copies the subset each event; a Social Evolution REM fit allocates
+      3290 MB where D3, the `likelihood-computation` delta and tasks 4.3/4.5
+      claim nothing of size `n1 x n2 x p` per event and under one tenth of
+      7325 MB. The miss was accepted in `progress.md` only. Either close
+      the copy (subset once per event into the reused buffer 4.3 names) or
+      amend D3, the delta scenario and the 4.3/4.5 tick notes to the
+      contract accepted, using the 4.1 guard's limit as the scenario's
+      number. Verify: the scenario and the guard state the same bound.
+- [ ] 7.2 **blocks** (reopens 2.3): the "risk set follows the flips" test
+      cannot see the REM and REM-ordered point-flip writes
+      (`src/REM_default.cpp:394`, `src/REM_ordered_default.cpp:230`):
+      disabling them leaves it and 29 related files green because the
+      constrained REM fixture has zero point flips, while a REM with
+      `~ !tie(emails)` (378 flips) shifts per-event log-likelihoods by up to
+      1.81 on 778 of 782 events under the same ablation. Add a flipping
+      point-constraint REM and REM-ordered fixture to that test; the
+      current code agrees with the r backend there to 2e-11, so the gap is
+      the fixture. Verify: the ablation is red.
+- [ ] 7.3 **should-fix**: the living requirement "C++ multinomial
+      normalizers use the shared stable softmax" still says the exact-time
+      conditional log-probability and probabilities come from the shifted
+      log-sum-exp; the 2.3a fast branch contradicts it. Add a MODIFIED block
+      to the `likelihood-computation` delta; placement check clean.
+- [ ] 7.4 **should-fix** (hand-off received from the
+      `availability-one-object-per-loop` inspection, owned here as the r
+      engine's): the filter test at `R/estimation_core.R:2090-2094` treats
+      an empty `2 x 0` update buffer as a filter, so an outer-encoded
+      constraint that excludes nothing copies the full array every event:
+      +1446 MB, +33 percent per evaluation on a 300-actor no-op REM (+8
+      percent on choice); cpp and gather show no difference. Test
+      `length(update) > 0` or store `NULL` for an empty stream, and add a
+      no-op guard (constrained-excluding-nothing equals unconstrained on
+      the r backend). Verify: the no-op difference is zero.
+- [ ] 7.5 **should-fix**, record in tracked artifacts what `progress.md`
+      alone holds: the CollegeMsg budget cell is one cpp evaluation on 200
+      messages, not a 1k fit on three backends (task 0.3, D6); the in-place
+      r writers are new helpers, not rewrites of the old ones (4.2); 2.3a
+      says `isfinite && > 0` where the code uses `isnormal`; the SE REM cpp
+      prediction was met by removing the second `exp` pass and evaluating
+      diagnostics once, not by the kernel buffer rewrite, which cut
+      allocations (2635 to 5 per evaluation) but not time (ADR-0110's log
+      too).
+- [ ] 7.6 **should-fix**: the diagnostics-once test does not cover the
+      non-finite-step exit nor assert that the convergence status is
+      unchanged; the 2.1 kernel probe guard is dormant (no documented run
+      builds the probe, so it SKIPs in every ordinary run) and blind below
+      its size threshold: name the probe run in 2.6 / 6.4 and in the
+      not-cran-test procedure.
+- [ ] 7.7 **should-fix**, hygiene: `tests/testthat/_budgets/estimation_cost.csv`
+      comments cite task numbers (dangling after archive); `src/REM_default.cpp:103`
+      is a 143-character roxygen line; rewrap by hand.
+- [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
+      pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
+      fresh conformance-inspector agent. Notes not owned here: gather
+      choice allocation sits 0.5 percent under its ceiling; the walk
+      `seconds` cell failed inside a full suite (0.5 of `progress.md`, walk
+      budget maintainer); a global-kind broadcast in
+      `write_broadcast_updates()` builds four `n1 x n2` vectors per update
+      (`initial-stats-at-kind` 2.2b); commit `206e173` carries other
+      changes' artifacts (branch fold).
