@@ -81,3 +81,29 @@ them:
 Report: the commit hash, the suite totals, whether `document()` drifted, and the
 next task. If it was the last task of a phase milestone, remember the phase bump
 (DESCRIPTION version + NEWS.md) is its own task (group 8.x), not this one.
+
+## 5. After the last task of a group or change: conformance
+
+Closing the last task does not land the change. The order on a feature
+branch is:
+
+1. `close-task` on the last task; flip `proposal.md` to
+   `status: landed (<branch>, awaiting fold)`.
+2. The walking-time / cost gate the queue uses, if the change touched
+   per-event code.
+3. **`conformance-inspector`, run by a FRESH agent** (not the applier: it
+   reads the applier's artifacts against the code with no memory of the
+   intent). It writes `.plan/develop/<change>[-<group>]-conformance.md` and
+   edits nothing else.
+4. Triage by the coordinator: **blocks** reopens the change (a new
+   "Conformance follow-up" task group, applied with this skill); a
+   **should-fix** owned by the change is amended in place before archive; a
+   **note** owned elsewhere is folded into that change's `tasks.md`; a gap
+   with no owner gets a new change only when it needs a decision or a cost
+   prediction.
+5. A scoped re-check of the gaps by a fresh agent, then the change is
+   landed for real. The trunk merge folds and archives (ADR-0040).
+
+Ticked boxes are not the proof (ADR-0062); the report is. Log the digest in
+the queue's coordination file (`.plan/develop/coord_simulation.md` on
+`feature_simulation`).

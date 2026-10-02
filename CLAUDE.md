@@ -98,6 +98,14 @@ on memory.
 - **`not-cran-test` — before committing any task**, to confirm the frozen 1e-6
   baselines are PASS not SKIP. **`release-prep`** (user-invoked) is the local
   release pre-flight.
+- **`conformance-inspector` — after a change or task group lands, before it
+  is trusted or folded.** A fresh agent (never the applier) checks the code
+  against the change's proposal, design, spec deltas and tasks, the living
+  spec, and the walk-cost rules, in two halves: documents against code, and
+  data (fixtures, baselines, ablations, cost measurements) against both.
+  Ticked boxes are not the proof (ADR-0062); the report in `.plan/develop/`
+  is. `close-task` names the order: close the last task, flip to landed, gate,
+  conformance, triage, scoped re-check, then the trunk fold.
 
 For OpenSpec change work these are also enforced as hard rules in `openspec/config.yaml`.
 
