@@ -1,3 +1,45 @@
+# the singular-information warning for a coefficient at its start
+
+    Code
+      warn_singular_information(list(coefficients = 2L, groups = list()),
+      singular_labels, start = c(0.1, 0, 0), value = c(0.4, 0, 0.2))
+    Condition
+      Warning:
+      ! The pooled information matrix at the returned estimate is singular; the covariances are `NA`.
+      x calls › choice: inertia/calls has no information in the pool; it was not estimated and stays at its starting value.
+      i Consider removing its effect from the specification.
+
+# the singular-information warning for a coefficient that moved
+
+    Code
+      warn_singular_information(list(coefficients = c(2L, 3L), groups = list()),
+      singular_labels, start = c(0.1, 0, 0), value = c(0.4, 0, 0.2))
+    Condition
+      Warning:
+      ! The pooled information matrix at the returned estimate is singular; the covariances are `NA`.
+      x calls › choice: inertia/calls has no information in the pool; it was not estimated and stays at its starting value.
+      x friendship › choice: indeg/friendship has no information in the final pool; the returned value 0.2 is not an estimate.
+      i Consider removing their effects from the specification.
+
+# the singular-information warning naming no coefficient
+
+    Code
+      warn_singular_information(no_attribution, singular_labels, start = c(0.1, 0, 0),
+      value = c(0.4, 0, 0.2))
+    Condition
+      Warning:
+      ! The pooled information matrix at the returned estimate is singular; the covariances are `NA`.
+      i No single coefficient is without information.
+
+# an effect with no variation on any path is named at its start
+
+    Code
+      cat(conditionMessage(run$warnings[[1]]))
+    Output
+      ! The pooled information matrix at the returned estimate is singular; the covariances are `NA`.
+      x friendship › dissolution › choice: indeg/friendship and calls › choice: inertia/calls have no information in the pool; they were not estimated and stay at their starting values.
+      i Consider removing their effects from the specification.
+
 # logLik, AIC and BIC refuse on a Monte-Carlo fit
 
     Code

@@ -16,7 +16,11 @@
 # covariances need, on every returning run -- converged or not -- so a fit
 # never carries a NULL covariance. SEs are never harvested from the last
 # minibatch.
-new_dynes_fit <- function(res, authored_spec, control, fit_call, call) {
+new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
+  # Read before the store closes below. A loop stopped on a pool with no
+  # finite likelihood already has its own warning, and its pooled information
+  # is empty.
+  pool_dropped <- isTRUE(res$pool$store$tally$pool_dropped)
   if (identical(control$weights$use, "resampling")) {
     cli::cli_warn(
       c(
@@ -38,6 +42,15 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call) {
   dims <- list(labels, labels)
   dimnames(covariances$covariance) <- dims
   dimnames(covariances$mc_covariance) <- dims
+  if (covariances$singular && !pool_dropped) {
+    warn_singular_information(
+      singular_attribution(covariances$information),
+      labels,
+      start = start,
+      value = unname(res$parameters),
+      call = call
+    )
+  }
 
   # The store is closed once estimation returns; the fit keeps the sequences.
   res$pool$store <- NULL
@@ -64,7 +77,9 @@ dynes_covariances <- function(pool, theta, weights) {
 
 # The two estimators above from per-sequence scores (K x p), information
 # matrices (a list of K) and degeneracy flags already evaluated at one theta.
-# A degenerate or zero-weight sequence contributes nothing.
+# A degenerate or zero-weight sequence contributes nothing. The pooled
+# information comes back beside them, flagged `singular` when it cannot be
+# inverted (NULL when no sequence is kept).
 sandwich_covariances <- function(score, fisher, degenerate, weights) {
   p <- ncol(score)
   keep <- weights > 0 & !degenerate
@@ -77,11 +92,85 @@ sandwich_covariances <- function(score, fisher, degenerate, weights) {
   unavailable <- matrix(NA_real_, p, p)
   bread <- tryCatch(solve(information), error = function(e) NULL)
   if (is.null(bread)) {
-    return(list(covariance = unavailable, mc_covariance = unavailable))
+    return(list(
+      covariance = unavailable,
+      mc_covariance = unavailable,
+      information = information,
+      singular = TRUE
+    ))
   }
   list(
     covariance = bread %*% meat %*% bread,
-    mc_covariance = bread %*% mc_meat %*% bread
+    mc_covariance = bread %*% mc_meat %*% bread,
+    information = information,
+    singular = FALSE
+  )
+}
+
+# Which free coefficients a singular pooled information leaves without any
+# information: those whose diagonal is not positive (`<=` absorbs a slightly
+# negative rounding). The test is exact, not relative to the largest
+# diagonal, because the diagonals carry different statistics' units. The
+# pooled information is a non-negatively weighted sum of positive
+# semi-definite matrices, so a zero diagonal zeroes its row and column and
+# the coefficient spans an exact null direction on its own. Collinear groups,
+# which need a null-space analysis, are left empty.
+singular_attribution <- function(information) {
+  list(
+    coefficients = unname(which(diag(information) <= 0)),
+    groups = list()
+  )
+}
+
+# One warning for a singular pooled information at the returned estimate,
+# from singular_attribution() over the free coefficients. A coefficient with
+# no information has a zero score on every path, so it keeps its starting
+# value; but the pool changes across passes, so one that moved on an earlier
+# pool and lost its information on the final one is reported as such.
+warn_singular_information <- function(
+  attribution,
+  labels,
+  start,
+  value,
+  call = rlang::caller_env()
+) {
+  named <- attribution$coefficients
+  stays <- value[named] == start[named]
+  at_start <- labels[named[stays]]
+  moved <- labels[named[!stays]]
+  moved_value <- signif(value[named[!stays]], 4)
+  # Pinned: cli would read a single numeric value as the quantity itself.
+  n_moved <- length(moved)
+  n_named <- length(named)
+  cli::cli_warn(
+    c(
+      "!" = "The pooled information matrix at the returned estimate is
+             singular; the covariances are {.code NA}.",
+      if (length(at_start) > 0L) {
+        c(
+          "x" = "{.field {at_start}} {?has/have} no information in the pool;
+                 {?it was/they were} not estimated and {?stays/stay} at
+                 {?its/their} starting value{?s}."
+        )
+      },
+      if (n_moved > 0L) {
+        c(
+          "x" = "{.field {moved}} {?has/have} no information in the final
+                 pool; the returned value{?s} {.val {moved_value}}
+                 {cli::qty(n_moved)}{?is not an estimate/are not estimates}."
+        )
+      },
+      if (n_named > 0L) {
+        c(
+          "i" = "{cli::qty(n_named)}Consider removing {?its/their} effect{?s}
+                 from the specification."
+        )
+      } else {
+        c("i" = "No single coefficient is without information.")
+      }
+    ),
+    class = "goldfish_dynes_singular_information",
+    call = call
   )
 }
 

@@ -206,7 +206,14 @@ estimate_dynes <- function(
   res$parameters <- stats::setNames(as.numeric(res$parameters), labels)
   res$seed <- seed
   res$spec <- completed
-  new_dynes_fit(res, spec, control_algo, fit_call = sys.call(), call = call)
+  new_dynes_fit(
+    res,
+    spec,
+    control_algo,
+    fit_call = sys.call(),
+    call = call,
+    start = theta0
+  )
 }
 
 # One warning per run for the drawn sequences a fixed-only term was lost to,
