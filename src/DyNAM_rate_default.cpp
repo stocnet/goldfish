@@ -150,8 +150,17 @@ using namespace arma;
      has_composition_change1 = false;
    }
    arma::vec active_sender = active_sender_init;
-   
-   
+
+   // Event-sized work buffers, allocated once and overwritten at every event.
+   arma::vec rates(n_actors_1);
+   arma::vec lin_pred(n_actors_1);
+   arma::vec weights;
+   arma::vec probabilities;
+   std::vector<margin_side> margin_sides;
+   if (return_margins) {
+     margin_sides.push_back(margin_side(&margin_observed, &margin_expected));
+   }
+
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
      // update stat_mat with the combined buffer covering all stored events
@@ -194,7 +203,7 @@ using namespace arma;
      //
      // The reason is consistency, NOT coefficient safety, and the difference
      // between those two was measured rather than assumed. `rates` feeds only
-     // the reductions -- the margins, the rank, and the stored per-event score;
+     // the reductions -- the margins and the rank;
      // the normalizer and the derivative are accumulated from
      // `exp_current_sender` directly, so rebuilding it CANNOT move a
      // coefficient, and does not: patching in the GEMV leaves every frozen
@@ -210,9 +219,8 @@ using namespace arma;
      // comment, not a test, is the guard on this line.
      //
      // Zero on inactive senders, as the header requires.
-     const bool need_rates = do_rank || return_margins || return_event_scores;
-     arma::vec rates;
-     if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
+     const bool need_rates = do_rank || return_margins;
+     if (need_rates) rates.zeros();
      // go through all actor1
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
@@ -249,11 +257,9 @@ using namespace arma;
        // Compensator scale: c = Dt on the raw rates, so the contribution is
        // Dt * lambda_i. A right-censored interval still accumulates exposure on
        // the expected side but has no observed mover to count.
-       std::vector<margin_side> sides;
-       sides.push_back(margin_side(&margin_observed, &margin_expected));
        accumulate_margins(
          rates, timespan_current_event, active_sender, id_sender,
-         is_dependent(id_event) == 1, sides
+         is_dependent(id_event) == 1, margin_sides
        );
      }
      if (do_rank) {
@@ -283,16 +289,17 @@ using namespace arma;
        return_probabilities || return_margins || return_total_rate ||
        return_conditional_scores
      ) {
-       arma::vec lin_pred = stat_mat * parameters;
-       arma::vec weights;
+       lin_pred = stat_mat * parameters;
        double log_normalizer =
          log_sum_exp_masked(lin_pred, active_sender, weights);
        double shifted_total = arma::sum(weights);
        // An empty risk set (every candidate masked) leaves no weight to
        // normalize: each probability is 0, not 0 / 0.
-       arma::vec probabilities = shifted_total > 0
-         ? arma::vec(weights / shifted_total)
-         : arma::vec(weights.n_elem, fill::zeros);
+       if (shifted_total > 0) {
+         probabilities = weights / shifted_total;
+       } else {
+         probabilities.zeros(weights.n_elem);
+       }
        if (return_total_rate) {
          conditional_logl(id_event) = is_dependent(id_event)
            ? lin_pred(id_sender) - log_normalizer
