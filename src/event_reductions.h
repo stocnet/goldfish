@@ -11,23 +11,27 @@
 //
 // The contract. At each event every backend forms a nonnegative weight vector
 // `w` over that event's risk set and a scalar scale `c`, and the contribution
-// of alternative j is m_j = c * w_j. Callers pass the **probability vector** as
-// `w` in every family, taken from the stable log-sum-exp
-// (`p_j = exp(x_j - lse)`, so it is exact whether or not the rates overflow or
-// underflow); `c` alone carries the family difference:
+// of alternative j is m_j = c * w_j. Which pair a caller passes depends on the
+// family and the scale:
 //
-//   family / scale                                w_j    c
-//   --------------------------------------------  -----  ------------------
-//   multinomial (choice, rate_ordered,             p_j    1
+//   family / scale                                w_j       c
+//   --------------------------------------------  --------  ----------------
+//   multinomial (choice, rate_ordered,             p_j       1
 //     REM_ordered, coordination)
-//   exact-time (rate, REM), probability scale      p_j    1
-//   exact-time (rate, REM), compensator scale      p_j    Dt * total_rate
+//   exact-time (rate, REM), probability scale      p_j       1
+//   exact-time compensator, event-loop kernels     lambda_j  Dt
+//   exact-time compensator, gather kernel          p_j       Dt * total_rate
 //
-// so sum_j m_j is 1 on the probability scale in both families, and
-// Dt * total_rate on the exact-time compensator — where m_j = Dt * rate_j
-// exactly, since Dt * T * p_j = Dt * lambda_j. Splitting it this way keeps the
-// only large factor in a scalar: an overflowing rate inside `w` would meet a
-// mixed-sign statistic and give Inf - Inf = NaN, whereas p is bounded in [0, 1].
+// where p_j = exp(x_j - lse) comes from the stable log-sum-exp, exact whether
+// or not the rates overflow or underflow, and lambda_j = exp(x_j) is the raw
+// rate. The two compensator rows are the same numbers, since
+// Dt * T * p_j = Dt * lambda_j, so sum_j m_j is 1 on the probability scale in
+// both families and Dt * total_rate on the compensator. The event-loop
+// kernels pass the raw rates they already hold for the likelihood, whose
+// total rate enters on the absolute scale; the gather kernel holds only the
+// probabilities, and keeps the large factor in the scalar. A raw rate that
+// overflows meets a mixed-sign statistic and gives Inf - Inf = NaN, which is
+// the same non-finite likelihood the Newton loop already rejects.
 //
 // **`w` MUST be zero outside the event's risk set.** Every caller already
 // satisfies this: `log_sum_exp_masked()` returns 0 for masked entries (the
