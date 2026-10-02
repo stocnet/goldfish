@@ -512,3 +512,30 @@
       `proposal.md`.
       — *done 2026-10-01 (goldfish-ce), suite on `d79f200`*: 10774 / 0 / 5,
       six baseline files PASS; `proposal.md` marked landed.
+
+## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
+
+From
+`.plan/develop/constraint-objects-on-shared-walk-groups5-6-conformance.md`.
+Groups 5-6 conform: every fixture arm has a test, every detector bites under
+its named mutation, the suite reproduces at 10774 / 0 / 5. Three small items
+before the fold.
+
+
+- [ ] 7.1 **should-fix**: OpenSpec references in code and documentation:
+      the comment at `tests/testthat/test-simulation_cross_validation.R:648-649`
+      names "process-simulation 2.11c", and
+      `tests/testthat/_references/simulation_v1/README.md:88,92` cite
+      ADR-0103 and task 2.11c. Rewrite by hand to state the rule (presence
+      changes close the rate interval; the rate arm waits on that rule) with
+      no artifact pointer.
+- [ ] 7.2 **note**, record only: commit `759873f` (F4) also deleted
+      `openspec/changes/exact-time-diagnostic-cost/` (389 lines) without
+      saying so; the deletion belongs to `likelihood-site-cleanup-and-cost`,
+      which absorbed that change (its proposal says so; recoverable at
+      `e42d05e`). Noted here for whoever folds the branch.
+- [ ] 7.3 Handed to `estimation-contract-matrix` 2.3a: the F2 standalone
+      and de-flavored routes are compared with the container, not the
+      oracle (a 2e-6 bound where the spec says 1e-6 each; measured gap 0),
+      and `skip_if_not_installed("survival")` sits inside the F2 loop so a
+      missing package would skip the `glm` arms the design says never skip.

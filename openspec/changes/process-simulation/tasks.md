@@ -921,6 +921,23 @@
       choice fits on fisheries unchanged. NEWS.d bullet (user-visible:
       exact-time fits with composition changes move)
 
+- [ ] 2.11d The live mask carries its `symmetric` flag to its readers (added
+      2026-10-02, from the `availability-one-object-per-loop` conformance
+      reports). `walk_build_live_masks()` now stores a coordination vector
+      mask at its own kind with `symmetric = TRUE` (`R/walk_handle.R:1174-1179`),
+      but `walk_live_support()` (`:1249-1278`) returns `value`, `mask_kind`
+      and `stored_kind` and drops the flag, so a consumer reads `m[k]` where
+      the cell is `m[i] & m[j]`; `simulation_fid_state()`'s deferred-rate
+      path (`R/simulate_driver.R:350`) would gate every sender alike when
+      the sibling is a coordination choice. Unreachable today because
+      simulating coordination aborts; it becomes reachable with the
+      coordination clocks. Return the flag and honor it in the two readers,
+      or abort on a symmetric vector mask there. Also: when 2.11c rewrites
+      the comment at `test-simulation_cross_validation.R:648-649`, it drops
+      the "(process-simulation 2.11c)" pointer and states the rule. Verify:
+      a coordination choice beside a deferred rate on a vector constraint
+      draws the gate `m[i] & m[j]`, asserted against a dense oracle.
+
 ## 3. Tests and documentation
 
 - [ ] 3.1 Tests (testthat 3e): seeded intensity/event-count sanity on timed

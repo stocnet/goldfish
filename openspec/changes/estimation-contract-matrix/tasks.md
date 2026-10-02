@@ -83,6 +83,18 @@
       investigated as a defect (goldfish, then harness, then row
       construction) and recorded in `progress.md`; no reference is written
       from a failing row.
+- [ ] 2.3a Hand-offs from the `constraint-objects-on-shared-walk` groups 5-6
+      conformance report (added 2026-10-02): the F2 standalone and
+      de-flavored routes (`test-simulation_cross_validation.R:547-579`) are
+      compared with the container fit, never directly with the oracle, so
+      they are bounded at 2e-6 where the spec says each route agrees with
+      the oracle at 1e-6 (measured gap 0); and
+      `skip_if_not_installed("survival")` sits inside the F2 loop (`:369`,
+      reached from `:574`), so a missing package would skip the `glm` arms
+      the design says never skip. The row runner compares every route to
+      the oracle directly and places the `clogit` skip on the `clogit` arm
+      alone. Verify: with `survival` mocked absent, the `glm` rows still
+      run.
 - [ ] 2.4 Verification: `NOT_CRAN=true` suite green; all 37 rows PASS not
       SKIP (the `mlogit` and `clogit` arms skip only where the package is
       absent); baselines PASS; `air format` and `lintr` on the touched test

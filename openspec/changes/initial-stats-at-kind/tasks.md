@@ -81,6 +81,15 @@
       0.2 references `identical()` through the accessor (the diagonal now
       zeroed at expansion); 0.3 (a) passes; the atom store's seed reads the
       kind-shaped `stat` directly where it still took `cache`.
+- [ ] 2.2a `init_at_kind()` joins the at-kind init contract (added 2026-10-02,
+      from the `availability-one-object-per-loop` conformance report).
+      `R/model_preprocess.R:653-689` seeds vector-kind constraint atoms at
+      their kind by a `switch()` on the effect name, duplicating the rate-side
+      inits; it is what lets that change's walk guard pass and no artifact
+      describes it. Fold it into 2.2's per-effect init-at-kind so the atom
+      store seeds through the same function as the statistics, and retire
+      the switch. Verify: the 2.1 conformance test covers the constraint
+      atom seed; `build_constraint_atom_store()` has no effect-name switch.
 - [ ] 2.3 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       references PASS; `air format` and `lintr` on the touched files.
 

@@ -155,7 +155,12 @@
       there; rule header added) and the `print.goldfishStat`,
       `print.goldfishAlgoNewton`, `print.goldfishPrepCtrl` headers to the
       rule idiom; batch `print.goldfishParams`'s per-coefficient
-      `cli_bullets()` into one call. Snapshots reviewed.
+      `cli_bullets()` into one call. Snapshots reviewed. While there, the
+      `print.goldfishStat` field table is brought current (added
+      2026-10-02, from the `availability-one-object-per-loop` conformance
+      report): it still describes `active_*` as "presence vectors" and its
+      encoding list lacks `point`; the object stores one availability
+      object per loop at `point`, `alter` or `outer`.
 - [ ] 5.6 Verification: `grep -n 'stop(\|warning(\|cat(' R/` outside
       `class_checks.R`/`make_data.R`/deprecated printers reports only
       commented or non-user-facing sites (list them in `progress.md`);

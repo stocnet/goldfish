@@ -189,3 +189,55 @@
 - [x] 5.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       and goldens PASS not SKIP; `status: landed (feature_simulation,
       awaiting fold)` in `proposal.md`.
+
+## 6. Conformance follow-up (added 2026-10-02)
+
+From `.plan/develop/availability-one-object-per-loop-conformance.md` and its
+`-run2.md`. Two independent inspections: the code and the stored objects match
+D1-D4, every cost prediction is met and every guard goes red under ablation.
+The gaps are artifact drift the fold would carry into the living spec, plus
+one latent contract hole. No blocking gap; all before archive.
+
+
+- [ ] 6.1 **should-fix**: D5 landed as a read of the sibling process's live
+      mask row at its kind (`R/simulate_driver.R:333-391`, `support_row()`
+      and presence), not "the fid's maintained availability"; a REM
+      deferral does not exist. Amend design D5, the delta scenario "the
+      simulation reads the maintained object", and the 4.2/4.3 tick notes
+      so the deviation is in tracked artifacts, not only `progress.md`.
+      Optionally commit the seeded before/after sequence check 4.3 ran by
+      hand.
+- [ ] 6.2 **should-fix**: the ego-choice scenario in
+      `specs/active-availability-stat/spec.md` names the
+      "observed-event-excluded" error; the code raises and the test asserts
+      "empty risk set" (`R/availability_effect.R:1121`,
+      `test-support_constraint_ego_fold.R:182`). Align the scenario.
+- [ ] 6.3 **should-fix**: since 4.5 an ego-kind choice output carries
+      `active_dyad_encoding = "outer"` with no sender factor;
+      `walk_risk_set()` relabels it `"alter"` and the accessors special-case
+      a NULL sender. Store it as `"alter"` or state in the encodings
+      requirement that a choice object at outer carries one factor.
+- [ ] 6.4 **should-fix**: comments now false, rewrite by hand:
+      `R/estimation_core.R:2111-2120` and `R/walk_handle.R:1284-1286` say a
+      REM or coordination constraint always folds to a dense point grid.
+- [ ] 6.5 **should-fix**, record in the 3.2 and 0.3 tick notes: the
+      coordination `n1 != n2` point fallback (`R/preprocess_joint.R:1435`)
+      is unasserted because unreachable; the ego coordination reference
+      family was omitted because symmetrisation makes ego and alter the
+      same fold; `init_at_kind()` (`R/model_preprocess.R:653`) seeds
+      vector-kind atoms at kind and is what lets the 3.1 walk guard pass,
+      described in no artifact (its contract moves to
+      `initial-stats-at-kind` 2.2a).
+- [ ] 6.6 **should-fix**: the carried scenario "stale preprocessed object
+      rejected" reads against the delta's own "retired fields read and
+      ignored, no bump" clause; reword to the rejection the code performs
+      (a missing engine field).
+- [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+      PASS not SKIP; `openspec validate --strict` and the placement check
+      clean; a scoped re-check by a fresh conformance-inspector agent.
+      Handed elsewhere, not this change's: the `symmetric` flag that
+      `walk_live_support()` drops (`process-simulation` 2.11d); the
+      empty `2 x 0` update buffers that switch on the R engine's per-event
+      axis filter, the flipping-point-mask row reads the 4.6 guard does not
+      cover, and the per-event `match()` / gather `.rowSums` passes
+      (`likelihood-site-cleanup-and-cost`, see its conformance report).

@@ -60,6 +60,27 @@
       unit has interactions), updating its uses in `R/preprocess_joint.R`.
       Verify: no caller of the removed helper remains; the interaction tests
       and the frozen baselines are unchanged.
+- [ ] 2.3a Hand-offs from the `support-gate-self-exclusion` conformance
+      report (added 2026-10-02, `.plan/develop/`
+      `support-gate-self-exclusion-conformance.md`):
+      (i) the rate-gate fold's caller (`R/preprocess_joint.R:1708`) derives
+      the flag as `identical(ctx$nodes, ctx$nodes2)`, the fifth derivation
+      the proposal lists; 2.2 replaces it with the resolved field and the
+      self-exclusion change's 2.2 note records the deviation; (ii) while
+      rewriting that path, build `own` (`R/model_preprocess.R:370`, an `n1`
+      integer vector plus a logical subset allocated at every flipped event
+      for every kind) only in the ego and global branches that read it
+      (+57.9 MB, +15.7 percent of the fold's allocation on the
+      point-constrained CollegeMsg rate today); (iii) `sender_gate_from_mask()`'s
+      point branch (`R/support_mask.R:262`) builds the `n1 x n2` grid on
+      every call, pre-existing, worth the same once-per-fit resolution;
+      (iv) the living `active-availability-stat` requirement "Sender-loop
+      dyadic constraints consumed via row-reduction" (`spec.md:126-131`)
+      still defines the gate without the self-exclusion that change
+      introduced; this change's delta on that capability gains a MODIFIED
+      block for it, conditional on the resolved rule. Verify: (ii) by the
+      fold's allocation on the point-constrained CollegeMsg fixture before
+      and after; (iv) by the placement check.
 - [ ] 2.4 Verification: `air format` then `lintr` on the touched R files;
       `NOT_CRAN=true` suite green; the six baseline files PASS not SKIP and
       byte-identical — the detector that the default path did not move.

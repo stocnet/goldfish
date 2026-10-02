@@ -135,3 +135,54 @@
       — *done 2026-09-18* `1ba7cd9`: 9037 / 0 / 4, 0 errors, six baseline
       files PASS with 0 skipped; no new lint on a touched line; validate
       passes
+
+## 4. Conformance follow-up (added 2026-10-02)
+
+From `.plan/develop/support-gate-self-exclusion-conformance.md` (two runs, the
+second as `-run2.md`). The post-landing inspection found the code correct and
+the detectors short of the task text: three of the four self-exclusion sites
+and the deferred simulation caller survive single-site ablation with every
+committed test green. Blocks the fold until 4.1 and 4.2 close; the rest before
+archive.
+
+
+- [ ] 4.1 **blocks** (reopens 2.1): per-kind detectors at every event. The
+      alter-flip (`R/model_preprocess.R:384-394`), ego/global-flip
+      (`:398-410`) and receiver-crossing (`:437`) exclusions can each be
+      removed with the suite green. Commit a seeded property check of the
+      folded gate and `sender_gate_from_mask()` against the dense oracle for
+      all four kinds, one- and two-mode, with mask flips and receiver
+      crossings (the report's `property_fold_vs_oracle.R` is a template),
+      plus an undirected one-mode flavored fixture. Verify: each of the
+      three single-site ablations turns the new test red.
+- [ ] 4.2 **blocks** (extends 3.3): the simulation driver's deferred-rate
+      caller (`R/simulate_driver.R:347-354`) has no detector; forcing its
+      flag to `FALSE` leaves the suite green while a `rate = ~ 1` beside a
+      modeled choice on the 1.1 fixture aborts on every seed. Add that
+      variant to the regression test. Verify: the flag ablation is red.
+- [ ] 4.3 **should-fix**: `test-support_mask_sparse.R:151` and `:392` still
+      compute the gate reference without `self` (the proposal's Impact
+      promised they would be re-run with the flag); live walk against batch
+      is compared only at the opening state, task 3.1 asked for every event
+      by extending `test-walk_handle.R`; `validate_prep_support()`'s flag
+      derivation (`R/model_estimate.R:1243`) has no detector because the
+      validation tests pass the flag directly. Verify: a flipped flag at
+      each site is red.
+- [ ] 4.4 **should-fix**: assert the scenario clauses the tests skip: the
+      self-only sender absent from `n_candidates` and from the rate
+      exposure (`test-support_gate_self_exclusion.R:154`), and the alter
+      scenario's mask stored at alter kind through the parser (`:60` drives
+      the fold with a hand-made mask).
+- [ ] 4.5 **should-fix**, record only: the fold's caller
+      (`R/preprocess_joint.R:1708`) derives the flag as
+      `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2 and
+      task 2.2 state; equivalent today. Note the deviation in 2.2's tick;
+      `allow-reflexive-user` task 2.3a resolves the derivation once. The
+      same change owns the stale sender-loop gate wording in the living
+      `active-availability-stat` spec (`spec.md:126-131`, no self-exclusion)
+      and the `own` vector allocated at every flipped event for all kinds
+      (`R/model_preprocess.R:370`, +57.9 MB on the point-constrained
+      CollegeMsg fold, read only by the ego and global branches).
+- [ ] 4.6 Verification: `NOT_CRAN=true` suite green; six baseline files
+      PASS not SKIP and byte-identical; a scoped re-check of gaps 1-8 of
+      the report by a fresh conformance-inspector agent before the fold.

@@ -17,6 +17,12 @@
       conformance test `initial-stats-at-kind` adds (added 2026-10-01,
       ADR-0112; `node_trans`'s classification comes from
       `closure-effects-refactor`).
+- [ ] 1.1b Record, per effect, whether an at-kind init exists today outside
+      the registry (added 2026-10-02, from the `availability-one-object-per-loop`
+      conformance report): `init_at_kind()` in `R/model_preprocess.R:653-689`
+      seeds vector-kind constraint atoms by a `switch()` on the effect name,
+      a second init path beside `init_*`. The term definition owns the init
+      shape once; `initial-stats-at-kind` 2.2a retires the switch.
 - [ ] 1.2 For each effect, capture its **current** argument set (from `formals()`
       and the formula parser), including which arguments gate runtime `if/else`
       (e.g. `weighted`, `history`, `subType`, `joining`, `type`).
