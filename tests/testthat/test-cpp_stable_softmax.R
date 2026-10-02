@@ -303,3 +303,189 @@ test_that("the conditional component survives underflowing rates", {
   lse <- -800 + log(sum(exp(c(0, -1, -3))))
   expect_equal(as.numeric(res$conditional_logl), -800 - lse, tolerance = 1e-12)
 })
+
+# --- Exact-time diagnostics from the likelihood pass -------------------------
+# The exact-time kernels take log T = log(normalizer) and p = e / normalizer
+# from the raw pass the likelihood already made, and fall back to the
+# max-shifted log-sum-exp only where the raw normalizer is not a normal
+# positive double. The evaluator's seam forces the shifted route and reports
+# how many intervals took it, so the two routes can be compared directly.
+
+exact_time_engine <- function(name) {
+  prep <- likelihood_pin_prep(
+    baselines_model_grid()[[name]],
+    likelihood_pin_data()
+  )
+  make_engine_evaluator(
+    spec = prep$model_spec,
+    stats_list = prep,
+    parameters = numeric(0),
+    backend = "cpp",
+    has_intercept = isTRUE(prep$has_intercept),
+    is_rate_model = identical(risk_set_axis(prep$model_spec), "sender"),
+    seed_intercept = FALSE
+  )
+}
+
+exact_time_pass <- function(engine, at, force = FALSE, everything = TRUE) {
+  engine$evaluate(
+    at,
+    need_scores = everything,
+    need_ranks = everything,
+    need_margins = everything,
+    need_total_rate = TRUE,
+    need_probabilities = everything,
+    need_availability = everything,
+    need_conditional_scores = everything,
+    force_shifted_normalizer = force,
+    report_normalizer_route = TRUE
+  )
+}
+
+exact_time_references <- function() {
+  readRDS(test_path(
+    "_references",
+    "likelihood_v1",
+    "likelihood_references.rds"
+  ))
+}
+
+test_that("the raw and the shifted route give the same exact-time diagnostics", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  references <- exact_time_references()
+  for (name in c("se_rem", "se_dynam_rate")) {
+    engine <- exact_time_engine(name)
+    at <- references[[name]]$at
+    raw <- exact_time_pass(engine, at)
+    shifted <- exact_time_pass(engine, at, force = TRUE)
+    expect_equal(raw$n_shifted_normalizer, 0L, info = name)
+    expect_equal(shifted$n_shifted_normalizer, engine$n_intervals, info = name)
+    compared <- setdiff(
+      names(raw),
+      c("n_shifted_normalizer", "event_probabilities")
+    )
+    for (field in compared) {
+      expect_equal(
+        raw[[field]],
+        shifted[[field]],
+        tolerance = 1e-10,
+        info = paste(name, field)
+      )
+    }
+    expect_equal(
+      lapply(raw$event_probabilities, as.numeric),
+      lapply(shifted$event_probabilities, as.numeric),
+      tolerance = 1e-10,
+      info = name
+    )
+  }
+})
+
+test_that("an overflowing or vanishing raw normalizer takes the shifted route", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  references <- exact_time_references()
+  for (name in c("se_rem", "se_dynam_rate")) {
+    engine <- exact_time_engine(name)
+    # Every linear predictor at +/- 800 through the intercept alone, far past
+    # the double range on either side (exp overflows above ~710 and is 0
+    # below ~-745), so the fixture does not sit on a threshold.
+    for (intercept in c(800, -800)) {
+      at <- c(intercept, rep(0, length(references[[name]]$at) - 1L))
+      res <- exact_time_pass(engine, at)
+      label <- paste(name, intercept)
+      expect_equal(res$n_shifted_normalizer, engine$n_intervals, info = label)
+      conditional <- as.numeric(res$conditional_logl)
+      expect_true(
+        all(is.finite(conditional[!is.na(conditional)])),
+        info = label
+      )
+      if (intercept > 0) {
+        # The likelihood stays non-finite exactly as before, so the Newton
+        # step that reached here is still rejected.
+        expect_false(is.finite(res$logLikelihood), info = label)
+      } else {
+        expect_true(is.finite(res$logLikelihood), info = label)
+      }
+    }
+  }
+})
+
+test_that("a partly underflowing risk set keeps its normalizer and probabilities", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  references <- exact_time_references()
+  engine <- exact_time_engine("se_rem")
+  at <- references$se_rem$at
+  # Inertia (the third coefficient) pushed far down: every dyad with a past
+  # call drops hundreds of orders of magnitude below the rest of the risk set,
+  # while the normalizer itself stays a normal double.
+  at[3] <- -720
+  raw <- exact_time_pass(engine, at)
+  shifted <- exact_time_pass(engine, at, force = TRUE)
+  expect_equal(raw$n_shifted_normalizer, 0L)
+  expect_equal(
+    raw$conditional_logl,
+    shifted$conditional_logl,
+    tolerance = 1e-10
+  )
+  totals <- vapply(raw$event_probabilities, sum, numeric(1))
+  expect_equal(totals, rep(1, length(totals)), tolerance = 1e-12)
+  differences <- unlist(Map(
+    function(a, b) abs(as.numeric(a) - as.numeric(b)),
+    raw$event_probabilities,
+    shifted$event_probabilities
+  ))
+  expect_lt(max(differences), 1e-10)
+})
+
+test_that("the r backend agrees with the compiled fallback at the extremes", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  references <- exact_time_references()
+  for (name in c("se_rem", "se_dynam_rate")) {
+    prep <- likelihood_pin_prep(
+      baselines_model_grid()[[name]],
+      likelihood_pin_data()
+    )
+    needs <- list(
+      scores = FALSE,
+      ranks = FALSE,
+      margins = FALSE,
+      total_rate = TRUE,
+      probabilities = FALSE,
+      availability = FALSE,
+      conditional_scores = FALSE,
+      information_trace = FALSE
+    )
+    for (intercept in c(800, -800)) {
+      at <- c(intercept, rep(0, length(references[[name]]$at) - 1L))
+      cpp <- evaluate_engine_once(prep$model_spec, prep, at, "cpp", needs)
+      r <- evaluate_engine_once(prep$model_spec, prep, at, "r", needs)
+      label <- paste(name, intercept)
+      expect_equal(
+        as.numeric(r$conditional_logl),
+        as.numeric(cpp$conditional_logl),
+        tolerance = 1e-10,
+        info = label
+      )
+      expect_identical(
+        is.finite(r$logLikelihood),
+        is.finite(cpp$logLikelihood),
+        info = label
+      )
+    }
+  }
+})
+
+test_that("the loglik diagnostic alone forms no probability vector", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  references <- exact_time_references()
+  for (name in c("se_rem", "se_dynam_rate")) {
+    engine <- exact_time_engine(name)
+    res <- exact_time_pass(engine, references[[name]]$at, everything = FALSE)
+    expect_equal(res$probability_buffer_size, 0, info = name)
+  }
+})

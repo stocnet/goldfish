@@ -156,7 +156,9 @@ List estimate_REM(
     const bool return_availability = false,
     const bool return_conditional_scores = false,
     const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
-    const bool return_event_information_trace = false
+    const bool return_event_information_trace = false,
+    const bool force_shifted_normalizer = false,
+    const bool report_normalizer_route = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -352,6 +354,9 @@ List estimate_REM(
      ));
    }
 
+   // Intervals whose diagnostic normalizer came from the shifted pass.
+   int n_shifted_normalizer = 0;
+
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
      // update stat_mat with the combined buffer covering all stored events
@@ -477,26 +482,39 @@ List estimate_REM(
          observed_rank[id_event] = rank_of_observed(e, allowed, id_obs);
        }
      }
-     // Quantities that enter as a ratio or as a log of the normalizer, from a
-     // max-shifted pass computed BESIDE the raw `e` above rather than replacing
-     // it. The likelihood's total rate must stay on the absolute scale — it
-     // enters as -Dt * T, so shifting it would be a different model, not a
-     // stabilization — and leaving the raw pass untouched is also what keeps
-     // every frozen coefficient exactly where it was. These three are
-     // shift-invariant, and are exact where the raw ratio silently returns 1
-     // (subnormal underflow) or NaN (overflow).
-     if (
-       return_probabilities || return_margins || return_total_rate ||
-       return_conditional_scores
-     ) {
-       double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
-       double shifted_total = arma::sum(weights);
-       // An empty risk set (every candidate masked) leaves no weight to
-       // normalize: each probability is 0, not 0 / 0.
-       if (shifted_total > 0) {
-         probabilities = weights / shifted_total;
+     // Quantities that enter as a ratio or as a log of the normalizer: the
+     // conditional component, the probability vector and what reads it. The
+     // likelihood's total rate stays on the absolute scale -- it enters as
+     // -Dt * T, so shifting it would be a different model, not a
+     // stabilization -- and these are derived from that same raw pass:
+     // log T = log(normalizer) and p = e / normalizer, exact whenever the
+     // normalizer is a normal positive double. Where it is not -- the raw sum
+     // overflowed to Inf, underflowed to 0, or is subnormal, so the ratio
+     // would carry only a few significant bits -- the max-shifted log-sum-exp
+     // takes over, which is exact in all three. The probability vector is
+     // formed only for the primitives that read it.
+     const bool need_probabilities =
+       return_probabilities || return_margins || return_conditional_scores;
+     if (need_probabilities || return_total_rate) {
+       const bool raw_usable =
+         !force_shifted_normalizer && std::isnormal(normalizer);
+       double log_normalizer;
+       if (raw_usable) {
+         log_normalizer = std::log(normalizer);
+         if (need_probabilities) probabilities = e / normalizer;
        } else {
-         probabilities.zeros(weights.n_elem);
+         ++n_shifted_normalizer;
+         log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
+         const double shifted_total = arma::sum(weights);
+         // An empty risk set (every candidate masked) leaves no weight to
+         // normalize: each probability is 0, not 0 / 0.
+         if (need_probabilities) {
+           if (shifted_total > 0) {
+             probabilities = weights / shifted_total;
+           } else {
+             probabilities.zeros(weights.n_elem);
+           }
+         }
        }
        if (return_total_rate) {
          conditional_logl(id_event) = NA_REAL;
@@ -510,9 +528,13 @@ List estimate_REM(
            conditional_logl(id_event) = lin_pred(id_obs) - log_normalizer;
          }
          if (return_conditional_scores) {
+           // On the raw route p' X is the weighted sum the derivative took,
+           // over the normalizer; only the fallback forms it afresh.
            conditional_scores.row(id_event) = event_score_row(
-             arma::rowvec(probabilities.t() * stat_mat), 1.0, stat_mat,
-             static_cast<arma::uword>(id_obs), true
+             raw_usable
+               ? arma::rowvec(weighted_sum_current_event / normalizer)
+               : arma::rowvec(probabilities.t() * stat_mat),
+             1.0, stat_mat, static_cast<arma::uword>(id_obs), true
            );
          }
          if (return_margins) {
@@ -563,7 +585,7 @@ List estimate_REM(
      logLikelihood += intervalLogL(id_event);
    }
    
-   return List::create(
+   List out = List::create(
      Named("derivative") = derivative,
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
@@ -589,4 +611,11 @@ List estimate_REM(
      Named("weighted_information") = weighted_information,
      Named("event_information_trace") = event_information_trace
    );
+   if (report_normalizer_route) {
+     out.push_back(n_shifted_normalizer, "n_shifted_normalizer");
+     out.push_back(
+       static_cast<double>(probabilities.n_elem), "probability_buffer_size"
+     );
+   }
+   return out;
  }

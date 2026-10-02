@@ -224,6 +224,11 @@ make_engine_evaluator <- function(
     active_sender_update_pointer <- numeric(0)
   }
 
+  # `force_shifted_normalizer` and `report_normalizer_route` are a test seam
+  # into the exact-time kernels: the first takes the max-shifted log-sum-exp
+  # even where the raw normalizer is usable, the second returns how many
+  # intervals took that route and the size of the probability buffer. No
+  # estimation path sets them.
   evaluate <- function(
     pars,
     need_scores,
@@ -234,7 +239,9 @@ make_engine_evaluator <- function(
     need_availability = FALSE,
     need_conditional_scores = FALSE,
     event_weights = NULL,
-    need_information_trace = FALSE
+    need_information_trace = FALSE,
+    force_shifted_normalizer = FALSE,
+    report_normalizer_route = FALSE
   ) {
     if (backend == "gather") {
       # The gathered stack computes the exact-time components whenever the
@@ -293,7 +300,9 @@ make_engine_evaluator <- function(
       return_availability = need_availability,
       return_conditional_scores = need_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = need_information_trace
+      return_event_information_trace = need_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 
@@ -932,7 +941,9 @@ estimate_ <- function(
   return_availability = FALSE,
   return_conditional_scores = FALSE,
   event_weights = NULL,
-  return_event_information_trace = FALSE
+  return_event_information_trace = FALSE,
+  force_shifted_normalizer = FALSE,
+  report_normalizer_route = FALSE
 ) {
   # DyNAM-i shares its likelihood with the corresponding DyNAM variant -- that
   # is why it needs no method of its own -- but its preprocessed object comes
@@ -1064,7 +1075,9 @@ estimate_ <- function(
       return_availability = return_availability,
       return_conditional_scores = return_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = return_event_information_trace
+      return_event_information_trace = return_event_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 
@@ -1093,7 +1106,9 @@ estimate_ <- function(
       return_availability = return_availability,
       return_conditional_scores = return_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = return_event_information_trace
+      return_event_information_trace = return_event_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 

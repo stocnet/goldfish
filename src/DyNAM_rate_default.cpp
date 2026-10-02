@@ -37,7 +37,9 @@ using namespace arma;
      const bool return_availability = false,
      const bool return_conditional_scores = false,
      const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
-     const bool return_event_information_trace = false
+     const bool return_event_information_trace = false,
+     const bool force_shifted_normalizer = false,
+     const bool report_normalizer_route = false
  ) {
    // The sender loop's statistics are one row per sender, read as they are:
    // preprocessing reduces them to the sender before they reach this kernel.
@@ -161,6 +163,9 @@ using namespace arma;
      margin_sides.push_back(margin_side(&margin_observed, &margin_expected));
    }
 
+   // Intervals whose diagnostic normalizer came from the shifted pass.
+   int n_shifted_normalizer = 0;
+
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
      // update stat_mat with the combined buffer covering all stored events
@@ -203,7 +208,7 @@ using namespace arma;
      //
      // The reason is consistency, NOT coefficient safety, and the difference
      // between those two was measured rather than assumed. `rates` feeds only
-     // the reductions -- the margins and the rank;
+     // the reductions -- the margins, the rank, and the probability vector;
      // the normalizer and the derivative are accumulated from
      // `exp_current_sender` directly, so rebuilding it CANNOT move a
      // coefficient, and does not: patching in the GEMV leaves every frozen
@@ -219,14 +224,17 @@ using namespace arma;
      // comment, not a test, is the guard on this line.
      //
      // Zero on inactive senders, as the header requires.
-     const bool need_rates = do_rank || return_margins;
+     const bool need_probabilities =
+       return_probabilities || return_margins || return_conditional_scores;
+     const bool need_rates = do_rank || return_margins || need_probabilities;
      if (need_rates) rates.zeros();
-     // go through all actor1
+     // go through all actor1; `lin_pred` keeps each active sender's linear
+     // predictor for the diagnostics below, so they need no second GEMV
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
+         lin_pred(i) = dot(stat_mat.row(i), parameters);
          // exp_current_sender is \exp(\beta^T s)
-         double exp_current_sender =
-           std::exp(dot(stat_mat.row(i), parameters));
+         double exp_current_sender = std::exp(lin_pred(i));
          if (need_rates) rates(i) = exp_current_sender;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
@@ -277,28 +285,38 @@ using namespace arma;
          &availability_exposure, &availability_opportunities
        );
      }
-     // Quantities that enter as a ratio or as a log of the normalizer, from a
-     // max-shifted pass computed BESIDE the raw one above rather than replacing
-     // it. The likelihood's total rate must stay on the absolute scale — it
-     // enters as -Dt * T, so shifting it would be a different model, not a
-     // stabilization — and leaving the raw pass untouched is also what keeps
-     // every frozen coefficient exactly where it was. These three are
-     // shift-invariant, and are exact where the raw ratio silently returns 1
-     // (subnormal underflow) or NaN (overflow).
-     if (
-       return_probabilities || return_margins || return_total_rate ||
-       return_conditional_scores
-     ) {
-       lin_pred = stat_mat * parameters;
-       double log_normalizer =
-         log_sum_exp_masked(lin_pred, active_sender, weights);
-       double shifted_total = arma::sum(weights);
-       // An empty risk set (every candidate masked) leaves no weight to
-       // normalize: each probability is 0, not 0 / 0.
-       if (shifted_total > 0) {
-         probabilities = weights / shifted_total;
+     // Quantities that enter as a ratio or as a log of the normalizer: the
+     // conditional component, the probability vector and what reads it. The
+     // likelihood's total rate stays on the absolute scale -- it enters as
+     // -Dt * T, so shifting it would be a different model, not a
+     // stabilization -- and these are derived from that same raw pass:
+     // log T = log(normalizer) and p = rates / normalizer, exact whenever the
+     // normalizer is a normal positive double. Where it is not -- the raw sum
+     // overflowed to Inf, underflowed to 0, or is subnormal, so the ratio
+     // would carry only a few significant bits -- the max-shifted log-sum-exp
+     // takes over, which is exact in all three. The probability vector is
+     // formed only for the primitives that read it.
+     if (need_probabilities || return_total_rate) {
+       const bool raw_usable =
+         !force_shifted_normalizer && std::isnormal(normalizer);
+       double log_normalizer;
+       if (raw_usable) {
+         log_normalizer = std::log(normalizer);
+         if (need_probabilities) probabilities = rates / normalizer;
        } else {
-         probabilities.zeros(weights.n_elem);
+         ++n_shifted_normalizer;
+         log_normalizer =
+           log_sum_exp_masked(lin_pred, active_sender, weights);
+         const double shifted_total = arma::sum(weights);
+         // An empty risk set (every candidate masked) leaves no weight to
+         // normalize: each probability is 0, not 0 / 0.
+         if (need_probabilities) {
+           if (shifted_total > 0) {
+             probabilities = weights / shifted_total;
+           } else {
+             probabilities.zeros(weights.n_elem);
+           }
+         }
        }
        if (return_total_rate) {
          conditional_logl(id_event) = is_dependent(id_event)
@@ -317,9 +335,13 @@ using namespace arma;
        }
        if (return_conditional_scores) {
          if (is_dependent(id_event)) {
+           // On the raw route p' X is the weighted sum the derivative
+           // took, over the normalizer; only the fallback forms it afresh.
            conditional_scores.row(id_event) = event_score_row(
-             arma::rowvec(probabilities.t() * stat_mat), 1.0, stat_mat,
-             id_sender, true
+             raw_usable
+               ? arma::rowvec(weighted_sum_current_event / normalizer)
+               : arma::rowvec(probabilities.t() * stat_mat),
+             1.0, stat_mat, id_sender, true
            );
          } else {
            conditional_scores.row(id_event).fill(NA_REAL);
@@ -344,7 +366,7 @@ using namespace arma;
      logLikelihood += intervalLogL(id_event);
    }
    
-   return List::create(
+   List out = List::create(
      Named("derivative") = derivative,
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
@@ -363,4 +385,11 @@ using namespace arma;
      Named("weighted_information") = weighted_information,
      Named("event_information_trace") = event_information_trace
    );
+   if (report_normalizer_route) {
+     out.push_back(n_shifted_normalizer, "n_shifted_normalizer");
+     out.push_back(
+       static_cast<double>(probabilities.n_elem), "probability_buffer_size"
+     );
+   }
+   return out;
  }
