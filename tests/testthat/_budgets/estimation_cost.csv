@@ -1,0 +1,67 @@
+# Estimation cost budget, checked by tests/testthat/test-likelihood_cost_budget.R.
+#
+# Fit cells: Social Evolution (84 actors, 439 events) REM, DyNAM choice and
+# DyNAM rate, the formulas of baselines_model_grid() (se_rem, se_dynam_choice,
+# se_dynam_rate), fitted with the default diagnostics on cpp, r and gather.
+# Evaluation cells: one compiled REM evaluation at the Social Evolution REM
+# optimum (se_rem) and on the first 200 CollegeMsg messages over the full
+# 1899-actor node set at a fixed vector (college_rem_200).
+#
+# metric            what is measured
+# alloc_mb          megabytes allocated by one fit; r and gather only, since
+#                   the compiled kernels allocate outside R's heap
+# iterations        Newton iterations of the fit; must match exactly, so a
+#                   change in the optimizer's path is seen
+# seconds           median seconds of a warm fit, or of one evaluation without
+#                   diagnostics (cells ending in _evaluation); checked only
+#                   where GOLDFISH_WALK_COST_SECONDS=true, since it is one
+#                   machine's number
+# diagnostics_ratio median seconds of an evaluation with the default
+#                   diagnostics over one without, timed alternately in one
+#                   session; `limit` is the ceiling itself
+#
+# The test fails when a measurement exceeds recorded * limit. For alloc_mb it
+# also fails BELOW recorded * (2 - limit): estimation became cheaper and the
+# recorded value has to come down with it, so the gain cannot be given back
+# unnoticed. Time and the ratio have no floor; they are noisy.
+#
+# RAISING A VALUE OR A CEILING NEEDS THE MAINTAINER'S APPROVAL. A failure here
+# means estimation now costs more; the first response is to find what made it
+# so, not to move the number. When the extra cost is accepted, the commit that
+# raises the value says what it buys. Lowering a value after an improvement
+# locks the gain in and needs no approval.
+#
+# Recorded 2026-10-02 at b977df5 (likelihood-site-cleanup-and-cost task 0.3)
+# with tests/testthat/_budgets/record-estimation-cost.R on an optimized build.
+# The diagnostics_ratio ceilings are provisional, the measured ratio times
+# 1.1, until the exact-time kernels stop paying a second exp pass; they are
+# then re-recorded from the new measurement with the derivation in the commit.
+metric,cell,backend,recorded,limit
+alloc_mb,se_rem,r,9170,1.05
+alloc_mb,se_rem,gather,1873,1.05
+alloc_mb,se_choice,r,1712,1.05
+alloc_mb,se_choice,gather,19.5,1.05
+alloc_mb,se_rate,r,118.9,1.05
+alloc_mb,se_rate,gather,17.61,1.05
+iterations,se_rem,cpp,11,1
+iterations,se_rem,r,11,1
+iterations,se_rem,gather,11,1
+iterations,se_choice,cpp,7,1
+iterations,se_choice,r,7,1
+iterations,se_choice,gather,7,1
+iterations,se_rate,cpp,7,1
+iterations,se_rate,r,7,1
+iterations,se_rate,gather,7,1
+seconds,se_rem,cpp,0.586,1.5
+seconds,se_rem,r,4.649,1.5
+seconds,se_rem,gather,2.962,1.5
+seconds,se_choice,cpp,0.04,1.5
+seconds,se_choice,r,0.877,1.5
+seconds,se_choice,gather,0.058,1.5
+seconds,se_rate,cpp,0.08,1.5
+seconds,se_rate,r,0.149,1.5
+seconds,se_rate,gather,0.077,1.5
+seconds,se_rem_evaluation,cpp,0.036,1.5
+seconds,college_rem_200_evaluation,cpp,5.059,1.5
+diagnostics_ratio,se_rem,cpp,1.389,1.53
+diagnostics_ratio,college_rem_200,cpp,1.666,1.83
