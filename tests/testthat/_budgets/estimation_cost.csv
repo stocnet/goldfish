@@ -35,9 +35,11 @@
 # with tests/testthat/_budgets/record-estimation-cost.R on an optimized build;
 # seconds and the diagnostics ratios re-recorded at a60731a on an otherwise
 # idle machine (task 0.4), the first record having been taken under load.
-# The diagnostics_ratio ceilings are provisional, the measured ratio times
-# 1.1, until the exact-time kernels stop paying a second exp pass; they are
-# then re-recorded from the new measurement with the derivation in the commit.
+# The diagnostics_ratio ceilings were re-recorded once the exact-time
+# kernels stopped paying a second exp pass for the default diagnostics
+# (likelihood-site-cleanup-and-cost task 2.5): measured 1.03 and 1.00, the
+# second pass having measured 1.36 and 1.62, so 1.15 sits above the
+# evaluation-to-evaluation noise and below the regression it guards.
 metric,cell,backend,recorded,limit
 alloc_mb,se_rem,r,9170,1.05
 alloc_mb,se_rem,gather,1873,1.05
@@ -54,16 +56,16 @@ iterations,se_choice,gather,7,1
 iterations,se_rate,cpp,7,1
 iterations,se_rate,r,7,1
 iterations,se_rate,gather,7,1
-seconds,se_rem,cpp,0.569,1.5
+seconds,se_rem,cpp,0.446,1.5
 seconds,se_rem,r,2.801,1.5
-seconds,se_rem,gather,2.954,1.5
+seconds,se_rem,gather,0.847,1.5
 seconds,se_choice,cpp,0.038,1.5
-seconds,se_choice,r,0.865,1.5
-seconds,se_choice,gather,0.056,1.5
-seconds,se_rate,cpp,0.076,1.5
+seconds,se_choice,r,0.794,1.5
+seconds,se_choice,gather,0.042,1.5
+seconds,se_rate,cpp,0.073,1.5
 seconds,se_rate,r,0.142,1.5
-seconds,se_rate,gather,0.074,1.5
-seconds,se_rem_evaluation,cpp,0.036,1.5
-seconds,college_rem_200_evaluation,cpp,4.82,1.5
-diagnostics_ratio,se_rem,cpp,1.361,1.50
-diagnostics_ratio,college_rem_200,cpp,1.620,1.78
+seconds,se_rate,gather,0.058,1.5
+seconds,se_rem_evaluation,cpp,0.035,1.5
+seconds,college_rem_200_evaluation,cpp,4.755,1.5
+diagnostics_ratio,se_rem,cpp,1.029,1.15
+diagnostics_ratio,college_rem_200,cpp,0.996,1.15
