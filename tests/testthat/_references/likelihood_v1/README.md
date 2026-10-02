@@ -33,6 +33,13 @@ Shape is not pinned here; it is asserted where it is specified.
 1e-10, the living spec's floor for per-event outputs. Byte-identity is not
 claimed: a BLAS-reordered sum is an admissible difference.
 
+The aggregate score is the exception to "relative to itself". The pins are
+taken at the optimum, where the score is a near-zero sum of large per-event
+terms, so a reordered sum moves it by rounding that is tiny against those
+terms (measured at most 4e-14 of them) yet can be 1e-9 of the near-zero
+total. It is held to 1e-10 of the summed absolute per-event score of each
+parameter instead.
+
 ## Regenerating
 
 `generate_likelihood_references.R`, run from the package root. The commit it

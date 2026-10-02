@@ -143,8 +143,13 @@ List compute_coordination_selection(
     arma::mat D(max_n_dyads, n_parameters);
     arma::vec logw_dyad(max_n_dyads);
     arma::vec ones_mask(max_n_cand, fill::ones);
-    arma::vec sender_weights;
-    arma::vec dyad_weights;
+    // The event-sized work buffers, likewise sized to the largest event; each
+    // event takes strict views of their leading part (a strict view never
+    // reallocates), so nothing event-sized is allocated per event.
+    arma::vec sender_weights_buffer(max_n_cand);
+    arma::vec dyad_weights_buffer(max_n_dyads);
+    arma::vec dyad_probabilities_buffer(max_n_dyads);
+    arma::mat weighted_deviations_buffer(max_n_dyads, n_parameters);
     // Opt-in per-event primitives. The event's realized risk set is the DYAD
     // list, not the row list and not the per-sender CSR groups -- the score,
     // the likelihood and the softmax below all range over dyads -- so the
@@ -170,7 +175,6 @@ List compute_coordination_selection(
     // reduction sides over one pair of vectors expresses exactly that.
     arma::uvec dyad_endpoint_a(max_n_dyads);
     arma::uvec dyad_endpoint_b(max_n_dyads);
-    arma::vec dyad_probabilities;
     // Opt-in per-event probability grid, actor-indexed over the whole node set
     // and zero off the risk set. Allocated only when requested.
     List event_probabilities(return_probabilities ? n_events : 0);
@@ -190,6 +194,19 @@ List compute_coordination_selection(
     for (int id_event = 0; id_event < n_events; id_event++) {
         const int n_rows = n_candidates(id_event);
         const int id_end = id_start + n_rows;
+        const int n_dyads = n_rows / 2;
+        // the event's views: the deviation rows and the dyad-level buffers
+        arma::mat D_event(D.memptr(), n_dyads, n_parameters, false, true);
+        arma::vec dyad_weights(
+          dyad_weights_buffer.memptr(), n_dyads, false, true
+        );
+        arma::vec dyad_probabilities(
+          dyad_probabilities_buffer.memptr(), n_dyads, false, true
+        );
+        arma::mat weighted_deviations(
+          weighted_deviations_buffer.memptr(), n_dyads, n_parameters, false,
+          true
+        );
 
         // per-sender softmax over the contiguous sender groups:
         // log-normalizer logZ_g and expected statistic E_g via one GEMV each.
@@ -205,16 +222,25 @@ List compute_coordination_selection(
             arma::vec lin_pred_g(
                 lin_pred_all.memptr() + id_start + start, gsize, false);
             arma::vec allowed_g(ones_mask.memptr(), gsize, false);
+            arma::vec sender_weights(
+              sender_weights_buffer.memptr(), gsize, false, true
+            );
             logZ(gid) = log_sum_exp_masked(lin_pred_g, allowed_g, sender_weights);
             double norm_g = accu(sender_weights);
-            E.row(gid) = (sender_weights.t() *
-              stat_all_events.rows(id_start + start, id_start + row - 1)) / norm_g;
+            // The group's rows are not contiguous in the column-major stack,
+            // so its weighted sum is accumulated row by row in place rather
+            // than through a product that would copy the block.
+            E.row(gid).zeros();
+            for (int k = 0; k < gsize; ++k) {
+                E.row(gid) +=
+                  sender_weights(k) * stat_all_events.row(id_start + start + k);
+            }
+            E.row(gid) /= norm_g;
         }
 
         // dyad list: one row per unordered dyad, taken at its canonical directed
         // row (r < partner). log w = (x_r - logZ_{g(r)}) + (x_pr - logZ_{g(pr)}),
         // D_d = s_r + s_pr - E_{g(r)} - E_{g(pr)} = grad log w.
-        const int n_dyads = n_rows / 2;
         const arma::uword id_obs_row = selected(id_event);
         int idx = 0;
         int idx_obs = 0;
@@ -226,7 +252,7 @@ List compute_coordination_selection(
                 logw_dyad(idx) =
                   (lin_pred_all(id_start + r) - logZ(g_r)) +
                   (lin_pred_all(id_start + pr) - logZ(g_pr));
-                D.row(idx) =
+                D_event.row(idx) =
                   stat_all_events.row(id_start + r) +
                   stat_all_events.row(id_start + pr) -
                   E.row(g_r) - E.row(g_pr);
@@ -249,13 +275,15 @@ List compute_coordination_selection(
         double log_normalizer =
           log_sum_exp_masked(logw_event, allowed_event, dyad_weights);
         double normalizer = accu(dyad_weights);
-        arma::subview<double> D_event = D.rows(0, n_dyads - 1);
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D_event) / normalizer;
-        derivative += D.row(idx_obs) - g;
-        // Fisher: sum_d P_d D_d D_d^T - g^T g
-        fisher_current_event = (D_event.each_col() % dyad_weights).t() *
-          D_event / normalizer - g.t() * g;
+        derivative += D_event.row(idx_obs) - g;
+        // Fisher: sum_d P_d D_d D_d^T - g^T g, with the weighted copy written
+        // into its buffer rather than formed as a temporary
+        weighted_deviations = D_event;
+        weighted_deviations.each_col() %= dyad_weights;
+        fisher_current_event =
+          weighted_deviations.t() * D_event / normalizer - g.t() * g;
         fisher += fisher_current_event;
         accumulate_event_information(
           fisher_current_event, 1.0, id_event, weights_mat,
@@ -263,10 +291,7 @@ List compute_coordination_selection(
         );
         // Opt-in primitives, all reductions of the dyad-level probability
         // vector on the probability scale (c = 1).
-        if (
-          return_event_scores || return_ranks || do_margins ||
-          return_probabilities
-        ) {
+        if (return_ranks || do_margins || return_probabilities) {
             dyad_probabilities = dyad_weights / normalizer;
         }
         if (do_availability) {
@@ -311,14 +336,14 @@ List compute_coordination_selection(
             // is symmetric: each dyad's probability lands on both sides of the
             // diagonal and the event totals 2, one per pair. Not the shared
             // scatter helper, which writes one direction per row.
-            arma::mat grid(n_actors_1, n_actors_1, fill::zeros);
+            NumericMatrix grid(n_actors_1, n_actors_1);
             for (int d = 0; d < n_dyads; ++d) {
                 const arma::uword a = dyad_endpoint_a(d);
                 const arma::uword b = dyad_endpoint_b(d);
                 grid(a, b) = dyad_probabilities(d);
                 grid(b, a) = dyad_probabilities(d);
             }
-            event_probabilities[id_event] = wrap(grid);
+            event_probabilities[id_event] = grid;
         }
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;

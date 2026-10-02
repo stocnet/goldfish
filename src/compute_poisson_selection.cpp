@@ -76,7 +76,18 @@ List compute_poisson_selection(
     int id_start = 0;
     // Gather slices are pre-masked, so the helper needs no risk-set mask.
     const arma::vec no_mask;
-    arma::vec weights;
+    // Event-sized work buffers, allocated once at the largest event's size.
+    // Each event works on a view of their first `n` rows (Armadillo's
+    // auxiliary-memory constructor, strict, so a view never reallocates): the
+    // event's block of the stack is copied into one, since the block is not
+    // contiguous in the column-major stack, and the weights, probabilities and
+    // the Fisher product's weighted copy are written into the others.
+    const arma::uword max_candidates =
+      n_candidates.n_elem > 0 ? n_candidates.max() : 0;
+    arma::mat stat_buffer(max_candidates, n_parameters);
+    arma::mat weighted_buffer(max_candidates, n_parameters);
+    arma::vec weights_buffer(max_candidates);
+    arma::vec probabilities_buffer(max_candidates);
     // Per-event total rate, and the conditional log-probability of the observed
     // alternative. Both fall out of the log-normalizer, which is why they are
     // computed here rather than reassembled downstream: the algebraic route
@@ -119,8 +130,7 @@ List compute_poisson_selection(
         margin_expected_j = arma::vec(n_actors_2, fill::zeros);
         margin_prob_j = arma::vec(n_actors_2, fill::zeros);
     }
-    arma::vec probabilities;
-    arma::uvec index_i_event, index_j_event;
+
     // Opt-in per-event probabilities, actor-indexed over the whole node set.
     // Gather rows are the realized risk set only, so they scatter through the
     // same per-row actor index the margin reduction uses; positions off the
@@ -187,14 +197,34 @@ List compute_poisson_selection(
             }
             continue;
         }
-        // the subviews of the stat mat and predictors for this event
-        const arma::vec& lin_pred_current_event =
-          lin_pred.subvec(id_start, id_end - 1);
-        const arma::mat& stat_mat_current_event =
-          stat_all_events.rows(id_start, id_end - 1);
-        // reset auxilliary variables
-        weighted_sum_current_event.zeros();
-        fisher_current_event.zeros();
+        // this event's views: its rows of the stack (copied into the reused
+        // buffer), its linear predictors and actor slots (read in place), and
+        // the work buffers
+        const arma::uword n_event = n_candidates(id_event);
+        arma::mat stat_mat_current_event(
+          stat_buffer.memptr(), n_event, n_parameters, false, true
+        );
+        stat_mat_current_event = stat_all_events.rows(id_start, id_end - 1);
+        const arma::vec lin_pred_current_event(
+          lin_pred.memptr() + id_start, n_event, false, true
+        );
+        arma::vec weights(weights_buffer.memptr(), n_event, false, true);
+        arma::vec probabilities(
+          probabilities_buffer.memptr(), n_event, false, true
+        );
+        arma::mat weighted_stat_mat(
+          weighted_buffer.memptr(), n_event, n_parameters, false, true
+        );
+        const arma::uvec index_i_event(
+          axis_i ? const_cast<arma::uword*>(index_i.memptr()) + id_start
+                 : nullptr,
+          axis_i ? n_event : 0, false, true
+        );
+        const arma::uvec index_j_event(
+          axis_j ? const_cast<arma::uword*>(index_j.memptr()) + id_start
+                 : nullptr,
+          axis_j ? n_event : 0, false, true
+        );
         // declare the selected and the normalizer (partition function)
         int id_selected = selected(id_event);
         // One shifted exp pass yields both scales. The likelihood needs the
@@ -219,20 +249,18 @@ List compute_poisson_selection(
         } else {
           conditional_logl(id_event) = NA_REAL;
         }
-        // go through all candidates. The reduction runs on the probability
-        // scale p = w / sum(w) with the compensator scale Dt * T applied once
-        // outside, since Dt * T * p_j == Dt * lambda_j. That keeps the only
-        // large factor in a scalar: a rate that overflows inside the vector
-        // would meet a mixed-sign statistic and give Inf - Inf = NaN.
-        for (unsigned int j = 0; j < n_candidates(id_event); j++) {
-            double probability_current_selected = weights(j) / shifted_total;
-            weighted_sum_current_event +=
-              probability_current_selected * (stat_mat_current_event.row(j));
-            fisher_current_event +=
-              probability_current_selected *
-              ((stat_mat_current_event.row(j).t()) *
-              (stat_mat_current_event.row(j)));
-        }
+        // The reduction runs on the probability scale p = w / sum(w) with the
+        // compensator scale Dt * T applied once outside, since
+        // Dt * T * p_j == Dt * lambda_j. That keeps the only large factor in a
+        // scalar: a rate that overflows inside the vector would meet a
+        // mixed-sign statistic and give Inf - Inf = NaN. The probability vector
+        // is formed once, and the sums are one product and one weighted
+        // cross-product over the event's rows.
+        probabilities = weights / shifted_total;
+        weighted_sum_current_event = probabilities.t() * stat_mat_current_event;
+        weighted_stat_mat = stat_mat_current_event;
+        weighted_stat_mat.each_col() %= probabilities;
+        fisher_current_event = weighted_stat_mat.t() * stat_mat_current_event;
         // add the quantities of a current event to the variables to be returned
         const double compensator = timespan_current_event * normalizer;
         // derivative
@@ -252,12 +280,6 @@ List compute_poisson_selection(
         // Opt-in primitives. Ranks and observed margins count only dependent
         // events; a right-censored interval contributes its expected mass but
         // has no observed alternative.
-        if (
-          return_event_scores || return_ranks || return_margins ||
-          return_probabilities || return_conditional_scores
-        ) {
-            probabilities = weights / shifted_total;
-        }
         if (return_conditional_scores) {
             if (is_dependent_current_event) {
                 conditional_scores.row(id_event) = event_score_row(
@@ -269,10 +291,9 @@ List compute_poisson_selection(
             }
         }
         if (avail_side_i) {
-            const arma::uvec slots_i = index_i.subvec(id_start, id_end - 1);
             availability_seen_i.zeros();
             mark_availability(
-              slots_i.n_elem, no_mask, &slots_i, availability_seen_i
+              n_event, no_mask, &index_i_event, availability_seen_i
             );
             accumulate_availability(
               availability_seen_i, timespan_current_event,
@@ -281,10 +302,9 @@ List compute_poisson_selection(
             );
         }
         if (avail_side_j) {
-            const arma::uvec slots_j = index_j.subvec(id_start, id_end - 1);
             availability_seen_j.zeros();
             mark_availability(
-              slots_j.n_elem, no_mask, &slots_j, availability_seen_j
+              n_event, no_mask, &index_j_event, availability_seen_j
             );
             accumulate_availability(
               availability_seen_j, timespan_current_event,
@@ -297,8 +317,6 @@ List compute_poisson_selection(
               rank_of_observed(probabilities, no_mask, id_selected);
         }
         if (return_margins) {
-            if (has_side_i) index_i_event = index_i.subvec(id_start, id_end - 1);
-            if (has_side_j) index_j_event = index_j.subvec(id_start, id_end - 1);
             // Compensator scale: c = Dt * T, and the pass that counts observed.
             std::vector<margin_side> sides_compensator;
             if (has_side_i) {
@@ -353,10 +371,7 @@ List compute_poisson_selection(
         }
         if (return_probabilities) {
             event_probabilities[id_event] = scatter_event_probabilities(
-              probabilities,
-              axis_i ? index_i.subvec(id_start, id_end - 1) : arma::uvec(),
-              axis_j ? index_j.subvec(id_start, id_end - 1) : arma::uvec(),
-              n_actors_1,
+              probabilities, index_i_event, index_j_event, n_actors_1,
               n_actors_2
             );
         }

@@ -40,7 +40,6 @@ List compute_multinomial_selection(
     int n_events = selected.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables
-    double probability_current_receiver;
     arma::mat expected_stat_current_event(1, n_parameters, fill::zeros);
     arma::mat fisher_current_event(n_parameters, n_parameters, fill::zeros);
     // declare return variables
@@ -72,7 +71,18 @@ List compute_multinomial_selection(
     // Gather slices are pre-masked -- every row of an event's block is in its
     // risk set -- so the helper's mask is empty.
     const arma::vec no_mask;
-    arma::vec weights;
+    // Event-sized work buffers, allocated once at the largest event's size.
+    // Each event works on a view of their first `n` rows (Armadillo's
+    // auxiliary-memory constructor, strict, so a view never reallocates): the
+    // event's block of the stack is copied into one, since the block is not
+    // contiguous in the column-major stack, and the weights, probabilities and
+    // the Fisher product's weighted copy are written into the others.
+    const arma::uword max_candidates =
+      n_candidates.n_elem > 0 ? n_candidates.max() : 0;
+    arma::mat stat_buffer(max_candidates, n_parameters);
+    arma::mat weighted_buffer(max_candidates, n_parameters);
+    arma::vec weights_buffer(max_candidates);
+    arma::vec probabilities_buffer(max_candidates);
 
     // Opt-in per-event primitives, allocated only when requested so the default
     // path pays nothing. All three are reductions of the probability vector via
@@ -95,8 +105,6 @@ List compute_multinomial_selection(
         margin_observed_j = arma::vec(n_actors_2, fill::zeros);
         margin_expected_j = arma::vec(n_actors_2, fill::zeros);
     }
-    arma::vec probabilities;
-    arma::uvec index_i_event, index_j_event;
     // Opt-in per-event probabilities, actor-indexed over the whole node set.
     // Gather rows are the realized risk set only, so unlike the event-loop
     // engines this one has to scatter through the same per-row actor index the
@@ -129,14 +137,34 @@ List compute_multinomial_selection(
     for (int id_event = 0; id_event < n_events; id_event++) {
         // Initialize data for each event
         int id_end = id_start + n_candidates(id_event);
-        // the subviews of the stat mat and predictors for this event
-        const arma::vec& lin_pred_current_event =
-          lin_pred.subvec(id_start, id_end - 1);
-        const arma::mat& currentEffect =
-          stat_all_events.rows(id_start, id_end - 1);
-        // reset auxilliary variables
-        expected_stat_current_event.zeros();
-        fisher_current_event.zeros();
+        // this event's views: its rows of the stack (copied into the reused
+        // buffer), its linear predictors and actor slots (read in place), and
+        // the work buffers
+        const arma::uword n_event = n_candidates(id_event);
+        arma::mat currentEffect(
+          stat_buffer.memptr(), n_event, n_parameters, false, true
+        );
+        currentEffect = stat_all_events.rows(id_start, id_end - 1);
+        const arma::vec lin_pred_current_event(
+          lin_pred.memptr() + id_start, n_event, false, true
+        );
+        arma::vec weights(weights_buffer.memptr(), n_event, false, true);
+        arma::vec probabilities(
+          probabilities_buffer.memptr(), n_event, false, true
+        );
+        arma::mat weighted_effect(
+          weighted_buffer.memptr(), n_event, n_parameters, false, true
+        );
+        const arma::uvec index_i_event(
+          axis_i ? const_cast<arma::uword*>(index_i.memptr()) + id_start
+                 : nullptr,
+          axis_i ? n_event : 0, false, true
+        );
+        const arma::uvec index_j_event(
+          axis_j ? const_cast<arma::uword*>(index_j.memptr()) + id_start
+                 : nullptr,
+          axis_j ? n_event : 0, false, true
+        );
         // declare the receiver and the normalizer (partition function)
         int id_receiver = selected(id_event);
         // Max-shifted weights and the log-normalizer. This likelihood is a
@@ -146,14 +174,13 @@ List compute_multinomial_selection(
         double log_normalizer =
           log_sum_exp_masked(lin_pred_current_event, no_mask, weights);
         double normalizer = arma::sum(weights);
-        // go through all candidates
-        for (unsigned int j = 0; j < n_candidates(id_event); j++) {
-            probability_current_receiver = weights(j) / normalizer;
-            expected_stat_current_event +=
-              probability_current_receiver * (currentEffect.row(j));
-            fisher_current_event += probability_current_receiver *
-              ((currentEffect.row(j).t()) * (currentEffect.row(j)));
-        }
+        // The probability vector, formed once, then the expected statistic and
+        // the probability-weighted cross-product over the event's rows.
+        probabilities = weights / normalizer;
+        expected_stat_current_event = probabilities.t() * currentEffect;
+        weighted_effect = currentEffect;
+        weighted_effect.each_col() %= probabilities;
+        fisher_current_event = weighted_effect.t() * currentEffect;
         // derivative
         derivative += currentEffect.row(id_receiver);
         derivative -= expected_stat_current_event;
@@ -168,17 +195,10 @@ List compute_multinomial_selection(
         // Opt-in primitives, all reductions of the probability vector on the
         // probability scale (c = 1), which is the only scale a multinomial
         // sub-model has.
-        if (
-          return_event_scores || return_ranks || return_margins ||
-          return_probabilities
-        ) {
-            probabilities = weights / normalizer;
-        }
         if (avail_side_i) {
-            const arma::uvec slots_i = index_i.subvec(id_start, id_end - 1);
             availability_seen_i.zeros();
             mark_availability(
-              slots_i.n_elem, no_mask, &slots_i, availability_seen_i
+              n_event, no_mask, &index_i_event, availability_seen_i
             );
             accumulate_availability(
               availability_seen_i, 0.0, true, nullptr,
@@ -186,10 +206,9 @@ List compute_multinomial_selection(
             );
         }
         if (avail_side_j) {
-            const arma::uvec slots_j = index_j.subvec(id_start, id_end - 1);
             availability_seen_j.zeros();
             mark_availability(
-              slots_j.n_elem, no_mask, &slots_j, availability_seen_j
+              n_event, no_mask, &index_j_event, availability_seen_j
             );
             accumulate_availability(
               availability_seen_j, 0.0, true, nullptr,
@@ -203,13 +222,11 @@ List compute_multinomial_selection(
         if (return_margins) {
             std::vector<margin_side> sides;
             if (has_side_i) {
-                index_i_event = index_i.subvec(id_start, id_end - 1);
                 sides.push_back(margin_side(
                   &margin_observed_i, &margin_expected_i, &index_i_event
                 ));
             }
             if (has_side_j) {
-                index_j_event = index_j.subvec(id_start, id_end - 1);
                 sides.push_back(margin_side(
                   &margin_observed_j, &margin_expected_j, &index_j_event
                 ));
@@ -226,10 +243,7 @@ List compute_multinomial_selection(
         }
         if (return_probabilities) {
             event_probabilities[id_event] = scatter_event_probabilities(
-              probabilities,
-              axis_i ? index_i.subvec(id_start, id_end - 1) : arma::uvec(),
-              axis_j ? index_j.subvec(id_start, id_end - 1) : arma::uvec(),
-              n_actors_1,
+              probabilities, index_i_event, index_j_event, n_actors_1,
               n_actors_2
             );
         }
