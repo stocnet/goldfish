@@ -205,9 +205,6 @@ List estimate_REM_ordered(
               });
         }
 
-        // TO check(gutian): handle ignorant
-
-
         // We calculate the derivative, log-Likelihood, and fisher information
         // matrix of a current event. Staged, numerically stable softmax over the
         // active dyads: one GEMV for the linear predictors, the

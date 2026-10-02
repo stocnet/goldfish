@@ -251,10 +251,6 @@ estimate_int_impl <- function(
 
   ## ESTIMATION: END
 
-  # if (parallelize && require("snowfall", quietly = TRUE)) {
-  #   snowfall::sfStop()
-  # }
-
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)
@@ -389,19 +385,9 @@ run_nr_loop <- function(
   total_rate <- NULL
   conditional_logl <- NULL
 
-  # if (parallelize && require("snowfall", quietly = TRUE)) {
-  #   snowfall::sfStop()
-  #   snowfall::sfInit(parallel = TRUE, cpus = cpus)
-  #   snowfall::sfExport(
-  #   "getMultinomialProbabilities", "getLikelihoodMM",
-  #   "compute_first_derivative_choice_coord",
-  #   "getMultinomialInformationMatrix", namespace = "goldfish")
-  # }
-
   ## ESTIMATION: ITERATIONS
   while (TRUE) {
-    # MARION to be make: update this function for the new stat list
-    # calculate logL, score and information; pass parallel computing parameters
+    # calculate logL, score and information
     res <- do.call(
       compute_iteration_step,
       c(step_args, list(parameters = parameters))
@@ -432,7 +418,6 @@ run_nr_loop <- function(
       total_rate <- res$total_rate
       conditional_logl <- res$conditional_logl
     }
-    # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
         paste("not implemented for model class", class(spec)[1])
@@ -478,7 +463,6 @@ run_nr_loop <- function(
         "\nScore:",
         toString(score)
       )
-      # print(informationMatrix)
     }
 
     step_accepted <- !has_unexpected_na(res) &&
@@ -676,8 +660,6 @@ check_convergence <- function(
 # concrete method is resolved once before the estimation
 # event loop (via bind_event_contribution()) and bound to a local variable;
 # no S3 dispatch happens per event.
-# CHANGED SIWEI: add three parameters: isRightCensored, timespan and
-#  allowReflexive
 compute_event_contribution <- function(
   spec,
   statsArray,
@@ -748,7 +730,8 @@ event_contribution_rate <- function(
 
   parameters <- as.numeric(parameters)
 
-  # test if time interval is NA, to be make
+  # The step passes an NA interval when the model has no time intercept; the
+  # interval then contributes no exposure term.
   if (is.na(timespan)) {
     timespan <- 0
   }
@@ -1157,8 +1140,6 @@ compute_first_derivative_choice_coord <- function(
 # to the log(!) likelihood
 # The scores are the differences between expected and observed statistics
 compute_first_derivative_rem <- function(stats_array, event_probabilities) {
-  # nActors <- dim(statsArray)[1]
-  # nParams <- dim(statsArray)[3]
   n_dyads <- dim(stats_array)[1] * dim(stats_array)[2]
   n_params <- dim(stats_array)[3]
 
@@ -1295,11 +1276,8 @@ compute_step.default <- function(spec, state, i, ctx) {
       ctx$opportunitiesList[[i]]
   }
 
-  # update composition
-  # CHANGED SIWEI: fixed errors for composition change update
-  # CHANGED MARION: fixed wrong initialization of compositions,
-  #   removed next lines
-
+  # update composition: an event's composition changes are applied before its
+  # likelihood, so the risk set it is evaluated on already reflects them
   if (!is.null(ctx$active_sender_update)) {
     # Maintain `active_sender` by walking its per-event crossings
     # slice: apply this event's flips before its likelihood.
@@ -1360,13 +1338,10 @@ compute_step.default <- function(spec, state, i, ctx) {
   sender_slots <- NULL
   receiver_slots <- NULL
   if (ctx$sender_filter && !ctx$dyad_point) {
-    # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
     keepIn <- state$presence
     sender_slots <- which(keepIn)
-    # if (updateopportunities && !is_two_mode)
-    #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
       statsArrayComp[keepIn, , drop = FALSE]
     } else {
@@ -1460,8 +1435,6 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
   # compute loglikelihood, score, information matrix and
   # pmatrix for the current event
-  # CHANGED SIWEI: add three arguments
-  #  (isRightCensored, timespan and allowReflexive) to eventValues function
   isRightCensored <- !isDependent
   contrib_args <- list(
     spec = spec,
@@ -1962,7 +1935,6 @@ make_r_engine_evaluator <- function(
   n_events <- sum(stats_list$is_dependent == 1L)
 
   ## ADD INTERCEPT
-  # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   # Applied unless the intercept itself carries a value: fixed, so there is
   # nothing to start, or seeded, so the user chose the start.
@@ -2120,13 +2092,6 @@ compute_iteration_step <- function(
   # like REM, NOT via the one-sided-choice row accessor.
   is_coord <- identical(behavior_likelihood(spec), "coordination")
 
-  # check for parallelization
-  # if (parallelize && require("snowfall", quietly = TRUE)) {
-  #   snowfall::sfStop()
-  #   snowfall::sfInit(parallel = TRUE, cpus = cpus)
-  #   snowfall::sfExport("compute_event_contribution", namespace = "goldfish")
-  # }
-
   # resolve the per-event step + contribution methods once
   step_fn <- bind_compute_step(spec)
   contribution_fn <- bind_event_contribution(spec)
@@ -2192,8 +2157,8 @@ compute_iteration_step <- function(
     contribution_fn = contribution_fn
   )
 
-  # CHANGED Marion: fill in the loop! stats array needs to be computed
-  # also changes for dependent and rc events!
+  # The statistics array is walked forward on every interval, dependent or
+  # right-censored, so each one is evaluated on the state its updates produced.
   state <- list(
     statsArray = statsList$initial_stats,
     time = statsList$start_time,
@@ -2449,7 +2414,6 @@ getLikelihoodMM <- function(multinomialProbabilities) {
   denominator <- sum(symP) / 2
   return(symP / denominator)
 }
-# likelihoods <- symP / denominator
 
 # Calculate the information matrix for multinomial models based on
 # the schema in Cramer (2003), page 111 and others
@@ -2611,8 +2575,8 @@ getMultinomialProbabilities <- function(
   active_dyad_mask = NULL,
   self_dyads = NULL
 ) {
-  # allow this for a two- OR a three-dimensional array provided as input,
-  # to be make
+  # A two-dimensional array is one sender's receivers by statistic; a
+  # three-dimensional one is the whole sender x receiver grid by statistic.
   nDimensions <- length(dim(statsArray))
   if (!(nDimensions %in% c(2, 3))) {
     stop(
@@ -2622,7 +2586,6 @@ getMultinomialProbabilities <- function(
     )
   }
 
-  # nParams <- dim(statsArray)[nDimensions]
   nActors1 <- dim(statsArray)[1]
   nActors2 <- dim(statsArray)[2]
   if (nDimensions == 3) {

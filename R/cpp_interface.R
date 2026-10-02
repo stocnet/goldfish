@@ -102,7 +102,6 @@ make_engine_evaluator <- function(
   n_events <- sum(stats_list$is_dependent == 1L)
 
   ## ADD INTERCEPT
-  # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   # The data-derived start applies unless the intercept itself was given a
   # value -- fixed, so there is nothing to start, or seeded, so the user chose
@@ -362,7 +361,6 @@ estimate_c_int <- function(
   }
 
   minDampingFactor <- initialDamping
-  # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   nParams <- (if (is_rate_model) {
@@ -545,7 +543,6 @@ estimate_c_int <- function(
         "\nScore: ",
         toString(score)
       )
-      # print(informationMatrix)
     }
 
     step_accepted <- !has_unexpected_na(res) &&
@@ -690,8 +687,6 @@ estimate_c_int <- function(
     estimationResult$size_intermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
-  # if (testing) estimationResult$intermediateData <-
-  #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) {
     estimationResult$interval_log_lik <- intervalLogL
   }

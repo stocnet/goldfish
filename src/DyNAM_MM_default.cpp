@@ -216,9 +216,6 @@ List estimate_DyNAM_MM(
               });
         }
 
-        // TO check(gutian): handle ignorant
-
-
         // We calculate the derivative, log-Likelihood, and fisher information
         // matrix of a current event. Staged dyad-triangle softmax:
         // a per-sender stable softmax gives the log-normalizers and expected
