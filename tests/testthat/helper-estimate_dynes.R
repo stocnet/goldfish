@@ -368,6 +368,63 @@ recipe_state_spec <- function(data = recipe_state_data()) {
   )
 }
 
+# An unflavored friendship panel (empty at 0; ties into N2 and N5 by wave 5,
+# more by wave 10) beside calls observed only before wave 5, six actors. The
+# calls choice reads indeg(friendship), which is zero for every receiver
+# unless the drawn path places a friendship event before a call: the
+# per-sequence information is singular on some paths and not on others.
+early_calls_data <- function() {
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = "panel", calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      data.frame(
+        from = c(1L, 3L, 4L, 2L, 6L),
+        to = c(2L, 2L, 5L, 5L, 5L),
+        time = c(5, 5, 5, 10, 10),
+        weight = 1,
+        layer = "friendship"
+      ),
+      data.frame(
+        from = c(6L, 4L, 1L, 5L),
+        to = c(2L, 1L, 4L, 3L),
+        time = c(0.5, 1, 2, 3),
+        weight = 1,
+        layer = "calls"
+      )
+    )
+  )
+}
+
+early_calls_spec <- function(data = early_calls_data()) {
+  make_joint_specification(
+    make_specification(
+      choice = ~indeg,
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ indeg(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
 # An unflavored count panel (calls, cumulative counts at waves 5 and 10)
 # beside an observed emails stream, four actors: (1, 2) rises 0 -> 2 -> 5 and
 # (2, 3) 0 -> 0 -> 1.

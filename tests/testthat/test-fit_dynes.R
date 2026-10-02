@@ -109,6 +109,168 @@ test_that("the standard and MC covariances match the hand-computed forms", {
   expect_identical(dimnames(fit$mc_covariance), dimnames(vcov(fit)))
 })
 
+# --- Singular pooled information ------------------------------------------
+
+no_attribution <- list(coefficients = integer(0), groups = list())
+
+test_that("singular_attribution() names only the non-positive diagonals", {
+  collinear <- matrix(c(1, 1, 1, 1), 2L)
+  expect_identical(singular_attribution(collinear), no_attribution)
+
+  expect_identical(
+    singular_attribution(matrix(0, 3L, 3L)),
+    list(coefficients = 1:3, groups = list())
+  )
+  expect_identical(
+    singular_attribution(diag(c(2, 0, 1, -1e-17)))$coefficients,
+    c(2L, 4L)
+  )
+})
+
+test_that("singular_attribution() names nothing for a rounding residue", {
+  # A statistic constant at c within the alternatives: the uncentered form
+  # sum_j p_j c^2 - (sum_j p_j c)^2 leaves a residue of order eps * c^2.
+  utility <- c(0.3, -1.2, 0.8) * 0.05
+  p <- exp(utility) / sum(exp(utility))
+  c_stat <- 3
+  residue <- sum(p * c_stat^2) - sum(p * c_stat)^2
+  expect_gt(residue, 0)
+  expect_lt(residue, 1e-12)
+  information <- diag(c(1, residue))
+
+  expect_identical(singular_attribution(information), no_attribution)
+})
+
+singular_labels <- c(
+  "calls › rate: Intercept",
+  "calls › choice: inertia/calls",
+  "friendship › choice: indeg/friendship"
+)
+
+test_that("the singular-information warning for a coefficient at its start", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_singular_information(
+      list(coefficients = 2L, groups = list()),
+      singular_labels,
+      start = c(0.1, 0, 0),
+      value = c(0.4, 0, 0.2)
+    )
+  )
+})
+
+test_that("the singular-information warning for a coefficient that moved", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_singular_information(
+      list(coefficients = c(2L, 3L), groups = list()),
+      singular_labels,
+      start = c(0.1, 0, 0),
+      value = c(0.4, 0, 0.2)
+    )
+  )
+})
+
+test_that("the singular-information warning naming no coefficient", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    warn_singular_information(
+      no_attribution,
+      singular_labels,
+      start = c(0.1, 0, 0),
+      value = c(0.4, 0, 0.2)
+    )
+  )
+  expect_warning(
+    warn_singular_information(
+      no_attribution,
+      singular_labels,
+      start = c(0.1, 0, 0),
+      value = c(0.4, 0, 0.2)
+    ),
+    class = "goldfish_dynes_singular_information"
+  )
+})
+
+# One estimate_dynes() run from wave time 0 with every warning muffled: the
+# singular-information warnings kept, theta0, and the per-sequence information
+# matrices of the last covariance pass (the fit's own, at the estimate).
+singular_information_run <- function(spec, control) {
+  seen <- new.env(parent = emptyenv())
+  seen$warnings <- list()
+  real_initial_theta <- dynes_initial_theta
+  real_sandwich <- sandwich_covariances
+  local_mocked_bindings(
+    dynes_initial_theta = function(...) {
+      seen$start <- real_initial_theta(...)
+      seen$start
+    },
+    sandwich_covariances = function(score, fisher, degenerate, weights) {
+      seen$fisher <- fisher
+      real_sandwich(score, fisher, degenerate, weights)
+    }
+  )
+  seen$fit <- withCallingHandlers(
+    estimate_dynes(
+      spec,
+      control,
+      control_prep = set_preprocessing(start_time = 0)
+    ),
+    goldfish_dynes_singular_information = function(w) {
+      seen$warnings[[length(seen$warnings) + 1L]] <- w
+      invokeRestart("muffleWarning")
+    },
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+  seen
+}
+
+test_that("an effect with no variation on any path is named at its start", {
+  skip_on_cran()
+  local_reproducible_output(width = 80)
+  # Per-pass standard errors are on, so a warning per pass would show here.
+  control <- fit_dynes_control(
+    n_sequences = 6L,
+    max_iterations = 3L,
+    seed = 7L,
+    em_trace_se = TRUE
+  )
+
+  run <- singular_information_run(recipe_state_spec(), control)
+
+  fit <- run$fit
+  expect_length(run$warnings, 1L)
+  expect_true(all(is.na(fit$covariance)))
+  expect_true(all(is.na(fit$mc_covariance)))
+  expect_true(all(is.na(unlist(fit$em_trace$se))))
+  expect_false(anyNA(fit$parameters))
+  inertia <- match("calls › choice: inertia/calls", names(fit$parameters))
+  expect_identical(fit$parameters[[inertia]], run$start[[inertia]])
+  expect_snapshot(cat(conditionMessage(run$warnings[[1]])))
+})
+
+test_that("singular sequences in an invertible pooled information do not warn", {
+  skip_on_cran()
+  control <- fit_dynes_control(
+    n_sequences = 6L,
+    max_iterations = 3L,
+    seed = 7L,
+    augmenter = set_augmenter_options(routine = "sim")
+  )
+
+  run <- singular_information_run(early_calls_spec(), control)
+
+  # The fixture's premise: some final-pool paths carry no calls-choice
+  # information, so their own information matrix is singular.
+  slot <- match("calls › choice: indeg/friendship", names(run$fit$parameters))
+  calls_choice <- vapply(run$fisher, function(j) j[slot, slot], numeric(1))
+  expect_contains(calls_choice, 0)
+  expect_contains(calls_choice > 0, TRUE)
+  expect_length(run$warnings, 0L)
+  expect_true(all(is.finite(run$fit$covariance)))
+  expect_true(all(is.finite(run$fit$mc_covariance)))
+})
+
 # --- Completed fids -------------------------------------------------------
 
 test_that("a completed pinned rate is a fixed layout row, not a coefficient", {

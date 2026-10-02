@@ -618,10 +618,12 @@ tallied_store <- function(
 }
 
 # One estimate_dynes() run over the multiwave fixture, with every warning
-# muffled and the fixed-term and pool-degenerate ones kept, by class.
+# muffled and the fixed-term, pool-degenerate and singular-information ones
+# kept, by class.
 fixed_term_run <- function(control = surface_control(max_iterations = 2L)) {
   kept <- list()
   pool <- list()
+  singular <- list()
   fit <- withCallingHandlers(
     estimate_dynes(dynes_varying_raw_spec(), control),
     goldfish_dynes_fixed_term_degenerate = function(w) {
@@ -632,9 +634,18 @@ fixed_term_run <- function(control = surface_control(max_iterations = 2L)) {
       pool[[length(pool) + 1L]] <<- w
       invokeRestart("muffleWarning")
     },
+    goldfish_dynes_singular_information = function(w) {
+      singular[[length(singular) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
     warning = function(w) invokeRestart("muffleWarning")
   )
-  list(fit = fit, warnings = kept, pool_warnings = pool)
+  list(
+    fit = fit,
+    warnings = kept,
+    pool_warnings = pool,
+    singular_warnings = singular
+  )
 }
 
 # The surface control under uniform weighting, whose one valid cell is the
@@ -749,6 +760,7 @@ test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
   expect_length(run$pool_warnings, 0L)
+  expect_length(run$singular_warnings, 0L)
 })
 
 test_that("a pool lost to a fixed-only term under uniform weighting", {
@@ -765,6 +777,7 @@ test_that("a pool lost to a fixed-only term under uniform weighting", {
   )
   expect_length(run$pool_warnings, 0L)
   expect_stopped_fit(run$fit)
+  expect_length(run$singular_warnings, 0L)
 })
 
 # --- Pool degeneracy for other causes ----------------------------------------
@@ -837,6 +850,7 @@ test_that("a pool whose every walk failed stops with one pool warning", {
     expect_length(run$pool_warnings, 1L)
     expect_length(run$warnings, 0L)
     expect_stopped_fit(run$fit)
+    expect_length(run$singular_warnings, 0L)
   }
 })
 
@@ -854,6 +868,7 @@ test_that("a pool with every evaluation non-finite stops with one warning", {
     expect_length(run$pool_warnings, 1L)
     expect_length(run$warnings, 0L)
     expect_stopped_fit(run$fit)
+    expect_length(run$singular_warnings, 0L)
   }
 })
 
@@ -880,6 +895,7 @@ test_that("a pool lost to mixed causes warns once per cause", {
     "estimation stopped"
   )
   expect_stopped_fit(run$fit)
+  expect_length(run$singular_warnings, 0L)
 })
 
 # --- Specification validation and entry wiring ------------------------------
