@@ -1308,7 +1308,10 @@ gather_ <- function(
   if (to <= from) {
     return(NULL)
   }
-  lapply((from + 1L):to, function(entry) {
+  entries <- (from + 1L):to
+  blocks <- vector("list", length(entries))
+  for (k in seq_along(entries)) {
+    entry <- entries[[k]]
     kind <- bc[1, entry]
     fixed <- bc[2, entry]
     rows <- if (kind == 1L) {
@@ -1325,19 +1328,23 @@ gather_ <- function(
         setdiff(seq_len(n2) - 1L, fixed)
       }
       fixed * n2 + alters + 1L
+    } else if (twomode_or_reflexive) {
+      # The whole column, addressed without listing its n1 * n2 rows.
+      TRUE
     } else {
-      cells <- seq_len(n1 * n2)
-      if (twomode_or_reflexive) {
-        cells
-      } else {
-        # The flat position of each reflexive cell (i, i), dropped from the
-        # fan-out. Only the shared prefix of the two axes has one.
-        reflexive <- seq_len(min(n1, n2))
-        cells[-((reflexive - 1L) * n2 + reflexive)]
-      }
+      # Every row but the flat position of each reflexive cell (i, i), dropped
+      # from the fan-out by negative index. Only the shared prefix of the two
+      # axes has one.
+      reflexive <- seq_len(min(n1, n2))
+      -((reflexive - 1L) * n2 + reflexive)
     }
-    list(rows = rows, col = bc[3, entry] + 1L, value = bc[4, entry])
-  })
+    blocks[[k]] <- list(
+      rows = rows,
+      col = bc[3, entry] + 1L,
+      value = bc[4, entry]
+    )
+  }
+  blocks
 }
 
 # Apply the slice of presence (composition-change) updates for one event.
@@ -1396,7 +1403,12 @@ gather_sender_receiver_model_r <- function(
   # The outer encoding keeps the length-n2 receiver vector (cell = f1[i] & f2[j]).
   is_point <- identical(active_dyad_encoding, "point")
   active_sender <- active_sender_init
-  active_dyad <- active_dyad_init
+  # The point grid is the builder's own copy, written in place by its update
+  # walk; the other encodings keep a vector, which a subassignment updates.
+  active_dyad <- if (is_point) active_dyad_init * 1 else active_dyad_init
+  # The candidate index of one event, written into a buffer sized to the
+  # largest event can be (every dyad) and trimmed, never grown.
+  idx_buffer <- integer(n_actors1 * n_actors2)
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
@@ -1449,15 +1461,23 @@ gather_sender_receiver_model_r <- function(
     }
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- if (is_point) {
-        .gather_apply_presence_point(
+      if (is_point) {
+        cols <- .availability_event_cols(p2_id, ptr2)
+        if (!is.null(cols)) {
+          set_matrix_cells(
+            active_dyad,
+            as.integer(active_dyad_update[1, cols]),
+            as.integer(active_dyad_update[2, cols]),
+            as.double(active_dyad_update[3, cols])
+          )
+        }
+      } else {
+        active_dyad <- .gather_apply_presence(
           active_dyad,
           active_dyad_update,
           p2_id,
           ptr2
         )
-      } else {
-        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
       }
       p2_id <- ptr2
     }
@@ -1478,7 +1498,6 @@ gather_sender_receiver_model_r <- function(
     # its own dense mask row (both presences n support already folded in).
     present2_ids <- if (is_point) NULL else which(active_dyad == 1) - 1L
 
-    idx <- integer(0)
     n_present <- 0L
     for (i in present1_ids) {
       not_allowed <- if (!twomode_or_reflexive) i else -1L
@@ -1489,7 +1508,9 @@ gather_sender_receiver_model_r <- function(
       }
       allowed <- present2_i[present2_i != not_allowed]
       n_all <- length(allowed)
-      idx <- c(idx, i * n_actors2 + allowed + 1L)
+      if (n_all > 0L) {
+        idx_buffer[n_present + seq_len(n_all)] <- i * n_actors2 + allowed + 1L
+      }
       if (is_dep && i == id_sender) {
         hit <- which(allowed == id_receiver)
         if (length(hit) > 0) {
@@ -1498,6 +1519,7 @@ gather_sender_receiver_model_r <- function(
       }
       n_present <- n_present + n_all
     }
+    idx <- idx_buffer[seq_len(n_present)]
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
     # receiver ids for the shared index vocabulary.
@@ -1563,7 +1585,9 @@ gather_receiver_model_r <- function(
   # (node1, node2, replace) buffer, read as the event sender's row. The alter
   # encoding keeps the length-n2 receiver vector.
   is_point <- identical(active_dyad_encoding, "point")
-  active_dyad <- active_dyad_init
+  # The point grid is the builder's own copy, written in place by its update
+  # walk; the alter encoding keeps a vector, which a subassignment updates.
+  active_dyad <- if (is_point) active_dyad_init * 1 else active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p2_id <- 0L
@@ -1599,15 +1623,23 @@ gather_receiver_model_r <- function(
     bc_id <- bc_ptr
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- if (is_point) {
-        .gather_apply_presence_point(
+      if (is_point) {
+        cols <- .availability_event_cols(p2_id, ptr2)
+        if (!is.null(cols)) {
+          set_matrix_cells(
+            active_dyad,
+            as.integer(active_dyad_update[1, cols]),
+            as.integer(active_dyad_update[2, cols]),
+            as.double(active_dyad_update[3, cols])
+          )
+        }
+      } else {
+        active_dyad <- .gather_apply_presence(
           active_dyad,
           active_dyad_update,
           p2_id,
           ptr2
         )
-      } else {
-        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
       }
       p2_id <- ptr2
     }

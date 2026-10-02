@@ -47,7 +47,7 @@
 # evaluation-to-evaluation noise and below the regression it guards.
 metric,cell,backend,recorded,limit
 alloc_mb,se_rem,r,3290,1.05
-alloc_mb,se_rem,gather,1966,1.05
+alloc_mb,se_rem,gather,1519,1.05
 alloc_mb,se_choice,r,61.8,1.05
 alloc_mb,se_choice,gather,19.5,1.05
 alloc_mb,se_rate,r,36.76,1.05
