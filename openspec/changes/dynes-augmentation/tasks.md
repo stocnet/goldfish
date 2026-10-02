@@ -715,6 +715,8 @@
       `@export` is this change's to add. Re-run the 6.1a tests to confirm GREEN;
       commit.
 - [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture; full
+      **Gate met (2026-10-02):** `singular-sequence-information` landed on
+      `feature/dynes` (full NOT_CRAN run: PASS 11748, FAIL 0, SKIP 2, baselines PASS).
       simulation study incl. creation/dissolution identifiability from waves,
       recorded with the change (progress.md + `.plan/`). This validates the
       already-implemented pipeline end to end rather than driving new production
