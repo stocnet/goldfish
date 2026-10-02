@@ -1,5 +1,6 @@
 ---
 depends-on: availability-one-object-per-loop
+status: landed (feature_simulation, awaiting fold)
 ---
 
 ## Why
@@ -113,8 +114,9 @@ contract matrix, should run on kernels that cost what they compute.
   when margins or availability are requested.
 - **The exact-time kernels derive the diagnostic normalizer from the pass
   the likelihood already computes** (absorbed from
-  `exact-time-diagnostic-cost`). Where the raw normalizer is finite and
-  strictly positive, the conditional component's log-normalizer is
+  `exact-time-diagnostic-cost`). Where the raw normalizer is a normal
+  positive double (finite, strictly positive, not subnormal), the
+  conditional component's log-normalizer is
   `log(normalizer)` and the probability vector, when a consumer asks for
   it, is the raw weights over that normalizer; the max-shifted
   log-sum-exp stays as the fallback for overflow and subnormal underflow,

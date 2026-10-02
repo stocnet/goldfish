@@ -191,9 +191,13 @@ change (Non-Goal).
 
 In `estimate_REM` and `estimate_DyNAM_rate`, `log_normalizer =
 log(normalizer)` and, when a consumer asks for it, `probabilities = e /
-normalizer`, whenever `std::isfinite(normalizer) && normalizer > 0`; these
-are the two conditions under which the raw ratio is exactly what the
-shifted pass computes. Otherwise the kernel falls back to
+normalizer`, whenever `std::isnormal(normalizer)`: finite, strictly
+positive and not subnormal, the conditions under which the raw ratio is
+what the shifted pass computes to the last bits. (Amended in apply,
+2026-10-02: the proposal's "finite and strictly positive" admits a
+subnormal normalizer, every rate between about e^-745 and e^-708, where
+e / normalizer keeps only a few significant bits; such a normalizer now
+takes the fallback too.) Otherwise the kernel falls back to
 `log_sum_exp_masked()` as today, so the overflow and subnormal-underflow
 guarantee `950f21b` was written for is kept, paid only when needed. The
 probability vector is formed only under `return_probabilities ||

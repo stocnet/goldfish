@@ -83,7 +83,8 @@ The exact-time C++ kernels (`estimate_REM`, `estimate_DyNAM_rate`) SHALL obtain
 the per-event log-normalizer required by the conditional (Cox
 partial-likelihood) component from the raw rate pass the likelihood has already
 computed in the same iteration, rather than from a second `exp` pass over the
-risk set. Where the raw normalizer is finite and strictly positive, the
+risk set. Where the raw normalizer is a normal positive double (finite,
+strictly positive and not subnormal), the
 log-normalizer SHALL be `log(normalizer)` and the per-event probability vector
 SHALL be the raw weights divided by that normalizer. Where it is not, the kernel
 SHALL fall back to the max-shifted log-sum-exp, so the overflow and
@@ -99,8 +100,9 @@ absolute scale, because the compensator enters the likelihood as
   evaluates it twice
 
 #### Scenario: a degenerate normalizer falls back to the shifted pass
-- **WHEN** the raw per-event normalizer is not finite, or is not strictly
-  positive
+- **WHEN** the raw per-event normalizer is not finite, is not strictly
+  positive, or is subnormal (where the raw ratio keeps only a few significant
+  bits)
 - **THEN** the kernel computes the log-normalizer by max-shifted log-sum-exp, and
   the conditional component is finite wherever the shifted pass makes it finite
 
