@@ -332,6 +332,11 @@ List compute_coordination_selection(
               event_score_row(g, 1.0, D_event, idx_obs, true);
         }
         if (return_probabilities) {
+            // The grid is written through the dyad endpoints, which exist only
+            // when the stack carries its actor index.
+            if (!need_endpoints) {
+                Rcpp::stop("Coordination probabilities need the actor index.");
+            }
             // Coordination's risk set is the unordered-pair list, so the grid
             // is symmetric: each dyad's probability lands on both sides of the
             // diagonal and the event totals 2, one per pair. Not the shared
@@ -340,6 +345,10 @@ List compute_coordination_selection(
             for (int d = 0; d < n_dyads; ++d) {
                 const arma::uword a = dyad_endpoint_a(d);
                 const arma::uword b = dyad_endpoint_b(d);
+                // The R matrix's indexing is unchecked, so the endpoints are.
+                if (a >= n_actors_1 || b >= n_actors_1) {
+                    Rcpp::stop("A gathered dyad endpoint is out of range.");
+                }
                 grid(a, b) = dyad_probabilities(d);
                 grid(b, a) = dyad_probabilities(d);
             }

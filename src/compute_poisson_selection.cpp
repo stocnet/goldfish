@@ -139,6 +139,13 @@ List compute_poisson_selection(
     // requested without margins.
     const bool axis_i = index_i.n_elem > 0;
     const bool axis_j = index_j.n_elem > 0;
+    // The per-event actor slots are read as views of these vectors, so they
+    // must cover every row of the stack: a short one would be read past its
+    // end rather than fail.
+    if ((axis_i && index_i.n_elem != stat_all_events.n_rows) ||
+        (axis_j && index_j.n_elem != stat_all_events.n_rows)) {
+        Rcpp::stop("The gathered actor indices must have one entry per row.");
+    }
     List event_probabilities(return_probabilities ? n_events : 0);
     // Opt-in per-actor availability, on the same sides the margins take. Gather
     // rows ARE the realized risk set, so membership needs no mask -- but a

@@ -155,7 +155,14 @@ Rcpp::RObject scatter_event_probabilities(
   // arma::vec would give R an n x 1 matrix.
   const arma::uvec& index = axis_j ? index_j : index_i;
   Rcpp::NumericVector full(axis_j ? n_actors_2 : n_actors_1);
+  const arma::uword n_full = full.size();
   for (arma::uword r = 0; r < probabilities.n_elem; ++r) {
+    // The R vector's indexing is unchecked, so the actor slot is.
+    if (index(r) >= n_full) {
+      Rcpp::stop(
+        "scatter_event_probabilities(): an actor index is out of range."
+      );
+    }
     full[index(r)] = probabilities(r);
   }
   return full;

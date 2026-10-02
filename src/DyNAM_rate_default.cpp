@@ -319,8 +319,10 @@ using namespace arma;
          }
        }
        if (return_total_rate) {
+         // The observed sender's predictor read from its row, as the interval
+         // log-likelihood reads it: `lin_pred` holds active senders only.
          conditional_logl(id_event) = is_dependent(id_event)
-           ? lin_pred(id_sender) - log_normalizer
+           ? dot(stat_mat.row(id_sender), parameters) - log_normalizer
            : NA_REAL;
        }
        if (return_margins && is_dependent(id_event)) {
