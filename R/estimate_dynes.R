@@ -202,6 +202,7 @@ estimate_dynes <- function(
     call = call
   )
   warn_fixed_term_degenerate(store, call = call)
+  warn_pool_degenerate(store, call = call)
   res$parameters <- stats::setNames(as.numeric(res$parameters), labels)
   res$seed <- seed
   res$spec <- completed
@@ -221,7 +222,7 @@ warn_fixed_term_degenerate <- function(store, call = rlang::caller_env()) {
   n <- tally$fixed_term
   n_drawn <- tally$built
   labels <- tally$labels
-  dropped <- if (isTRUE(tally$pool_dropped)) {
+  dropped <- if (pool_lost_to_fixed_terms(tally)) {
     c(
       "!" = "Every sequence in the pool was dropped; estimation stopped at the
              last accepted parameters and the fit is flagged
@@ -239,6 +240,46 @@ warn_fixed_term_degenerate <- function(store, call = rlang::caller_env()) {
     class = "goldfish_dynes_fixed_term_degenerate",
     call = call
   )
+}
+
+# One warning when the loop stopped on a pool in which no sequence carried
+# weight, unless every sequence was lost to a fixed-only term: the fixed-term
+# warning then reports the stop itself. The counts are those of the pool the
+# loop stopped on.
+warn_pool_degenerate <- function(store, call = rlang::caller_env()) {
+  tally <- store$tally
+  if (!isTRUE(tally$pool_dropped) || pool_lost_to_fixed_terms(tally)) {
+    return(invisible(NULL))
+  }
+  lost <- tally$pool_lost
+  causes <- c(
+    "*" = "{lost[['walk']]} failed {?its/their} preprocessing walk.",
+    "*" = "{lost[['evaluation']]} had a non-finite likelihood at the current
+           parameters.",
+    "*" = "{lost[['fixed_term']]} had a non-finite fixed-only term, reported
+           in a separate warning."
+  )[lost[c("walk", "evaluation", "fixed_term")] > 0L]
+  cli::cli_warn(
+    c(
+      "!" = "No sequence of the pool had a finite likelihood; estimation
+             stopped at the last accepted parameters and the fit is flagged
+             {.code converged = FALSE}.",
+      "i" = "Of the {sum(lost)} pooled sequences:",
+      causes
+    ),
+    class = "goldfish_dynes_pool_degenerate",
+    call = call
+  )
+}
+
+# Whether the loop stopped on a pool every sequence of which was lost to a
+# fixed-only term.
+pool_lost_to_fixed_terms <- function(tally) {
+  lost <- tally$pool_lost
+  isTRUE(tally$pool_dropped) &&
+    lost[["fixed_term"]] > 0L &&
+    lost[["walk"]] == 0L &&
+    lost[["evaluation"]] == 0L
 }
 
 # Something must be latent for DyNES to estimate. A panel layer is augmented

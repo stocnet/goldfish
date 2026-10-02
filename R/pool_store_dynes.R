@@ -70,8 +70,9 @@ open_pool_store <- function(seam, header) {
   store$generation <- 0L
   store$next_id <- 1L
   # The run-long count of drawn sequences and fixed-term losses
-  # (tally_pool_entries()), and whether the loop stopped because a whole pool
-  # was lost to them.
+  # (tally_pool_entries()), and whether the loop stopped because no sequence
+  # of a pool carried weight; a stop also records `pool_lost`, what that
+  # pool's sequences were lost to (pool_lost_causes()).
   store$tally <- list(
     built = 0L,
     fixed_term = 0L,

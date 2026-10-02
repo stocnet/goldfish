@@ -158,8 +158,9 @@ run_abem_loop <- function(
     # of the whole pool, then a top-up to the size the last acceptance set.
     if (iteration == 1L) {
       new_draws <- draw_into_pool(target_size, iteration, theta_k)
-      if (!pool_lost_to_fixed_terms(run$pool)) {
-        cold_start_ess_diagnostic(pool_weights(), weights_ctrl$ess_threshold)
+      weights <- pool_weights()
+      if (pool_carries_weight(run$loglik, weights)) {
+        cold_start_ess_diagnostic(weights, weights_ctrl$ess_threshold)
       }
     } else if (isTRUE(weights_ctrl$refresh)) {
       new_draws <- draw_into_pool(
@@ -194,26 +195,31 @@ run_abem_loop <- function(
     growth_k <- 2L
 
     for (retry in 0:control$max_retries) {
-      # Every pass follows a build, a redraw or a growth append. A pool whose
-      # every sequence lost its fixed-only term carries no information, and
-      # past this point both weighting schemes fail on it: importance weights
+      # Every pass follows a build, a redraw or a growth append. A pool in
+      # which no sequence has both a finite log-likelihood and a positive
+      # weight at theta_k carries no information, whatever made each one
+      # degenerate -- a failed walk or a non-finite fixed-only term at entry,
+      # or a non-finite evaluation at theta_k, which no entry cause records.
+      # Past this point both weighting schemes fail on it: importance weights
       # are all zero, so a minibatch M-step has nothing to sample from and a
       # full-batch one leaves Q = ASE = 0, meeting the stop rule at a theta
-      # that never moved; uniform weights leave Q NaN, which no decision
-      # survives.
-      if (pool_lost_to_fixed_terms(run$pool)) {
+      # that never moved; uniform Q would average over no sequence. The
+      # finite log-likelihood is tested beside the weight so the stop does not
+      # lean on how a weighting scheme treats a degenerate sequence.
+      weights <- pool_weights()
+      if (!pool_carries_weight(run$loglik, weights)) {
         if (!is.null(run$pool$store)) {
           run$pool$store$tally$pool_dropped <- TRUE
+          run$pool$store$tally$pool_lost <- pool_lost_causes(run$pool)
         }
         return(abem_loop_result(
           theta_k,
           FALSE,
           accepted_iterations,
           run,
-          pool_weights()
+          weights
         ))
       }
-      weights <- pool_weights()
       pool_size <- length(weights)
       fixed_degenerate <- sum(pool_fixed_term_lost(run$pool))
       resample_indices <- if (identical(scheme, "resampling")) {
@@ -409,9 +415,26 @@ pool_fixed_term_lost <- function(pool) {
   )
 }
 
-pool_lost_to_fixed_terms <- function(pool) {
-  lost <- pool_fixed_term_lost(pool)
-  length(lost) > 0L && all(lost)
+# Whether any pooled sequence can carry the E-step: a finite log-likelihood
+# and a positive weight at the current parameters.
+pool_carries_weight <- function(loglik, weights) {
+  any(is.finite(loglik) & weights > 0)
+}
+
+# What each sequence of a pool that carries no weight was lost to: a failed
+# walk or a non-finite fixed-only term, both recorded at entry, or otherwise a
+# non-finite evaluation at the current parameters.
+pool_lost_causes <- function(pool) {
+  cause <- vapply(
+    pool$sequences,
+    function(s) s$degenerate_cause %||% NA_character_,
+    character(1)
+  )
+  c(
+    walk = sum(cause %in% "walk"),
+    fixed_term = sum(cause %in% "fixed_term"),
+    evaluation = sum(is.na(cause))
+  )
 }
 
 abem_loop_result <- function(theta, converged, iterations, run, weights) {

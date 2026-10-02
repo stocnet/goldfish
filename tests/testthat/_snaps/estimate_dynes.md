@@ -51,6 +51,35 @@
       ! Every sequence in the pool was dropped; estimation stopped at the last accepted parameters and the fit is flagged `converged = FALSE`.
       i This is likely a bug in goldfish; please report it.
 
+# the pool degeneracy warning
+
+    Code
+      warn_pool_degenerate(tallied_store(8L, 0L, character(0), pool_dropped = TRUE,
+      pool_lost = c(walk = 3L, fixed_term = 0L, evaluation = 1L)))
+    Condition
+      Warning:
+      ! No sequence of the pool had a finite likelihood; estimation stopped at the last accepted parameters and the fit is flagged `converged = FALSE`.
+      i Of the 4 pooled sequences:
+      * 3 failed their preprocessing walk.
+      * 1 had a non-finite likelihood at the current parameters.
+
+# both degeneracy warnings after a pool lost to mixed causes
+
+    Code
+      warn_fixed_term_degenerate(store)
+    Condition
+      Warning:
+      ! 2 of 4 drawn sequences had a non-finite or unevaluable fixed-only log-likelihood in "friendship (rate)" and were dropped as degenerate.
+      i This is likely a bug in goldfish; please report it.
+    Code
+      warn_pool_degenerate(store)
+    Condition
+      Warning:
+      ! No sequence of the pool had a finite likelihood; estimation stopped at the last accepted parameters and the fit is flagged `converged = FALSE`.
+      i Of the 4 pooled sequences:
+      * 2 failed their preprocessing walk.
+      * 2 had a non-finite fixed-only term, reported in a separate warning.
+
 # a partially modeled panel layer aborts
 
     Code

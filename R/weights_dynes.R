@@ -109,7 +109,9 @@ normalize_log_weights <- function(log_weights) {
 
 # The canonical normalized E-step weights for a pool. Uniform weighting -- valid
 # only on the MCMC + refresh path, enforced upstream in set_algorithm_em() --
-# ignores the proposal and returns equal weights. Importance weighting (the
+# ignores the proposal and spreads the weight equally over the sequences with a
+# finite current log-likelihood: a degenerate one has no density to average,
+# and weighting it would turn the uniform Q into NaN. Importance weighting (the
 # default) forms the own-ratio log-weights, applies the transformation, and
 # softmax-normalizes. `loglik_current` is the per-sequence total log-likelihood.
 compute_pool_weights <- function(
@@ -122,7 +124,8 @@ compute_pool_weights <- function(
   transformation <- rlang::arg_match(transformation)
   n <- length(loglik_current)
   if (identical(weighting, "uniform")) {
-    return(rep(1 / n, n))
+    finite <- is.finite(loglik_current)
+    return(as.numeric(finite) / max(sum(finite), 1L))
   }
   log_weights <- reweight_log_weights(loglik_current, log_proposal)
   log_weights <- transform_log_weights(log_weights, transformation)
@@ -204,9 +207,9 @@ residual_resample <- function(weights, size = length(weights)) {
 #                     unweighted multiset feeding Q/ASE and the M-step batches)
 #   * "uniform"    -> goldfishEstepUniform    (MCMC + refresh; plain mean)
 # `lambda` are the per-sequence log-likelihood differences Lambda_i (summed
-# across sub-models); `weights` are the normalized E-step weights (ignored on
-# the uniform path). Resampling draws its multiset here (via `resample_pool()`)
-# unless a `resample_indices` multiset is supplied verbatim (the loop's control
+# across sub-models); `weights` are the normalized E-step weights (on the
+# uniform path they only mark, by a zero, the sequences left out of the mean).
+# Resampling draws its multiset here (via `resample_pool()`) unless a `resample_indices` multiset is supplied verbatim (the loop's control
 # RNG substream owns the draw at run time; supplying it keeps the estimators
 # deterministically testable). When `mcmc = TRUE` a lag-1 autocorrelation index
 # of the Lambda series is recorded for the trace (the ASE treats retained draws
@@ -409,16 +412,27 @@ compute_ase.goldfishEstepResampling <- function(estep, ...) {
 }
 
 # Uniform (MCMC + refresh only): Q_hat = mean(Lambda); ASE^2 = s^2(Lambda) / K,
-# the sample standard error of the mean.
+# the sample standard error of the mean, both over the K positive-weight
+# sequences. The zero weights come from a non-finite *current* log-likelihood,
+# not from Lambda, so a sequence with no likelihood at the proposal stays in
+# the mean and makes Q = -Inf, a rejection.
 #' @exportS3Method
 compute_q.goldfishEstepUniform <- function(estep, ...) {
-  mean(estep$lambda)
+  mean(uniform_lambda(estep))
 }
 
 #' @exportS3Method
 compute_ase.goldfishEstepUniform <- function(estep, ...) {
-  ase <- sqrt(stats::var(estep$lambda) / estep$pool_size)
+  lambda <- uniform_lambda(estep)
+  ase <- sqrt(stats::var(lambda) / length(lambda))
   structure(ase, ase_floored = FALSE)
+}
+
+uniform_lambda <- function(estep) {
+  if (is.null(estep$weights)) {
+    return(estep$lambda)
+  }
+  estep$lambda[estep$weights > 0]
 }
 
 # The ESS staleness guard on a persistent pool. It reports the ESS, whether it

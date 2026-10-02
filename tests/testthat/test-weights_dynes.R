@@ -141,8 +141,8 @@ test_that("clipping transformation caps the dominant weight", {
 })
 
 test_that("non-finite per-sequence loglik normalizes its weight to zero", {
-  # A degenerate (singular-information) sequence yields a non-finite loglik; its
-  # weight must vanish rather than poison the pool.
+  # A degenerate sequence (a failed walk, a non-finite evaluation) yields a
+  # non-finite loglik; its weight must vanish rather than poison the pool.
   log_proposal <- c(0, 0, 0)
   loglik <- c(0, log(2), -Inf)
   w <- compute_pool_weights(loglik, log_proposal, weighting = "importance")

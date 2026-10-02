@@ -492,10 +492,10 @@ test_that("a candidate across a wave boundary is scored per period", {
 })
 
 # A pool whose every sequence lost its fixed-only term carries no information:
-# under importance weighting every weight is zero, under uniform weighting Q is
-# NaN. The loop stops before the M-step, unconverged, at its last accepted
-# theta. The real evaluator scores the stub's paths; fixtures in
-# helper-abem_loop.R.
+# under importance weighting every weight is zero, under uniform weighting no
+# sequence is left to average over. The loop stops before the M-step,
+# unconverged, at its last accepted theta. The real evaluator scores the stub's
+# paths; fixtures in helper-abem_loop.R.
 
 test_that("a fully fixed-term-degenerate pool stops importance weighting", {
   skip_on_cran()
