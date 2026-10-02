@@ -85,6 +85,14 @@ expect_parity <- function(fits, label) {
       tolerance = 1e-10,
       info = nm
     )
+    # The same shape too, not only the same values: a vector on the sender
+    # and receiver axes, a grid on the dyad axes, whichever backend made it.
+    shape <- function(p) list(class = class(p), dim = dim(p))
+    expect_identical(
+      lapply(other$event_probabilities, shape),
+      lapply(ref$event_probabilities, shape),
+      info = nm
+    )
     expect_equal(
       other$interval_log_lik,
       ref$interval_log_lik,

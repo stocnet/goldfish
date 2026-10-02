@@ -180,9 +180,9 @@ List compute_poisson_selection(
                       arma::mat(n_actors_1, n_actors_2, fill::zeros)
                     );
                 } else {
-                    event_probabilities[id_event] = Rcpp::wrap(arma::vec(
-                      axis_j ? n_actors_2 : n_actors_1, fill::zeros
-                    ));
+                    event_probabilities[id_event] = Rcpp::NumericVector(
+                      axis_j ? n_actors_2 : n_actors_1
+                    );
                 }
             }
             continue;

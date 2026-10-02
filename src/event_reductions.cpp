@@ -153,12 +153,14 @@ Rcpp::RObject scatter_event_probabilities(
     }
     return Rcpp::wrap(grid);
   }
+  // A plain vector, as the event-loop kernels return on these axes: wrapping an
+  // arma::vec would give R an n x 1 matrix.
   const arma::uvec& index = axis_j ? index_j : index_i;
-  arma::vec full(axis_j ? n_actors_2 : n_actors_1, fill::zeros);
+  Rcpp::NumericVector full(axis_j ? n_actors_2 : n_actors_1);
   for (arma::uword r = 0; r < probabilities.n_elem; ++r) {
-    full(index(r)) = probabilities(r);
+    full[index(r)] = probabilities(r);
   }
-  return Rcpp::wrap(full);
+  return full;
 }
 
 //' Exercise the shared per-event reductions from R
