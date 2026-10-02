@@ -158,6 +158,27 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
     .Call('_goldfish_estimate_REM_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace)
 }
 
+#' Allocation probe for the kernel cost guard
+#'
+#' Test-only. `alloc_probe_enabled()` is TRUE in the build that routes
+#' Armadillo's allocations through the counter; `alloc_probe_start()` resets
+#' it and counts allocations of at least `threshold_bytes` until
+#' `alloc_probe_stop()`, which returns the count.
+#' @noRd
+alloc_probe_enabled <- function() {
+    .Call('_goldfish_alloc_probe_enabled', PACKAGE = 'goldfish')
+}
+
+#' @noRd
+alloc_probe_start <- function(threshold_bytes) {
+    invisible(.Call('_goldfish_alloc_probe_start', PACKAGE = 'goldfish', threshold_bytes))
+}
+
+#' @noRd
+alloc_probe_stop <- function() {
+    .Call('_goldfish_alloc_probe_stop', PACKAGE = 'goldfish')
+}
+
 #' Estimate a DyNAM-coordination model with gathered data
 #'
 #' Given the gathered and distilled data, it outputs the derivative of

@@ -212,6 +212,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// alloc_probe_enabled
+bool alloc_probe_enabled();
+RcppExport SEXP _goldfish_alloc_probe_enabled() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(alloc_probe_enabled());
+    return rcpp_result_gen;
+END_RCPP
+}
+// alloc_probe_start
+void alloc_probe_start(double threshold_bytes);
+RcppExport SEXP _goldfish_alloc_probe_start(SEXP threshold_bytesSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type threshold_bytes(threshold_bytesSEXP);
+    alloc_probe_start(threshold_bytes);
+    return R_NilValue;
+END_RCPP
+}
+// alloc_probe_stop
+double alloc_probe_stop();
+RcppExport SEXP _goldfish_alloc_probe_stop() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(alloc_probe_stop());
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_coordination_selection
 List compute_coordination_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& sender_of_row, const arma::uvec& dyad_partner, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
 RcppExport SEXP _goldfish_compute_coordination_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP sender_of_rowSEXP, SEXP dyad_partnerSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
@@ -379,6 +409,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_DyNAM_rate_ordered", (DL_FUNC) &_goldfish_estimate_DyNAM_rate_ordered, 20},
     {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 28},
     {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 24},
+    {"_goldfish_alloc_probe_enabled", (DL_FUNC) &_goldfish_alloc_probe_enabled, 0},
+    {"_goldfish_alloc_probe_start", (DL_FUNC) &_goldfish_alloc_probe_start, 1},
+    {"_goldfish_alloc_probe_stop", (DL_FUNC) &_goldfish_alloc_probe_stop, 0},
     {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 16},
     {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 15},
     {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 18},
