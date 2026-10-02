@@ -246,19 +246,66 @@ test_that("pool evaluation concatenates sub-model scores by theta_index", {
   expect_true(all(res$fisher[[1]][1:2, 3:4] == 0))
 })
 
-test_that("a singular sequence yields a non-finite result, not a pool abort", {
-  # A parameter vector large enough to saturate the choice probabilities makes
-  # the engine's unconditional information-matrix inversion singular; the guard
-  # must catch the engine stop() and mark the sequence non-finite rather than
-  # aborting the whole pool.
+# An engine pass whose free-block information is singular with finite entries
+# (the second statistic is zero on the path), the shape a statistic with no
+# variation gives; every other pass is the real one.
+local_singular_engine_pass <- function(env = parent.frame()) {
+  real_pass <- pool_engine_pass
+  local_mocked_bindings(
+    pool_engine_pass = function(sub_model, stats, parameters) {
+      if (sub_model$fixed_only) {
+        return(real_pass(sub_model, stats, parameters))
+      }
+      k <- length(parameters)
+      fisher <- diag(c(2, 0, rep(1, k - 2L)), k)
+      list(
+        logLikelihood = -12.5,
+        derivative = seq_len(k) / 10,
+        fisher = fisher
+      )
+    },
+    .env = env
+  )
+}
+
+test_that("a singular sequence keeps its finite result and its weight", {
+  local_singular_engine_pass()
   fx <- make_pool_fixture(n_sequences = 2L)
   pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
-  res <- expect_no_error(
-    evaluate_sequence_pool(pool, c(50, 50, 50), what = c("loglik", "score"))
+  res <- evaluate_sequence_pool(
+    pool,
+    c(0.2, 0.1, -0.1),
+    what = c("loglik", "score", "fisher")
   )
-  expect_true(all(res$degenerate))
-  expect_false(any(is.finite(res$loglik)))
+  expect_false(any(res$degenerate))
+  expect_equal(res$loglik, c(-12.5, -12.5))
+  expect_equal(res$score[1, ], c(0.1, 0.2, 0.3))
+  expect_equal(res$fisher[[1]], diag(c(2, 0, 1)))
+})
+
+test_that("a non-finite engine evaluation is still degenerate and the pool completes", {
+  fx <- make_pool_fixture(n_sequences = 2L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
+
+  real_pass <- pool_engine_pass
+  passes <- 0L
+  local_mocked_bindings(
+    pool_engine_pass = function(...) {
+      passes <<- passes + 1L
+      res <- real_pass(...)
+      if (passes == 2L) {
+        res$logLikelihood <- -Inf
+      }
+      res
+    }
+  )
+  res <- expect_no_error(
+    evaluate_sequence_pool(pool, c(0.2, 0.1, -0.1), what = c("loglik", "score"))
+  )
+  expect_identical(res$degenerate, c(FALSE, TRUE))
+  expect_true(is.finite(res$loglik[[1]]))
+  expect_identical(res$loglik[[2]], -Inf)
 })
 
 # The attachment-optional conformance pin: the pool-entry path takes the
@@ -1616,23 +1663,42 @@ test_that("the cpp evaluator harvests only what is requested", {
   expect_identical(loglik_only$loglik, full$loglik)
 })
 
-test_that("the cpp evaluator keeps the singular-information guard", {
-  # The compiled closure never inverts the information matrix, but the
-  # evaluator contract marks a singular sequence non-finite, as the adapter
-  # does, so both backends weight it out of the pool.
+test_that("the cpp evaluator does not invert the information", {
+  local_singular_engine_pass()
   fx <- make_pool_fixture(n_sequences = 1L)
   pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
 
-  res <- expect_no_error(
-    evaluate_pool_sequence(
-      pool,
-      pool$sequences[[1]],
-      c(50, 50, 50),
-      what = c("loglik", "score")
-    )
+  res <- evaluate_pool_sequence(
+    pool,
+    pool$sequences[[1]],
+    c(0.2, 0.1, -0.1),
+    what = c("loglik", "score", "fisher")
+  )
+  expect_false(res$degenerate)
+  expect_identical(res$loglik, -12.5)
+  expect_false(anyNA(res$score))
+  expect_false(anyNA(res$fisher))
+})
+
+test_that("a missing score or information entry is degenerate", {
+  fx <- make_pool_fixture(n_sequences = 1L)
+  pool <- build_sequence_pool(fx$decomposition, fx$sequences, theta_length = 3L)
+  real_pass <- pool_engine_pass
+  local_mocked_bindings(
+    pool_engine_pass = function(...) {
+      res <- real_pass(...)
+      res$fisher[1, 1] <- NA_real_
+      res
+    }
+  )
+  res <- evaluate_pool_sequence(
+    pool,
+    pool$sequences[[1]],
+    c(0.2, 0.1, -0.1),
+    what = c("loglik", "score")
   )
   expect_true(res$degenerate)
-  expect_false(is.finite(res$loglik))
+  expect_identical(res$loglik, -Inf)
   expect_true(all(is.na(res$score)))
 })
 
@@ -2053,4 +2119,22 @@ test_that("compute_lik_seq() names itself in the completion warning", {
   expect_length(warned, 2L)
   expect_match(warned, "compute_lik_seq", all = TRUE)
   expect_snapshot(res <- compute_lik_seq(spec, sequence, theta))
+})
+
+test_that("the proposal evaluator and compute_lik_seq() keep a singular candidate", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  sequence <- weights_wired_paths()[[2]]
+  local_singular_engine_pass()
+
+  proposal <- make_proposal_evaluator(decompose_joint_spec(spec), theta)
+  expect_true(is.finite(proposal(sequence)$loglik))
+  expect_warning(
+    lik <- compute_lik_seq(spec, sequence, theta),
+    class = "goldfish_pinned_rate_warning"
+  )
+  expect_false(lik$degenerate)
+  expect_true(is.finite(lik$loglik))
+  expect_false(anyNA(lik$score))
+  expect_false(anyNA(lik$fisher))
 })

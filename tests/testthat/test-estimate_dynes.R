@@ -1064,3 +1064,24 @@ test_that("completed fids contribute no theta, pinned per wave period", {
   # The free slots are numbered contiguously, skipping the pinned rows.
   expect_identical(layout$index[!layout$fixed], seq_len(sum(!layout$fixed)))
 })
+
+test_that("a statistic with no variation on any path runs under every routine", {
+  skip_on_cran()
+  # calls inertia is identically zero, so every pooled sequence has a singular
+  # information matrix; none of them is degenerate.
+  for (routine in c("random", "sim", "mcmc")) {
+    control <- set_algorithm_em(
+      n_sequences = 6L,
+      max_iterations = 3L,
+      seed = 7L,
+      augmenter = set_augmenter_options(routine = routine)
+    )
+    expect_no_error(
+      suppressWarnings(estimate_dynes(
+        recipe_state_spec(),
+        control,
+        control_prep = set_preprocessing(start_time = 0)
+      ))
+    )
+  }
+})
