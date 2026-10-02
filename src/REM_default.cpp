@@ -91,8 +91,6 @@ using namespace arma;
 //' @param twomode_or_reflexive An boolean variable. If it's true,
 //'    then the model is two-model or we consider the reflexive effect
 //'    (that's the value in the diagonal entries of the statistics matrix).
-//' @param impute An boolean variable. If it true, the function does
-//'    the imputation for missing values.
 //'
 //' @return Return a list with elements as follows.
 //' \describe{
@@ -127,7 +125,6 @@ List estimate_REM(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute,
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
     const bool return_ranks = false,
@@ -303,21 +300,6 @@ List estimate_REM(
        twomode_or_reflexive
      );
 
-     // impute the missing statistics if necessary
-     if (impute) {
-       for (int i = 0; i < n_parameters; i++) {
-         // Construct a view for the i-th column of the stat_matrix
-         //   and do the impute
-         arma::vec current_col(
-             stat_mat.colptr(i),
-             n_actors_1 * n_actors_2,
-             false
-         );
-         current_col.elem(find_nonfinite(current_col)).fill(
-             mean(current_col.elem(find_finite(current_col))));
-       }
-     }
-     
      // update presence
      if (has_composition_change1) {
        apply_availability_updates(

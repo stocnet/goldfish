@@ -50,7 +50,6 @@ make_engine_evaluator <- function(
   is_rate_model = identical(risk_set_axis(spec), "sender"),
   is_two_mode = FALSE,
   allow_reflexive = FALSE,
-  impute = FALSE,
   seed_intercept = TRUE,
   verbose = FALSE,
   progress = FALSE
@@ -201,7 +200,6 @@ make_engine_evaluator <- function(
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
-      impute = impute,
       active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
@@ -287,7 +285,6 @@ make_engine_evaluator <- function(
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
-      impute = impute,
       active_dyad_is_point = dyad_is_point,
       return_event_scores = need_scores,
       return_ranks = need_ranks,
@@ -347,7 +344,6 @@ estimate_c_int <- function(
   progress = FALSE,
   testing = FALSE,
   get_data_matrix = FALSE,
-  impute = FALSE,
   opportunitiesList = NULL,
   spec = NULL,
   backend = c("cpp", "gather"),
@@ -418,7 +414,6 @@ estimate_c_int <- function(
     is_rate_model = is_rate_model,
     is_two_mode = is_two_mode,
     allow_reflexive = allowReflexive,
-    impute = impute,
     seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
     verbose = verbose,
     progress = progress
@@ -932,7 +927,6 @@ estimate_ <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  impute,
   active_dyad_is_point = FALSE,
   return_event_scores = FALSE,
   return_ranks = FALSE,
@@ -979,7 +973,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1006,7 +999,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1036,7 +1028,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1068,7 +1059,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1099,7 +1089,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
@@ -1127,7 +1116,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
@@ -1152,9 +1140,8 @@ estimate_ <- function(
 #' `compute_statistics(output = "gather")`. The per-iteration model fitting
 #' stays in C++ via `compute_()`, so the one-time expansion in R does not
 #' affect the
-#' estimation hot path. The `verbose` / `impute` arguments are retained for
-#' call-site compatibility; `impute` is always `FALSE` in the current
-#' code paths (the impute machinery was dropped from estimation).
+#' estimation hot path. The `verbose` argument is retained for call-site
+#' compatibility.
 #' @noRd
 gather_ <- function(
   spec,
@@ -1176,7 +1163,6 @@ gather_ <- function(
   n_actors2,
   twomode_or_reflexive,
   verbose,
-  impute,
   active_dyad_encoding = "alter"
 ) {
   if (risk_set_is_dyadic(spec)) {

@@ -51,7 +51,6 @@ test_that("cpp DyNAM-choice matches R stable softmax at extreme beta", {
     n1,
     n2,
     twomode_or_reflexive = FALSE,
-    impute = FALSE,
     active_dyad_is_point = FALSE
   )
 
@@ -106,8 +105,7 @@ test_that("cpp rate-ordered matches R stable softmax at extreme beta", {
     zero_pointer,
     n1,
     n2,
-    twomode_or_reflexive = TRUE,
-    impute = FALSE
+    twomode_or_reflexive = TRUE
   )
 
   reduced <- matrix(sender_values, n1, 1L)

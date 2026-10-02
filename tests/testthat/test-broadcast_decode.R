@@ -208,7 +208,6 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     n1,
     n2,
     FALSE,
-    FALSE,
     FALSE
   )
   res_pt <- estimate_DyNAM_choice(
@@ -224,7 +223,6 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     pres_ptr,
     n1,
     n2,
-    FALSE,
     FALSE,
     FALSE
   )

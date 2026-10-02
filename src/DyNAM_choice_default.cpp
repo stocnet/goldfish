@@ -27,7 +27,6 @@ List estimate_DyNAM_choice(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute,
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
     const bool return_ranks = false,
@@ -128,21 +127,6 @@ List estimate_DyNAM_choice(
           stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
           twomode_or_reflexive
         );
-
-        // impute the missing statistics if necessary
-        if (impute) {
-            for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of the stat_matrix
-                // and do the impute
-                arma::vec current_col(
-                    stat_mat.colptr(i),
-                    n_actors_1 * n_actors_2,
-                    false
-                );
-                current_col.elem(find_nonfinite(current_col)).fill(
-                    mean(current_col.elem(find_finite(current_col))));
-            }
-        }
 
         // update presence / availability (applied before this event's likelihood)
         if (has_composition_change) {

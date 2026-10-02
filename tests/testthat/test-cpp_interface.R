@@ -312,3 +312,26 @@ test_that("a sender-loop kernel takes the sender availability only", {
     expect_identical(availability, sender_object)
   }
 })
+
+test_that("no likelihood entry point takes an impute argument", {
+  # Imputation is a preprocessing concern; the kernels receive complete
+  # statistics, so an `impute` argument there could only be dead.
+  entry_points <- list(
+    estimate_REM = estimate_REM,
+    estimate_REM_ordered = estimate_REM_ordered,
+    estimate_DyNAM_MM = estimate_DyNAM_MM,
+    estimate_DyNAM_choice = estimate_DyNAM_choice,
+    estimate_DyNAM_rate = estimate_DyNAM_rate,
+    estimate_DyNAM_rate_ordered = estimate_DyNAM_rate_ordered,
+    make_engine_evaluator = make_engine_evaluator,
+    estimate_c_int = estimate_c_int,
+    estimate_ = estimate_,
+    gather_ = gather_
+  )
+  for (name in names(entry_points)) {
+    expect_false(
+      "impute" %in% names(formals(entry_points[[name]])),
+      label = paste(name, "takes `impute`")
+    )
+  }
+})
