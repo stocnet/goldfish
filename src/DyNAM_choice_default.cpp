@@ -222,7 +222,10 @@ List estimate_DyNAM_choice(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(current_data_matrix, probabilities, 1.0, id_receiver, true);
+              event_score_row(
+                expected_stat_current_event, 1.0, current_data_matrix,
+                id_receiver, true
+              );
         }
         // fisher matrix: sum_j p_j s_j s_j^T - E E^T
         fisher_current_event =

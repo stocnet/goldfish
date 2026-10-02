@@ -261,7 +261,8 @@ List compute_poisson_selection(
         if (return_conditional_scores) {
             if (is_dependent_current_event) {
                 conditional_scores.row(id_event) = event_score_row(
-                  stat_mat_current_event, probabilities, 1.0, id_selected, true
+                  arma::rowvec(weighted_sum_current_event), 1.0,
+                  stat_mat_current_event, id_selected, true
                 );
             } else {
                 conditional_scores.row(id_event).fill(NA_REAL);
@@ -346,8 +347,8 @@ List compute_poisson_selection(
             // The estimation score, so on the compensator scale: it must sum to
             // the derivative this kernel accumulates.
             event_scores.row(id_event) = event_score_row(
-              stat_mat_current_event, probabilities, compensator,
-              id_selected, is_dependent_current_event
+              arma::rowvec(weighted_sum_current_event), compensator,
+              stat_mat_current_event, id_selected, is_dependent_current_event
             );
         }
         if (return_probabilities) {

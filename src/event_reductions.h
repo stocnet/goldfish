@@ -156,11 +156,13 @@ void accumulate_availability(
 // The event's score contribution: X_obs (for a dependent event) minus the
 // contribution-weighted mean statistic c * w' X. This is the increment the
 // estimators already accumulate into the running derivative; storing it per
-// event is what the "scores" primitive is.
+// event is what the "scores" primitive is. `weighted_sum` is that w' X, which
+// every caller forms anyway for its derivative or expected statistic, so the
+// row costs no second pass over X.
 arma::rowvec event_score_row(
-    const arma::mat& X,
-    const arma::vec& w,
+    const arma::rowvec& weighted_sum,
     double c,
+    const arma::mat& X,
     arma::uword obs,
     bool dependent
 );

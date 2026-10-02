@@ -350,7 +350,7 @@ List estimate_DyNAM_MM(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(D, dyad_probabilities, 1.0, idx_obs, true);
+              event_score_row(g, 1.0, D, idx_obs, true);
         }
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g

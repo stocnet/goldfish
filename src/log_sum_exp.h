@@ -15,7 +15,9 @@
 // gather backend's slices are pre-masked, so it has no mask to pass) — the same
 // convention as event_reductions.h. On return `weights` (length N) holds
 // exp(x_k - m) for allowed entries and 0 elsewhere, where m = max_{allowed} x_k;
-// the return value is the log-normalizer m + log(sum_k weights_k). Then
+// the return value is the log-normalizer m + log(sum_k weights_k). `weights`
+// belongs to the caller and is written in place, so a caller that hoists it
+// out of its event loop allocates it once. Then
 // sum(weights) is the softmax denominator and the observed alternative's
 // log-probability is x_obs - log_normalizer, which stays finite even when that
 // probability underflows (log(0) = -inf is avoided). With no allowed entry the

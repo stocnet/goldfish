@@ -311,7 +311,8 @@ using namespace arma;
        if (return_conditional_scores) {
          if (is_dependent(id_event)) {
            conditional_scores.row(id_event) = event_score_row(
-             stat_mat, probabilities, 1.0, id_sender, true
+             arma::rowvec(probabilities.t() * stat_mat), 1.0, stat_mat,
+             id_sender, true
            );
          } else {
            conditional_scores.row(id_event).fill(NA_REAL);
@@ -321,13 +322,15 @@ using namespace arma;
      // The stored per-event score comes from the shared reduction over the same
      // `rates` the margin and rank reductions read, rather than from the
      // before/after difference of the running derivative, so the definition
-     // lives in one place instead of once per kernel. The derivative above is
+     // lives in one place instead of once per kernel. Its weighted sum is the
+     // one the loop above accumulated for the derivative, so the stored row
+     // reports the numbers the likelihood used. The derivative above is
      // deliberately untouched: it drives the optimizer, and no coefficient may
      // move.
      if (return_event_scores) {
        event_scores.row(id_event) = event_score_row(
-         stat_mat, rates, timespan_current_event, id_sender,
-         is_dependent(id_event) == 1
+         weighted_sum_current_event, timespan_current_event, stat_mat,
+         id_sender, is_dependent(id_event) == 1
        );
      }
      // loglikelihood

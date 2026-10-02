@@ -303,9 +303,8 @@ List compute_coordination_selection(
             );
         }
         if (return_event_scores) {
-            event_scores.row(id_event) = event_score_row(
-              D_event, dyad_probabilities, 1.0, idx_obs, true
-            );
+            event_scores.row(id_event) =
+              event_score_row(g, 1.0, D_event, idx_obs, true);
         }
         if (return_probabilities) {
             // Coordination's risk set is the unordered-pair list, so the grid

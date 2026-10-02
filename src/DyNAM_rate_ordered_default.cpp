@@ -199,7 +199,9 @@ List estimate_DyNAM_rate_ordered(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(stat_mat, probabilities, 1.0, id_sender, true);
+              event_score_row(
+                expected_stat_current_event, 1.0, stat_mat, id_sender, true
+              );
         }
         // fisher matrix: sum_i p_i s_i s_i^T - E E^T
         fisher_current_event =

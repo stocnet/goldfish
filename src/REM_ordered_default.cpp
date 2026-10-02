@@ -278,7 +278,9 @@ List estimate_REM_ordered(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(stat_mat, probabilities, 1.0, id_obs, true);
+              event_score_row(
+                expected_stat_current_event, 1.0, stat_mat, id_obs, true
+              );
         }
         // fisher matrix: sum_d p_d s_d s_d^T - E^T E
         fisher_current_event =

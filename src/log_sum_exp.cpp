@@ -8,7 +8,10 @@ double log_sum_exp_masked(
     arma::vec& weights
 ) {
     const arma::uword n = lin_pred.n_elem;
-    weights.zeros(n);
+    // `weights` is the caller's buffer, declared once per evaluation and
+    // reused at every event; it is resized only when the length changes.
+    if (weights.n_elem != n) weights.set_size(n);
+    weights.zeros();
     // An empty mask means every position is in the risk set -- the gather
     // backend's slices are pre-masked, so it has no mask to hand over. Same
     // convention as event_reductions.h.

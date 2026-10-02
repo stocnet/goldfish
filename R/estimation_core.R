@@ -2535,10 +2535,11 @@ accumulate_margins <- function(w, c, observed, dependent, sides) {
 }
 
 # The event's score contribution: the observed statistic (dependent events only)
-# minus the contribution-weighted mean `c * w'X`. `w` being zero outside the
-# risk set is what lets this ignore the mask.
-event_score_row <- function(x_mat, w, c, observed, dependent) {
-  score <- -c * as.vector(w %*% x_mat)
+# minus the contribution-weighted mean `c * w'X`. `weighted_sum` is that `w'X`,
+# which a caller has already formed for its derivative; `w` being zero outside
+# the risk set is what lets it ignore the mask.
+event_score_row <- function(weighted_sum, c, x_mat, observed, dependent) {
+  score <- -c * as.vector(weighted_sum)
   if (dependent) {
     score <- score + x_mat[observed, ]
   }

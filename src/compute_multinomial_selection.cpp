@@ -220,7 +220,8 @@ List compute_multinomial_selection(
         }
         if (return_event_scores) {
             event_scores.row(id_event) = event_score_row(
-              currentEffect, probabilities, 1.0, id_receiver, true
+              arma::rowvec(expected_stat_current_event), 1.0, currentEffect,
+              id_receiver, true
             );
         }
         if (return_probabilities) {

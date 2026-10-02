@@ -79,15 +79,13 @@ void accumulate_availability(
 }
 
 arma::rowvec event_score_row(
-    const arma::mat& X,
-    const arma::vec& w,
+    const arma::rowvec& weighted_sum,
     double c,
+    const arma::mat& X,
     arma::uword obs,
     bool dependent
 ) {
-  // `w` is zero outside the risk set (header contract), so the weighted mean
-  // needs no mask and stays a single BLAS reduction.
-  arma::rowvec score = -c * (w.t() * X);
+  arma::rowvec score = -c * weighted_sum;
   if (dependent) score += X.row(obs);
   return score;
 }
@@ -202,7 +200,11 @@ List event_reductions_probe(
 
   return List::create(
     Named("rank") = rank_of_observed(w, allowed, obs),
-    Named("score") = event_score_row(X, w, c, obs, dependent),
+    // `w` is zero outside the risk set (header contract), so the weighted
+    // sum needs no mask.
+    Named("score") = event_score_row(
+      arma::rowvec(w.t() * X), c, X, obs, dependent
+    ),
     Named("observed_a") = observed_a,
     Named("expected_a") = expected_a,
     Named("observed_b") = observed_b,

@@ -479,7 +479,7 @@ List estimate_REM(
          }
          if (return_conditional_scores) {
            conditional_scores.row(id_event) = event_score_row(
-             stat_mat, probabilities, 1.0,
+             arma::rowvec(probabilities.t() * stat_mat), 1.0, stat_mat,
              static_cast<arma::uword>(id_obs), true
            );
          }
@@ -503,7 +503,8 @@ List estimate_REM(
        }
      }
      // The stored per-event score comes from the shared reduction over the same
-     // raw rate vector `e` the margin reduction reads, rather than from the
+     // raw rate vector `e` the margin reduction reads (its weighted sum is the
+     // one the derivative above already took), rather than from the
      // before/after difference of the running derivative, so the definition
      // lives in one place instead of once per kernel. On a right-censored
      // interval there is no observed dyad, so the observed-row index is unused
@@ -516,7 +517,8 @@ List estimate_REM(
          ? static_cast<arma::uword>(id_sender * n_actors_2 + id_receiver)
          : 0;
        event_scores.row(id_event) = event_score_row(
-         stat_mat, e, timespan_current_event, obs_row, dependent_event
+         weighted_sum_current_event, timespan_current_event, stat_mat,
+         obs_row, dependent_event
        );
      }
      // loglikelihood
