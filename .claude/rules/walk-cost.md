@@ -125,9 +125,15 @@ constraint, and compares it with `tests/testthat/_budgets/walk_cost.csv`:
 | Constrained over unconstrained time, same session | 1.5 | no floor |
 | Median seconds, only with `GOLDFISH_WALK_COST_SECONDS=true` | recorded + 50% | no floor |
 
-It covers preprocessing only. Estimation has no recorded budget yet; the
-standing cost gate for it, a ratio between two fits in one session, is the
-`exact-time-diagnostic-cost` change.
+It covers preprocessing only. Estimation has its own twin,
+`tests/testthat/test-likelihood_cost_budget.R` against
+`tests/testthat/_budgets/estimation_cost.csv` (from the
+`likelihood-site-cleanup-and-cost` change): megabytes allocated by one fit
+on the `r` and `gather` backends, Newton iterations, seconds behind the same
+`GOLDFISH_WALK_COST_SECONDS` variable, and a diagnostics ratio, one compiled
+evaluation with the default diagnostics over one without, timed in the same
+session. The compiled kernels' own allocations are invisible to R; a probe
+build counts them (`tests/testthat/test-likelihood_kernel_alloc.R`).
 
 It runs under `NOT_CRAN=true`. A failure above means the walk costs more
 than it did: find the cause before considering the number. Raising a
