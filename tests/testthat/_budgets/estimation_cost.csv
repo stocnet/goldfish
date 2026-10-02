@@ -46,11 +46,11 @@
 # second pass having measured 1.36 and 1.62, so 1.15 sits above the
 # evaluation-to-evaluation noise and below the regression it guards.
 metric,cell,backend,recorded,limit
-alloc_mb,se_rem,r,9888,1.05
+alloc_mb,se_rem,r,3290,1.05
 alloc_mb,se_rem,gather,1966,1.05
-alloc_mb,se_choice,r,1913,1.05
+alloc_mb,se_choice,r,61.8,1.05
 alloc_mb,se_choice,gather,19.5,1.05
-alloc_mb,se_rate,r,60.01,1.05
+alloc_mb,se_rate,r,36.76,1.05
 alloc_mb,se_rate,gather,17.61,1.05
 iterations,se_rem,cpp,11,1
 iterations,se_rem,r,11,1
