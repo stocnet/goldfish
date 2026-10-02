@@ -60,9 +60,12 @@ but no score or Fisher information.
 
 A sequence whose likelihood cannot be evaluated at \code{theta} -- its
 preprocessing fails, a fixed-only term, such as a pinned rate, has a
-non-finite log-likelihood, or the Fisher information of a sub-model is
-singular there -- is reported as \code{degenerate}, with a log-likelihood of
-\code{-Inf} and missing score and information, rather than as an error.
+non-finite log-likelihood, or a sub-model's log-likelihood, score or Fisher
+information is non-finite there -- is reported as \code{degenerate}, with a
+log-likelihood of \code{-Inf} and missing score and information, rather than as
+an error. A singular Fisher information with finite entries, such as an
+effect whose statistic is zero on the sequence, is not degenerate: the
+sequence keeps its finite log-likelihood, score and information.
 }
 \seealso{
 \code{\link[=coef_layout]{coef_layout()}}, \code{\link[=make_joint_specification]{make_joint_specification()}}

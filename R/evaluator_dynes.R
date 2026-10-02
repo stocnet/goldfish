@@ -750,11 +750,11 @@ pool_engine_pass <- function(sub_model, stats, parameters) {
 # The log-likelihood, and the score and Fisher information at the free
 # positions, of one free sub-model at `theta_block`: one compiled pass, with no
 # optimizer iteration. The kernel returns all three on every pass, so no
-# quantity is cheaper to skip here. It never inverts the information matrix,
-# but the evaluator contract marks a sequence whose free block is singular at
-# theta non-finite (as the estimator's own inversion would), so the check is
-# made here; the block is p x p with p the sub-model's free count, so it costs
-# nothing next to the pass.
+# quantity is cheaper to skip here. The information matrix is not inverted: a
+# singular block with finite entries is an ordinary sequence, since neither its
+# importance weight nor the pooled information it adds to needs its own block
+# to be invertible. Only a non-finite log-likelihood or a missing score or
+# information entry makes the evaluation fail.
 pool_cpp_eval <- function(sub_model, stats, theta_block) {
   res <- pool_engine_pass(
     sub_model,
@@ -767,8 +767,6 @@ pool_cpp_eval <- function(sub_model, stats, theta_block) {
   if (!is.finite(res$logLikelihood) || anyNA(score) || anyNA(fisher)) {
     cli::cli_abort("The engine could not evaluate the sub-model at theta.")
   }
-  # Errors on a singular block.
-  solve(fisher)
   list(loglik = res$logLikelihood, score = score, fisher = fisher)
 }
 
@@ -777,12 +775,12 @@ pool_cpp_eval <- function(sub_model, stats, theta_block) {
 # the proposal evaluator), since no parameter value can change it. The
 # sub-models must carry their coefficient masks (with_coefficient_masks()). An
 # engine failure, or a term the engine returns non-finite (a pinned rate whose
-# plateau is -Inf over events), marks the sequence degenerate, like a singular
-# free sub-model. Every non-finite term becomes -Inf, the only value
-# stable_softmax() is sure to weight zero: +Inf would take the whole weight and
-# NaN/NA would poison the normalizer. A degenerate result names its `cause` and
-# the `label` of the sub-model whose term failed, so a run can report which
-# term it lost sequences to.
+# plateau is -Inf over events), marks the sequence degenerate, like a free
+# sub-model the engine cannot evaluate. Every non-finite term becomes -Inf, the
+# only value stable_softmax() is sure to weight zero: +Inf would take the whole
+# weight and NaN/NA would poison the normalizer. A degenerate result names its
+# `cause` and the `label` of the sub-model whose term failed, so a run can
+# report which term it lost sequences to.
 pool_fixed_loglik <- function(sub_models, stats) {
   loglik <- 0
   for (sm in sub_models) {
@@ -898,10 +896,12 @@ pinned_rate_compensator <- function(rate, start, end, exposure, call) {
 # information (no cross-sub-model terms in this version). Fixed-only sub-models
 # are not re-evaluated: their θ-free term, stored at pool entry, is added to the
 # log-likelihood and they place nothing in the score or Fisher information,
-# so it cancels in any ratio across theta on one path. A sub-model whose
-# information matrix is singular at theta makes the whole sequence degenerate:
-# its result is non-finite (-Inf log-likelihood, so its importance weight
-# vanishes), which the caller reports without aborting the pool.
+# so it cancels in any ratio across theta on one path. A sub-model the engine
+# cannot evaluate at theta (a non-finite log-likelihood, or a missing score or
+# information entry) makes the whole sequence degenerate: its result is
+# non-finite (-Inf log-likelihood, so its importance weight vanishes), which the
+# caller reports without aborting the pool. A singular information matrix with
+# finite entries does not.
 #
 # Each free sub-model is one compiled pass over a closure built at evaluation
 # time (pool_cpp_eval()). `what` is honored at the harvest level: every pass
@@ -960,8 +960,8 @@ evaluate_pool_sequence <- function(
 # later optimize the harvest without changing any call site. Per-sequence
 # granularity is contract: the score is returned per sequence (a K x p matrix,
 # never a pooled total) because the covariance estimators need the per-sequence
-# outer products. `degenerate` flags the sequences a singular-information guard
-# marked non-finite. The sequences are read from the pool's resident store,
+# outer products. `degenerate` flags the sequences whose evaluation was
+# non-finite. The sequences are read from the pool's resident store,
 # so each task carries only a sequence id, theta, and the pool generation.
 evaluate_sequence_pool <- function(
   pool,
@@ -1019,7 +1019,7 @@ evaluate_sequence_pool <- function(
 # -- so a later fast-follow that reuses a retained MCMC draw's statistics can
 # widen it to `list(loglik, rates, stats_handle)` without breaking a caller
 # that reads `$loglik`/`$rates`. No reuse logic ships here: a candidate whose
-# walk fails or whose free block is singular reads as `-Inf`, the pool
+# walk fails or whose evaluation is non-finite reads as `-Inf`, the pool
 # evaluator's degenerate sequence (evaluate_candidate()).
 #
 # `rate_queries` asks for named-pair intensities at positions inside the
@@ -1096,8 +1096,8 @@ make_proposal_evaluator <- function(
 # One sequence outside any pool, scored exactly as a pooled one: walked once
 # (the entry path's walk), its fixed-only term scored, then one pass of
 # evaluate_pool_sequence(). A walk that fails, a fixed-only term the engine
-# cannot score or scores non-finite, and a singular free block all make the
-# result degenerate
+# cannot score or scores non-finite, and a non-finite free evaluation all make
+# the result degenerate
 # (-Inf log-likelihood) rather than an error. A candidate that does not fit
 # the engine spec's actors aborts first, outside that guard, so it is never
 # read as a -Inf density.
@@ -1159,9 +1159,12 @@ evaluate_candidate <- function(
 #'
 #' A sequence whose likelihood cannot be evaluated at `theta` -- its
 #' preprocessing fails, a fixed-only term, such as a pinned rate, has a
-#' non-finite log-likelihood, or the Fisher information of a sub-model is
-#' singular there -- is reported as `degenerate`, with a log-likelihood of
-#' `-Inf` and missing score and information, rather than as an error.
+#' non-finite log-likelihood, or a sub-model's log-likelihood, score or Fisher
+#' information is non-finite there -- is reported as `degenerate`, with a
+#' log-likelihood of `-Inf` and missing score and information, rather than as
+#' an error. A singular Fisher information with finite entries, such as an
+#' effect whose statistic is zero on the sequence, is not degenerate: the
+#' sequence keeps its finite log-likelihood, score and information.
 #'
 #' @param sequence The complete sequence: a data object of the specification's
 #'   actors and layers, whose modeled layers hold every event of the sequence.
