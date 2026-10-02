@@ -108,13 +108,16 @@ test_that("the coordination contribution runs without a per-row closure", {
   # row maximum of its softmax, the expected statistics of its derivative).
   # Read from each function's parsed body, so a comment cannot satisfy it.
   closures <- c("apply", "sapply", "vapply", "lapply", "mapply", "Map")
-  call_path <- list(
-    compute_event_contribution.goldfishLikCoordination = compute_event_contribution.goldfishLikCoordination,
-    getMultinomialProbabilities = getMultinomialProbabilities,
-    stable_softmax = stable_softmax,
-    getLikelihoodMM = getLikelihoodMM,
-    compute_first_derivative_choice_coord = compute_first_derivative_choice_coord,
-    getMultinomialInformationMatrix = getMultinomialInformationMatrix
+  call_path <- mget(
+    c(
+      "compute_event_contribution.goldfishLikCoordination",
+      "getMultinomialProbabilities",
+      "stable_softmax",
+      "getLikelihoodMM",
+      "compute_first_derivative_choice_coord",
+      "getMultinomialInformationMatrix"
+    ),
+    envir = asNamespace("goldfish")
   )
   for (name in names(call_path)) {
     called <- intersect(closures, all.names(body(call_path[[name]])))

@@ -2238,10 +2238,10 @@ compute_iteration_step <- function(
       } else {
         NULL
       },
-      # Opt-in per-event primitives accumulated in the contribution loop, mirroring
-      # the shared C++ reduction (event_reductions.h). observed_rank is NA on
-      # right-censored intervals by design: there is no observed alternative to
-      # rank on an interval that realizes nothing.
+      # Opt-in per-event primitives accumulated in the contribution loop,
+      # mirroring the shared C++ reduction (event_reductions.h). observed_rank
+      # is NA on right-censored intervals by design: there is no observed
+      # alternative to rank on an interval that realizes nothing.
       observed_rank = if (return_ranks) {
         rep(NA_integer_, nEvents)
       } else {
