@@ -2880,8 +2880,6 @@ estimate_wrapper <- function(
     } else {
       ifelse(has_windows, 30, 10)
     },
-    parallelize = FALSE,
-    cpus = 1,
     verbose = verbose,
     progress = progress,
     opportunitiesList = opportunities_effective

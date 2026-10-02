@@ -80,17 +80,14 @@ test_that("cpp DyNAM-choice matches R stable softmax at extreme beta", {
 test_that("cpp rate-ordered matches R stable softmax at extreme beta", {
   skip_on_cran()
   n1 <- 4L
-  n2 <- 4L
+  # The sender loop's statistics are one row per sender (no receiver axis).
+  n2 <- 1L
   id_sender <- 1L
   parameters <- 1
 
-  # constant sender blocks so reduce_mat_to_vector yields the sender predictor
-  # directly; sender 2 dominates, the observed sender 1 underflows.
+  # sender 2 dominates, the observed sender 1 underflows.
   sender_values <- c(0, 1000, 5, 2)
-  stat_mat_init <- matrix(0, n1 * n2, 1L)
-  for (i in seq_len(n1)) {
-    stat_mat_init[((i - 1L) * n2 + 1L):(i * n2), 1L] <- sender_values[i]
-  }
+  stat_mat_init <- matrix(sender_values, n1, 1L)
 
   res <- rate_ordered_cpp(
     parameters,

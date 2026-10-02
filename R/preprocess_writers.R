@@ -722,7 +722,6 @@ gather_from_prep <- function(prep, spec) {
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
-    verbose = FALSE,
     active_dyad_encoding = active_dyad_encoding
   )
 

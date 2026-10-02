@@ -199,7 +199,6 @@ make_engine_evaluator <- function(
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
-      verbose = progress, # output the progress of data gathering
       active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
@@ -338,12 +337,9 @@ estimate_c_int <- function(
   return_total_rate = FALSE,
   return_availability = FALSE,
   return_conditional_scores = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
   verbose = FALSE,
   progress = FALSE,
   testing = FALSE,
-  get_data_matrix = FALSE,
   opportunitiesList = NULL,
   spec = NULL,
   backend = c("cpp", "gather"),
@@ -1140,8 +1136,7 @@ estimate_ <- function(
 #' `compute_statistics(output = "gather")`. The per-iteration model fitting
 #' stays in C++ via `compute_()`, so the one-time expansion in R does not
 #' affect the
-#' estimation hot path. The `verbose` argument is retained for call-site
-#' compatibility.
+#' estimation hot path.
 #' @noRd
 gather_ <- function(
   spec,
@@ -1162,7 +1157,6 @@ gather_ <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  verbose,
   active_dyad_encoding = "alter"
 ) {
   if (risk_set_is_dyadic(spec)) {
@@ -1334,31 +1328,6 @@ gather_ <- function(
   }
   active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
   active_dyad
-}
-
-# Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
-# receiver block of each sender (rate models). Mirrors the C++
-# reduce_mat_to_vector(): when receivers are restricted (one-mode, not
-# reflexive) the sender's own diagonal row is dropped and the average is
-# over n2 - 1 receivers.
-.gather_reduce <- function(stat_mat, n1, n2, twomode_or_reflexive) {
-  if (n2 == 1L) {
-    return(stat_mat)
-  }
-  n_parameters <- ncol(stat_mat)
-  reduced <- matrix(0, n1, n_parameters)
-  for (i in seq_len(n1)) {
-    id_start <- (i - 1L) * n2
-    block <- stat_mat[(id_start + 1L):(id_start + n2), , drop = FALSE]
-    temp <- colSums(block)
-    if (!twomode_or_reflexive) {
-      temp <- temp - stat_mat[id_start + i, ]
-      reduced[i, ] <- temp / (n2 - 1L)
-    } else {
-      reduced[i, ] <- temp / n2
-    }
-  }
-  reduced
 }
 
 # Gather data for the sender-receiver models (REM, REM-ordered, DyNAM-MM):
@@ -1641,7 +1610,7 @@ gather_receiver_model_r <- function(
 }
 
 # Gather data for the sender models (DyNAM-M-Rate, DyNAM-M-Rate-ordered): the
-# stacked stat matrix is reduced per sender, and present senders become rows.
+# statistics arrive one row per sender, and present senders become rows.
 gather_sender_model_r <- function(
   event_mat,
   is_dependent,
@@ -1705,19 +1674,13 @@ gather_sender_model_r <- function(
       p1_id <- ptr1
     }
 
-    reduced <- .gather_reduce(
-      stat_mat,
-      n_actors1,
-      n_actors2,
-      twomode_or_reflexive
-    )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
     # A rate support_constraint folds the "has >= 1 allowed present receiver"
     # sender gate into `active_sender` during preprocessing, so
     # `active_sender` is the gated sender filter directly — no separate mask.
     present1_ids <- which(active_sender == 1) - 1L
-    rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
+    rows_list[[e]] <- stat_mat[present1_ids + 1L, , drop = FALSE]
     index_i_list[[e]] <- present1_ids + 1L
     if (is_dep) {
       hit <- which(present1_ids == id_sender)

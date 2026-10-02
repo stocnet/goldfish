@@ -8,14 +8,6 @@
 using namespace Rcpp;
 using namespace arma;
 
-
-inline arma::mat reduce_mat_to_vector(
-    const arma::mat& stat_mat,
-    const int& n_actors_1,
-    const int& n_actors_2,
-    const bool& twomode_or_reflexive
-);
-
 // @inherit estimate_REM params return description
 
 //' Calculation for estimating an DyNAM-rate-ordered model
@@ -43,6 +35,11 @@ List estimate_DyNAM_rate_ordered(
     const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
     const bool return_event_information_trace = false
 ) {
+    // The sender loop's statistics are one row per sender, read as they are:
+    // preprocessing reduces them to the sender before they reach this kernel.
+    if (stat_mat_init.n_rows != static_cast<arma::uword>(n_actors_1)) {
+        Rcpp::stop("The rate statistics must have one row per sender.");
+    }
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
     int n_events = dep_event_mat.n_cols;
@@ -145,13 +142,10 @@ List estimate_DyNAM_rate_ordered(
         //  and fisher information matrix of a current event
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
-        arma::mat reduced_stat_mat =
-          reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
-                               twomode_or_reflexive);
         // Staged, numerically stable softmax over the senders:
         // one GEMV for the linear predictors, the shared max-shift helper for the
         // weights, then a weighted cross-product for the Fisher.
-        arma::vec lin_pred = reduced_stat_mat * parameters;
+        arma::vec lin_pred = stat_mat * parameters;
         arma::vec allowed(n_actors_1, fill::zeros);
         for (int i = 0; i < n_actors_1; ++i) {
             if (active_sender(i) == 1) {
@@ -193,10 +187,10 @@ List estimate_DyNAM_rate_ordered(
             event_probabilities[id_event] =
               NumericVector(probabilities.begin(), probabilities.end());
         }
-        expected_stat_current_event = (weights.t() * reduced_stat_mat) /
+        expected_stat_current_event = (weights.t() * stat_mat) /
           normalizer;
         // derivative
-        derivative += reduced_stat_mat.row(id_sender);
+        derivative += stat_mat.row(id_sender);
         derivative -= expected_stat_current_event;
         // The stored per-event score comes from the shared reduction rather
         // than from the before/after difference of the running derivative, so
@@ -205,11 +199,11 @@ List estimate_DyNAM_rate_ordered(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(reduced_stat_mat, probabilities, 1.0, id_sender, true);
+              event_score_row(stat_mat, probabilities, 1.0, id_sender, true);
         }
         // fisher matrix: sum_i p_i s_i s_i^T - E E^T
         fisher_current_event =
-          (reduced_stat_mat.each_col() % weights).t() * reduced_stat_mat /
+          (stat_mat.each_col() % weights).t() * stat_mat /
           normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
@@ -236,28 +230,4 @@ List estimate_DyNAM_rate_ordered(
       Named("weighted_information") = weighted_information,
       Named("event_information_trace") = event_information_trace
     );
-}
-
-
-inline arma::mat reduce_mat_to_vector(
-    const arma::mat& stat_mat,
-    const int& n_actors_1,
-    const int& n_actors_2,
-    const bool& twomode_or_reflexive
-) {
-    int n_parameters = stat_mat.n_cols;
-    arma::mat reduced_data_mat(n_actors_1, n_parameters);
-    arma::rowvec temp(n_parameters);
-    for (int i = 0; i < n_actors_1; ++i) {
-        temp.zeros();
-        int id_start = i * n_actors_2;
-        temp = sum(stat_mat.rows(id_start, id_start + n_actors_2 - 1), 0);
-        if (!twomode_or_reflexive) {
-            temp -= stat_mat.row(id_start + i);
-            reduced_data_mat.row(i) = temp / (n_actors_2 - 1);
-        } else {
-            reduced_data_mat.row(i) = temp / n_actors_2;
-        }
-    }
-    return reduced_data_mat;
 }

@@ -8,13 +8,6 @@
 using namespace Rcpp;
 using namespace arma;
 
-
-inline arma::mat reduce_mat_to_vector(
-    const arma::mat& stat_mat,
-    const int& n_actors_1,
-    const int& n_actors_2,
-    const bool& twomode_or_reflexive);
-
 // @inherit estimate_REM params return description
 
 //' Calculation for estimating an DyNAM-rate model
@@ -46,6 +39,11 @@ inline arma::mat reduce_mat_to_vector(
      const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
      const bool return_event_information_trace = false
  ) {
+   // The sender loop's statistics are one row per sender, read as they are:
+   // preprocessing reduces them to the sender before they reach this kernel.
+   if (stat_mat_init.n_rows != static_cast<arma::uword>(n_actors_1)) {
+     Rcpp::stop("The rate statistics must have one row per sender.");
+   }
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
    int n_events = is_dependent.n_elem;
@@ -187,9 +185,6 @@ inline arma::mat reduce_mat_to_vector(
      double timespan_current_event = timespan(id_event);
      // declare the ids of the sender and the receiver,
      const int id_sender = dep_event_mat(0, id_event) - 1;
-     arma::mat reduce_stat_mat =
-       reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
-                            twomode_or_reflexive);
      const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
      // The shared reductions read a rate vector, which this loop does not
      // otherwise need, so it stores the very doubles it already computes rather
@@ -223,13 +218,13 @@ inline arma::mat reduce_mat_to_vector(
        if (active_sender(i) == 1) {
          // exp_current_sender is \exp(\beta^T s)
          double exp_current_sender =
-           std::exp(dot(reduce_stat_mat.row(i), parameters));
+           std::exp(dot(stat_mat.row(i), parameters));
          if (need_rates) rates(i) = exp_current_sender;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
-           exp_current_sender * (reduce_stat_mat.row(i));
+           exp_current_sender * (stat_mat.row(i));
          fisher_current_event += exp_current_sender *
-           ((reduce_stat_mat.row(i).t()) * (reduce_stat_mat.row(i)));
+           ((stat_mat.row(i).t()) * (stat_mat.row(i)));
        }
      }
      // add the quantities of a current event to the variables to be returned
@@ -247,8 +242,8 @@ inline arma::mat reduce_mat_to_vector(
      intervalLogL(id_event) = - timespan_current_event * normalizer;
      if (is_dependent(id_event)) {
        intervalLogL(id_event) +=
-         dot(reduce_stat_mat.row(id_sender), parameters);
-       derivative += reduce_stat_mat.row(id_sender);
+         dot(stat_mat.row(id_sender), parameters);
+       derivative += stat_mat.row(id_sender);
      }
      if (return_margins) {
        // Compensator scale: c = Dt on the raw rates, so the contribution is
@@ -288,7 +283,7 @@ inline arma::mat reduce_mat_to_vector(
        return_probabilities || return_margins || return_total_rate ||
        return_conditional_scores
      ) {
-       arma::vec lin_pred = reduce_stat_mat * parameters;
+       arma::vec lin_pred = stat_mat * parameters;
        arma::vec weights;
        double log_normalizer =
          log_sum_exp_masked(lin_pred, active_sender, weights);
@@ -316,7 +311,7 @@ inline arma::mat reduce_mat_to_vector(
        if (return_conditional_scores) {
          if (is_dependent(id_event)) {
            conditional_scores.row(id_event) = event_score_row(
-             reduce_stat_mat, probabilities, 1.0, id_sender, true
+             stat_mat, probabilities, 1.0, id_sender, true
            );
          } else {
            conditional_scores.row(id_event).fill(NA_REAL);
@@ -331,7 +326,7 @@ inline arma::mat reduce_mat_to_vector(
      // move.
      if (return_event_scores) {
        event_scores.row(id_event) = event_score_row(
-         reduce_stat_mat, rates, timespan_current_event, id_sender,
+         stat_mat, rates, timespan_current_event, id_sender,
          is_dependent(id_event) == 1
        );
      }
@@ -358,28 +353,4 @@ inline arma::mat reduce_mat_to_vector(
      Named("weighted_information") = weighted_information,
      Named("event_information_trace") = event_information_trace
    );
- }
-
-
- inline arma::mat reduce_mat_to_vector(
-     const arma::mat& stat_mat,
-     const int& n_actors_1,
-     const int& n_actors_2,
-     const bool& twomode_or_reflexive
- ) {
-   int n_parameters = stat_mat.n_cols;
-   arma::mat reduced_data_mat(n_actors_1, n_parameters);
-   arma::rowvec temp(n_parameters);
-   for (int i = 0; i < n_actors_1; ++i) {
-     temp.zeros();
-     int id_start = i * n_actors_2;
-     temp = sum(stat_mat.rows(id_start, id_start + n_actors_2 - 1), 0);
-     if (!twomode_or_reflexive) {
-       temp -= stat_mat.row(id_start + i);
-       reduced_data_mat.row(i) = temp / (n_actors_2 - 1);
-     } else {
-       reduced_data_mat.row(i) = temp / n_actors_2;
-     }
-   }
-   return reduced_data_mat;
  }

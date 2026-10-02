@@ -111,8 +111,6 @@ estimate_int_impl <- function(
   return_total_rate = FALSE,
   return_availability = FALSE,
   return_conditional_scores = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
   verbose = FALSE,
   progress = FALSE,
   # restrictions of opportunity sets
@@ -178,8 +176,6 @@ estimate_int_impl <- function(
     reduce_array_to_matrix = reduceArrayToMatrix,
     seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
     opportunities_list = opportunitiesList,
-    parallelize = parallelize,
-    cpus = cpus,
     verbose = verbose
   )
   parameters <- engine$parameters
@@ -1256,7 +1252,6 @@ compute_step.default <- function(spec, state, i, ctx) {
   # promise for the no-intercept case).
   timespan <- NA_real_
   if (hasIntercept) {
-    state$time <- state$time + statsList$intervals[[i]]
     timespan <- statsList$intervals[[i]]
   }
   if (isDependent) {
@@ -1909,8 +1904,6 @@ make_r_engine_evaluator <- function(
   reduce_array_to_matrix = FALSE,
   seed_intercept = TRUE,
   opportunities_list = NULL,
-  parallelize = FALSE,
-  cpus = 4,
   verbose = FALSE
 ) {
   ## REDUCE STATISTICS LIST
@@ -1960,12 +1953,9 @@ make_r_engine_evaluator <- function(
     presence2 = presence2,
     hasIntercept = has_intercept,
     spec = spec,
-    parallelize = parallelize,
-    cpus = cpus,
     allowReflexive = allow_reflexive,
     is_two_mode = is_two_mode,
     reduceArrayToMatrix = reduce_array_to_matrix,
-    verbose = verbose,
     opportunitiesList = opportunities_list
   )
 
@@ -2020,8 +2010,6 @@ compute_iteration_step <- function(
   hasIntercept,
   parameters,
   spec,
-  parallelize = FALSE,
-  cpus = 4,
   returnIntervalLogL = FALSE,
   returnEventProbabilities = FALSE,
   return_event_scores = FALSE,
@@ -2035,7 +2023,6 @@ compute_iteration_step <- function(
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
-  verbose = FALSE,
   opportunitiesList = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
@@ -2161,7 +2148,6 @@ compute_iteration_step <- function(
   # right-censored, so each one is evaluated on the state its updates produced.
   state <- list(
     statsArray = statsList$initial_stats,
-    time = statsList$start_time,
     flatPointer = 0L,
     bcPointer = 0L,
     presence = presence,
