@@ -63,7 +63,7 @@ iterations,se_rate,r,7,1
 iterations,se_rate,gather,7,1
 seconds,se_rem,cpp,0.446,1.5
 seconds,se_rem,r,0.964,1.5
-seconds,se_rem,gather,0.847,1.5
+seconds,se_rem,gather,0.782,1.5
 seconds,se_choice,cpp,0.038,1.5
 seconds,se_choice,r,0.164,1.5
 seconds,se_choice,gather,0.042,1.5
