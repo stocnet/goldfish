@@ -584,6 +584,19 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
 - [ ] 8.7 **should-fix**: the "byte-identical" reference tests
       (`test-constraint_atoms_operands.R:46,98`) use `expect_equal()`; use
       `expect_identical()`. Verify: they stay green.
+- [ ] 8.7a **should-fix** (added 2026-10-03, Alvaro assigned it here; from
+      the `availability-one-object-per-loop` follow-up re-check, G-H,
+      pre-existing at `9e195dc`): on the 1500-actor rate fixture
+      `~ indeg(emails) >= 0` excludes nothing yet costs 0.61 s and 822 MB
+      against 0.127 s and 95 MB unconstrained, about 0.15 MB per event in
+      the constraint atom's per-event maintenance. Attribute it line by
+      line (Rprofmem in a detached worktree). If it is a walk-cost
+      violation (a copy, growth, a by-name lookup or a grid per event),
+      write the cost guard red first and fix it, with stored objects
+      byte-identical and the baselines PASS. If it is proportional to the
+      cells the atom changes, record why in D4's storage paragraph instead.
+      Verify: allocation and time on that fixture before and after, back
+      to back on optimized builds.
 - [ ] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector
@@ -592,12 +605,8 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       values (`preprocess-output-writers`, pre-existing); the 4.4a guard
       checks function names only (optional); the walk budget's band cannot
       see constraint-path costs (budget tooling).
-      *Added 2026-10-03* (same re-check, G-H, pre-existing at `9e195dc`):
-      on the 1500-actor rate fixture `~ indeg(emails) >= 0` excludes
-      nothing yet costs 0.61 s and 822 MB against 0.127 s and 95 MB
-      unconstrained, about 0.15 MB per event in the constraint atom's
-      per-event maintenance. Owner pending Alvaro (this change or
-      `effect-term-registry`).
+      The constraint atom's per-event maintenance cost is task 8.7a
+      (owner decided 2026-10-03).
 
 
 ## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
