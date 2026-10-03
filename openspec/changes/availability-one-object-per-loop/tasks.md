@@ -232,7 +232,7 @@ one latent contract hole. No blocking gap; all before archive.
       rejected" reads against the delta's own "retired fields read and
       ignored, no bump" clause; reword to the rejection the code performs
       (a missing engine field).
-- [ ] 6.6a **should-fix** (added 2026-10-03, from the
+- [x] 6.6a **should-fix** (added 2026-10-03, from the
       `support-gate-self-exclusion` follow-up re-check,
       `.plan/develop/support-gate-self-exclusion-followup-conformance.md`):
       the coordination self-exclusion in `symmetric_receiver_count()`
@@ -241,6 +241,24 @@ one latent contract hole. No blocking gap; all before archive.
       shared-availability and constrained-capability test files green. Add
       a coordination fixture with a self-only sender. Verify: the ablation
       is red.
+      *Done 2026-10-03:* `test-support_gate_self_exclusion.R` "a
+      coordination self-only sender meets an empty risk set": a four-actor
+      undirected stocnet, `choice_sub_model = "choice_coordination"`,
+      `~ alter(x) > 0`, stored at outer with the symmetric flag. Case 1,
+      only N1 has `x > 0` and N1 sends the first event: the check must fail
+      on the count with "empty risk set at event 1". Case 2, N1 and N2
+      allowed: each reaches only the other, so both events are forced
+      choices ("2 events with a single candidate"). The error is captured
+      with `expect_error()` and matched apart so a wrong error fails an
+      expectation, not the test, and case 2 still runs. Red under the
+      single-site ablation `own <- NULL` (copy and restore, checked with
+      `cmp`; never committed): FAIL 2 in this test (case 1 gets "the
+      observed dyad is excluded", case 2 loses the forced-choice warning),
+      file PASS 100 / FAIL 2; the coordination, shared-availability and
+      constrained-capability files stay green (11 / 6 / 13), as the report
+      found. Clean: file PASS 102 / FAIL 0. Suite (`NOT_CRAN=true`):
+      PASS 13184, FAIL 0, ERROR 0, SKIP 7 (environmental or opt-in); six
+      baseline files PASS with 0 skipped. No R code changed.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.

@@ -592,6 +592,66 @@ test_that("a self-only sender's observed event meets an empty risk set", {
   )
 })
 
+test_that("a coordination self-only sender meets an empty risk set", {
+  # Coordination symmetrises a vector mask: dyad (i, j) is allowed iff x[i]
+  # and x[j] are. Only N1 has x > 0, so N1 is allowed and its one allowed
+  # receiver is itself, which is no receiver on one node set.
+  coordination_data <- function(x, from, to) {
+    list(
+      info = list(
+        name = "coordination-self",
+        focal = "calls",
+        update = c(calls = "increment"),
+        directed = c(calls = FALSE),
+        observation = c(calls = "event")
+      ),
+      nodes = data.frame(
+        label = paste0("N", 1:4),
+        mode = "p",
+        x = x,
+        stringsAsFactors = FALSE
+      ),
+      ties = data.frame(
+        from = from,
+        to = to,
+        time = as.numeric(seq_along(from)),
+        weight = 1,
+        layer = "calls"
+      )
+    )
+  }
+  coordination_spec <- function(data) {
+    suppressMessages(make_specification(
+      choice = ~inertia,
+      choice_sub_model = "choice_coordination",
+      layer = "calls",
+      support_constraint = ~ alter(x) > 0,
+      data = data
+    ))
+  }
+
+  self_only <- coordination_spec(
+    coordination_data(c(1, 0, 0, 0), from = c(1L, 2L), to = c(2L, 3L))
+  )
+  # Matched apart from the capture: a count that kept the self-dyad raises
+  # the observed-dyad-excluded error instead, which then fails this match
+  # and still lets the forced-choice case below run.
+  failure <- expect_error(
+    suppressWarnings(suppressMessages(preprocess_joint(self_only)))
+  )
+  expect_match(conditionMessage(failure), "empty risk set at event 1")
+
+  # With N2 allowed as well, N1 and N2 each reach only the other: a forced
+  # choice, which a count that kept the self-dyad would see as two
+  # candidates.
+  pair <- coordination_spec(
+    coordination_data(c(1, 1, 0, 0), from = c(1L, 2L), to = c(2L, 1L))
+  )
+  warnings <- capture_warnings(pre <- suppressMessages(preprocess_joint(pair)))
+  expect_identical(pre[[1L]]$active_dyad_encoding, "outer")
+  expect_match(warnings, "2 events with a single candidate", all = FALSE)
+})
+
 test_that("a free-running run never draws a sender with no receiver", {
   data <- self_only_sender_data()
   js <- single_process_joint(make_specification(
