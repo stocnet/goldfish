@@ -201,10 +201,13 @@ object missing a field the engines read.
   `active_mode1_*`/`active_mode2_*`, or `active1`/`active2`).
 
 #### Scenario: stale preprocessed object rejected
-- **WHEN** a preprocessed object produced before this change is passed to
-  estimation via `preprocessed =`
-- **THEN** it is rejected with the outdated-preprocessing-format error, prompting
-  recomputation.
+- **WHEN** a preprocessed object passed to estimation via `preprocessed =`
+  carries an older format stamp, or holds an axis's composition changes
+  only as the retired per-change list with no update pointer for the
+  engines to walk
+- **THEN** it is rejected with the outdated-preprocessing-format error,
+  prompting recomputation; an object that carries the retired list beside
+  the update buffers is read and the list ignored.
 
 #### Scenario: a sender-loop kernel has no receiver axis
 - **WHEN** the DyNAM-rate or DyNAM-rate-ordered likelihood is evaluated on the

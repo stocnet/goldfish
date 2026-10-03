@@ -269,10 +269,20 @@ one latent contract hole. No blocking gap; all before archive.
       vector-kind atoms at kind and is what lets the 3.1 walk guard pass,
       described in no artifact (its contract moves to
       `initial-stats-at-kind` 2.2a).
-- [ ] 6.6 **should-fix**: the carried scenario "stale preprocessed object
+- [x] 6.6 **should-fix**: the carried scenario "stale preprocessed object
       rejected" reads against the delta's own "retired fields read and
       ignored, no bump" clause; reword to the rejection the code performs
       (a missing engine field).
+      *Done 2026-10-03:* the scenario keeps its name; its WHEN is now an
+      older format stamp, or an axis's composition changes held only as the
+      retired per-change list with no update pointer
+      (`preprocessed_format_status()` / `lacks_availability_buffers()` in
+      `R/format_version.R`), and its THEN adds that an object carrying the
+      list beside the buffers is read with the list ignored (the 2.5
+      fixture). Asserted by `test-stale_result_detection.R` ("composition
+      changes held only as a list mark the object outdated" and the
+      pre-buffer object estimating on every backend). Docs only:
+      `openspec validate --strict` and the placement check clean.
 - [x] 6.6a **should-fix** (added 2026-10-03, from the
       `support-gate-self-exclusion` follow-up re-check,
       `.plan/develop/support-gate-self-exclusion-followup-conformance.md`):
