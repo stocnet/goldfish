@@ -341,3 +341,146 @@ test_that("a stamp is drawn from the mask strictly before it", {
   expect_false(any(at_tie == 4L))
   expect_true(any(at_tie == 5L))
 })
+
+# A mark step that redraws nothing: each stamp takes its observed receiver,
+# in stamp order per layer, so the state every later stamp reads is the
+# observed one. It records the choice row of every stamp it marks.
+observed_mark_step <- function(ties, seen) {
+  cursor <- c(calls = 0L, emails = 0L)
+  function(fid, evaluation, handle) {
+    if (is.null(evaluation$layer)) {
+      return(list(layer = "toy"))
+    }
+    layer <- evaluation$layer
+    cursor[[layer]] <<- cursor[[layer]] + 1L
+    observed <- ties[ties$layer == layer, ][cursor[[layer]], ]
+    seen$rows[[length(seen$rows) + 1L]] <- list(
+      layer = layer,
+      time = observed$time,
+      choice = evaluation$choice(observed$from)
+    )
+    list(
+      layer = layer,
+      sender = observed$from,
+      receiver = observed$to,
+      increment = 1
+    )
+  }
+}
+
+tied_stamp_data <- function(ties) {
+  list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+}
+
+test_that("a tied event of another process is not in force at a stamp", {
+  # The emails event 2 -> 5 shares N2's call stamp, t = 2, and is scheduled
+  # ahead of it. Every event at a stamp is drawn over the state strictly
+  # before it, so the call still allows 5 there, as the batch does.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 5L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- tied_stamp_data(ties)
+  emails <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  calls <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  js <- make_joint_specification(emails, calls, data = data)
+  seen <- new.env()
+  seen$rows <- list()
+
+  out <- suppressWarnings(suppressMessages(simulate(
+    js,
+    seed = 1,
+    coef = set_parameters(
+      js,
+      `emails › choice` = 0,
+      `calls › choice` = 0
+    ),
+    times = "observed",
+    steps = set_simulation_steps(mark = observed_mark_step(ties, seen))
+  )))
+
+  at_tie <- Filter(
+    function(row) row$layer == "calls" && row$time == 2,
+    seen$rows
+  )
+  expect_length(at_tie, 1L)
+  expect_identical(which(at_tie[[1L]]$choice > 0), c(1L, 3L, 5L, 6L))
+  expect_identical(nrow(out$events), 8L)
+})
+
+test_that("a tied event of the same process is not in force at a stamp", {
+  # N2 calls 3, then 5, both at t = 2, under a constraint on the calls layer
+  # itself. The second call is drawn over the state strictly before t = 2,
+  # so 3 is still allowed there, as the batch has it.
+  ties <- data.frame(
+    from = c(1L, 2L, 2L, 4L, 5L),
+    to = c(2L, 3L, 5L, 5L, 1L),
+    time = c(1, 2, 2, 4, 5),
+    layer = "calls",
+    weight = 1
+  )
+  data <- tied_stamp_data(ties)
+  data$info$update <- c(calls = "increment")
+  data$info$directed <- c(calls = TRUE)
+  data$info$observation <- c(calls = "event")
+  spec <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(calls)
+  )
+  seen <- new.env()
+  seen$rows <- list()
+
+  out <- suppressWarnings(suppressMessages(simulate(
+    spec,
+    seed = 1,
+    coef = 0,
+    times = "observed",
+    steps = set_simulation_steps(mark = observed_mark_step(ties, seen))
+  )))
+
+  at_tie <- Filter(function(row) row$time == 2, seen$rows)
+  expect_length(at_tie, 2L)
+  expect_identical(which(at_tie[[1L]]$choice > 0), c(1L, 3L, 4L, 5L, 6L))
+  expect_identical(which(at_tie[[2L]]$choice > 0), c(1L, 3L, 4L, 5L, 6L))
+  expect_identical(nrow(out$events), 5L)
+})

@@ -6,9 +6,11 @@
 # stamp it advances the walk, so observed covariate rows and replayed rows
 # strictly before that time are applied first (the rows sharing the stamp
 # come after the event, as in the batch schedule), then draws the marks the
-# stamp's own process models and injects the event. Nothing is drawn about
-# when, so there is no clock: no target, no guard and no total-rate
-# trajectory.
+# stamp's own process models. The events drawn at one stamp are injected
+# together once all of them are drawn, so none of them informs another's
+# draw, as the batch reads a support mask strictly before its stamp. Nothing
+# is drawn about when, so there is no clock: no target, no guard and no
+# total-rate trajectory.
 #
 # A stamp keeps its observed layer and flavor. Redrawing which process fires,
 # from the competing rates at that stamp, would move events between layers,
@@ -44,6 +46,17 @@ simulate_anchored_replicate <- function(
   n_stamps <- nrow(stamps)
   collector <- new_event_collector(capacity = n_stamps, observed = n_stamps)
 
+  # Every event sharing a stamp is drawn over the state strictly before it,
+  # and only then are they injected: an event at t never informs another
+  # draw at t, of its own process or another. The drawn events of a stamp
+  # wait in buffers sized by the largest stamp, built once.
+  last_of_stamp <- c(stamps$time[-1L] != stamps$time[-n_stamps], TRUE)
+  stamp_size <- if (n_stamps > 0L) max(rle(stamps$time)$lengths) else 0L
+  pending_event <- vector("list", stamp_size)
+  pending_fid <- vector("list", stamp_size)
+  pending_latent <- vector("list", stamp_size)
+  n_pending <- 0L
+
   t <- handle$current_time
   k <- 0L
   n_drawn <- 0L
@@ -75,16 +88,30 @@ simulate_anchored_replicate <- function(
     # generated into the run, so the stamp is skipped and counted.
     if (is.null(event) || anyNA(c(event$sender, event$receiver))) {
       n_stamps_skipped <- n_stamps_skipped + 1L
-      next
+    } else {
+      n_drawn <- n_drawn + 1L
+      if (isTRUE(accept(event, handle))) {
+        event$time <- t
+        k <- k + 1L
+        n_pending <- n_pending + 1L
+        pending_event[[n_pending]] <- event
+        pending_fid[[n_pending]] <- evaluation$fid
+        pending_latent[n_pending] <- list(latent)
+      }
     }
-    n_drawn <- n_drawn + 1L
-    if (!isTRUE(accept(event, handle))) {
-      next
+    if (last_of_stamp[i]) {
+      for (j in seq_len(n_pending)) {
+        walk_inject(handle, pending_event[[j]], call = call)
+        collect_event(
+          collector,
+          pending_event[[j]],
+          pending_fid[[j]],
+          map,
+          pending_latent[[j]]
+        )
+      }
+      n_pending <- 0L
     }
-    event$time <- t
-    walk_inject(handle, event, call = call)
-    k <- k + 1L
-    collect_event(collector, event, evaluation$fid, map, latent)
   }
   # Every anchored run covers the whole window, so the replayed rows after
   # the last stamp are applied too.

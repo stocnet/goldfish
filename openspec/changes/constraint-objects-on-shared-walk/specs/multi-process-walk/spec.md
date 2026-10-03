@@ -78,10 +78,12 @@ frozen at its seed. The handle's state at its clock SHALL include every row
 stamped up to and including that clock, for every driver. A driver that
 evaluates an observed event at its own stamp SHALL step strictly before the
 stamp with `walk_advance(handle, t, inclusive = FALSE)`, which applies the
-rows stamped before `t` and the composition up to and including `t`, and
-SHALL apply the rows sharing the stamp only after the event is injected, the
-order the batch schedule gives them; an evaluation at an observed stamp then
-reads the mask over atoms strictly before its time as the batch does. The
+rows stamped before `t` and the composition up to and including `t`, SHALL
+evaluate every dependent event sharing that stamp, of the same process or of
+another, before injecting any of them, and SHALL apply the rows sharing the
+stamp only after those events are injected; an evaluation at an observed
+stamp then reads the mask over atoms strictly before its time as the batch
+does, and no event stamped at `t` informs another evaluation at `t`. The
 handle SHALL NOT hold atom moves in a pending set of its own: a free-running
 driver evaluating for the next event after the clock reads the moves at the
 clock. Replaying an observed
@@ -118,6 +120,14 @@ change.
   skipped the completion transform (a flavor with a rate but no choice)
 - **THEN** it aborts naming the incomplete flavor and pointing to `simulate()` /
   `estimate_dynes()`, rather than opening a walk with a mismatched fid set.
+
+#### Scenario: tied dependent events are evaluated before any is injected
+- **WHEN** two observed dependent events share a stamp, of one process or of
+  two, and the later one's support constraint reads the earlier one's layer
+- **THEN** a driver evaluating observed stamps evaluates both over the state
+  strictly before the stamp before injecting either, so the later event's
+  mask does not exclude the alternative the earlier one creates at that
+  stamp, as in the batch
 
 #### Scenario: a constraint on an object no formula reads replays exactly
 - **WHEN** a specification with `choice ~ recip` and `support_constraint = ~

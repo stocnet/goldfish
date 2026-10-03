@@ -588,7 +588,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       handle alike" fails for a dependent event of another process (or of
       the same process) injected at the stamp, so the fixture carries no
       replay arm; see 8.2a.
-- [ ] 8.2a **blocks** (added 2026-10-03, found applying 8.2): at a stamp
+- [x] 8.2a **blocks** (added 2026-10-03, found applying 8.2): at a stamp
       shared by dependent events, the anchored driver
       (`simulate_anchored_replicate()`) evaluates and injects one event at
       a time, so an event injected at t is live when a later event at t
@@ -608,6 +608,42 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       stamp before injecting any.* Verify: the handle-alike scenario
       holds for the tied dependent case under the chosen rule, with a
       detector red under the other pattern.
+      — *done 2026-10-03*: `simulate_anchored_replicate()` draws every
+      event of a stamp before injecting any (buffers sized to the largest
+      stamp, built once before the loop; `k` counts accepted draws as
+      before); `walk_replay_against_batch()` evaluates every dependent row
+      of a stamp first, then applies that stamp's covariate and exogenous
+      rows in schedule order (stamp bounds computed once). Detectors, red
+      on the shipped driver and helper: `test-simulate_anchored.R` "a tied
+      event of another process is not in force at a stamp" (the choice
+      row the mark step sees at N2's tied call: {1, 3, 6} against {1, 3,
+      5, 6}) and "... of the same process ..." (`~ !tie(calls)`, second
+      tied call: {1, 4, 5, 6} against {1, 3, 4, 5, 6}), one failure each,
+      asserted on the evaluation the mark step receives, not on draw
+      frequencies; `test-walk_handle.R` "a tied dependent event of another
+      process is not in force" through the helper, red with the old
+      helper (1 failure: live 0.333 0.000 0.333 0.000 0.000 0.333 against
+      batch 0.25 0 0.25 0 0.25 0.25). Identity: the 154 anchored
+      replicates the nine simulation-related test files produce at their
+      fixed seeds are `identical()` before and after (spec dropped), 4 of
+      them with tied drawn stamps; the helper's callers
+      (`test-walk_handle.R`, `test-simulation_cross_validation.R`) green.
+      Sweep of the other `walk_inject()` users: `test-walk_handle.R`'s two
+      inline replay loops (the multi-process and single-process replay
+      tests) step per schedule position; `walk_two_process()` has 3
+      cross-process tied stamps there but no statistic or mask reads the
+      other layer at the tied sender, so they agree; under 8.2b's schedule
+      order they evaluate a stamp's dependent rows first anyway.
+      `test-preprocess_parity.R`, `test-simulate.R` and
+      `test-support_gate_self_exclusion.R` inject single events with no
+      evaluation at a tie; the free-running driver injects at drawn
+      continuous times (no tie). Delta: the handle requirement now says
+      every dependent event of a stamp is evaluated before any is
+      injected, with a new scenario "tied dependent events are evaluated
+      before any is injected" (every living scenario kept; validate and
+      placement clean). NEWS.d `constraint-objects-on-shared-walk--tied-stamps.md`.
+      Suite 13221 / 0 / 7 skipped, six baseline files PASS. Batch
+      statistics at a cross-process tie are 8.2b.
 - [ ] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
       statistics at a stamp shared by dependent events of different
       processes read rows in schedule order (emails' `tie(calls)` sees a

@@ -687,6 +687,64 @@ test_that("an atom moved at an event's own stamp is not yet in force", {
   expect_identical(at_tie[5] > 0, TRUE)
 })
 
+test_that("a tied dependent event of another process is not in force", {
+  # The emails event 2 -> 5 shares N2's call stamp, t = 2, and is scheduled
+  # ahead of it. Replayed one stamp at a time, every dependent event at t is
+  # evaluated before any row at t applies, and the handle equals the batch.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 5L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  joint <- make_joint_specification(emails, calls, data = data)
+
+  replay <- walk_replay_against_batch(joint)
+
+  expect_identical(replay$n_checked, 16L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
 test_that("node-composition changes advance with the handle's clock", {
   data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
   # N6 is never called and N1 is called only after it returns, so no observed
