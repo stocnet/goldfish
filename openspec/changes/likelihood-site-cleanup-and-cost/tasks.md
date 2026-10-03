@@ -365,11 +365,21 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       two new fixtures; restored, 0 of 16. The ablation was not committed.
       Suite `NOT_CRAN=true`: 13265 / 0 / 7, six baseline files, both
       goldens and the pins PASS with 0 skipped.
-- [ ] 7.3 **should-fix**: the living requirement "C++ multinomial
+- [x] 7.3 **should-fix**: the living requirement "C++ multinomial
       normalizers use the shared stable softmax" still says the exact-time
       conditional log-probability and probabilities come from the shifted
       log-sum-exp; the 2.3a fast branch contradicts it. Add a MODIFIED block
       to the `likelihood-computation` delta; placement check clean.
+      *Done 2026-10-03:* `## MODIFIED` block for the requirement in the
+      delta: the ratio-and-log bullet keeps the shifted log-sum-exp as the
+      rule and names the exact-time exception (`log(normalizer)` and the
+      raw ratio when the normalizer is a normal positive double, the shared
+      helper otherwise). It carries all five living scenarios by their exact
+      names, unchanged, and adds "an exact-time diagnostic takes the raw
+      normalizer when it is normal". `openspec validate --strict` valid;
+      the placement check (run against this worktree's `openspec/`) reads
+      `OK (6 requirement placements)`, exit 0; a scripted comparison finds
+      no living scenario name missing from either MODIFIED block.
 - [x] 7.4 **should-fix** (hand-off received from the
       `availability-one-object-per-loop` inspection, owned here as the r
       engine's): the filter test at `R/estimation_core.R:2090-2094` treats
