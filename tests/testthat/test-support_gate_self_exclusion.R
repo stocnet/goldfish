@@ -500,6 +500,34 @@ test_that("a free-running run never draws a sender with no receiver", {
   }
 })
 
+test_that("a deferred intercept-only rate never draws a saturated sender", {
+  # A rate whose family carries no effect gets no engine of its own: its
+  # senders are gated over the choice's live mask when it draws, a second
+  # reading of the same gate that has to drop the self-dyad as well.
+  data <- self_only_sender_data()
+  js <- single_process_joint(suppressMessages(make_specification(
+    rate = list(creation ~ 1),
+    choice = list(creation ~ inertia),
+    model = "DyNAM",
+    data = data
+  )))
+  parameters <- set_parameters(
+    js,
+    `calls › creation › rate` = -1,
+    `calls › creation › choice` = 0.2
+  )
+
+  expect_identical(walk_deferred_fids(js)$family, "rate")
+  for (seed in 1:5) {
+    out <- simulate(js, nsim = 1, seed = seed, coef = parameters)
+    expect_false(anyNA(out$events$receiver), label = paste("seed", seed))
+    expect_true(
+      all(out$events$sender != out$events$receiver),
+      label = paste("seed", seed)
+    )
+  }
+})
+
 test_that("a two-mode constrained rate reads no diagonal", {
   # A two-mode grid has no self-dyad to read: an index built for a square
   # grid would run past the mask and hand back NA rather than fail.

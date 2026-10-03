@@ -172,11 +172,19 @@ archive.
       block, :338) 1 failed expectation; ego flip (:352) 1; global flip
       (:360) 1; receiver crossing (:397) 4 (folded gate, all four one-mode
       kinds); point flip (:322, not required) 1
-- [ ] 4.2 **blocks** (extends 3.3): the simulation driver's deferred-rate
+- [x] 4.2 **blocks** (extends 3.3): the simulation driver's deferred-rate
       caller (`R/simulate_driver.R:347-354`) has no detector; forcing its
       flag to `FALSE` leaves the suite green while a `rate = ~ 1` beside a
       modeled choice on the 1.1 fixture aborts on every seed. Add that
       variant to the regression test. Verify: the flag ablation is red.
+      — *done 2026-10-03* (fu/support-gate-g4). New test "a deferred
+      intercept-only rate never draws a saturated sender": `rate = ~ 1`
+      beside `choice = ~ inertia` on the 1.1 fixture, 5 seeds, no NA
+      receiver and no self event, with a guard that `walk_deferred_fids()`
+      lists the rate. Ablation (`simulation_fid_state()`'s flag set to
+      `FALSE`, `R/simulate_driver.R:356`): the test errors on its first
+      seed with "missing value where TRUE/FALSE needed" (the 2.8 abort);
+      green restored
 - [ ] 4.3 **should-fix**: `test-support_mask_sparse.R:151` and `:392` still
       compute the gate reference without `self` (the proposal's Impact
       promised they would be re-run with the flag); live walk against batch
