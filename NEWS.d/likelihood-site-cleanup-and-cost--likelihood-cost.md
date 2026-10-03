@@ -3,7 +3,7 @@
   * The default `"loglik"` diagnostic no longer costs a second `exp` pass.
   * The `gather` backend fits REM about three times faster.
 * Improved the `r` estimation backend, which now writes its state in place:
-  * REM fits run about three times faster with a fifth of the memory.
+  * REM fits run about three times faster with a quarter of the memory.
   * Ordinal REM fits run about three times faster with a quarter of the memory.
   * DyNAM choice fits run about five times faster.
   * A no-op `support_constraint` no longer copies the statistics per event.

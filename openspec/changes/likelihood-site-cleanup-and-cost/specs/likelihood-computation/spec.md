@@ -22,8 +22,10 @@ through the shared in-place writers, never by subassignment of a binding a
 caller also holds, and its per-event accumulators SHALL be preallocated at
 their final size and written in place. Its statistics array SHALL NOT be
 copied to apply an update, to zero the diagonal, or to reshape. A REM event
-(exact-time or ordinal) on the r backend SHALL allocate exactly one
-weighted statistics array, the `S * p` of the information's
+(exact-time or ordinal) on the r backend, computing the log-likelihood,
+score and information with at most the default diagnostics (`loglik` and
+`scores`: the interval log-likelihood, total rate, conditional component
+and event scores), SHALL allocate exactly one weighted statistics array, the `S * p` of the information's
 `crossprod(S, S * p)`, and otherwise only vectors of the risk set's size,
 at most `1 + 3/q` statistics arrays in all, where `q` is the statistics
 array's column count (`p + 1` on the exact-time REM with its intercept, `p`
@@ -39,7 +41,10 @@ actors excluded. The evaluation's time is then that of the full grid
 however many actors are absent, which is accepted: under heavy composition
 a REM evaluation is slower than the reduced-grid one it replaced. In pure R
 one statistics-sized allocation per REM event is the information itself
-and cannot be avoided.
+and cannot be avoided. The opt-in per-event reductions (probabilities,
+ranks, margins, availability) are outside this bound: each forms vectors
+of the grid's size per event when requested, the margins most (an index
+pair built by `rep()` over the grid per event).
 
 #### Scenario: a compiled kernel allocates nothing event-sized inside its loop
 - **WHEN** a REM, REM-ordered, coordination, choice or rate kernel evaluates

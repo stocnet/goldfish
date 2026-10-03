@@ -122,3 +122,53 @@ test_that("the maintained risk set gives the from-scratch mask's events", {
     expect_equal(cpp, r, tolerance = 1e-10, info = name)
   }
 })
+
+# The REM contributions build the risk-set membership only for the outputs
+# that read it. Availability is one of them, and an evaluation that asks
+# for it and nothing else must still receive it.
+test_that("an availability-only evaluation agrees across backends", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  availability_only <- list(
+    scores = FALSE,
+    ranks = FALSE,
+    margins = FALSE,
+    total_rate = FALSE,
+    probabilities = FALSE,
+    availability = TRUE,
+    conditional_scores = FALSE,
+    information_trace = FALSE
+  )
+  fixtures <- list(
+    rem_alter = availability_vector_run("rem_alter"),
+    rem_point_flips = risk_set_point_flip_prep("rate"),
+    rem_ordered_point_flips = risk_set_point_flip_prep("rate_ordered")
+  )
+  for (name in names(fixtures)) {
+    prep <- fixtures[[name]]
+    n_parameters <- dim(prep$initial_stats)[3] + isTRUE(prep$has_intercept)
+    at <- rep(0.1, n_parameters)
+    if (isTRUE(prep$has_intercept)) {
+      at[1] <- -5
+    }
+    availability <- lapply(c(r = "r", cpp = "cpp"), function(backend) {
+      pass <- evaluate_engine_once(
+        prep$model_spec,
+        prep,
+        at,
+        backend,
+        availability_only
+      )
+      lapply(
+        evaluate_availability(pass, prep$model_spec, prep, backend),
+        function(x) as.numeric(unlist(x, use.names = FALSE))
+      )
+    })
+    expect_equal(
+      availability$r,
+      availability$cpp,
+      tolerance = 1e-10,
+      info = name
+    )
+  }
+})

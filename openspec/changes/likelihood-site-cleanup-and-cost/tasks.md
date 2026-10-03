@@ -363,7 +363,11 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       9.77 -> 2.52, ordinal excluding 5 9.42 -> 2.52. Results against
       `237c8dd`: identical on four variants, at most 1.5e-11 (an outer
       filter's score, summed over the full grid) and 1.1e-14 on the
-      ordinal; Social Evolution fits identical on REM, choice and rate,
+      ordinal, absolute on these fixtures (relative where the information
+      is large: on the Fisheries REM, whose information reaches 1.7e13, the
+      re-check measured 9.8e-4 absolute, 5.8e-17 relative, and 1.15e-10
+      absolute, 4.6e-14 relative, on the Fisheries REM-ordered; the pins
+      compare at 1e-10 relative); Social Evolution fits identical on REM, choice and rate,
       ordinal within 9.2e-14 on the parameters and 3.6e-12 on the
       log-likelihood. Optimized builds, back to back against `237c8dd`,
       median of five, r backend: Social Evolution REM 3310 -> 2035 MB,
@@ -449,9 +453,12 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       equal to 1e-12, allocation ratio under 1.005. Red on the shipped code
       (`237c8dd`, in a detached worktree): REM 613.2 against 462.4 MB (ratio
       1.33), choice 4.223 against 4.006 MB (1.054), 2 failures; after the fix
-      REM 461.1 against 462.4 MB (the constrained pass is 1.29 MB cheaper per
-      evaluation, a constant independent of the event count) and choice
-      identical, so the no-op difference per event is zero. Gather's
+      REM 461.1 against 462.4 MB and choice identical, so the no-op
+      difference per event is zero. (Corrected 2026-10-03, task 7.11: the
+      REM gap first read here as "1.29 MB cheaper per evaluation, a
+      constant independent of the event count" is a measurement-order
+      artifact; the re-check measured -1.31 MB at 30 events and exactly 0
+      at 60 and 120.) Gather's
       `.rowSums` at point and the coordination `match()` are in the gather
       stack builder, run once per fit, not on the r engine's filter path:
       recorded in 7.5 with their measured sizes, not closed here. Suite
@@ -610,7 +617,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       bullet added. Suite `NOT_CRAN=true`: 13325 / 0 / 7; two-mode
       baselines (9) and the other five baseline files, goldens, pins and
       budget PASS, 0 skipped.
-- [ ] 7.11 **should-fix** (added 2026-10-03, re-check G2-G5): (G2) no test
+- [x] 7.11 **should-fix** (added 2026-10-03, re-check G2-G5): (G2) no test
       detects the `return_availability` disjunct of `need_probabilities`
       (without it an availability-only r REM evaluation errors); add one,
       red under its removal; (G3) the delta states the bound
@@ -625,6 +632,24 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       re-check shows -1.31 MB at 30 events and 0 at 60 and 120, a
       measurement artifact) and make the Fisheries REM "within 1e-10" claims
       relative (G6, G7).
+      *Done 2026-10-03:* (G2) "an availability-only evaluation agrees
+      across backends" in `test-likelihood_risk_set.R`: r against cpp
+      availability, only `availability` requested, on the outer alter REM
+      and the two point-flip fixtures (REM and REM-ordered); with the
+      `return_availability` disjunct removed from `need_probabilities` (in
+      a detached worktree at `f3b8bf5`, not committed) it errors, 2
+      failures; green after. (G3) the delta's r-backend clause is scoped
+      to the log-likelihood, score and information with at most the
+      default diagnostics, and names the opt-in reductions as outside the
+      bound; the margins' per-event `rep()` index pair over the grid is
+      left to the residuals-gof change, the owner of the diagnostic
+      primitives, as a successor's item. (G4) NEWS.d: "a quarter of the
+      memory" (2035 against 7325 MB). (G5) the not-cran-test probe section
+      points at the cpp-recompile skill for the rebuild. (G6) 7.4's note
+      corrected in place, marked. (G7) 7.1's deviation claim states where
+      it is absolute and gives the Fisheries figures relative. Suite
+      `NOT_CRAN=true`: 13328 / 0 / 7; baselines, goldens, pins and budget
+      PASS, 0 skipped.
 - [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather
