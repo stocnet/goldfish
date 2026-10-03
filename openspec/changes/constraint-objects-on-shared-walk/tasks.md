@@ -865,8 +865,13 @@ before the fold.
       `likelihood-site-cleanup-and-cost/proposal.md:65` says it absorbs
       that change. Nothing to restore; the fold should not re-add the
       directory.
-- [ ] 7.3 Handed to `estimation-contract-matrix` 2.3a: the F2 standalone
+- [x] 7.3 Handed to `estimation-contract-matrix` 2.3a: the F2 standalone
       and de-flavored routes are compared with the container, not the
       oracle (a 2e-6 bound where the spec says 1e-6 each; measured gap 0),
       and `skip_if_not_installed("survival")` sits inside the F2 loop so a
       missing package would skip the `glm` arms the design says never skip.
+      — *recorded 2026-10-03*: the receiving task exists:
+      `estimation-contract-matrix/tasks.md` 2.3a (added 2026-10-02) names
+      both items (routes compared with the container at 2e-6, the
+      `survival` skip inside the F2 loop) and verifies with `survival`
+      mocked absent. Nothing changed here.
