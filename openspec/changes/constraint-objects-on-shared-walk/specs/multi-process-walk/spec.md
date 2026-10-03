@@ -9,7 +9,13 @@ mode-pair)` — the sender mode for rate blocks, the `(sender mode, receiver
 mode)` pair for dyad blocks — so a single-mode-pair join has exactly the two
 blocks (sender-indexed and dyad-indexed) and a multi-mode-pair join has one
 sender block per distinct sender mode and one dyad block per distinct mode-pair.
-Per event, each block's effect statistics SHALL be computed once; consumer
+At a stamp shared by several rows, every dependent row SHALL be evaluated
+before any row of that stamp is applied, whichever process the rows belong
+to, so a statistic and a support mask at a dependent event both read the
+state strictly before its stamp; the schedule SHALL be ordered by time, then
+dependent rows before the others, then stream order, resolved once when the
+schedule is built. Per event, each block's effect statistics SHALL be
+computed once; consumer
 routing SHALL go through a `(layer, flavor) → fid` lookup: the event is
 dependent for its own `(layer, flavor)` fids, a right-censoring boundary for
 every other timed rate fid regardless of layer or mode-pair, and state-only for
@@ -51,6 +57,13 @@ preprocess byte-identically to their pre-merge outputs (frozen-baseline gate).
 - **WHEN** `inertia(calls)` appears in a DyNAM-choice formula and a REM rate
   formula
 - **THEN** each dispatch family computes its own statistic column.
+
+#### Scenario: a tied event of another process is not read at its stamp
+- **WHEN** a calls event and an emails event share a stamp, the calls
+  process is planned first, and the emails choice reads `tie(calls)`
+- **THEN** the emails event's statistic reads the calls layer strictly
+  before the stamp, as its support mask would, and a replay that evaluates
+  every dependent event of the stamp before injecting any equals the batch
 
 #### Scenario: a constraint-only object is on the shared schedule
 - **WHEN** a specification's `support_constraint` reads a changing layer
@@ -127,7 +140,7 @@ change.
 - **THEN** a driver evaluating observed stamps evaluates both over the state
   strictly before the stamp before injecting either, so the later event's
   mask does not exclude the alternative the earlier one creates at that
-  stamp, as in the batch
+  stamp, and no statistic reads it there, as in the batch
 
 #### Scenario: a constraint on an object no formula reads replays exactly
 - **WHEN** a specification with `choice ~ recip` and `support_constraint = ~

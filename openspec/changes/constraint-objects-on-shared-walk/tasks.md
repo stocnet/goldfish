@@ -644,7 +644,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       placement clean). NEWS.d `constraint-objects-on-shared-walk--tied-stamps.md`.
       Suite 13221 / 0 / 7 skipped, six baseline files PASS. Batch
       statistics at a cross-process tie are 8.2b.
-- [ ] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
+- [x] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
       statistics at a stamp shared by dependent events of different
       processes read rows in schedule order (emails' `tie(calls)` sees a
       tied call), while masks read strictly before. Make the batch read
@@ -657,6 +657,46 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       shipped batch at the probe's tie; batch equals the grouped replay on
       statistics and masks at cross-process ties; within-process outputs
       unchanged.
+      — *done 2026-10-03*: gate first (no code committed): a prototype
+      of the order in a detached worktree ran the full suite at 13220 / 1
+      / 7: the six baseline files, the C++ and parity goldens,
+      `constraint_atoms_refs.rds`, `fixtures/simulated_events.rds`, the
+      classical and likelihood references and the budget tests all PASS;
+      no frozen generator builds a joint spec. Cleared by the
+      coordinator. Then `build_joint_schedule()` orders by `(time,
+      !dependent, stream_index)`, one radix key resolved at build.
+      Detector, `test-walk_handle.R` "a statistic does not read a tied
+      event of another process" (calls 2 -> 3 and emails 2 -> 1 at t =
+      2, the emails choice reading `tie(calls)`): red on the shipped batch
+      with 2 failures (N2's `tie(calls)` row sums to 1, not 0; the grouped
+      replay's live row 0.1821 0 0.1821 0.2716 0.1821 0.1821 against the
+      batch's 0.1911 0 0.1416 0.2851 0.1911 0.1911), green after. The
+      `test-preprocess_parity.R:765` pin "the shared schedule is ordered
+      by (time, stream_index)" was a structural pin, not a frozen number:
+      rewritten by hand as "a stamp's dependent rows precede its other
+      rows, then streams" asserting the new order (plus that the fixture
+      has a tied dependent stamp). Identity: of the 288 merged-walk outputs
+      13 preprocessing test files produce (constraint atoms, parity, joint,
+      coefficient, two-mode and DyNAM-i baselines, classical, simulation
+      cross-validation, coordination, REM and rate constraints, flavored
+      dependent events, walk handle), the 280 with no cross-process
+      dependent tie are `identical()` before and after; 6 of the 8 with
+      one changed (toy joints only). Schedules the order changes, over all
+      test files (`gate-moves.log`, coordinator scratchpad `co8/`): the
+      calls + emails joints on `walk_fixture_data()` (3 tied stamps) in
+      `test-simulate.R` (70 schedules), `test-walk_handle.R` (12),
+      `test-preprocess_joint.R` (9), `test-simulate_anchored.R` (4),
+      `test-intercept_only_rate.R` (2), `test-simulation_steps.R` (1); its
+      windowed twin in `test-preprocess_parity.R` (3); and the one-stamp
+      8.2 / 8.2a tie fixtures (`test-constraint_atoms_operands.R` 2,
+      `test-walk_handle.R` 2, `test-simulate_anchored.R` 1). Design D10
+      (tie semantics for masks and statistics, with its storage and cost
+      note); the merged-walk requirement states the order and gains the
+      scenario "a tied event of another process is not read at its
+      stamp", the 8.2a scenario covers statistics (every living scenario
+      kept; validate and placement clean). NEWS.d bullet added to
+      `constraint-objects-on-shared-walk--tied-stamps.md`. Suite 13240 / 0
+      / 7 skipped, six baseline files PASS; `_baselines/` untouched.
 - [x] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores

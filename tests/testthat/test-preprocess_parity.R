@@ -762,17 +762,26 @@ test_that("two processes windowing the same source share one derived object", {
   }
 })
 
-test_that("the shared schedule is ordered by (time, stream_index)", {
+test_that("a stamp's dependent rows precede its other rows, then streams", {
   # The schedule assigns its own stream indices as it adds each unit's
-  # streams, dependent stream first, then that unit's covariate streams. The
-  # ordering rule is `(time, stream_index)`, so at a tie a process's event is
-  # evaluated before the covariate row that applies it to its own layer.
+  # streams, dependent stream first, then that unit's covariate streams. At
+  # a stamp every dependent row precedes every covariate or exogenous row,
+  # then stream order, so the events sharing a stamp are all evaluated
+  # before any row of that stamp is applied, the event's own covariate row
+  # included.
   schedule <- build_merged_blocks(parity_two_process_windowed())$schedule
 
-  expect_equal(
-    order(schedule$time, schedule$stream_index, method = "radix"),
+  expect_identical(
+    order(
+      schedule$time,
+      !schedule$dependent,
+      schedule$stream_index,
+      method = "radix"
+    ),
     seq_len(schedule$n)
   )
+  tied <- schedule$time %in% schedule$time[duplicated(schedule$time)]
+  expect_true(any(tied & schedule$dependent))
   for (focal in unique(schedule$layer[schedule$dependent])) {
     is_focal <- schedule$layer == focal
     dependent_index <- unique(schedule$stream_index[

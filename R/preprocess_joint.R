@@ -466,9 +466,10 @@ schedule_stream_part <- function(
 # process routes on); every distinct covariate stream contributes state-update
 # rows targeting its shared object. A stream shared across processes -- an
 # exogenous covariate, or a focal network another process reads -- is fetched and
-# added once. Ordering is `(time, stream_index)`, dependent streams indexed
-# before their own covariate stream so an event is evaluated at the state before
-# it is applied. A focal layer registered only because events are written into
+# added once. Ordering is by time, then every dependent row of a stamp before
+# its other rows, then `stream_index`, so the events sharing a stamp are all
+# evaluated at the state before any of them, or any other row of that stamp,
+# is applied. A focal layer registered only because events are written into
 # it has no term to plan its stream, so the stream is added after every other,
 # without moving the ones a term planned. A stream only a support constraint
 # reads comes last of all, for the same reason.
@@ -589,7 +590,13 @@ build_joint_schedule <- function(
   }
   time <- combine("time")
   stream_index <- combine("stream_index")
-  ordering <- order(time, stream_index, method = "radix")
+  dependent <- combine("dependent")
+  # At a stamp every dependent row comes first, then the other rows in
+  # stream order: no row stamped at t informs an evaluation at t, whichever
+  # process it belongs to, so a statistic reads the same state strictly
+  # before the stamp that a support mask does. A single process is
+  # unaffected, its dependent stream being the first one added.
+  ordering <- order(time, !dependent, stream_index, method = "radix")
   value <- do.call(c, lapply(parts, `[[`, "value"))
 
   list(
@@ -603,7 +610,7 @@ build_joint_schedule <- function(
     value = value[ordering],
     layer = combine("layer")[ordering],
     flavor = combine("flavor")[ordering],
-    dependent = combine("dependent")[ordering],
+    dependent = dependent[ordering],
     stream_index = stream_index[ordering],
     n = length(ordering)
   )

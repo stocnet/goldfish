@@ -745,6 +745,75 @@ test_that("a tied dependent event of another process is not in force", {
   expect_gt(replay$n_excluded, 0L)
 })
 
+test_that("a statistic does not read a tied event of another process", {
+  # N2 calls 3 and emails 1 at t = 2; the calls row is scheduled first. The
+  # emails choice reads `tie(calls)`, and at its own stamp it reads the calls
+  # layer strictly before t = 2, as its mask would: 2 -> 3 is not yet a tie.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 1L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(calls),
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  joint <- make_joint_specification(calls, emails, data = data)
+
+  batch <- suppressWarnings(preprocess_joint(joint))
+  map <- attr(batch, "process_map")
+  emails_choice <- as.character(
+    map$fid[map$layer == "emails" & map$family == "choice"]
+  )
+  state <- materialize_process_state(
+    batch[[emails_choice]],
+    model_type = "DyNAM-M",
+    event_index = 2L,
+    has_intercept = FALSE
+  )
+  sender_row <- (2L - 1L) * 6L + seq_len(6L)
+  expect_identical(sum(state$stat_mat[sender_row, 2L]), 0)
+
+  replay <- walk_replay_against_batch(joint)
+  expect_identical(replay$n_checked, 16L)
+})
+
 test_that("node-composition changes advance with the handle's clock", {
   data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
   # N6 is never called and N1 is called only after it returns, so no observed

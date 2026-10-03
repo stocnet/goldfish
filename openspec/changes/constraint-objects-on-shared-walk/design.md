@@ -429,6 +429,49 @@ emits every flipped cell and keeps its stream. When the folds and the
 validation go, `mask_cursor()` and `mask_flips()` lose their last readers
 and are deleted (ADR-0054).
 
+### D10 — At a stamp, no row informs an evaluation at that stamp, of any process (added 2026-10-03)
+
+*Alvaro, ADR-0114 (extends ADR-0105; tasks 8.2a and 8.2b).* Applying 8.2
+found two gaps at a stamp shared by dependent events. The time-anchored
+driver evaluated and injected one event at a time, so an event injected at
+`t` restricted the mask of a later event at `t`, of another process or of
+the same one. And the batch itself was split: masks read their atoms
+strictly before the stamp (D3), while statistics read rows in schedule
+order, so a later process's statistic saw an earlier process's tied event
+(emails' `tie(calls)` saw a call at its own stamp). The rule is now one for
+every kind of state: rows of any process stamped at `t` never inform an
+evaluation at `t`.
+
+- *The batch.* `build_joint_schedule()` orders by time, then every
+  dependent row of a stamp before its other rows, then stream order. A
+  single process is unaffected (its dependent stream is the first one
+  added, so the old order already put its dependent rows first); only a
+  joint specification whose later unit has a dependent row at a stamp an
+  earlier unit's covariate or exogenous row shares moves. Composition
+  changes are not schedule rows and keep their in-force-at-the-stamp rule.
+- *The drivers.* A driver replaying observed stamps (the time-anchored
+  driver, the replay test helper) evaluates every dependent event of a
+  stamp over the state strictly before it, then injects them in order;
+  the free-running driver draws continuous times and is unchanged.
+
+*Rejected:* holding injected atom moves inside the handle (ADR-0105's
+Option A; it fixes masks only and breaks free-running simulation), and
+narrowing the scenario to exogenous rows (it leaves the batch's statistics
+and masks disagreeing at a cross-process tie).
+
+**Storage and per-event cost.** No stored object is added and none
+changes shape. The ordering is one extra radix key in the single
+`order()` call that builds the schedule, resolved once before the walk;
+nothing is evaluated per event. The anchored driver keeps a stamp's drawn
+events in three lists sized once to the largest stamp before its loop and
+writes into them by position; per event it allocates nothing beyond the
+drawn event itself. Measured: of 288 merged-walk outputs the preprocessing
+test families produce, the 280 whose schedules have no cross-process
+dependent tie are `identical()` before and after; the 154 anchored
+replicates of the simulation tests are `identical()`. The frozen
+baselines, goldens and references hold no joint specification with such
+a tie and do not move.
+
 ## Storage and per-event cost (added 2026-09-29)
 
 Required by the per-event cost rules (`.claude/rules/walk-cost.md`),
