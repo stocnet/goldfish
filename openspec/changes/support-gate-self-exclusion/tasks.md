@@ -74,7 +74,15 @@
       — *done 2026-09-18* `2782407`. No moved test existed (1.2). The
       reduction message now says "other than itself" (snapshot reviewed).
       `own_receiver_count()` branches per kind instead of subtracting a
-      masked term
+      masked term. **Deviation (recorded 2026-10-03, conformance gap
+      5):** the fold's caller derives the flag as
+      `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2
+      and this task state; the two agree on
+      every layer exercised (a square two-mode layer included). At
+      `79dca89` that caller is the `drop_diagonal` default of
+      `build_engine_availability()` (`R/preprocess_joint.R:1365`), which
+      also feeds the in-walk validation. `allow-reflexive-user` task 2.3a
+      resolves the derivation once
 - [x] 2.3 Relational and panel risk-set sizes agree (D5): on a fixture both
       paths read, the relational pin's `|R|` from preprocessing equals the
       panel path's `support_grid_at()` count. Verify: the test fails on the
@@ -229,7 +237,7 @@ archive.
       `make_specification()` and `preprocess_joint()`: `stored_kind` 1L, a
       length-4 vector, gate F T T T at every stored event). Ablation of the
       batch flag (`R/preprocess_joint.R:1365` set to `FALSE`): both red
-- [ ] 4.5 **should-fix**, record only: the fold's caller
+- [x] 4.5 **should-fix**, record only: the fold's caller
       (`R/preprocess_joint.R:1708`) derives the flag as
       `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2 and
       task 2.2 state; equivalent today. Note the deviation in 2.2's tick;
@@ -239,6 +247,16 @@ archive.
       and the `own` vector allocated at every flipped event for all kinds
       (`R/model_preprocess.R:370`, +57.9 MB on the point-constrained
       CollegeMsg fold, read only by the ego and global branches).
+      — *done 2026-10-03* (fu/support-gate-g4), record only: the deviation
+      is noted in 2.2's tick; the flag source, the stale
+      `active-availability-stat` wording and the allocation stay with
+      `allow-reflexive-user` 2.3a. Found at `79dca89`: the per-kind updates
+      moved to `availability_gate_flips()` (`ec4b3c0`, availability as an
+      effect), where `own` is built only inside the alter branch (under
+      `drop_diagonal`, sized by the flipped entries), the ego branch
+      (flipped entries) and the global branch (`n1`); the point branch
+      allocates none. 2.3a(ii)'s premise and its line references
+      (`model_preprocess.R:370`, `preprocess_joint.R:1708`) are stale
 - [ ] 4.6 Verification: `NOT_CRAN=true` suite green; six baseline files
       PASS not SKIP and byte-identical; a scoped re-check of gaps 1-8 of
       the report by a fresh conformance-inspector agent before the fold.
