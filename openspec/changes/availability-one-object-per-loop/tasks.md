@@ -18,6 +18,11 @@
       captured on today's point fold: the dense cell values at every stored
       row (from the point grid) plus the estimates on r, cpp and gather.
       These are the oracle D3's outer fold must equal cell-for-cell.
+      *Note (added 2026-10-03, 6.5):* no ego coordination family was
+      captured. Coordination symmetrises a vector mask m to m[i] & m[j],
+      so an ego and an alter atom on the same attribute give the same
+      cells and the same fold into both factors; the `coord_alter` family
+      covers both. The REM families carry alter, ego and global.
 - [x] 0.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP.
 
@@ -116,6 +121,21 @@
       sums. Test: on the 0.3 references every cell of the outer fold equals
       the point fold's cell at every stored row (`f1[i] & f2[j]`, read
       through `active_dyad_cell()`), including a global atom.
+      *Note (added 2026-10-03, 6.5):* the coordination `n1 != n2` point
+      fallback is in `build_engine_availability()`
+      (`R/preprocess_joint.R`, `(!symmetric || ctx$n1 == ctx$n2)`) but is
+      not asserted: it cannot be reached, since the estimator refuses
+      `choice_coordination` on a two-mode layer before preprocessing
+      (`R/model_estimate.R`), so no fixture can build the case. What let
+      the 3.1 walk guard pass, beside the outer variant, is
+      `init_at_kind()` (`R/model_preprocess.R`, called from
+      `initialize_cache_stat()` for the constraint atom store): a
+      vector-kind atom (`alter`, `ego`, `global`, `indeg`, `outdeg`) is
+      seeded at its kind instead of through its dense grid init, with the
+      grid path kept as the fallback when the seeded length does not match
+      the kind. It was `identical()` to the grid path on 27 atom x family
+      combinations (progress journal). No artifact of this change
+      describes it; its contract moves to `initial-stats-at-kind` 2.2a.
 - [x] 3.3 Estimates: the 0.3 families on r, cpp and gather equal the
       point-fold references within 1e-10; `walk_replay_against_batch()` on
       the vector-kind REM and coordination fixtures with `n_excluded > 0`
@@ -261,7 +281,7 @@ one latent contract hole. No blocking gap; all before archive.
 - [ ] 6.4 **should-fix**: comments now false, rewrite by hand:
       `R/estimation_core.R:2111-2120` and `R/walk_handle.R:1284-1286` say a
       REM or coordination constraint always folds to a dense point grid.
-- [ ] 6.5 **should-fix**, record in the 3.2 and 0.3 tick notes: the
+- [x] 6.5 **should-fix**, record in the 3.2 and 0.3 tick notes: the
       coordination `n1 != n2` point fallback (`R/preprocess_joint.R:1435`)
       is unasserted because unreachable; the ego coordination reference
       family was omitted because symmetrisation makes ego and alter the
@@ -269,6 +289,9 @@ one latent contract hole. No blocking gap; all before archive.
       vector-kind atoms at kind and is what lets the 3.1 walk guard pass,
       described in no artifact (its contract moves to
       `initial-stats-at-kind` 2.2a).
+      *Done 2026-10-03:* notes added under 0.3 (the omitted ego
+      coordination family) and 3.2 (the unreachable fallback and
+      `init_at_kind()`). Docs only: `openspec validate --strict` clean.
 - [x] 6.6 **should-fix**: the carried scenario "stale preprocessed object
       rejected" reads against the delta's own "retired fields read and
       ignored, no bump" clause; reword to the rejection the code performs
