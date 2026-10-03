@@ -650,6 +650,28 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       it is absolute and gives the Fisheries figures relative. Suite
       `NOT_CRAN=true`: 13328 / 0 / 7; baselines, goldens, pins and budget
       PASS, 0 skipped.
+- [ ] 7.12 **should-fix** (added 2026-10-03, from the second follow-up
+      re-check, G9-G17; G9 and G17 decided by Alvaro): (G9) the margins'
+      per-event `rep()` index pair, handed in 7.11 to `residuals-gof`, which
+      was archived 2026-07-31; Alvaro keeps it here: index the margins by
+      linear position so a diagnostics-on event allocates no `rep()` pair,
+      measured before and after with all diagnostics on, results identical;
+      correct 7.11's note; (G10) the delta's "at most `1 + 3/q` arrays" has
+      no exception, while a flipping event pays its writes (churn fixture
+      2.147 / 2.652 against 2.1 / 2.6; the event where 200 actors leave
+      costs about 1.6 arrays): exclude the flip writes from the bound in the
+      wording (their cost is the cells they reach), with an optional churn
+      guard fixture; (G14) no test detects the observed-dyad availability
+      check: add `observed_absent.R`'s fixture as a test red with both
+      checks removed; (G11) D3's "slower from about 50 of 300 absent" holds
+      for the exact-time REM; the ordinal crossover is between 100 and 200;
+      (G12) one line in 7.10's note: under the internal `allow_reflexive =
+      TRUE` the one-mode ordinal REM now includes the diagonal and agrees
+      with cpp (at `237c8dd` r -406.19 against cpp -408.22); (G13) the 7.5
+      `match()` figure is 1.2 ms / 4.8 MB in isolation, not 7.3 ms / 3.1 MB;
+      (G17) the NEWS.d fragment adds that a REM fit where most actors are
+      absent runs on the full grid and can be slower than before; optional
+      (G15): an early return for the NULL-factor `rep(TRUE, n)`.
 - [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather
