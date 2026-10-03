@@ -428,7 +428,7 @@ one latent contract hole. No blocking gap; all before archive.
       111.71 MB), so the budget CSV does not move. *Amended 2026-10-03
       (6.6c):* the step/routing split first written here came from a
       stub probe taken before the routing fix and is withdrawn. At
-      `0ebd2a0` the follow-up re-check stubbed `availability_step()` out
+      `5689797` the follow-up re-check stubbed `availability_step()` out
       and measured 0.116-0.118 s against 0.126 s with it, so the remaining
       gap to the 0.117 s pre-regression figure (about 0.009 s over 2995
       rows, some 3 us a row) is the step call itself (the two
@@ -447,7 +447,7 @@ one latent contract hole. No blocking gap; all before archive.
       `.plan/develop/availability-one-object-per-loop-followup-conformance.md`,
       G-A/B/C/F): (a) the 6.6b tick note attributes the remaining 0.011 s
       to routing (0.007 s) and the step (0.004 s) from a probe taken before
-      the routing fix; at `0ebd2a0`, stubbing the step gives 0.116-0.118 s
+      the routing fix; at `5689797`, stubbing the step gives 0.116-0.118 s
       against 0.126 s, so the remaining gap is the step call and routing
       costs nothing measurable; amend the note and restate the reason the
       C++ step is not built in this change; (b) two comments still
@@ -462,11 +462,11 @@ one latent contract hole. No blocking gap; all before archive.
       restore with cmp); devtools::document() if roxygen changed, with
       man/ unchanged or regenerated; suite green with baselines PASS.
       *Done 2026-10-03:* (a) the 6.6b note's split is withdrawn and
-      restated from the re-check's measurement at `0ebd2a0` (step stubbed
+      restated from the re-check's measurement at `5689797` (step stubbed
       0.116-0.118 s against 0.126 s: the gap is the step call, routing
       about 0), with the reason no C++ step is built here and the
       remaining R lever (test idleness before computing the presence
-      targets), commit `4e0e977`. (b) rewritten by hand: the header of
+      targets), commit `8a5934e`. (b) rewritten by hand: the header of
       `test-support_constraint_ego_fold.R` (the object stores the
       receiver factor alone, no sender factor, no `active_sender_*`), the
       `"outer"` item of `active_dyad_encoding_decide()`'s roxygen and the
@@ -483,7 +483,7 @@ one latent contract hole. No blocking gap; all before archive.
       fields; clean PASS 20 / FAIL 0. (d) the ragged lines above
       `walk_risk_set()` rewrapped. Suite (`NOT_CRAN=true`): PASS 13190,
       FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0 skipped.
-- [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.
       Handed elsewhere, not this change's: the `symmetric` flag that
@@ -492,3 +492,17 @@ one latent contract hole. No blocking gap; all before archive.
       axis filter, the flipping-point-mask row reads the 4.6 guard does not
       cover, and the per-event `match()` / gather `.rowSums` passes
       (`likelihood-site-cleanup-and-cost`, see its conformance report).
+      Done 2026-10-03. The re-check
+      (`.plan/develop/availability-one-object-per-loop-followup-conformance.md`,
+      a fresh agent, at the 6.6b fix) reports CONFORMANT: every claim
+      reproduced, 2042 of 2042 walk outputs identical, the guard red at the
+      base, 12 ablations red, suite 13190 / 0 / 7 after 6.6c, six baseline
+      files and the C++ goldens PASS with 0 skipped, `_baselines/`
+      untouched, validate and placement clean. Its should-fix residue is
+      6.6c; its (c) assertion was re-run by the coordinator (PASS 19 / FAIL
+      1 with the sender fields kept, PASS 20 clean). Hand-offs re-routed,
+      because two had no receiving task: the flipping-point-mask row reads
+      to `constraint-objects-on-shared-walk` 8.5 (walk code), gather's
+      per-event `.rowSums` at point to `likelihood-site-cleanup-and-cost`
+      group 7. Hashes in this group are as rebased onto `f50c859` (the
+      measured trees are content-identical to the rebased ones).
