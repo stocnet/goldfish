@@ -573,6 +573,26 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       handle alike" fails for a dependent event of another process (or of
       the same process) injected at the stamp, so the fixture carries no
       replay arm; see 8.2a.
+- [ ] 8.2a **blocks** (added 2026-10-03, found applying 8.2): at a stamp
+      shared by dependent events, the anchored driver
+      (`simulate_anchored_replicate()`) evaluates and injects one event at
+      a time, so an event injected at t is live when a later event at t
+      that reads its layer through a constraint is evaluated. This holds
+      for a dependent event of another process and of the same one. Cross
+      process: a tied `emails` event injected at t = 2 is live at the tied
+      constrained `calls` event, live mask {1, 3, 6}, batch {1, 3, 5, 6};
+      over 400 anchored replicates N2's call never drew the tied emails
+      receiver where the batch rule allows it about one time in four
+      (probes: coordinator scratchpad `co8/probe82.R`, `co8/probe82b.R`).
+      Same process: under `~ !tie(calls)`, N2's second call at t = 2 has
+      live {1, 4, 5, 6}, batch {1, 3, 4, 5, 6} (`co8/probe82c.R`). The
+      test helper `walk_replay_against_batch()` steps the same per-event
+      pattern. ADR-0105 covered exogenous rows sharing a stamp, not this.
+      *Decided 2026-10-03 (Alvaro, ADR-0114): the anchored driver and
+      `walk_replay_against_batch()` evaluate every dependent event at a
+      stamp before injecting any.* Verify: the handle-alike scenario
+      holds for the tied dependent case under the chosen rule, with a
+      detector red under the other pattern.
 - [ ] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores
