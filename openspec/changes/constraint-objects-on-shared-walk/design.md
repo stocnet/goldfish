@@ -522,7 +522,16 @@ paragraph changing.
   that path. It measured 20-33 percent slower (0.117 s at `663096d`,
   0.141-0.156 s at `0a99c74`), about two thirds of it
   `availability_step()`; the CollegeMsg unconstrained joint walk went
-  3.65 to 4.01 s.
+  3.65 to 4.01 s. The fast path for it (task 8.4) is owned by
+  `availability-one-object-per-loop` task 6.6b, which owns
+  `availability_step()` and took it in `5689797` (idle rows skipped,
+  walk routes resolved before the loop, the per-row `c()` growth and
+  by-name `[[fid]]` lookups gone): 0.142 to 0.127 s on the 1500-actor
+  rate (the follow-up re-check; 6.6b's own note reads 0.141-0.143 to
+  0.128 s), still 8.5 percent over the 0.117 s pre-regression figure.
+  The remainder is the step call itself (about 3 us a row: stubbing
+  `availability_step()` out gives 0.116-0.118 s); the CollegeMsg walk
+  did not move with it.
 
 **Guards.** Each group changing per-event code opens with a cost guard
 on a generated fixture large enough that one grid dominates the noise

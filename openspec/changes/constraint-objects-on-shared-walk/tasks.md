@@ -640,7 +640,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       and the 2.3a tick note; the hand-off note in
       `observation-tail-right-censoring` 0.3 is already there (tracked at
       `1bc74a9`). Suite 13196 / 0 / 7 skipped, six baseline files PASS.
-- [ ] 8.4 **should-fix**, record: the walk-time regression has no tracked
+- [x] 8.4 **should-fix**, record: the walk-time regression has no tracked
       owner. The unconstrained exact-time rate walk is 20-33 percent slower
       (0.117 s at `663096d`, 0.141-0.156 s at `0a99c74`, 0.143 s at
       `3cb92d9`), about two thirds of it `availability_step()` stepping the
@@ -652,6 +652,17 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       `availability_step()` and takes the fast path with the per-row
       `c()` growth and by-name `[[fid]]` lookups. This task closes by
       recording that hand-off in D4's storage note.
+      — *done 2026-10-03, record only*: the fast path was taken as
+      `availability-one-object-per-loop` 6.6b, fix `5689797` (idle rows
+      skipped, routes resolved before the loop, no per-row growth or
+      by-name lookup): unconstrained exact-time rate 0.142 to 0.127 s on
+      the 1500-actor fixture, still 8.5 percent over 0.117 s at
+      `663096d`; the remainder is the `availability_step()` call itself
+      (stubbed out: 0.116-0.118 s). CollegeMsg unconstrained joint walk
+      unchanged by it (3.68 s). Recorded in the design's Storage section
+      (the 2026-10-03 revision's unconstrained-rate bullet, which is what
+      "D4's storage note" names: the Storage section has no D4
+      paragraph). No code here.
 - [x] 8.5 **should-fix**: the design's Storage section is stale. The
       observed-event check reads the sender's row (about 36 KB per
       dependent event), not one mask cell (accepted only in 4.6's note);
