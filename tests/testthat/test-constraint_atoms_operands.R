@@ -269,11 +269,12 @@ test_that("threading a constraint-only stream leaves every other row", {
   }
 })
 
-test_that("an atom event ahead of a dependent event at its stamp lags", {
-  # The `emails` process is planned first, so at t = 2 its event 2 -> 5 is
-  # scheduled ahead of N2's call. The mask still reads its atoms strictly
-  # before the stamp: 2 -> 4 (emailed at 1.5) is excluded and 2 -> 5 is
-  # still allowed at the call.
+test_that("an atom event of an earlier process at a call's stamp lags", {
+  # The `emails` process is planned first, so at t = 2 the dependent row of
+  # its event 2 -> 5 is scheduled ahead of N2's call; the row that moves the
+  # atom comes after every dependent row of the stamp. The mask reads its
+  # atoms strictly before the stamp: 2 -> 4 (emailed at 1.5) is excluded and
+  # 2 -> 5 is still allowed at the call.
   ties <- rbind(
     data.frame(
       from = c(1L, 2L, 3L, 4L, 5L),
@@ -335,6 +336,31 @@ test_that("an atom event ahead of a dependent event at its stamp lags", {
   )
   probability <- evaluate_process_state(state, 0.4)$value
   expect_identical(which(probability > 0), c(1L, 3L, 5L, 6L))
+})
+
+test_that("an atom move is written only once the clock passes its stamp", {
+  # The schedule already puts the rows that move atoms after every dependent
+  # row of their stamp; the record is a second guard. A move recorded at
+  # t = 2 stays in the record for a read at 2 and is written for any read
+  # after it.
+  store <- new.env(parent = emptyenv())
+  store$atom_state <- new.env(parent = emptyenv())
+  assign("1", rep(FALSE, 4L), envir = store$atom_state)
+  clear_atom_record(store)
+  record_atom_delta(store, 2, 1L, 3L, TRUE)
+
+  touched <- flush_atom_moves(store, 2, list(NULL))
+  expect_null(touched[[1L]])
+  expect_identical(store$record_n, 1L)
+  expect_identical(get("1", envir = store$atom_state), rep(FALSE, 4L))
+
+  touched <- flush_atom_moves(store, 2.5, list(NULL))
+  expect_identical(touched[[1L]], 3L)
+  expect_identical(store$record_n, 0L)
+  expect_identical(
+    get("1", envir = store$atom_state),
+    c(FALSE, FALSE, TRUE, FALSE)
+  )
 })
 
 test_that("a constraint-only row does not extend the walk extent", {

@@ -588,6 +588,15 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       handle alike" fails for a dependent event of another process (or of
       the same process) injected at the stamp, so the fixture carries no
       replay arm; see 8.2a.
+      *Amended 2026-10-03 (8.7b):* the red above was measured at
+      `57d0370`, before 8.2b. Under 8.2b's order the row that moves the
+      atom always follows the call, so `<` to `<=` alone is now an
+      equivalent mutant and leaves this test green; the order key carries
+      the rule (red under the old key: the 8.2b tests), and `<` is pinned
+      by the unit test "an atom move is written only once the clock
+      passes its stamp" (red under `<=`: 4 failures). The test is renamed
+      "an atom event of an earlier process at a call's stamp lags" and its
+      comment says only the emails dependent row leads the call.
 - [x] 8.2a **blocks** (added 2026-10-03, found applying 8.2): at a stamp
       shared by dependent events, the anchored driver
       (`simulate_anchored_replicate()`) evaluates and injects one event at
@@ -644,6 +653,12 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       placement clean). NEWS.d `constraint-objects-on-shared-walk--tied-stamps.md`.
       Suite 13221 / 0 / 7 skipped, six baseline files PASS. Batch
       statistics at a cross-process tie are 8.2b.
+      *Amended 2026-10-03 (8.7b):* the helper detector's red was measured
+      before 8.2b. Under 8.2b's order every dependent row of a stamp
+      already precedes its other rows, so the per-position helper
+      evaluates in the grouped order and reverting the helper alone is now
+      an equivalent mutant (green, re-check). The anchored detectors still
+      bite (2 failures under the per-event driver).
 - [x] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
       statistics at a stamp shared by dependent events of different
       processes read rows in schedule order (emails' `tie(calls)` sees a
@@ -697,6 +712,16 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       kept; validate and placement clean). NEWS.d bullet added to
       `constraint-objects-on-shared-walk--tied-stamps.md`. Suite 13240 / 0
       / 7 skipped, six baseline files PASS; `_baselines/` untouched.
+      *Amended 2026-10-03 (8.7b):* the order also removed a self-read the
+      note above did not name. When an earlier-planned process reads a
+      later one's layer, that layer's covariate stream had a lower
+      `stream_index` than the later process's dependent stream, so the
+      later process applied and read its own event's update at its own
+      evaluation, at untied stamps too. Now a test ("a process does not
+      read its own event at its evaluation"), red under the old key; D10
+      and the NEWS fragment name it. The "permuted" counts above cover
+      both kinds: the re-check's audit of every schedule the suite builds
+      found 109 permuted, none of the self-read kind before this test.
 - [x] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores
@@ -798,9 +823,9 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       Verify: allocation and time on that fixture before and after, back
       to back on optimized builds.
       — *done 2026-10-03, recorded and handed off (Alvaro)*: attributed
-      with `Rprofmem` in a detached worktree at `d37e7ec` (`-O2` build):
-      0.615 s / 822 MB against 0.128 s / 95 MB unconstrained (median of 9
-      warm runs); 649 MB of the 825 MB allocated in blocks of 1 KB or
+      with `Rprofmem` in a detached worktree at `904856a` (`-O2` build;
+      `d37e7ec` before the rebase onto `335c150`): 0.615 s / 822 MB
+      against 0.128 s / 95 MB unconstrained (median of 9 warm runs); 649 MB of the 825 MB allocated in blocks of 1 KB or
       more is under `advance_constraint_atom_store()`, about 0.22 MB per
       emails event (2991 events): `to_alter()` 378, `collapse_entries()`
       116, `project_entries()` 103, `update_DyNAM_rate_indeg()` 34,
@@ -815,7 +840,32 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       `to_ego()` / `to_alter()` deleted) is handed to
       `initial-stats-at-kind` 3.2 / 3.3 (its note is on trunk,
       `335c150`). Recorded in the design's Storage revision. No code.
-- [ ] 8.7b **should-fix** (added 2026-10-03, from the follow-up re-check, gaps A-D): (A) after 8.2b the 8.2 detector (`<` to `<=`) and the 8.2a replay-helper detector are equivalent mutants: every dependent row now leads its stamp, so neither single-site ablation is red any more; amend the 8.2 and 8.2a tick notes and D10 to say the order key carries the rule and which detectors bite, fix the `test-constraint_atoms_operands.R` comment that says the emails event is "scheduled ahead" (only its dependent row is), and pin `flush_atom_moves()`'s strict comparison with a unit test that is red under `<=`; (B) the new order key also fixed a self-read: when an earlier-planned process reads a later one's layer, the later process's own covariate stream sorted ahead of its dependent rows and it read its own event's update at its own evaluation, at untied stamps too; add the re-check's fixture as a test red under the old key, and record the case in D10, the 8.2b tick note and the NEWS.d fragment; (C) the proposal's Numbers line ("byte-identical except the point stream") is false for joint specifications after 8.2b, and the mask-timing bullet and the Code line omit the grouping and the statistics rule; correct them; (D) NEWS.d bullet 2 says joint fits' estimates may move, but joint specifications cannot be estimated on this branch (`reject_joint_specification()`), single and flavored fits do not move, and the self-read is missing; rewrite it to what a user can observe (anchored simulation and preprocessed joint objects at tied stamps). Optional, if small: restate the composition carve-out in the merged-walk requirement. Verify: the new unit pin red under `<=`, the self-read test red under the old key, validate and placement clean, suite green with baselines PASS.
+- [x] 8.7b **should-fix** (added 2026-10-03, from the follow-up re-check, gaps A-D): (A) after 8.2b the 8.2 detector (`<` to `<=`) and the 8.2a replay-helper detector are equivalent mutants: every dependent row now leads its stamp, so neither single-site ablation is red any more; amend the 8.2 and 8.2a tick notes and D10 to say the order key carries the rule and which detectors bite, fix the `test-constraint_atoms_operands.R` comment that says the emails event is "scheduled ahead" (only its dependent row is), and pin `flush_atom_moves()`'s strict comparison with a unit test that is red under `<=`; (B) the new order key also fixed a self-read: when an earlier-planned process reads a later one's layer, the later process's own covariate stream sorted ahead of its dependent rows and it read its own event's update at its own evaluation, at untied stamps too; add the re-check's fixture as a test red under the old key, and record the case in D10, the 8.2b tick note and the NEWS.d fragment; (C) the proposal's Numbers line ("byte-identical except the point stream") is false for joint specifications after 8.2b, and the mask-timing bullet and the Code line omit the grouping and the statistics rule; correct them; (D) NEWS.d bullet 2 says joint fits' estimates may move, but joint specifications cannot be estimated on this branch (`reject_joint_specification()`), single and flavored fits do not move, and the self-read is missing; rewrite it to what a user can observe (anchored simulation and preprocessed joint objects at tied stamps). Optional, if small: restate the composition carve-out in the merged-walk requirement. Verify: the new unit pin red under `<=`, the self-read test red under the old key, validate and placement clean, suite green with baselines PASS.
+      — *done 2026-10-03*: (A) tick notes 8.2 and 8.2a amended, D10
+      gains "which detectors bite"; the 8.2 test renamed and its comment
+      fixed (only the emails dependent row leads the call); new unit pin
+      in `test-constraint_atoms_operands.R` "an atom move is written only
+      once the clock passes its stamp", red under `<=` at
+      `flush_atom_moves()` with 4 failures, all in it (132 / 4 in the
+      file; 136 / 0 shipped). (B) `test-walk_handle.R` "a process does
+      not read its own event at its evaluation": calls planned first
+      reads `tie(emails)`, emails' choice reads its inertia at untied
+      stamps 1.5 and 2.5; red under the old key `order(time,
+      stream_index)` with 5 failures in it (N2's and N3's own events read
+      as 1, and the replay rows), green at head; recorded in D10, the
+      8.2b note and the NEWS fragment. (C) proposal: the mask-timing
+      bullet gains the one-rule extension (grouping and statistics), the
+      Code line names the grouped draws and `build_joint_schedule()`, and
+      Numbers names joint specifications as the second exception (no
+      reachable estimate moves; anchored draws at tied stamps can). (D)
+      NEWS bullet 2 rewritten to what a user can observe: preprocessed
+      joint specifications reading a tied event of another process, or
+      their own event when an earlier process reads their layer. Optional
+      taken: the merged-walk requirement restates that composition
+      changes are not schedule rows and are in force at the stamp; D10's
+      allocation wording says nothing n-scaled (about 0.2 KB of
+      constant-size wrappers). validate --strict and placement clean.
+      Suite 13259 / 0 / 7 skipped, six baseline files PASS.
 - [ ] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector

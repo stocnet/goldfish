@@ -74,7 +74,13 @@ continuous-time block.
   FALSE)`, applying the rows sharing the stamp after the event, so batch
   and replay agree even when an atom-object event shares a dependent
   event's stamp (revised 2026-09-29, ADR-0105: holding the moves inside the
-  handle broke free-running simulation).
+  handle broke free-running simulation). Extended 2026-10-03 (ADR-0114,
+  tasks 8.2a and 8.2b) to one rule for every kind of state: rows of any
+  process stamped at `t` never inform an evaluation at `t`. A driver
+  replaying observed stamps evaluates every dependent event of a stamp
+  before injecting any, and the batch schedule puts every dependent row of
+  a stamp before its other rows, so statistics read strictly before the
+  stamp as masks do.
 - **Simulation cross-validation tests.** A seeded, self-contained
   data-generating harness in the test helpers, lifted from the loop in
   `.plan/datasets/Simulation.R` with its defects corrected, simulates
@@ -139,7 +145,8 @@ continuous-time block.
   signature), `R/walk_handle.R` (`walk_assert_covered_constraints()` removed;
   `walk_advance(inclusive = FALSE)` for a tied stamp),
   `R/simulate_anchored.R` (the anchored driver steps strictly before its
-  stamp), `R/constraint_parser.R` (object
+  stamp and draws every event of a stamp before injecting any),
+  `build_joint_schedule()` (dependent rows first within a stamp), `R/constraint_parser.R` (object
   names exposed to the registry). Tests: `helper-simulate-dgp.R` (new),
   `test-simulation_cross_validation.R` (new), `test-walk_handle.R`,
   `test-constraint_atoms_operands.R`, `test-support_mask_sparse.R` (the
@@ -158,7 +165,15 @@ continuous-time block.
   same strictly-before rule, so its masks are identical by construction
   and a reference captured before the threading proves it; its rate moves
   by design (2.3a, the `uncovered_rate` reference and the rate parity
-  goldens re-captured with the difference asserted).
+  goldens re-captured with the difference asserted). Joint specifications
+  are the second exception (8.2b): where a later-planned process has a
+  dependent row at a stamp an earlier unit's covariate or exogenous row
+  shares, or where an earlier process reads a later one's layer, the
+  preprocessed joint object moves (6 of the suite's 8 reordered toy
+  joints). Joint specifications cannot be estimated on this branch, and
+  single-process and flavored outputs stay byte-identical, so no estimate
+  a user can reach moves; anchored `simulate()` draws at tied stamps can
+  (8.2a).
 - **Dependencies**: none added. `survival` and `mlogit` are already in
   Suggests; `stats::glm` runs live.
 - **Sequencing**: `depends-on: constraint-atoms-as-operands` (unarchived on

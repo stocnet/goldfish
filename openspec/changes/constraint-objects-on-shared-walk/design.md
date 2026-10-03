@@ -464,13 +464,40 @@ changes shape. The ordering is one extra radix key in the single
 `order()` call that builds the schedule, resolved once before the walk;
 nothing is evaluated per event. The anchored driver keeps a stamp's drawn
 events in three lists sized once to the largest stamp before its loop and
-writes into them by position; per event it allocates nothing beyond the
-drawn event itself. Measured: of 288 merged-walk outputs the preprocessing
+writes into them by position; per event it allocates nothing n-scaled
+beyond the drawn event itself (the follow-up re-check measured about 0.2
+KB of constant-size wrappers per event: the `list(latent)` slot and the
+flush's `seq_len()`). Measured: of 288 merged-walk outputs the preprocessing
 test families produce, the 280 whose schedules have no cross-process
 dependent tie are `identical()` before and after; the 154 anchored
 replicates of the simulation tests are `identical()`. The frozen
 baselines, goldens and references hold no joint specification with such
 a tie and do not move.
+
+*Recorded 2026-10-03 (task 8.7b, the follow-up re-check):*
+
+- *The order also removed a self-read, at untied stamps too.* When an
+  earlier-planned process reads a later process's layer, the earlier unit
+  registers that layer's covariate stream first, so it took a lower
+  `stream_index` than the later unit's own dependent stream. Under the old
+  `(time, stream_index)` order the later process then applied its own
+  event's update before evaluating that event, and read it (its inertia at
+  its own dyad was 1). The new order puts every dependent row of a stamp
+  first, so this cannot happen. The old comment "dependent streams indexed
+  before their own covariate stream" was false for such joints. No suite
+  fixture built this schedule; `test-walk_handle.R` "a process does not
+  read its own event at its evaluation" now does, red under the old order.
+- *Which detectors bite.* The order key now carries the strictly-before
+  rule for masks as well as statistics: a row that moves an atom at `t`
+  always follows every dependent row at `t`, so the mask has flushed
+  before the move is recorded. `flush_atom_moves()`'s strict `<` is kept
+  as a second guard and is no longer observable end to end: changing it to
+  `<=` leaves the 8.2 fixture green, and so does reverting the replay
+  helper to its per-position pattern, both now equivalent mutants. What
+  bites: the order key (the 8.2b statistics test, the self-read test and
+  the parity ordering pin), the anchored driver's grouping (the two
+  anchored detectors), and `<` itself through a unit pin on the record
+  ("an atom move is written only once the clock passes its stamp").
 
 ## Storage and per-event cost (added 2026-09-29)
 

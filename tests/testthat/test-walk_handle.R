@@ -814,6 +814,83 @@ test_that("a statistic does not read a tied event of another process", {
   expect_identical(replay$n_checked, 16L)
 })
 
+test_that("a process does not read its own event at its evaluation", {
+  # The calls process is planned first and reads the emails layer, so the
+  # emails covariate stream is registered before the emails process's own
+  # dependent stream. No stamp is tied: the emails choice must still read
+  # its inertia strictly before each of its events, never the event itself.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(2L, 3L, 4L),
+      time = c(1, 2, 3),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 3L),
+      to = c(4L, 1L),
+      time = c(1.5, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "self",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:5),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  joint <- make_joint_specification(calls, emails, data = data)
+
+  batch <- suppressWarnings(preprocess_joint(joint))
+  map <- attr(batch, "process_map")
+  emails_choice <- as.character(
+    map$fid[map$layer == "emails" & map$family == "choice"]
+  )
+  emails_ties <- ties[ties$layer == "emails", ]
+  for (e in seq_len(nrow(emails_ties))) {
+    state <- materialize_process_state(
+      batch[[emails_choice]],
+      model_type = "DyNAM-M",
+      event_index = e,
+      has_intercept = FALSE
+    )
+    sender_row <- (emails_ties$from[e] - 1L) * 5L + seq_len(5L)
+    expect_identical(
+      sum(state$stat_mat[sender_row, 1L]),
+      0,
+      info = paste("emails event", e)
+    )
+  }
+
+  replay <- walk_replay_against_batch(joint)
+  expect_identical(replay$n_checked, 10L)
+})
+
 test_that("node-composition changes advance with the handle's clock", {
   data <- walk_constrained_data(data.frame(from = 2L, to = 6L, time = 1.5))
   # N6 is never called and N1 is called only after it returns, so no observed

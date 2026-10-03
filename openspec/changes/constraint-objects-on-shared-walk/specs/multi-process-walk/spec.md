@@ -14,7 +14,9 @@ before any row of that stamp is applied, whichever process the rows belong
 to, so a statistic and a support mask at a dependent event both read the
 state strictly before its stamp; the schedule SHALL be ordered by time, then
 dependent rows before the others, then stream order, resolved once when the
-schedule is built. Per event, each block's effect statistics SHALL be
+schedule is built. Composition changes are not schedule rows: the
+composition in force at a dependent event includes the changes at its own
+stamp. Per event, each block's effect statistics SHALL be
 computed once; consumer
 routing SHALL go through a `(layer, flavor) → fid` lookup: the event is
 dependent for its own `(layer, flavor)` fids, a right-censoring boundary for
