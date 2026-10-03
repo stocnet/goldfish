@@ -689,9 +689,14 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       goldens (sender rows asserted equal, approved), and the by-design
       2.3a rate move (`uncovered_rate`, the rate goldens). validate
       --strict and placement clean. Artifact-only.
-- [ ] 8.7 **should-fix**: the "byte-identical" reference tests
+- [x] 8.7 **should-fix**: the "byte-identical" reference tests
       (`test-constraint_atoms_operands.R:46,98`) use `expect_equal()`; use
       `expect_identical()`. Verify: they stay green.
+      — *done 2026-10-03*: both kept-field comparisons (constrained
+      families, joint families per fid) now `expect_identical()`; green,
+      the file 130 / 0 / 0. Left as is: the plan-effects capture test
+      (`:27-38`), which no task text calls byte-identical. Suite 13196 / 0
+      / 7 skipped, six baseline files PASS.
 - [ ] 8.7a **should-fix** (added 2026-10-03, Alvaro assigned it here; from
       the `availability-one-object-per-loop` follow-up re-check, G-H,
       pre-existing at `9e195dc`): on the 1500-actor rate fixture

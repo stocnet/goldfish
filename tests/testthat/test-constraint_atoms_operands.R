@@ -43,7 +43,7 @@ test_that("constrained mask and presence axes match the frozen capture", {
   refs <- constraint_atoms_refs()
   for (family in constraint_atoms_families()) {
     live <- constraint_atoms_capture(constraint_atoms_prep(family))
-    expect_equal(
+    expect_identical(
       availability_kept(live),
       availability_kept(refs[[family]]),
       info = paste(family, "(kept fields)")
@@ -99,7 +99,7 @@ test_that("joint constrained outputs match the frozen capture per fid", {
     live <- constraint_atoms_joint_capture(family)
     expect_identical(names(live), names(refs[[family]]), info = family)
     for (fid in names(live)) {
-      expect_equal(
+      expect_identical(
         availability_kept(live[[fid]]),
         availability_kept(refs[[family]][[fid]]),
         info = paste(family, fid, "(kept fields)")
