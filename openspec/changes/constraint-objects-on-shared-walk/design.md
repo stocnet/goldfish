@@ -209,6 +209,22 @@ a row is a real exogenous event (ADR-0069 read literally) is the cell
 the answer. The exemption is implemented as one predicate with a comment
 naming the open cell, so flipping it is one line and one test.
 
+*Recorded 2026-10-03 (conformance follow-up, task 8.3):* the test now
+exists. `test-constraint_atoms_operands.R` ("a constraint-only row does
+not extend the walk extent") pins the predicate on a rate whose last row
+is a constraint-only `emails` event at t = 9 after the last call at 5:
+`end_time` 5, against 9 for a twin whose formula reads `emails`; flipping
+`is_constraint_only_row()` turns it red. The exemption now governs
+`end_time` alone, though. Task 2.3a's boundary rows are emitted for every
+constraint-only row, past the exempt end too: that fixture stores a
+censored rate row at t = 9 with interval 4 while `end_time` stays 5, so
+`end_time < max(event_time)` on the stored object. The stored rows thereby
+answer part of the extent cell ("extends") that this decision leaves
+open. Whether such trailing rows are kept or trimmed is not decided here;
+it is handed to `observation-tail-right-censoring` task 0.3 (its note of
+2026-10-03), whose matrix owns the cell. No row is kept or trimmed
+differently by this change.
+
 ### D5 — One seeded harness, hand-built frames, the process's own risk-set rule
 
 `tests/testthat/helper-simulate-dgp.R` provides

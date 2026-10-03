@@ -155,6 +155,12 @@
       `user_constraint__rate`, `constraint_bound__rate` (other 38 entries
       identical). `support_mask_sparse` gate test's twin reads `contignet`.
       9422 / 0 / 4, six baseline files PASS.
+      *Note 2026-10-03 (task 8.3):* the boundary rows reach past the
+      extent D4 exempts. A constraint-only row after the last dependent
+      event still stores its censored row (t = 9, interval 4, `end_time`
+      5), so these rows answer part of the extent cell D4 leaves open.
+      Keep or trim is `observation-tail-right-censoring` 0.3's decision;
+      nothing changed here.
 - [x] 2.3c Preallocate the atom recorder's log (added 2026-09-29, Alvaro;
       found by 2.3b): `advance_constraint_atom_store()` appends one entry
       per constraint event to four vectors (`record_time`, `record_gid`,
@@ -593,7 +599,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       stamp before injecting any.* Verify: the handle-alike scenario
       holds for the tied dependent case under the chosen rule, with a
       detector red under the other pattern.
-- [ ] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
+- [x] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores
       a censored row with interval 4 while `end_time` stays 5). Add a
@@ -601,6 +607,17 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       that the boundary rows answer part of the extent question D4 leaves
       open; the keep-or-trim decision is handed to
       `observation-tail-right-censoring` 0.3 (note added there).
+      — *done 2026-10-03*: `test-constraint_atoms_operands.R` "a
+      constraint-only row does not extend the walk extent": the predicate
+      flags exactly the `emails` rows, the resolved end and the stored
+      `end_time` are 5, and a twin whose rate formula reads
+      `indeg(emails)` ends at 9. Red with `is_constraint_only_row()`
+      returning all `FALSE` (copy and restore, `cmp` clean): 3 failures,
+      all in this test (127 / 3 / 0 in the file); green shipped, 130 /
+      0 / 0. Rows kept or trimmed: unchanged. Recorded in D4 (dated note)
+      and the 2.3a tick note; the hand-off note in
+      `observation-tail-right-censoring` 0.3 is already there (tracked at
+      `1bc74a9`). Suite 13196 / 0 / 7 skipped, six baseline files PASS.
 - [ ] 8.4 **should-fix**, record: the walk-time regression has no tracked
       owner. The unconstrained exact-time rate walk is 20-33 percent slower
       (0.117 s at `663096d`, 0.141-0.156 s at `0a99c74`, 0.143 s at

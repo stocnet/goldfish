@@ -337,6 +337,73 @@ test_that("an atom event ahead of a dependent event at its stamp lags", {
   expect_identical(which(probability > 0), c(1L, 3L, 5L, 6L))
 })
 
+test_that("a constraint-only row does not extend the walk extent", {
+  # The last row is an emails event at t = 9, after the last call at 5. Only
+  # the constraint reads emails, and whether such a row is a real event for
+  # the observation window is not settled, so the window still ends at the
+  # last call. A formula that reads emails makes the same row extend it.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 3L),
+      to = c(4L, 1L),
+      time = c(1.5, 9),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tail",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  constraint_only <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  covered <- make_specification(
+    rate = ~ 1 + indeg + indeg(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+
+  merged <- build_merged_blocks(single_process_joint(constraint_only))
+  flagged <- is_constraint_only_row(merged$schedule, merged)
+  expect_identical(
+    unique(merged$schedule$layer[flagged]),
+    "emails"
+  )
+  expect_identical(
+    resolve_walk_extent(merged, set_preprocessing_opt())$end,
+    5
+  )
+  out <- suppressWarnings(preprocess_joint(constraint_only))[[1L]]
+  expect_identical(out$end_time, 5)
+  covered_out <- suppressWarnings(preprocess_joint(covered))[[1L]]
+  expect_identical(covered_out$end_time, 9)
+})
+
 test_that("the atom recorder's log grows linearly with its events", {
   # A cost guard: the recorder appends one entry per constraint event. Twice
   # the events must cost about twice the allocation; a log that copies itself
