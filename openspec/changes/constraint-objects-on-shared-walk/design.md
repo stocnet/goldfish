@@ -575,6 +575,25 @@ paragraph changing.
   The remainder is the step call itself (about 3 us a row: stubbing
   `availability_step()` out gives 0.116-0.118 s); the CollegeMsg walk
   did not move with it.
+- *A no-op alter constraint pays its atom's degree update at the grid's
+  width (task 8.7a).* On the 1500-actor rate, `~ indeg(emails) >= 0`
+  excludes nothing yet costs 0.615 s and 822 MB against 0.128 s and 95 MB
+  unconstrained. `Rprofmem` (allocations of 1 KB or more, 825 MB in all)
+  puts 649 MB under `advance_constraint_atom_store()`, about 0.22 MB per
+  emails event over 2991 events: `to_alter()` 378 MB (its `setdiff()`,
+  `lapply()`, `cbind()` and `rbind()`), `collapse_entries()` 116 MB (the
+  `duplicated()`), `project_entries()` 103 MB,
+  `update_DyNAM_rate_indeg()` 34 MB and `linear_entries()` 17 MB; about
+  0.27 s of the time gap is inside the atom store, 0.11 s of it in
+  `to_alter()`. The cost scales with `n1` per event, not with the cells
+  the atom changes (one receiver entry): the shared broadcast-effect
+  contract reports a degree change on the dyad grid's terms, `n1 - 1`
+  rows that `collapse_operand_delta()` folds back to one alter entry.
+  The atom store adds no copy, growth or lookup of its own, and every
+  degree statistic pays the same (the walk-cost reference table's +0.20
+  MB per event for `indeg`, +0.21 MB for a degree constraint). The fix,
+  at-kind emission with `to_ego()` / `to_alter()` deleted, is handed to
+  `initial-stats-at-kind` tasks 3.2 and 3.3 (Alvaro, 2026-10-03).
 
 **Guards.** Each group changing per-event code opens with a cost guard
 on a generated fixture large enough that one grid dominates the noise

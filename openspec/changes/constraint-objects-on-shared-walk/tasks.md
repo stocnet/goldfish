@@ -784,7 +784,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       the file 130 / 0 / 0. Left as is: the plan-effects capture test
       (`:27-38`), which no task text calls byte-identical. Suite 13196 / 0
       / 7 skipped, six baseline files PASS.
-- [ ] 8.7a **should-fix** (added 2026-10-03, Alvaro assigned it here; from
+- [x] 8.7a **should-fix** (added 2026-10-03, Alvaro assigned it here; from
       the `availability-one-object-per-loop` follow-up re-check, G-H,
       pre-existing at `9e195dc`): on the 1500-actor rate fixture
       `~ indeg(emails) >= 0` excludes nothing yet costs 0.61 s and 822 MB
@@ -797,6 +797,24 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       cells the atom changes, record why in D4's storage paragraph instead.
       Verify: allocation and time on that fixture before and after, back
       to back on optimized builds.
+      — *done 2026-10-03, recorded and handed off (Alvaro)*: attributed
+      with `Rprofmem` in a detached worktree at `d37e7ec` (`-O2` build):
+      0.615 s / 822 MB against 0.128 s / 95 MB unconstrained (median of 9
+      warm runs); 649 MB of the 825 MB allocated in blocks of 1 KB or
+      more is under `advance_constraint_atom_store()`, about 0.22 MB per
+      emails event (2991 events): `to_alter()` 378, `collapse_entries()`
+      116, `project_entries()` 103, `update_DyNAM_rate_indeg()` 34,
+      `linear_entries()` 17 MB; about 0.27 s of the time gap in the atom
+      store, 0.11 s in `to_alter()`. Not a copy, growth, by-name lookup
+      or grid in the atom store, and not proportional to the cells the
+      atom changes: it scales with `n1` per event because the shared
+      broadcast-effect contract emits a degree change as `n1 - 1` dyad
+      rows that the atom path collapses back to one entry, the same cost
+      every degree statistic pays. A vectorized `to_alter()` was tried
+      and allocated more (925 MB); dropped. The fix (at-kind emission,
+      `to_ego()` / `to_alter()` deleted) is handed to
+      `initial-stats-at-kind` 3.2 / 3.3 (its note is on trunk,
+      `335c150`). Recorded in the design's Storage revision. No code.
 - [ ] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector
