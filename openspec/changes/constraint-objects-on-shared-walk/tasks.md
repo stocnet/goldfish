@@ -854,11 +854,17 @@ before the fold.
       file; an added-lines scan over `R/`, `tests/` and `src/` since
       `1bc74a9` finds none. Suite 13240 / 0 / 7 skipped, six baseline
       files PASS.
-- [ ] 7.2 **note**, record only: commit `759873f` (F4) also deleted
+- [x] 7.2 **note**, record only: commit `759873f` (F4) also deleted
       `openspec/changes/exact-time-diagnostic-cost/` (389 lines) without
       saying so; the deletion belongs to `likelihood-site-cleanup-and-cost`,
       which absorbed that change (its proposal says so; recoverable at
       `e42d05e`). Noted here for whoever folds the branch.
+      — *recorded 2026-10-03*: confirmed. `git show --stat 759873f`
+      removes the five files of `openspec/changes/exact-time-diagnostic-cost/`
+      (389 deletions); all five are at `e42d05e`;
+      `likelihood-site-cleanup-and-cost/proposal.md:65` says it absorbs
+      that change. Nothing to restore; the fold should not re-add the
+      directory.
 - [ ] 7.3 Handed to `estimation-contract-matrix` 2.3a: the F2 standalone
       and de-flavored routes are compared with the container, not the
       oracle (a 2e-6 bound where the spec says 1e-6 each; measured gap 0),
