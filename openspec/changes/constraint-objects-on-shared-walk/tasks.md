@@ -841,7 +841,33 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       `to_ego()` / `to_alter()` deleted) is handed to
       `initial-stats-at-kind` 3.2 / 3.3 (its note is on trunk,
       `335c150`). Recorded in the design's Storage revision. No code.
-- [x] 8.7b **should-fix** (added 2026-10-03, from the follow-up re-check, gaps A-D): (A) after 8.2b the 8.2 detector (`<` to `<=`) and the 8.2a replay-helper detector are equivalent mutants: every dependent row now leads its stamp, so neither single-site ablation is red any more; amend the 8.2 and 8.2a tick notes and D10 to say the order key carries the rule and which detectors bite, fix the `test-constraint_atoms_operands.R` comment that says the emails event is "scheduled ahead" (only its dependent row is), and pin `flush_atom_moves()`'s strict comparison with a unit test that is red under `<=`; (B) the new order key also fixed a self-read: when an earlier-planned process reads a later one's layer, the later process's own covariate stream sorted ahead of its dependent rows and it read its own event's update at its own evaluation, at untied stamps too; add the re-check's fixture as a test red under the old key, and record the case in D10, the 8.2b tick note and the NEWS.d fragment; (C) the proposal's Numbers line ("byte-identical except the point stream") is false for joint specifications after 8.2b, and the mask-timing bullet and the Code line omit the grouping and the statistics rule; correct them; (D) NEWS.d bullet 2 says joint fits' estimates may move, but joint specifications cannot be estimated on this branch (`reject_joint_specification()`), single and flavored fits do not move, and the self-read is missing; rewrite it to what a user can observe (anchored simulation and preprocessed joint objects at tied stamps). Optional, if small: restate the composition carve-out in the merged-walk requirement. Verify: the new unit pin red under `<=`, the self-read test red under the old key, validate and placement clean, suite green with baselines PASS.
+- [x] 8.7b **should-fix** (added 2026-10-03, from the follow-up re-check,
+      gaps A-D): (A) after 8.2b the 8.2 detector (`<` to `<=`) and the 8.2a
+      replay-helper detector are equivalent mutants: every dependent row now
+      leads its stamp, so neither single-site ablation is red any more;
+      amend the 8.2 and 8.2a tick notes and D10 to say the order key carries
+      the rule and which detectors bite, fix the
+      `test-constraint_atoms_operands.R` comment that says the emails event
+      is "scheduled ahead" (only its dependent row is), and pin
+      `flush_atom_moves()`'s strict comparison with a unit test that is red
+      under `<=`; (B) the new order key also fixed a self-read: when an
+      earlier-planned process reads a later one's layer, the later process's
+      own covariate stream sorted ahead of its dependent rows and it read
+      its own event's update at its own evaluation, at untied stamps too;
+      add the re-check's fixture as a test red under the old key, and record
+      the case in D10, the 8.2b tick note and the NEWS.d fragment; (C) the
+      proposal's Numbers line ("byte-identical except the point stream") is
+      false for joint specifications after 8.2b, and the mask-timing bullet
+      and the Code line omit the grouping and the statistics rule; correct
+      them; (D) NEWS.d bullet 2 says joint fits' estimates may move, but
+      joint specifications cannot be estimated on this branch
+      (`reject_joint_specification()`), single and flavored fits do not
+      move, and the self-read is missing; rewrite it to what a user can
+      observe (anchored simulation and preprocessed joint objects at tied
+      stamps). Optional, if small: restate the composition carve-out in the
+      merged-walk requirement. Verify: the new unit pin red under `<=`, the
+      self-read test red under the old key, validate and placement clean,
+      suite green with baselines PASS.
       — *done 2026-10-03*: (A) tick notes 8.2 and 8.2a amended, D10
       gains "which detectors bite"; the 8.2 test renamed and its comment
       fixed (only the emails dependent row leads the call); new unit pin
@@ -867,7 +893,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       allocation wording says nothing n-scaled (about 0.2 KB of
       constant-size wrappers). validate --strict and placement clean.
       Suite 13259 / 0 / 7 skipped, six baseline files PASS.
-- [ ] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+- [x] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector
       agent. Notes not owned here: per-row `c()` growth and by-name
@@ -877,6 +903,17 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       see constraint-path costs (budget tooling).
       The constraint atom's per-event maintenance cost is task 8.7a
       (owner decided 2026-10-03).
+      Done 2026-10-03. The re-check
+      (`.plan/develop/constraint-objects-on-shared-walk-followup-conformance.md`,
+      a fresh agent at `1c8cbf2`) reports CONFORMANT: every gap of the groups
+      0-4 and 5-6 reports closed or handed to a task that exists; 8.2b holds
+      against an independent oracle (40 rows, 24 tied; r, cpp and gather
+      agree); 280 of 280 unpermuted walk outputs, 156 anchored and 112
+      free-running replicates identical; nothing frozen moved; suite 13240 /
+      0 / 7. Its should-fixes A-D are 8.7b; after 8.7b the suite is 13259 /
+      0 / 7 with the six baseline files PASS (0 skipped), validate and
+      placement clean, and the coordinator re-ran the `flush_atom_moves()`
+      pin (`<=`: 132 / 4; clean 136 / 0).
 
 
 ## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
