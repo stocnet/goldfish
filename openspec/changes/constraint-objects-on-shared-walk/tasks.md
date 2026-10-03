@@ -599,6 +599,19 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       stamp before injecting any.* Verify: the handle-alike scenario
       holds for the tied dependent case under the chosen rule, with a
       detector red under the other pattern.
+- [ ] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
+      statistics at a stamp shared by dependent events of different
+      processes read rows in schedule order (emails' `tie(calls)` sees a
+      tied call), while masks read strictly before. Make the batch read
+      strictly before the stamp for statistics too, so it agrees with the
+      masks and with the grouped replay (8.2a). Gate: before any code
+      change, measure which frozen baselines, goldens and references hold
+      cross-process tied stamps where a statistic reads another layer; a
+      frozen baseline that would move stops the task for the coordinator
+      (refreezes happen only on the trunk). Verify: a detector red on the
+      shipped batch at the probe's tie; batch equals the grouped replay on
+      statistics and masks at cross-process ties; within-process outputs
+      unchanged.
 - [x] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores
