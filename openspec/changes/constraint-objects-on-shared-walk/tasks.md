@@ -558,7 +558,11 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       presence effect in R on every stored row; the CollegeMsg unconstrained
       joint walk 3.65 to 4.01 s. The 4.9 fast path proposed for it lives
       only in `progress.md`. Record the measurement in tasks.md and name
-      the successor that owns 4.9 (owner pending Alvaro's decision).
+      the successor that owns 4.9. *Owner 2026-10-03 (Alvaro):*
+      `availability-one-object-per-loop` task 6.6b, which owns
+      `availability_step()` and takes the fast path with the per-row
+      `c()` growth and by-name `[[fid]]` lookups. This task closes by
+      recording that hand-off in D4's storage note.
 - [ ] 8.5 **should-fix**: the design's Storage section is stale. The
       observed-event check reads the sender's row (about 36 KB per
       dependent event), not one mask cell (accepted only in 4.6's note);
