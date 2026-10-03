@@ -434,6 +434,24 @@ one latent contract hole. No blocking gap; all before archive.
       step stubbed) and about 0.004 s the step itself. Suite (`NOT_CRAN=true`):
       PASS 13189, FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0
       skipped; `git diff 3cb92d9 -- tests/testthat/_baselines` empty.
+- [ ] 6.6c **should-fix** (added 2026-10-03, from the follow-up re-check,
+      `.plan/develop/availability-one-object-per-loop-followup-conformance.md`,
+      G-A/B/C/F): (a) the 6.6b tick note attributes the remaining 0.011 s
+      to routing (0.007 s) and the step (0.004 s) from a probe taken before
+      the routing fix; at `0ebd2a0`, stubbing the step gives 0.116-0.118 s
+      against 0.126 s, so the remaining gap is the step call and routing
+      costs nothing measurable; amend the note and restate the reason the
+      C++ step is not built in this change; (b) two comments still
+      describe the ego choice object as two factor vectors: the header of
+      `tests/testthat/test-support_constraint_ego_fold.R` and the roxygen
+      of `active_dyad_encoding_decide()` and the accessors in
+      `R/preprocess_writers.R`; rewrite by hand; (c) assert in the ego fold
+      test that an ego-kind choice object carries no `active_sender_*`
+      field; (d) rewrap the ragged comment at `R/walk_handle.R` around
+      lines 1288-1289. Verify: the new assertion fails when a sender
+      factor is stored (ablate in a detached worktree or by copy and
+      restore with cmp); devtools::document() if roxygen changed, with
+      man/ unchanged or regenerated; suite green with baselines PASS.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.
