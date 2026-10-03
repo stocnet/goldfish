@@ -364,7 +364,7 @@ one latent contract hole. No blocking gap; all before archive.
       found. Clean: file PASS 102 / FAIL 0. Suite (`NOT_CRAN=true`):
       PASS 13184, FAIL 0, ERROR 0, SKIP 7 (environmental or opt-in); six
       baseline files PASS with 0 skipped. No R code changed.
-- [ ] 6.6b **should-fix** (added 2026-10-03, Alvaro; from the
+- [x] 6.6b **should-fix** (added 2026-10-03, Alvaro; from the
       `constraint-objects-on-shared-walk` groups 0-4 inspection,
       `.plan/develop/constraint-objects-on-shared-walk-groups0-4-conformance.md`
       gap 4, its task 8.4): the unconstrained exact-time rate walk is 20-33
@@ -389,6 +389,51 @@ one latent contract hole. No blocking gap; all before archive.
       0.117 s pre-regression figure; stored objects byte-identical
       (`identical()` on the preprocessed outputs before and after);
       baselines PASS not SKIP.
+      *Done 2026-10-03:* `availability_step()` returns early on an idle row
+      (`availability_row_is_idle()`: no queued flip, neither side's
+      composition cursor behind its target, no opportunity list, a value
+      already open or a presence-only variant), which only closes an empty
+      stream row (and the sender factor's, at outer) and adds the row's
+      exposure at the count the previous row left. The presence variant
+      keeps its sender count incrementally (`n_senders`) instead of
+      `sum(p1)` per row. Rule 4: the per-row `x <- c(x, ...)` growth in
+      `availability_step()`, `_step_receivers()`, `_step_point()` and
+      `_step_factors()` is collected once per row. Rule 5: the walk's
+      routes are resolved before the loop (`resolve_engine_routes()`:
+      each consumer's availability effect, live mask entry and stream,
+      and the owner's non-own right-censoring routes;
+      `resolve_live_readers()`: each atom store's readers), so a stored
+      row looks nothing up by fid name; `engine_owning_fid()` folds into
+      `merged_route_dependent()` (its flavor `match()` on the unit's short
+      flavor vector stays, a position, not a `[[fid]]` lookup).
+      Guard (`test-availability_step_cost.R`), red first on the unfixed
+      code: the unconstrained exact-time rate on `constraint_cost_data()`
+      entered the presence step 2995 times (of 2995 rows; 0 expected), and
+      the unconstrained REM with three composition changes 439 times
+      (<= 3 expected); green after (0, and between 1 and 3). Stored
+      objects: 16 preprocessed outputs (unconstrained rate and joint,
+      gate and point constraints, REM with composition, the four
+      vector-fold families, the six constraint-atom families, the
+      self-only rate) serialize identically before (`3cb92d9`) and after,
+      formula environments aside (they hold the package's own functions,
+      whose srcrefs name the worktree). Timing, `-O2` builds in detached
+      worktrees, base and fix alternated twice, medians of 11 warm walks
+      (1500 actors) or 7 (CollegeMsg budget fixture):
+      unconstrained exact-time rate 0.141 / 0.143 s -> 0.128 / 0.128 s
+      (-10%; the pre-regression 0.117 s is still 9% below); joint
+      unconstrained 0.251 / 0.251 -> 0.232 / 0.230 s (-8%); CollegeMsg
+      unconstrained 3.653 / 3.681 -> 3.676 / 3.678 s and constrained
+      3.020 / 3.022 -> 3.000 / 3.000 s (no change); CollegeMsg allocation
+      and object size unchanged to the byte (43656.8 / 44226.5 MB, 84.02 /
+      111.71 MB), so the budget CSV does not move. C++ step: not worth it.
+      The conformance probe that stubbed `availability_step()` out
+      entirely measured 0.124 s, so a step of zero cost would save about
+      0.004 s more here, and the CollegeMsg walk does not move with the
+      step at all. Of the 0.011 s between 0.128 s and 0.117 s, about
+      0.007 s is the per-row routing around the step (present with the
+      step stubbed) and about 0.004 s the step itself. Suite (`NOT_CRAN=true`):
+      PASS 13189, FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0
+      skipped; `git diff 3cb92d9 -- tests/testthat/_baselines` empty.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.

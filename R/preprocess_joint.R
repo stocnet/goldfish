@@ -1267,18 +1267,6 @@ merged_covariate_step <- function(
   invisible(NULL)
 }
 
-# The fid of the consumer a dependent event on `flavor` belongs to within a
-# unit, or `NA` when no modeled flavor of the unit owns it (an unmodeled-flavor
-# event on a modeled layer -- a boundary for the unit's rates, an observation of
-# none). A plain process has one fid and a NA flavor.
-engine_owning_fid <- function(engine, flavor) {
-  if (engine$plain) {
-    return(engine$fids[1L])
-  }
-  i <- match(flavor, engine$flavors)
-  if (is.na(i)) NA_integer_ else engine$fids[i]
-}
-
 # Route a dependent event within one owning unit: a dependent write to the fid
 # that owns `flavor`, and -- when the interval is positive -- a right-censored
 # write to every OTHER right-censoring consumer of the unit (the cross-flavor
@@ -1286,20 +1274,23 @@ engine_owning_fid <- function(engine, flavor) {
 # timed rate unit. Mirrors `route_dependent_event()` but resolves the owner by
 # fid so a plain (NA-flavor) process routes correctly.
 merged_route_dependent <- function(engine, flavor, event_info) {
-  own_fid <- engine_owning_fid(engine, flavor)
-  own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
+  # The slot of the fid a dependent event on `flavor` belongs to within the
+  # unit, or NA when no modeled flavor of the unit owns it (an
+  # unmodeled-flavor event on a modeled layer -- a boundary for the unit's
+  # rates, an observation of none). A plain process has one fid and a NA
+  # flavor.
+  slot <- if (engine$plain) 1L else match(flavor, engine$flavors)
+  owner <- if (is.na(slot)) engine$unowned_route else engine$own_routes[[slot]]
+  own <- owner$route
   if (!is.null(own)) {
-    consumer_write_dependent(own, event_info)
-    merged_row_availability(engine, as.character(own_fid), event_info)
+    consumer_write_dependent(own$consumer, event_info)
+    merged_row_availability(engine, own, event_info)
   }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
-    for (key in names(engine$rc_consumers)) {
-      cs <- engine$rc_consumers[[key]]
-      if (!identical(cs, own)) {
-        consumer_write_rc(cs, event_info)
-        merged_row_availability(engine, key, event_info)
-      }
+    for (route in engine$rc_routes[owner$others]) {
+      consumer_write_rc(route$consumer, event_info)
+      merged_row_availability(engine, route, event_info)
     }
   }
   invisible(NULL)
@@ -1308,22 +1299,67 @@ merged_route_dependent <- function(engine, flavor, event_info) {
 # A right-censoring boundary for every right-censoring consumer of a unit (the
 # caller gates on a positive interval). Mirrors `route_right_censored_event()`.
 merged_route_rc <- function(engine, event_info) {
-  for (key in names(engine$rc_consumers)) {
-    consumer_write_rc(engine$rc_consumers[[key]], event_info)
-    merged_row_availability(engine, key, event_info)
+  for (route in engine$rc_routes) {
+    consumer_write_rc(route$consumer, event_info)
+    merged_row_availability(engine, route, event_info)
   }
+  invisible(NULL)
+}
+
+# Each consumer's row route, resolved once before the walk so a stored row
+# looks nothing up by name: the consumer, its availability effect, and its
+# live mask entry and stream. `rc_routes` holds the right-censoring
+# consumers in their own order. `own_routes[[i]]` is the route of the fid
+# owning the unit's i-th flavor (the one fid of a plain process) with the
+# right-censoring routes that are not its own consumer; `unowned_route`
+# serves an event no modeled flavor owns, which reaches every one of them.
+resolve_engine_routes <- function(engine) {
+  live <- engine$live_masks
+  route_of <- function(key, consumer) {
+    if (is.null(consumer)) {
+      return(NULL)
+    }
+    entry <- if (!is.null(live)) live$by_fid[[key]]
+    list(
+      consumer = consumer,
+      av = engine$availability[[key]],
+      mask_entry = entry,
+      mask_stream = if (!is.null(entry)) live$streams[[key]]
+    )
+  }
+  rc_keys <- names(engine$rc_consumers)
+  engine$rc_routes <- lapply(rc_keys, function(key) {
+    route_of(key, engine$rc_consumers[[key]])
+  })
+  owner_of <- function(key) {
+    own <- if (is.na(key)) NULL else engine$consumers[[key]]
+    others <- !vapply(
+      engine$rc_routes,
+      function(route) identical(route$consumer, own),
+      logical(1)
+    )
+    list(route = route_of(key, own), others = which(others))
+  }
+  owned <- if (engine$plain) engine$fids[1L] else engine$fids
+  engine$own_routes <- lapply(as.character(owned), owner_of)
+  engine$unowned_route <- owner_of(NA_character_)
   invisible(NULL)
 }
 
 # A consumer of `engine` stored the row `event_info` describes: read its
 # live mask there, step its availability over the row, and check the row's
 # observed event against it when the row is a dependent one.
-merged_row_availability <- function(engine, fid, event_info) {
+merged_row_availability <- function(engine, route, event_info) {
   time <- event_info$time
-  if (!is.null(engine$live_masks)) {
-    live_mask_row(engine$live_masks, fid, time)
+  if (!is.null(route$mask_entry)) {
+    live_mask_row(
+      engine$live_masks,
+      route$mask_entry,
+      route$mask_stream,
+      time
+    )
   }
-  av <- engine$availability[[fid]]
+  av <- route$av
   if (!is.null(av)) {
     availability_step(
       av,
@@ -1482,13 +1518,10 @@ build_batch_live_masks <- function(engines, recorders) {
   live
 }
 
-# The fid `fid` stores a row at `t`: bring its atom store's masks to `t` if no
-# row at `t` has yet, then close the fid's row.
-live_mask_row <- function(live, fid, t) {
-  entry <- live$by_fid[[fid]]
-  if (is.null(entry)) {
-    return(invisible(NULL))
-  }
+# A fid stores a row at `t`: bring its atom store's masks to `t` if no row
+# at `t` has yet, then close the fid's row. `entry` and `stream` are the
+# fid's live mask entry and stream, resolved before the walk.
+live_mask_row <- function(live, entry, stream, t) {
   s <- entry$store
   if (live$union_time[[s]] < t) {
     live$touched[[s]] <- flush_atom_moves(
@@ -1501,17 +1534,33 @@ live_mask_row <- function(live, fid, t) {
       mask$recompute(moved)
     })
     live$touched[[s]] <- vector("list", length(moved))
-    for (reader in live$fids_by_store[[as.character(s)]]) {
-      stream <- live$streams[[reader]]
-      reader_flips <- flips[[live$by_fid[[reader]]$maintainer]]
-      stream$pending[[length(stream$pending) + 1L]] <- reader_flips
-      if (!is.null(live$effects[[reader]])) {
-        availability_push_flips(live$effects[[reader]], reader_flips)
+    for (reader in live$readers[[s]]) {
+      reader_stream <- reader$stream
+      reader_flips <- flips[[reader$maintainer]]
+      reader_stream$pending[[length(reader_stream$pending) + 1L]] <-
+        reader_flips
+      if (!is.null(reader$effect)) {
+        availability_push_flips(reader$effect, reader_flips)
       }
     }
     live$union_time[[s]] <- t
   }
-  close_mask_row(live$streams[[fid]])
+  close_mask_row(stream)
+}
+
+# The fids reading each atom store, resolved once before the walk: per store
+# (by position), each reader's mask stream, the maintainer index its flips
+# come from, and its availability effect or NULL.
+resolve_live_readers <- function(live) {
+  lapply(seq_along(live$stores), function(s) {
+    lapply(live$fids_by_store[[as.character(s)]], function(reader) {
+      list(
+        stream = live$streams[[reader]],
+        maintainer = live$by_fid[[reader]]$maintainer,
+        effect = live$effects[[reader]]
+      )
+    })
+  })
 }
 
 # One stored row of a fid's mask stream: the flips gathered since the previous
@@ -2329,6 +2378,10 @@ run_merged_walk <- function(
       c,
       unname(lapply(engines, function(engine) engine$availability))
     )
+    live_masks$readers <- resolve_live_readers(live_masks)
+  }
+  for (engine in engines) {
+    resolve_engine_routes(engine)
   }
   # An event of an object only a support constraint reads changes the risk
   # set of every exact-time rate whose mask reads it, though no statistic, so

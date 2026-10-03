@@ -107,8 +107,11 @@ new_availability_effect <- function(
       ))
     }
   }
+  # The presence variants keep only counts and never open a value.
+  av$presence_only <- variant %in% c("presence", "presence_dyad")
   if (identical(variant, "presence")) {
-    av$n_at_risk <- sum(av$p1)
+    av$n_senders <- sum(av$p1)
+    av$n_at_risk <- av$n_senders
   }
   if (identical(variant, "factors")) {
     av$value1 <- NULL
@@ -193,6 +196,10 @@ availability_step <- function(
   sender = NA_integer_,
   interval = 0
 ) {
+  if (availability_row_is_idle(av, target1, target2)) {
+    availability_idle_row(av, interval)
+    return(invisible(NULL))
+  }
   first <- is.null(av$value)
   moved1 <- availability_take_changes(av, 1L, target1)
   moved2 <- availability_take_changes(av, 2L, target2)
@@ -209,15 +216,27 @@ availability_step <- function(
     if (is.null(av$count)) {
       receivers <- availability_write_presence(av, 2L, moved2)
     } else {
-      for (flips in av$pending) {
-        touched <- c(touched, availability_gate_flips(av, flips))
-      }
-      for (k in seq_along(moved2$node)) {
-        touched <- c(
-          touched,
-          availability_gate_receiver(av, moved2$node[[k]], moved2$replace[[k]])
+      # Collected once per row rather than grown: each batch and each
+      # receiver move names the senders whose count it moved, in order.
+      touched <- c(
+        unlist(
+          lapply(av$pending, function(flips) {
+            availability_gate_flips(av, flips)
+          }),
+          use.names = FALSE
+        ),
+        unlist(
+          lapply(seq_along(moved2$node), function(k) {
+            availability_gate_receiver(
+              av,
+              moved2$node[[k]],
+              moved2$replace[[k]]
+            )
+          }),
+          use.names = FALSE
         )
-      }
+      )
+      touched <- if (is.null(touched)) integer(0) else touched
       receivers <- unique(moved2$node)
       availability_track_positive(av, touched)
     }
@@ -234,6 +253,34 @@ availability_step <- function(
   }
   av$exposure <- av$exposure + interval * av$n_at_risk
   av$pending <- list()
+  av$rows <- av$rows + 1L
+  invisible(NULL)
+}
+
+# Whether the row has nothing to apply: no mask flip queued, no composition
+# change on either side up to the targets, no opportunity row to set, and a
+# value already open. Most rows of an exact-time rate are such rows, since
+# every event of the walk closes one.
+availability_row_is_idle <- function(av, target1, target2) {
+  length(av$pending) == 0L &&
+    target1 <= av$cursor1 &&
+    target2 <= av$cursor2 &&
+    is.null(av$opportunities) &&
+    (av$presence_only || !is.null(av$value))
+}
+
+# An idle row changes no value, count or check: it closes an empty row of
+# the stream (and of the sender factor's own) and adds its exposure at the
+# count at risk the previous row left.
+availability_idle_row <- function(av, interval) {
+  if (av$record && !av$presence_only) {
+    availability_emit(av, integer(0), logical(0))
+    if (!is.null(av$side1)) {
+      av$side1$rows <- av$rows
+      availability_emit(av$side1, integer(0), logical(0))
+    }
+  }
+  av$exposure <- av$exposure + interval * av$n_at_risk
   av$rows <- av$rows + 1L
   invisible(NULL)
 }
@@ -469,7 +516,7 @@ availability_step_presence <- function(av, moved1, moved2) {
   av$n_at_risk <- if (dyad) {
     av$n_senders * av$n_present2 - av$n_both
   } else {
-    sum(av$p1)
+    av$n_senders
   }
   invisible(NULL)
 }
@@ -482,13 +529,14 @@ availability_step_presence <- function(av, moved1, moved2) {
 availability_step_receivers <- function(av, receivers, first) {
   affected <- receivers
   alter <- identical(av$variant, "alter")
-  if (alter) {
-    for (flips in av$pending) {
-      affected <- c(
-        affected,
-        if (av$kind == 1L) flips$entries else seq_len(av$n2)
-      )
+  if (alter && length(av$pending) > 0L) {
+    # A global flip reaches every receiver, a column flip its own entries.
+    flipped <- if (av$kind == 1L) {
+      unlist(lapply(av$pending, `[[`, "entries"), use.names = FALSE)
+    } else {
+      seq_len(av$n2)
     }
+    affected <- c(affected, flipped)
   }
   receiver_value <- function(at) {
     if (!alter) {
@@ -521,16 +569,21 @@ availability_step_receivers <- function(av, receivers, first) {
 availability_step_point <- function(av, receivers, sender, first) {
   n1 <- av$n1
   n2 <- av$n2
-  cells <- integer(0)
-  for (j in receivers) {
-    cells <- c(cells, (j - 1L) * n1 + seq_len(n1))
-  }
-  for (flips in av$pending) {
-    cells <- c(cells, map_entries(flips$entries, av$kind, 0L, n1, n2))
-  }
-  if (!is.null(av$opportunities)) {
-    cells <- c(cells, availability_set_opportunity(av, sender))
-  }
+  # Every cell the row reaches, collected once: the columns of the
+  # receivers that moved, the cells of each mask flip and the sender's
+  # opportunity row. They are sorted and made unique below.
+  cells <- c(
+    rep((receivers - 1L) * n1, each = n1) + seq_len(n1),
+    unlist(
+      lapply(av$pending, function(flips) {
+        map_entries(flips$entries, av$kind, 0L, n1, n2)
+      }),
+      use.names = FALSE
+    ),
+    if (!is.null(av$opportunities)) {
+      availability_set_opportunity(av, sender)
+    }
+  )
   if (first) {
     # Column j of the grid is receiver j's presence, which is `p2` with
     # each entry repeated down its column.
@@ -687,14 +740,17 @@ availability_step_factors <- function(av, senders, receivers, first) {
   }
   reached1 <- senders
   reached2 <- receivers
-  for (flips in av$pending) {
+  if (length(av$pending) > 0L) {
+    # The entries the row's flips reach, collected once. A global flip
+    # reaches the whole receiver factor.
+    flipped <- unlist(lapply(av$pending, `[[`, "entries"), use.names = FALSE)
     if (availability_factor_folds(av, 1L)) {
-      reached1 <- c(reached1, flips$entries)
+      reached1 <- c(reached1, flipped)
     }
     if (availability_factor_folds(av, 2L)) {
       reached2 <- c(
         reached2,
-        if (av$kind == 3L) seq_len(av$n2) else flips$entries
+        if (av$kind == 3L) seq_len(av$n2) else flipped
       )
     }
   }
