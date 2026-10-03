@@ -342,6 +342,17 @@ a drift. *Rejected:* a single time threshold — machine dependent, which is
 why the walk budget gates seconds behind the environment variable; the
 fit-level ratio — meaningless after D4.
 
+*As landed (recorded 2026-10-03, task 7.5):* the CollegeMsg cell is not a
+1000-event fit on three backends but one compiled REM evaluation on the
+first 200 CollegeMsg messages over the full 1899-actor node set at a fixed
+vector, timed with and without diagnostics (`college_rem_200_evaluation`
+and its `diagnostics_ratio`), decided in apply because an r or gather fit
+at that grid size takes minutes per budget run. The fit cells are the
+Social Evolution ones only, so no budget cell is grid-dominated on the r
+and gather backends; their per-event allocation on a large grid is held by
+the generated-fixture cost guards (`test-likelihood_r_backend_cost.R`,
+`test-gather_build_cost.R`).
+
 ### D7 — Detector-first per group, pins before deletions
 
 Each group opens with its guard recorded failing on the unfixed code and

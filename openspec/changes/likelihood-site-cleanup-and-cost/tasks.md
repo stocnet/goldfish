@@ -19,6 +19,17 @@
       with the walk budget's ceiling and floor rules. Record on the unfixed
       tree (optimized build via cpp-recompile); the test PASSES at the
       recorded values and runs under `NOT_CRAN=true`.
+      *Deviation, recorded 2026-10-03 (task 7.5; agreed with Alvaro at
+      the time, then in `progress.md` only):* the CollegeMsg cell is not a
+      1k-event fit on three backends but one compiled REM evaluation on the
+      first 200 CollegeMsg messages over the full 1899-actor node set, at a
+      fixed vector, timed with and without diagnostics
+      (`college_rem_200_evaluation`, `diagnostics_ratio college_rem_200`):
+      an r or gather fit at that grid size would take minutes per budget
+      run. The grid-dominated allocation of the r and gather backends is
+      therefore not a budget cell; the generated-fixture cost guards
+      (`test-likelihood_r_backend_cost.R`, `test-gather_build_cost.R`)
+      carry it instead. D6 is amended.
 - [x] 0.4 Before measurements for the design's predictions, median of three
       warm fits on the optimized build, all budget cells plus wall-clock of
       one evaluation with and without diagnostics (the evaluation-level
@@ -119,6 +130,12 @@
       goldens and pins PASS (the conditional component within 1e-10, every
       other component unchanged); ADR-0021 prediction recorded in
       `progress.md` before the run.
+      *Deviation, recorded 2026-10-03 (task 7.5):* the fast branch's
+      guard is `std::isnormal(normalizer)`, not `isfinite && > 0`: a
+      subnormal normalizer passes the latter and keeps only a few
+      significant bits in `e / normalizer`, so it takes the shifted
+      fallback too. D2a and the delta were amended at the time; this task
+      text was not.
 - [x] 2.4 `src/compute_*_selection.cpp`: event-block views instead of
       copies, the duplicated probability pass removed, per-candidate
       `row.t() * row` replaced by one weighted cross-product. Test: pins
@@ -130,6 +147,15 @@
       numbers in `progress.md`; lower the budget records that fail below in
       the same commit. NEWS.d bullet (compiled kernels allocate once per
       evaluation; the exact-time default path runs one `exp` pass).
+      *Attribution, recorded 2026-10-03 (task 7.5):* the Social Evolution
+      REM cpp fit met D2's 0.45 s prediction (0.575 to 0.446 s), but not by
+      D2's mechanism. One evaluation without diagnostics took 0.036 s
+      before and after, and the grid-dominated CollegeMsg evaluation did
+      not fall either (4.754 to 4.813 s); the fit-level gain is D2a's
+      second `exp` pass removed and D4's diagnostics evaluated once. The
+      kernel buffer rewrite bought allocations, 2635 to 5 per REM
+      evaluation (and 2638 / 879 / 2196 / 2199 to single digits on the
+      other kernels), not time.
 - [x] 2.6 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS; cpp-reviewer passed on every `src/` diff.
 
@@ -168,6 +194,13 @@
       updated diagonal cells only (init zeroed once); accumulators
       preallocated and written in place. Test: pins PASS; a test asserts the
       input `prep` is `identical()` before and after a fit.
+      *Deviation, recorded 2026-10-03 (task 7.5):* `apply_flat_update()`
+      and `apply_broadcast_update()` in `R/utils.R` were kept as they were,
+      functional (they return the updated array), because tests and the
+      decode checks call them as references; the r engine writes through
+      new in-place helpers beside them, `write_flat_updates()` and
+      `write_broadcast_updates()`, which return nothing. The
+      `compute_step()` header comment is corrected to name them.
 - [x] 4.3 Risk-set subsetting once per event into a reused buffer, `which()`
       once per axis; at the outer encoding the REM reduction by sender and
       receiver factors keeps its rectangular shape and the self-dyad
@@ -379,7 +412,9 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       normalizer when it is normal". `openspec validate --strict` valid;
       the placement check (run against this worktree's `openspec/`) reads
       `OK (6 requirement placements)`, exit 0; a scripted comparison finds
-      no living scenario name missing from either MODIFIED block.
+      no living scenario name missing from either MODIFIED block. Suite
+      `NOT_CRAN=true` at `75ba874` (artifact-only, code as `125fe60`):
+      13274 / 0 / 7, baselines, goldens, pins and budget PASS.
 - [x] 7.4 **should-fix** (hand-off received from the
       `availability-one-object-per-loop` inspection, owned here as the r
       engine's): the filter test at `R/estimation_core.R:2090-2094` treats
@@ -414,7 +449,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       recorded in 7.5 with their measured sizes, not closed here. Suite
       `NOT_CRAN=true`: 13269 / 0 / 7; baselines, goldens, pins and budget
       PASS, 0 skipped (the budget cells are unconstrained and do not move).
-- [ ] 7.5 **should-fix**, record in tracked artifacts what `progress.md`
+- [x] 7.5 **should-fix**, record in tracked artifacts what `progress.md`
       alone holds: the CollegeMsg budget cell is one cpp evaluation on 200
       messages, not a 1k fit on three backends (task 0.3, D6); the in-place
       r writers are new helpers, not rewrites of the old ones (4.2); 2.3a
@@ -423,6 +458,26 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       diagnostics once, not by the kernel buffer rewrite, which cut
       allocations (2635 to 5 per evaluation) but not time (ADR-0110's log
       too).
+      *Done 2026-10-03:* notes added under 0.3 (with D6 amended), 2.3a,
+      2.5 and 4.2, and a dated line in ADR-0110's discussion log for the
+      attribution. Also recorded here, from 7.4 and the availability
+      follow-up's G-D, with measured sizes: the gather stack builder (run
+      once per fit, not per Newton iteration) reads, at the point encoding,
+      the senders at risk with `which(.rowSums(active_dyad, n1, n2) > 0)`
+      every event (`R/cpp_interface.R`, the `present1_ids` line): an
+      `n1 x n2` pass and `n1` doubles per event, 28 us and 6 KB at 300
+      actors, 0.96 ms and 37 KB at 1899. On coordination it also pairs each
+      candidate row with `match()` twice per event (`sender_of_row`,
+      `dyad_partner`): at a full grid 0.1 ms and 229 KB per event at 84
+      actors, 7.3 ms and 3.1 MB at 300. Neither is on the r engine's filter
+      path, so neither is closed here; a maintained per-sender count and an
+      arithmetic partner index would remove them. Owner: the gather
+      builder's next change (the `initial-stats-at-kind` successor or a
+      gather follow-up). The availability check's flipping-point row reads
+      (`availability_mark_candidates()`, about 12 KB per event) are walk
+      code, not the likelihood, and stay with the availability change's
+      owner. Suite `NOT_CRAN=true`: 13274 / 0 / 7; baselines, goldens, pins
+      and budget PASS, 0 skipped.
 - [ ] 7.6 **should-fix**: the diagnostics-once test does not cover the
       non-finite-step exit nor assert that the convergence status is
       unchanged; the 2.1 kernel probe guard is dormant (no documented run

@@ -1243,14 +1243,15 @@ bind_compute_step <- function(spec) {
 # Per-event update of the running estimation state.
 #
 # S3 generic dispatched on the model spec. The default method implements the
-# full-recompute pattern: apply the flat update slice to the
-# running statsArray via apply_flat_update(), filter the active presence /
-# opportunity set, zero the reflexive diagonal where applicable, call the
+# full-recompute pattern: write the event's flat and broadcast update slices
+# into the running statistics in place with write_flat_updates() and
+# write_broadcast_updates() (which also zero the reflexive diagonal cells an
+# update reaches), update the active presence / opportunity set, call the
 # bound compute_event_contribution(), and accumulate logL / score /
 # information into `state`. An algorithm variant overrides this method rather
-# than the loop around it. `ctx` carries the loop-invariant context
-# and `state` the mutable running quantities; the updated `state` is
-# returned.
+# than the loop around it. `ctx` carries the loop-invariant context and
+# `state` the mutable running quantities, an environment the step writes in
+# place; it is also returned.
 compute_step <- function(spec, state, i, ctx) {
   UseMethod("compute_step")
 }
