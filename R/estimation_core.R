@@ -1101,7 +1101,9 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   # The global softmax over the dyads, as `stable_softmax()` computes it,
   # written out so that the predictor is the one vector the exclusions
   # write into. A dyad outside the risk set takes a -Inf predictor: the
-  # diagonal, which this family always excludes, and the availability. The
+  # self-dyads on the diagonal, when the model neither allows reflexive ties
+  # nor has two node sets (on two node sets a cell (i, i) is an ordinary
+  # dyad between different actors), and the availability. The
   # product is a fresh vector bound once, so the writes are in place. The
   # availability given as a log mask (a point mask, or the outer factors kept
   # in step by the step) is added within the product's buffer, as in
@@ -1111,10 +1113,12 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   } else {
     drop(statsArray %*% parameters) + log_mask
   }
-  n_diagonal <- min(grid_dims)
-  linear_predictor[
-    seq_len(n_diagonal) + grid_dims[1] * (seq_len(n_diagonal) - 1L)
-  ] <- -Inf
+  if (!allowReflexive && !is_two_mode) {
+    n_diagonal <- min(grid_dims)
+    linear_predictor[
+      seq_len(n_diagonal) + grid_dims[1] * (seq_len(n_diagonal) - 1L)
+    ] <- -Inf
+  }
   if (!is.null(active_dyad_mask) && is.null(log_mask)) {
     linear_predictor[!active_dyad_mask] <- -Inf
   }

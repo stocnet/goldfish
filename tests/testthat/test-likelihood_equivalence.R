@@ -85,6 +85,10 @@ test_that("REM-ordered moments equal the centered score and information", {
     stats_array,
     c(1L, 2L),
     parameters,
+    isRightCensored = FALSE,
+    timespan = NA_real_,
+    allowReflexive = FALSE,
+    is_two_mode = FALSE,
     active_dyad_mask = mask
   )
 

@@ -10,6 +10,7 @@
 * Fixed the diagnostics of a fit whose last Newton step was rejected:
   * They now describe the parameters the fit returns, not the rejected step.
   * Diagnostics are computed once, after the Newton loop.
+* Fixed the `r` backend's ordinal REM on two node sets dropping dyads (i, i).
 * Removed unused arguments of the internal estimation engines:
   * `impute` from the compiled kernels, never set by any caller.
   * `parallelize`, `cpus` and `get_data_matrix`, read nowhere.

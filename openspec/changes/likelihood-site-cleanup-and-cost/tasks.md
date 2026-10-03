@@ -583,7 +583,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       (ordinal), as before. D3 and the delta's requirement and scenario
       record the in-place mask and the accepted time. Suite `NOT_CRAN=true`:
       13316 / 0 / 7; baselines, goldens, pins and budget PASS, 0 skipped.
-- [ ] 7.10 **should-fix, high priority** (added 2026-10-03, re-check N2,
+- [x] 7.10 **should-fix, high priority** (added 2026-10-03, re-check N2,
       pre-existing at `237c8dd`): the r backend's two-mode ordinal REM
       excludes the `(i, i)` cells, which are valid dyads (no self-dyads in
       two-mode): observed `(i, i)` events read `-Inf`, other events are
@@ -595,6 +595,21 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       == the oracle. Verify: the fixture red at `876b5f7`, green after; the
       two-mode baselines PASS. NEWS.d bullet (an r-backend fix users can
       observe).
+      *Done 2026-10-03:* the ordinal REM contribution excludes the
+      diagonal only under `!allowReflexive && !is_two_mode`, as the
+      exact-time one does, and its comment says so. New
+      `test-twomode_rem_ordered.R`: the estimable two-mode fixture (4
+      senders, 3 receivers, `membership ~ inertia` at 0.8), plain, sender
+      P1 absent at 1.5-3.5 and receiver O1 absent at 7.5-9.5, per-event
+      log-likelihood of r, cpp and gather against a hand oracle (softmax
+      over every available cell) at 1e-10. Red at `876b5f7` (in a detached
+      worktree): 3 failures, the r backend in each variant; cpp and gather
+      pass. Green after. The moment-form test in
+      `test-likelihood_equivalence.R` now passes `allowReflexive` and
+      `is_two_mode` explicitly, since the contribution reads them. NEWS.d
+      bullet added. Suite `NOT_CRAN=true`: 13325 / 0 / 7; two-mode
+      baselines (9) and the other five baseline files, goldens, pins and
+      budget PASS, 0 skipped.
 - [ ] 7.11 **should-fix** (added 2026-10-03, re-check G2-G5): (G2) no test
       detects the `return_availability` disjunct of `need_probabilities`
       (without it an availability-only r REM evaluation errors); add one,
