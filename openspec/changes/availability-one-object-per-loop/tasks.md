@@ -241,11 +241,18 @@ one latent contract hole. No blocking gap; all before archive.
       optional sequence check is not committed (reason in 4.3's note).
       Docs only: `openspec validate --strict` and the placement check
       clean.
-- [ ] 6.2 **should-fix**: the ego-choice scenario in
+- [x] 6.2 **should-fix**: the ego-choice scenario in
       `specs/active-availability-stat/spec.md` names the
       "observed-event-excluded" error; the code raises and the test asserts
       "empty risk set" (`R/availability_effect.R:1121`,
       `test-support_constraint_ego_fold.R:182`). Align the scenario.
+      *Done 2026-10-03:* the scenario "ego constraint in choice zeroes
+      rows, validation guards observed events" now names the empty-risk-set
+      error and why: an ego atom zeroes the gated sender's count of allowed
+      receivers, so `availability_check_event()` fails on the count before
+      it reads the observed cell. Matches the code and
+      `test-support_constraint_ego_fold.R` ("empty risk set"). Docs only:
+      `openspec validate --strict` and the placement check clean.
 - [ ] 6.3 **should-fix**: since 4.5 an ego-kind choice output carries
       `active_dyad_encoding = "outer"` with no sender factor;
       `walk_risk_set()` relabels it `"alter"` and the accessors special-case

@@ -174,7 +174,8 @@ encoding.
   draw, so no row flip is stored), the choice estimates equal the
   unconstrained fit on a sequence whose observed senders are all allowed, and
   an observed sender the atom gates out fails fast at preprocessing with the
-  observed-event-excluded error.
+  empty-risk-set error (the gated sender has no allowed receiver, so the
+  check fails on its count before it reads the observed cell).
 
 ### Requirement: One homogenized availability name across all sites
 Every site SHALL reference the `active_sender`/`active_dyad` objects (and their
