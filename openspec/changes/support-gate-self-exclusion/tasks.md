@@ -257,6 +257,15 @@ archive.
       (flipped entries) and the global branch (`n1`); the point branch
       allocates none. 2.3a(ii)'s premise and its line references
       (`model_preprocess.R:370`, `preprocess_joint.R:1708`) are stale
-- [ ] 4.6 Verification: `NOT_CRAN=true` suite green; six baseline files
+- [x] 4.6 Verification: `NOT_CRAN=true` suite green; six baseline files
       PASS not SKIP and byte-identical; a scoped re-check of gaps 1-8 of
       the report by a fresh conformance-inspector agent before the fold.
+      Done 2026-10-03 at `676efd3`: PASS 13180, FAIL 0, SKIP 7 (all
+      environmental or opt-in); six baseline files PASS, 0 skipped;
+      `_baselines/` identical to `79dca89`. The re-check
+      (`.plan/develop/support-gate-self-exclusion-followup-conformance.md`)
+      reran every ablation and reports CONFORMANT: gaps 1-8 closed; the
+      4.3 sparse-fixture deviation is accepted because the property test
+      and the fixture tests detect the rule. Its new note, the coordination
+      self-exclusion in `symmetric_receiver_count()` with no detector, goes
+      to `availability-one-object-per-loop`, which introduced it.
