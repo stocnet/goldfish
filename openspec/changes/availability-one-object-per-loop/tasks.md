@@ -273,11 +273,32 @@ one latent contract hole. No blocking gap; all before archive.
       it reads the observed cell. Matches the code and
       `test-support_constraint_ego_fold.R` ("empty risk set"). Docs only:
       `openspec validate --strict` and the placement check clean.
-- [ ] 6.3 **should-fix**: since 4.5 an ego-kind choice output carries
+- [x] 6.3 **should-fix**: since 4.5 an ego-kind choice output carries
       `active_dyad_encoding = "outer"` with no sender factor;
       `walk_risk_set()` relabels it `"alter"` and the accessors special-case
       a NULL sender. Store it as `"alter"` or state in the encodings
       requirement that a choice object at outer carries one factor.
+      *Done 2026-10-03, second option (spec states it):* the encodings
+      requirement now says a one-sided choice object at outer (an ego-kind
+      atom, which the choice loop does not fold) carries the receiver
+      factor alone, no sender factor and no `active_sender_*`; the row and
+      cell accessors read it as that factor for any sender, and the walk
+      handle hands it on at the alter encoding. The ego-choice scenario's
+      "stored at the receiver axis's own encoding" now says the outer
+      encoding with the receiver factor alone, and design D4 gains an "as
+      landed" note. Why not relabel the stored encoding `"alter"`: it
+      changes a stored field value of every ego-constrained choice object
+      and the `test-support_constraint_ego_fold.R` expectation
+      (`"outer"`), for no change in any number, while the wording change
+      moves nothing stored; and the decision function
+      (`active_dyad_encoding_decide()`) returns `"outer"` for an ego atom
+      whatever the loop, so a relabel would need a choice-only exception
+      there too. Also rewrote that test's comment, which still called the
+      object two factor vectors. Not touched: `active_dyad_count()` at
+      outer with no sender factor returns 0 (`sum(NULL == 1)`); nothing
+      calls it for a choice object today. Suite (`NOT_CRAN=true`):
+      PASS 13184, FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0
+      skipped. `openspec validate --strict` and the placement check clean.
 - [x] 6.4 **should-fix**: comments now false, rewrite by hand:
       `R/estimation_core.R:2111-2120` and `R/walk_handle.R:1284-1286` say a
       REM or coordination constraint always folds to a dense point grid.

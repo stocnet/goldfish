@@ -149,6 +149,17 @@ the receiver factor with `encoding = "alter"` for a choice fid, as it does
 now, since the drawing sender's row is presence alone.
 *Rejected:* folding the ego atom as row flips — a grid for a no-op.
 
+*As landed (amended 2026-10-03, conformance follow-up):* since task 4.5 the
+choice output keeps no `active_sender_*`, so the ego-kind choice object is
+stored at `"outer"` with the receiver factor alone. The encodings
+requirement now says so: a choice object at outer carries one factor, the
+accessors read it as that factor for any sender (a missing sender factor
+means a given sender), and `walk_risk_set()` hands it on as `"alter"`.
+Relabelling the stored encoding `"alter"` was the other way to close the
+mismatch; it was not taken because it changes a stored field and a test's
+expectation for no change in any number, where the wording change moves
+nothing.
+
 ### D5 — The simulation driver reads the effect
 
 The deferred-fid path in `R/simulate_driver.R` returns the fid's maintained

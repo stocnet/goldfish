@@ -82,7 +82,12 @@ the encoding field signals its shape. The encoding rule SHALL apply to every
 dyad-loop family alike: a REM or DyNAM-choice-coordination model whose
 `support_constraint` is of alter, ego or global kind SHALL store `active_dyad`
 at the outer encoding with the mask folded into the factor of its own axis,
-and SHALL NOT allocate a grid for it.
+and SHALL NOT allocate a grid for it. A one-sided DyNAM-choice object at the
+outer encoding (an ego-kind atom, which the choice loop does not fold) SHALL
+carry the receiver factor alone: the drawing sender is given, so it stores
+no sender factor and no `active_sender_*` field, the row and cell accessors
+SHALL read it as the receiver factor for any sender, and the walk handle
+SHALL hand it on at the alter encoding.
 
 #### Scenario: broadcast-only constraint stores at a vector encoding
 - **WHEN** a choice model has an alter-kind `support_constraint` and receiver
@@ -169,8 +174,9 @@ encoding.
 
 #### Scenario: ego constraint in choice zeroes rows, validation guards observed events
 - **WHEN** a DyNAM-choice `support_constraint` contains an ego-kind atom
-- **THEN** `active_dyad` is stored at the receiver axis's own encoding with no
-  sender-axis fold (the rows the atom would zero belong to senders who never
+- **THEN** `active_dyad` is stored at the outer encoding with the receiver
+  factor alone (receiver presence) and no sender-axis fold or sender factor
+  (the rows the atom would zero belong to senders who never
   draw, so no row flip is stored), the choice estimates equal the
   unconstrained fit on a sequence whose observed senders are all allowed, and
   an observed sender the atom gates out fails fast at preprocessing with the

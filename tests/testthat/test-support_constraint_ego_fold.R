@@ -66,8 +66,10 @@ test_that("an ego-kind choice constraint folds to the outer encoding", {
   ))
   expect_false(is.null(prep$active_dyad_update))
   # The decision function returns "outer" for an ego-kind choice constraint;
-  # the fold now produces it. The availability is two factor vectors, so
-  # `active_dyad` is the length-n2 receiver vector, NOT a dense n1 x n2 grid.
+  # the fold now produces it. A choice object at outer carries only the
+  # receiver factor, since the drawing sender is given: `active_dyad` is the
+  # length-n2 receiver vector, with no sender factor and NOT a dense n1 x n2
+  # grid.
   expect_identical(prep$active_dyad_encoding, "outer")
   expect_false(is.matrix(prep$active_dyad_init))
   expect_length(prep$active_dyad_init, dim(prep$initial_stats)[1])
