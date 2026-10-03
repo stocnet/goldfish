@@ -569,6 +569,14 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       the predicted time drop was refuted; the 2.3a row bound is computed
       as C/(E+C) where rows grow by C/E, and the measured +56 percent sits
       above it. Amend D4's storage paragraph and the 2.3a/2.3b tick notes.
+      *Added 2026-10-03* (from the `availability-one-object-per-loop`
+      follow-up re-check, `.plan/develop/`
+      `availability-one-object-per-loop-followup-conformance.md`, G-D; the
+      hand-off its 6.7 sent to `likelihood-site-cleanup-and-cost` had no
+      receiving task there and is walk code): under a flipping point mask
+      the observed-event check still reads about two `n2` rows per
+      dependent event. Record it in the same storage paragraph as the
+      accepted row read, with the measured size.
 - [ ] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
       unconstrained or covered models; 4.5b moved the covered `choice`
       reference and two covered point-choice parity goldens. Correct the
@@ -584,6 +592,12 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       values (`preprocess-output-writers`, pre-existing); the 4.4a guard
       checks function names only (optional); the walk budget's band cannot
       see constraint-path costs (budget tooling).
+      *Added 2026-10-03* (same re-check, G-H, pre-existing at `9e195dc`):
+      on the 1500-actor rate fixture `~ indeg(emails) >= 0` excludes
+      nothing yet costs 0.61 s and 822 MB against 0.127 s and 95 MB
+      unconstrained, about 0.15 MB per event in the constraint atom's
+      per-event maintenance. Owner pending Alvaro (this change or
+      `effect-term-registry`).
 
 
 ## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
