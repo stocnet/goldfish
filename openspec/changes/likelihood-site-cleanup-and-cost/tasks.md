@@ -706,7 +706,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       returns at once when nothing flipped. Validate valid, placement OK
       (6). Suite `NOT_CRAN=true`: 13336 / 0 / 7; six baseline files,
       goldens, pins and budget PASS, 0 skipped.
-- [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
+- [x] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather
       choice allocation sits 0.5 percent under its ceiling; the walk
@@ -715,3 +715,19 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       `write_broadcast_updates()` builds four `n1 x n2` vectors per update
       (`initial-stats-at-kind` 2.2b); commit `206e173` carries other
       changes' artifacts (branch fold).
+      Done 2026-10-03, in three passes by fresh agents:
+      `.plan/develop/likelihood-site-cleanup-and-cost-followup-conformance.md`
+      at `876b5f7` closed gaps 1-9 and found N1 (the full-grid mask scaled
+      with the grid under heavy composition; blocks), N2 (the r two-mode
+      ordinal REM dropped `(i, i)`, pre-existing) and G2-G8, answered by
+      7.9-7.11. `-followup2-conformance.md` at `ebfe9c5` reports
+      CONFORMANT (sweep flat at 2.08-2.10 / 2.55-2.59 arrays per event
+      from 10 to 200 of 300 absent; one-mode deviation within 2.2e-11;
+      suite 13328 / 0 / 7); its G9-G17 residue is 7.12. At `54d41ea` the
+      suite is 13336 / 0 / 7 with the six baseline files, both goldens,
+      the pins and the budget PASS, 0 skipped. The coordinator reviewed
+      7.12's margins diff and re-ran the risk-set and the 15 margin-reading
+      test files (0 failures, 0 errors; only the probe-build test skips).
+      Routed elsewhere: an `allow_reflexive = TRUE` one-mode exact-time REM
+      disagreeing between r and cpp (`allow-reflexive-user`); cpp raising
+      nothing for an absent observed dyad (`estimation-contract-matrix`).
