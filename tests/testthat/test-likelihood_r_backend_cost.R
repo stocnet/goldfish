@@ -6,31 +6,77 @@
 # allocated about 10 arrays on REM and 4 on choice; before the contributions
 # read the statistics where they are, 3.5 on REM and 9.8 on the ordinal REM.
 
+# 300 actors of which only the first `n_present` ever call, and the others
+# leave at time 0.5 and stay away: an outer-encoded availability that
+# excludes most of the grid at nearly every event. Their departure is 200
+# sender and 200 receiver flips at one change, each writing the row or the
+# column it reaches; 120 calls spread that one-off write the way the other
+# fixtures' 60 events spread their evaluation's fixed allocations.
+r_backend_cost_absent_data <- function(
+  n_actors = 300L,
+  n_present = 100L,
+  n_calls = 120L
+) {
+  withr::local_seed(2)
+  calls <- data.frame(
+    from = sample.int(n_present, n_calls, replace = TRUE),
+    to = sample.int(n_present, n_calls, replace = TRUE)
+  )
+  calls <- calls[calls$from != calls$to, ]
+  calls$time <- sort(stats::runif(nrow(calls), 1, 100))
+  absent <- (n_present + 1L):n_actors
+  changes <- data.frame(time = 0.5, node = absent, var = "active")
+  changes$value <- rep(list(list(FALSE)), length(absent))
+  list(
+    info = list(
+      name = "absent actors",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = sprintf("A%04d", seq_len(n_actors)),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = cbind(calls, layer = "calls"),
+    changes = changes
+  )
+}
+
 r_backend_cost_prep <- function(sub_model) {
-  data <- constraint_cost_data(n_actors = 300L, n_calls = 60L, n_emails = 10L)
+  data <- if (endsWith(sub_model, "_absent")) {
+    r_backend_cost_absent_data()
+  } else {
+    constraint_cost_data(n_actors = 300L, n_calls = 60L, n_emails = 10L)
+  }
   model <- if (startsWith(sub_model, "rem")) "REM" else "DyNAM"
+  rem_sub_model <- if (startsWith(sub_model, "rem_ordered")) {
+    "rate_ordered"
+  } else {
+    "rate"
+  }
   spec <- suppressMessages(make_specification(
     rate = switch(
       sub_model,
       rem = ,
-      rem_point = ~ 1 + inertia + recip,
-      rem_ordered = ~ inertia + recip,
+      rem_point = ,
+      rem_absent = ~ 1 + inertia + recip,
+      rem_ordered = ,
+      rem_ordered_absent = ~ inertia + recip,
       rate_ordered = ~ indeg + outdeg
     ),
     choice = if (sub_model == "choice") ~ inertia + recip else NULL,
     model = model,
-    rate_sub_model = if (sub_model == "rem_ordered") "rate_ordered" else "rate",
+    rate_sub_model = rem_sub_model,
     layer = "calls",
     data = data,
     support_constraint = if (sub_model == "rem_point") ~ !tie(emails)
   ))
   suppressWarnings(suppressMessages(
     if (model == "REM") {
-      estimate_rem(
-        spec,
-        sub_model = if (sub_model == "rem_ordered") "rate_ordered" else "rate",
-        preprocessing_only = TRUE
-      )
+      estimate_rem(spec, sub_model = rem_sub_model, preprocessing_only = TRUE)
     } else {
       estimate_dynam(spec, sub_model = sub_model, preprocessing_only = TRUE)
     }
@@ -69,16 +115,29 @@ test_that("an r-backend event allocates no copy of the statistics", {
   # effects). A point constraint changes nothing, its mask being added within
   # the predictor's buffer. The 0.1 above the bound is the evaluation's own
   # fixed allocations (its copy of the initial statistics, the accumulators)
-  # spread over the fixture's 60 events. A choice event reads a sender's
-  # rows.
+  # spread over the fixture's 60 events. Two thirds of the actors absent
+  # change nothing either: an outer filter is a mask kept in step with the
+  # composition changes, so no event rebuilds the cells it excludes. A
+  # choice event reads a sender's rows.
   rem_limit <- function(prep) 1 + 3 / statistics_columns(prep) + 0.1
   statistics_columns <- function(prep) {
     dim(prep$initial_stats)[3] + isTRUE(prep$has_intercept)
   }
-  for (sub_model in c("rem", "rem_point", "rem_ordered", "choice")) {
+  sub_models <- c(
+    "rem",
+    "rem_point",
+    "rem_absent",
+    "rem_ordered",
+    "rem_ordered_absent",
+    "choice"
+  )
+  for (sub_model in sub_models) {
     prep <- r_backend_cost_prep(sub_model)
     if (sub_model == "rem_point") {
       expect_identical(prep$active_dyad_encoding, "point")
+    }
+    if (endsWith(sub_model, "_absent")) {
+      expect_identical(prep$active_dyad_encoding, "outer")
     }
     r_backend_cost_pass(prep)
     allocated <- as.numeric(

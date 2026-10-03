@@ -31,8 +31,15 @@ on the ordinal REM); it SHALL NOT copy, reshape or subset the statistics
 array, SHALL apply an axis filter as a mask on the whole grid rather than
 by reducing the array, and SHALL build the probability vector and the
 risk-set membership only when a per-event output that reads them is
-requested. In pure R one statistics-sized allocation per REM event is the
-information itself and cannot be avoided.
+requested. The mask SHALL be maintained in place: an availability flip
+(a point cell, or a sender or receiver of the outer encoding) SHALL write
+the cells it reaches when it happens, and no event SHALL rebuild the
+excluded cells, so nothing allocated per event grows with the number of
+actors excluded. The evaluation's time is then that of the full grid
+however many actors are absent, which is accepted: under heavy composition
+a REM evaluation is slower than the reduced-grid one it replaced. In pure R
+one statistics-sized allocation per REM event is the information itself
+and cannot be avoided.
 
 #### Scenario: a compiled kernel allocates nothing event-sized inside its loop
 - **WHEN** a REM, REM-ordered, coordination, choice or rate kernel evaluates
@@ -53,14 +60,17 @@ information itself and cannot be avoided.
   with the pre-change kernel within 1e-10.
 
 #### Scenario: an r-backend REM event allocates one weighted statistics array
-- **WHEN** one r-backend evaluation runs on the 300-actor, 60-event
-  generated REM fixture of the cost guard, exact-time (unconstrained or
-  under a point constraint, `q = 3`) or ordinal (`q = 2`)
+- **WHEN** one r-backend evaluation runs on the 300-actor generated REM
+  fixtures of the cost guard, exact-time (unconstrained, under a point
+  constraint, or with 200 of the 300 actors absent through the outer
+  encoding, `q = 3`) or ordinal (unconstrained or 200 absent, `q = 2`)
 - **THEN** it allocates at most `1 + 3/q` statistics arrays per event, 2 on
-  the exact-time and 2.5 on the ordinal fixture, plus 0.1 for the
-  evaluation's own fixed allocations spread over the 60 events, which is
-  the limit the guard asserts; no event copies, reshapes or subsets the
-  statistics array, an outer-encoded filter included; and a whole r fit of
+  the exact-time and 2.5 on the ordinal fixtures, plus 0.1 for the
+  evaluation's own fixed allocations and one-off flip writes spread over
+  its events, which is the limit the guard asserts; no event copies,
+  reshapes or subsets the statistics array or rebuilds its excluded cells,
+  an outer-encoded filter included, so the allocation per event is the
+  same with 10 or 200 of 300 actors absent; and a whole r fit of
   the Social Evolution REM allocates under about 2100 MB (3290 MB before,
   at `237c8dd`; 7325 MB at `7b56821`).
 

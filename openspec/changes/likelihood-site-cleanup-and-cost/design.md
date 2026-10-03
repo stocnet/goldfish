@@ -280,6 +280,20 @@ ordinal REM reads the flat statistics with `grid_dims` and forms its
 information in moment form, `crossprod(S, S * p) - tcrossprod(E)`, score
 `S[obs, ] - E`, never the centered derivative array; and the r backend
 stays pure R. The coordination path keeps its grid reads (not a REM event).
+*Amended again 2026-10-03 (ADR-0113 log, task 7.9).* The first landing
+rebuilt the excluded rows' and columns' cells on every filtered event, so
+an event's allocation grew with the share of actors absent (2.09 to 2.62
+arrays from 10 to 200 of 300 absent; ordinal 3.37). The outer filter is
+now a log mask maintained in place like the point one: at each sender or
+receiver flip the step rewrites that row or column from the two factors,
+and no event touches the excluded cells. Allocation per event is flat in
+the share absent (2.08 to 2.10; ordinal 2.55 to 2.59). Time is that of the
+full grid whatever the share: on the 300-actor sweep about 110 ms per
+evaluation (ordinal about 80 ms) at 10 to 200 absent, against 155 to 22 ms
+(356 to 18 ms) for the reduced grid at `237c8dd`, which is slower from
+about 50 of 300 absent. Alvaro accepted that time to keep one mask path;
+*rejected*: a hybrid that subsets when the risk set is small, and
+reverting the filters to a subset.
 *Rejected (ADR-0113):* a compiled weighted cross-product helper (676 MB,
 but the reference stops being pure R and the information moves by 3e-8);
 the minimal empty-buffer and rate-trim fixes alone (leaves the ordinal REM

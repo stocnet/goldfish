@@ -714,7 +714,6 @@ event_contribution_rate <- function(
   isREM,
   active_dyad_mask = NULL,
   grid_dims = NULL,
-  excluded_dyads = NULL,
   need_probabilities = TRUE,
   log_mask = NULL
 ) {
@@ -738,9 +737,11 @@ event_contribution_rate <- function(
   }
 
   # vector of rates, on the log scale. The product is a fresh vector bound
-  # once, so the -Inf writes below change it in place. A point mask given as
-  # its log (`log_mask`, 0 or -Inf) is added before the product is bound, so
-  # the sum reuses the product's buffer; an excluded dyad's predictor is
+  # once, so the -Inf writes below change it in place. The REM's availability
+  # given as a log mask over the grid (`log_mask`, 0 or -Inf: a point mask,
+  # or the two factors of the outer encoding, kept in step with their flips
+  # by the step) is added before the product is bound, so the sum reuses the
+  # product's buffer; an excluded dyad's predictor is
   # finite whenever the statistics and the parameters are, so the sum is
   # -Inf there, not NaN. The observed dyad is in the risk set (an excluded
   # one aborts before the likelihood), where the mask adds an exact zero.
@@ -758,8 +759,8 @@ event_contribution_rate <- function(
   # own term is untouched (it was read above). `active_dyad_mask` is the
   # per-event mask, aligned with the dyad rows. Self-connecting edges, the
   # diagonal of the grid, are excluded when neither allowReflexive nor
-  # is_two_mode holds. `excluded_dyads` are the cells of the rows and columns
-  # an axis filter removes, masked on the whole grid instead of reducing it.
+  # is_two_mode holds. An outer filter's absent rows and columns arrive in
+  # `log_mask`, so the grid is never reduced.
   # An alternative outside the risk set takes a -Inf linear predictor, which
   # exp() turns into a zero rate: it leaves the maximum, the normalizer and
   # every weighted sum without a separate mask vector being formed.
@@ -772,9 +773,6 @@ event_contribution_rate <- function(
       grid_dims[1] +
       seq_len(grid_dims[1])
     objectiveFunctions[diagonal] <- -Inf
-  }
-  if (!is.null(excluded_dyads)) {
-    objectiveFunctions[excluded_dyads] <- -Inf
   }
 
   # One shifted exp pass yields both exact-time scales, mirroring the gather
@@ -864,16 +862,15 @@ event_contribution_rate <- function(
     # alternative whose fitted rate underflows is still at risk, so
     # availability reads the mask the likelihood applied rather than the
     # weights it produced.
-    inRiskSet <- if (isREM && !is.null(active_dyad_mask)) {
+    inRiskSet <- if (!is.null(log_mask)) {
+      log_mask == 0
+    } else if (isREM && !is.null(active_dyad_mask)) {
       as.vector(active_dyad_mask)
     } else {
       rep(TRUE, length(objectiveFunctions))
     }
     if (!is.null(diagonal)) {
       inRiskSet[diagonal] <- FALSE
-    }
-    if (!is.null(excluded_dyads)) {
-      inRiskSet[excluded_dyads] <- FALSE
     }
   }
 
@@ -923,7 +920,6 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
   is_two_mode,
   active_dyad_mask = NULL,
   grid_dims = NULL,
-  excluded_dyads = NULL,
   need_probabilities = TRUE,
   log_mask = NULL
 ) {
@@ -938,7 +934,6 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
     isREM = TRUE,
     active_dyad_mask = active_dyad_mask,
     grid_dims = grid_dims,
-    excluded_dyads = excluded_dyads,
     need_probabilities = need_probabilities,
     log_mask = log_mask
   )
@@ -1091,7 +1086,6 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   is_two_mode,
   active_dyad_mask = NULL,
   grid_dims = NULL,
-  excluded_dyads = NULL,
   need_probabilities = TRUE,
   log_mask = NULL
 ) {
@@ -1107,11 +1101,11 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   # The global softmax over the dyads, as `stable_softmax()` computes it,
   # written out so that the predictor is the one vector the exclusions
   # write into. A dyad outside the risk set takes a -Inf predictor: the
-  # diagonal, which this family always excludes, the support mask, and the
-  # cells of the rows and columns an axis filter removes. The product is a
-  # fresh vector bound once, so the writes are in place.
-  # A point mask given as its log is added within the product's buffer, as
-  # in `event_contribution_rate()`.
+  # diagonal, which this family always excludes, and the availability. The
+  # product is a fresh vector bound once, so the writes are in place. The
+  # availability given as a log mask (a point mask, or the outer factors kept
+  # in step by the step) is added within the product's buffer, as in
+  # `event_contribution_rate()`.
   linear_predictor <- if (is.null(log_mask)) {
     drop(statsArray %*% parameters)
   } else {
@@ -1123,9 +1117,6 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   ] <- -Inf
   if (!is.null(active_dyad_mask) && is.null(log_mask)) {
     linear_predictor[!active_dyad_mask] <- -Inf
-  }
-  if (!is.null(excluded_dyads)) {
-    linear_predictor[excluded_dyads] <- -Inf
   }
   shift <- max(linear_predictor)
   if (!is.finite(shift)) {
@@ -1334,13 +1325,16 @@ compute_step.default <- function(spec, state, i, ctx) {
   # update composition: an event's composition changes are applied before its
   # likelihood, so the risk set it is evaluated on already reflects them. Both
   # availability buffers are the evaluation's own and are written in place.
+  flipped_senders <- NULL
+  flipped_receivers <- NULL
   if (!is.null(ctx$active_sender_update)) {
     lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
     cols <- .availability_event_cols(lo, ctx$active_sender_update_pointer[i])
     if (!is.null(cols)) {
+      flipped_senders <- as.integer(ctx$active_sender_update[1L, cols])
       set_entries(
         state$presence,
-        as.integer(ctx$active_sender_update[1L, cols]),
+        flipped_senders,
         as.logical(ctx$active_sender_update[2L, cols])
       )
     }
@@ -1364,13 +1358,30 @@ compute_step.default <- function(spec, state, i, ctx) {
           set_entries(state$log_mask, cells, log(available))
         }
       } else {
+        flipped_receivers <- as.integer(ctx$active_dyad_update[1L, cols])
         set_entries(
           state$presence2,
-          as.integer(ctx$active_dyad_update[1L, cols]),
+          flipped_receivers,
           as.logical(ctx$active_dyad_update[2L, cols])
         )
       }
     }
+  }
+
+  # A REM object at the outer encoding keeps its two factors also as one log
+  # mask over the grid (0 where both the sender and the receiver are
+  # available, -Inf elsewhere), rewritten in the rows of the senders and
+  # the columns of the receivers that flipped at this event, after both
+  # factors are current. An event that flips nothing writes nothing, so the
+  # cost per event does not grow with the number of actors excluded.
+  if (ctx$rem_outer_mask) {
+    write_outer_log_mask(
+      state,
+      unique(flipped_senders),
+      unique(flipped_receivers),
+      n1,
+      n2
+    )
   }
 
   # remove potential absent lines and columns from the risk set
@@ -1385,7 +1396,8 @@ compute_step.default <- function(spec, state, i, ctx) {
   # here because its two-sided likelihood needs the full matrix, not a
   # per-sender row. At the outer encoding the same object is two factors, the
   # sender one in `state$presence` and the receiver one in `state$presence2`,
-  # applied as the two axis filters below.
+  # applied as the two axis filters below, except on REM, which reads them
+  # through its maintained log mask and reduces neither axis.
   # Reduced-position -> global-actor slot maps for the margin reduction: an
   # entry k of the (reduced) risk set belongs to global actor `sender_slots[k]`
   # / `receiver_slots[k]`; identity over the full node set when an axis is
@@ -1394,8 +1406,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   keep_senders <- NULL
   keep_receivers <- NULL
   posSender <- activeDyad[1]
-  global_dyad <- activeDyad
-  if (ctx$sender_filter && !ctx$dyad_point) {
+  if (ctx$sender_filter && !ctx$dyad_point && !ctx$rem_outer_mask) {
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
     keep_senders <- state$presence
@@ -1419,7 +1430,8 @@ compute_step.default <- function(spec, state, i, ctx) {
   receiver_slots <- if (is_rate) NULL else seq_len(n2)
   if (
     (ctx$receiver_filter || ctx$updateopportunities) &&
-      !ctx$dyad_point
+      !ctx$dyad_point &&
+      !ctx$rem_outer_mask
   ) {
     # The receiver filter is read through the encoding accessor:
     # `state$presence2` is the folded receiver availability and already
@@ -1468,21 +1480,28 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexiveCorrected <- ctx$allowReflexive
   }
 
-  # A REM object at the outer encoding filters the senders by one factor and
-  # the receivers by the other. The two filters are applied as a mask on the
-  # whole grid, the cells of every excluded row and column, rather than by
-  # reducing the statistics to the kept rows: positions stay global, the
-  # self-dyads stay on the diagonal however the two sets differ, and the
-  # statistics are read where they are, with no copy per event.
-  excluded_dyads <- NULL
-  if (ctx$is_rem && !(is.null(keep_senders) && is.null(keep_receivers))) {
-    excluded_dyads <- grid_exclusions(keep_senders, keep_receivers, n1, n2)
-    keep_senders <- NULL
-    keep_receivers <- NULL
-    sender_slots <- seq_len(n1)
-    receiver_slots <- seq_len(n2)
-    activeDyad <- global_dyad
-    allowReflexiveCorrected <- ctx$allowReflexive
+  # The REM log mask excludes an absent sender's row and an absent
+  # receiver's column without reducing the grid, so the observed dyad's
+  # availability is checked against the factors themselves.
+  if (ctx$rem_outer_mask && isDependent) {
+    if (!is.null(state$presence) && !state$presence[activeDyad[1]]) {
+      stop(
+        "Active node ",
+        activeDyad[1],
+        " not present in event ",
+        i,
+        call. = FALSE
+      )
+    }
+    if (!is.null(state$presence2) && !state$presence2[activeDyad[2]]) {
+      stop(
+        "Active node ",
+        activeDyad[2],
+        " not available in event ",
+        i,
+        call. = FALSE
+      )
+    }
   }
 
   # The event's statistics, read from the buffer at the shape its
@@ -1547,9 +1566,6 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
   if (!is.null(state$log_mask)) {
     contrib_args$log_mask <- state$log_mask
-  }
-  if (!is.null(excluded_dyads)) {
-    contrib_args$excluded_dyads <- excluded_dyads
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
@@ -1620,21 +1636,48 @@ compute_step.default <- function(spec, state, i, ctx) {
   state
 }
 
-# Linear indices of the dyads a sender or a receiver filter removes from the
-# n1 x n2 grid: every cell of an excluded sender's row and of an excluded
-# receiver's column. Its size is the excluded rows and columns, not the grid.
-grid_exclusions <- function(keep_senders, keep_receivers, n1, n2) {
-  out_senders <- if (is.null(keep_senders)) integer(0) else which(!keep_senders)
-  out_receivers <- if (is.null(keep_receivers)) {
-    integer(0)
+# Rewrites the REM outer-encoding log mask in the rows of `senders` and the
+# columns of `receivers`: cell (i, j) is log(f1[i] & f2[j]), 0 or -Inf, read
+# from the factors as they stand after the event's flips. The writes are
+# the cells those flips reach, never the grid. A NULL factor keeps everyone.
+write_outer_log_mask <- function(state, senders, receivers, n1, n2) {
+  senders_present <- if (is.null(state$presence)) {
+    rep(TRUE, n1)
   } else {
-    which(!keep_receivers)
+    state$presence
   }
-  c(
-    rep(out_senders, n2) +
-      n1 * rep(seq_len(n2) - 1L, each = length(out_senders)),
-    rep(n1 * (out_receivers - 1L), each = n1) + seq_len(n1)
-  )
+  receivers_present <- if (is.null(state$presence2)) {
+    rep(TRUE, n2)
+  } else {
+    state$presence2
+  }
+  if (length(senders) > 0L) {
+    set_entries(
+      state$log_mask,
+      as.integer(
+        rep(senders, times = n2) +
+          n1 * rep(seq_len(n2) - 1L, each = length(senders))
+      ),
+      log(
+        rep(senders_present[senders], times = n2) &
+          rep(receivers_present, each = length(senders))
+      )
+    )
+  }
+  if (length(receivers) > 0L) {
+    set_entries(
+      state$log_mask,
+      as.integer(
+        rep(seq_len(n1), times = length(receivers)) +
+          n1 * rep(receivers - 1L, each = n1)
+      ),
+      log(
+        rep(senders_present, times = length(receivers)) &
+          rep(receivers_present[receivers], each = n1)
+      )
+    )
+  }
+  invisible(NULL)
 }
 
 # Scatter the contribution's reduced-risk-set probability vector over the whole
@@ -2241,6 +2284,11 @@ compute_iteration_step <- function(
     is_dyadic = is_rem || is_coord,
     dyad_point = (is_rem || is_coord) &&
       identical(statsList$active_dyad_encoding, "point"),
+    # A REM at the outer encoding whose factors can exclude someone: its
+    # filters are read through a log mask the step maintains.
+    rem_outer_mask = is_rem &&
+      !identical(statsList$active_dyad_encoding, "point") &&
+      (sender_filter || receiver_filter),
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,
@@ -2311,14 +2359,22 @@ compute_iteration_step <- function(
       bcPointer = 0L,
       presence = if (is.null(presence)) NULL else as.logical(presence) | FALSE,
       presence2 = if (is.null(presence2)) NULL else presence2 | FALSE,
-      # The REM point mask again, as the log of the indicator: 0 at a dyad
-      # in the risk set and -Inf outside it. Added to the linear predictor it
-      # excludes the masked dyads within the product's own buffer, where
-      # writing -Inf through the logical mask would allocate its complement
-      # and an index of the grid's size per event. Kept in step with
-      # `presence2` at every flip.
+      # The REM availability again, as the log of its indicator over the
+      # grid: 0 at a dyad in the risk set and -Inf outside it. Added to the
+      # linear predictor it excludes the masked dyads within the product's
+      # own buffer, where writing -Inf through a logical mask would allocate
+      # its complement and an index of the grid's size per event, and an
+      # index of the excluded rows and columns at the outer encoding. Kept in
+      # step with `presence2` (point) or with both factors (outer) at every
+      # flip.
       log_mask = if (ctx$is_rem && ctx$dyad_point && !is.null(presence2)) {
         log(as.vector(presence2 | FALSE))
+      } else if (ctx$rem_outer_mask) {
+        log(as.vector(outer(
+          if (is.null(presence)) rep(TRUE, ctx$n1) else as.logical(presence),
+          if (is.null(presence2)) rep(TRUE, ctx$n2) else as.logical(presence2),
+          `&`
+        )))
       } else {
         NULL
       },

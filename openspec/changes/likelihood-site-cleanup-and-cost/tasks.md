@@ -528,7 +528,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       probe build with these sources: 6 / 0, not skipped. Suite
       `NOT_CRAN=true`: 13312 / 0 / 7; baselines, goldens, pins and budget
       PASS, 0 skipped.
-- [ ] 7.9 **blocks** (added 2026-10-03, from the follow-up re-check, N1;
+- [x] 7.9 **blocks** (added 2026-10-03, from the follow-up re-check, N1;
       decided by Alvaro, ADR-0113 log): applying outer filters as a
       full-grid mask scales with the grid, not the risk set:
       `grid_exclusions()` rebuilds an excluded x n index on every filtered
@@ -545,6 +545,44 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       after. Verify: arrays per event flat across 10 to 200 absent; time
       recorded against `237c8dd` on that sweep; deviation at most 1e-10
       (relative where the information is large); pins and baselines PASS.
+      *Done 2026-10-03:* the REM outer encoding keeps its two factors also
+      as a log mask over the grid (0 / `-Inf`), set once per evaluation
+      from the initial factors; at each event the step rewrites the rows
+      of the senders and the columns of the receivers that flipped, from
+      the factors after both are current (`write_outer_log_mask()`), and
+      the contributions add the mask inside the product's buffer, as for
+      the point mask. `grid_exclusions()` and the `excluded_dyads`
+      argument are gone; the REM step no longer computes kept slots, and
+      checks the observed dyad against the factors (same errors). Guard
+      first: `rem_absent` and `rem_ordered_absent` (300 actors, 200 leave
+      at 0.5 and stay away, 120 calls among the other 100, outer
+      encoding) in the cost guard; on `876b5f7` 2.59 and 3.36 against 2.1
+      and 2.6, red; after 2.05 and 2.54. Detector of the maintenance:
+      with the flip writes disabled (detached worktree, not committed) the
+      risk-set test fails 6 and the pins 23. Sweep, 300 actors, 60 calls,
+      composition (actors leave at 0.5), arrays per event / ms per
+      evaluation, median of 7, optimized, one tree after another:
+
+      | absent | `237c8dd` | `876b5f7` | after |
+      | --- | --- | --- | --- |
+      | 10 | 4.425 / 155.0 | 2.094 / 112.8 | 2.077 / 112.2 |
+      | 50 | 3.305 / 118.7 | 2.206 / 117.7 | 2.082 / 109.2 |
+      | 100 | 2.138 / 72.8 | 2.344 / 131.8 | 2.089 / 109.7 |
+      | 200 | 0.581 / 21.9 | 2.622 / 147.8 | 2.102 / 109.9 |
+      | ordinal 10 | 8.909 / 356.0 | 2.573 / 81.9 | 2.547 / 80.8 |
+      | ordinal 50 | 6.628 / 154.6 | 2.740 / 90.9 | 2.555 / 82.1 |
+      | ordinal 100 | 4.252 / 119.8 | 2.948 / 99.8 | 2.565 / 79.4 |
+      | ordinal 200 | 1.083 / 18.2 | 3.365 / 120.2 | 2.585 / 76.9 |
+
+      Flat in the share absent (the 0.025 drift is the one-off flip
+      writes over 60 events); time is the full grid's, about 110 ms (80
+      ordinal), slower than `237c8dd` from about 50 absent and 5 times
+      slower at 200 (4 on the ordinal), as accepted. Deviation against
+      `237c8dd` on the sweep at most 8.6e-16 relative; on the seven spike
+      variants identical, 1.46e-11 (outer-filter score) and 1.1e-14
+      (ordinal), as before. D3 and the delta's requirement and scenario
+      record the in-place mask and the accepted time. Suite `NOT_CRAN=true`:
+      13316 / 0 / 7; baselines, goldens, pins and budget PASS, 0 skipped.
 - [ ] 7.10 **should-fix, high priority** (added 2026-10-03, re-check N2,
       pre-existing at `237c8dd`): the r backend's two-mode ordinal REM
       excludes the `(i, i)` cells, which are valid dyads (no self-dyads in
