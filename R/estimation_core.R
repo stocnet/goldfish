@@ -713,11 +713,13 @@ event_contribution_rate <- function(
   is_two_mode,
   isREM,
   active_dyad_mask = NULL,
-  self_dyads = NULL,
-  grid_dims = NULL
+  grid_dims = NULL,
+  excluded_dyads = NULL,
+  need_probabilities = TRUE,
+  log_mask = NULL
 ) {
   # A caller holding the grid as an n1 x n2 x p array (a direct call; the step
-  # passes the rows) has it reshaped here.
+  # passes the rows) has it relabeled here.
   if (length(dim(statsArray)) == 3L) {
     grid_dims <- dim(statsArray)[1:2]
     dim(statsArray) <- c(prod(grid_dims), dim(statsArray)[3])
@@ -735,30 +737,44 @@ event_contribution_rate <- function(
     timespan <- 0
   }
 
-  # vector of rates
-  objectiveFunctions <- drop(statsArray %*% parameters)
+  # vector of rates, on the log scale. The product is a fresh vector bound
+  # once, so the -Inf writes below change it in place. A point mask given as
+  # its log (`log_mask`, 0 or -Inf) is added before the product is bound, so
+  # the sum reuses the product's buffer; an excluded dyad's predictor is
+  # finite whenever the statistics and the parameters are, so the sum is
+  # -Inf there, not NaN. The observed dyad is in the risk set (an excluded
+  # one aborts before the likelihood), where the mask adds an exact zero.
+  objectiveFunctions <- if (is.null(log_mask)) {
+    drop(statsArray %*% parameters)
+  } else {
+    drop(statsArray %*% parameters) + log_mask
+  }
   objectiveFunctionOfSender <- objectiveFunctions[activeActor]
   statsOfSender <- statsArray[activeActor, ]
 
   # The risk set. A support_constraint (REM) removes disallowed dyads exactly
   # as the reflexive-edge exclusion does: their rate is zeroed, so they leave
   # the denominator (and the score / information sums) but the observed dyad's
-  # own term is untouched. `active_dyad_mask` is the per-event mask, aligned
-  # with the dyad rows. Self-connecting edges are excluded when neither
-  # allowReflexive nor is_two_mode holds; `self_dyads` names them when the
-  # rows and columns were reduced by different sets and so are off a square
-  # diagonal.
-  inRiskSet <- if (isREM && !is.null(active_dyad_mask)) {
-    as.vector(active_dyad_mask)
-  } else {
-    rep(TRUE, length(objectiveFunctions))
+  # own term is untouched (it was read above). `active_dyad_mask` is the
+  # per-event mask, aligned with the dyad rows. Self-connecting edges, the
+  # diagonal of the grid, are excluded when neither allowReflexive nor
+  # is_two_mode holds. `excluded_dyads` are the cells of the rows and columns
+  # an axis filter removes, masked on the whole grid instead of reducing it.
+  # An alternative outside the risk set takes a -Inf linear predictor, which
+  # exp() turns into a zero rate: it leaves the maximum, the normalizer and
+  # every weighted sum without a separate mask vector being formed.
+  diagonal <- NULL
+  if (isREM && !is.null(active_dyad_mask) && is.null(log_mask)) {
+    objectiveFunctions[!active_dyad_mask] <- -Inf
   }
-  if (!is.null(self_dyads)) {
-    inRiskSet[self_dyads] <- FALSE
-  } else if (isREM && !allowReflexive && !is_two_mode) {
-    inRiskSet[
-      (seq_len(grid_dims[1]) - 1) * grid_dims[1] + seq_len(grid_dims[1])
-    ] <- FALSE
+  if (isREM && !allowReflexive && !is_two_mode) {
+    diagonal <- (seq_len(grid_dims[1]) - 1) *
+      grid_dims[1] +
+      seq_len(grid_dims[1])
+    objectiveFunctions[diagonal] <- -Inf
+  }
+  if (!is.null(excluded_dyads)) {
+    objectiveFunctions[excluded_dyads] <- -Inf
   }
 
   # One shifted exp pass yields both exact-time scales, mirroring the gather
@@ -770,13 +786,13 @@ event_contribution_rate <- function(
   # is already rejected by the estimation loop's is.finite() gate. What the
   # shift does buy is an exact probability vector, where the raw ratio
   # sum(rates) gives NaN on overflow or a spurious 1 when every rate is
-  # subnormal.
-  shift <- if (any(inRiskSet)) max(objectiveFunctions[inRiskSet]) else 0
+  # subnormal. The maximum runs over the risk set because every alternative
+  # outside it is -Inf here.
+  shift <- max(objectiveFunctions)
   if (!is.finite(shift)) {
     shift <- 0
   }
   probabilities <- exp(objectiveFunctions - shift)
-  probabilities[!inRiskSet] <- 0
   shiftedTotal <- sum(probabilities)
   logNormalizer <- shift + log(shiftedTotal)
   totalRate <- exp(logNormalizer)
@@ -799,7 +815,8 @@ event_contribution_rate <- function(
   # weighted cross-product: crossprod(S, S * p) = S^T diag(p) S. This preserves
   # the nParams x nParams shape for every parameter count, so the former
   # single-parameter special-case loop (which patched the degenerate outer())
-  # is no longer needed.
+  # is no longer needed. `S * p` is the one statistics-sized array an event
+  # allocates.
   weightedStatsStatsSum <- crossprod(statsArray, statsArray * probabilities)
 
   logL <- -compensator +
@@ -830,9 +847,34 @@ event_contribution_rate <- function(
   } else {
     statsOfSender - weightedStatsSum
   }
-  pVector <- probabilities
-  if (isREM) {
-    dim(pVector) <- grid_dims
+
+  # The probability vector and the risk-set membership are returned only
+  # when a per-event output reads them (`need_probabilities`); the
+  # likelihood, score and information above do not.
+  pVector <- NULL
+  inRiskSet <- NULL
+  if (!need_probabilities) {
+    probabilities <- NULL
+  } else {
+    pVector <- probabilities
+    if (isREM) {
+      dim(pVector) <- grid_dims
+    }
+    # Risk-set MEMBERSHIP, not "the weight is nonzero": an at-risk
+    # alternative whose fitted rate underflows is still at risk, so
+    # availability reads the mask the likelihood applied rather than the
+    # weights it produced.
+    inRiskSet <- if (isREM && !is.null(active_dyad_mask)) {
+      as.vector(active_dyad_mask)
+    } else {
+      rep(TRUE, length(objectiveFunctions))
+    }
+    if (!is.null(diagonal)) {
+      inRiskSet[diagonal] <- FALSE
+    }
+    if (!is.null(excluded_dyads)) {
+      inRiskSet[excluded_dyads] <- FALSE
+    }
   }
 
   list(
@@ -841,9 +883,6 @@ event_contribution_rate <- function(
     informationMatrix = -hessian,
     pMatrix = pVector,
     probabilities = probabilities,
-    # Risk-set MEMBERSHIP, not "the weight is nonzero": an at-risk alternative
-    # whose fitted rate underflows is still at risk, so availability reads the
-    # mask the likelihood applied rather than the weights it produced.
     in_risk_set = inRiskSet,
     total_rate = totalRate,
     conditional_logl = conditionalLogL,
@@ -883,8 +922,10 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
   allowReflexive,
   is_two_mode,
   active_dyad_mask = NULL,
-  self_dyads = NULL,
-  grid_dims = NULL
+  grid_dims = NULL,
+  excluded_dyads = NULL,
+  need_probabilities = TRUE,
+  log_mask = NULL
 ) {
   event_contribution_rate(
     statsArray,
@@ -896,8 +937,10 @@ compute_event_contribution.goldfishLikDyadPoisson <- function(
     is_two_mode,
     isREM = TRUE,
     active_dyad_mask = active_dyad_mask,
-    self_dyads = self_dyads,
-    grid_dims = grid_dims
+    grid_dims = grid_dims,
+    excluded_dyads = excluded_dyads,
+    need_probabilities = need_probabilities,
+    log_mask = log_mask
   )
 }
 
@@ -1047,36 +1090,91 @@ compute_event_contribution.goldfishLikDyadMultinom <- function(
   allowReflexive,
   is_two_mode,
   active_dyad_mask = NULL,
-  self_dyads = NULL
+  grid_dims = NULL,
+  excluded_dyads = NULL,
+  need_probabilities = TRUE,
+  log_mask = NULL
 ) {
-  multinomial <-
-    getMultinomialProbabilities(
-      statsArray,
-      activeDyad,
-      parameters,
-      actorNested = FALSE,
-      allowReflexive = FALSE,
-      active_dyad_mask = active_dyad_mask,
-      self_dyads = self_dyads
-    )
-  eventProbabilities <- multinomial$probabilities
-  # log-space observed logL (finite under underflow)
-  logLikelihood <- multinomial$logProbabilities[activeDyad[1], activeDyad[2]]
-  firstDerivatives <- compute_first_derivative_rem(
-    statsArray,
-    eventProbabilities
-  )
-  score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
-  informationMatrix <- getInformationMatrixREM(
-    eventProbabilities,
-    firstDerivatives
-  )
+  # The statistics are one row per dyad (column-major sender, receiver) and
+  # one column per statistic, read where they are, never reshaped, so the
+  # statistics buffer they may be is not copied. A direct caller holding the
+  # n1 x n2 x p array has it relabeled here.
+  if (length(dim(statsArray)) == 3L) {
+    grid_dims <- dim(statsArray)[1:2]
+    dim(statsArray) <- c(prod(grid_dims), dim(statsArray)[3])
+  }
+  observed <- activeDyad[1] + (activeDyad[2] - 1) * grid_dims[1]
+  # The global softmax over the dyads, as `stable_softmax()` computes it,
+  # written out so that the predictor is the one vector the exclusions
+  # write into. A dyad outside the risk set takes a -Inf predictor: the
+  # diagonal, which this family always excludes, the support mask, and the
+  # cells of the rows and columns an axis filter removes. The product is a
+  # fresh vector bound once, so the writes are in place.
+  # A point mask given as its log is added within the product's buffer, as
+  # in `event_contribution_rate()`.
+  linear_predictor <- if (is.null(log_mask)) {
+    drop(statsArray %*% parameters)
+  } else {
+    drop(statsArray %*% parameters) + log_mask
+  }
+  n_diagonal <- min(grid_dims)
+  linear_predictor[
+    seq_len(n_diagonal) + grid_dims[1] * (seq_len(n_diagonal) - 1L)
+  ] <- -Inf
+  if (!is.null(active_dyad_mask) && is.null(log_mask)) {
+    linear_predictor[!active_dyad_mask] <- -Inf
+  }
+  if (!is.null(excluded_dyads)) {
+    linear_predictor[excluded_dyads] <- -Inf
+  }
+  shift <- max(linear_predictor)
+  if (!is.finite(shift)) {
+    shift <- 0
+  }
+  probabilities <- exp(linear_predictor - shift)
+  total <- sum(probabilities)
+  log_normalizer <- shift + log(total)
+  if (total == 0) {
+    log_normalizer <- -Inf
+  } else {
+    probabilities <- probabilities / total
+  }
+  # log-space observed logL (finite under underflow); an empty risk set
+  # gives -Inf, as a fully excluded softmax does.
+  log_likelihood <- if (total == 0) {
+    -Inf
+  } else {
+    linear_predictor[observed] - log_normalizer
+  }
+  # Moments over the risk set, where the probabilities sum to one:
+  # E = sum_d p_d s_d, the score is s_obs - E, and the information is the
+  # probability-weighted covariance sum_d p_d (s_d - E)(s_d - E)', written
+  # as sum_d p_d s_d s_d' - E E' so the deviations s_d - E, an array the
+  # size of the statistics, are never formed. `S * p` is the one
+  # statistics-sized array an event allocates.
+  expected <- drop(crossprod(statsArray, probabilities))
+  score <- statsArray[observed, ] - expected
+  information_matrix <- crossprod(statsArray, statsArray * probabilities) -
+    tcrossprod(expected)
+  # The probability grid and the risk-set membership are returned only when
+  # a per-event output reads them (`need_probabilities`). An excluded
+  # alternative has a -Inf predictor, so a finite one is exactly risk-set
+  # membership, and unlike the probability it stays true where the
+  # probability underflows to zero.
+  p_matrix <- NULL
+  in_risk_set <- NULL
+  if (need_probabilities) {
+    p_matrix <- probabilities
+    dim(p_matrix) <- grid_dims
+    in_risk_set <- is.finite(linear_predictor) & total > 0
+    dim(in_risk_set) <- grid_dims
+  }
   list(
-    logLikelihood = logLikelihood,
+    logLikelihood = log_likelihood,
     score = score,
-    informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities,
-    in_risk_set = is.finite(multinomial$logProbabilities)
+    informationMatrix = information_matrix,
+    pMatrix = p_matrix,
+    in_risk_set = in_risk_set
   )
 }
 
@@ -1128,42 +1226,6 @@ compute_first_derivative_choice_coord <- function(
   }
   derivatives
 }
-
-# calculate the score contribution of one event of the M model
-# to the log(!) likelihood
-# The scores are the differences between expected and observed statistics
-compute_first_derivative_rem <- function(stats_array, event_probabilities) {
-  n_dyads <- dim(stats_array)[1] * dim(stats_array)[2]
-  n_params <- dim(stats_array)[3]
-
-  # One row per dyad, one column per statistic. Changing `dim` relabels the
-  # same values in the same order, so no statistic is moved or copied.
-  stats_by_dyad <- stats_array
-  dim(stats_by_dyad) <- c(n_dyads, n_params)
-
-  # E[s_k] = sum over dyads of P(dyad) * s_k(dyad), all k in one product
-  expected_statistics <- drop(
-    crossprod(stats_by_dyad, as.vector(event_probabilities))
-  )
-
-  # every dyad of slice k has the same expectation E[s_k] subtracted
-  stats_array - rep(expected_statistics, each = n_dyads)
-}
-
-
-getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
-  arrayDim <- dim(firstDerivatives)
-  nParams <- arrayDim[3]
-
-  # Flatten the n1 x n2 x p derivative cube to (n1*n2) x p (column-major, no
-  # copy of the data layout) and form the weighted cross-product
-  # sum_c p_c d_c d_c^T = D^T diag(w) D, replacing the expand.grid + p^2 apply
-  # closures over n^2 slices.
-  dim(firstDerivatives) <- c(arrayDim[1] * arrayDim[2], nParams)
-  weights <- as.vector(eventProbabilities)
-  crossprod(firstDerivatives, firstDerivatives * weights)
-}
-
 
 # Resolve the concrete compute_step() method for a spec once, walking its
 # class vector. Returns a plain function called inside the event loop without
@@ -1291,14 +1353,15 @@ compute_step.default <- function(spec, state, i, ctx) {
     cols <- .availability_event_cols(lo, ctx$active_dyad_update_pointer[i])
     if (!is.null(cols)) {
       if (identical(ctx$active_dyad_encoding, "point")) {
-        set_entries(
-          state$presence2,
-          as.integer(
-            ctx$active_dyad_update[1L, cols] +
-              n1 * (ctx$active_dyad_update[2L, cols] - 1L)
-          ),
-          as.logical(ctx$active_dyad_update[3L, cols])
+        cells <- as.integer(
+          ctx$active_dyad_update[1L, cols] +
+            n1 * (ctx$active_dyad_update[2L, cols] - 1L)
         )
+        available <- as.logical(ctx$active_dyad_update[3L, cols])
+        set_entries(state$presence2, cells, available)
+        if (!is.null(state$log_mask)) {
+          set_entries(state$log_mask, cells, log(available))
+        }
       } else {
         set_entries(
           state$presence2,
@@ -1330,6 +1393,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   keep_senders <- NULL
   keep_receivers <- NULL
   posSender <- activeDyad[1]
+  global_dyad <- activeDyad
   if (ctx$sender_filter && !ctx$dyad_point) {
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
@@ -1403,10 +1467,28 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexiveCorrected <- ctx$allowReflexive
   }
 
+  # A REM object at the outer encoding filters the senders by one factor and
+  # the receivers by the other. The two filters are applied as a mask on the
+  # whole grid, the cells of every excluded row and column, rather than by
+  # reducing the statistics to the kept rows: positions stay global, the
+  # self-dyads stay on the diagonal however the two sets differ, and the
+  # statistics are read where they are, with no copy per event.
+  excluded_dyads <- NULL
+  if (ctx$is_rem && !(is.null(keep_senders) && is.null(keep_receivers))) {
+    excluded_dyads <- grid_exclusions(keep_senders, keep_receivers, n1, n2)
+    keep_senders <- NULL
+    keep_receivers <- NULL
+    sender_slots <- seq_len(n1)
+    receiver_slots <- seq_len(n2)
+    activeDyad <- global_dyad
+    allowReflexiveCorrected <- ctx$allowReflexive
+  }
+
   # The event's statistics, read from the buffer at the shape its
-  # contribution takes. The sender loop and an unfiltered dyad loop read the
-  # buffer itself; a filter reads the kept rows once; the choice loop reads
-  # its sender's rows by linear index, never the grid.
+  # contribution takes. The sender loop, the REM dyad loop (filtered or not)
+  # and an unfiltered coordination loop read the buffer itself; a filter
+  # reads the kept rows once; the choice loop reads its sender's rows by
+  # linear index, never the grid.
   stats_event <- if (is_rate) {
     if (is.null(keep_senders)) {
       state$stats
@@ -1431,9 +1513,9 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
   n1_event <- length(sender_slots)
   n2_event <- length(receiver_slots)
-  # The ordinal REM and coordination contributions read the event's grid as
-  # an n1 x n2 x p array.
-  if (!is_rate && !ctx$reduceArrayToMatrix && !ctx$dyad_poisson) {
+  # The coordination contribution reads the event's grid as an n1 x n2 x p
+  # array; both REM contributions read the dyad rows with `grid_dims`.
+  if (!is_rate && !ctx$reduceArrayToMatrix && !ctx$is_rem) {
     dim(stats_event) <- c(n1_event, n2_event, ncol(state$stats))
   }
 
@@ -1450,8 +1532,9 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexive = allowReflexiveCorrected,
     is_two_mode = ctx$is_two_mode
   )
-  if (ctx$dyad_poisson) {
+  if (ctx$is_rem) {
     contrib_args$grid_dims <- c(n1_event, n2_event)
+    contrib_args$need_probabilities <- ctx$need_probabilities
   }
   # REM / coordination support_constraint: the contribution zeroes disallowed
   # dyads from the risk set. Only the REM and coordination contributions accept
@@ -1461,27 +1544,11 @@ compute_step.default <- function(spec, state, i, ctx) {
   if (ctx$dyad_point) {
     contrib_args$active_dyad_mask <- state$presence2
   }
-  # A REM object at the outer encoding reduces the senders by one factor and
-  # the receivers by the other. A mask on one axis makes the two sets differ,
-  # so the reduced array need not be square and its self-dyads need not lie
-  # on its diagonal: they are named by actor instead, as the positions of the
-  # actors both filters keep within each filter.
-  if (
-    ctx$is_rem &&
-      !ctx$dyad_point &&
-      !ctx$is_two_mode &&
-      !allowReflexiveCorrected &&
-      !(is.null(keep_senders) && is.null(keep_receivers))
-  ) {
-    in_senders <- if (is.null(keep_senders)) rep(TRUE, n1) else keep_senders
-    in_receivers <- if (is.null(keep_receivers)) {
-      rep(TRUE, n2)
-    } else {
-      keep_receivers
-    }
-    self <- which(in_senders & in_receivers)
-    contrib_args$self_dyads <- cumsum(in_senders)[self] +
-      (cumsum(in_receivers)[self] - 1L) * n1_event
+  if (!is.null(state$log_mask)) {
+    contrib_args$log_mask <- state$log_mask
+  }
+  if (!is.null(excluded_dyads)) {
+    contrib_args$excluded_dyads <- excluded_dyads
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
@@ -1550,6 +1617,23 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
 
   state
+}
+
+# Linear indices of the dyads a sender or a receiver filter removes from the
+# n1 x n2 grid: every cell of an excluded sender's row and of an excluded
+# receiver's column. Its size is the excluded rows and columns, not the grid.
+grid_exclusions <- function(keep_senders, keep_receivers, n1, n2) {
+  out_senders <- if (is.null(keep_senders)) integer(0) else which(!keep_senders)
+  out_receivers <- if (is.null(keep_receivers)) {
+    integer(0)
+  } else {
+    which(!keep_receivers)
+  }
+  c(
+    rep(out_senders, n2) +
+      n1 * rep(seq_len(n2) - 1L, each = length(out_senders)),
+    rep(n1 * (out_receivers - 1L), each = n1) + seq_len(n1)
+  )
 }
 
 # Scatter the contribution's reduced-risk-set probability vector over the whole
@@ -2149,10 +2233,9 @@ compute_iteration_step <- function(
     active_dyad_update = statsList$active_dyad_update,
     active_dyad_update_pointer = statsList$active_dyad_update_pointer,
     active_dyad_encoding = statsList$active_dyad_encoding,
+    # Both REM contributions read the event's dyads as rows of the
+    # statistics buffer; the coordination one reads a grid.
     is_rem = is_rem,
-    # The exact-time REM contribution reads the event's dyads as rows of the
-    # statistics buffer; the ordinal REM and coordination ones read a grid.
-    dyad_poisson = is_rem && identical(behavior_likelihood(spec), "poisson"),
     is_coord = is_coord,
     is_dyadic = is_rem || is_coord,
     dyad_point = (is_rem || is_coord) &&
@@ -2184,7 +2267,16 @@ compute_iteration_step <- function(
     n_intervals = nEvents,
     # A one-mode dyad or choice loop keeps its self-dyads' statistics at zero.
     zero_diagonal = !is_two_mode && !is_rate,
-    contribution_fn = contribution_fn
+    contribution_fn = contribution_fn,
+    # The REM contributions build the probability grid and the risk-set
+    # membership only for the per-event outputs that read them: the
+    # expanded probabilities, and the ranks, margins and availability of
+    # `r_reduce_event()`. The total rate and the conditional components are
+    # returned whatever this says.
+    need_probabilities = returnEventProbabilities ||
+      return_ranks ||
+      return_margins ||
+      return_availability
   )
 
   # The statistics array is walked forward on every interval, dependent or
@@ -2218,6 +2310,17 @@ compute_iteration_step <- function(
       bcPointer = 0L,
       presence = if (is.null(presence)) NULL else as.logical(presence) | FALSE,
       presence2 = if (is.null(presence2)) NULL else presence2 | FALSE,
+      # The REM point mask again, as the log of the indicator: 0 at a dyad
+      # in the risk set and -Inf outside it. Added to the linear predictor it
+      # excludes the masked dyads within the product's own buffer, where
+      # writing -Inf through the logical mask would allocate its complement
+      # and an index of the grid's size per event. Kept in step with
+      # `presence2` at every flip.
+      log_mask = if (ctx$is_rem && ctx$dyad_point && !is.null(presence2)) {
+        log(as.vector(presence2 | FALSE))
+      } else {
+        NULL
+      },
       opportunities = rep(TRUE, nrow(nodes2)),
       logLikelihood = 0,
       score = rep(0, nParams),
@@ -2626,8 +2729,7 @@ getMultinomialProbabilities <- function(
   actorNested = TRUE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
-  active_dyad_mask = NULL,
-  self_dyads = NULL
+  active_dyad_mask = NULL
 ) {
   # A two-dimensional array is one sender's receivers by statistic; a
   # three-dimensional one is the whole sender x receiver grid by statistic.
@@ -2651,11 +2753,7 @@ getMultinomialProbabilities <- function(
     dim(statsArray) <- c(matrixSize, length(parameters))
     linearPredictor <- statsArray %*% parameters
     dim(linearPredictor) <- c(nActors1, nActors2)
-    # `self_dyads` names the self-dyads of an array whose rows and columns
-    # were reduced by different sets, so that they are off its diagonal.
-    if (!is.null(self_dyads)) {
-      linearPredictor[self_dyads] <- -Inf
-    } else if (!allowReflexive && !is_two_mode) {
+    if (!allowReflexive && !is_two_mode) {
       diag(linearPredictor) <- -Inf
     }
     # A support_constraint (ordinal REM / coordination) removes disallowed dyads

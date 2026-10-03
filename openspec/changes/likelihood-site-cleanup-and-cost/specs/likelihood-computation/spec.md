@@ -1,24 +1,38 @@
 ## ADDED Requirements
 
 ### Requirement: Likelihood work buffers are allocated per evaluation and the risk set is maintained in place
-Every likelihood evaluation (one call of a compiled kernel, one pass of the
-r backend over the events, one gather build) SHALL allocate its
-event-sized work buffers once, before its event loop, and reuse them across
-events: the linear predictor, the weights or exponentials, the probability
-vector when requested, the weighted statistics copy the information matrix
-is formed from, and any reduced statistics view. The risk-set mask SHALL be
-held as one buffer initialized once from the availability's initial value
-with the structural self-tie rule applied, and SHALL be updated in place by
-the same per-event walk that updates the availability, so an event costs the
-cells that flipped. Masked entries SHALL be zeroed by a pass over the mask
-buffer, never by building an index vector of the masked cells per event. The
-r backend's per-event state SHALL be written in place through the shared
-in-place writers, never by subassignment of a binding a caller also holds;
-its statistics array SHALL NOT be copied to apply an update, to zero the
-diagonal, or to reshape, and its per-event accumulators SHALL be
-preallocated at their final size and written in place. Nothing of size
-`n1`, `n2`, `n1 x n2` or `n1 x n2 x p` SHALL be allocated per event in any
-backend, and no per-event index vector SHALL grow by concatenation.
+Every compiled likelihood evaluation (one call of a compiled kernel, one
+gather build) SHALL allocate its event-sized work buffers once, before its
+event loop, and reuse them across events: the linear predictor, the weights
+or exponentials, the probability vector when requested, the weighted
+statistics copy the information matrix is formed from, and any reduced
+statistics view. The risk-set mask SHALL be held as one buffer initialized
+once from the availability's initial value with the structural self-tie rule
+applied, and SHALL be updated in place by the same per-event walk that
+updates the availability, so an event costs the cells that flipped. Masked
+entries SHALL be zeroed by a pass over the mask buffer, never by building an
+index vector of the masked cells per event. Nothing of size `n1`, `n2`,
+`n1 x n2` or `n1 x n2 x p` SHALL be allocated per event in a compiled kernel
+or a gather build, and no per-event index vector SHALL grow by
+concatenation in any backend.
+
+The r backend SHALL stay pure R, the readable reference the compiled
+kernels are checked against. Its per-event state SHALL be written in place
+through the shared in-place writers, never by subassignment of a binding a
+caller also holds, and its per-event accumulators SHALL be preallocated at
+their final size and written in place. Its statistics array SHALL NOT be
+copied to apply an update, to zero the diagonal, or to reshape. A REM event
+(exact-time or ordinal) on the r backend SHALL allocate exactly one
+weighted statistics array, the `S * p` of the information's
+`crossprod(S, S * p)`, and otherwise only vectors of the risk set's size,
+at most `1 + 3/q` statistics arrays in all, where `q` is the statistics
+array's column count (`p + 1` on the exact-time REM with its intercept, `p`
+on the ordinal REM); it SHALL NOT copy, reshape or subset the statistics
+array, SHALL apply an axis filter as a mask on the whole grid rather than
+by reducing the array, and SHALL build the probability vector and the
+risk-set membership only when a per-event output that reads them is
+requested. In pure R one statistics-sized allocation per REM event is the
+information itself and cannot be avoided.
 
 #### Scenario: a compiled kernel allocates nothing event-sized inside its loop
 - **WHEN** a REM, REM-ordered, coordination, choice or rate kernel evaluates
@@ -38,13 +52,17 @@ backend, and no per-event index vector SHALL grow by concatenation.
   mask would give, so per-event log-likelihood, score and information agree
   with the pre-change kernel within 1e-10.
 
-#### Scenario: the r backend's allocation per event is bounded independent of the array
-- **WHEN** one `compute_step` call of the r backend runs on a fixture with
-  `n1 x n2 x p` statistics
-- **THEN** the memory it allocates does not grow with `n1 x n2 x p` (the
-  array is written in place through the shared writers), and the whole fit's
-  allocation on the Social Evolution REM fixture is below one tenth of its
-  pre-change value (7325 MB at `7b56821`).
+#### Scenario: an r-backend REM event allocates one weighted statistics array
+- **WHEN** one r-backend evaluation runs on the 300-actor, 60-event
+  generated REM fixture of the cost guard, exact-time (unconstrained or
+  under a point constraint, `q = 3`) or ordinal (`q = 2`)
+- **THEN** it allocates at most `1 + 3/q` statistics arrays per event, 2 on
+  the exact-time and 2.5 on the ordinal fixture, plus 0.1 for the
+  evaluation's own fixed allocations spread over the 60 events, which is
+  the limit the guard asserts; no event copies, reshapes or subsets the
+  statistics array, an outer-encoded filter included; and a whole r fit of
+  the Social Evolution REM allocates under about 2100 MB (3290 MB before,
+  at `237c8dd`; 7325 MB at `7b56821`).
 
 #### Scenario: the gather builder preallocates its candidate index
 - **WHEN** the gather stack is built for a dyad family

@@ -177,6 +177,16 @@
       the shape it reads and forms its weighted products into reused
       buffers; `accumulate_margins()` via `rowsum()`. Test: pins PASS;
       margins and availability tests PASS.
+      *Amended 2026-10-03 (ADR-0113, task 7.1):* the subsetting "into a
+      reused buffer" landed as a fresh copy of the kept rows per filtered
+      event (pure R has no reused subset buffer), and the REM contribution
+      still allocated about 3.5 statistics arrays per event. 7.1 replaces
+      it: a REM event allocates one weighted statistics array plus vectors
+      of the risk set's size, at most `1 + 3/q` arrays (`q` the array's
+      columns), never copies, reshapes or subsets the statistics array, and
+      applies an outer-encoded filter as a mask on the whole grid, so the
+      self-dyad positions no longer need deriving (the `self_dyads` path is
+      gone).
 - [x] 4.4 Coordination path: `stable_softmax(rowwise = TRUE)` row maximum
       without `apply()`; the `n^2 * p` temporaries replaced by index
       arithmetic into two reused buffers. Test: pins PASS on coordination
@@ -188,6 +198,13 @@
       and the prediction (Social Evolution REM r under 700 MB, choice under
       150 MB); numbers in `progress.md`; lower records that fail below.
       NEWS.d bullet (the r backend writes its state in place).
+      *Amended 2026-10-03 (ADR-0113, task 7.1):* the REM prediction was
+      refuted here (3290 MB against under 700), and that refutation lived
+      only in `progress.md`. The contract is now one weighted statistics
+      array plus vectors of the risk set's size per REM event, at most
+      `1 + 3/q` arrays, and the Social Evolution REM r fit under about
+      2100 MB (2035 MB after 7.1; choice 61.8 MB met the 150 MB
+      prediction).
 - [x] 4.6 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS; `air format` and `lintr` on the touched R files.
 
@@ -236,7 +253,7 @@ suite 13111 / 0 / 7, six baseline files and both C++ goldens PASS,
 with no diff. The artifacts claim a cost the r backend does not meet, and
 one kernel path has no detector. 7.1 and 7.2 block the fold.
 
-- [ ] 7.1 **blocks**: the r backend still allocates about 3.5 statistics
+- [x] 7.1 **blocks**: the r backend still allocates about 3.5 statistics
       arrays per REM event (4.7 under an outer-encoded filter); a Social
       Evolution REM fit allocates 3290 MB where D3, the
       `likelihood-computation` delta and tasks 4.3/4.5 claim nothing of size
@@ -272,6 +289,60 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       ADR-0113 open question). Verify: guard red first on the shipped code
       (the ordinal fixture at 9.8), green after; the scenario and the guard
       state the same bound; pins at 1e-10 and baselines PASS.
+      *Done 2026-10-03.* Part (a), the empty-buffer filter, landed as 7.4
+      (`be57715`) with its own no-op guard; this commit carries (b)-(e).
+      Deviations from the spike stack, recorded here: (1) a point mask is
+      not written as `x[!mask] <- -Inf` (the complement and the logical
+      subscript cost one more risk-set vector, 2.34 arrays per event on a
+      flipping point REM, over the bound); the state keeps the point mask
+      again as its log (0 / `-Inf`, one `n1 x n2` double vector per
+      evaluation, written at the same flips) and the contribution adds it
+      to the product inside the product's buffer, bit-identical to the
+      shipped values; (2) the outer-filter path no longer reduces the grid,
+      so `self_dyads` (step block, both REM contributions and
+      `getMultinomialProbabilities()`) is removed as unreachable, and the
+      ordinal REM's now-unused `compute_first_derivative_rem()` and
+      `getInformationMatrixREM()` go with it (their test becomes a
+      moment-against-centered check); (3) the bound is written `1 + 3/q`,
+      `q` the statistics array's columns: ADR-0113's `1 + 3/(p+1)` counts
+      the exact-time REM's intercept, and the ordinal REM has `q = p`,
+      which is where its 2.5 comes from; (4) `need_probabilities` is
+      probabilities, ranks, margins or availability; `total_rate` and
+      `conditional_scores` read the contribution's scalars and vectors,
+      not the probability vector (every reader grepped: `r_reduce_event()`,
+      `expand_event_probabilities()`; coordination is not a REM and always
+      returns its matrix). Guard first (`test-likelihood_r_backend_cost.R`,
+      fixtures REM, point-constrained REM, ordinal REM and choice, limit
+      `1 + 3/q + 0.1`, the 0.1 being the evaluation's fixed allocations over
+      60 events): on `be57715` 3.57 / 3.55 / 9.77 against 2.1 / 2.1 / 2.6,
+      red; after 2.07 / 2.06 / 2.52 (choice 0.046 against 0.25). Arrays per
+      event on the spike's seven variants, before -> after: static 3.57 ->
+      2.07, composition 3.51 -> 2.01, flipping point 3.50 -> 2.01, no-op
+      alter 4.68 -> 2.01, alter excluding 5 4.63 -> 2.02, ordinal static
+      9.77 -> 2.52, ordinal excluding 5 9.42 -> 2.52. Results against
+      `237c8dd`: identical on four variants, at most 1.5e-11 (an outer
+      filter's score, summed over the full grid) and 1.1e-14 on the
+      ordinal; Social Evolution fits identical on REM, choice and rate,
+      ordinal within 9.2e-14 on the parameters and 3.6e-12 on the
+      log-likelihood. Optimized builds, back to back against `237c8dd`,
+      median of five, r backend: Social Evolution REM 3310 -> 2035 MB,
+      1.00 -> 0.88 s; REM-ordered 6072 -> 1436 MB, 2.03 -> 0.69 s; rate
+      36.8 -> 29.1 MB; choice 61.95 MB unchanged. Budget lowered in this
+      commit: `se_rem` r 3290 -> 2015, `se_rate` r 36.76 -> 29.12 (the
+      recorder's default-diagnostics fit). Moment form against the centered
+      form, largest deviation over every event: Social Evolution ordinal
+      7.97e-14 at the pin vector and 4.05e-13 at the fitted one; Fisheries
+      ordinal (widest range, 20) 2.36e-12 and 1.56e-11 absolute, 4.8e-13
+      relative to the information; the guard fixtures below 1e-16. The
+      loss is about `(mean / sd)^2` machine epsilons: a synthetic statistic
+      with mean 1e2 over unit spread gives 4.4e-11 relative, 1e3 gives
+      1.9e-9; the package's fixtures reach mean over sd 3.65, so the
+      centered fallback stays an open question of ADR-0113, not a defect
+      here. Delta requirement and scenario, D3 and its storage paragraph,
+      the D3 guard sentence and the 4.3 / 4.5 notes amended to the same
+      bound. Suite `NOT_CRAN=true`: 13274 / 0 / 7; six baseline files, both
+      goldens, the pins and the budget PASS with 0 skipped;
+      `_baselines/` unchanged.
 - [x] 7.2 **blocks** (reopens 2.3): the "risk set follows the flips" test
       cannot see the REM and REM-ordered point-flip writes
       (`src/REM_default.cpp:394`, `src/REM_ordered_default.cpp:230`):

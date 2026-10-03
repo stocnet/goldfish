@@ -259,6 +259,33 @@ demands. *Rejected:* keeping the list and returning it (the copy is
 structural, not incidental); porting the r backend to C++ (it exists to be
 the readable reference).
 
+*Amended 2026-10-03 (ADR-0113, task 7.1).* The "reused buffer" for the
+risk-set subset above is not implementable in pure R (a subset is a fresh
+copy), and the prediction below, that nothing of size `n1 x n2 x p` is
+allocated per event, was made before a measurement showed that the
+information itself, `crossprod(S, S * p)`, needs one such array per event
+in R. As landed, the r backend's REM contract is: a REM event allocates
+exactly one weighted statistics array plus vectors of the risk set's size,
+at most `1 + 3/q` statistics arrays per event (`q` the array's columns,
+`p + 1` on the exact-time REM with its intercept, `p` on the ordinal REM);
+it never copies, reshapes or subsets the statistics array; an axis filter
+at the outer encoding is applied as a `-Inf` mask on the whole grid (the
+cells of the excluded rows and columns), so positions stay global and the
+self-dyads stay on the diagonal; a point mask rides as its log (0 or
+`-Inf`), maintained in step with the point availability and added to the
+linear predictor inside the product's buffer; the probability vector and
+the risk-set membership are built only when a per-event output that reads
+them (probabilities, ranks, margins, availability) is requested; the
+ordinal REM reads the flat statistics with `grid_dims` and forms its
+information in moment form, `crossprod(S, S * p) - tcrossprod(E)`, score
+`S[obs, ] - E`, never the centered derivative array; and the r backend
+stays pure R. The coordination path keeps its grid reads (not a REM event).
+*Rejected (ADR-0113):* a compiled weighted cross-product helper (676 MB,
+but the reference stops being pure R and the information moves by 3e-8);
+the minimal empty-buffer and rate-trim fixes alone (leaves the ordinal REM
+at 9.8 arrays per event); amending the artifacts to the measured 4 arrays
+without a code change.
+
 ### D4 — Diagnostics are evaluated once, after convergence
 
 `run_nr_loop()` (both backends) evaluates with every `return_*` flag FALSE
@@ -352,6 +379,20 @@ the stored array, never a reshape of a shared value. Prediction: Social
 Evolution REM r allocation 7325 MB to under 700 MB (one reused buffer set
 plus the per-event subsetting), time 2.56 s to about 1.5 s; choice r 1148
 MB to under 150 MB. The pins hold at 1e-10.
+*As landed (amended 2026-10-03, ADR-0113):* the REM prediction was
+refuted at 3290 MB (3.5 arrays per event, 4.7 under an outer-encoded
+filter, 9.8 on the ordinal REM), and the contract is restated as one
+weighted statistics array plus vectors of the risk set's size, at most
+`1 + 3/q` arrays per REM event (`q` the array's columns), with no copy,
+reshape or subset of the array; per evaluation the state also holds a
+log point mask (`n1 x n2` doubles) when the REM object is point-encoded.
+Measured on optimized builds against `237c8dd`, median of five: Social
+Evolution REM r 3310 to 2035 MB and 1.00 to 0.88 s; REM-ordered r 6072 to
+1436 MB and 2.03 to 0.69 s; DyNAM rate r 36.8 to 29.1 MB; choice
+unchanged. On the cost guard's 300-actor fixture: 2.07 arrays per event
+static, 2.01 under composition changes or an outer filter, 2.01 under a
+flipping point mask, 2.52 ordinal (bounds 2 and 2.5 plus the
+evaluation's fixed allocations).
 
 **D2a (exact-time diagnostics from the likelihood pass).** Stored objects:
 none new. Per event on the default path: one `exp` pass over the risk set
@@ -382,7 +423,9 @@ p` and stays).
 the R wrapper for the R-visible part) recorded failing; the time cells of
 the budget. D3: `bench::bench_memory()` of one `compute_step.default` call
 on a 1500-actor generated fixture, bounded independent of `n1 * n2 * p`,
-recorded failing. D4: a counter of evaluations with diagnostics requested,
+recorded failing (as landed: one r evaluation on a 300-actor fixture, in
+statistics arrays per event, bounded by `1 + 3/q` plus 0.1 on the
+exact-time, point-constrained and ordinal REM fixtures). D4: a counter of evaluations with diagnostics requested,
 `k` before and 1 after. D5: `bench::bench_memory()` of one gather build on
 the 1500-actor fixture against `rows x p` plus a constant.
 
