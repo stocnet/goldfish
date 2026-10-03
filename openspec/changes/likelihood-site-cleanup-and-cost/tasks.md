@@ -528,6 +528,50 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       probe build with these sources: 6 / 0, not skipped. Suite
       `NOT_CRAN=true`: 13312 / 0 / 7; baselines, goldens, pins and budget
       PASS, 0 skipped.
+- [ ] 7.9 **blocks** (added 2026-10-03, from the follow-up re-check, N1;
+      decided by Alvaro, ADR-0113 log): applying outer filters as a
+      full-grid mask scales with the grid, not the risk set:
+      `grid_exclusions()` rebuilds an excluded x n index on every filtered
+      event, so arrays per event grow from 2.09 to 2.62 as absent actors go
+      from 10 to 200 of 300 (ordinal 3.37 against 2.6), and at 200 absent an
+      evaluation allocates 4.5 times and runs 6.3 times slower than at
+      `237c8dd` (151 against 24 ms). Decided: mask only, maintained in
+      place. The outer filter's exclusions are written at the composition
+      and constraint changes, like the point log mask, so nothing per event
+      grows with the number excluded; the full-grid time under heavy
+      composition is accepted and recorded in D3 and the delta. Guard: add a
+      heavy-exclusion outer-filter fixture (at least 200 of 300 absent; REM
+      and ordinal), red first on the shipped code, within `1 + 3/q + 0.1`
+      after. Verify: arrays per event flat across 10 to 200 absent; time
+      recorded against `237c8dd` on that sweep; deviation at most 1e-10
+      (relative where the information is large); pins and baselines PASS.
+- [ ] 7.10 **should-fix, high priority** (added 2026-10-03, re-check N2,
+      pre-existing at `237c8dd`): the r backend's two-mode ordinal REM
+      excludes the `(i, i)` cells, which are valid dyads (no self-dyads in
+      two-mode): observed `(i, i)` events read `-Inf`, other events are
+      biased, and fits abort with "Matrix cannot be inverted"; cpp and
+      gather match a hand oracle. Exclude the diagonal only when
+      `!allowReflexive && !is_two_mode`, correct the comment that says the
+      family always excludes it, and add a two-mode REM-ordered fixture
+      (plain, sender-absent, receiver-absent) asserting r == cpp == gather
+      == the oracle. Verify: the fixture red at `876b5f7`, green after; the
+      two-mode baselines PASS. NEWS.d bullet (an r-backend fix users can
+      observe).
+- [ ] 7.11 **should-fix** (added 2026-10-03, re-check G2-G5): (G2) no test
+      detects the `return_availability` disjunct of `need_probabilities`
+      (without it an availability-only r REM evaluation errors); add one,
+      red under its removal; (G3) the delta states the bound
+      unconditionally, while with diagnostics on an event takes 2.7-6.9
+      arrays (REM) and 4.0-7.5 (ordinal), mostly margins; scope the clause
+      to the default diagnostics and record the per-event margins `rep()`
+      vectors as a successor's (name the owner in the note); (G4) the NEWS.d
+      fragment says "a fifth of the memory"; 2035 against 7325 MB is about a
+      quarter; (G5) the not-cran-test probe section says `load_all(recompile
+      = TRUE)`, which leaves a -O0 build; point it at the cpp-recompile
+      skill. Also correct 7.4's "constant -1.29 MB cheaper" note (the
+      re-check shows -1.31 MB at 30 events and 0 at 60 and 120, a
+      measurement artifact) and make the Fisheries REM "within 1e-10" claims
+      relative (G6, G7).
 - [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather
