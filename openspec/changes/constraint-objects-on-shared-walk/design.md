@@ -488,6 +488,42 @@ choice falls by the post-walk realization's cost (the `realize_pending_masks()`
 replay and the three folds); the in-walk check adds `O(1)` per dependent
 event.
 
+**Revised 2026-10-03 (conformance follow-up, task 8.5): what was
+measured against these predictions.** Three statements above did not
+hold, and one read the live code takes was accepted later without the
+paragraph changing.
+
+- *The observed-event check reads a row, not a cell.* The choice check
+  (`availability_check_event()`) reads the event sender's row of the mask
+  by linear index on the stored vector (`mask[sender + row_offsets]`, an
+  `&` and a `which()`), about 36 KB per dependent event at 1500 actors.
+  It is a read at the stored kind, which rule 2 permits, and was accepted
+  by Alvaro on 2026-09-30 (task 4.6's note); the paragraph's "one mask
+  cell, one presence entry and one count" holds for the rate check only.
+  Under a mask that flips on almost every event (a dynamic point
+  constraint such as `~ !tie(calls)`), the check's candidate marking
+  (`availability_mark_candidates()`) also re-reads the sender's row once
+  per new epoch, about two `n2` rows per dependent event: 6080 row-sized
+  allocations, 35 MB over 2995 dependent events (about 12 KB per event)
+  at 1500 actors. Accepted on the same terms, below the rules' 0.2 MB per
+  event; a per-sender epoch would remove it, which no task here takes.
+- *The time drop D9 predicted was refuted.* Task 4.7 measured walk time
+  up 2-28 percent while allocation fell in every cell; the in-walk check
+  is 5-19 percent of it and per-row effect stepping in R the rest.
+- *The 2.3a row bound was mis-stated.* The rate's stored rows grow by
+  `C / E` (one censored row per constraint-only event), not by
+  `C / (E + C)`; on the 2.0 fixture rows went 2995 to 5986 (+100
+  percent) and the object 9.01 to 9.21 MB. Walk time grew 56 percent
+  (0.380 to 0.591 s, the groups 0-4 inspection) against a stated 50
+  percent bound, still above it after 4.6 retired the fold 2.3b blamed.
+- *The unconstrained exact-time rate pays for the availability effect.*
+  D9's revision gives every exact-time rate an availability effect
+  stepped on every stored row, and this paragraph predicted nothing for
+  that path. It measured 20-33 percent slower (0.117 s at `663096d`,
+  0.141-0.156 s at `0a99c74`), about two thirds of it
+  `availability_step()`; the CollegeMsg unconstrained joint walk went
+  3.65 to 4.01 s.
+
 **Guards.** Each group changing per-event code opens with a cost guard
 on a generated fixture large enough that one grid dominates the noise
 (at least 1000 actors: one double grid is 8 MB), recorded failing on the

@@ -197,6 +197,11 @@
       `fold_active_sender_support()` after the walk costs per stored row
       (~60 KB each) and 2.3a doubles the rate's rows; 4.6 retires that fold.
       The first measurement (before 2.3c) found the quadratic recorder log.
+      *Amended 2026-10-03 (task 8.5):* the bound quoted here is wrong:
+      rows grow by C/E (+100 percent on this fixture, 2995 to 5986), not
+      C/(E+C). After 4.6 retired the fold the rate is still +56 percent
+      (0.380 to 0.591 s, groups 0-4 inspection); see the Storage section's
+      2026-10-03 revision.
 - [x] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; all reference families PASS.
       — *done 2026-09-29, on `9738cca`'s tree*: 9423 PASS / 0 FAIL / 4 SKIP,
@@ -416,6 +421,10 @@
       Point streams (update cols): CollegeMsg 1k 464 -> 547, 5k 1846 ->
       2019, 10k 3506 -> 3766; generated 1722 -> 2990 (every flipped cell,
       not only event senders' rows; <= 0.09 MB).
+      *Amended 2026-10-03 (task 8.5):* the refuted time prediction and
+      the choice check's row reads (the accepted sender row, and about
+      two `n2` rows per dependent event under a flipping point mask) are
+      now in the design's Storage section revision of that date.
 - [x] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS.
       — *done 2026-09-30, the `532471a` run* (4.7 changed no code): 9513 /
@@ -643,7 +652,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       `availability_step()` and takes the fast path with the per-row
       `c()` growth and by-name `[[fid]]` lookups. This task closes by
       recording that hand-off in D4's storage note.
-- [ ] 8.5 **should-fix**: the design's Storage section is stale. The
+- [x] 8.5 **should-fix**: the design's Storage section is stale. The
       observed-event check reads the sender's row (about 36 KB per
       dependent event), not one mask cell (accepted only in 4.6's note);
       the predicted time drop was refuted; the 2.3a row bound is computed
@@ -657,6 +666,18 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       the observed-event check still reads about two `n2` rows per
       dependent event. Record it in the same storage paragraph as the
       accepted row read, with the measured size.
+      — *done 2026-10-03*: a dated revision under the Storage section
+      ("what was measured against these predictions") records the choice
+      check's sender-row read (about 36 KB per dependent event at 1500
+      actors, accepted 2026-09-30), the flipping-point-mask candidate
+      re-reads in the same paragraph (about two `n2` rows, 12 KB per
+      dependent event; 6080 row-sized allocations, 35 MB over 2995 events;
+      accepted below the 0.2 MB rule, no task takes the per-sender epoch),
+      the refuted time drop (4.7: +2-28 percent), the corrected 2.3a
+      bound (rows grow by C/E, +100 percent, against C/(E+C); time +56
+      percent above the stated 50) and the unpredicted unconstrained-rate
+      cost (detail and owner in 8.4). Tick notes 2.3b and 4.7 amended
+      with pointers. Artifact-only.
 - [x] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
       unconstrained or covered models; 4.5b moved the covered `choice`
       reference and two covered point-choice parity goldens. Correct the
