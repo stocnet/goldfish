@@ -146,7 +146,7 @@ committed test green. Blocks the fold until 4.1 and 4.2 close; the rest before
 archive.
 
 
-- [ ] 4.1 **blocks** (reopens 2.1): per-kind detectors at every event. The
+- [x] 4.1 **blocks** (reopens 2.1): per-kind detectors at every event. The
       alter-flip (`R/model_preprocess.R:384-394`), ego/global-flip
       (`:398-410`) and receiver-crossing (`:437`) exclusions can each be
       removed with the suite green. Commit a seeded property check of the
@@ -155,6 +155,23 @@ archive.
       crossings (the report's `property_fold_vs_oracle.R` is a template),
       plus an undirected one-mode flavored fixture. Verify: each of the
       three single-site ablations turns the new test red.
+      — *done 2026-10-03* (fu/support-gate-g4). Two tests in
+      `test-support_gate_self_exclusion.R`: a seeded property check (4 kinds
+      x one-/two-mode x 12 seeds x 20 events, 4 actors with sparse presence,
+      mask flips every event, a diagonal flip every other event at point
+      kind, receiver crossings) of `fold_gate_timeline()` and
+      `sender_gate_from_mask()` against `oracle_sender_gate()`, with guards
+      that crossings occur and that the self-only case is reached at every
+      one-mode kind (never at two-mode); and the undirected one-mode
+      flavored fixture (`self_only_sender_data()` undirected, t = 6
+      dropped) against the oracle at every stored event. Sites moved since
+      the report: the per-kind updates now live in
+      `availability_gate_flips()` / `availability_gate_receiver()`
+      (`R/availability_effect.R`). Ablations in a detached worktree at
+      `79dca89`, each red in the property test only: alter flip (`if (dd)`
+      block, :338) 1 failed expectation; ego flip (:352) 1; global flip
+      (:360) 1; receiver crossing (:397) 4 (folded gate, all four one-mode
+      kinds); point flip (:322, not required) 1
 - [ ] 4.2 **blocks** (extends 3.3): the simulation driver's deferred-rate
       caller (`R/simulate_driver.R:347-354`) has no detector; forcing its
       flag to `FALSE` leaves the suite green while a `rate = ~ 1` beside a

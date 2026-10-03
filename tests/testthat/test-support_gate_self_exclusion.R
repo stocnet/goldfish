@@ -151,6 +151,151 @@ test_that("a receiver leaving strands the sender it was allowed for", {
   expect_identical(gate[[3L]], c(FALSE, FALSE, TRUE))
 })
 
+test_that("the folded and from-scratch gates match the oracle under flips", {
+  # A seeded walk per mask kind and per layer shape: the mask flips at every
+  # event (a point mask also flips one diagonal cell every other event) and
+  # receivers come and go. Four actors with sparse presence make a sender
+  # whose only present, allowed receiver is itself common at every kind,
+  # which is where a counter that forgot the self-dyad would go wrong.
+  random_case <- function(kind, n1, n2, one_mode, n_events, seed) {
+    withr::local_seed(seed)
+    flip_some <- function(x, rate) {
+      hit <- runif(length(x)) < rate
+      x[hit] <- !x[hit]
+      x
+    }
+    size <- switch(as.character(kind), "3" = 1L, "2" = n1, "1" = n2, n1 * n2)
+    masks <- vector("list", n_events)
+    masks[[1L]] <- runif(size) < runif(1L, 0.2, 0.7)
+    for (e in seq_len(n_events)[-1L]) {
+      masks[[e]] <- flip_some(masks[[e - 1L]], 0.2)
+      if (kind == 0L && one_mode && e %% 2L == 0L) {
+        own <- (sample.int(n1, 1L) - 1L) * (n1 + 1L) + 1L
+        masks[[e]][[own]] <- !masks[[e]][[own]]
+      }
+    }
+    presence <- vector("list", n_events)
+    presence[[1L]] <- runif(n2) < 0.5
+    pointer <- integer(n_events)
+    updates <- vector("list", n_events)
+    for (e in seq_len(n_events)[-1L]) {
+      presence[[e]] <- flip_some(presence[[e - 1L]], 0.25)
+      moved <- which(presence[[e]] != presence[[e - 1L]])
+      updates[[e]] <- rbind(moved, as.numeric(presence[[e]][moved]))
+      pointer[[e]] <- pointer[[e - 1L]] + length(moved)
+    }
+    list(
+      masks = masks,
+      presence = presence,
+      crossings = list(
+        update = do.call(cbind, c(list(matrix(0, 2L, 0L)), updates)),
+        pointer = pointer
+      )
+    )
+  }
+
+  for (one_mode in c(TRUE, FALSE)) {
+    n1 <- if (one_mode) 4L else 3L
+    n2 <- if (one_mode) 4L else 5L
+    for (kind in 0:3) {
+      wrong_fold <- 0L
+      wrong_scratch <- 0L
+      self_only <- 0L
+      crossed <- 0L
+      for (seed in 1:12) {
+        case <- random_case(kind, n1, n2, one_mode, 20L, seed)
+        gate <- fold_gate_timeline(
+          case$masks,
+          kind,
+          rep(TRUE, n1),
+          case$presence[[1L]],
+          receiver_crossings = case$crossings,
+          drop_diagonal = one_mode
+        )
+        grids <- mask_grids(case$masks, kind, n1, n2)
+        crossed <- crossed + ncol(case$crossings$update)
+        for (e in seq_along(grids)) {
+          present <- case$presence[[e]]
+          oracle <- oracle_sender_gate(grids[[e]], present, one_mode)
+          scratch <- sender_gate_from_mask(
+            case$masks[[e]],
+            kind,
+            present,
+            n1,
+            n2,
+            drop_diagonal = one_mode
+          )
+          wrong_fold <- wrong_fold + sum(gate[[e]] != oracle)
+          wrong_scratch <- wrong_scratch + sum(scratch != oracle)
+          self_only <- self_only +
+            sum(oracle_sender_gate(grids[[e]], present, FALSE) & !oracle)
+        }
+      }
+      label <- paste0(
+        "kind ",
+        kind,
+        if (one_mode) ", one-mode" else ", two-mode"
+      )
+      expect_identical(wrong_fold, 0L, label = paste("folded gate,", label))
+      expect_identical(wrong_scratch, 0L, label = paste("from scratch,", label))
+      expect_gt(crossed, 0L, label = paste("receiver crossings,", label))
+      # The self-only case is reached on one node set, never on two.
+      if (one_mode) {
+        expect_gt(self_only, 0L, label = paste("self-only senders,", label))
+      } else {
+        expect_identical(self_only, 0L, label = label)
+      }
+    }
+  }
+})
+
+test_that("an undirected flavored layer gates out its self-only sender", {
+  data <- self_only_sender_data()
+  data$info$directed <- c(calls = FALSE)
+  # N2 -> N1 at t = 6 re-creates the N1 - N2 tie N1 already holds once the
+  # layer is undirected, so the undirected history leaves it out.
+  data$ties <- data$ties[!(data$ties$time %in% 6), ]
+  spec <- suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    model = "DyNAM",
+    data = data
+  ))
+
+  rate <- suppressWarnings(suppressMessages(
+    preprocess_joint(spec, set_preprocessing())
+  ))[[1L]]
+  gate <- walk_presence_buffer(
+    rate$active_sender_init,
+    rate$active_sender_update,
+    rate$active_sender_update_pointer,
+    length(rate$event_time)
+  )
+
+  ties <- as.data.frame(data$ties)
+  state <- matrix(0, 4L, 4L)
+  history <- ties[is.na(ties$time), ]
+  state[cbind(history$from, history$to)] <- 1
+  state[cbind(history$to, history$from)] <- 1
+  events <- ties[!is.na(ties$time), ]
+  events <- events[order(events$time), ]
+  oracle <- vector("list", nrow(events))
+  for (k in seq_len(nrow(events))) {
+    oracle[[k]] <- oracle_sender_gate(state == 0, rep(TRUE, 4L), TRUE)
+    cell <- rbind(
+      c(events$from[k], events$to[k]),
+      c(events$to[k], events$from[k])
+    )
+    state[cell] <- state[cell[1L, , drop = FALSE]] + events$weight[k]
+  }
+
+  expect_length(gate, nrow(events))
+  expect_identical(lapply(gate, as.logical), oracle)
+  # N1 holds every undirected tie until it dissolves one, and again once it
+  # recreates it, so it is gated out while the others are not.
+  expect_false(oracle[[1L]][[1L]])
+  expect_true(any(vapply(oracle, `[[`, logical(1), 1L)))
+})
+
 test_that("the fixture's rate gates out the sender that can only self-create", {
   data <- self_only_sender_data()
   spec <- make_specification(
