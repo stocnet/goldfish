@@ -95,6 +95,12 @@
       the oracle directly and places the `clogit` skip on the `clogit` arm
       alone. Verify: with `survival` mocked absent, the `glm` rows still
       run.
+      *Added 2026-10-03* (from the `likelihood-site-cleanup-and-cost`
+      second follow-up re-check, G16, pre-existing): an observed event whose
+      sender or receiver is absent at its stamp aborts the r backend with
+      the observed-dyad error, while cpp raises nothing and evaluates it.
+      The matrix's composition rows assert the same verdict on every
+      backend (the re-check's `observed_absent.R` is a fixture).
 - [ ] 2.4 Verification: `NOT_CRAN=true` suite green; all 37 rows PASS not
       SKIP (the `mlogit` and `clogit` arms skip only where the package is
       absent); baselines PASS; `air format` and `lintr` on the touched test

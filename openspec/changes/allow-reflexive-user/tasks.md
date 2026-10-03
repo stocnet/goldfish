@@ -139,6 +139,20 @@
       collision the original comment guards against. Verify: (i) and (ii)
       pass; the frozen baselines are unchanged; the `r` backend REM fit is
       measurably faster on an optimized build (cpp-recompile skill).
+      *Note 2026-10-03* (from the `likelihood-site-cleanup-and-cost`
+      follow-up re-checks, `.plan/develop/`
+      `likelihood-site-cleanup-and-cost-followup2-conformance.md`, G12 and
+      G16): that change (group 4 and 7.1, `3967fa4`) rewrote the r backend's
+      per-event step: statistics are written in place, the diagonal is
+      zeroed only on the cells an event updates, and no slice is copied, so
+      the loop and the 30 percent above are gone; re-measure before acting
+      and keep only the resolved-rule part. Two measured facts for 3.1/3.2:
+      under the internal `allow_reflexive = TRUE` the one-mode ordinal REM
+      now includes the diagonal on r and agrees with cpp (it did not at
+      `237c8dd`: r -406.19, cpp -408.22); the one-mode exact-time REM still
+      disagrees (r -3706 against cpp -877, the same at `237c8dd`,
+      pre-existing). No public path reaches either today; this change's
+      tests must cover both families on every backend.
 - [ ] 3.3 Verification: `air format` then `lintr`; `NOT_CRAN=true` suite green;
       baselines PASS not SKIP, byte-identical.
 
