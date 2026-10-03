@@ -1281,8 +1281,11 @@ walk_live_support <- function(handle, fid) {
 # A constrained fid reads its availability effect, the one the batch walk
 # keeps, stepped over the mask flips and composition changes since the last
 # read: a rate's sender gate is presence and at least one allowed present
-# receiver; REM and coordination read the whole dyad grid with both
-# presences in it, coordination symmetrised; a choice reads the receiver
+# receiver; REM and coordination read the dyad grid with both presences in
+# it when the mask is point-kind, coordination symmetrised, and otherwise
+# the two factors of the outer encoding, each presence ANDed with the mask
+# on its own axis (both, for coordination's symmetric vector mask); a choice
+# reads the receiver
 # axis, as a vector when the mask is column-broadcast or gates only senders,
 # as a grid when it is genuinely dyadic. The value handed back is the
 # effect's own buffer, written in place by the next step: read it before

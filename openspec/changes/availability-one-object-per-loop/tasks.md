@@ -278,9 +278,19 @@ one latent contract hole. No blocking gap; all before archive.
       `walk_risk_set()` relabels it `"alter"` and the accessors special-case
       a NULL sender. Store it as `"alter"` or state in the encodings
       requirement that a choice object at outer carries one factor.
-- [ ] 6.4 **should-fix**: comments now false, rewrite by hand:
+- [x] 6.4 **should-fix**: comments now false, rewrite by hand:
       `R/estimation_core.R:2111-2120` and `R/walk_handle.R:1284-1286` say a
       REM or coordination constraint always folds to a dense point grid.
+      *Done 2026-10-03:* rewritten by hand in `compute_iteration_step()`
+      (the REM and the coordination blocks) and above `walk_risk_set()`:
+      a point-kind atom (or an opportunity list) gives the dense point
+      grid, consumed whole; an alter-, ego- or global-kind one gives the
+      outer encoding's two factors, which reduce senders and receivers like
+      presence, with coordination's vector mask m folded into both factors
+      as m[i] & m[j]. The comment under `if (ctx$dyad_point)` was already
+      accurate and is untouched. Comments only; `air format` and `lintr`
+      clean on the changed lines. Suite (`NOT_CRAN=true`): PASS 13184,
+      FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0 skipped.
 - [x] 6.5 **should-fix**, record in the 3.2 and 0.3 tick notes: the
       coordination `n1 != n2` point fallback (`R/preprocess_joint.R:1435`)
       is unasserted because unreachable; the ego coordination reference

@@ -2092,16 +2092,22 @@ compute_iteration_step <- function(
   receiver_filter <- !is_rate &&
     (!is.null(statsList$active_dyad_update) ||
       any(statsList$active_dyad_init != 1))
-  # A standard- or ordinal-REM support_constraint folds both presences ∩ support
-  # into a dense point `active_dyad`: the maintained matrix IS the
-  # per-event risk mask, so the presence axis-reductions are skipped and it is
-  # consumed directly as `active_dyad_mask`, replacing the standalone per-event mask.
+  # A standard- or ordinal-REM support_constraint folds both presences ∩
+  # support into `active_dyad`. A point-kind atom (or an opportunity list)
+  # stores it as a dense point grid: the maintained matrix IS the per-event
+  # risk mask, so the presence axis-reductions are skipped and it is
+  # consumed directly as `active_dyad_mask`. An alter-, ego- or global-kind
+  # atom stores it at the outer encoding instead, two factor vectors whose
+  # cell is f1[i] & f2[j]; those reduce the senders and the receivers like
+  # any presence, and no grid is built.
   is_rem <- identical(risk_set_axis(spec), "dyad") &&
     !identical(behavior_likelihood(spec), "coordination")
   # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
-  # choices), so a folded coordination constraint — symmetrised into the dense
-  # point `active_dyad` — is consumed as the full risk mask exactly
-  # like REM, NOT via the one-sided-choice row accessor.
+  # choices), so a folded coordination constraint is consumed as the full
+  # risk set exactly like REM, NOT via the one-sided-choice row accessor. A
+  # point-kind atom is symmetrised into the dense point `active_dyad`; a
+  # vector mask m symmetrises to m[i] & m[j], so it rides at the outer
+  # encoding with m folded into both factors.
   is_coord <- identical(behavior_likelihood(spec), "coordination")
 
   # resolve the per-event step + contribution methods once
