@@ -141,12 +141,35 @@
 - [x] 4.2 Cost guard, recorded failing first: one deferred-fid evaluation in
       the simulation driver on a constrained REM (point and outer) allocates
       less than one `n1 x n2` logical grid at 1500 actors.
+      *Note (amended 2026-10-03, 6.1):* the deferred-fid path serves DyNAM
+      only; a REM process is one rate fid with no sibling to defer to, so
+      the constrained-REM case cannot occur. The guard runs a rate-only
+      DyNAM spec on `constraint_cost_data()` (1500 actors) completed for
+      simulation, its choice deferred, under a point (`~ !tie(emails)`) and
+      an alter (`~ indeg(emails) < 3`) constraint. Recorded failing: one
+      `simulation_fid_state()` call 34.55 / 34.33 MB (about four logical
+      grids); after 4.3: 0.23 / 0.01 MB.
 - [x] 4.3 `R/simulate_driver.R` deferred-fid path: read the fid's maintained
       availability (step the effect to the cursor, return its value and
       encoding; the buffer, not a copy) instead of `matrix(present2, ...) &
       support_to_grid(...)`. Test: the 4.2 guard passes; a seeded simulation
       from a constrained REM fit draws the same sequence before and after;
       the free-running and time-anchored simulation tests stay green.
+      *Note (deviation, amended 2026-10-03, 6.1; design D5 "As landed"):*
+      a deferred fid has no availability effect of its own to step (its
+      family carries no effect, so it has no engine; the sibling's effect
+      is the other loop's object). The deferred choice instead reads the
+      drawing sender's row of the sibling's live mask at the mask's kind
+      (`support_row()`, linear index) AND receiver presence, at the alter
+      encoding; the deferred rate reads the sender gate off the same mask
+      (`sender_gate_from_mask()`) AND sender presence. No grid is composed
+      per call. The seeded before/after sequence check (point, alter and
+      ego constraints, 40 events each, identical draws on the pre-4.3
+      worktree and after) was run by hand and is not committed: the "before"
+      side needs the pre-4.3 code, and a sequence pinned on today's code
+      alone would freeze draws rather than test the read; the cost is held
+      by the 4.2 guard and the support by the deferred-rate simulation
+      tests in `test-support_gate_self_exclusion.R`.
 - [x] 4.4 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS; every reference family PASS.
 
@@ -199,7 +222,7 @@ The gaps are artifact drift the fold would carry into the living spec, plus
 one latent contract hole. No blocking gap; all before archive.
 
 
-- [ ] 6.1 **should-fix**: D5 landed as a read of the sibling process's live
+- [x] 6.1 **should-fix**: D5 landed as a read of the sibling process's live
       mask row at its kind (`R/simulate_driver.R:333-391`, `support_row()`
       and presence), not "the fid's maintained availability"; a REM
       deferral does not exist. Amend design D5, the delta scenario "the
@@ -207,6 +230,17 @@ one latent contract hole. No blocking gap; all before archive.
       so the deviation is in tracked artifacts, not only `progress.md`.
       Optionally commit the seeded before/after sequence check 4.3 ran by
       hand.
+      *Done 2026-10-03:* design D5 gains an "As landed" paragraph (no
+      effect to step for a deferred fid; DyNAM-only path; the sibling's
+      live mask row at its kind plus presence; guard numbers), and the D5
+      storage paragraph and the Guards line say what was measured. The
+      delta scenario keeps its name and splits its WHEN: the walk handle
+      reads the fid's maintained availability at its encoding; the
+      driver's deferred fid reads its sibling's live mask at kind and
+      presence; no grid at either call. 4.2 and 4.3 carry notes. The
+      optional sequence check is not committed (reason in 4.3's note).
+      Docs only: `openspec validate --strict` and the placement check
+      clean.
 - [ ] 6.2 **should-fix**: the ego-choice scenario in
       `specs/active-availability-stat/spec.md` names the
       "observed-event-excluded" error; the code raises and the test asserts

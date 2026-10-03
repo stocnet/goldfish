@@ -160,6 +160,27 @@ the effect already holds (no copy, rule 3); at outer it is two vectors.
 path" — it is a per-event allocation of size `n1 x n2` in the simulation
 step, which the cost rules name.
 
+*As landed (amended 2026-10-03, conformance follow-up):* the wording above
+assumed a deferred fid owns an availability effect to step. It does not. A
+fid is deferred when its whole family carries no effect, so it has no
+engine and no effect of its own, and its sibling's effect is the other
+loop's object (the sender gate when the sibling is the rate). The deferred
+path is DyNAM-only: a REM process is a single rate fid with no sibling to
+defer to, so the "constrained REM" case this decision and tasks 4.2/4.3
+name does not occur. What `simulation_fid_state()` does instead is read the
+sibling's live mask, which survives the deferral because a process's rate
+and choice share one support constraint. A deferred choice gets the
+drawing sender's row of that mask at the mask's stored kind
+(`support_row()`, a linear-index read, rule 2), ANDed with receiver
+presence and returned at the alter encoding. A deferred rate gets the
+sender gate from the same mask (`sender_gate_from_mask()`) ANDed with
+sender presence. Without a sender (reading shapes only) the receivers are
+presence. The cost intent holds: no grid is composed per call, and the 4.2
+guard measures one call at 0.23 MB (point mask) and 0.01 MB (alter mask)
+against 34.55 / 34.33 MB before, at 1500 actors. The handle's
+`walk_risk_set()` is the path that reads the maintained effect, as
+D3/D4 describe.
+
 ### D6 — Detector-first, references re-saved only for fields that move
 
 Before any edit, the byte-identity references and parity goldens are
@@ -218,14 +239,18 @@ by the grid and the columns, walk time down by the grid's initialization.
 n2` logicals plus `support_to_grid()`'s projection) is replaced by a read of
 the effect's value; at point no copy (the buffer is returned), at outer two
 vectors. Prediction: simulation step allocation on a constrained REM down by
-one grid per step.
+one grid per step. As landed (see D5): the read is one row of the sibling's
+live mask at its kind plus presence, a vector of `n2` logicals per call for
+a deferred choice and of `n1` for a deferred rate; measured on a
+constrained DyNAM spec, since no REM fid is deferred.
 
 **Guards.** Each group opens with a guard recorded failing on the unfixed
 code: D2, the R engine's per-event allocation on a composition-change fixture
 is bounded independent of `C`; D3, the preprocessed object of a vector-kind
 REM constraint is under a small multiple of `n1 + n2` logicals and no
 `n1 x n2` object is allocated during the walk; D5, one deferred-fid
-evaluation on a constrained REM allocates less than a grid. D1 has no
+evaluation on a constrained REM allocates less than a grid (as landed, on a
+constrained DyNAM spec with its choice deferred; see D5). D1 has no
 allocation to guard; its detector is the goldens.
 
 ## Risks / Trade-offs

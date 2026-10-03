@@ -214,7 +214,12 @@ object missing a field the engines read.
 
 #### Scenario: the simulation reads the maintained object
 - **WHEN** a constrained REM or choice process is evaluated by the stepping
-  walk handle or by the simulation driver's deferred-fid path
-- **THEN** the risk set is the maintained availability read at its encoding,
-  and no `n1 × n2` grid is composed from presence and a support mask at the
-  call.
+  walk handle
+- **THEN** the risk set is the fid's maintained availability read at its
+  encoding; and **WHEN** the simulation driver evaluates a deferred fid (a
+  DyNAM rate or choice whose family carries no effect, so it has no
+  availability of its own)
+- **THEN** its risk set is read from its sibling's live support mask at the
+  mask's stored kind (the drawing sender's row for a choice, the sender gate
+  for a rate) and presence, and in neither case is an `n1 × n2` grid
+  composed from presence and a support mask at the call.
