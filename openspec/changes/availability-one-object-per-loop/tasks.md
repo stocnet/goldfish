@@ -232,6 +232,15 @@ one latent contract hole. No blocking gap; all before archive.
       rejected" reads against the delta's own "retired fields read and
       ignored, no bump" clause; reword to the rejection the code performs
       (a missing engine field).
+- [ ] 6.6a **should-fix** (added 2026-10-03, from the
+      `support-gate-self-exclusion` follow-up re-check,
+      `.plan/develop/support-gate-self-exclusion-followup-conformance.md`):
+      the coordination self-exclusion in `symmetric_receiver_count()`
+      (`R/availability_effect.R:427`, from `7e57527`) has no detector;
+      ablating it leaves the self-exclusion, coordination,
+      shared-availability and constrained-capability test files green. Add
+      a coordination fixture with a self-only sender. Verify: the ablation
+      is red.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.
