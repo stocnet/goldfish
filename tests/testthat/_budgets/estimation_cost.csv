@@ -31,20 +31,20 @@
 # raises the value says what it buys. Lowering a value after an improvement
 # locks the gain in and needs no approval.
 #
-# Recorded 2026-10-02 at b977df5 (likelihood-site-cleanup-and-cost task 0.3)
-# with tests/testthat/_budgets/record-estimation-cost.R on an optimized build;
+# Recorded 2026-10-02 at b977df5, before the likelihood cost work, with
+# tests/testthat/_budgets/record-estimation-cost.R on an optimized build;
 # seconds and the diagnostics ratios re-recorded at a60731a on an otherwise
-# idle machine (task 0.4), the first record having been taken under load.
-# Raised with the maintainer's approval (task 3.3, 2026-10-02): alloc_mb for
+# idle machine, the first record having been taken under load.
+# Raised with the maintainer's approval (2026-10-02): alloc_mb for
 # se_rem r (9170 -> 9888), se_rem gather (1873 -> 1966) and se_choice r
 # (1712 -> 1913). Diagnostics are now computed once, by one evaluation after
 # the Newton loop; on these cells the per-iteration diagnostics cost less
 # than that extra evaluation. se_rate r fell (118.9 -> 60.01).
-# The diagnostics_ratio ceilings were re-recorded once the exact-time
-# kernels stopped paying a second exp pass for the default diagnostics
-# (likelihood-site-cleanup-and-cost task 2.5): measured 1.03 and 1.00, the
-# second pass having measured 1.36 and 1.62, so 1.15 sits above the
-# evaluation-to-evaluation noise and below the regression it guards.
+# The diagnostics_ratio ceilings were re-recorded (2026-10-02) once the
+# exact-time kernels stopped paying a second exp pass for the default
+# diagnostics: measured 1.03 and 1.00, the second pass having measured 1.36
+# and 1.62, so 1.15 sits above the evaluation-to-evaluation noise and below
+# the regression it guards.
 # Lowered 2026-10-03: alloc_mb for se_rem r (3290 -> 2015) and se_rate r
 # (36.76 -> 29.12). The r backend's REM contributions read the statistics
 # where they are: an axis filter is a mask on the whole grid rather than a

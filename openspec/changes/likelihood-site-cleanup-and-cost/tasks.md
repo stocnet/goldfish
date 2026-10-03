@@ -512,9 +512,22 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       index or a `std::vector` passes unseen). Probe run on the probe build
       at `75ba874`: 6 / 0, not skipped. Suite `NOT_CRAN=true`: 13312 / 0 / 7;
       baselines, goldens, pins and budget PASS, 0 skipped.
-- [ ] 7.7 **should-fix**, hygiene: `tests/testthat/_budgets/estimation_cost.csv`
+- [x] 7.7 **should-fix**, hygiene: `tests/testthat/_budgets/estimation_cost.csv`
       comments cite task numbers (dangling after archive); `src/REM_default.cpp:103`
       is a 143-character roxygen line; rewrap by hand.
+      *Done 2026-10-03:* the CSV header keeps its dates, commit hashes and
+      reasons and drops the four task citations; the 2026-10-03 lowering
+      note added by 7.1 carries none. The roxygen line is split by hand
+      into two `@param` groups of 76 and 77 characters (the kernel block is
+      `@noRd`); cpp-recompile: `compileAttributes()` changes
+      `R/RcppExports.R` in those comment lines only, `src/RcppExports.cpp`
+      not at all; clean optimized rebuild (no debug info);
+      `devtools::document()` writes nothing. No roxygen line of
+      `src/REM_default.cpp` now exceeds 80 characters (six code lines of 81
+      to 83 predate the change and are not touched). Probe run on the
+      probe build with these sources: 6 / 0, not skipped. Suite
+      `NOT_CRAN=true`: 13312 / 0 / 7; baselines, goldens, pins and budget
+      PASS, 0 skipped.
 - [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather

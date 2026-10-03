@@ -100,10 +100,12 @@ using namespace arma;
 //'    (that's the value in the diagonal entries of the statistics matrix).
 //' @param active_dyad_is_point TRUE when `active_dyad` is the point-encoded
 //'    mask, FALSE when it is the receiver factor of the outer encoding.
-//' @param return_event_scores,return_ranks,return_margins,return_total_rate,return_probabilities,return_availability,return_conditional_scores
+//' @param return_event_scores,return_ranks,return_margins,return_total_rate
 //'    Opt-in per-event diagnostics, each computed only when its flag is set.
 //'    `return_total_rate` also returns the conditional (partial-likelihood)
 //'    component `conditional_logl`.
+//' @param return_probabilities,return_availability,return_conditional_scores
+//'    Opt-in per-event diagnostics, as above.
 //' @param event_weights An optional n_events by m matrix; each column weights
 //'    the per-event information into one slice of `weighted_information`.
 //' @param return_event_information_trace Return the trace of each event's
