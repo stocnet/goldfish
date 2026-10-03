@@ -67,10 +67,14 @@ continuous-time block.
   then accumulates as a running sum like any other, and the observed dyad
   can be checked at its own event.
 - **The mask timing rule is stated once**: a support mask reads its atoms
-  strictly before the event's stamp on every path. The batch already does;
-  the handle defers atom moves stamped at the current clock until the clock
-  passes them, so batch and replay agree even when an atom-object event
-  shares a dependent event's stamp.
+  strictly before the event's stamp on every path. The batch already does.
+  The handle keeps one clock rule, its state at the clock including every
+  row stamped up to it, and a driver that evaluates an observed event at
+  its stamp steps strictly before it with `walk_advance(t, inclusive =
+  FALSE)`, applying the rows sharing the stamp after the event, so batch
+  and replay agree even when an atom-object event shares a dependent
+  event's stamp (revised 2026-09-29, ADR-0105: holding the moves inside the
+  handle broke free-running simulation).
 - **Simulation cross-validation tests.** A seeded, self-contained
   data-generating harness in the test helpers, lifted from the loop in
   `.plan/datasets/Simulation.R` with its defects corrected, simulates
@@ -133,7 +137,9 @@ continuous-time block.
   `R/support_mask_maintain.R` (`build_atom_maintainer()` reduced to its
   seed/template part or removed, `preprocess_pooled_support_masks()`
   signature), `R/walk_handle.R` (`walk_assert_covered_constraints()` removed;
-  deferred atom moves at a tied stamp), `R/constraint_parser.R` (object
+  `walk_advance(inclusive = FALSE)` for a tied stamp),
+  `R/simulate_anchored.R` (the anchored driver steps strictly before its
+  stamp), `R/constraint_parser.R` (object
   names exposed to the registry). Tests: `helper-simulate-dgp.R` (new),
   `test-simulation_cross_validation.R` (new), `test-walk_handle.R`,
   `test-constraint_atoms_operands.R`, `test-support_mask_sparse.R` (the

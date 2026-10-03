@@ -74,9 +74,17 @@ every support constraint the specification carries — over formula-read
 objects, static allowed networks, derived flavor masks and objects read only
 by constraint atoms — by advancing the shared walk's own atom stores and
 recomputing each fid's mask, never by refusing a constraint or serving a mask
-frozen at its seed; atom moves stamped at the current clock SHALL be held
-until the clock passes that stamp, so an evaluation reads the mask over atoms
-strictly before its time as the batch does. Replaying an observed
+frozen at its seed. The handle's state at its clock SHALL include every row
+stamped up to and including that clock, for every driver. A driver that
+evaluates an observed event at its own stamp SHALL step strictly before the
+stamp with `walk_advance(handle, t, inclusive = FALSE)`, which applies the
+rows stamped before `t` and the composition up to and including `t`, and
+SHALL apply the rows sharing the stamp only after the event is injected, the
+order the batch schedule gives them; an evaluation at an observed stamp then
+reads the mask over atoms strictly before its time as the batch does. The
+handle SHALL NOT hold atom moves in a pending set of its own: a free-running
+driver evaluating for the next event after the clock reads the moves at the
+clock. Replaying an observed
 sequence through advance/evaluate/inject SHALL reproduce the batch
 preprocessing quantities for every fid on a fixture (batch-vs-replay
 equality), including on constrained fixtures whose risk sets exclude at

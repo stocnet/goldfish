@@ -168,12 +168,13 @@ one idea is the defect the predecessor named.
 The batch contract stands: `advance(t)` applies atom events strictly before
 `t`, a lagged risk set, documented in `preprocess_support_mask()` and
 encoded in every byte-identity reference and the classical parity route.
-The handle conforms: atom moves collected from an object event stamped at
-the current clock are held in a pending set and folded into the live mask
-only when the clock advances past that stamp (or on the next `walk_advance`
-beyond it), so `walk_evaluate()` at `t` sees the mask over atoms strictly
-before `t` exactly as the batch snapshot does, while statistics and
-presence keep their in-force-at-the-stamp behavior. A new fixture puts an
+The handle conforms through its driver: a driver evaluating an observed
+event at its stamp steps strictly before it (`walk_advance(t, inclusive =
+FALSE)`, the revision below), so `walk_evaluate()` at `t` sees the mask over
+atoms strictly before `t` exactly as the batch snapshot does. (First
+planned as a pending set of atom moves inside the handle, folded into the
+live mask once the clock passed the stamp; built and withdrawn, see the
+revision.) A new fixture puts an
 `emails` event at a call's own stamp, ordered before it, and asserts
 batch-vs-replay equality there — the tie the current fixtures avoid.
 *Rejected:* aligning the mask with statistics (in force when scheduled
@@ -443,10 +444,17 @@ event: the same row emission any covariate row triggers. Prediction: rate
 object size grows in proportion to `C / (E + C)`; walk time moves by the
 same proportion at most.
 
-**D3 (the handle's deferred atom moves).** A pending set of the atom
-moves collected at the current clock: at most the cells one event
-changed, cleared when the clock passes the stamp. No grid, no per-event
-allocation beyond those cells.
+**D3 (the tied stamp on the handle; revised 2026-10-03 to the mechanism
+that landed, ADR-0105).** New stored object: none, and no pending state.
+The handle keeps one clock rule; a driver evaluating an observed event at
+its stamp calls `walk_advance(t, inclusive = FALSE)`, which stops the
+schedule cursor before the rows sharing `t` (one extra comparison per
+row) and applies them after the event is injected, through the same atom
+store and writers as any other row. Nothing is allocated per event beyond
+what those rows already change. (The pending set of held atom moves this
+paragraph first described was built and withdrawn: it broke free-running
+simulation, and deferring only the touched set would have read post-tie
+atoms through the live mask's recompute.)
 
 **D9 (live masks in the batch walk).** Stored objects: unchanged. The
 mask stream and the folded `active_sender` / `active_dyad` keep their
@@ -479,8 +487,9 @@ object size against the values before the group.
 - [The uncovered case's numbers could move between private replay and
   shared walk] → same strictly-before rule on both, and a reference captured
   before the threading is the detector.
-- [A tied stamp makes the handle's live mask lead the batch] → D3's deferred
-  moves plus a fixture that reaches the tie.
+- [A tied stamp makes the handle's live mask lead the batch] → the
+  anchored driver's strict stepping (D3 revision, ADR-0105) plus a fixture
+  that reaches the tie.
 - [The oracle frame silently uses goldfish's rule instead of the process's]
   → the frames are built inside the DGP loop from the DGP's own state; arm
   (b) then compares them to goldfish's export, so a disagreement is visible

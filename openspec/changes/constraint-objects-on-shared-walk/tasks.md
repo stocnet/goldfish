@@ -524,7 +524,7 @@ unchanged, every detector the groups added red under ablation except two. The
 spec still requires a mechanism ADR-0105 replaced, and one tie rule has no
 detector. 8.1 and 8.2 block the fold; they apply before group 7.
 
-- [ ] 8.1 **blocks**: `specs/multi-process-walk/spec.md:77-79` says atom
+- [x] 8.1 **blocks**: `specs/multi-process-walk/spec.md:77-79` says atom
       moves stamped at the current clock "SHALL be held until the clock
       passes that stamp"; the handle steps with
       `walk_advance(t, inclusive = FALSE)` instead (ADR-0105). The same
@@ -533,6 +533,21 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       that landed, carrying every living scenario. Verify: `openspec
       validate --strict` and the placement check clean; no "held until"
       wording left.
+      — *done 2026-10-03*: the handle requirement now states one clock
+      rule (state at the clock includes every row stamped up to it), the
+      observed-stamp driver's `walk_advance(handle, t, inclusive = FALSE)`
+      with the tied rows applied after injection, and a negative clause
+      (no pending set inside the handle). The MODIFIED block keeps the
+      three living scenarios by exact name plus its added one. Also
+      rewritten beyond the three named sites, same stale mechanism: D3's
+      decision body (now points at its own revision), the Risks line
+      ("D3's deferred moves"), and the proposal's Impact code line
+      ("deferred atom moves at a tied stamp"; `R/simulate_anchored.R`
+      added there). `grep -rn "held until\|held in a pending\|defers
+      atom\|deferred atom"` over the change, tasks.md aside: empty.
+      `openspec validate --strict`: valid; placement check: OK (7
+      placements). Artifact-only, no suite run needed for the text; the
+      suite runs with 8.2.
 - [ ] 8.2 **blocks**: the batch strictly-before tie rule
       (`R/support_mask_maintain.R:310`) has no detector: `<` to `<=` keeps
       every test green (8 files at `0a99c74`, all 35 `support_constraint`
