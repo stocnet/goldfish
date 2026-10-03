@@ -299,7 +299,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       conditional log-probability and probabilities come from the shifted
       log-sum-exp; the 2.3a fast branch contradicts it. Add a MODIFIED block
       to the `likelihood-computation` delta; placement check clean.
-- [ ] 7.4 **should-fix** (hand-off received from the
+- [x] 7.4 **should-fix** (hand-off received from the
       `availability-one-object-per-loop` inspection, owned here as the r
       engine's): the filter test at `R/estimation_core.R:2090-2094` treats
       an empty `2 x 0` update buffer as a filter, so an outer-encoded
@@ -315,6 +315,24 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       (`R/cpp_interface.R:1493`) and the per-event `match()`. Close them in
       this task if they are on the same filter path; otherwise record them
       in 7.5 with a measured size.
+      *Done 2026-10-03:* `compute_iteration_step()` tests
+      `length(update) > 0L` on both availability buffers, so an empty
+      `2 x 0` buffer is no filter; this is part (a) of the 7.1 stack, landed
+      here. Guard first: "a constraint that excludes nothing costs the r
+      backend nothing" (`test-likelihood_r_backend_cost.R`) compares one r
+      evaluation with `~ alter(allow) > 0` on an all-ones `allow` against the
+      unconstrained one on `constraint_cost_data(300, 60, 10)`: estimates
+      equal to 1e-12, allocation ratio under 1.005. Red on the shipped code
+      (`237c8dd`, in a detached worktree): REM 613.2 against 462.4 MB (ratio
+      1.33), choice 4.223 against 4.006 MB (1.054), 2 failures; after the fix
+      REM 461.1 against 462.4 MB (the constrained pass is 1.29 MB cheaper per
+      evaluation, a constant independent of the event count) and choice
+      identical, so the no-op difference per event is zero. Gather's
+      `.rowSums` at point and the coordination `match()` are in the gather
+      stack builder, run once per fit, not on the r engine's filter path:
+      recorded in 7.5 with their measured sizes, not closed here. Suite
+      `NOT_CRAN=true`: 13269 / 0 / 7; baselines, goldens, pins and budget
+      PASS, 0 skipped (the budget cells are unconstrained and do not move).
 - [ ] 7.5 **should-fix**, record in tracked artifacts what `progress.md`
       alone holds: the CollegeMsg budget cell is one cpp evaluation on 200
       messages, not a 1k fit on three backends (task 0.3, D6); the in-place

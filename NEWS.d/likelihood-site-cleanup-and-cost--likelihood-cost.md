@@ -5,6 +5,7 @@
 * Improved the `r` estimation backend, which now writes its state in place:
   * REM fits run about three times faster with a third of the memory.
   * DyNAM choice fits run about five times faster.
+  * A no-op `support_constraint` no longer copies the statistics per event.
 * Fixed the diagnostics of a fit whose last Newton step was rejected:
   * They now describe the parameters the fit returns, not the rejected step.
   * Diagnostics are computed once, after the Newton loop.

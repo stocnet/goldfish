@@ -75,6 +75,63 @@ test_that("an r-backend event allocates no copy of the statistics", {
   }
 })
 
+test_that("a constraint that excludes nothing costs the r backend nothing", {
+  skip_on_cran()
+  skip_if_not_installed("bench")
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # A constrained object carries its availability buffers even when they
+  # hold no flip, as 2 x 0 matrices rather than NULL. An empty buffer is no
+  # filter: were it read as one, every event would take the filtered path
+  # and read the kept rows of the statistics, a copy per event that changes
+  # no number.
+  data <- constraint_cost_data(n_actors = 300L, n_calls = 60L, n_emails = 10L)
+  data$nodes$allow <- 1
+  noop_prep <- function(sub_model, constraint) {
+    spec <- suppressMessages(make_specification(
+      rate = if (sub_model == "rem") ~ 1 + inertia + recip else NULL,
+      choice = if (sub_model == "choice") ~ inertia + recip else NULL,
+      model = if (sub_model == "rem") "REM" else "DyNAM",
+      layer = "calls",
+      data = data,
+      support_constraint = constraint
+    ))
+    suppressWarnings(suppressMessages(
+      if (sub_model == "rem") {
+        estimate_rem(spec, preprocessing_only = TRUE)
+      } else {
+        estimate_dynam(spec, sub_model = "choice", preprocessing_only = TRUE)
+      }
+    ))
+  }
+  for (sub_model in c("rem", "choice")) {
+    free <- noop_prep(sub_model, NULL)
+    noop <- noop_prep(sub_model, ~ alter(allow) > 0)
+    estimates <- function(prep) {
+      r_backend_cost_pass(prep)[c(
+        "logLikelihood",
+        "score",
+        "informationMatrix"
+      )]
+    }
+    expect_equal(estimates(noop), estimates(free), tolerance = 1e-12)
+    allocated <- vapply(
+      list(free = free, noop = noop),
+      function(prep) {
+        as.numeric(bench::bench_memory(r_backend_cost_pass(prep))$mem_alloc)
+      },
+      numeric(1)
+    )
+    # Both evaluations walk the same events with the same statistics, so
+    # the allocations match; a filtered path adds a copy per event, a third
+    # more on REM and a twentieth on choice at this size.
+    expect_lt(
+      allocated[["noop"]] / allocated[["free"]],
+      1.005,
+      label = paste("no-op over unconstrained allocation,", sub_model)
+    )
+  }
+})
+
 test_that("an r-backend evaluation leaves the preprocessed object untouched", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")

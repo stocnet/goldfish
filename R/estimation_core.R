@@ -2085,12 +2085,14 @@ compute_iteration_step <- function(
   # it by walking its flat buffer per event and reads the receiver filter
   # through the encoding accessor — no separate opportunities step.
   # Composition changes reach both objects the same way, as their update
-  # buffers. An axis filters only when it can exclude someone: it has a
-  # buffer, or an actor starts out unavailable.
-  sender_filter <- !is.null(statsList$active_sender_update) ||
+  # buffers. An axis filters only when it can exclude someone: its buffer
+  # holds a flip, or an actor starts out unavailable. A constrained object
+  # carries an empty 2 x 0 buffer when nothing flips, and that is no
+  # filter.
+  sender_filter <- length(statsList$active_sender_update) > 0L ||
     any(statsList$active_sender_init != 1)
   receiver_filter <- !is_rate &&
-    (!is.null(statsList$active_dyad_update) ||
+    (length(statsList$active_dyad_update) > 0L ||
       any(statsList$active_dyad_init != 1))
   # A standard- or ordinal-REM support_constraint folds both presences ∩
   # support into `active_dyad`. A point-kind atom (or an opportunity list)
