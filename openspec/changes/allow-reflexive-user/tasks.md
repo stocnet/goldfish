@@ -81,6 +81,19 @@
       block for it, conditional on the resolved rule. Verify: (ii) by the
       fold's allocation on the point-constrained CollegeMsg fixture before
       and after; (iv) by the placement check.
+      *Note 2026-10-03* (from the follow-up re-check,
+      `.plan/develop/support-gate-self-exclusion-followup-conformance.md`):
+      since `ec4b3c0` the gate sites live in `R/availability_effect.R`
+      (`availability_gate_flips()`, `availability_gate_receiver()`). (i)'s
+      flag is now the `drop_diagonal` default of
+      `build_engine_availability()` (`R/preprocess_joint.R:1365`). (ii) is
+      mostly done: `own` is built only in the alter branch (flipped entries,
+      under `drop_diagonal`), the ego branch (flipped entries) and the
+      global branch (`n1`, read there); the point branch allocates nothing.
+      Re-measure before acting on (ii) and drop it if the fold shows no
+      excess. (iv) stands: the living `active-availability-stat` and
+      `support-constraint` specs disagree on the one-mode gate until this
+      change folds.
 - [ ] 2.4 Verification: `air format` then `lintr` on the touched R files;
       `NOT_CRAN=true` suite green; the six baseline files PASS not SKIP and
       byte-identical — the detector that the default path did not move.
