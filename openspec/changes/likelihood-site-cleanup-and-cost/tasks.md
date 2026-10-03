@@ -158,6 +158,10 @@
       other kernels), not time.
 - [x] 2.6 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS; cpp-reviewer passed on every `src/` diff.
+      *Added 2026-10-03 (task 7.6):* this verification includes the kernel
+      allocation probe run, `test-likelihood_kernel_alloc.R` on the probe
+      build (command in that file's header, named in the not-cran-test
+      skill for any `src/` change), which SKIPs in the ordinary suite.
 
 ## 3. Diagnostics once (D4)
 
@@ -276,6 +280,10 @@
 - [x] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines,
       goldens, pins and budget PASS not SKIP; `status: landed
       (feature_simulation, awaiting fold)` in `proposal.md`.
+      *Added 2026-10-03 (task 7.6):* this verification includes the kernel
+      allocation probe run, `test-likelihood_kernel_alloc.R` on the probe
+      build (command in that file's header, named in the not-cran-test
+      skill for any `src/` change), which SKIPs in the ordinary suite.
 
 ## 7. Conformance follow-up (added 2026-10-02)
 
@@ -478,12 +486,32 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       code, not the likelihood, and stay with the availability change's
       owner. Suite `NOT_CRAN=true`: 13274 / 0 / 7; baselines, goldens, pins
       and budget PASS, 0 skipped.
-- [ ] 7.6 **should-fix**: the diagnostics-once test does not cover the
+- [x] 7.6 **should-fix**: the diagnostics-once test does not cover the
       non-finite-step exit nor assert that the convergence status is
       unchanged; the 2.1 kernel probe guard is dormant (no documented run
       builds the probe, so it SKIPs in every ordinary run) and blind below
       its size threshold: name the probe run in 2.6 / 6.4 and in the
       not-cran-test procedure.
+      *Done 2026-10-03:* "a fit stopped short of convergence keeps its
+      status" (`test-likelihood_diagnostics_once.R`) fits Social Evolution
+      REM on cpp and r with `max_iterations = 3`, once as is (the
+      iteration-limit exit) and once with its last Newton pass made to
+      return a `NaN` log-likelihood through a mocked evaluator (the
+      non-finite-step exit, which returns the parameters the iteration
+      before accepted; asserted equal to a `max_iterations = 2` fit). For
+      both exits: not converged, the stored diagnostics equal one pass at
+      the returned parameters to 1e-10, and parameters, convergence list
+      and iteration count are identical to the same fit with the default
+      diagnostics. Red check: with the final diagnostics pass moved to the
+      rejected step (`nr$parameters + nr$update`, in a detached worktree,
+      not committed) the new test fails 10 of 38 and the existing one 61 of
+      216. The probe run is named in the not-cran-test skill (a new
+      section, any `src/` change) and in 2.6 / 6.4 above; the probe test
+      header records its blind spot (only Armadillo allocations of at least
+      one double per alternative are counted, so a masked-cell `find()`
+      index or a `std::vector` passes unseen). Probe run on the probe build
+      at `75ba874`: 6 / 0, not skipped. Suite `NOT_CRAN=true`: 13312 / 0 / 7;
+      baselines, goldens, pins and budget PASS, 0 skipped.
 - [ ] 7.7 **should-fix**, hygiene: `tests/testthat/_budgets/estimation_cost.csv`
       comments cite task numbers (dangling after archive); `src/REM_default.cpp:103`
       is a 143-character roxygen line; rewrap by hand.

@@ -10,6 +10,14 @@
 #       "tests/testthat/test-likelihood_kernel_alloc.R")'
 #
 # Elsewhere it skips; the estimation budget's time cells carry the guard.
+# The not-cran-test skill names this run for any change to src/.
+#
+# What it cannot see: it counts only Armadillo allocations of at least one
+# double per alternative of the risk set. A per-event allocation smaller
+# than that passes unseen. An index vector of the masked cells, the
+# `e.elem(arma::find(allowed < 0.5)).zeros()` the kernels no longer use, is
+# sized by the masked count, and reintroducing it stays green here. So do
+# allocations made outside Armadillo (std::vector, Rcpp).
 
 # Event-sized: one value per alternative of the family's risk set.
 kernel_alloc_event_bytes <- function(prep) {

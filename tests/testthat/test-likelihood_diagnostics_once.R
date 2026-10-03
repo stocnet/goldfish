@@ -151,3 +151,147 @@ test_that("stored diagnostics are those of one pass at the returned vector", {
     }
   }
 })
+
+# Runs a fit whose `at_call`-th Newton pass without diagnostics returns a
+# non-finite log-likelihood, as an overflowing step does: the loop rejects
+# that step and, when it is the last one, returns the parameters accepted
+# before it. Counts the passes without diagnostics, so `at_call = -1L`
+# leaves the fit untouched and reports how many there were.
+diagnostics_once_nonfinite_fit <- function(
+  entry,
+  backend,
+  data_list,
+  at_call,
+  ...
+) {
+  counter <- new.env(parent = emptyenv())
+  counter$n <- 0L
+  poison <- function(res, flagged) {
+    if (flagged) {
+      return(res)
+    }
+    counter$n <- counter$n + 1L
+    if (identical(counter$n, at_call)) {
+      res$logLikelihood <- NaN
+    }
+    res
+  }
+  real_engine <- make_engine_evaluator
+  real_step <- compute_iteration_step
+  local_mocked_bindings(
+    make_engine_evaluator = function(...) {
+      engine <- real_engine(...)
+      evaluate <- engine$evaluate
+      engine$evaluate <- function(pars, need_scores, ...) {
+        flags <- c(list(need_scores), list(...))
+        flagged <- any(vapply(flags, isTRUE, logical(1)))
+        poison(evaluate(pars, need_scores, ...), flagged)
+      }
+      engine
+    },
+    compute_iteration_step = function(...) {
+      flagged <- diagnostics_once_requested(
+        list(...),
+        c(
+          "return_event_scores",
+          "returnEventProbabilities",
+          "return_ranks",
+          "return_margins",
+          "return_total_rate",
+          "return_availability",
+          "return_conditional_scores"
+        )
+      )
+      poison(real_step(...), flagged)
+    }
+  )
+  list(
+    fit = diagnostics_once_fit(entry, backend, data_list, ...),
+    n = counter$n
+  )
+}
+
+# The two exits that stop short of convergence: the iteration limit, and a
+# last step rejected as non-finite. Either way the diagnostics are one pass
+# at the parameters the fit returns, and requesting them changes neither
+# those parameters nor the convergence status.
+test_that("a fit stopped short of convergence keeps its status", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  entry <- baselines_model_grid()$se_rem
+  data_list <- likelihood_pin_data()
+  diagnostics <- c("loglik", "scores", "ranks", "margins", "availability")
+  fields <- c(
+    "interval_log_lik",
+    "event_scores",
+    "observed_rank",
+    "margins",
+    "availability",
+    "total_rate",
+    "conditional_logl"
+  )
+  status <- function(fit) {
+    list(fit$parameters, fit$convergence, fit$n_iterations)
+  }
+  for (backend in c("cpp", "r")) {
+    passes <- diagnostics_once_nonfinite_fit(
+      entry,
+      backend,
+      data_list,
+      at_call = -1L,
+      max_iterations = 3L
+    )$n
+    for (at_call in c(-1L, passes)) {
+      label <- paste(backend, if (at_call < 0L) "limit" else "non-finite")
+      fit <- diagnostics_once_nonfinite_fit(
+        entry,
+        backend,
+        data_list,
+        at_call = at_call,
+        max_iterations = 3L,
+        diagnostics = diagnostics
+      )$fit
+      plain <- diagnostics_once_nonfinite_fit(
+        entry,
+        backend,
+        data_list,
+        at_call = at_call,
+        max_iterations = 3L
+      )$fit
+      expect_false(fit$convergence$is_converged, label = label)
+      expect_identical(status(fit), status(plain), label = label)
+      reference <- diagnostics_once_fit(
+        entry,
+        backend,
+        data_list,
+        diagnostics = diagnostics,
+        initial_parameters = fit$parameters,
+        max_iterations = 0L
+      )
+      for (field in fields) {
+        expect_equal(
+          fit[[field]],
+          reference[[field]],
+          tolerance = 1e-10,
+          info = paste(label, field)
+        )
+      }
+    }
+    # The rejected step is the last one: the fit returns what the
+    # iteration before it accepted.
+    rejected <- diagnostics_once_nonfinite_fit(
+      entry,
+      backend,
+      data_list,
+      at_call = passes,
+      max_iterations = 3L
+    )$fit
+    shorter <- diagnostics_once_fit(
+      entry,
+      backend,
+      data_list,
+      max_iterations = 2L
+    )
+    expect_equal(rejected$parameters, shorter$parameters, tolerance = 1e-12)
+  }
+})

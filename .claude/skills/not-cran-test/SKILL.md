@@ -46,6 +46,15 @@ Report **PASS / FAIL / SKIP** totals. The run only verifies the change if:
 - Note that ~19 pre-existing dissolve/imputation WARNINGS are expected and not a
   failure.
 
+## Kernel allocation probe (when `src/` changed)
+
+`test-likelihood_kernel_alloc.R` SKIPs in the run above: it needs a probe
+build that routes Armadillo's allocations through a counter. When the change
+touches `src/`, also run that file once on the probe build, with the command
+in the file's header, and confirm it reports PASS, not SKIP. Rebuild normally
+afterwards (`devtools::load_all(recompile = TRUE)`), so later runs do not use
+the probe build.
+
 Never regenerate or edit `tests/testthat/_baselines/` to make a run pass — those
 are the frozen regression floor (design D18). A baseline mismatch is a signal to
 fix the code, not the baseline.
