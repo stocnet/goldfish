@@ -474,6 +474,45 @@ test_that("the candidate set of a validated event excludes the sender", {
   )
 })
 
+test_that("a self-only sender's observed event meets an empty risk set", {
+  # Only N1 has x > 0: N1 is the one receiver the constraint allows, so N1's
+  # own event at t = 3 has no candidate at all, rather than a candidate set
+  # of itself that the observed receiver falls outside of.
+  data <- list(
+    info = list(
+      name = "alter-self",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      x = c(1, 0, 0, 0),
+      stringsAsFactors = FALSE
+    ),
+    ties = data.frame(
+      from = c(2L, 3L, 1L, 4L),
+      to = c(1L, 1L, 2L, 1L),
+      time = as.numeric(1:4),
+      weight = 1,
+      layer = "calls"
+    )
+  )
+  spec <- suppressMessages(make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    support_constraint = ~ alter(x) > 0,
+    data = data
+  ))
+
+  expect_error(
+    suppressWarnings(suppressMessages(preprocess_joint(spec))),
+    "empty risk set at event 3"
+  )
+})
+
 test_that("a free-running run never draws a sender with no receiver", {
   data <- self_only_sender_data()
   js <- single_process_joint(make_specification(

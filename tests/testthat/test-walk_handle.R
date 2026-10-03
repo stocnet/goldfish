@@ -527,6 +527,21 @@ test_that("a dyadic support constraint is maintained live on the handle", {
   expect_gt(replay$n_excluded, 0L)
 })
 
+test_that("a sender with only itself left replays live against batch", {
+  # N1 starts tied to every other actor, so its creation rate is gated out
+  # until it dissolves one of them; the live gate has to drop the self-dyad
+  # the creation mask allows, at every event the batch walk stores.
+  spec <- suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ inertia),
+    model = "DyNAM",
+    data = self_only_sender_data()
+  ))
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_gated, 0L)
+})
+
 test_that("a receiver-axis support constraint is maintained live", {
   data <- walk_constrained_data(data.frame(
     from = c(2L, 3L, 4L, 6L),

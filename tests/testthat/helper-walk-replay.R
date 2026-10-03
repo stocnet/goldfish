@@ -3,9 +3,10 @@
 
 # Replay a specification's observed schedule through the handle and compare
 # each fid's live evaluation at its own dependent events against the batch
-# materialization. Returns the number of comparisons and of excluded
-# alternatives among the compared choice rows, so a test can confirm the risk
-# set it compared actually excluded something.
+# materialization. Returns the number of comparisons, of excluded
+# alternatives among the compared choice rows and of senders gated out of the
+# compared rate rows, so a test can confirm the risk set it compared actually
+# excluded something.
 walk_replay_against_batch <- function(spec) {
   batch <- suppressWarnings(preprocess_joint(spec))
   map <- attr(batch, "process_map")
@@ -14,6 +15,7 @@ walk_replay_against_batch <- function(spec) {
   dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
   n_checked <- 0L
   n_excluded <- 0L
+  n_gated <- 0L
   for (k in seq_len(schedule$n)) {
     # Driven by schedule position, not by time alone: a dependent row is
     # evaluated before the covariate rows sharing its stamp. An exogenous row is
@@ -84,6 +86,7 @@ walk_replay_against_batch <- function(spec) {
         n_excluded <- n_excluded + sum(live$value[off_diagonal] == 0)
       } else if (is_rate) {
         expect_equal(live$value, reference)
+        n_gated <- n_gated + sum(live$value == 0)
       } else {
         sender <- schedule$sender[k]
         n2 <- state$n_actors2
@@ -94,5 +97,5 @@ walk_replay_against_batch <- function(spec) {
       n_checked <- n_checked + 1L
     }
   }
-  list(n_checked = n_checked, n_excluded = n_excluded)
+  list(n_checked = n_checked, n_excluded = n_excluded, n_gated = n_gated)
 }

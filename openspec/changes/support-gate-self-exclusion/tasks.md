@@ -185,7 +185,7 @@ archive.
       `FALSE`, `R/simulate_driver.R:356`): the test errors on its first
       seed with "missing value where TRUE/FALSE needed" (the 2.8 abort);
       green restored
-- [ ] 4.3 **should-fix**: `test-support_mask_sparse.R:151` and `:392` still
+- [x] 4.3 **should-fix**: `test-support_mask_sparse.R:151` and `:392` still
       compute the gate reference without `self` (the proposal's Impact
       promised they would be re-run with the flag); live walk against batch
       is compared only at the opening state, task 3.1 asked for every event
@@ -193,6 +193,28 @@ archive.
       derivation (`R/model_estimate.R:1243`) has no detector because the
       validation tests pass the flag directly. Verify: a flipped flag at
       each site is red.
+      — *done 2026-10-03* (fu/support-gate-g4). (i) Both sparse-mask gate
+      references (now `test-support_mask_sparse.R:193` and `:457`) read
+      `oracle_sender_gate(..., one_mode = TRUE)` and their comments state
+      the self-dyad rule. **Deviation:** neither fixture reaches a
+      self-only sender (an `indeg >= 0` mask and a `tie(contignet)` mask
+      with no diagonal), so the batch flag ablation leaves that file green;
+      the rule is pinned there in words and by the self-exclusion file,
+      not detected. (ii) `test-walk_handle.R` gains "a sender with only
+      itself left replays live against batch": the 1.1 fixture through
+      `walk_replay_against_batch()`, which now also counts gated-out
+      senders of the compared rate rows (`n_gated`, asserted > 0). It
+      compares at every dependent event, the rows the replay evaluates.
+      Ablation of the walk's flag (`R/walk_handle.R:446`): 5 failed
+      expectations in that test. (iii) `validate_prep_support()` no longer
+      exists: the observed-event check now runs in the walk on the
+      availability effect, whose flag is the batch fold's
+      (`build_engine_availability()`, `R/preprocess_joint.R:1365`). New
+      end-to-end test "a self-only sender's observed event meets an empty
+      risk set" (`~ alter(x) > 0`, only N1 has x > 0, N1's event at t = 3)
+      through `preprocess_joint()`; with that flag set to `FALSE` it is red
+      (the verdict becomes "observed dyad is excluded"), as are the six
+      other fixture tests that read the batch gate
 - [ ] 4.4 **should-fix**: assert the scenario clauses the tests skip: the
       self-only sender absent from `n_candidates` and from the rate
       exposure (`test-support_gate_self_exclusion.R:154`), and the alter

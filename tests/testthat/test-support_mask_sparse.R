@@ -145,8 +145,9 @@ test_that("a rate + choice layer maintains one mask, not one per family", {
 
 test_that("the rate gate equals the row reduction of the shared mask", {
   # The backbone: whatever representation the mask is in, the sender gate
-  # estimation consumes must equal a from-scratch
-  # `rowSums(mask & receiver-availability) > 0`, boolean-exact at every event.
+  # estimation consumes must equal a from-scratch reduction of the mask over
+  # the present receivers other than the sender itself (one node set here),
+  # boolean-exact at every event.
   fx <- sparse_mask_data()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -189,7 +190,7 @@ test_that("the rate gate equals the row reduction of the shared mask", {
   receivers <- unconstrained$active_dyad_init == 1
   for (e in seq_along(prep$event_time)) {
     grid <- mask_grid_at_event(sm, e, n1, n2)
-    ref <- rowSums(grid & rep(receivers, each = n1)) > 0
+    ref <- oracle_sender_gate(grid, receivers, one_mode = TRUE)
     expect_identical(unname(gate[[e]]), unname(presence[[e]] & ref))
   }
 })
@@ -403,9 +404,10 @@ composition_rate_prep <- function(
 }
 
 test_that("the rate gate follows receiver departures, not only mask flips", {
-  # The gate is `presence & (rowSums(mask & receiver-presence) > 0)`, and BOTH
-  # of its inner axes move over this sequence. The constraint has to be
-  # POINT-kind for a departure to be visible: a separable mask shares one
+  # The gate is sender presence and at least one allowed, present receiver
+  # other than the sender itself, and BOTH of the reduction's inner axes
+  # move over this sequence. The constraint has to be POINT-kind for a
+  # departure to be visible: a separable mask shares one
   # allowed set across every sender, so all of it would have to leave before
   # any gate moved, while a point mask gives sender i its own row, which can
   # be small enough that a single departure empties it.
@@ -453,7 +455,7 @@ test_that("the rate gate follows receiver departures, not only mask flips", {
   for (e in seq_len(n_stored)) {
     grid <- mask_grid_at_event(sm, e, n1, n2)
     ref <- senders[[e]] &
-      (rowSums(grid & rep(receivers[[e]], each = n1)) > 0)
+      oracle_sender_gate(grid, receivers[[e]], one_mode = TRUE)
     expect_identical(unname(gate[[e]]), unname(ref))
   }
 })
