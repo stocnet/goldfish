@@ -237,15 +237,41 @@ with no diff. The artifacts claim a cost the r backend does not meet, and
 one kernel path has no detector. 7.1 and 7.2 block the fold.
 
 - [ ] 7.1 **blocks**: the r backend still allocates about 3.5 statistics
-      arrays per REM event (4.7 under an outer-encoded filter) because it
-      copies the subset each event; a Social Evolution REM fit allocates
-      3290 MB where D3, the `likelihood-computation` delta and tasks 4.3/4.5
-      claim nothing of size `n1 x n2 x p` per event and under one tenth of
-      7325 MB. The miss was accepted in `progress.md` only. Either close
-      the copy (subset once per event into the reused buffer 4.3 names) or
-      amend D3, the delta scenario and the 4.3/4.5 tick notes to the
-      contract accepted, using the 4.1 guard's limit as the scenario's
-      number. Verify: the scenario and the guard state the same bound.
+      arrays per REM event (4.7 under an outer-encoded filter); a Social
+      Evolution REM fit allocates 3290 MB where D3, the
+      `likelihood-computation` delta and tasks 4.3/4.5 claim nothing of size
+      `n1 x n2 x p` per event and under one tenth of 7325 MB. The miss was
+      accepted in `progress.md` only.
+      *Decided 2026-10-03 (Alvaro, ADR-0113), after a measurement spike at
+      `79dca89` (coordinator scratchpad `spike-7.1/`, patches per
+      prototype):* close the cost in pure R and amend the artifacts to the
+      bound that reaches. The exact-time REM's 3.5 arrays are one weighted
+      array (`crossprod(S, S * p)`) plus about 7.5 throwaway vectors of
+      length `n1 n2`; the subset copy adds 1.17 on filtered paths; the
+      ordinal REM allocates 9.8 arrays per event (reshape copies and a
+      materialized derivative array) and the 4.1 guard has no ordinal
+      fixture. Land the pure-R stack: (a) an empty `2 x 0` buffer is no
+      filter (shared with 7.4); (b) the rate contribution trimmed: `-Inf`
+      mask in place, no risk-set subset for the maximum, the probability
+      vector and risk-set membership built only when a diagnostic asks;
+      (c) axis filters applied as a mask on the full grid, not a subset;
+      (d) the ordinal REM on the flat matrix, no `dim<-` on a shared
+      value; (e) the ordinal REM information in moment form,
+      `crossprod(S, S * p) - tcrossprod(E)`, score `S[obs, ] - E`. The
+      contract: a REM event allocates exactly one weighted statistics
+      array and vectors of the risk set's size, at most `1 + 3/(p+1)`
+      arrays per event; it never copies, reshapes or subsets the statistics
+      array; the r backend stays pure R. The 4.1 guard gains the ordinal
+      REM fixture and states that bound (about 2.5 on its fixture); the
+      delta's ADDED allocation requirement and scenario, D3 and its storage
+      paragraph, and the 4.3/4.5 tick notes are amended to it, with the
+      Social Evolution REM r scenario at under about 2100 MB (spike: 3310
+      to 2070 MB, REM-ordered 6072 to 1507 MB, results within 1.5e-11).
+      The budget CSV is lowered in the same commit. Check the moment-form
+      information on the fixtures with the widest statistic ranges (an
+      ADR-0113 open question). Verify: guard red first on the shipped code
+      (the ordinal fixture at 9.8), green after; the scenario and the guard
+      state the same bound; pins at 1e-10 and baselines PASS.
 - [ ] 7.2 **blocks** (reopens 2.3): the "risk set follows the flips" test
       cannot see the REM and REM-ordered point-flip writes
       (`src/REM_default.cpp:394`, `src/REM_ordered_default.cpp:230`):
@@ -271,6 +297,12 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       `length(update) > 0` or store `NULL` for an empty stream, and add a
       no-op guard (constrained-excluding-nothing equals unconstrained on
       the r backend). Verify: the no-op difference is zero.
+      *Added 2026-10-03* (from the `availability-one-object-per-loop`
+      follow-up re-check, G-D: its 6.7 handed these here, and no task
+      received them): gather's per-event `.rowSums` pass at point
+      (`R/cpp_interface.R:1493`) and the per-event `match()`. Close them in
+      this task if they are on the same filter path; otherwise record them
+      in 7.5 with a measured size.
 - [ ] 7.5 **should-fix**, record in tracked artifacts what `progress.md`
       alone holds: the CollegeMsg budget cell is one cpp evaluation on 200
       messages, not a 1k fit on three backends (task 0.3, D6); the in-place
