@@ -823,12 +823,13 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       Verify: allocation and time on that fixture before and after, back
       to back on optimized builds.
       — *done 2026-10-03, recorded and handed off (Alvaro)*: attributed
-      with `Rprofmem` in a detached worktree at `904856a` (`-O2` build;
-      `d37e7ec` before the rebase onto `335c150`): 0.615 s / 822 MB
-      against 0.128 s / 95 MB unconstrained (median of 9 warm runs); 649 MB of the 825 MB allocated in blocks of 1 KB or
-      more is under `advance_constraint_atom_store()`, about 0.22 MB per
-      emails event (2991 events): `to_alter()` 378, `collapse_entries()`
-      116, `project_entries()` 103, `update_DyNAM_rate_indeg()` 34,
+      with `Rprofmem` in a detached worktree at `904856a` (`-O2`
+      build): 0.615 s / 822 MB against 0.128 s / 95 MB unconstrained
+      (median of 9 warm runs); 649 MB of the 825 MB allocated in blocks
+      of 1 KB or more is under `advance_constraint_atom_store()`, about
+      0.22 MB per emails event (2991 events): `to_alter()` 378,
+      `collapse_entries()` 116, `project_entries()` 103,
+      `update_DyNAM_rate_indeg()` 34,
       `linear_entries()` 17 MB; about 0.27 s of the time gap in the atom
       store, 0.11 s in `to_alter()`. Not a copy, growth, by-name lookup
       or grid in the atom store, and not proportional to the cells the
