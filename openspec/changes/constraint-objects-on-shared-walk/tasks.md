@@ -513,6 +513,75 @@
       — *done 2026-10-01 (goldfish-ce), suite on `d79f200`*: 10774 / 0 / 5,
       six baseline files PASS; `proposal.md` marked landed.
 
+## 8. Conformance follow-up, groups 0-4 (added 2026-10-03)
+
+From
+`.plan/develop/constraint-objects-on-shared-walk-groups0-4-conformance.md`
+(evidence in the folder of the same name), inspected at `0a99c74` over
+`663096d..7b56821`. The code computes correctly: suite 10774 / 0 / 5, six
+baseline files PASS, `_baselines/` untouched, the stored fields and encodings
+unchanged, every detector the groups added red under ablation except two. The
+spec still requires a mechanism ADR-0105 replaced, and one tie rule has no
+detector. 8.1 and 8.2 block the fold; they apply before group 7.
+
+- [ ] 8.1 **blocks**: `specs/multi-process-walk/spec.md:77-79` says atom
+      moves stamped at the current clock "SHALL be held until the clock
+      passes that stamp"; the handle steps with
+      `walk_advance(t, inclusive = FALSE)` instead (ADR-0105). The same
+      wording is in `proposal.md:69-72` and the design's D3 storage
+      paragraph (`design.md:446-449`). Rewrite all three to the mechanism
+      that landed, carrying every living scenario. Verify: `openspec
+      validate --strict` and the placement check clean; no "held until"
+      wording left.
+- [ ] 8.2 **blocks**: the batch strictly-before tie rule
+      (`R/support_mask_maintain.R:310`) has no detector: `<` to `<=` keeps
+      every test green (8 files at `0a99c74`, all 35 `support_constraint`
+      files at tip), because the tied fixtures place the constraint row
+      after the call and never reach "precedes it in schedule order". The
+      case is reachable: a choice-only `emails` process ahead of a
+      constrained choice-only `calls` process gives N2 the allowed set
+      {1, 2, 3, 5, 6} under the shipped rule and {1, 2, 3, 6} under `<=`
+      (the report's `probe-tie-flush-joint.R`). Commit that fixture.
+      Verify: the `<=` ablation is red.
+- [ ] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
+      `is_constraint_only_row()` stays green), and the 2.3a boundary rows
+      reach past the exempt end (a trailing `emails` event at t = 9 stores
+      a censored row with interval 4 while `end_time` stays 5). Add a
+      detector for the predicate, and record in D4 and the 2.3a tick note
+      that the boundary rows answer part of the extent question D4 leaves
+      open; the keep-or-trim decision is handed to
+      `observation-tail-right-censoring` 0.3 (note added there).
+- [ ] 8.4 **should-fix**, record: the walk-time regression has no tracked
+      owner. The unconstrained exact-time rate walk is 20-33 percent slower
+      (0.117 s at `663096d`, 0.141-0.156 s at `0a99c74`, 0.143 s at
+      `3cb92d9`), about two thirds of it `availability_step()` stepping the
+      presence effect in R on every stored row; the CollegeMsg unconstrained
+      joint walk 3.65 to 4.01 s. The 4.9 fast path proposed for it lives
+      only in `progress.md`. Record the measurement in tasks.md and name
+      the successor that owns 4.9 (owner pending Alvaro's decision).
+- [ ] 8.5 **should-fix**: the design's Storage section is stale. The
+      observed-event check reads the sender's row (about 36 KB per
+      dependent event), not one mask cell (accepted only in 4.6's note);
+      the predicted time drop was refuted; the 2.3a row bound is computed
+      as C/(E+C) where rows grow by C/E, and the measured +56 percent sits
+      above it. Amend D4's storage paragraph and the 2.3a/2.3b tick notes.
+- [ ] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
+      unconstrained or covered models; 4.5b moved the covered `choice`
+      reference and two covered point-choice parity goldens. Correct the
+      Impact line.
+- [ ] 8.7 **should-fix**: the "byte-identical" reference tests
+      (`test-constraint_atoms_operands.R:46,98`) use `expect_equal()`; use
+      `expect_identical()`. Verify: they stay green.
+- [ ] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+      PASS not SKIP; `openspec validate --strict` and the placement check
+      clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector
+      agent. Notes not owned here: per-row `c()` growth and by-name
+      `[[fid]]` lookups go with 4.9; censored rate rows restating held
+      values (`preprocess-output-writers`, pre-existing); the 4.4a guard
+      checks function names only (optional); the walk budget's band cannot
+      see constraint-path costs (budget tooling).
+
+
 ## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
 
 From

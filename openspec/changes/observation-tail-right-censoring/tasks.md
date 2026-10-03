@@ -34,6 +34,17 @@ warning is not a failure.
       covariate after the last dependent event (for D2). State for each what its
       last real event time is and what its last scheduled row time is, so a
       trailing row is unambiguous.
+      *Note 2026-10-03* (hand-off from the `constraint-objects-on-shared-walk`
+      groups 0-4 inspection,
+      `.plan/develop/constraint-objects-on-shared-walk-groups0-4-conformance.md`,
+      gap 3): that change's boundary rows (its task 2.3a) already reach past
+      the extent its D4 exempts. A trailing `emails` event at t = 9 stores a
+      censored rate row with interval 4 while `end_time` stays 5 (the base
+      stored rows only up to 5), and nothing detects the exemption predicate
+      (`is_constraint_only_row()` can be flipped with the suite green). Add
+      a constraint-only stream with an event after the last dependent event
+      to this fixture set; the matrix then decides whether those rows are
+      kept or trimmed.
 
 ## 1. The detector matrix (design D3) — build red, measure D2
 
