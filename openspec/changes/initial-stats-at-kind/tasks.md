@@ -120,6 +120,17 @@
       the task commit); numbers in `progress.md`. NEWS.d bullet (vector-kind
       statistics stored and emitted at kind; `prep$initial_stats` replaced by
       `initial_stats(prep)`).
+      *Note 2026-10-03* (hand-off, Alvaro, from `constraint-objects-on-shared-walk`
+      8.7a; attribution in that change's tick note): the constraint-atom path
+      pays the same fan-out. On the 1500-actor rate fixture a constraint that
+      excludes nothing (`~ indeg(emails) >= 0`) costs 822 MB and 0.615 s
+      against 95 MB and 0.128 s unconstrained; 649 MB sits under
+      `advance_constraint_atom_store()` (about 0.22 MB per emails event):
+      `to_alter()` 378 MB, `collapse_entries()` 116 MB, `project_entries()`
+      103 MB. 3.2's at-kind emission must reach the atom store as well (the
+      atom consumes the kind entry directly; `collapse_operand_delta()` no
+      longer folds `n1 - 1` rows back to one), and 3.3 measures that cell
+      too, against the 822 MB with about 95 MB predicted.
 - [ ] 3.4 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       references PASS; walk budget PASS (lower the record if the floor
       fails).
