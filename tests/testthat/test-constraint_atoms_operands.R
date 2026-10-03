@@ -269,6 +269,74 @@ test_that("threading a constraint-only stream leaves every other row", {
   }
 })
 
+test_that("an atom event ahead of a dependent event at its stamp lags", {
+  # The `emails` process is planned first, so at t = 2 its event 2 -> 5 is
+  # scheduled ahead of N2's call. The mask still reads its atoms strictly
+  # before the stamp: 2 -> 4 (emailed at 1.5) is excluded and 2 -> 5 is
+  # still allowed at the call.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 5L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  emails <- suppressMessages(make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  ))
+  calls <- suppressMessages(make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  ))
+  joint <- make_joint_specification(emails, calls, data = data)
+
+  schedule <- build_merged_blocks(joint)$schedule
+  at_two <- schedule$time == 2 & schedule$dependent
+  expect_identical(schedule$layer[at_two], c("emails", "calls"))
+
+  batch <- suppressWarnings(preprocess_joint(joint))
+  map <- attr(batch, "process_map")
+  calls_fid <- as.character(map$fid[map$layer == "calls"])
+  state <- materialize_process_state(
+    batch[[calls_fid]],
+    model_type = "DyNAM-M",
+    event_index = 2L,
+    has_intercept = FALSE
+  )
+  probability <- evaluate_process_state(state, 0.4)$value
+  expect_identical(which(probability > 0), c(1L, 3L, 5L, 6L))
+})
+
 test_that("the atom recorder's log grows linearly with its events", {
   # A cost guard: the recorder appends one entry per constraint event. Twice
   # the events must cost about twice the allocation; a log that copies itself

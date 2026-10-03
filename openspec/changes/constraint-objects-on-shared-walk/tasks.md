@@ -548,7 +548,7 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       `openspec validate --strict`: valid; placement check: OK (7
       placements). Artifact-only, no suite run needed for the text; the
       suite runs with 8.2.
-- [ ] 8.2 **blocks**: the batch strictly-before tie rule
+- [x] 8.2 **blocks**: the batch strictly-before tie rule
       (`R/support_mask_maintain.R:310`) has no detector: `<` to `<=` keeps
       every test green (8 files at `0a99c74`, all 35 `support_constraint`
       files at tip), because the tied fixtures place the constraint row
@@ -558,6 +558,21 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       {1, 2, 3, 5, 6} under the shipped rule and {1, 2, 3, 6} under `<=`
       (the report's `probe-tie-flush-joint.R`). Commit that fixture.
       Verify: the `<=` ablation is red.
+      — *done 2026-10-03, batch half only*: `test-constraint_atoms_operands.R`
+      "an atom event ahead of a dependent event at its stamp lags" builds
+      the joint fixture, asserts the schedule puts the `emails` dependent
+      row ahead of the call at t = 2, and that N2's choice probabilities
+      at its call are positive exactly on {1, 3, 5, 6} (the report's
+      {1, 2, 3, 5, 6} counts the self cell of the stored grid; the
+      probability excludes it). Red under `<=` at
+      `R/support_mask_maintain.R` `flush_atom_moves()` (copy and restore,
+      `cmp` clean): 1 failure, that test, 125 / 1 / 0 in the file; green
+      shipped, 126 / 0 / 0. Full `NOT_CRAN=true` suite: 13192 / 0 / 7
+      skipped (all opt-in or environmental), six baseline files PASS with 0
+      skipped. **The handle half is NOT closed**: "on the
+      handle alike" fails for a dependent event of another process (or of
+      the same process) injected at the stamp, so the fixture carries no
+      replay arm; see 8.2a.
 - [ ] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
       `is_constraint_only_row()` stays green), and the 2.3a boundary rows
       reach past the exempt end (a trailing `emails` event at t = 9 stores
