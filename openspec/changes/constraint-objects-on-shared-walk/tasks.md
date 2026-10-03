@@ -657,10 +657,17 @@ detector. 8.1 and 8.2 block the fold; they apply before group 7.
       the observed-event check still reads about two `n2` rows per
       dependent event. Record it in the same storage paragraph as the
       accepted row read, with the measured size.
-- [ ] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
+- [x] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
       unconstrained or covered models; 4.5b moved the covered `choice`
       reference and two covered point-choice parity goldens. Correct the
       Impact line.
+      — *done 2026-10-03*: the Numbers bullet now says no estimate moves
+      and outputs are byte-identical except the point-encoded choice
+      availability stream, naming the refrozen covered `choice` reference
+      and the `user_constraint__choice` / `constraint_bound__choice`
+      goldens (sender rows asserted equal, approved), and the by-design
+      2.3a rate move (`uncovered_rate`, the rate goldens). validate
+      --strict and placement clean. Artifact-only.
 - [ ] 8.7 **should-fix**: the "byte-identical" reference tests
       (`test-constraint_atoms_operands.R:46,98`) use `expect_equal()`; use
       `expect_identical()`. Verify: they stay green.

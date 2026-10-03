@@ -145,10 +145,20 @@ continuous-time block.
   `test-constraint_atoms_operands.R`, `test-support_mask_sparse.R` (the
   `mask_call_counts` comment), `helper-constraint-atoms.R` (new reference
   family), `_snaps/walk_handle.md`.
-- **Numbers**: none move for unconstrained or covered models (byte-identity
-  asserted); the uncovered case changes from a private replay to the shared
-  walk with the same strictly-before rule, so its masks are identical by
-  construction and a reference captured before the threading proves it.
+- **Numbers**: no estimate moves for unconstrained or covered models, and
+  their preprocessed outputs are byte-identical (asserted) with one stored
+  exception: the point-encoded choice availability stream. Live masks
+  (4.5b) store the true initial grid and every flipped cell, so the covered
+  constrained `choice` reference and the covered point-choice parity
+  goldens `user_constraint__choice` and `constraint_bound__choice` were
+  refrozen on the branch with Alvaro's approval, after every dependent
+  event's sender row was asserted equal to the old stream's; the
+  uncovered and flavored point-choice entries moved with them. The
+  uncovered case changes from a private replay to the shared walk with the
+  same strictly-before rule, so its masks are identical by construction
+  and a reference captured before the threading proves it; its rate moves
+  by design (2.3a, the `uncovered_rate` reference and the rate parity
+  goldens re-captured with the difference asserted).
 - **Dependencies**: none added. `survival` and `mlogit` are already in
   Suggests; `stats::glm` runs live.
 - **Sequencing**: `depends-on: constraint-atoms-as-operands` (unarchived on
