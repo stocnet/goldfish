@@ -425,13 +425,22 @@ one latent contract hole. No blocking gap; all before archive.
       unconstrained 3.653 / 3.681 -> 3.676 / 3.678 s and constrained
       3.020 / 3.022 -> 3.000 / 3.000 s (no change); CollegeMsg allocation
       and object size unchanged to the byte (43656.8 / 44226.5 MB, 84.02 /
-      111.71 MB), so the budget CSV does not move. C++ step: not worth it.
-      The conformance probe that stubbed `availability_step()` out
-      entirely measured 0.124 s, so a step of zero cost would save about
-      0.004 s more here, and the CollegeMsg walk does not move with the
-      step at all. Of the 0.011 s between 0.128 s and 0.117 s, about
-      0.007 s is the per-row routing around the step (present with the
-      step stubbed) and about 0.004 s the step itself. Suite (`NOT_CRAN=true`):
+      111.71 MB), so the budget CSV does not move. *Amended 2026-10-03
+      (6.6c):* the step/routing split first written here came from a
+      stub probe taken before the routing fix and is withdrawn. At
+      `0ebd2a0` the follow-up re-check stubbed `availability_step()` out
+      and measured 0.116-0.118 s against 0.126 s with it, so the remaining
+      gap to the 0.117 s pre-regression figure (about 0.009 s over 2995
+      rows, some 3 us a row) is the step call itself (the two
+      `availability_presence_target()` calls, the idle predicate and the
+      idle-row writes) and the resolved routing costs nothing measurable.
+      C++ step: not built in this change. A compiled step would remove at
+      most those 3 us a row on the unconstrained rate while still paying
+      an R-to-C call per row, and the CollegeMsg budget walk does not move
+      with the step at all (time, allocation and size identical), so it
+      buys about 7% on one narrow path. The cheaper remaining lever is in
+      R: test idleness in `merged_row_availability()` before computing the
+      two presence targets. Suite (`NOT_CRAN=true`):
       PASS 13189, FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0
       skipped; `git diff 3cb92d9 -- tests/testthat/_baselines` empty.
 - [ ] 6.6c **should-fix** (added 2026-10-03, from the follow-up re-check,
