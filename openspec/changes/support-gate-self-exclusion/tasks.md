@@ -215,11 +215,20 @@ archive.
       through `preprocess_joint()`; with that flag set to `FALSE` it is red
       (the verdict becomes "observed dyad is excluded"), as are the six
       other fixture tests that read the batch gate
-- [ ] 4.4 **should-fix**: assert the scenario clauses the tests skip: the
+- [x] 4.4 **should-fix**: assert the scenario clauses the tests skip: the
       self-only sender absent from `n_candidates` and from the rate
       exposure (`test-support_gate_self_exclusion.R:154`), and the alter
       scenario's mask stored at alter kind through the parser (`:60` drives
       the fold with a hand-made mask).
+      — *done 2026-10-03* (fu/support-gate-g4). Two tests: "the self-only
+      sender is no rate candidate and carries no exposure" (the rate gather
+      of the 1.1 fixture: `n_candidates` = 3 3 3 3 3 3 3 4 4 3, N1 among the
+      candidate rows only at events 8 and 9, and at least one
+      right-censored row without it) and "a separable constraint gates out
+      a self-only sender at alter kind" (`~ alter(x) > 0` through
+      `make_specification()` and `preprocess_joint()`: `stored_kind` 1L, a
+      length-4 vector, gate F T T T at every stored event). Ablation of the
+      batch flag (`R/preprocess_joint.R:1365` set to `FALSE`): both red
 - [ ] 4.5 **should-fix**, record only: the fold's caller
       (`R/preprocess_joint.R:1708`) derives the flag as
       `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2 and

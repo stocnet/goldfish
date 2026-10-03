@@ -332,6 +332,85 @@ test_that("the fixture's rate gates out the sender that can only self-create", {
   expect_equal(rate$avg_active_entity, 29 / 9)
 })
 
+test_that("the self-only sender is no rate candidate and carries no exposure", {
+  data <- self_only_sender_data()
+  spec <- suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    model = "DyNAM",
+    data = data
+  ))
+
+  gathered <- suppressMessages(compute_statistics(
+    spec,
+    sub_model = "rate",
+    output = "gather"
+  ))
+  n_events <- length(gathered$n_candidates)
+  candidates <- split(
+    gathered$index_i,
+    rep(seq_len(n_events), gathered$n_candidates)
+  )
+  holds_n1 <- vapply(candidates, function(i) 1L %in% i, logical(1))
+
+  expect_identical(gathered$n_candidates, c(3, 3, 3, 3, 3, 3, 3, 4, 4, 3))
+  # N1 is a candidate only at the two events it can create a tie at, and a
+  # right-censored row, which carries exposure and no event, leaves it out
+  # too while it can only reach itself.
+  expect_identical(unname(holds_n1), seq_len(n_events) %in% c(8L, 9L))
+  expect_gt(sum(!gathered$is_dependent & !holds_n1), 0L)
+})
+
+test_that("a separable constraint gates out a self-only sender at alter kind", {
+  # Only N1 has x > 0, so N1 is the only allowed receiver and N1 itself has
+  # no one to reach. The mask stays one value per receiver.
+  data <- list(
+    info = list(
+      name = "alter-self",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      x = c(1, 0, 0, 0),
+      stringsAsFactors = FALSE
+    ),
+    ties = data.frame(
+      from = c(2L, 3L, 4L, 2L),
+      to = c(1L, 1L, 1L, 1L),
+      time = as.numeric(1:4),
+      weight = 1,
+      layer = "calls"
+    )
+  )
+  spec <- suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    support_constraint = ~ alter(x) > 0,
+    data = data
+  ))
+
+  pre <- suppressWarnings(suppressMessages(preprocess_joint(spec)))
+  rate <- pre[[1L]]
+  gate <- walk_presence_buffer(
+    rate$active_sender_init,
+    rate$active_sender_update,
+    rate$active_sender_update_pointer,
+    length(rate$event_time)
+  )
+
+  expect_identical(rate$support_mask$stored_kind, 1L)
+  expect_null(dim(rate$support_mask$initial))
+  expect_length(rate$support_mask$initial, 4L)
+  expect_identical(
+    lapply(gate, as.logical),
+    rep(list(c(FALSE, TRUE, TRUE, TRUE)), length(gate))
+  )
+})
+
 test_that("the relational risk set matches the panel endpoint count", {
   data <- self_only_sender_data()
   spec <- make_specification(
