@@ -7,11 +7,36 @@
 # mask: a cell the buffer missed changes that event's rates, and with them its
 # interval log-likelihood, score row and availability.
 
+# A dyadic constraint on a network that grows while the events run: each
+# email excludes its dyad from that point on, so the point-encoded
+# availability flips cells during the sequence (several hundred flips here),
+# not only in its initial value.
+risk_set_point_flip_prep <- function(sub_model) {
+  data <- constraint_cost_data(n_actors = 120L, n_calls = 400L, n_emails = 400L)
+  spec <- suppressMessages(make_specification(
+    rate = if (sub_model == "rate") {
+      ~ 1 + inertia + recip
+    } else {
+      ~ inertia + recip
+    },
+    model = "REM",
+    rate_sub_model = sub_model,
+    layer = "calls",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  ))
+  suppressWarnings(suppressMessages(
+    estimate_rem(spec, sub_model = sub_model, preprocessing_only = TRUE)
+  ))
+}
+
 risk_set_fixtures <- function() {
   fisheries <- likelihood_pin_data()["fisheries"]
   grid <- baselines_model_grid()
   list(
     rem_point = constraint_atoms_prep("rem"),
+    rem_point_flips = risk_set_point_flip_prep("rate"),
+    rem_ordered_point_flips = risk_set_point_flip_prep("rate_ordered"),
     coord_point = constraint_atoms_prep("coord"),
     rem_alter = availability_vector_run("rem_alter"),
     rem_ego = availability_vector_run("rem_ego"),
@@ -62,6 +87,18 @@ risk_set_pass <- function(prep, at, backend) {
     )
   )
 }
+
+test_that("the point-flip fixtures flip cells during the sequence", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # Without flips during the sequence the comparison below cannot see a
+  # maintained cell that stopped following the availability.
+  for (sub_model in c("rate", "rate_ordered")) {
+    prep <- risk_set_point_flip_prep(sub_model)
+    expect_identical(prep$active_dyad_encoding, "point", info = sub_model)
+    expect_gt(NCOL(prep$active_dyad_update), 100)
+  }
+})
 
 test_that("the maintained risk set gives the from-scratch mask's events", {
   skip_on_cran()

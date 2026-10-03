@@ -272,7 +272,7 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       ADR-0113 open question). Verify: guard red first on the shipped code
       (the ordinal fixture at 9.8), green after; the scenario and the guard
       state the same bound; pins at 1e-10 and baselines PASS.
-- [ ] 7.2 **blocks** (reopens 2.3): the "risk set follows the flips" test
+- [x] 7.2 **blocks** (reopens 2.3): the "risk set follows the flips" test
       cannot see the REM and REM-ordered point-flip writes
       (`src/REM_default.cpp:394`, `src/REM_ordered_default.cpp:230`):
       disabling them leaves it and 29 related files green because the
@@ -282,6 +282,18 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       point-constraint REM and REM-ordered fixture to that test; the
       current code agrees with the r backend there to 2e-11, so the gap is
       the fixture. Verify: the ablation is red.
+      *Done 2026-10-03:* `risk_set_point_flip_prep()` in
+      `test-likelihood_risk_set.R` builds `constraint_cost_data(120, 400,
+      400)` with `~ !tie(emails)` on the exact-time and the ordinal REM
+      (`rem_point_flips`, `rem_ordered_point_flips`), point encoding, more
+      than 100 flips during the sequence (asserted by a second test, so the
+      fixture cannot silently lose its flips). Red first: in a detached
+      worktree at `237c8dd` with `src/REM_default.cpp:394` and
+      `src/REM_ordered_default.cpp:230` commented out and an optimized
+      recompile, the risk-set test fails 2 of 12 expectations, exactly the
+      two new fixtures; restored, 0 of 16. The ablation was not committed.
+      Suite `NOT_CRAN=true`: 13265 / 0 / 7, six baseline files, both
+      goldens and the pins PASS with 0 skipped.
 - [ ] 7.3 **should-fix**: the living requirement "C++ multinomial
       normalizers use the shared stable softmax" still says the exact-time
       conditional log-probability and probabilities come from the shifted
