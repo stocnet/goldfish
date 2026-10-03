@@ -364,6 +364,31 @@ one latent contract hole. No blocking gap; all before archive.
       found. Clean: file PASS 102 / FAIL 0. Suite (`NOT_CRAN=true`):
       PASS 13184, FAIL 0, ERROR 0, SKIP 7 (environmental or opt-in); six
       baseline files PASS with 0 skipped. No R code changed.
+- [ ] 6.6b **should-fix** (added 2026-10-03, Alvaro; from the
+      `constraint-objects-on-shared-walk` groups 0-4 inspection,
+      `.plan/develop/constraint-objects-on-shared-walk-groups0-4-conformance.md`
+      gap 4, its task 8.4): the unconstrained exact-time rate walk is 20-33
+      percent slower since the availability rows joined the shared schedule
+      (1500-actor generated fixture, 3000 calls + 3000 emails: 0.117 s at
+      `663096d`, 0.141-0.156 s at `0a99c74`, 0.143 s at `3cb92d9`), about
+      two thirds of it `availability_step()` stepping the presence effect in
+      R on every stored row; CollegeMsg unconstrained joint walk 3.65 to
+      4.01 s. Add the R fast path for availability rows with nothing to
+      apply (62 percent of steps on CollegeMsg 10k), and remove the per-row
+      `c()` growth and by-name `[[fid]]` lookups in the same step code
+      (walk-cost rules 4 and 5). Decide whether a C++ step is still worth it
+      from the measured result; do not build it in this task. Cost guard
+      first: a guard that fails on the current code (e.g. a count of
+      `availability_step()` calls or of the R work per row with nothing to
+      apply, on a fixture large enough to separate it from noise) is
+      recorded red before the fix. Verify: guard red then green; walk time
+      on the 1500-actor fixture (exact-time rate unconstrained, joint
+      unconstrained) and the CollegeMsg walk budget measured back to back
+      against `3cb92d9`, median of at least 5 warm runs on optimized builds
+      in detached worktrees; the time recorded in the tick note against the
+      0.117 s pre-regression figure; stored objects byte-identical
+      (`identical()` on the preprocessed outputs before and after);
+      baselines PASS not SKIP.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.
