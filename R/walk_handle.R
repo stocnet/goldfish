@@ -1285,11 +1285,10 @@ walk_live_support <- function(handle, fid) {
 # it when the mask is point-kind, coordination symmetrised, and otherwise
 # the two factors of the outer encoding, each presence ANDed with the mask
 # on its own axis (both, for coordination's symmetric vector mask); a choice
-# reads the receiver
-# axis, as a vector when the mask is column-broadcast or gates only senders,
-# as a grid when it is genuinely dyadic. The value handed back is the
-# effect's own buffer, written in place by the next step: read it before
-# the walk moves.
+# reads the receiver axis, as a vector when the mask is column-broadcast or
+# gates only senders, as a grid when it is genuinely dyadic. The value
+# handed back is the effect's own buffer, written in place by the next
+# step: read it before the walk moves.
 walk_risk_set <- function(handle, engine, fid) {
   n1 <- engine$n1
   p1 <- engine$presence1

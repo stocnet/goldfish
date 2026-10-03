@@ -1,10 +1,11 @@
 # Ego-kind (outer-encoded) DyNAM-choice support_constraint fold equivalence.
 # An ego-kind atom is sender-axis (row-constant): it gates only the sender axis
-# and leaves the receiver axis untouched, so the choice availability factorizes
-# into two vectors -- receiver presence (f2, `active_dyad`) and sender presence
-# (f1, `active_sender`) -- and no dyad-shaped n1 x n2 object is allocated. This
-# is the `"outer"` encoding the decision function already returns for this case;
-# the fold now produces it instead of the dense `"point"` grid it used to. The
+# and leaves the receiver axis untouched. The one-sided choice likelihood
+# conditions on the observed sender, so the object stores the receiver factor
+# alone -- receiver presence in `active_dyad`, with no sender factor and no
+# `active_sender_*` field -- and no dyad-shaped n1 x n2 object is allocated.
+# This is the `"outer"` encoding the decision function returns for this case;
+# the fold produces it instead of the dense `"point"` grid it used to. The
 # constraint rides the folded `active_dyad` buffer on every engine, and no
 # standalone mask reaches estimation.
 #
@@ -73,6 +74,14 @@ test_that("an ego-kind choice constraint folds to the outer encoding", {
   expect_identical(prep$active_dyad_encoding, "outer")
   expect_false(is.matrix(prep$active_dyad_init))
   expect_length(prep$active_dyad_init, dim(prep$initial_stats)[1])
+  expect_disjoint(
+    names(prep),
+    c(
+      "active_sender_init",
+      "active_sender_update",
+      "active_sender_update_pointer"
+    )
+  )
 
   # Moving the encoding expectation to match new behavior is how a regression
   # gets ratified, so the edit is licensed only by the fit holding: the folded

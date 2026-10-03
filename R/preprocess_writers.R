@@ -753,7 +753,9 @@ gather_from_prep <- function(prep, spec) {
 #'   \item{`"outer"`}{both axes are dynamic but separable — the risk set is
 #'     dyadic (REM / REM-ordered / DyNAM-MM fold both presences) or a pure
 #'     ego-kind support atom adds a sender-axis factor; stored as two factor
-#'     vectors with cell `(i, j) = f1[i] & f2[j]`.}
+#'     vectors with cell `(i, j) = f1[i] & f2[j]`. A one-sided choice object
+#'     stores the receiver factor alone: its likelihood conditions on the
+#'     observed sender, so an ego-kind atom there only validates.}
 #'   \item{`"alter"`}{only the receiver axis is dynamic (DyNAM-M choice/rate
 #'     with no constraint, or a pure alter-/scalar-kind support atom) — one
 #'     length-n2 vector.}
@@ -792,11 +794,13 @@ active_dyad_encoding_for <- function(spec) {
 #' Consumers read per-event availability through these helpers and never branch
 #' on the encoding. At `"alter"` `active_dyad` is the receiver-axis logical
 #' vector; at `"outer"` cell `(i, j) = active_sender[i] & active_dyad[j]` (two
-#' factor vectors); at `"point"` `active_dyad` is the dense `n1 x n2` logical
-#' and the cell is read directly. `active_dyad_row()` returns the length-n2
-#' availability for a given sender, `active_dyad_cell()` a single dyad, and
-#' `active_dyad_count()` the number of available dyads (the intercept
-#' denominator's per-event TRUE-count).
+#' factor vectors), except for a one-sided choice object, which stores no
+#' sender factor: its row and cell are the receiver factor for any sender,
+#' since that sender is given; at `"point"` `active_dyad` is the dense
+#' `n1 x n2` logical and the cell is read directly. `active_dyad_row()`
+#' returns the length-n2 availability for a given sender, `active_dyad_cell()`
+#' a single dyad, and `active_dyad_count()` the number of available dyads (the
+#' intercept denominator's per-event TRUE-count).
 #' @noRd
 active_dyad_row <- function(
   encoding,

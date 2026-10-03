@@ -443,7 +443,7 @@ one latent contract hole. No blocking gap; all before archive.
       two presence targets. Suite (`NOT_CRAN=true`):
       PASS 13189, FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0
       skipped; `git diff 3cb92d9 -- tests/testthat/_baselines` empty.
-- [ ] 6.6c **should-fix** (added 2026-10-03, from the follow-up re-check,
+- [x] 6.6c **should-fix** (added 2026-10-03, from the follow-up re-check,
       `.plan/develop/availability-one-object-per-loop-followup-conformance.md`,
       G-A/B/C/F): (a) the 6.6b tick note attributes the remaining 0.011 s
       to routing (0.007 s) and the step (0.004 s) from a probe taken before
@@ -461,6 +461,28 @@ one latent contract hole. No blocking gap; all before archive.
       factor is stored (ablate in a detached worktree or by copy and
       restore with cmp); devtools::document() if roxygen changed, with
       man/ unchanged or regenerated; suite green with baselines PASS.
+      *Done 2026-10-03:* (a) the 6.6b note's split is withdrawn and
+      restated from the re-check's measurement at `0ebd2a0` (step stubbed
+      0.116-0.118 s against 0.126 s: the gap is the step call, routing
+      about 0), with the reason no C++ step is built here and the
+      remaining R lever (test idleness before computing the presence
+      targets), commit `4e0e977`. (b) rewritten by hand: the header of
+      `test-support_constraint_ego_fold.R` (the object stores the
+      receiver factor alone, no sender factor, no `active_sender_*`), the
+      `"outer"` item of `active_dyad_encoding_decide()`'s roxygen and the
+      accessors' roxygen in `R/preprocess_writers.R` (a one-sided choice
+      object stores no sender factor; row and cell are the receiver
+      factor for any sender). `@noRd`, so `devtools::document()` leaves
+      `man/` and `NAMESPACE` unchanged. (c) `expect_disjoint(names(prep),
+      <the three active_sender_* fields>)` in "an ego-kind choice
+      constraint folds to the outer encoding". Red under the ablation
+      `!dyadic || ...` -> `!dyadic && ...` in `finish_output()`
+      (`R/preprocess_joint.R`), which keeps the writer's sender fields on
+      a choice object at outer (copy and restore, checked with `cmp`):
+      file PASS 19 / FAIL 1, the disjointness assertion naming all three
+      fields; clean PASS 20 / FAIL 0. (d) the ragged lines above
+      `walk_risk_set()` rewrapped. Suite (`NOT_CRAN=true`): PASS 13190,
+      FAIL 0, ERROR 0, SKIP 7; six baseline files PASS with 0 skipped.
 - [ ] 6.7 Verification: `NOT_CRAN=true` suite green; baselines and goldens
       PASS not SKIP; `openspec validate --strict` and the placement check
       clean; a scoped re-check by a fresh conformance-inspector agent.
