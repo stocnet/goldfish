@@ -645,8 +645,10 @@ test_that("F3: the handle replays the constraint, receivers excluded", {
 # ---- F4: composition change, the choice ------------------------------------
 
 # F1's process with N3 and N7 leaving and returning. An absent node is no
-# sender and no candidate receiver while it is away. The rate arm waits for
-# presence changes to close the rate interval (process-simulation 2.11c).
+# sender and no candidate receiver while it is away. There is no rate arm
+# yet: the oracle splits the rate's exposure at every presence change, and
+# goldfish does not yet close the rate interval there, so the two would
+# integrate different risk sets.
 f4_simulation <- function() {
   composition <- data.frame(
     time = c(1.5, 2.5, 4, 6),

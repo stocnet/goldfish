@@ -85,13 +85,14 @@ is its own layer and the mask is written by hand (`~ !tie(calls)`,
 every other node at spread times (8 actors, 120 events, seed 9) and
 `~ !tie(emails)` removes the emailed receivers, so each of them is gated out
 of the rate partway through. Each `emails` event closes the rate's interval
-with a censored row (ADR-0103). The choice is fitted as `~ recip`.
+with a censored row, so the rate integrates its risk set over the time each
+state was in force. The choice is fitted as `~ recip`.
 
 **F4**, composition change: F1's process with N3 and N7 leaving and
-returning (10 actors, 150 events, seed 42). The choice arm only: closing the
-rate interval at a presence change is `process-simulation` task 2.11c,
-applied at the trunk merge with the move of the fisheries baselines, so the
-rate arm lands there.
+returning (10 actors, 150 events, seed 42). The choice arm only. A presence
+change must close the rate interval as a censored row, as an `emails` event
+does in F3, so the rate integrates the risk set in force between changes;
+goldfish does not do that yet, and the rate arm is added once it does.
 
 **F5**, one modeled flavor: F2's sequence with creation alone keyed. The
 dissolution events still change the state and close the creation rate's

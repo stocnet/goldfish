@@ -836,13 +836,24 @@ its named mutation, the suite reproduces at 10774 / 0 / 5. Three small items
 before the fold.
 
 
-- [ ] 7.1 **should-fix**: OpenSpec references in code and documentation:
+- [x] 7.1 **should-fix**: OpenSpec references in code and documentation:
       the comment at `tests/testthat/test-simulation_cross_validation.R:648-649`
       names "process-simulation 2.11c", and
       `tests/testthat/_references/simulation_v1/README.md:88,92` cite
       ADR-0103 and task 2.11c. Rewrite by hand to state the rule (presence
       changes close the rate interval; the rate arm waits on that rule) with
       no artifact pointer.
+      — *done 2026-10-03*: rewritten by hand. The F4 comment says there is
+      no rate arm yet because the oracle splits the rate's exposure at
+      every presence change and goldfish does not yet close the rate
+      interval there; the README's F3 paragraph states the rule (each
+      `emails` event closes the interval with a censored row, so the rate
+      integrates the risk set over the time each state was in force) and
+      F4's says a presence change must close it the same way, the rate arm
+      following once it does. No ADR, task or change name left in either
+      file; an added-lines scan over `R/`, `tests/` and `src/` since
+      `1bc74a9` finds none. Suite 13240 / 0 / 7 skipped, six baseline
+      files PASS.
 - [ ] 7.2 **note**, record only: commit `759873f` (F4) also deleted
       `openspec/changes/exact-time-diagnostic-cost/` (389 lines) without
       saying so; the deletion belongs to `likelihood-site-cleanup-and-cost`,
