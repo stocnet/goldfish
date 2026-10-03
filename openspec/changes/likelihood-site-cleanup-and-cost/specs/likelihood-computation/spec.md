@@ -29,7 +29,10 @@ and event scores), SHALL allocate exactly one weighted statistics array, the `S 
 `crossprod(S, S * p)`, and otherwise only vectors of the risk set's size,
 at most `1 + 3/q` statistics arrays in all, where `q` is the statistics
 array's column count (`p + 1` on the exact-time REM with its intercept, `p`
-on the ordinal REM); it SHALL NOT copy, reshape or subset the statistics
+on the ordinal REM), not counting the writes the event's availability
+flips make, whose cost is the cells they reach (one cell per point flip, a
+row of `n2` per sender flip and a column of `n1` per receiver flip at the
+outer encoding); it SHALL NOT copy, reshape or subset the statistics
 array, SHALL apply an axis filter as a mask on the whole grid rather than
 by reducing the array, and SHALL build the probability vector and the
 risk-set membership only when a per-event output that reads them is

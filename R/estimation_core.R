@@ -1645,6 +1645,9 @@ compute_step.default <- function(spec, state, i, ctx) {
 # from the factors as they stand after the event's flips. The writes are
 # the cells those flips reach, never the grid. A NULL factor keeps everyone.
 write_outer_log_mask <- function(state, senders, receivers, n1, n2) {
+  if (length(senders) == 0L && length(receivers) == 0L) {
+    return(invisible(NULL))
+  }
   senders_present <- if (is.null(state$presence)) {
     rep(TRUE, n1)
   } else {
@@ -1825,14 +1828,12 @@ r_reduce_event <- function(
   }
 
   if (ctx$return_margins) {
-    two_sided <- identical(axis, "dyad")
-    if (two_sided) {
-      n2r <- length(receiver_slots)
-      idx_i <- rep(sender_slots, times = n2r)
-      idx_j <- rep(receiver_slots, each = n1r)
-    } else if (identical(axis, "sender")) {
+    # The two-sided (dyad) axis reduces the grid by its rows and columns in
+    # `accumulate_grid_margins()`, by linear position, so it needs no
+    # per-cell sender and receiver index vectors.
+    if (identical(axis, "sender")) {
       idx_i <- sender_slots
-    } else {
+    } else if (identical(axis, "receiver_given_sender")) {
       idx_j <- receiver_slots
     }
 
@@ -1873,28 +1874,17 @@ r_reduce_event <- function(
       state$m_obs_j <- sides[[1]]$observed
       state$m_exp_j <- sides[[1]]$expected
     } else {
-      sides <- accumulate_margins(
+      accumulate_grid_margins(
+        state,
         w,
         primary_c,
         obs_pos,
         isDependent,
-        list(
-          list(
-            index = idx_i,
-            observed = state$m_obs_i,
-            expected = state$m_exp_i
-          ),
-          list(
-            index = idx_j,
-            observed = state$m_obs_j,
-            expected = state$m_exp_j
-          )
-        )
+        sender_slots,
+        receiver_slots,
+        expected = c("m_exp_i", "m_exp_j"),
+        observed = c("m_obs_i", "m_obs_j")
       )
-      state$m_obs_i <- sides[[1]]$observed
-      state$m_exp_i <- sides[[1]]$expected
-      state$m_obs_j <- sides[[2]]$observed
-      state$m_exp_j <- sides[[2]]$expected
     }
 
     # Probability-scale variant (exact-time only), over DEPENDENT events only;
@@ -1914,31 +1904,71 @@ r_reduce_event <- function(
         )
         state$m_prob_i <- sides_p[[1]]$expected
       } else {
-        sides_p <- accumulate_margins(
+        accumulate_grid_margins(
+          state,
           w,
           1,
           obs_pos,
           FALSE,
-          list(
-            list(
-              index = idx_i,
-              observed = numeric(length(state$m_prob_i)),
-              expected = state$m_prob_i
-            ),
-            list(
-              index = idx_j,
-              observed = numeric(length(state$m_prob_j)),
-              expected = state$m_prob_j
-            )
-          )
+          sender_slots,
+          receiver_slots,
+          expected = c("m_prob_i", "m_prob_j")
         )
-        state$m_prob_i <- sides_p[[1]]$expected
-        state$m_prob_j <- sides_p[[2]]$expected
       }
     }
   }
 
   state
+}
+
+# The two-sided margins of a dyad grid, the same contract as
+# `accumulate_margins()`: `c * w` per cell credited to the cell's sender and
+# receiver, and the observed side counted for a dependent event. `w` holds
+# the event's weights over the n1r x n2r grid in column-major order, so a
+# sender's expected margin is its row sum and a receiver's its column sum,
+# read by linear position on the vector itself, with no per-cell index
+# vectors; `obs_pos` is the observed dyad's linear index. The accumulators
+# are the `state` members named by `expected` and `observed` (sender side
+# first), written in place.
+accumulate_grid_margins <- function(
+  state,
+  w,
+  c,
+  obs_pos,
+  dependent,
+  sender_slots,
+  receiver_slots,
+  expected,
+  observed = NULL
+) {
+  n1r <- length(sender_slots)
+  n2r <- length(receiver_slots)
+  # On the probability scale (c = 1) the weights are the contribution, and
+  # a product would only copy them.
+  contribution <- if (identical(c, 1)) w else c * w
+  set_entries(
+    state[[expected[1]]],
+    sender_slots,
+    state[[expected[1]]][sender_slots] +
+      .rowSums(contribution, n1r, n2r)
+  )
+  set_entries(
+    state[[expected[2]]],
+    receiver_slots,
+    state[[expected[2]]][receiver_slots] +
+      .colSums(contribution, n1r, n2r)
+  )
+  if (dependent && !is.null(observed)) {
+    sender <- sender_slots[(obs_pos - 1L) %% n1r + 1L]
+    receiver <- receiver_slots[(obs_pos - 1L) %/% n1r + 1L]
+    set_entries(state[[observed[1]]], sender, state[[observed[1]]][sender] + 1)
+    set_entries(
+      state[[observed[2]]],
+      receiver,
+      state[[observed[2]]][receiver] + 1
+    )
+  }
+  invisible(NULL)
 }
 
 # Coordination (DyNAM-MM) reductions over the unordered-dyad risk set, matching

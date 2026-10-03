@@ -7,6 +7,7 @@
   * Ordinal REM fits run about three times faster with a quarter of the memory.
   * DyNAM choice fits run about five times faster.
   * A no-op `support_constraint` no longer copies the statistics per event.
+  * REM fits where most actors are absent use the full grid, so may be slower.
 * Fixed the diagnostics of a fit whose last Newton step was rejected:
   * They now describe the parameters the fit returns, not the rejected step.
   * Diagnostics are computed once, after the Newton loop.

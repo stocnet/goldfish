@@ -172,3 +172,74 @@ test_that("an availability-only evaluation agrees across backends", {
     )
   }
 })
+
+# Eight actors; actor 5 is away between 4.5 and 6.5, and the sixth event
+# (at 6) is sent by it, or, for `absent = "receiver"`, sent to it. The r
+# backend reads the outer factors through its log mask without reducing
+# the grid, so the observed dyad's availability is checked on its own.
+risk_set_observed_absent_prep <- function(absent, sub_model) {
+  data <- list(
+    info = list(
+      name = "observed absent",
+      focal = "calls",
+      update = c(calls = "increment"),
+      directed = c(calls = TRUE),
+      observation = c(calls = "event")
+    ),
+    nodes = data.frame(
+      label = sprintf("A%02d", 1:8),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = data.frame(
+      from = c(1, 2, 3, 4, 2, if (absent == "sender") 5 else 6, 1),
+      to = c(2, 3, 4, 1, 1, if (absent == "sender") 6 else 5, 3),
+      time = 1:7,
+      layer = "calls"
+    )
+  )
+  changes <- data.frame(time = c(4.5, 6.5), node = 5L, var = "active")
+  changes$value <- list(list(FALSE), list(TRUE))
+  data$changes <- changes
+  spec <- suppressMessages(make_specification(
+    rate = if (sub_model == "rate") ~ 1 + inertia else ~inertia,
+    model = "REM",
+    rate_sub_model = sub_model,
+    layer = "calls",
+    data = data
+  ))
+  suppressWarnings(suppressMessages(
+    estimate_rem(spec, sub_model = sub_model, preprocessing_only = TRUE)
+  ))
+}
+
+test_that("an observed dyad outside the availability aborts the r pass", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  needs <- list(
+    scores = TRUE,
+    ranks = FALSE,
+    margins = FALSE,
+    total_rate = FALSE,
+    probabilities = FALSE,
+    availability = FALSE,
+    conditional_scores = FALSE,
+    information_trace = FALSE
+  )
+  messages <- c(
+    sender = "Active node 5 not present in event 6",
+    receiver = "Active node 5 not available in event 6"
+  )
+  for (absent in names(messages)) {
+    for (sub_model in c("rate", "rate_ordered")) {
+      prep <- risk_set_observed_absent_prep(absent, sub_model)
+      expect_identical(prep$active_dyad_encoding, "outer")
+      at <- c(if (isTRUE(prep$has_intercept)) -5, 0.1)
+      expect_error(
+        evaluate_engine_once(prep$model_spec, prep, at, "r", needs),
+        messages[[absent]],
+        fixed = TRUE
+      )
+    }
+  }
+})

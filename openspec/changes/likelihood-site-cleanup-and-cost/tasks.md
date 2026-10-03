@@ -484,7 +484,10 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       actors, 0.96 ms and 37 KB at 1899. On coordination it also pairs each
       candidate row with `match()` twice per event (`sender_of_row`,
       `dyad_partner`): at a full grid 0.1 ms and 229 KB per event at 84
-      actors, 7.3 ms and 3.1 MB at 300. Neither is on the r engine's filter
+      actors, 7.3 ms and 3.1 MB at 300 (corrected 2026-10-03, task 7.12:
+      the re-check measures 1.2 ms and 4.8 MB at 300 in isolation, the
+      same order; the 7.3 ms figure is not reproducible). Neither is on
+      the r engine's filter
       path, so neither is closed here; a maintained per-sender count and an
       arithmetic partner index would remove them. Owner: the gather
       builder's next change (the `initial-stats-at-kind` successor or a
@@ -583,8 +586,10 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
 
       Flat in the share absent (the 0.025 drift is the one-off flip
       writes over 60 events); time is the full grid's, about 110 ms (80
-      ordinal), slower than `237c8dd` from about 50 absent and 5 times
-      slower at 200 (4 on the ordinal), as accepted. Deviation against
+      ordinal), slower than `237c8dd` from about 50 absent on the
+      exact-time REM and from between 100 and 200 on the ordinal
+      (corrected 2026-10-03, task 7.12: first written as about 50 for
+      both), and 5 times slower at 200 (4 on the ordinal), as accepted. Deviation against
       `237c8dd` on the sweep at most 8.6e-16 relative; on the seven spike
       variants identical, 1.46e-11 (outer-filter score) and 1.1e-14
       (ordinal), as before. D3 and the delta's requirement and scenario
@@ -614,7 +619,11 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       pass. Green after. The moment-form test in
       `test-likelihood_equivalence.R` now passes `allowReflexive` and
       `is_two_mode` explicitly, since the contribution reads them. NEWS.d
-      bullet added. Suite `NOT_CRAN=true`: 13325 / 0 / 7; two-mode
+      bullet added. Also moved (recorded 2026-10-03, task 7.12): under the
+      internal `allow_reflexive = TRUE`, reachable only through
+      `make_r_engine_evaluator()`, the one-mode ordinal REM now includes the
+      diagonal and agrees with cpp (at `237c8dd` r -406.19 against cpp
+      -408.22, excluding it whatever the flag said). Suite `NOT_CRAN=true`: 13325 / 0 / 7; two-mode
       baselines (9) and the other five baseline files, goldens, pins and
       budget PASS, 0 skipped.
 - [x] 7.11 **should-fix** (added 2026-10-03, re-check G2-G5): (G2) no test
@@ -643,14 +652,16 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       default diagnostics, and names the opt-in reductions as outside the
       bound; the margins' per-event `rep()` index pair over the grid is
       left to the residuals-gof change, the owner of the diagnostic
-      primitives, as a successor's item. (G4) NEWS.d: "a quarter of the
+      primitives, as a successor's item (corrected 2026-10-03, task 7.12:
+      residuals-gof was archived on 2026-07-31 and cannot take it; Alvaro
+      kept it in this change, and 7.12 closes it). (G4) NEWS.d: "a quarter of the
       memory" (2035 against 7325 MB). (G5) the not-cran-test probe section
       points at the cpp-recompile skill for the rebuild. (G6) 7.4's note
       corrected in place, marked. (G7) 7.1's deviation claim states where
       it is absolute and gives the Fisheries figures relative. Suite
       `NOT_CRAN=true`: 13328 / 0 / 7; baselines, goldens, pins and budget
       PASS, 0 skipped.
-- [ ] 7.12 **should-fix** (added 2026-10-03, from the second follow-up
+- [x] 7.12 **should-fix** (added 2026-10-03, from the second follow-up
       re-check, G9-G17; G9 and G17 decided by Alvaro): (G9) the margins'
       per-event `rep()` index pair, handed in 7.11 to `residuals-gof`, which
       was archived 2026-07-31; Alvaro keeps it here: index the margins by
@@ -672,6 +683,29 @@ one kernel path has no detector. 7.1 and 7.2 block the fold.
       (G17) the NEWS.d fragment adds that a REM fit where most actors are
       absent runs on the full grid and can be slower than before; optional
       (G15): an early return for the NULL-factor `rep(TRUE, n)`.
+      *Done 2026-10-03:* (G9) the r backend's dyad margins reduce the
+      event's weights by rows and columns of the grid
+      (`accumulate_grid_margins()`, `.rowSums` / `.colSums` on the weight
+      vector, the observed cell's sender and receiver from its linear
+      index), with no `rep()` index pair and no product when `c = 1`.
+      Arrays per event with every diagnostic on, before / after (cost
+      guard fixtures): REM 7.565 / 3.588, point REM 7.260 / 3.567, 200
+      absent 7.556 / 3.578, ordinal 8.780 / 5.297, ordinal 200 absent
+      8.800 / 5.317; margins alone REM 6.881 / 2.903, ordinal 7.512 /
+      4.029. Every output `identical()` before and after on all five
+      fixtures with every diagnostic on. 7.11's note corrected. (G10) the
+      delta's bound excludes the availability flips' writes, whose cost is
+      the cells they reach; no churn guard fixture added (optional).
+      (G14) "an observed dyad outside the availability aborts the r pass"
+      in `test-likelihood_risk_set.R` (the re-check's eight-actor fixture,
+      sender and receiver absent, exact and ordinal, the exact messages);
+      with both checks disabled (detached worktree at `e462b9e`, not
+      committed) 4 of 8 fail. (G11) D3 and the 7.9 note give the ordinal
+      crossover. (G12) one line in 7.10's note. (G13) 7.5's figure
+      corrected. (G17) NEWS.d sub-bullet. (G15) `write_outer_log_mask()`
+      returns at once when nothing flipped. Validate valid, placement OK
+      (6). Suite `NOT_CRAN=true`: 13336 / 0 / 7; six baseline files,
+      goldens, pins and budget PASS, 0 skipped.
 - [ ] 7.8 Verification: `NOT_CRAN=true` suite green; baselines, goldens,
       pins and budget PASS not SKIP; a scoped re-check of gaps 1-9 by a
       fresh conformance-inspector agent. Notes not owned here: gather

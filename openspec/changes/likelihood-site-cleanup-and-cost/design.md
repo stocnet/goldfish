@@ -290,8 +290,10 @@ and no event touches the excluded cells. Allocation per event is flat in
 the share absent (2.08 to 2.10; ordinal 2.55 to 2.59). Time is that of the
 full grid whatever the share: on the 300-actor sweep about 110 ms per
 evaluation (ordinal about 80 ms) at 10 to 200 absent, against 155 to 22 ms
-(356 to 18 ms) for the reduced grid at `237c8dd`, which is slower from
-about 50 of 300 absent. Alvaro accepted that time to keep one mask path;
+(356 to 18 ms) for the reduced grid at `237c8dd`. The mask is slower from
+about 50 of 300 absent on the exact-time REM, and from between 100 and 200
+absent on the ordinal REM (corrected 2026-10-03, task 7.12: first written
+as about 50 for both). Alvaro accepted that time to keep one mask path;
 *rejected*: a hybrid that subsets when the risk set is small, and
 reverting the filters to a subset.
 *Rejected (ADR-0113):* a compiled weighted cross-product helper (676 MB,
