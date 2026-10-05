@@ -32,9 +32,12 @@ or \code{"random"}.}
 
 \item{transformation}{A character string naming the pre-normalization
 transformation applied to the raw log-weights: \code{"identity"} (default),
-\code{"clipping"}, or \code{"smoothing"}. A named enum rather than a user-supplied
-function, so the choice is validatable and snapshot-testable at
-construction.}
+\code{"clipping"}, or \code{"smoothing"}. \code{"clipping"} winsorizes the log-weights
+at their 0.9 quantile (truncated importance sampling); \code{"smoothing"}
+tempers the weights to \eqn{w^{1/2}} before normalizing. Both flatten a
+pool dominated by a few sequences, trading variance for bias. A named enum
+rather than a user-supplied function, so the choice is validatable and
+snapshot-testable at construction.}
 
 \item{refresh}{A single logical. When \code{TRUE}, the whole pool is redrawn
 every EM iteration at its grown size and cross-iteration reweighting,

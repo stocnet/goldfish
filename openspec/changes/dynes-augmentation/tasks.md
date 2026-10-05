@@ -814,7 +814,7 @@
       it is w² (γ = 2, ported from the prototype's `smoothing(x, gamma = 2)`),
       which sharpens the weights and lowers ESS, the opposite of what the option
       is for. Commit the tests alone.
-- [ ] 6.2f GREEN: γ = 1/2 in `transform_log_weights()`; state the exponent in
+- [x] 6.2f GREEN: γ = 1/2 in `transform_log_weights()`; state the exponent in
       the `set_weights_options()` `transformation` docs; `devtools::document()`;
       full `NOT_CRAN=true`; commit.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with

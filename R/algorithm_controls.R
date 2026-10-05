@@ -167,9 +167,12 @@ check_move_probs <- function(move_probs, call = rlang::caller_env()) {
 #'   or `"random"`.
 #' @param transformation A character string naming the pre-normalization
 #'   transformation applied to the raw log-weights: `"identity"` (default),
-#'   `"clipping"`, or `"smoothing"`. A named enum rather than a user-supplied
-#'   function, so the choice is validatable and snapshot-testable at
-#'   construction.
+#'   `"clipping"`, or `"smoothing"`. `"clipping"` winsorizes the log-weights
+#'   at their 0.9 quantile (truncated importance sampling); `"smoothing"`
+#'   tempers the weights to \eqn{w^{1/2}} before normalizing. Both flatten a
+#'   pool dominated by a few sequences, trading variance for bias. A named enum
+#'   rather than a user-supplied function, so the choice is validatable and
+#'   snapshot-testable at construction.
 #' @param refresh A single logical. When `TRUE`, the whole pool is redrawn
 #'   every EM iteration at its grown size and cross-iteration reweighting,
 #'   the ESS guard, and staleness transformations become inapplicable.

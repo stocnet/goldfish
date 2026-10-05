@@ -70,10 +70,11 @@ reweight_log_weights <- function(loglik_current, log_proposal) {
 #     importance sampling), capping any single sequence from dominating.
 #     Clipping a quantile commutes with the log/linear scale, so winsorizing the
 #     log-weights matches clipping the linear-scale weights.
-#   * "smoothing" -- temper the log-weights by gamma = 2. Under the softmax
+#   * "smoothing" -- temper the log-weights by gamma = 1/2. Under the softmax
 #     normalization below this is identical to raising the linear-scale weights
 #     to the power gamma and renormalizing, since softmax(gamma * lw) =
-#     normalize(w^gamma).
+#     normalize(w^gamma). Only gamma < 1 flattens the weights; the prototype's
+#     gamma = 2 sharpened them and lowered the ESS it was meant to protect.
 # Non-finite log-weights (a degenerate sequence) are excluded from the clipping
 # quantile and pass through as -Inf, normalizing to zero downstream.
 transform_log_weights <- function(
@@ -96,7 +97,7 @@ transform_log_weights <- function(
       }
       log_weights
     },
-    smoothing = 2 * log_weights
+    smoothing = log_weights / 2
   )
 }
 
