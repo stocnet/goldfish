@@ -2055,6 +2055,41 @@ test_that("compute_lik_seq() is one sequence of the pool evaluator", {
   expect_identical(dimnames(res$fisher), list(labels, labels))
 })
 
+# Louis's observed information subtracts the score spread from `fisher`, which
+# is only right if `fisher` is the negative Hessian of the log-likelihood on
+# the path, not merely its expectation. A log-linear rate and a canonical-link
+# choice make the two coincide; this pins that on a timed rate, a pinned rate
+# and a choice, so a family that breaks it fails here first.
+test_that("compute_lik_seq()'s fisher is the negative Hessian of its loglik", {
+  spec <- dynes_multiwave_spec(indeg_friendship_choice)
+  theta <- c(0.3, -1.2, 0.4)
+  sequence <- weights_wired_paths()[[2]]
+  loglik_at <- function(theta) {
+    suppressWarnings(compute_lik_seq(spec, sequence, theta))$loglik
+  }
+  h <- 1e-4
+  p <- length(theta)
+  hessian <- matrix(0, p, p)
+  for (j in seq_len(p)) {
+    for (k in seq_len(p)) {
+      shifted <- function(a, b) {
+        at <- theta
+        at[j] <- at[j] + a * h
+        at[k] <- at[k] + b * h
+        loglik_at(at)
+      }
+      hessian[j, k] <- (shifted(1, 1) -
+        shifted(1, -1) -
+        shifted(-1, 1) +
+        shifted(-1, -1)) /
+        (4 * h^2)
+    }
+  }
+
+  res <- suppressWarnings(compute_lik_seq(spec, sequence, theta))
+  expect_equal(unname(res$fisher), -hessian, tolerance = 1e-5)
+})
+
 test_that("compute_lik_seq() and the proposal evaluator share one density", {
   spec <- dynes_multiwave_spec(indeg_friendship_choice)
   theta <- c(0.3, -1.2, 0.4)
