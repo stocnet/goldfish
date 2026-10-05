@@ -40,6 +40,18 @@
 #' Random numbers, and what `seed` and `n_cores` promise, are described under
 #' "Reproducibility" in [set_algorithm_em()].
 #'
+#' The standard errors use Louis's (1982) identity: the observed-data
+#' information is the expected complete-data information given the data,
+#' \eqn{-Q''}, less the conditional variance of the complete-data score,
+#' \eqn{E[s s^\top \mid y] - \bar s \bar s^\top} (McLachlan and Krishnan,
+#' 2008, ch. 4). The bread-meat-bread form
+#' \eqn{(-Q'')^{-1} E[s s^\top \mid y] (-Q'')^{-1}} does not apply. Its middle
+#' term is a sampling variance only when it sums scores over independent
+#' units, and here the scores belong to imputed paths of the same data, so
+#' their spread is the information those paths miss. As Ruth (2024) puts it,
+#' that form "applies to Monte Carlo variability within an iteration; it does
+#' not measure sampling variability due to the observed data".
+#'
 #' @param spec A joint specification from [make_joint_specification()].
 #' @param control_algo The algorithm controls, from [set_algorithm_em()].
 #' @param control_prep The preprocessing controls, from [set_preprocessing()].
@@ -83,7 +95,13 @@
 #'   \eqn{1 / \sum_i w_i^2} of the weights the covariances used, and `NA` on a
 #'   dropped pool and under `weighting = "uniform"`, where it would equal the
 #'   number of kept sequences; the `em_trace` chain diagnostics report the
-#'   mixing of a uniform-weighting run. Neither warns.
+#'   mixing of a uniform-weighting run. Neither warns. `information` is the
+#'   decomposition the covariance inverts, three matrices over the free
+#'   coefficients: `complete` (\eqn{I_c = \sum_i w_i J_i}), `missing`
+#'   (\eqn{\sum_i w_i s_i s_i^\top - \bar s \bar s^\top}) and `observed`
+#'   (\eqn{I_{obs}}, their difference). It is kept when an inverse fails, and
+#'   is `NULL` on a dropped pool. `vcov(information = "complete_data")`
+#'   returns \eqn{I_c^{-1}}.
 #'
 #'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
 #'   groups them by process, with both errors, and lists every fixed
@@ -98,6 +116,18 @@
 #' @references Levine, R. A., & Casella, G. (2001). Implementations of the
 #' Monte Carlo EM algorithm. *Journal of Computational and Graphical
 #' Statistics*, 10(3), 422--439. \doi{10.1198/106186001317115045}
+#'
+#' Louis, T. A. (1982). Finding the observed information matrix when using
+#' the EM algorithm. *Journal of the Royal Statistical Society: Series B
+#' (Methodological)*, 44(2), 226--233.
+#' \doi{10.1111/j.2517-6161.1982.tb01203.x}
+#'
+#' McLachlan, G. J., & Krishnan, T. (2008). *The EM Algorithm and
+#' Extensions* (2nd ed.). Wiley. \doi{10.1002/9780470191613}
+#'
+#' Ruth, W. (2024). A review of Monte Carlo-based versions of the EM
+#' algorithm. *arXiv preprint* arXiv:2401.00945.
+#' \doi{10.48550/arXiv.2401.00945}
 #' @seealso [set_algorithm_em()], [coef_layout()], [set_parameters()]
 #' @export
 estimate_dynes <- function(

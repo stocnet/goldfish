@@ -42,6 +42,12 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   dims <- list(labels, labels)
   dimnames(covariances$covariance) <- dims
   dimnames(covariances$mc_covariance) <- dims
+  if (!is.null(covariances$information)) {
+    covariances$information <- lapply(
+      covariances$information,
+      function(part) `dimnames<-`(part, dims)
+    )
+  }
   # The first cause that applies, each excluding the next: a dropped pool
   # leaves I_c empty, and a singular I_c has no observed information to test.
   covariance_status <- if (pool_dropped) {
@@ -55,7 +61,7 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   }
   if (covariance_status == "singular") {
     warn_singular_information(
-      singular_attribution(covariances$information),
+      singular_attribution(covariances$information$complete),
       labels,
       start = start,
       value = unname(res$parameters),
@@ -70,6 +76,9 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   res$covariance <- covariances$covariance
   res$mc_covariance <- covariances$mc_covariance
   res$covariance_status <- covariance_status
+  # Kept on a singular or not-PD fit too, where only the inverses failed and
+  # the matrices are what a user inspects; a dropped pool evaluated nothing.
+  res$information <- if (!pool_dropped) covariances$information
   res$fraction_missing <- if (pool_dropped) {
     NA_real_
   } else {
@@ -138,8 +147,11 @@ dynes_covariances <- function(pool, theta, weights) {
 # reach the complete information in some direction. Positive definiteness is a
 # Cholesky factorization of the symmetrized I_obs with no tolerance, the same
 # exactness rule singular_attribution() applies, so the two cannot disagree
-# about a borderline matrix. I_c comes back as `information` (NULL when no
-# sequence is kept) and I_obs as `observed_information`.
+# about a borderline matrix. The three matrices come back as `information`,
+# list(complete = I_c, missing = Var_w(s), observed = I_obs), whatever the
+# flags, since only their inverses can fail; it is NULL when no sequence is
+# kept. `missing` holds the centered variance, S S' included, so `observed`
+# is a plain subtraction.
 #
 # `fraction_missing` is the largest eigenvalue of I_c^-1 Var_w(s), the share of
 # the complete information the paths miss in the worst direction, with
@@ -152,26 +164,25 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
   keep <- weights > 0 & !degenerate
   scores <- score[keep, , drop = FALSE]
   w <- weights[keep]
-  information <- Reduce(`+`, Map(`*`, fisher[keep], w))
+  complete <- Reduce(`+`, Map(`*`, fisher[keep], w))
   mean_score <- colSums(scores * w)
   missing <- crossprod(scores * sqrt(w)) - tcrossprod(mean_score)
-  observed <- if (!is.null(information)) information - missing
+  observed <- if (!is.null(complete)) complete - missing
+  information <- if (!is.null(complete)) {
+    list(complete = complete, missing = missing, observed = observed)
+  }
   centered <- sweep(scores, 2L, mean_score)
   mc_meat <- crossprod(centered * w)
   unavailable <- list(
     covariance = matrix(NA_real_, p, p),
     mc_covariance = matrix(NA_real_, p, p),
     information = information,
-    observed_information = observed,
     fraction_missing = NA_real_
   )
-  if (is.null(tryCatch(solve(information), error = function(e) NULL))) {
+  if (is.null(tryCatch(solve(complete), error = function(e) NULL))) {
     return(c(unavailable, singular = TRUE, not_pd = FALSE))
   }
-  unavailable$fraction_missing <- largest_missing_fraction(
-    information,
-    missing
-  )
+  unavailable$fraction_missing <- largest_missing_fraction(complete, missing)
   factor <- tryCatch(
     chol((observed + t(observed)) / 2),
     error = function(e) NULL
@@ -184,7 +195,6 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     covariance = bread,
     mc_covariance = bread %*% mc_meat %*% bread,
     information = information,
-    observed_information = observed,
     fraction_missing = unavailable$fraction_missing,
     singular = FALSE,
     not_pd = FALSE
@@ -328,11 +338,37 @@ coef.goldfishDynesFit <- function(object, ...) {
   object$parameters
 }
 
+#' @param object A `goldfishDynesFit` from `estimate_dynes()`.
+#' @param information Which information `vcov()` inverts. `"observed"`, the
+#'   default, is the covariance the fit reports, the inverse of Louis's
+#'   observed-data information. `"complete_data"` is the inverse of the
+#'   pooled complete-data information `information$complete`. It ignores the
+#'   information the latent paths miss, so its variances are a lower bound on
+#'   the observed ones, and it is returned even when the observed information
+#'   is not positive definite. Both are `NA` when their matrix has no inverse
+#'   or the pool was dropped.
+#' @param ... Unused.
+#' @rdname estimate_dynes
 #' @export
 #' @method vcov goldfishDynesFit
-#' @noRd
-vcov.goldfishDynesFit <- function(object, ...) {
-  object$covariance
+vcov.goldfishDynesFit <- function(
+  object,
+  information = c("observed", "complete_data"),
+  ...
+) {
+  information <- rlang::arg_match(information)
+  if (information == "observed") {
+    return(object$covariance)
+  }
+  complete <- object$information$complete
+  inverse <- if (!is.null(complete)) {
+    tryCatch(solve(complete), error = function(e) NULL)
+  }
+  if (is.null(inverse)) {
+    inverse <- object$covariance
+    inverse[] <- NA_real_
+  }
+  inverse
 }
 
 #' @export

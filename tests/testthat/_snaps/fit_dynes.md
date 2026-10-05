@@ -178,6 +178,15 @@
       augmented sequences.
       ! Standard errors are blank: the pool stopped with no finite likelihood.
 
+# an unknown information type is rejected
+
+    Code
+      vcov(fit, information = "complete")
+    Condition
+      Error in `vcov()`:
+      ! `information` must be one of "observed" or "complete_data", not "complete".
+      i Did you mean "complete_data"?
+
 # the singular-information warning for a coefficient at its start
 
     Code

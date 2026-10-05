@@ -311,7 +311,7 @@ test_that("the observed information is the pool log-likelihood Hessian", {
   # The premise: the paths carry different scores.
   expect_gt(max(apply(res$score, 2L, stats::sd)), 0.1)
   louis <- louis_covariances(res$score, res$fisher, res$degenerate, weights)
-  expect_equal(louis$observed_information, -hessian, tolerance = 1e-5)
+  expect_equal(louis$information$observed, -hessian, tolerance = 1e-5)
 })
 
 # --- Non-positive-definite observed information ---------------------------
