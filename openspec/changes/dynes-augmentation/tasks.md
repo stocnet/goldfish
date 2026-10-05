@@ -799,8 +799,8 @@
       ran 250 s per fit at K = 20 on the pilot oracle, so it gets fewer
       replicates per cell, the count stated with the cell. Size it after a
       timing pilot so the whole sweep fits in a few days of compute.
-      **Transformed-weights arm (added 2026-10-05, user decision).** The abort
-      remedies added to 6.2d are tested here before they are recommended: the two
+      **Transformed-weights arm (added 2026-10-05, user decision).** Whether
+      truncating or tempering the weights helps the collapsed cells: the two
       top flips levels, coupled and uncoupled, under `random` and `sim`, with
       `set_weights_options(transformation = "clipping")` and `"smoothing"` (16
       cells, 50 replicates each), on the same datasets as the identity cells so
@@ -808,6 +808,17 @@
       identity cells (Louis SEs are approximate under a transformation), and note
       that a transformed run's ESS reads the transformed weights, so it also
       silences the collapse trigger. Runs after 6.2e/6.2f.
+      **Study settings (2026-10-05, from the pilots, user decision).** Every
+      replicate runs `set_sgd_options(step_schedule = "adagrad", step_size =
+      0.1, max_iterations = 500L)` with the warm start: the defaults abort at
+      the top flips levels under all three routines (M-step overshoot). The pool
+      is capped at `max_pool = 500`: at the cliff ESS stayed near 10 whether the
+      pool held 224 or 5000 sequences, at ten times the cost per iteration. Cap
+      hits and non-converged fits are counted per cell. The friendship-rate
+      calibration is read only where latent ≈ net flips; at the top two levels
+      the minimal-flip bias (about log(net/latent)) fails coverage by
+      construction, and those cells locate the cliff and measure the bias.
+      Replicate counts are set after a first balanced round of 10 per cell.
 - [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
       tempers the importance weights to w^(1/2), normalized. Test that it equals
       `normalize(w^0.5)` and that it raises the ESS of a non-uniform pool. Today
@@ -845,20 +856,13 @@
       Review the snapshots that newly carry the recommendation. If 6.2c finds the floor
       differs with coupling, give the accessor a coupling argument and test both
       values. Full `NOT_CRAN=true`; commit.
-      **Abort path (added 2026-10-05, user decision; design D26).** The 6.2 pilot
-      found that at the ESS cliff `random`/`sim` do not reach the mid-run check:
-      the ascent stays uncertified (Q < 0 on every pass, ESS ≈ 1 while the pool
-      grows 50 → 191) and `abort_retries_exhausted()`
-      (`goldfish_abem_retry_exhausted`) stops the run at iteration 1–2, advising
-      only a larger pool, a smaller step or more retries. The same pair therefore
-      also covers that abort: (a) RED, when the routine is `random`/`sim` and
-      the lowest ESS over the stalled passes is below the floor × pool size, the
-      abort names `augment_seq_mcmc()` and suggests truncating or smoothing the
-      weights (`set_weights_options(transformation = "clipping")` /
-      `"smoothing"`, on a persistent pool, with the covariances then
-      approximate); it does neither under `mcmc`, above the floor, or while the
-      floor is `NA` (cli snapshots). (b) GREEN: implement it, reading the floor
-      through the same accessor as the mid-run recommendation.
+      **Abort path: withdrawn (2026-10-05, user decision; design D26).** An
+      amendment briefly had the `goldfish_abem_retry_exhausted` abort name
+      `augment_seq_mcmc()` below the floor. The high-flip pilots withdrew it: the
+      abort was the default SGD step overshooting (`mcmc`, with ESS = K, aborted
+      the same way), and with adagrad the same cell certified every step. The
+      abort's own "smaller `step_size`" advice was the right one, and the mid-run
+      recommendation is reached once the step is stable.
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime

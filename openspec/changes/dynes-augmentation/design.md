@@ -2087,22 +2087,16 @@ If 6.2c finds the floor differs with coupling, the accessor gains a coupling arg
 and the vignette states both floors. A single scalar would otherwise give the wrong
 trigger to one of the two cases.
 
-**The abort path reads the same floor (amended 2026-10-05, user decision).** The 6.2
-pilot showed that at the cliff an importance-weighted run does not live long enough
-to reach the mid-run recommendation. With ESS ≈ 1, Q is effectively one path's
-likelihood change, and pool growth (50 → 191) draws more from the same mismatched
-proposal without restoring ESS. Every pass then reports Q < 0, and the ascent
-aborts with `goldfish_abem_retry_exhausted` at iteration 1–2. The abort advised a
-larger pool, a smaller step or more retries, which are the remedies for Monte-Carlo
-noise and not for importance-sampling collapse. So the abort now consults the floor
-too. When the routine is `random`/`sim` and the lowest ESS over the stalled passes is
-below the floor × pool size, it names `augment_seq_mcmc()` and suggests truncating
-or smoothing the weights (`set_weights_options(transformation = "clipping" /
-"smoothing")`, which act on a persistent pool and make the Louis covariances
-approximate). It stays as before under `mcmc`, above the floor, and while the floor
-is `NA`. *Rejected:* running the collapse check inside the retry loop. That also works,
-but it emits a warning immediately followed by an abort that already carries the
-advice.
+**The cliff does not abort the run (2026-10-05, from the 6.2 pilots).** At the top
+flips level, random, sim and mcmc all aborted with `goldfish_abem_retry_exhausted`
+at iteration 1–2 (Q < 0 on all 21 passes), and an amendment briefly proposed that the
+abort name `augment_seq_mcmc()` below the floor. It was withdrawn. `mcmc`, whose ESS is
+K by construction, aborted the same way, and adagrad certified every step on the same
+cell. The abort was the constant default SGD step overshooting a large summed score,
+not importance-sampling collapse. With a stable step, the collapsed run survives to the
+mid-run check (ESS ≈ 10 of 50–5000 on every pass), which is where the recommendation
+fires. The abort keeps its "smaller `step_size`" advice. The step-size default itself
+belongs to `sgd-scale-aware-default`.
 
 ## Risks / Trade-offs
 

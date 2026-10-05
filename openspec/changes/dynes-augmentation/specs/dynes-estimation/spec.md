@@ -216,16 +216,6 @@ autocorrelation.
   the runtime switch-to-`augment_seq_mcmc()` recommendation fires at, while the reported
   operating envelope is the Monte-Carlo-to-asymptotic standard-error ratio at each cell.
 
-#### Scenario: an ascent abort at the cliff names the importance-sampling remedies
-- **WHEN** a `random` or `sim` run exhausts its pool-growth retries without certifying
-  an ascent, and the lowest effective sample size over the stalled passes is below the
-  IS-ESS collapse threshold times the pool size
-- **THEN** the `goldfish_abem_retry_exhausted` abort names `augment_seq_mcmc()` and
-  suggests truncating or smoothing the importance weights (`set_weights_options(
-  transformation = "clipping")` or `"smoothing"`), beside its existing pool-size,
-  step-size and retry advice; under `mcmc`, above the threshold, or while the
-  threshold is not yet calibrated, the abort carries only the existing advice.
-
 #### Scenario: a coupled specification is not condemned by its ESS
 - **WHEN** a cell of the sweep couples the panel layer to a densely observed
   event-stream layer, sharpening the path posterior that a forward proposal cannot track
