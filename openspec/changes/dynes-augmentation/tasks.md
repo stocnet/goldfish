@@ -589,14 +589,19 @@
       per-sequence score and Fisher information; extend the existing constructor,
       do not add a parallel one. Swap the batched
       evaluator in behind the evaluator contract shipped by the `abmcem` change (its
-      prototype-path adapter retires here); `devtools::document()`. **Sandwich
+      prototype-path adapter retires here); `devtools::document()`. **Covariance
       ingredients (design D7 / abmcem D9):** the Fisher path emits the per-sequence
       **complete-data information** `Jᵢ`, and the E-step object MUST also carry the
-      per-sequence **score** `Sᵢ` (not information alone), because `abmcem` forms
-      the Ruth-2024 sandwich `vcov = I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` (`I_c = Σ w̄ᵢ Jᵢ`) —
-      the meat needs the per-sequence scores. Omitting the score forces the
-      anti-conservative complete-data inverse in `vcov()`. Re-run the 4.3a tests to
-      confirm GREEN; commit.
+      per-sequence **score** `Sᵢ` (not information alone), because the fit forms
+      Louis's observed information `I_obs = Σ w̄ᵢ Jᵢ − (Σ w̄ᵢ SᵢSᵢᵀ − S̄S̄ᵀ)` and
+      `vcov = I_obs⁻¹` — the missing information needs the per-sequence scores.
+      Omitting the score forces the anti-conservative complete-data inverse in
+      `vcov()`. Re-run the 4.3a tests to confirm GREEN; commit.
+      *Amended 2026-10-05 (`louis-observed-information`):* this text, written and
+      checked off before that change, cited the Ruth-2024 sandwich
+      `I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` (`I_c = Σ w̄ᵢ Jᵢ`), whose middle term is the missing
+      information rather than a sampling variance. The implemented obligation
+      (score and information per sequence) is unchanged.
 - [x] 4.4 Closing: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       commit. **No DESCRIPTION version bump and no root `NEWS.md` edit on this
       branch** — record the evaluator milestone as a bullet in the change-local
@@ -715,8 +720,6 @@
       `@export` is this change's to add. Re-run the 6.1a tests to confirm GREEN;
       commit.
 - [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture; full
-      **Gate met (2026-10-02):** `singular-sequence-information` landed on
-      `feature/dynes` (full NOT_CRAN run: PASS 11748, FAIL 0, SKIP 2, baselines PASS).
       simulation study incl. creation/dissolution identifiability from waves,
       recorded with the change (progress.md + `.plan/`). This validates the
       already-implemented pipeline end to end rather than driving new production
@@ -745,6 +748,41 @@
       checks that the plug-in pin (endpoint-averaged risk set, not estimated, design
       D21) does not bias recovery of the authored θ beyond MC error. Report the gap
       between the pin and the DGP's true baseline alongside it.
+      **Gate met (2026-10-02):** the `singular-sequence-information` change landed on
+      `feature/dynes` (a singular sequence keeps its weight, the pool stop covers any
+      cause, a singular pooled information warns); full NOT_CRAN run PASS 11748,
+      FAIL 0, SKIP 2, baselines PASS. Until then a real `estimate_dynes()` on a pool
+      of singular-degenerate sequences crashed in SGD batch selection. 6.2, 6.2b and
+      6.2c are unblocked. Expect the new
+      `goldfish_dynes_pool_degenerate` / `goldfish_dynes_singular_information`
+      warnings in a cell that loses its whole pool or pins a coefficient with no
+      variation: record them in the sweep rather than treating them as study failures.
+      **Re-gated (2026-10-02): `louis-observed-information`.** The 6.2b pilot
+      (`.plan/dynes/recovery/PILOT_findings.md`) found that `vcov()` is
+      `I_c⁻¹ (Σ w̄ sᵢsᵢᵀ) I_c⁻¹`, the missing information, about 50× too small
+      against a closed form. Every error bound and envelope below reads it, so
+      6.2, 6.2b and 6.2c wait for that change to land. 6.2b then reuses its
+      oracle fixture from `helper-estimate_dynes.R`.
+      **SE calibration (added 2026-10-05, from `louis-observed-information`).**
+      Over the replicates of each cell, compare every coefficient's empirical
+      SD of θ̂ with its mean `vcov()` SE (report the ratio and the Wald
+      coverage of the true value). Include at least one cell with an
+      endogenous effect, so that paths carry different scores and the missing
+      information is non-zero. 6.2b's oracle has none by construction and
+      cannot tell Louis's `I_obs⁻¹` from `I_c⁻¹`, so this is the only check
+      that the missing-information term is estimated well. Record each
+      replicate's `glance()` `covariance_status`, `fraction_missing` and
+      `covariance_ess`. Tabulate the status counts per cell. Read
+      miscalibration against the last two: collapsed importance weights
+      shrink the missing-information estimate toward zero (SEs too small with
+      `fraction_missing` ≈ 0 and a low `covariance_ess`). Under MCMC,
+      `covariance_ess` is `NA` and the chain diagnostics play that role.
+      **Gate met (2026-10-05):** `louis-observed-information` landed on
+      `feature/dynes` (`vcov()` is `I_obs⁻¹`, the MC error takes the same bread,
+      a non-positive-definite `I_obs` warns; `glance()` carries the covariance
+      diagnostics); full NOT_CRAN run PASS 11892, FAIL 0, SKIP 2, baselines PASS.
+      6.2, 6.2b and 6.2c are unblocked. 6.2b reuses the closed-form oracle
+      fixture now in `helper-estimate_dynes.R` rather than the `.plan/` pilot code.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic
       likelihood — dyad counts Poisson in `λ_ij · Δt`, times uniform order statistics

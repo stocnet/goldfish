@@ -647,39 +647,51 @@ is on hand, not a blocker. Should the cross-check ever be done, ideas are re-imp
 no code is copied (both packages are GPL-3, but a clean re-implementation against our
 contracts is required regardless).
 
-### D7 — Result contract: covariance (abmcem D9 sandwich) + MC standard errors (OQ B6) **[→ abmcem]**
+### D7 — Result contract: covariance (Louis observed information, amended from abmcem D9's sandwich) + MC standard errors (OQ B6) **[→ abmcem]**
 ABEM returns the parameter estimates and an **observed-data** covariance — deliberately
 **not** the naive complete-data Fisher inverse, which is anti-conservative (it ignores that
 the between-wave path is imputed, so SEs would be too small exactly where waves are sparse,
-the regime DyNES exists for). The estimator is **abmcem D9's Ruth (2024) §3.3 sandwich**:
-the ABEM M-step solves an **importance-weighted estimating equation**
-`Σ_i w̄_i S_i(θ) = 0` rather than maximizing the true observed-data likelihood, and for a
-weighted estimating equation the sandwich `A⁻¹ B A⁻¹` is the correct asymptotic covariance
-(Louis's `I_obs⁻¹` is exact only for ideal EM, which this is not). With importance weights
+the regime DyNES exists for). The estimator is the inverse of **Louis's (1982)
+observed-data information** (`louis-observed-information` D1). With importance weights
 `w̄_i`, per-sequence complete-data score `S_i = ∇ℓ_{c,i}` and information `J_i = −∇²ℓ_{c,i}`:
 
 ```
-  vcov(θ̂) = I_c⁻¹ ( Σ_i w̄_i S_i S_iᵀ ) I_c⁻¹,     I_c = Σ_i w̄_i J_i
-            └ bread ┘└──── meat ────┘└ bread ┘
+  vcov(θ̂) = I_obs⁻¹,   I_obs = Σ_i w̄_i J_i − ( Σ_i w̄_i S_i S_iᵀ − S̄S̄ᵀ ),   S̄ = Σ_i w̄_i S_i
+                                └ complete ┘   └────── missing ───────┘
 ```
 
-reported beside the **MC standard error** `I_c⁻¹ (Σ_i w̄_i² (S_i − S̄)(S_i − S̄)ᵀ) I_c⁻¹`
-(finite-pool noise in θ̂, weight-squared scaled). `summary()` shows both side by side so
+reported beside the **MC standard error** `I_obs⁻¹ (Σ_i w̄_i² (S_i − S̄)(S_i − S̄)ᵀ) I_obs⁻¹`
+(finite-pool noise in θ̂, weight-squared scaled; the delta method's bread is the
+derivative of the self-normalized weighted score, which is `−I_obs`). `summary()` shows both side by side so
 users see when the pool, not the data, limits precision. Full detail — the rejected
 aggregate-then-outer-product `S̄S̄ᵀ` bug, the `use = "resampling"` warning, and
 fixed-parameter padding via `GetFixed()` + `stats::.vcov.aliased()` — lives in **abmcem
 D9**; this decision fixes the *interface* that feeds it.
 
-**Carve-out seam (who emits what).** The sandwich is assembled by **abmcem** (D7 is
+*Amended 2026-10-05 (`louis-observed-information`):* this decision previously named
+abmcem D9's "Ruth (2024) §3.3 sandwich" `I_c⁻¹ (Σ w̄_i S_i S_iᵀ) I_c⁻¹` as the estimator,
+arguing that a weighted estimating equation calls for `A⁻¹ B A⁻¹` and that Louis is exact
+only for ideal EM. Both premises fail here. A sandwich's meat is a sampling variance only
+over independent units, and the `S_i` are scores of imputed paths of the same data, so
+their spread is the missing information; Ruth (2024) says the form "applies to Monte
+Carlo variability within an iteration; it does not measure sampling variability due to
+the observed data". And Louis's identity is exact for raw self-normalized importance
+weights, the estimating equation's own (approximate only under a weight
+`transformation`). The 6.2b pilot measured the sandwich 50× or more too small against a
+closed form (`.plan/dynes/recovery/PILOT_findings.md`). The MC error keeps its middle
+term and takes `I_obs⁻¹` as its bread. A non-positive-definite MC estimate of `I_obs`
+returns `NA` covariances with a `goldfish_dynes_observed_information_not_pd` warning.
+
+**Carve-out seam (who emits what).** The covariance is assembled by **abmcem** (D7 is
 `[→ abmcem]`), but its ingredients are **this change's** evaluator:
 `evaluate_sequence_pool()` MUST return, per sequence, both the score `S_i` **and** the
-complete-data information `J_i` — the meat `Σ w̄_i S_i S_iᵀ` needs the per-sequence scores,
-the bread `I_c` needs the per-sequence information, and neither reconstructs from the other.
-The `what = "fisher"` path already computes `J_i`; the per-sequence scores are a required
-co-output, not an abmcem-side recomputation. If the evaluator returned only `J_i`, the
-sandwich meat would be physically unavailable and `vcov()` would silently fall back to the
-anti-conservative complete-data inverse `I_c⁻¹` — the failure mode this seam exists to
-prevent.
+complete-data information `J_i` — the missing information `Σ w̄_i S_i S_iᵀ − S̄S̄ᵀ` needs
+the per-sequence scores, the complete information `Σ w̄_i J_i` needs the per-sequence
+information, and neither reconstructs from the other. The `what = "fisher"` path already
+computes `J_i`; the per-sequence scores are a required co-output, not an abmcem-side
+recomputation. If the evaluator returned only `J_i`, the missing information would be
+physically unavailable and `vcov()` would silently fall back to the anti-conservative
+complete-data inverse `I_c⁻¹` — the failure mode this seam exists to prevent.
 
 The result
 additionally carries MC standard errors and the **`em_trace`** per-iteration
@@ -2056,6 +2068,18 @@ multiplicities.
   (`goldfish_dynes_fixed_term_degenerate`) and records `fixed_degenerate` in
   `em_trace`, and a fully dropped pool stops with `converged = FALSE`. The SGD
   step-size follow-up remains open.
+  *Amended 2026-10-02:* a real `estimate_dynes()` on `recipe_state_spec()` still
+  crashed (SGD `sample.int(..., prob)`, or the MCMC single-finite-`log_proposal`
+  abort) when every pooled sequence was singular, because the pool evaluator dropped
+  any sequence whose free-block information was not invertible. That is a selection
+  on the latent path, so it biased the weights. The change
+  `singular-sequence-information`, landed on `feature/dynes`, fixes it: degeneracy
+  now means a non-finite quantity, never a singular one (a singular sequence keeps
+  its weight); the loop stops with `converged = FALSE` when no sequence has both a
+  finite log-likelihood and positive weight
+  (`goldfish_dynes_pool_degenerate`); and a singular pooled information warns,
+  naming zero-information coefficients (`goldfish_dynes_singular_information`).
+  Nothing in D19–D22 changes. The 6.2 recovery study is unblocked.
 - **Identifiability of separate creation/dissolution parameters from sparse waves** →
   the simulation recovery study (task 6.2) quantifies it on DyNES's own estimand, with
   the optional RSiena cross-check (D6) as supporting prior art only; `summary()` exposes

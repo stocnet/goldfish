@@ -303,12 +303,18 @@ from model density over proposal density by the estimation loop from these
 per-sequence quantities and the stored reference records.
 For the result contract's asymptotic uncertainty the evaluator SHALL expose, per
 sequence, **both** the complete-data score and the complete-data information (not Fisher
-alone), since those are the ingredients the `abmcem` change combines into the
-**sandwich** covariance it specifies (abmcem D9, Ruth 2024 §3.3:
-`vcov = I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` with `I_c = Σ w̄ᵢ Jᵢ` — the meat needs the per-sequence
-scores, the bread the per-sequence information); exposing only the complete-data
-information would make the sandwich meat unformable and force an anti-conservative
-complete-data inverse `vcov()`.
+alone), since those are the ingredients the estimation loop combines into **Louis's
+observed-data information** (`louis-observed-information` D1, Louis 1982:
+`I_obs = Σ w̄ᵢ Jᵢ − (Σ w̄ᵢ SᵢSᵢᵀ − S̄S̄ᵀ)` with `S̄ = Σ w̄ᵢ Sᵢ`, `vcov = I_obs⁻¹` — the
+complete information needs the per-sequence information, the missing information
+subtracted from it needs the per-sequence scores); exposing only the complete-data
+information would leave the missing information unformable and force an
+anti-conservative complete-data inverse `vcov()`.
+*Amended 2026-10-05 (`louis-observed-information`):* this paragraph previously cited
+abmcem D9's sandwich `I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` as the consumer. That form's middle term
+is the missing information, not a sampling variance, and its SEs were 50× or more too
+small against a closed form; the covariance is now Louis's. The score-and-information
+obligation on the evaluator is unchanged; only the formula it feeds moved.
 The evaluator SHALL return the requested per-sequence quantities (log-likelihood,
 score, information) together with a per-sequence degeneracy flag, and SHALL NOT depend
 on the weighting scheme; the scheme-classed E-step object (`goldfishEstepIS`,
@@ -358,12 +364,12 @@ interval spanning an interior wave SHALL be scored at each wave period's own pla
   to the last wave, so moving the last event changes the log-likelihood by the
   corresponding exposure term.
 
-#### Scenario: evaluator exposes both score and information for the sandwich covariance
+#### Scenario: evaluator exposes both score and information for the observed information
 - **WHEN** Fisher is requested at convergence for a weighted pool
 - **THEN** the evaluator returns, per sequence, the complete-data score **and** the
-  complete-data information (not information alone), so `abmcem` can form the sandwich
-  covariance `I_c⁻¹ (Σ w̄ᵢ SᵢSᵢᵀ) I_c⁻¹` (D9) and `vcov()` is not the anti-conservative
-  complete-data inverse.
+  complete-data information (not information alone), so the estimation loop can form
+  Louis's observed information `Σ w̄ᵢ Jᵢ − Σ w̄ᵢ SᵢSᵢᵀ + S̄S̄ᵀ` and `vcov()` is not the
+  anti-conservative complete-data inverse.
 
 ### Requirement: Pool storage stays memory-bounded
 

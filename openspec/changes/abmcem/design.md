@@ -698,6 +698,38 @@ gradient norm ‖S̄‖, bounded by the optimizer tolerance rather than by any
 statistical quantity. Cross-check tests therefore target hand-computed
 fixtures of the two formulas above, not `get_se_from_list()`'s output.
 
+> **Amended 2026-10-05 — superseded by `louis-observed-information`.** The
+> standard error above is not an asymptotic covariance. Its middle term
+> `Σ w̄ᵢ sᵢsᵢᵀ` is the weighted variance of the imputed paths' scores (plus
+> the tolerance term `S̄S̄ᵀ`), which is Louis's (1982) *missing* information.
+> A sandwich's meat is a sampling variance only over independent units, and
+> these are imputations of the same data. Ruth (2024) states as much for the
+> §3.3 form: it "applies to Monte Carlo variability within an iteration; it
+> does not measure sampling variability due to the observed data", and its
+> missing first-moment term is why the meat is uncentered (at the E-step
+> maximizer `S̄ = 0`). With nothing missing the sandwich collapses toward
+> `|S̄|/I`, which is the flaw this decision itself rejects in the
+> prototype's `S̄S̄ᵀ`. The `dynes-augmentation` 6.2b pilot measured it 50× or
+> more too small against a closed-form Poisson oracle. Now, with `I = Σ w̄ᵢIᵢ`:
+>
+> - **Standard error**: `vcov()` returns `I_obs⁻¹`, with
+>   `I_obs = I − (Σ w̄ᵢ sᵢsᵢᵀ − S̄S̄ᵀ)`.
+> - **MC error**: `I_obs⁻¹ (Σ w̄ᵢ² (sᵢ − S̄)(sᵢ − S̄)ᵀ) I_obs⁻¹`. The middle
+>   term stays, and the bread becomes the derivative of the self-normalized
+>   weighted score; under uniform weighting it is the same by the MCEM
+>   fixed-point argument.
+> - The opt-in `em_trace` SEs use the same `I_obs⁻¹` at each pass's proposal.
+> - An `I_obs` whose symmetrized Cholesky factorization fails returns `NA`
+>   covariances with one `goldfish_dynes_observed_information_not_pd`
+>   warning, after the pool-stop and singular-`I` checks. The fit records
+>   which of these applied in `covariance_status`.
+>
+> The single full-pool pass, the importance weights over the whole pool
+> regardless of `use`, the fixed-parameter padding and everything below are
+> unchanged. The tests now target hand-computed Louis forms, a closed-form
+> oracle and the pool log-likelihood Hessian (`louis-observed-information`
+> D4).
+
 Both estimators always use **importance weights over the full pool,
 regardless of `use`** (resampling is an E-step device, not part of the
 estimand); when `use = "resampling"` a warning at the SE pass makes this
@@ -1322,3 +1354,11 @@ work) before `abmcem` lands.
      only if it starts there. The fix (drop degenerate sequences from the
      uniform mean, or zero their `lambda` and renormalize) changes the
      uniform estimator, so it needs its own change.
+     → **Taken up by `singular-sequence-information`** (2026-10-02; its D2,
+     tasks 2.1/2.2). Uniform weights become zero on a non-finite current
+     log-likelihood and equal on the rest, and the uniform Q and ASE are
+     computed over the positive-weight sequences. The same change replaces
+     the fixed-term-only early stop with one on any pool where no sequence
+     has a finite log-likelihood and a positive weight, and drops the
+     "singular per-sequence information ⇒ non-finite" rule of "Pool
+     evaluation through the zero-iteration engine path".
