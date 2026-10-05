@@ -202,9 +202,9 @@ test_that("MCMC draws record a lag-1 autocorrelation index for the trace", {
 })
 
 # The E-step object carries the per-sequence score and information the loop
-# harvested at the proposal alongside Lambda: the sandwich covariance needs both
-# (the meat sums the per-sequence score outer products, the bread the
-# per-sequence information), and neither can be rebuilt from Lambda.
+# harvested at the proposal alongside Lambda: the Louis covariance needs both
+# (it subtracts the per-sequence score outer products from the per-sequence
+# information), and neither can be rebuilt from Lambda.
 test_that("the E-step object carries per-sequence score and information", {
   lambda <- c(-1, 0.5, 2)
   w <- c(0.2, 0.3, 0.5)

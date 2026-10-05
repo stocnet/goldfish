@@ -253,7 +253,8 @@ run_abem_loop <- function(
       )$parameters
 
       # One pass yields all three quantities: the log-likelihood for Lambda,
-      # the score and information for the E-step object and the sandwich.
+      # the score and information for the E-step object and the Louis
+      # standard errors.
       at_proposal <- evaluate_sequence_pool(
         pool,
         proposal,
@@ -308,7 +309,7 @@ run_abem_loop <- function(
       }
 
       se <- if (accepted && isTRUE(control$em_trace_se)) {
-        abem_sandwich_se(
+        abem_louis_se(
           estep,
           at_proposal$degenerate,
           compute_pool_weights(
@@ -482,12 +483,14 @@ abem_trace_tibble <- function(rows) {
 }
 
 # Per-iteration standard errors at the pass's proposal: the square roots of
-# the sandwich I^-1 (sum_i w_i s_i s_i') I^-1 with I = sum_i w_i I_i, over the
-# whole pool, read off the per-sequence score and information the E-step
-# object carries. A singular information yields NA rather than stopping the
-# loop.
-abem_sandwich_se <- function(estep, degenerate, weights) {
-  covariances <- sandwich_covariances(
+# the diagonal of Louis's I_obs^-1 (see louis_covariances()), over the whole
+# pool, read off the per-sequence score and information the E-step object
+# carries, with the weights at the proposal. An accepted pass makes these the
+# run's weights, so a run that returns right after it reports the same
+# standard errors as its fit. An information that cannot be inverted yields
+# NA rather than stopping the loop.
+abem_louis_se <- function(estep, degenerate, weights) {
+  covariances <- louis_covariances(
     estep$score,
     estep$fisher,
     degenerate,

@@ -401,15 +401,15 @@ singular_information_run <- function(spec, control) {
   seen <- new.env(parent = emptyenv())
   seen$warnings <- list()
   real_initial_theta <- dynes_initial_theta
-  real_sandwich <- sandwich_covariances
+  real_louis <- louis_covariances
   local_mocked_bindings(
     dynes_initial_theta = function(...) {
       seen$start <- real_initial_theta(...)
       seen$start
     },
-    sandwich_covariances = function(score, fisher, degenerate, weights) {
+    louis_covariances = function(score, fisher, degenerate, weights) {
       seen$fisher <- fisher
-      real_sandwich(score, fisher, degenerate, weights)
+      real_louis(score, fisher, degenerate, weights)
     }
   )
   seen$fit <- withCallingHandlers(

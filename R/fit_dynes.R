@@ -62,48 +62,82 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   res
 }
 
-# The two covariance estimators at `theta` over the whole pool, with
-# importance weights w, I = sum_i w_i I_i and S = sum_i w_i s_i:
-#   standard error  I^-1 (sum_i w_i s_i s_i') I^-1          (Ruth 2024, 2.2)
-#   Monte Carlo     I^-1 (sum_i w_i^2 (s_i - S)(s_i - S)') I^-1
-# The middle term of the second is the Monte-Carlo variance of the weighted
-# score; aggregating the scores before the outer product (S S') would give a
-# rank-1 matrix bounded by the M-step's gradient tolerance, not a variance.
-# A singular information yields all-NA matrices rather than an error.
+# The two covariance estimators at `theta` over the whole pool, with the
+# run's own importance weights (see louis_covariances()).
 dynes_covariances <- function(pool, theta, weights) {
   res <- evaluate_sequence_pool(pool, theta, what = c("score", "fisher"))
-  sandwich_covariances(res$score, res$fisher, res$degenerate, weights)
+  louis_covariances(res$score, res$fisher, res$degenerate, weights)
 }
 
-# The two estimators above from per-sequence scores (K x p), information
-# matrices (a list of K) and degeneracy flags already evaluated at one theta.
-# A degenerate or zero-weight sequence contributes nothing. The pooled
-# information comes back beside them, flagged `singular` when it cannot be
-# inverted (NULL when no sequence is kept).
-sandwich_covariances <- function(score, fisher, degenerate, weights) {
+# The observed-data information by Louis's (1982) identity and the two
+# covariances it gives, from per-sequence complete-data scores s_i (K x p),
+# information matrices J_i (a list of K) and degeneracy flags already
+# evaluated at one theta, with normalized weights w_i and S = sum_i w_i s_i:
+#   complete        I_c   = sum_i w_i J_i
+#   observed        I_obs = I_c - (sum_i w_i s_i s_i' - S S')
+#   standard error  I_obs^-1
+#   Monte Carlo     I_obs^-1 (sum_i w_i^2 (s_i - S)(s_i - S)') I_obs^-1
+# The pooled paths are imputations of the same data, so the spread of their
+# scores is uncertainty about the latent path: the missing information, which
+# the observed information subtracts from the complete one. It is not sampling
+# variability. As the middle of a sandwich between two I_c^-1 it would measure
+# the Monte-Carlo variability within an iteration, and with nothing missing it
+# would collapse to S S', bounded by the M-step's gradient tolerance. The
+# identity needs J_i to be the negative Hessian of the path's log-likelihood,
+# not only its expectation, which holds for a log-linear rate and a
+# canonical-link choice. It is exact for untransformed self-normalized
+# weights; the derivative of a clipped or smoothed weight differs, and the
+# estimate is then an approximation.
+#
+# The Monte-Carlo middle term is the self-normalized importance-sampling
+# variance of the weighted score; aggregating the scores before the outer
+# product (S S') would give a rank-1 matrix bounded by the M-step's gradient
+# tolerance, not a variance. The bread is the delta method's: the estimate
+# solves sum_i w_i(theta) s_i(theta) = 0, whose derivative in theta is -I_obs
+# once the weights' dependence on theta is differentiated too. Uniform weights
+# do not depend on theta, and that derivative alone would give I_c, but the
+# bread is I_obs^-1 there as well: the estimate is a fixed point of the
+# Monte-Carlo EM map M, one M-step carries the E-step's score error through
+# I_c^-1, and at the fixed point that error is amplified by (I - dM)^-1, with
+# the EM rate matrix dM = I_c^-1 (I_c - I_obs), so the product is I_obs^-1
+# (Dempster, Laird and Rubin 1977, section 3; Booth and Hobert 1999).
+#
+# A degenerate or zero-weight sequence contributes nothing. A singular I_c
+# yields all-NA matrices flagged `singular`, and an I_obs that cannot be
+# inverted all-NA ones flagged `not_pd`, rather than an error. I_c comes back
+# as `information` (NULL when no sequence is kept) and I_obs as
+# `observed_information`.
+louis_covariances <- function(score, fisher, degenerate, weights) {
   p <- ncol(score)
   keep <- weights > 0 & !degenerate
   scores <- score[keep, , drop = FALSE]
   w <- weights[keep]
   information <- Reduce(`+`, Map(`*`, fisher[keep], w))
-  meat <- crossprod(scores * sqrt(w))
-  centered <- sweep(scores, 2L, colSums(scores * w))
+  mean_score <- colSums(scores * w)
+  missing <- crossprod(scores * sqrt(w)) - tcrossprod(mean_score)
+  observed <- if (!is.null(information)) information - missing
+  centered <- sweep(scores, 2L, mean_score)
   mc_meat <- crossprod(centered * w)
-  unavailable <- matrix(NA_real_, p, p)
-  bread <- tryCatch(solve(information), error = function(e) NULL)
+  unavailable <- list(
+    covariance = matrix(NA_real_, p, p),
+    mc_covariance = matrix(NA_real_, p, p),
+    information = information,
+    observed_information = observed
+  )
+  if (is.null(tryCatch(solve(information), error = function(e) NULL))) {
+    return(c(unavailable, singular = TRUE, not_pd = FALSE))
+  }
+  bread <- tryCatch(solve(observed), error = function(e) NULL)
   if (is.null(bread)) {
-    return(list(
-      covariance = unavailable,
-      mc_covariance = unavailable,
-      information = information,
-      singular = TRUE
-    ))
+    return(c(unavailable, singular = FALSE, not_pd = TRUE))
   }
   list(
-    covariance = bread %*% meat %*% bread,
+    covariance = bread,
     mc_covariance = bread %*% mc_meat %*% bread,
     information = information,
-    singular = FALSE
+    observed_information = observed,
+    singular = FALSE,
+    not_pd = FALSE
   )
 }
 

@@ -216,9 +216,10 @@ residual_resample <- function(weights, size = length(weights)) {
 # as independent given the thinning; a high index earns a raise-thinning hint).
 # `score` (a K x p matrix) and `fisher` (a list of K p x p matrices) are the
 # per-sequence complete-data score and information at the parameters Lambda
-# was evaluated at. Q and its ASE do not read them, but the sandwich covariance
-# does -- its meat sums the per-sequence score outer products and its bread the
-# per-sequence information -- and neither can be recovered from Lambda.
+# was evaluated at. Q and its ASE do not read them, but the Louis covariance
+# does -- it subtracts the weighted per-sequence score outer products from the
+# weighted per-sequence information -- and neither can be recovered from
+# Lambda.
 new_dynes_estep <- function(
   lambda,
   weights = NULL,

@@ -33,10 +33,19 @@ with its per-sequence \code{loglik} and normalized \code{weights}, the \code{see
 used, the completed \code{spec} and the \code{authored_spec}, and two covariance
 matrices from one full-pool evaluation at the returned estimate, made
 whether or not the run converged. \code{covariance}, returned by \code{vcov()}, is
-the sandwich \eqn{I^{-1} (\sum_i w_i s_i s_i^\top) I^{-1}} with
-\eqn{I = \sum_i w_i I_i}. \code{mc_covariance} is the Monte-Carlo error of the
-estimate, \eqn{I^{-1} (\sum_i w_i^2 (s_i - \bar s)(s_i - \bar s)^\top)
-  I^{-1}}. Both use the importance weights \eqn{w_i} over the whole pool.
+the inverse of Louis's observed-data information
+\eqn{I_{obs} = \sum_i w_i J_i - \sum_i w_i s_i s_i^\top +
+  \bar s \bar s^\top}, from each sequence's complete-data score \eqn{s_i}
+and information \eqn{J_i}, with \eqn{\bar s = \sum_i w_i s_i}: the
+complete-data information less the variance of the scores across the
+imputed paths, which is the information the latent paths miss.
+\code{mc_covariance} is the Monte-Carlo error of the estimate,
+\eqn{I_{obs}^{-1} (\sum_i w_i^2 (s_i - \bar s)(s_i - \bar s)^\top)
+  I_{obs}^{-1}}. Both use the run's normalized weights \eqn{w_i} over the
+whole pool. Louis's identity is exact for untransformed importance
+weights; under a weight \code{transformation} of \code{"clipping"} or
+\code{"smoothing"} (see \code{\link[=set_weights_options]{set_weights_options()}}) both covariances are
+approximations.
 
 \code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
 groups them by process, with both errors, and lists every fixed

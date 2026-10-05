@@ -840,11 +840,12 @@ test_that("per-pass standard errors reuse the pass's E-step quantities", {
   # Draw-time log-likelihoods, then one full evaluation per pass.
   full <- vapply(requests, function(w) "fisher" %in% w, logical(1))
   expect_identical(sum(full), nrow(res$em_trace))
-  # The SE is the sandwich over the pass's pool at the proposal theta = 0.5:
-  # with score mu - theta and unit information, the bread is 1 and the meat
-  # sum w (mu - theta)^2, w the weights at the proposal.
+  # The SE is Louis's over the pass's pool at the proposal theta = 0.5: with
+  # score mu - theta and unit information, I_obs is sum w less the weighted
+  # variance of the scores, w the weights at the proposal.
   mu <- c(1, 2, 1, 2)
   w <- compute_pool_weights(-(mu - 0.5)^2 / 2, rep(-log(2), 4))
-  expected <- sqrt(sum(w * (mu - 0.5)^2))
+  s <- mu - 0.5
+  expected <- sqrt(1 / (sum(w) - (sum(w * s^2) - sum(w * s)^2)))
   expect_equal(res$em_trace$se[[1]], expected)
 })
