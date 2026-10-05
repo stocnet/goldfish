@@ -118,6 +118,7 @@ analytic_louis <- function(mu, theta, w) {
   list(
     complete = complete,
     observed = observed,
+    fraction = max(eigen(solve(complete, missing))$values),
     covariance = bread,
     mc_covariance = bread %*% crossprod(centered * w) %*% bread
   )
@@ -400,6 +401,132 @@ test_that("a non-converged fit is told the estimate may not be a maximum", {
   expect_snapshot(cat(message))
 })
 
+# --- Covariance diagnostics -------------------------------------------------
+
+test_that("an ok fit reports the largest fraction of missing information", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  expect_identical(fit$covariance_status, "ok")
+  expect_equal(fit$fraction_missing, louis$fraction, tolerance = 1e-10)
+  expect_gte(fit$fraction_missing, 0)
+  expect_lt(fit$fraction_missing, 1)
+})
+
+test_that("a not-PD fit's fraction of missing information is at least one", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(not_pd_stub_augmenter())
+
+  run <- covariance_warning_run()
+
+  fit <- run$fit
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  expect_identical(fit$covariance_status, "not_pd")
+  expect_equal(fit$fraction_missing, louis$fraction, tolerance = 1e-10)
+  expect_gte(fit$fraction_missing, 1)
+})
+
+test_that("covariance_ess is the effective size of the covariance weights", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  ok <- fit_dynes_toy()
+
+  expect_equal(ok$covariance_ess, 1 / sum(ok$weights^2), tolerance = 1e-10)
+  expect_gt(ok$covariance_ess, 1)
+  expect_lt(ok$covariance_ess, length(ok$weights))
+
+  local_dynes_augmenter(not_pd_stub_augmenter())
+  not_pd <- covariance_warning_run()$fit
+  expect_identical(not_pd$covariance_status, "not_pd")
+  expect_equal(
+    not_pd$covariance_ess,
+    1 / sum(not_pd$weights^2),
+    tolerance = 1e-10
+  )
+})
+
+test_that("covariance_ess is NA under uniform weighting", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy(
+    augmenter = set_augmenter_options(routine = "mcmc"),
+    weights = set_weights_options(weighting = "uniform", refresh = TRUE)
+  )
+
+  expect_identical(fit$covariance_ess, NA_real_)
+})
+
+test_that("glance() carries the covariance diagnostics", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+  glanced <- glance(fit)
+
+  expect_named(
+    glanced,
+    c(
+      "converged",
+      "iterations",
+      "n_sequences",
+      "df",
+      "covariance_status",
+      "fraction_missing",
+      "covariance_ess"
+    )
+  )
+  expect_identical(glanced$covariance_status, "ok")
+  expect_identical(glanced$fraction_missing, fit$fraction_missing)
+  expect_identical(glanced$covariance_ess, fit$covariance_ess)
+})
+
+# A real fit with its diagnostics pinned by hand, as the print test pins its
+# numbers: the snapshot records the wording, not floating-point noise.
+summary_with_status <- function(status, fraction, ess) {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(new_keyed_stub_augmenter())
+  fit <- fit_dynes_toy()
+  fit$parameters[] <- c(0.6, -1.25, 0.3)
+  fit$covariance[] <- diag(c(0.04, 0.09, 0.01))
+  fit$mc_covariance[] <- diag(c(0.0004, 0.0009, 0.0001))
+  fit$covariance_status <- status
+  fit$fraction_missing <- fraction
+  fit$covariance_ess <- ess
+  summary(fit)
+}
+
+test_that("summary() reports the diagnostics for each covariance status", {
+  local_abem_cli_context()
+
+  ok <- summary_with_status("ok", 0.4321, 17.5)
+  expect_identical(ok$fraction_missing, 0.4321)
+  expect_identical(ok$covariance_ess, 17.5)
+  expect_snapshot(print(ok))
+
+  not_pd <- summary_with_status("not_pd", 1.37, 2.5)
+  expect_identical(not_pd$covariance_status, "not_pd")
+  expect_snapshot(print(not_pd))
+
+  singular <- summary_with_status("singular", NA_real_, 9.25)
+  expect_identical(singular$covariance_status, "singular")
+  expect_snapshot(print(singular))
+
+  dropped <- summary_with_status("pool_dropped", NA_real_, NA_real_)
+  expect_identical(dropped$covariance_status, "pool_dropped")
+  expect_snapshot(print(dropped))
+})
+
 # --- Singular pooled information ------------------------------------------
 
 no_attribution <- list(coefficients = integer(0), groups = list())
@@ -546,6 +673,25 @@ test_that("an effect with no variation on any path is named at its start", {
   inertia <- match("calls › choice: inertia/calls", names(fit$parameters))
   expect_identical(fit$parameters[[inertia]], run$start[[inertia]])
   expect_snapshot(cat(conditionMessage(run$warnings[[1]])))
+})
+
+test_that("a singular fit has no fraction but keeps its covariance ESS", {
+  skip_on_cran()
+  control <- fit_dynes_control(
+    n_sequences = 6L,
+    max_iterations = 3L,
+    seed = 7L
+  )
+
+  fit <- singular_information_run(recipe_state_spec(), control)$fit
+
+  expect_identical(fit$covariance_status, "singular")
+  expect_identical(fit$fraction_missing, NA_real_)
+  expect_equal(
+    fit$covariance_ess,
+    1 / sum(fit$weights^2),
+    tolerance = 1e-10
+  )
 })
 
 test_that("singular sequences in an invertible pooled information do not warn", {
@@ -778,7 +924,15 @@ test_that("glance() reports the run and no information criterion", {
 
   expect_named(
     glanced,
-    c("converged", "iterations", "n_sequences", "df")
+    c(
+      "converged",
+      "iterations",
+      "n_sequences",
+      "df",
+      "covariance_status",
+      "fraction_missing",
+      "covariance_ess"
+    )
   )
   expect_true(glanced$converged)
   expect_identical(glanced$df, 3L)

@@ -771,6 +771,8 @@ test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
   expect_identical(fit$covariance_status, "pool_dropped")
+  expect_identical(fit$fraction_missing, NA_real_)
+  expect_identical(fit$covariance_ess, NA_real_)
   expect_length(run$pool_warnings, 0L)
   expect_length(run$singular_warnings, 0L)
   expect_length(run$not_pd_warnings, 0L)
