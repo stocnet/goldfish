@@ -117,6 +117,7 @@ analytic_louis <- function(mu, theta, w) {
   centered <- sweep(scores, 2L, mean_score)
   list(
     complete = complete,
+    missing = missing,
     observed = observed,
     fraction = max(eigen(solve(complete, missing))$values),
     covariance = bread,
@@ -519,6 +520,86 @@ test_that("summary() reports the diagnostics for each covariance status", {
   expect_snapshot(print(dropped))
 })
 
+# --- Information decomposition ----------------------------------------------
+
+test_that("the information decomposition is an exact subtraction", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  information <- fit$information
+  expect_named(information, c("complete", "missing", "observed"))
+  expect_equal(unname(information$complete), louis$complete, tolerance = 1e-10)
+  expect_equal(unname(information$missing), louis$missing, tolerance = 1e-10)
+  expect_equal(
+    information$observed,
+    information$complete - information$missing,
+    tolerance = 1e-10
+  )
+  labels <- list(names(coef(fit)), names(coef(fit)))
+  for (part in information) {
+    expect_identical(dimnames(part), labels)
+  }
+})
+
+test_that("vcov() inverts the requested information", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  observed <- vcov(fit, information = "observed")
+  complete <- vcov(fit, information = "complete_data")
+  expect_identical(vcov(fit), observed)
+  expect_equal(observed, solve(fit$information$observed), tolerance = 1e-10)
+  expect_equal(complete, solve(fit$information$complete), tolerance = 1e-10)
+  expect_identical(dimnames(complete), dimnames(observed))
+  expect_true(all(diag(observed) >= diag(complete)))
+})
+
+test_that("the complete-data inverse survives a not-PD observed information", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(not_pd_stub_augmenter())
+
+  fit <- covariance_warning_run()$fit
+
+  expect_identical(fit$covariance_status, "not_pd")
+  expect_no_warning(complete <- vcov(fit, information = "complete_data"))
+  expect_false(anyNA(complete))
+  expect_equal(complete, solve(fit$information$complete), tolerance = 1e-10)
+  expect_true(all(is.na(vcov(fit))))
+  expect_named(fit$information, c("complete", "missing", "observed"))
+  for (part in fit$information) {
+    expect_true(all(is.finite(part)))
+  }
+})
+
+test_that("an unknown information type is rejected", {
+  local_abem_cli_context()
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  expect_snapshot(vcov(fit, information = "complete"), error = TRUE)
+})
+
+test_that("only vcov() takes an information argument", {
+  for (method in list(
+    tidy.goldfishDynesFit,
+    summary.goldfishDynesFit,
+    coef_layout.goldfishDynesFit
+  )) {
+    expect_identical(names(formals(method))[-1], "...")
+  }
+})
+
 # --- Singular pooled information ------------------------------------------
 
 no_attribution <- list(coefficients = integer(0), groups = list())
@@ -684,6 +765,25 @@ test_that("a singular fit has no fraction but keeps its covariance ESS", {
     1 / sum(fit$weights^2),
     tolerance = 1e-10
   )
+})
+
+test_that("a singular fit keeps its information but inverts neither type", {
+  skip_on_cran()
+  control <- fit_dynes_control(
+    n_sequences = 6L,
+    max_iterations = 3L,
+    seed = 7L
+  )
+
+  fit <- singular_information_run(recipe_state_spec(), control)$fit
+
+  expect_identical(fit$covariance_status, "singular")
+  expect_named(fit$information, c("complete", "missing", "observed"))
+  for (part in fit$information) {
+    expect_true(all(is.finite(part)))
+  }
+  expect_true(all(is.na(vcov(fit))))
+  expect_true(all(is.na(vcov(fit, information = "complete_data"))))
 })
 
 test_that("singular sequences in an invertible pooled information do not warn", {
