@@ -74,6 +74,16 @@
 #'   when the Monte-Carlo estimate of \eqn{I_{obs}} is not positive definite;
 #'   the last two warn. `covariance_status` records which applied first:
 #'   `"pool_dropped"`, `"singular"` or `"not_pd"`, and `"ok"` otherwise.
+#'   `fraction_missing` is the largest eigenvalue of
+#'   \eqn{I_c^{-1} (\sum_i w_i s_i s_i^\top - \bar s \bar s^\top)}, the
+#'   share of the complete information the latent paths miss in the worst
+#'   direction: below one when \eqn{I_{obs}} is positive definite, at least one
+#'   when it is not, and `NA` when the complete information is singular or the
+#'   pool was dropped. `covariance_ess` is the effective sample size
+#'   \eqn{1 / \sum_i w_i^2} of the weights the covariances used, and `NA` on a
+#'   dropped pool and under `weighting = "uniform"`, where it would equal the
+#'   number of kept sequences; the `em_trace` chain diagnostics report the
+#'   mixing of a uniform-weighting run. Neither warns.
 #'
 #'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
 #'   groups them by process, with both errors, and lists every fixed

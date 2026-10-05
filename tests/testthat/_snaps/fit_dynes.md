@@ -17,6 +17,167 @@
       i The run did not converge, so the estimate may not be a maximum, and the observed information need not be positive definite there.
       i Consider a larger `n_sequences` or a model-driven `routine` ("sim" or "mcmc").
 
+# summary() reports the diagnostics for each covariance status
+
+    Code
+      print(ok)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      Largest fraction of missing information: 0.432.
+      Covariance effective sample size: 17.5.
+
+---
+
+    Code
+      print(not_pd)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      ! Standard errors are blank: the observed information is not positive
+      definite.
+      The pool's estimate of the missing information is as large as the complete
+      information in some direction. Consider a larger `n_sequences` or a
+      model-driven `routine`.
+      Covariance effective sample size: 2.5.
+
+---
+
+    Code
+      print(singular)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      ! Standard errors are blank: the complete-data information is singular.
+      An effect with no variation across the augmented sequences carries no
+      information; see the warning for the coefficients.
+      Covariance effective sample size: 9.25.
+
+---
+
+    Code
+      print(dropped)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      ! Standard errors are blank: the pool stopped with no finite likelihood.
+
 # the singular-information warning for a coefficient at its start
 
     Code
@@ -137,4 +298,6 @@
       
       MC Error is the Monte-Carlo error of the estimate from the final pool of 4
       augmented sequences.
+      Largest fraction of missing information: 0.25.
+      Covariance effective sample size: 3.5.
 

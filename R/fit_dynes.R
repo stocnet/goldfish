@@ -70,6 +70,21 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   res$covariance <- covariances$covariance
   res$mc_covariance <- covariances$mc_covariance
   res$covariance_status <- covariance_status
+  res$fraction_missing <- if (pool_dropped) {
+    NA_real_
+  } else {
+    covariances$fraction_missing
+  }
+  # Under uniform weighting 1 / sum(w^2) is the number of kept sequences
+  # whatever the chain's mixing, so it is not reported; the chain's own
+  # diagnostics in the em_trace carry that failure mode.
+  res$covariance_ess <- if (
+    pool_dropped || identical(control$weights$weighting, "uniform")
+  ) {
+    NA_real_
+  } else {
+    effective_sample_size(res$weights)
+  }
   res$authored_spec <- authored_spec
   res$call <- fit_call
   class(res) <- c("goldfishDynesFit", "goldfishBaseFit")
@@ -125,6 +140,13 @@ dynes_covariances <- function(pool, theta, weights) {
 # exactness rule singular_attribution() applies, so the two cannot disagree
 # about a borderline matrix. I_c comes back as `information` (NULL when no
 # sequence is kept) and I_obs as `observed_information`.
+#
+# `fraction_missing` is the largest eigenvalue of I_c^-1 Var_w(s), the share of
+# the complete information the paths miss in the worst direction, with
+# Var_w(s) = sum_i w_i s_i s_i' - S S'. It is taken from the symmetric
+# L^-1 Var_w(s) L^-T, L the Cholesky factor of I_c, which has the same
+# eigenvalues and keeps eigen() on a symmetric matrix. It is below one exactly
+# when I_obs is positive definite, and NA when I_c has no inverse.
 louis_covariances <- function(score, fisher, degenerate, weights) {
   p <- ncol(score)
   keep <- weights > 0 & !degenerate
@@ -140,11 +162,16 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     covariance = matrix(NA_real_, p, p),
     mc_covariance = matrix(NA_real_, p, p),
     information = information,
-    observed_information = observed
+    observed_information = observed,
+    fraction_missing = NA_real_
   )
   if (is.null(tryCatch(solve(information), error = function(e) NULL))) {
     return(c(unavailable, singular = TRUE, not_pd = FALSE))
   }
+  unavailable$fraction_missing <- largest_missing_fraction(
+    information,
+    missing
+  )
   factor <- tryCatch(
     chol((observed + t(observed)) / 2),
     error = function(e) NULL
@@ -158,8 +185,23 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     mc_covariance = bread %*% mc_meat %*% bread,
     information = information,
     observed_information = observed,
+    fraction_missing = unavailable$fraction_missing,
     singular = FALSE,
     not_pd = FALSE
+  )
+}
+
+# The largest eigenvalue of I_c^-1 Var_w(s) (see louis_covariances()); NA
+# when the Cholesky factor of I_c does not exist.
+largest_missing_fraction <- function(information, missing) {
+  factor <- tryCatch(chol(information), error = function(e) NULL)
+  if (is.null(factor)) {
+    return(NA_real_)
+  }
+  half <- backsolve(factor, missing, transpose = TRUE)
+  scaled <- backsolve(factor, t(half), transpose = TRUE)
+  max(
+    eigen((scaled + t(scaled)) / 2, symmetric = TRUE, only.values = TRUE)$values
   )
 }
 
@@ -377,7 +419,10 @@ summary.goldfishDynesFit <- function(object, ...) {
       coefficients = layout,
       converged = object$converged,
       iterations = object$iterations,
-      n_sequences = length(object$pool$sequences)
+      n_sequences = length(object$pool$sequences),
+      covariance_status = object$covariance_status,
+      fraction_missing = object$fraction_missing,
+      covariance_ess = object$covariance_ess
     ),
     class = "goldfishSummDynesFit"
   )
@@ -423,7 +468,48 @@ print.goldfishSummDynesFit <- function(
     "{.field MC Error} is the Monte-Carlo error of the estimate from the
      final pool of {x$n_sequences} augmented sequence{?s}."
   )
+  dynes_covariance_diagnostics(x)
   invisible(x)
+}
+
+# The covariance diagnostics under a summary's table: the fraction of missing
+# information and the covariance ESS where they exist, and on a fit whose
+# standard-error columns are blank, the reason and the lever the warning named.
+dynes_covariance_diagnostics <- function(x) {
+  status <- x$covariance_status
+  if (status == "ok") {
+    cli::cli_text(
+      "Largest fraction of missing information:
+       {.val {signif(x$fraction_missing, 3)}}."
+    )
+  } else if (status == "pool_dropped") {
+    cli::cli_alert_warning(
+      "Standard errors are blank: the pool stopped with no finite likelihood."
+    )
+  } else if (status == "singular") {
+    cli::cli_alert_warning(
+      "Standard errors are blank: the complete-data information is singular."
+    )
+    cli::cli_text(
+      "An effect with no variation across the augmented sequences carries no
+       information; see the warning for the coefficients."
+    )
+  } else {
+    cli::cli_alert_warning(
+      "Standard errors are blank: the observed information is not positive
+       definite."
+    )
+    cli::cli_text(
+      "The pool's estimate of the missing information is as large as the
+       complete information in some direction. Consider a larger
+       {.arg n_sequences} or a model-driven {.arg routine}."
+    )
+  }
+  if (!is.na(x$covariance_ess)) {
+    cli::cli_text(
+      "Covariance effective sample size: {.val {signif(x$covariance_ess, 3)}}."
+    )
+  }
 }
 
 # The run's status line, shared by the fit and its summary: a fit that
@@ -472,7 +558,10 @@ glance.goldfishDynesFit <- function(x, ...) {
     converged = x$converged,
     iterations = x$iterations,
     n_sequences = length(x$pool$sequences),
-    df = length(x$parameters)
+    df = length(x$parameters),
+    covariance_status = x$covariance_status,
+    fraction_missing = x$fraction_missing,
+    covariance_ess = x$covariance_ess
   )
 }
 

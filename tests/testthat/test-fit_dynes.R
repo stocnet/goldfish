@@ -429,6 +429,7 @@ test_that("a not-PD fit's fraction of missing information is at least one", {
   expect_identical(fit$covariance_status, "not_pd")
   expect_equal(fit$fraction_missing, louis$fraction, tolerance = 1e-10)
   expect_gte(fit$fraction_missing, 1)
+  expect_equal(fit$covariance_ess, 1 / sum(fit$weights^2), tolerance = 1e-10)
 })
 
 test_that("covariance_ess is the effective size of the covariance weights", {
@@ -441,15 +442,6 @@ test_that("covariance_ess is the effective size of the covariance weights", {
   expect_equal(ok$covariance_ess, 1 / sum(ok$weights^2), tolerance = 1e-10)
   expect_gt(ok$covariance_ess, 1)
   expect_lt(ok$covariance_ess, length(ok$weights))
-
-  local_dynes_augmenter(not_pd_stub_augmenter())
-  not_pd <- covariance_warning_run()$fit
-  expect_identical(not_pd$covariance_status, "not_pd")
-  expect_equal(
-    not_pd$covariance_ess,
-    1 / sum(not_pd$weights^2),
-    tolerance = 1e-10
-  )
 })
 
 test_that("covariance_ess is NA under uniform weighting", {
@@ -951,6 +943,8 @@ test_that("print and summary group per process and show both errors", {
   fit$parameters[] <- c(0.6, -1.25, 0.3)
   fit$covariance[] <- diag(c(0.04, 0.09, 0.01))
   fit$mc_covariance[] <- diag(c(0.0004, 0.0009, 0.0001))
+  fit$fraction_missing <- 0.25
+  fit$covariance_ess <- 3.5
 
   expect_s3_class(summary(fit), "goldfishSummDynesFit")
   expect_snapshot({

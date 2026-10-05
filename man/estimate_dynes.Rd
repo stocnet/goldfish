@@ -50,6 +50,16 @@ likelihood, when the pooled complete-data information is singular, or
 when the Monte-Carlo estimate of \eqn{I_{obs}} is not positive definite;
 the last two warn. \code{covariance_status} records which applied first:
 \code{"pool_dropped"}, \code{"singular"} or \code{"not_pd"}, and \code{"ok"} otherwise.
+\code{fraction_missing} is the largest eigenvalue of
+\eqn{I_c^{-1} (\sum_i w_i s_i s_i^\top - \bar s \bar s^\top)}, the
+share of the complete information the latent paths miss in the worst
+direction: below one when \eqn{I_{obs}} is positive definite, at least one
+when it is not, and \code{NA} when the complete information is singular or the
+pool was dropped. \code{covariance_ess} is the effective sample size
+\eqn{1 / \sum_i w_i^2} of the weights the covariances used, and \code{NA} on a
+dropped pool and under \code{weighting = "uniform"}, where it would equal the
+number of kept sequences; the \code{em_trace} chain diagnostics report the
+mixing of a uniform-weighting run. Neither warns.
 
 \code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
 groups them by process, with both errors, and lists every fixed
