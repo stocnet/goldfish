@@ -618,12 +618,13 @@ tallied_store <- function(
 }
 
 # One estimate_dynes() run over the multiwave fixture, with every warning
-# muffled and the fixed-term, pool-degenerate and singular-information ones
-# kept, by class.
+# muffled and the fixed-term, pool-degenerate, singular-information and
+# observed-information ones kept, by class.
 fixed_term_run <- function(control = surface_control(max_iterations = 2L)) {
   kept <- list()
   pool <- list()
   singular <- list()
+  not_pd <- list()
   fit <- withCallingHandlers(
     estimate_dynes(dynes_varying_raw_spec(), control),
     goldfish_dynes_fixed_term_degenerate = function(w) {
@@ -638,13 +639,18 @@ fixed_term_run <- function(control = surface_control(max_iterations = 2L)) {
       singular[[length(singular) + 1L]] <<- w
       invokeRestart("muffleWarning")
     },
+    goldfish_dynes_observed_information_not_pd = function(w) {
+      not_pd[[length(not_pd) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
     warning = function(w) invokeRestart("muffleWarning")
   )
   list(
     fit = fit,
     warnings = kept,
     pool_warnings = pool,
-    singular_warnings = singular
+    singular_warnings = singular,
+    not_pd_warnings = not_pd
   )
 }
 
@@ -658,11 +664,16 @@ uniform_surface_control <- function() {
   )
 }
 
-expect_stopped_fit <- function(fit) {
+# A stop's own warning is the only report: neither covariance warning fires.
+expect_stopped_fit <- function(run) {
+  fit <- run$fit
   expect_s3_class(fit, "goldfishDynesFit")
   expect_false(fit$converged)
   expect_identical(nrow(fit$em_trace), 0L)
   expect_true(all(is.na(fit$covariance)))
+  expect_identical(fit$covariance_status, "pool_dropped")
+  expect_length(run$singular_warnings, 0L)
+  expect_length(run$not_pd_warnings, 0L)
 }
 
 test_that("the fixed-term degeneracy warning", {
@@ -759,8 +770,10 @@ test_that("a pool lost entirely to a fixed-only term stops unconverged", {
   expect_identical(nrow(fit$em_trace), 0L)
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
+  expect_identical(fit$covariance_status, "pool_dropped")
   expect_length(run$pool_warnings, 0L)
   expect_length(run$singular_warnings, 0L)
+  expect_length(run$not_pd_warnings, 0L)
 })
 
 test_that("a pool lost to a fixed-only term under uniform weighting", {
@@ -776,7 +789,7 @@ test_that("a pool lost to a fixed-only term under uniform weighting", {
     "Every sequence in the pool was dropped"
   )
   expect_length(run$pool_warnings, 0L)
-  expect_stopped_fit(run$fit)
+  expect_stopped_fit(run)
   expect_length(run$singular_warnings, 0L)
 })
 
@@ -849,7 +862,7 @@ test_that("a pool whose every walk failed stops with one pool warning", {
 
     expect_length(run$pool_warnings, 1L)
     expect_length(run$warnings, 0L)
-    expect_stopped_fit(run$fit)
+    expect_stopped_fit(run)
     expect_length(run$singular_warnings, 0L)
   }
 })
@@ -867,7 +880,7 @@ test_that("a pool with every evaluation non-finite stops with one warning", {
 
     expect_length(run$pool_warnings, 1L)
     expect_length(run$warnings, 0L)
-    expect_stopped_fit(run$fit)
+    expect_stopped_fit(run)
     expect_length(run$singular_warnings, 0L)
   }
 })
@@ -894,7 +907,7 @@ test_that("a pool lost to mixed causes warns once per cause", {
     conditionMessage(run$pool_warnings[[1]]),
     "estimation stopped"
   )
-  expect_stopped_fit(run$fit)
+  expect_stopped_fit(run)
   expect_length(run$singular_warnings, 0L)
 })
 

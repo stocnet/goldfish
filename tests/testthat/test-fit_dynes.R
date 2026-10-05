@@ -145,6 +145,7 @@ test_that("the standard and MC covariances match the hand-computed forms", {
     tolerance = 1e-10
   )
   expect_identical(dimnames(fit$mc_covariance), dimnames(vcov(fit)))
+  expect_identical(fit$covariance_status, "ok")
 })
 
 test_that("equal scores give the complete-data inverse and no MC error", {
@@ -311,6 +312,94 @@ test_that("the observed information is the pool log-likelihood Hessian", {
   expect_equal(louis$observed_information, -hessian, tolerance = 1e-5)
 })
 
+# --- Non-positive-definite observed information ---------------------------
+
+# The louis_stub_augmenter() pool with its first coordinate spread by about
+# four around a mean near 1: at the estimate the weighted score variance
+# exceeds the identity information in that direction, so I_obs is indefinite
+# while I_c stays invertible. A wider spread would collapse the importance
+# weights onto one sequence and stall the ascent.
+not_pd_stub_augmenter <- function() {
+  new_stub_augmenter(
+    list(
+      c(-1.5, 0.7, 1.5),
+      c(3.4, 1.6, 1.1),
+      c(-0.8, 1.2, 0.4),
+      c(3.0, 0.5, 1.3)
+    ),
+    log_proposal = c(-1.2, -1.5, -1.3, -1.4)
+  )
+}
+
+# One run over the analytic evaluator with every warning muffled and the two
+# covariance warnings kept, by class.
+covariance_warning_run <- function(...) {
+  kept <- list(not_pd = list(), singular = list())
+  fit <- withCallingHandlers(
+    estimate_dynes(dynes_pinned_raw_spec(), fit_dynes_control(...)),
+    goldfish_dynes_observed_information_not_pd = function(w) {
+      kept$not_pd[[length(kept$not_pd) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
+    goldfish_dynes_singular_information = function(w) {
+      kept$singular[[length(kept$singular) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    },
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+  c(list(fit = fit), kept)
+}
+
+expect_not_pd_fit <- function(run) {
+  fit <- run$fit
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  # The fixture's premise: I_c is invertible and I_obs is indefinite.
+  expect_gt(min(eigen(louis$complete, symmetric = TRUE)$values), 0)
+  expect_lt(min(eigen(louis$observed, symmetric = TRUE)$values), 0)
+  expect_length(run$not_pd, 1L)
+  expect_length(run$singular, 0L)
+  expect_false(anyNA(fit$parameters))
+  expect_true(all(is.na(vcov(fit))))
+  expect_true(all(is.na(fit$mc_covariance)))
+  expect_identical(fit$covariance_status, "not_pd")
+}
+
+test_that("an observed information that is not positive definite warns once", {
+  local_reproducible_output(width = 80)
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(not_pd_stub_augmenter())
+
+  # Per-pass standard errors are on, so a warning per pass would show here.
+  run <- covariance_warning_run(em_trace_se = TRUE)
+
+  expect_true(run$fit$converged)
+  expect_not_pd_fit(run)
+  pass_se <- unlist(run$fit$em_trace$se)
+  expect_gt(length(pass_se), 0L)
+  expect_true(all(is.na(pass_se)))
+  message <- conditionMessage(run$not_pd[[1]])
+  expect_no_match(message, "maximum")
+  expect_snapshot(cat(message))
+})
+
+test_that("a non-converged fit is told the estimate may not be a maximum", {
+  local_reproducible_output(width = 80)
+  local_analytic_evaluator()
+  # The same accepted step as local_accept_then_stop(), after which
+  # max_iterations ends the run at the same indefinite estimate.
+  local_scripted_optimizer(function(theta) theta + 0.5)
+  local_dynes_augmenter(not_pd_stub_augmenter())
+
+  run <- covariance_warning_run(max_iterations = 1L)
+
+  expect_false(run$fit$converged)
+  expect_not_pd_fit(run)
+  message <- conditionMessage(run$not_pd[[1]])
+  expect_match(message, "may not be a maximum")
+  expect_snapshot(cat(message))
+})
+
 # --- Singular pooled information ------------------------------------------
 
 no_attribution <- list(coefficients = integer(0), groups = list())
@@ -395,11 +484,13 @@ test_that("the singular-information warning naming no coefficient", {
 })
 
 # One estimate_dynes() run from wave time 0 with every warning muffled: the
-# singular-information warnings kept, theta0, and the per-sequence information
-# matrices of the last covariance pass (the fit's own, at the estimate).
+# singular- and observed-information warnings kept, theta0, and the
+# per-sequence information matrices of the last covariance pass (the fit's
+# own, at the estimate).
 singular_information_run <- function(spec, control) {
   seen <- new.env(parent = emptyenv())
   seen$warnings <- list()
+  seen$not_pd <- list()
   real_initial_theta <- dynes_initial_theta
   real_louis <- louis_covariances
   local_mocked_bindings(
@@ -422,6 +513,10 @@ singular_information_run <- function(spec, control) {
       seen$warnings[[length(seen$warnings) + 1L]] <- w
       invokeRestart("muffleWarning")
     },
+    goldfish_dynes_observed_information_not_pd = function(w) {
+      seen$not_pd[[length(seen$not_pd) + 1L]] <- w
+      invokeRestart("muffleWarning")
+    },
     warning = function(w) invokeRestart("muffleWarning")
   )
   seen
@@ -442,6 +537,8 @@ test_that("an effect with no variation on any path is named at its start", {
 
   fit <- run$fit
   expect_length(run$warnings, 1L)
+  expect_length(run$not_pd, 0L)
+  expect_identical(fit$covariance_status, "singular")
   expect_true(all(is.na(fit$covariance)))
   expect_true(all(is.na(fit$mc_covariance)))
   expect_true(all(is.na(unlist(fit$em_trace$se))))
@@ -469,6 +566,8 @@ test_that("singular sequences in an invertible pooled information do not warn", 
   expect_contains(calls_choice, 0)
   expect_contains(calls_choice > 0, TRUE)
   expect_length(run$warnings, 0L)
+  expect_length(run$not_pd, 0L)
+  expect_identical(run$fit$covariance_status, "ok")
   expect_true(all(is.finite(run$fit$covariance)))
   expect_true(all(is.finite(run$fit$mc_covariance)))
 })
