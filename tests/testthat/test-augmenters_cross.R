@@ -52,9 +52,10 @@ cross_flavor <- function(data) {
 # The specification completed as estimate_dynes() completes it (the pinned
 # friendship rates warn), its recipe, and one augmenter per routine over them.
 # theta: creation indeg, dissolution indeg, calls intercept, calls outdeg.
-cross_build <- function() {
-  spec <- cross_spec()
-  waves <- panel_wave_grid(spec, start_time = 0)
+cross_build <- function(
+  spec = cross_spec(),
+  waves = panel_wave_grid(spec, start_time = 0)
+) {
   completed <- suppressWarnings(complete_generative_spec(
     spec,
     consumer = "estimate_dynes",
@@ -335,6 +336,34 @@ test_that("no draw places a pinned process's event in its zero-count period", {
         expect_false(fixed$degenerate, label = routine)
         expect_true(is.finite(fixed$loglik), label = routine)
       }
+    }
+  }
+})
+
+# --- An interval without changes ---------------------------------------------
+
+# cross_data() without the dissolution stamped at wave 10: the panel is
+# unchanged between waves 5 and 10, so that interval has no latent event. The
+# grid is passed explicitly, as estimate_dynes() passes the one it resolves;
+# inferred from the panel rows alone it would end at wave 5.
+quiet_interval_build <- function() {
+  data <- cross_data()
+  data$ties <- data$ties[
+    !(data$ties$layer == "friendship" & data$ties$time %in% 10),
+  ]
+  cross_build(cross_spec(data), waves = c(0, 5, 10))
+}
+
+test_that("an interval without changes draws no event and hits every wave", {
+  built <- quiet_interval_build()
+  diff <- diff_panel_waves(built$spec$data, "friendship", built$waves)
+  for (routine in cross_routines) {
+    run <- cross_run(built, routine, cross_stream(9L))
+    for (draw in cross_draws(run)) {
+      expect_no_error(validate_endpoint_hitting(draw$data, diff))
+      ties <- as.data.frame(draw$data$ties)
+      latent <- ties$layer == "friendship" & !is.na(ties$time)
+      expect_false(any(ties$time[latent] > 5 & ties$time[latent] < 10))
     }
   }
 })

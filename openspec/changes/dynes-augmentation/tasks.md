@@ -828,6 +828,16 @@
 - [x] 6.2f GREEN: γ = 1/2 in `transform_log_weights()`; state the exponent in
       the `set_weights_options()` `transformation` docs; `devtools::document()`;
       full `NOT_CRAN=true`; commit.
+- [x] 6.2g RED (added 2026-10-05, from sweep round 1, user decision): a panel
+      unchanged between two waves leaves that interval without latent events,
+      and `augment_seq_random()` and `augment_seq_mcmc()` crash on it
+      (`unsplit()` on empty vectors: `subscript out of bounds`); `sim` copes.
+      About 22% of the f02 panels and 3% at f05 have such an interval. Test,
+      on all three routines over the cross-augmenter fixture with its wave-10
+      change removed and the grid passed explicitly: every draw hits every
+      wave and places no event in the quiet interval. Commit the test alone.
+- [ ] 6.2h GREEN: an interval with no events draws no times in both
+      augmenters; full `NOT_CRAN=true`; commit.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic
       likelihood — dyad counts Poisson in `λ_ij · Δt`, times uniform order statistics
