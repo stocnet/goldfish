@@ -827,6 +827,20 @@
       Review the snapshots that newly carry the recommendation. If 6.2c finds the floor
       differs with coupling, give the accessor a coupling argument and test both
       values. Full `NOT_CRAN=true`; commit.
+      **Abort path (added 2026-10-05, user decision; design D26).** The 6.2 pilot
+      found that at the ESS cliff `random`/`sim` do not reach the mid-run check:
+      the ascent stays uncertified (Q < 0 on every pass, ESS ≈ 1 while the pool
+      grows 50 → 191) and `abort_retries_exhausted()`
+      (`goldfish_abem_retry_exhausted`) stops the run at iteration 1–2, advising
+      only a larger pool, a smaller step or more retries. The same pair therefore
+      also covers that abort: (a) RED, when the routine is `random`/`sim` and
+      the lowest ESS over the stalled passes is below the floor × pool size, the
+      abort names `augment_seq_mcmc()` and suggests truncating or smoothing the
+      weights (`set_weights_options(transformation = "clipping")` /
+      `"smoothing"`, on a persistent pool, with the covariances then
+      approximate); it does neither under `mcmc`, above the floor, or while the
+      floor is `NA` (cli snapshots). (b) GREEN: implement it, reading the floor
+      through the same accessor as the mid-run recommendation.
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime
