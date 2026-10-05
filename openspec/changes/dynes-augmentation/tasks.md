@@ -783,6 +783,22 @@
       diagnostics); full NOT_CRAN run PASS 11892, FAIL 0, SKIP 2, baselines PASS.
       6.2, 6.2b and 6.2c are unblocked. 6.2b reuses the closed-form oracle
       fixture now in `helper-estimate_dynes.R` rather than the `.plan/` pilot code.
+      **Convergence gate (added 2026-10-05, design D25).** The SGD defaults
+      under-step (abmcem D17 follow-up: the pilot's M-steps all hit the cap at
+      gradient norm 0.009). A fit that stops early sits between θ₀ and θ̂,
+      which would make the SE calibration measure the optimizer. Tune one
+      `set_sgd_options()` (step size, decay schedule, a raised
+      `max_iterations`) on a pilot cell and use it for every replicate. Report
+      it with the results. Record each replicate's final M-step gradient norm
+      and convergence flag. Count non-converged replicates per cell beside the
+      covariance statuses and exclude them from the error ratio and the
+      calibration. The default itself is fixed separately
+      (`sgd-scale-aware-default`), not in this change.
+      **Budget (added 2026-10-05).** 100 replicates per cell for `random` and
+      `sim` (Wald coverage at 95% then has an SE of about 2.2 points). `mcmc`
+      ran 250 s per fit at K = 20 on the pilot oracle, so it gets fewer
+      replicates per cell, the count stated with the cell. Size it after a
+      timing pilot so the whole sweep fits in a few days of compute.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic
       likelihood — dyad counts Poisson in `λ_ij · Δt`, times uniform order statistics
@@ -803,6 +819,14 @@
       placement it is making, which is where the information about latent timing sits, so
       the coupled cell is expected to degrade `sim` specifically — record whether the
       ESS floor the runtime recommendation fires at must differ by coupling.
+- [ ] 6.2d Set the IS-ESS collapse floor (design D26), after 6.2/6.2c locate it.
+      (a) RED: below the floor, the switch-to-`augment_seq_mcmc()` recommendation
+      fires under `random`/`sim`, never under `mcmc`, and at most once per run (cli
+      snapshot). Commit the tests alone. (b) GREEN: return the located value from
+      `importance_ess_collapse_threshold()` (`R/diagnostics_dynes.R`), now `NA_real_`.
+      Review the snapshots that newly carry the recommendation. If 6.2c finds the floor
+      differs with coupling, give the accessor a coupling argument and test both
+      values. Full `NOT_CRAN=true`; commit.
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime
@@ -812,9 +836,17 @@
       posterior is sharp) and the error ratio is the **verdict**; and it MUST say that
       IS-ESS is uninformative once the user has switched to MCMC, where acceptance rate
       and autocorrelation are the diagnostics. Dataset example; `devtools::document()`
+      **Open (2026-10-05):** which dataset the example uses is not chosen yet. No
+      packaged dataset is known to carry both a state panel and a count panel. Decide
+      before the session, or use a `simulate()`-drawn panel from the 6.2 study.
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and no
-      `/opsx:archive` on this branch** — record the DyNES milestone as a bullet in
-      the change-local `openspec/changes/dynes-augmentation/NEWS.md`. The version
+      `/opsx:archive` on this branch.** Record the DyNES milestone as a `NEWS.d/`
+      fragment (protocol in `NEWS.d/README.md`), as the sibling changes on this branch
+      do; the change-local `NEWS.md` stays as the staged Group 2–5 text for the merge
+      to fold (revised 2026-10-05). Before the final run, remove the stale untracked
+      `tests/testthat/_problems/` and `tests/testthat/testthat-problems.rds` (left by
+      the 2026-10-01 `complete_generative_spec` failures, since fixed) so they are not
+      committed. The version
       bump, root-NEWS fold, and archival happen once at branch merge (see
       progress.md "Version / NEWS / archival")

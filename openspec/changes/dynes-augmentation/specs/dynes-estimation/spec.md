@@ -155,7 +155,36 @@ envelope** in terms of **Monte-Carlo standard error relative to the asymptotic s
 error** (the result contract's two error sources), not in terms of effective sample size:
 ESS measures the proposal, so a specification whose posterior is sharpened by coupling can
 score worse on ESS while being better identified, and only the MC-to-asymptotic error
-ratio answers whether a fit is trustworthy. The located cliff SHALL define the **numeric
+ratio answers whether a fit is trustworthy. The asymptotic standard error SHALL be the
+one `vcov()` returns, the inverse of Louis's observed-data information `I_obs`
+(`louis-observed-information`), and the Monte-Carlo standard error the one with
+`I_obs⁻¹` as its bread; neither SHALL be computed as `I_c⁻¹ (Σ w̄ᵢsᵢsᵢᵀ) I_c⁻¹`, whose
+middle term is the missing information. Each cell SHALL record every replicate's
+`glance()` `covariance_status`, `fraction_missing` and `covariance_ess` and tabulate the
+status counts; a replicate whose status is not `"ok"` has no standard errors and SHALL
+be counted rather than dropped from the ratio silently, a rising `"not_pd"` share being
+itself a pool-size symptom of the envelope. Every replicate SHALL be fitted under one
+fixed, reported M-step optimizer setting, and each cell SHALL record every replicate's
+final M-step gradient norm and convergence flag. A non-converged replicate SHALL be
+counted beside the covariance statuses and excluded from the error ratio and the
+calibration, never averaged in: a fit that stops short of its optimum sits between the
+starting values and θ̂, shrinking the replicate spread the calibration reads.
+
+The full study SHALL also **calibrate the standard errors**: over the replicates of each
+cell it SHALL compare every coefficient's empirical standard deviation of θ̂ with its
+mean `vcov()` standard error, reporting the ratio and the Wald coverage of the
+generating value. At least one cell SHALL carry an endogenous effect, so that the
+augmented paths carry different complete-data scores and the missing information is
+non-zero: the closed-form count-panel oracle (`louis-observed-information`, "standard
+errors match a closed-form oracle") has no missing information by construction and
+cannot tell `I_obs⁻¹` from `I_c⁻¹`, so this calibration is the only check that the
+missing-information term is estimated well. Miscalibration SHALL be read against
+`fraction_missing` and `covariance_ess`: collapsed importance weights shrink the
+missing-information estimate toward zero, showing as standard errors too small beside a
+`fraction_missing` near zero and a low `covariance_ess`. Under MCMC `covariance_ess` is
+`NA` and the chain's acceptance rate and autocorrelation take its place.
+
+The located cliff SHALL define the **numeric
 IS-ESS collapse threshold** consumed by the runtime recommendation to switch to
 `augment_seq_mcmc()` — a trigger, not a verdict — this change owning that threshold and
 the `abmcem` change the message surface that emits it, so the runtime guidance and the
@@ -193,3 +222,24 @@ autocorrelation.
 - **THEN** its lower effective sample size triggers the switch recommendation without
   being reported as a narrower operating envelope, the envelope being read off the
   MC-to-asymptotic error ratio.
+
+#### Scenario: standard errors are calibrated where information is missing
+- **WHEN** the full study fits the replicates of a cell whose specification carries an
+  endogenous effect, so the augmented paths' complete-data scores differ
+- **THEN** it reports, per coefficient, the ratio of the empirical standard deviation
+  of θ̂ to the mean `vcov()` standard error and the Wald coverage of the generating
+  value, beside the cell's `fraction_missing` and `covariance_ess` summaries.
+
+#### Scenario: covariance statuses are tabulated, not silently dropped
+- **WHEN** some replicates of a cell return `covariance_status` `"not_pd"`,
+  `"singular"` or `"pool_dropped"`
+- **THEN** the cell reports the count of each status, and its MC-to-asymptotic error
+  ratio and calibration are computed over the `"ok"` replicates with that count stated
+  beside them.
+
+#### Scenario: a non-converged replicate is counted, not calibrated
+- **WHEN** a replicate's final M-step ends at its iteration cap with a gradient norm
+  above the study's convergence tolerance
+- **THEN** the cell counts it as non-converged beside its covariance statuses, and
+  its MC-to-asymptotic error ratio and standard-error calibration are computed without
+  it, with the count stated beside them.

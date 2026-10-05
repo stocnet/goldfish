@@ -2043,6 +2043,50 @@ rejects it on two counts, and the flavor would carry no information; the honest
 description is an unflavored dependent layer whose panel observation yields
 multiplicities.
 
+### D25 — The validation study reads only converged replicates
+The SE calibration added to task 6.2 (from `louis-observed-information`) compares, per
+coefficient, the empirical SD of θ̂ across replicates with the mean `vcov()` SE. That
+comparison measures Louis's missing-information term only if every θ̂ is at its M-step
+optimum. The abmcem SGD defaults (`step_size = 0.001`, constant, 100 M-step iterations)
+do not reach it: in the 6.2b pilot every M-step hit the cap with gradient norm 0.009, and
+on the toy with norms of 0.9–14 (abmcem D17 follow-up). A fit that stops early sits
+between θ₀ and θ̂. That shrinks the replicate spread and inflates Wald coverage, so the
+SD/SE ratio would measure the optimizer rather than the covariance.
+
+The study therefore:
+- runs every replicate under **one fixed, tuned `set_sgd_options()`** (step size, decay
+  schedule, a raised `max_iterations`), chosen on a pilot cell and reported with the
+  results;
+- records each replicate's final M-step **gradient norm and convergence flag**, and
+  treats a non-converged replicate like a `covariance_status` that is not `"ok"`: counted
+  per cell, stated beside the summaries, and excluded from the MC-to-asymptotic error
+  ratio and the SE calibration.
+
+A rising non-converged share is reported as a finding of its cell, not hidden by the
+exclusion.
+
+*Rejected:* fixing the SGD default first. A scale-aware default (adagrad/Adam, or a
+step scaled by the information) changes every DyNES fit and is its own change
+(`sgd-scale-aware-default`), so the study does not wait on it. *Rejected:* running at
+the defaults and reading the bias as MC error. That is how the pilot's 0.02-SE gap was
+first read, and SE calibration would inherit the same confusion.
+
+### D26 — The IS-ESS collapse floor is set by a tested code change
+`importance_ess_collapse_threshold()` (`R/diagnostics_dynes.R`, abmcem's message
+surface) returns `NA_real_`, so the runtime switch-to-`augment_seq_mcmc()`
+recommendation is switched off until this change calibrates it. Task 6.2 locates the
+floor, but the study is not a red/green task. Writing a number into the accessor turns
+on a warning that existing tests and snapshots have never seen. So the value lands as
+its own red/green pair (task 6.2d), not as a side effect of the study write-up.
+- **RED:** below the floor, the recommendation fires under `random`/`sim`, never under
+  `mcmc` (whose IS-ESS is trivially the pool size), and at most once per run.
+- **GREEN:** set the value the study located, and re-check the snapshots that start to
+  carry it.
+
+If 6.2c finds the floor differs with coupling, the accessor gains a coupling argument
+and the vignette states both floors. A single scalar would otherwise give the wrong
+trigger to one of the two cases.
+
 ## Risks / Trade-offs
 
 - **Spike results overturn a gated decision** — *happened* (2026-09-30): B1
