@@ -480,3 +480,184 @@ recipe_count_spec <- function(data = recipe_count_data()) {
     data = data
   )
 }
+
+# --- Count-panel closed-form oracle ------------------------------------------
+# A count panel `calls` (waves 5 and 10 from t0 = 0) with exogenous effects
+# only, rate `~ 1 + ego(x)` and choice `~ alter(y)`, beside an observed
+# `emails` stream with the same formulas that reads no modeled panel layer,
+# so its estimates leave the calls oracle untouched. Sender rates are constant
+# over the window, so every path between the waves has the same likelihood:
+# nothing is missing, and the observed-data likelihood is the Poisson
+# likelihood of the dyad counts, with a closed-form MLE and standard errors.
+
+oracle_nodes <- function(n = 12L, seed = 7L) {
+  withr::with_seed(seed, {
+    data.frame(
+      label = paste0("N", seq_len(n)),
+      mode = "p",
+      x = round(stats::rnorm(n), 2),
+      y = round(stats::rnorm(n), 2),
+      stringsAsFactors = FALSE
+    )
+  })
+}
+
+oracle_data <- function(nodes, ties = NULL, observation = "panel") {
+  if (is.null(ties)) {
+    # Placeholder rows so both layers exist before anything is simulated.
+    ties <- data.frame(
+      from = c(1L, 2L),
+      to = c(2L, 1L),
+      time = c(5, 1),
+      weight = 1,
+      layer = c("calls", "emails")
+    )
+  }
+  list(
+    info = list(
+      name = "oracle",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = observation, emails = "event")
+    ),
+    nodes = nodes,
+    ties = ties
+  )
+}
+
+oracle_spec <- function(data) {
+  make_joint_specification(
+    make_specification(
+      rate = ~ 1 + ego(x),
+      choice = ~ alter(y),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + ego(x),
+      choice = ~ alter(y),
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# A simulated run projected onto the panel: the modeled panel layer is
+# observed only as its per-dyad change over each between-wave interval,
+# stamped at the wave that closes it (an increment row of the cumulative
+# count). Events after the last wave are dropped; observed layers keep theirs.
+project_to_waves <- function(events, panel_layer, waves, start_time = 0) {
+  bounds <- c(start_time, waves)
+  ev <- events[events$time > start_time & events$time <= max(waves), ]
+  pe <- ev[ev$layer == panel_layer, ]
+  pe$wave <- waves[findInterval(pe$time, bounds, left.open = TRUE)]
+  agg <- stats::aggregate(
+    pe$increment,
+    by = list(from = pe$sender, to = pe$receiver, time = pe$wave),
+    FUN = sum
+  )
+  names(agg)[4] <- "weight"
+  agg <- agg[agg$weight != 0, ]
+  agg <- agg[order(agg$time, agg$from, agg$to), ]
+  re <- ev[ev$layer != panel_layer, ]
+  list(
+    panel = data.frame(
+      from = agg$from,
+      to = agg$to,
+      time = agg$time,
+      weight = agg$weight,
+      layer = panel_layer
+    ),
+    events = if (nrow(re) > 0L) {
+      data.frame(
+        from = re$sender,
+        to = re$receiver,
+        time = re$time,
+        weight = re$increment,
+        layer = re$layer
+      )
+    }
+  )
+}
+
+# The closed-form MLE. Sender counts are Poisson(T exp(b0 + b1 x_i)); the
+# receiver choice is a conditional logit in alter(y), fitted as the Poisson
+# regression with sender fixed effects that is its exact equivalent. Event
+# times enter only through the compensator, which is path-independent here,
+# so the counts are all the likelihood sees.
+oracle_mle <- function(panel, nodes, horizon) {
+  n <- nrow(nodes)
+  counts <- matrix(0, n, n)
+  for (r in seq_len(nrow(panel))) {
+    counts[panel$from[r], panel$to[r]] <-
+      counts[panel$from[r], panel$to[r]] + panel$weight[r]
+  }
+  sender <- data.frame(n = rowSums(counts), x = nodes$x, t = horizon)
+  rate <- stats::glm(
+    n ~ x + offset(log(t)),
+    family = stats::poisson(),
+    data = sender
+  )
+  dyads <- expand.grid(i = seq_len(n), j = seq_len(n))
+  dyads <- dyads[dyads$i != dyads$j, ]
+  dyads$n <- counts[cbind(dyads$i, dyads$j)]
+  dyads$y <- nodes$y[dyads$j]
+  # Senders with no events carry no choice information.
+  dyads <- dyads[dyads$i %in% which(sender$n > 0), ]
+  choice <- stats::glm(
+    n ~ factor(i) + y,
+    family = stats::poisson(),
+    data = dyads
+  )
+  est <- c(stats::coef(rate), stats::coef(choice)[["y"]])
+  se <- c(
+    sqrt(diag(stats::vcov(rate))),
+    sqrt(stats::vcov(choice)["y", "y"])
+  )
+  labels <- c(
+    "calls › rate: Intercept",
+    "calls › rate: ego/x",
+    "calls › choice: alter/y"
+  )
+  names(est) <- names(se) <- labels
+  list(estimate = est, se = se)
+}
+
+# The oracle panel from a seeded simulate() of the joint specification:
+# the specification to estimate on the projected data, its wave grid, and the
+# closed-form calls MLE.
+oracle_count_panel <- function(seed = 3L) {
+  waves <- c(5, 10)
+  nodes <- oracle_nodes()
+  generative <- oracle_spec(oracle_data(nodes, observation = "event"))
+  truth <- set_parameters(
+    generative,
+    `calls › rate` = c(-1, 0.5),
+    `calls › choice` = 0.8,
+    `emails › rate` = c(-1, -0.3),
+    `emails › choice` = -0.5
+  )
+  # The placeholder data end at t = 5, so the run is flagged as passing the
+  # observation window; the covariates are constant, so holding them there is
+  # exact.
+  sim <- suppressWarnings(simulate(
+    generative,
+    nsim = 1,
+    seed = seed,
+    coef = truth,
+    horizon = max(waves),
+    control_sim = set_simulation_guard(max_events = 1e4)
+  ))
+  projected <- project_to_waves(sim$events, "calls", waves)
+  list(
+    spec = oracle_spec(
+      oracle_data(nodes, rbind(projected$panel, projected$events))
+    ),
+    wave_times = c(0, waves),
+    mle = oracle_mle(projected$panel, nodes, max(waves))
+  )
+}

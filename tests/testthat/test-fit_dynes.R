@@ -87,26 +87,228 @@ test_that("vcov() is populated when max_iterations ends the run", {
   expect_true(all(is.finite(fit$mc_covariance)))
 })
 
+# Four sequences whose data spread by well under one per coordinate around a
+# mean near 1, so a step up from 0 ascends, and the weighted score variance
+# stays below the identity information in every direction: the observed
+# information is positive definite. The log proposal densities differ, so
+# the importance weights are unequal but none collapses.
+louis_stub_augmenter <- function() {
+  new_stub_augmenter(
+    list(
+      c(1.2, 0.7, 1.5),
+      c(0.6, 1.6, 1.1),
+      c(1.7, 1.2, 0.4),
+      c(0.9, 0.5, 1.3)
+    ),
+    log_proposal = c(-1.2, -1.5, -1.3, -1.4)
+  )
+}
+
+# The Louis forms over the analytic evaluator at `theta` with weights `w`:
+# each sequence's score is mu_i - theta and its information the identity, so
+# I_c = sum(w) I and the missing information is the weighted score variance.
+analytic_louis <- function(mu, theta, w) {
+  scores <- t(vapply(mu, function(m) m - theta, numeric(length(theta))))
+  complete <- diag(length(theta)) * sum(w)
+  mean_score <- colSums(scores * w)
+  missing <- crossprod(scores * sqrt(w)) - tcrossprod(mean_score)
+  observed <- complete - missing
+  bread <- solve(observed)
+  centered <- sweep(scores, 2L, mean_score)
+  list(
+    complete = complete,
+    observed = observed,
+    covariance = bread,
+    mc_covariance = bread %*% crossprod(centered * w) %*% bread
+  )
+}
+
+pool_data <- function(fit) {
+  lapply(fit$pool$sequences, function(s) s$data)
+}
+
 test_that("the standard and MC covariances match the hand-computed forms", {
   local_analytic_evaluator()
   local_accept_then_stop()
-  local_dynes_augmenter(new_keyed_stub_augmenter())
+  local_dynes_augmenter(louis_stub_augmenter())
 
   fit <- fit_dynes_toy()
 
-  theta <- unname(coef(fit))
-  w <- fit$weights
-  mu <- vapply(fit$pool$sequences, function(s) s$data, numeric(1))
-  scores <- t(vapply(mu, function(m) m - theta, numeric(length(theta))))
-  # The Fisher information is the identity per sequence and the weights sum
-  # to one, so I = diag(3) and both sandwiches reduce to their middle terms.
-  sandwich <- crossprod(scores * sqrt(w))
-  centered <- sweep(scores, 2L, colSums(scores * w))
-  mc <- crossprod(centered * w)
-
-  expect_equal(unname(vcov(fit)), sandwich)
-  expect_equal(unname(fit$mc_covariance), mc)
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  # The fixture's premise: the paths differ, and I_obs stays positive definite.
+  expect_gt(max(abs(louis$observed - louis$complete)), 0.01)
+  expect_gt(min(eigen(louis$observed, symmetric = TRUE)$values), 0)
+  expect_equal(unname(vcov(fit)), louis$covariance, tolerance = 1e-10)
+  expect_equal(
+    unname(fit$mc_covariance),
+    louis$mc_covariance,
+    tolerance = 1e-10
+  )
   expect_identical(dimnames(fit$mc_covariance), dimnames(vcov(fit)))
+})
+
+test_that("equal scores give the complete-data inverse and no MC error", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(new_stub_augmenter(rep(list(c(1.2, 0.7, 1.5)), 4L)))
+
+  fit <- fit_dynes_toy()
+
+  expect_equal(unname(vcov(fit)), diag(3), tolerance = 1e-10)
+  expect_equal(unname(fit$mc_covariance), matrix(0, 3, 3), tolerance = 1e-10)
+})
+
+test_that("missing information widens every standard error", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  louis <- analytic_louis(pool_data(fit), unname(coef(fit)), fit$weights)
+  complete_se <- sqrt(diag(solve(louis$complete)))
+  expect_true(all(sqrt(diag(vcov(fit))) >= complete_se))
+})
+
+# One accepted pass from 0 to 0.3, after which max_iterations ends the run:
+# it returns directly after that pass, so the fit's weights are those the
+# pass's standard errors were formed with.
+fit_one_accepted_pass <- function() {
+  local_analytic_evaluator()
+  local_scripted_optimizer(function(theta) theta + 0.3)
+  local_dynes_augmenter(louis_stub_augmenter())
+  fit_dynes_toy(max_iterations = 1L, em_trace_se = TRUE)
+}
+
+test_that("the em_trace standard errors are the Louis ones at the proposal", {
+  fit <- fit_one_accepted_pass()
+
+  row <- fit$em_trace[fit$em_trace$accepted, ]
+  expect_identical(nrow(row), 1L)
+  theta <- row$theta[[1]]
+  mu <- pool_data(fit)
+  w <- compute_pool_weights(
+    vapply(mu, analytic_loglik, numeric(1), theta = theta),
+    pool_log_proposal(pool_references(fit$pool))
+  )
+  louis <- analytic_louis(mu, theta, w)
+  expect_equal(
+    unname(row$se[[1]]),
+    sqrt(diag(louis$covariance)),
+    tolerance = 1e-10
+  )
+})
+
+test_that("the last accepted pass's standard errors are the fit's", {
+  fit <- fit_one_accepted_pass()
+
+  # The premise: the run returned directly after its one accepted pass.
+  expect_false(fit$converged)
+  last <- fit$em_trace[nrow(fit$em_trace), ]
+  expect_true(last$accepted)
+  expect_equal(unname(coef(fit)), last$theta[[1]], ignore_attr = TRUE)
+  expect_equal(
+    unname(last$se[[1]]),
+    unname(sqrt(diag(vcov(fit)))),
+    tolerance = 1e-10
+  )
+})
+
+# A count panel with exogenous effects only: every path has the same
+# likelihood, so I_obs = I_c and the standard errors are those of the Poisson
+# closed form. The 10% bound absorbs evaluating the information at the SGD's
+# estimate rather than at the glm MLE.
+test_that("standard errors match the closed-form count-panel oracle", {
+  skip_on_cran()
+  oracle <- suppressMessages(oracle_count_panel())
+
+  fit <- suppressMessages(suppressWarnings(estimate_dynes(
+    oracle$spec,
+    set_algorithm_em(
+      n_sequences = 20L,
+      max_iterations = 30L,
+      seed = 1L,
+      augmenter = set_augmenter_options(routine = "random")
+    ),
+    wave_times = oracle$wave_times
+  )))
+
+  se <- sqrt(diag(vcov(fit)))[names(oracle$mle$se)]
+  expect_equal(se, oracle$mle$se, tolerance = 0.1)
+})
+
+# Paths of dynes_multiwave_spec() with an endogenous friendship choice, whose
+# friendship events fall at different times, so their scores differ.
+louis_hessian_pool <- function(spec) {
+  path <- function(times) {
+    data <- dynes_multiwave_data()
+    data$ties$time[data$ties$layer == "friendship"] <- times
+    data$ties <- data$ties[order(data$ties$time), ]
+    data
+  }
+  paths <- list(
+    path(c(1, 2, 3, 4)),
+    path(c(1, 1.5, 3, 4)),
+    path(c(0.5, 1.5, 2.5, 4.5))
+  )
+  log_proposal <- c(-1, -0.4, -1.7)
+  build_sequence_pool(
+    decompose_joint_spec(spec),
+    Map(
+      function(data, q) {
+        list(data = data, reference = new_reference_record(c(0, 0, 0), -1, q))
+      },
+      paths,
+      log_proposal
+    ),
+    theta_length = 3L
+  )
+}
+
+# With untransformed importance weights over a fixed pool, the negative
+# Hessian of log sum_i exp(l_i(theta) - log q_i) is Louis's I_obs exactly,
+# given J_i = -Hessian(l_i). An independent check on the sign and centering
+# of the missing-information term, which a hand-computed form would share.
+test_that("the observed information is the pool log-likelihood Hessian", {
+  spec <- dynes_multiwave_spec(~ indeg + offset(recip, coef = -0.5))
+  pool <- louis_hessian_pool(spec)
+  log_proposal <- pool_log_proposal(pool_references(pool))
+  theta <- c(0.3, -1.2, 0.4)
+  pool_loglik <- function(theta) {
+    l <- evaluate_sequence_pool(pool, theta, what = "loglik")$loglik -
+      log_proposal
+    max(l) + log(sum(exp(l - max(l))))
+  }
+  h <- 1e-4
+  p <- length(theta)
+  hessian <- matrix(0, p, p)
+  for (j in seq_len(p)) {
+    for (k in seq_len(p)) {
+      shifted <- function(a, b) {
+        at <- theta
+        at[j] <- at[j] + a * h
+        at[k] <- at[k] + b * h
+        pool_loglik(at)
+      }
+      hessian[j, k] <- (shifted(1, 1) -
+        shifted(1, -1) -
+        shifted(-1, 1) +
+        shifted(-1, -1)) /
+        (4 * h^2)
+    }
+  }
+
+  res <- evaluate_sequence_pool(pool, theta)
+  weights <- compute_pool_weights(
+    res$loglik,
+    log_proposal,
+    weighting = "importance",
+    transformation = "identity"
+  )
+  # The premise: the paths carry different scores.
+  expect_gt(max(apply(res$score, 2L, stats::sd)), 0.1)
+  louis <- louis_covariances(res$score, res$fisher, res$degenerate, weights)
+  expect_equal(louis$observed_information, -hessian, tolerance = 1e-5)
 })
 
 # --- Singular pooled information ------------------------------------------
