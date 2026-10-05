@@ -799,6 +799,24 @@
       ran 250 s per fit at K = 20 on the pilot oracle, so it gets fewer
       replicates per cell, the count stated with the cell. Size it after a
       timing pilot so the whole sweep fits in a few days of compute.
+      **Transformed-weights arm (added 2026-10-05, user decision).** The abort
+      remedies added to 6.2d are tested here before they are recommended: the two
+      top flips levels, coupled and uncoupled, under `random` and `sim`, with
+      `set_weights_options(transformation = "clipping")` and `"smoothing"` (16
+      cells, 50 replicates each), on the same datasets as the identity cells so
+      each comparison is paired. Report bias, SD/SE and coverage against the
+      identity cells (Louis SEs are approximate under a transformation), and note
+      that a transformed run's ESS reads the transformed weights, so it also
+      silences the collapse trigger. Runs after 6.2e/6.2f.
+- [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
+      tempers the importance weights to w^(1/2), normalized. Test that it equals
+      `normalize(w^0.5)` and that it raises the ESS of a non-uniform pool. Today
+      it is w² (γ = 2, ported from the prototype's `smoothing(x, gamma = 2)`),
+      which sharpens the weights and lowers ESS, the opposite of what the option
+      is for. Commit the tests alone.
+- [ ] 6.2f GREEN: γ = 1/2 in `transform_log_weights()`; state the exponent in
+      the `set_weights_options()` `transformation` docs; `devtools::document()`;
+      full `NOT_CRAN=true`; commit.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic
       likelihood — dyad counts Poisson in `λ_ij · Δt`, times uniform order statistics

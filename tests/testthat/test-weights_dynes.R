@@ -100,7 +100,7 @@ test_that("uniform weighting gives a degenerate sequence zero weight", {
   expect_equal(effective_sample_size(w), 3)
 })
 
-test_that("smoothing transformation equals normalized w^gamma (gamma = 2)", {
+test_that("smoothing transformation equals normalized w^gamma (gamma = 1/2)", {
   log_proposal <- c(0, 0, 0)
   loglik <- c(0, log(2), log(3))
   base_w <- compute_pool_weights(loglik, log_proposal, weighting = "importance")
@@ -111,8 +111,22 @@ test_that("smoothing transformation equals normalized w^gamma (gamma = 2)", {
     weighting = "importance",
     transformation = "smoothing"
   )
-  # softmax(2 * log w) == normalize(w^2).
-  expect_equal(smoothed, base_w^2 / sum(base_w^2))
+  # softmax(log w / 2) == normalize(sqrt(w)).
+  expect_equal(smoothed, sqrt(base_w) / sum(sqrt(base_w)))
+})
+
+test_that("smoothing flattens a non-uniform pool, raising its ESS", {
+  log_proposal <- rep(0, 5)
+  loglik <- c(0, 0.1, 0.2, 0.3, 8)
+  base_w <- compute_pool_weights(loglik, log_proposal, weighting = "importance")
+  smoothed <- compute_pool_weights(
+    loglik,
+    log_proposal,
+    weighting = "importance",
+    transformation = "smoothing"
+  )
+  expect_gt(effective_sample_size(smoothed), effective_sample_size(base_w))
+  expect_lt(max(smoothed), max(base_w))
 })
 
 test_that("clipping transformation caps the dominant weight", {
