@@ -1,3 +1,22 @@
+# an observed information that is not positive definite warns once
+
+    Code
+      cat(message)
+    Output
+      ! The Monte-Carlo estimate of the observed information at the returned estimate is not positive definite; the covariances are `NA`.
+      x The pool's estimate of the missing information is as large as the complete information in some direction.
+      i Consider a larger `n_sequences` or a model-driven `routine` ("sim" or "mcmc").
+
+# a non-converged fit is told the estimate may not be a maximum
+
+    Code
+      cat(message)
+    Output
+      ! The Monte-Carlo estimate of the observed information at the returned estimate is not positive definite; the covariances are `NA`.
+      x The pool's estimate of the missing information is as large as the complete information in some direction.
+      i The run did not converge, so the estimate may not be a maximum, and the observed information need not be positive definite there.
+      i Consider a larger `n_sequences` or a model-driven `routine` ("sim" or "mcmc").
+
 # the singular-information warning for a coefficient at its start
 
     Code

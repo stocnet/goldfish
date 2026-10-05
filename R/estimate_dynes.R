@@ -69,7 +69,11 @@
 #'   whole pool. Louis's identity is exact for untransformed importance
 #'   weights; under a weight `transformation` of `"clipping"` or
 #'   `"smoothing"` (see [set_weights_options()]) both covariances are
-#'   approximations.
+#'   approximations. Both are `NA` when the pool stopped with no finite
+#'   likelihood, when the pooled complete-data information is singular, or
+#'   when the Monte-Carlo estimate of \eqn{I_{obs}} is not positive definite;
+#'   the last two warn. `covariance_status` records which applied first:
+#'   `"pool_dropped"`, `"singular"` or `"not_pd"`, and `"ok"` otherwise.
 #'
 #'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
 #'   groups them by process, with both errors, and lists every fixed

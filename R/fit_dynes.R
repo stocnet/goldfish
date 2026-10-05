@@ -42,7 +42,18 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   dims <- list(labels, labels)
   dimnames(covariances$covariance) <- dims
   dimnames(covariances$mc_covariance) <- dims
-  if (covariances$singular && !pool_dropped) {
+  # The first cause that applies, each excluding the next: a dropped pool
+  # leaves I_c empty, and a singular I_c has no observed information to test.
+  covariance_status <- if (pool_dropped) {
+    "pool_dropped"
+  } else if (covariances$singular) {
+    "singular"
+  } else if (covariances$not_pd) {
+    "not_pd"
+  } else {
+    "ok"
+  }
+  if (covariance_status == "singular") {
     warn_singular_information(
       singular_attribution(covariances$information),
       labels,
@@ -50,12 +61,15 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
       value = unname(res$parameters),
       call = call
     )
+  } else if (covariance_status == "not_pd") {
+    warn_observed_information_not_pd(res$converged, call = call)
   }
 
   # The store is closed once estimation returns; the fit keeps the sequences.
   res$pool$store <- NULL
   res$covariance <- covariances$covariance
   res$mc_covariance <- covariances$mc_covariance
+  res$covariance_status <- covariance_status
   res$authored_spec <- authored_spec
   res$call <- fit_call
   class(res) <- c("goldfishDynesFit", "goldfishBaseFit")
@@ -103,10 +117,14 @@ dynes_covariances <- function(pool, theta, weights) {
 # (Dempster, Laird and Rubin 1977, section 3; Booth and Hobert 1999).
 #
 # A degenerate or zero-weight sequence contributes nothing. A singular I_c
-# yields all-NA matrices flagged `singular`, and an I_obs that cannot be
-# inverted all-NA ones flagged `not_pd`, rather than an error. I_c comes back
-# as `information` (NULL when no sequence is kept) and I_obs as
-# `observed_information`.
+# yields all-NA matrices flagged `singular`, and an I_obs that is not positive
+# definite all-NA ones flagged `not_pd`, rather than an error or negative
+# variances: with few effective draws the estimated missing information can
+# reach the complete information in some direction. Positive definiteness is a
+# Cholesky factorization of the symmetrized I_obs with no tolerance, the same
+# exactness rule singular_attribution() applies, so the two cannot disagree
+# about a borderline matrix. I_c comes back as `information` (NULL when no
+# sequence is kept) and I_obs as `observed_information`.
 louis_covariances <- function(score, fisher, degenerate, weights) {
   p <- ncol(score)
   keep <- weights > 0 & !degenerate
@@ -127,10 +145,14 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
   if (is.null(tryCatch(solve(information), error = function(e) NULL))) {
     return(c(unavailable, singular = TRUE, not_pd = FALSE))
   }
-  bread <- tryCatch(solve(observed), error = function(e) NULL)
-  if (is.null(bread)) {
+  factor <- tryCatch(
+    chol((observed + t(observed)) / 2),
+    error = function(e) NULL
+  )
+  if (is.null(factor)) {
     return(c(unavailable, singular = FALSE, not_pd = TRUE))
   }
+  bread <- chol2inv(factor)
   list(
     covariance = bread,
     mc_covariance = bread %*% mc_meat %*% bread,
@@ -138,6 +160,37 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     observed_information = observed,
     singular = FALSE,
     not_pd = FALSE
+  )
+}
+
+# One warning for an observed information that is not positive definite at
+# the returned estimate while the complete information is invertible. With a
+# converged run that is a pool-size symptom. Away from a maximum the observed
+# information can be indefinite whatever the pool size, so a run that did not
+# converge says so too.
+warn_observed_information_not_pd <- function(
+  converged,
+  call = rlang::caller_env()
+) {
+  cli::cli_warn(
+    c(
+      "!" = "The Monte-Carlo estimate of the observed information at the
+             returned estimate is not positive definite; the covariances are
+             {.code NA}.",
+      "x" = "The pool's estimate of the missing information is as large as the
+             complete information in some direction.",
+      if (!isTRUE(converged)) {
+        c(
+          "i" = "The run did not converge, so the estimate may not be a
+                 maximum, and the observed information need not be positive
+                 definite there."
+        )
+      },
+      "i" = "Consider a larger {.arg n_sequences} or a model-driven
+             {.arg routine} ({.val sim} or {.val mcmc})."
+    ),
+    class = "goldfish_dynes_observed_information_not_pd",
+    call = call
   )
 }
 

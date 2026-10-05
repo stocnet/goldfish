@@ -45,7 +45,11 @@ imputed paths, which is the information the latent paths miss.
 whole pool. Louis's identity is exact for untransformed importance
 weights; under a weight \code{transformation} of \code{"clipping"} or
 \code{"smoothing"} (see \code{\link[=set_weights_options]{set_weights_options()}}) both covariances are
-approximations.
+approximations. Both are \code{NA} when the pool stopped with no finite
+likelihood, when the pooled complete-data information is singular, or
+when the Monte-Carlo estimate of \eqn{I_{obs}} is not positive definite;
+the last two warn. \code{covariance_status} records which applied first:
+\code{"pool_dropped"}, \code{"singular"} or \code{"not_pd"}, and \code{"ok"} otherwise.
 
 \code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
 groups them by process, with both errors, and lists every fixed
