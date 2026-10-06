@@ -826,7 +826,7 @@
       workers; at the target replicate counts the sweep needs about 6–9 days of
       compute, so every compute chunk opens with a timing round that sets its
       final count.
-- [ ] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
+- [x] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
       stale round-1 cells. Session ~1 h.
 - [ ] 6.2.1 random cells (8): timing round of 10, then the agreed count
       (target 100). Compute 4–9 h, then 1.5–4 days.
@@ -862,7 +862,7 @@
       on all three routines over the cross-augmenter fixture with its wave-10
       change removed and the grid passed explicitly: every draw hits every
       wave and places no event in the quiet interval. Commit the test alone.
-- [ ] 6.2h GREEN: an interval with no events draws no times in both
+- [x] 6.2h GREEN: an interval with no events draws no times in both
       augmenters; full `NOT_CRAN=true`; commit.
 - [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic

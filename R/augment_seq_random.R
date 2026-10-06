@@ -110,6 +110,11 @@ random_interval_plan <- function(recipe) {
 # steps. Events of a chain are contiguous in step order in the recipe.
 random_interval_times <- function(interval) {
   n <- length(interval$events)
+  # A panel unchanged between two waves leaves its interval with no latent
+  # event; unsplit() cannot rebuild an empty vector.
+  if (n == 0L) {
+    return(numeric(0))
+  }
   width <- interval$upper - interval$lower
   times <- interval$lower + stats::runif(n) * width
   on_wave <- times <= interval$lower | times >= interval$upper
