@@ -819,6 +819,32 @@
       the minimal-flip bias (about log(net/latent)) fails coverage by
       construction, and those cells locate the cliff and measure the bias.
       Replicate counts are set after a first balanced round of 10 per cell.
+      **Work plan (2026-10-06, user decision):** 6.2–6.4 run as the chunks
+      below, one session each; the runbook (commands, per-fit times, done
+      criteria) is `.plan/dynes/recovery/PLAN.md` and the consolidated
+      discoveries are `.plan/dynes/recovery/FINDINGS.md`. Estimates assume 4
+      workers; at the target replicate counts the sweep needs about 6–9 days of
+      compute, so every compute chunk opens with a timing round that sets its
+      final count.
+- [ ] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
+      stale round-1 cells. Session ~1 h.
+- [ ] 6.2.1 random cells (8): timing round of 10, then the agreed count
+      (target 100). Compute 4–9 h, then 1.5–4 days.
+- [ ] 6.2.2 sim cells (8): timing round of 5, then the agreed count (100 is
+      about 3 weeks; 10 is about 2 days). Compute ~2 days.
+- [ ] 6.2.3 mcmc cells (8): timing round of 5, then the agreed count
+      (provisional 20). Compute 1–2 days.
+- [ ] 6.2.4 pinned-rate cell (f05, coupled, random, 100). Compute ~2 h.
+- [ ] 6.2.5 transformed-weights arm (16 cells; 50 reps proposed down to 20
+      for random, 5 or none for sim). Compute ~1 day.
+- [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (+2 h for the
+      optional CTMC sibling).
+- [ ] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
+- [ ] 6.2.8 analysis and write-up (6.2 / 6.2c envelope, the floor, coupling).
+      Session ~3 h; needs 6.2.1–6.2.3.
+- [ ] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
+- [ ] 6.2.10 = 6.3 vignette. Session 4–6 h; dataset decision first.
+- [ ] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
 - [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
       tempers the importance weights to w^(1/2), normalized. Test that it equals
       `normalize(w^0.5)` and that it raises the ESS of a non-uniform pool. Today
