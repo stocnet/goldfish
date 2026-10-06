@@ -823,20 +823,24 @@
       below, one session each; the runbook (commands, per-fit times, done
       criteria) is `.plan/dynes/recovery/PLAN.md` and the consolidated
       discoveries are `.plan/dynes/recovery/FINDINGS.md`. Estimates assume 4
-      workers; at the target replicate counts the sweep needs about 6–9 days of
-      compute, so every compute chunk opens with a timing round that sets its
-      final count.
+      workers. The expensive cells (all sim and mcmc, random f15/f33, the
+      transformed arm) run on a SLURM cluster as one array of 20 jobs × 16
+      cores (1540 fits, ~2,600 core-hours estimated; bundle built by
+      `.plan/dynes/recovery/remote/make_bundle.R`, merged back by
+      `merge_results.R`); random f02/f05 and the pinned-rate cell run locally.
 - [x] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
       stale round-1 cells. Session ~1 h.
 - [ ] 6.2.1 random cells (8): timing round of 10, then the agreed count
       (target 100). Compute 4–9 h, then 1.5–4 days.
-- [ ] 6.2.2 sim cells (8): timing round of 5, then the agreed count (100 is
-      about 3 weeks; 10 is about 2 days). Compute ~2 days.
+- [ ] 6.2.2 sim cells (8): 30 replicates at f05–f33, 100 at f02 (user,
+      2026-10-06: 30 locates sim's ESS collapse; 100 would cost about 3
+      weeks locally). Run on the SLURM cluster (remote bundle).
 - [ ] 6.2.3 mcmc cells (8): timing round of 5, then the agreed count
       (provisional 20). Compute 1–2 days.
 - [ ] 6.2.4 pinned-rate cell (f05, coupled, random, 100). Compute ~2 h.
-- [ ] 6.2.5 transformed-weights arm (16 cells; 50 reps proposed down to 20
-      for random, 5 or none for sim). Compute ~1 day.
+- [ ] 6.2.5 transformed-weights arm (16 cells): random 25 replicates (paired
+      with the identity cells' panels), sim 50 (user, 2026-10-06). On the
+      cluster.
 - [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (+2 h for the
       optional CTMC sibling).
 - [ ] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
