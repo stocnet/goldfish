@@ -75,7 +75,7 @@ test_that("a receiver-axis constraint folds active_dyad at the alter encoding", 
     preprocessing_only = TRUE
   )
   expect_identical(prep$active_dyad_encoding, "alter")
-  expect_true(isTRUE(prep$active_dyad_folded))
+  expect_false(is.null(prep$active_dyad_update))
   # alter is a length-n2 vector — no dense n1 x n2 allocation.
   expect_true(is.null(dim(prep$active_dyad_init)))
   expect_length(prep$active_dyad_init, fx$n2)
@@ -94,7 +94,15 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
   # An alter-kind mask is stored as the length-n2 receiver vector, so the
   # from-scratch check reads the vector rather than a row of a dense grid.
   expect_equal(prep$support_mask$stored_kind, 1L)
-  recv0 <- prep$support_mask$receiver_presence_init
+  # Receiver presence base = the unconstrained model's alter vector.
+  base <- estimate_dynam(
+    callsDep ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    preprocessing_only = TRUE
+  )
+  expect_null(base$active_dyad_update)
+  recv0 <- base$active_dyad_init
   cur <- prep$active_dyad_init
   ptr <- prep$active_dyad_update_pointer
   upd <- prep$active_dyad_update
@@ -178,7 +186,7 @@ test_that("opportunity folds active_dyad at the point encoding (dense)", {
     control_prep = set_preprocessing(opportunities_list = fx$opp)
   )
   expect_identical(prep$active_dyad_encoding, "point")
-  expect_true(isTRUE(prep$active_dyad_folded))
+  expect_false(is.null(prep$active_dyad_update))
   # A dense n1 x n2 init and a 3-row (node1, node2, replace) buffer appear ONLY
   # at the point encoding.
   expect_true(is.matrix(prep$active_dyad_init))

@@ -1,24 +1,38 @@
 ## 0. Gates and references (D2 step one)
 
-- [ ] 0.1 Confirm `constraint-atoms-as-operands` is landed on
+- [x] 0.1 Confirm `constraint-atoms-as-operands` is landed on
       `feature_simulation` with only its task 3.2 open, and the tree clean;
       `NOT_CRAN=true` suite green (not-cran-test; baselines PASS not SKIP).
       Record in `progress.md` the pre-existing order-dependent
       `test-complete_generative_spec.R` snapshot failure so it is not
       mistaken for a regression.
-- [ ] 0.2 Add a fifth reference family to `helper-constraint-atoms.R` on the
+      — *done 2026-09-29 (goldfish-ce), at `e5ba0f8`*: only 3.2 open; tree
+      clean; 9295 PASS / 0 FAIL / 4 SKIP, six baseline files PASS. The
+      order-dependent snapshot failure did not occur in this run (nor at
+      2.2n); recorded in `progress.md` as not reproduced.
+- [x] 0.2 Add a fifth reference family to `helper-constraint-atoms.R` on the
       uncovered shape (`walk_constrained_data()`, `choice ~ inertia`,
       `support_constraint = ~ !tie(emails)`; plus a rate variant) and
       capture its byte-identity reference (mask stream + folded
       `active_sender`/`active_dyad`) with the private walk still
       authoritative. Assert `mask_call_counts()` shows the fallback was
       used, so the reference is known to come from the path being retired.
-- [ ] 0.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `9892125`*: families
+      `uncovered_rate` and `uncovered_choice` (one DyNAM spec, `rate = ~ 1 +
+      indeg`, `choice = ~ inertia`) added to `constraint_atoms_refs.rds`
+      (Alvaro: same file, not a new one); old entries `identical()`. N6
+      emails every node so the rate gates a sender. The fallback pin counts
+      `build_atom_maintainer()` directly (exactly one per family):
+      `mask_call_counts()` sums it with the inline store, so it cannot tell
+      the two apart.
+- [x] 0.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `9892125`'s tree*: 9299 PASS / 0 FAIL / 4
+      SKIP, six baseline files PASS, `_snaps/` unchanged.
 
 ## 1. Simulation harness and the baseline fixture (D5, D6, D7)
 
-- [ ] 1.1 `tests/testthat/helper-simulate-dgp.R`:
+- [x] 1.1 `tests/testthat/helper-simulate-dgp.R`:
       `simulate_relational_sequence()` per D5 — exact-time rate
       (`1 + indeg + outdeg` on present-tie counts) and choice
       (`recip + trans` with the two-path count), 0/1 state,
@@ -27,7 +41,13 @@
       hooks (r-lib:testing-r-packages). Test: reproducible under a seed;
       the frame rules of the capability spec hold on a hand-checked tiny
       case.
-- [ ] 1.2 `test-simulation_cross_validation.R`, fixture F1: goldfish rate
+      — *done 2026-09-29 (goldfish-ce), `0c4434d`*: `simulate_relational_
+      sequence()` + `dgp_stocnet()`; frames rate / choice / dyad (REM);
+      hooks `processes` (flavors), `exogenous` + `constraint`,
+      `composition`, `unmodeled`. Rule test proven by breaking the row
+      reduction, composition and the censored break. 9310 / 0 / 4, six
+      baseline files PASS.
+- [x] 1.2 `test-simulation_cross_validation.R`, fixture F1: goldfish rate
       ↔ `glm(poisson, offset(log(dt)))` including the `sum(log dt)`
       log-likelihood offset; REM rate ↔ dyadic `glm`; choice ↔ `mlogit`
       (`dfidx(idx = c("event", "receiver"))`) and `clogit(strata(event))`
@@ -36,62 +56,197 @@
       index_j)` and every statistic column; gate 1e-6. Record the measured
       deltas in a short `_references/simulation_v1/README.md` (no frozen
       numbers).
-- [ ] 1.3 Document the coordination exclusion in that README and in the
+      — *done 2026-09-29 (goldfish-ce), `f55b6b5`*: frames identical for
+      DyNAM rate, choice and REM; worst 2.7e-08 (mlogit), rate 2.3e-11,
+      REM 2.6e-13, clogit 1.8e-14. goldfish fitted with `score_tol =
+      1e-10` (default stop leaves 3.5e-07 / 8.8e-07, most of the gate).
+      The frame arm caught the harness's REM `outdeg` (default is the
+      receiver, `type = "alter"`). Arms proven by breaking `trans` and
+      `dt`. 9339 / 0 / 4, six baseline files PASS.
+- [x] 1.3 Document the coordination exclusion in that README and in the
       test file header, citing the classical README's numbers.
-- [ ] 1.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `055f1a3`*: README section and test
+      header; cites 0.2849 vs 0.0575 and the `coord` reference as the gate.
+- [x] 1.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `055f1a3`'s tree*: 9339 PASS / 0 FAIL / 4 SKIP,
+      six baseline files PASS, `_snaps/` unchanged.
 
 ## 2. Thread constraint-only objects into the shared substrate (D1, D4)
 
-- [ ] 2.1 `build_merged_blocks()`: compile support constraints before
+- [x] 2.0 Cost guard, recorded failing first (added 2026-09-29, per the
+      per-event cost rules; design "Storage and per-event cost"): a test
+      helper generates data where time and memory are measurable (at least
+      1000 actors, so one double grid is 8 MB; a constraint-only layer with
+      enough events to gate senders), and a guard asserts the uncovered
+      constraint is preprocessed in one walk: no private atom walk is
+      built, and the shared schedule visits the constraint layer's events.
+      It fails on the current tree, where the private walk builds its own
+      container and schedule; record the failing numbers in `progress.md`.
+      — *revised 2026-09-29 after measuring*: allocation is not asserted.
+      The covered twin (a term reading the layer) carries an extra
+      statistic, so it allocates more (234 against 160 MB at 1000 actors),
+      and threading moves the object from the private container into the
+      shared one rather than removing it. Fixture sized for 2.3b: 1500
+      actors, 3000 calls, 3000 constraint-layer events (uncovered 0.47 s,
+      543 MB, 34.8 MB object; unconstrained 0.12 s, 146 MB, 17.5 MB).
+      — *done 2026-09-29 (goldfish-ce), `95b974f`*: `constraint_cost_data()`
+      in `helper-constraint-atoms.R`; guard recorded failing (one private
+      walk; schedule layers `calls` only), committed with a `skip()` naming
+      the state, removed by the threading commit. 9341 / 0 / 5 (the fifth
+      skip is the guard), six baseline files PASS.
+- [x] 2.1 `build_merged_blocks()`: compile support constraints before
       `build_shared_objects()`; append each constraint sub-plan's objects
       after every unit's objects; `shared_to_local` `NA` for them;
       `build_shared_state()` over the extended registry, atoms realized on
       `shared_src`. Test: the registry of every unconstrained and covered
       reference family is byte-identical before and after (oids, names,
       order).
-- [ ] 2.2 `build_joint_schedule()`: append the constraint sub-plans' streams
+      — *done 2026-09-29 (goldfish-ce), `b1b2103`, with 2.2, 2.3 and 3.1*
+      (none is green alone: registered but unscheduled, the object makes
+      the coverage predicate true and the atoms never move; threaded, the
+      handle's refusal no longer fires). Only a changing constraint object
+      joins (a static one, e.g. `allowedNet`, stays seeded from the data),
+      which keeps the `rem` and `coord` registries byte-identical. Registry
+      and schedule captured per family before the edit into
+      `constraint_atoms_refs.rds` (`substrate`). 9382 / 0 / 4, six baseline
+      files PASS; mutation (no stream append) turns byte-identity, guard
+      and schedule tests red.
+- [x] 2.2 `build_joint_schedule()`: append the constraint sub-plans' streams
       after all unit streams, deduplicated by stream key; `run_merged_walk()`
       covariate branch skips engines with a `NA` local id (no statistic, no
-      right-censoring row, `i_total` unchanged); `resolve_walk_extent()`
+      right-censoring row, `i_total` unchanged — interim, so the threading is
+      byte-identical to the task 0.2 references; the boundary lands in 2.3a,
+      ADR-0103); `resolve_walk_extent()`
       exempts constraint-only rows through one named predicate with a
       comment pointing at the open extent cell (D4). Test: the joint
       schedule of every covered reference is identical; the uncovered
       fixture's constraint stream is present and ordered after the unit
       streams.
-- [ ] 2.3 `build_walk_recorders()` builds a store for every constraint (the
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
+- [x] 2.3 `build_walk_recorders()` builds a store for every constraint (the
       coverage skip removed); `realize_pending_masks()` always receives
       recorders. Assert every reference family, including task 0.2's,
       matches byte-identically, and `mask_call_counts()` reports no
       `build_atom_maintainer` call.
-- [ ] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
+- [x] 2.3a A constraint-only object's event closes the rate interval (added
+      2026-09-29, ADR-0103; design D1 revision): each row of an object only
+      a support constraint reads becomes a right-censored boundary for every
+      exact-time rate fid whose mask reads the object, folding no
+      statistic. Detector-first: before the edit, write the expected
+      difference against the task 0.2 reference `uncovered_rate`: exactly
+      the new censored rows, every existing row's statistics unchanged;
+      then re-capture it into `constraint_atoms_refs.rds` with every other
+      entry `identical()`. The choice families do not move (a choice reads
+      its mask at its own events). Test: on the harness's constrained rate
+      (the probe shape: `~ !tie(emails)` gating senders mid-interval),
+      goldfish's exported rate rows equal the harness frame and the fit
+      equals the Poisson oracle within 1e-6; before the edit it missed by
+      6.5e-3. No frozen baseline carries such a constraint. NEWS.d bullet
+      (a constrained rate's estimates move when its constraint reads a
+      layer no term reads)
+      — *done 2026-09-29 (goldfish-ce), `be71b07`*: per-engine constraint-only
+      oids resolved before the walk; `merged_constraint_boundary()` emits the
+      censored row with no statistic step. Harness oracle: frames identical,
+      Poisson parity. `uncovered_rate` diff = 48 censored rows at the 8
+      emails times, dependent rows unchanged. Moved and refrozen on the
+      branch with Alvaro's approval (exception): parity goldens
+      `user_constraint__rate`, `constraint_bound__rate` (other 38 entries
+      identical). `support_mask_sparse` gate test's twin reads `contignet`.
+      9422 / 0 / 4, six baseline files PASS.
+      *Note 2026-10-03 (task 8.3):* the boundary rows reach past the
+      extent D4 exempts. A constraint-only row after the last dependent
+      event still stores its censored row (t = 9, interval 4, `end_time`
+      5), so these rows answer part of the extent cell D4 leaves open.
+      Keep or trim is `observation-tail-right-censoring` 0.3's decision;
+      nothing changed here.
+- [x] 2.3c Preallocate the atom recorder's log (added 2026-09-29, Alvaro;
+      found by 2.3b): `advance_constraint_atom_store()` appends one entry
+      per constraint event to four vectors (`record_time`, `record_gid`,
+      `record_entries`, `record_values`), and in the store each append
+      copies the whole vector, so the log grows quadratically (line
+      profile: ~670 MB over three runs on two lines at 1500 actors; the
+      uncovered choice went 543 -> 840 MB and the uncovered rate 465 ->
+      945 MB once threading routed them through it). Keep the log in
+      preallocated buffers that double in capacity with a fill count, as
+      the writers do, trimmed where `constraint_replay_atoms()` and the
+      handle read it; no per-event copy. Guard first, recorded failing: on
+      `constraint_cost_data()`, allocation of advancing the store over its
+      events grows linearly, not quadratically, in the number of events
+      (compare 1x and 2x the events). The log exists only for the
+      post-walk replay, which 4.6 retires with it; this removes the cost
+      for covered constraints too until then. Re-measure 2.3b after it.
+      — *done 2026-09-29 (goldfish-ce), `9738cca`*: doubling buffers taken out
+      of the store before each write, filled to `record_n`; the handle
+      resets the count and keeps the buffers. Guard failed at ratio 4.0,
+      passes after. Recorder allocation 62 / 246 / 981 MB -> 0.5 / 0.2 /
+      0.4 MB at 1500 / 3000 / 6000 events. 9423 / 0 / 4, baselines PASS.
+- [x] 2.3b Measure walk time, allocation and preprocessed object size on
+      the 2.0 generated fixture (median of three warm runs,
+      `bench::bench_memory()`), uncovered and covered, before 2.1 and after
+      2.3a, against the design's prediction; numbers in `progress.md`.
+      — *done 2026-09-29 (goldfish-ce), at `9738cca`* (median of 3 warm runs,
+      detached worktrees, same script): before `05aad2f` / after:
+      unconstrained choice 0.125 s 146 MB / 0.120 s 146 MB; uncovered
+      choice 0.511 s 543 MB 34.8 MB / 0.490 s 595 MB 34.8 MB; unconstrained
+      rate 0.114 s 94 MB / 0.110 s 95 MB; uncovered rate 0.364 s 465 MB 9.03
+      MB / 0.589 s 699 MB 9.24 MB. Against the prediction: choice time
+      flat (predicted a fall; allocation +9%); rate +62% time, +50%
+      allocation, above the predicted bound of C/(E+C) = 50%. Cause (profile):
+      `fold_active_sender_support()` after the walk costs per stored row
+      (~60 KB each) and 2.3a doubles the rate's rows; 4.6 retires that fold.
+      The first measurement (before 2.3c) found the quadratic recorder log.
+      *Amended 2026-10-03 (task 8.5):* the bound quoted here is wrong:
+      rows grow by C/E (+100 percent on this fixture, 2995 to 5986), not
+      C/(E+C). After 4.6 retired the fold the rate is still +56 percent
+      (0.380 to 0.591 s, groups 0-4 inspection); see the Storage section's
+      2026-10-03 revision.
+- [x] 2.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; all reference families PASS.
+      — *done 2026-09-29, on `9738cca`'s tree*: 9423 PASS / 0 FAIL / 4 SKIP,
+      six baseline files PASS, every reference family PASS, `_snaps/`
+      unchanged.
 
 ## 3. Handle conformance and the tied stamp (D3)
 
-- [ ] 3.1 Remove `walk_assert_covered_constraints()` and its snapshot from
+- [x] 3.1 Remove `walk_assert_covered_constraints()` and its snapshot from
       `_snaps/walk_handle.md`; replace the refusal test with a replay test
       on the uncovered fixture (`walk_replay_against_batch()`,
       `expect_gt(n_excluded, 0)`).
-- [ ] 3.2 Deferred atom moves: `walk_collect_atom_moves()` holds moves from
+      — *done 2026-09-29, `b1b2103` (see 2.1)*
+- [x] 3.2 Deferred atom moves: `walk_collect_atom_moves()` holds moves from
       an object event stamped at the current clock in a pending set that
       `walk_advance()` folds once the clock passes the stamp, so
       `walk_evaluate()` at `t` reads atoms strictly before `t`. Fixture: an
       `emails` event at a call's own stamp ordered before it; test
       batch-vs-replay equality there, and that disabling the deferral
       diverges (detector).
-- [ ] 3.3 Update the stale comments: `test-support_mask_sparse.R`'s
+      — *revised 2026-09-29 (Alvaro, ADR-0105)*: no deferral in the handle
+      (it broke free-running simulation). `walk_advance(t, inclusive =
+      FALSE)` stops strictly before `t` (composition up to and including
+      `t`); the time-anchored driver steps with it. Tests: the tied-stamp
+      fixture replayed through the handle with that stepping equals the
+      batch; a time-anchored simulation on it never draws 2 -> 4 at the tie
+      and does draw 2 -> 5; with inclusive stepping it fails (detector).
+      — *done 2026-09-29 (goldfish-ce), `58b806d`*: as revised. 9433 / 0 / 4,
+      six baseline files PASS. Deferral patch kept in the session scratch.
+- [x] 3.3 Update the stale comments: `test-support_mask_sparse.R`'s
       `mask_call_counts()` note about a flavored derived mask,
       `process-simulation` design D4's "refuses user support constraints"
       re-grounding note (a dated correction, not a rewrite, in that
       change's design — claim it first per ADR-0036), and the
       `build_atom_maintainer()` docstring.
-- [ ] 3.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce), `527a9d2`* (process-simulation claimed
+      for its D4 note).
+- [x] 3.4 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP.
+      — *done 2026-09-29, on `527a9d2`'s tree*: 9433 PASS / 0 FAIL / 4 SKIP, six
+      baseline files PASS, `_snaps/` unchanged.
 
 ## 4. Retire the private walk (D2 step three)
 
-- [ ] 4.1 Delete `build_atom_maintainer()`'s state container, schedule and
+- [x] 4.1 Delete `build_atom_maintainer()`'s state container, schedule and
       event loop (keep only what `build_constraint_atom_store()` still
       calls, or inline it), `recorder_covers_constraint()`,
       `constraint_atom_object_keys()` if unused, the fallback branch of
@@ -101,53 +256,711 @@
       covers every family. Check `preprocess_support_mask()` for test
       callers; delete it or move it to a test helper per ADR-0054, and say
       which in `progress.md`.
-- [ ] 4.2 Tick `constraint-atoms-as-operands` task 3.2 with a dated note
+      — *done 2026-09-29 (goldfish-ce), `0835fb3`*: per ADR-0054 the private
+      walk (`build_atom_maintainer()`) and `preprocess_support_mask()` MOVED
+      to `tests/testthat/helper-atom-maintainer-oracle.R` rather than being
+      deleted: the mask-maintainer tests use them as an independent oracle.
+      `recorder_covers_constraint()` deleted; `constraint_atom_object_keys()`
+      kept (three callers); fallback and default removed. 9440 / 0 / 5 (the
+      fifth skip is another session's cost-budget timing check).
+- [x] 4.2 Tick `constraint-atoms-as-operands` task 3.2 with a dated note
       pointing here (claim that change first), and add a dated note under
       `process-simulation` task 2.0's gap sentence.
-- [ ] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-09-29 (goldfish-ce)*: both changes claimed; notes dated.
+- [x] 4.3 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; every reference family PASS; `devtools::document()` for the
       changed signatures.
+      — *done 2026-09-29, the `0835fb3` run*: 9440 / 0 / 5, six baseline
+      files PASS, every reference family PASS; `document()` changed nothing
+      (the signatures are `@noRd`).
+- [x] 4.4a Cost guard for live masks, recorded failing first (added
+      2026-09-29): on the 2.0 generated fixture, a constrained choice and a
+      constrained rate plus choice allocate no `n1 x n2` object per event
+      in the mask fold (total allocation bounded by a small multiple of the
+      stored mask stream, not by events x grid), and no mask is realized
+      after the walk. Measure first whether today's post-walk realization
+      breaks the bound; if it does not, the guard is the no-post-walk
+      realization count alone, and `progress.md` says so.
+      — *done 2026-09-29 (goldfish-ce), `168f22a`* (guard = no post-walk
+      realization or fold call; committed skipped), *unskipped 2026-09-30
+      in `532471a`* with the retired functions asserted absent.
+- [x] 4.4 Live masks in the batch walk, references first (D9, added
+      2026-09-27; `process-simulation` 2.11b waits for this group, so a
+      constrained choice's exposure is a plain running sum): capture folded `active_sender` / `active_dyad` streams and
+      mask streams for every constrained reference family (rate, choice,
+      rate plus choice, REM, flavored derived masks, coordination) with the
+      post-walk realization still authoritative.
+      — *done 2026-09-29 (goldfish-ce), `8e36702`* (joint and flavored
+      families per fid; ticked 2026-09-30).
+- [x] 4.5 `run_merged_walk()` builds live masks with the handle's
+      construction (one builder shared by both, not a copy), collects atom
+      moves per object event under D3's strictly-before rule, and folds each
+      constrained fid's availability at each stored row. Assert every 4.4
+      reference byte-identically.
+      — *done 2026-09-29 (goldfish-ce), `926a8d9`, the mask half*: the batch
+      walk builds its masks with `walk_build_live_masks()`, records atom
+      moves without writing them, writes those strictly before each stored
+      row and collapses each fid's flips into its row; `realize_pending_
+      masks()` is not called; every 4.4 reference matches; 9448 / 0 / 6. The
+      availability half is 4.5b (design D9 amendment 2026-09-29).
+- [x] 4.5b Availability maintained as an effect (added 2026-09-29, Alvaro;
+      design D9 amendment and its same-day revision): per exact-time rate
+      fid (constrained or not) and per constrained choice / REM /
+      coordination fid, the stat `active_sender` or `active_dyad` at its
+      encoding, held in memory and updated in place (`write_entries()` /
+      `set_entries()`), with a cache of the per-sender count of allowed
+      present receivers and the count of entities at risk; fed by the live
+      mask's flips and the presence changes (presence on the writer's rule,
+      a change lands on the next stored row); its changes written by the
+      existing writers; replaces `fold_active_sender_support()`,
+      `fold_active_dyad_support()` and `build_active_dyad_point()`; the
+      handle's `walk_risk_set()` reads the same stat and cache. The choice
+      point stream changes: the initial grid is the true availability for
+      every row and every flipped cell is emitted (a receiver presence
+      change writes its column). Guard first: fold allocation per stored
+      row on the 2.0 fixture does not grow with `n` (today 40-63 KB a row).
+      Tests: every 4.4 reference byte-identical except the point-encoded
+      choice entries; for those, assert every dependent event's sender row
+      equals the old stream's, then refreeze them in
+      `constraint_atoms_refs.rds` and the point-choice entries of the
+      parity goldens on the branch (Alvaro approved); REM and coordination
+      unchanged; handle replays equal; the 4.4a guard's fold counts reach
+      zero.
+      — *answered 2026-09-30 (Alvaro)*: the opportunity list is a dyadic
+      mask like any other (the event sender's row set from its entry at
+      its row), not a lazy special case; the rate stores the ego logical
+      gate, its per-sender counts are cache; an unconstrained rate keeps
+      the writer's stream (count-only effect); the handle returns the
+      effect's buffer, no copy; guard = per-row slope, constrained minus
+      unconstrained, 750 vs 1500 actors, growth < 4 KB.
+      — *done 2026-09-30 (goldfish-ce), guard `1a08c6d`, code `ec4b3c0`*:
+      `R/availability_effect.R` (variants gate, presence, alter, outer,
+      point, dyad); the three folds and the opportunity fold deleted;
+      `build_active_dyad_point()` kept for the DyNAM-i bridge only. Guard
+      red at +33.2 / +32.5 KB per-row growth (rate / choice), green at -2 B
+      / +13 B, bites when a whole-vector recompute is forced. Moved and
+      refrozen (sender rows asserted equal): refs `choice`,
+      `uncovered_choice`, `joint_rate_choice`/2, `flavored`/2, /4; parity
+      `flavored_oracle__3`, `__4`, `user_constraint__choice`,
+      `constraint_bound__choice`; `opportunity__choice` did not move;
+      `test_time` snapshot sizes follow. Suite 9502 / 1 / 6, the failure
+      that snapshot (accepted, its file re-run 52 / 0); six baseline files
+      PASS; other `_snaps/` md5 unchanged. The 4.4a
+      guard passes unskipped (kept skipped until 4.6 as written).
+- [x] 4.6 Retire `realize_pending_masks()`'s replay and the post-walk folds
+      (`fold_active_sender_support()`, `fold_active_dyad_support()`,
+      `build_active_dyad_point()` as post-walk steps); settle the open
+      question on where the observed-dyad check runs, and snapshot it.
+      *Settled 2026-09-28 (D9):* the walk checks each dependent event
+      against the live mask and active status and aborts there (observed
+      dyad excluded, empty risk set, observed sender gated out), with
+      today's messages; the whole-sequence warnings stay at the end
+      — *amended 2026-09-29 (D9 amendment)*: the check reads the 4.5b
+      tracker (one mask cell, one presence entry, one count); the
+      whole-sequence warnings read counters the tracker accumulates, so the
+      validation's per-event mask replay (`mask_cursor()`, a full mask copy
+      per event, ~13 GB on the joint generated cell) goes too
+      — *amended again 2026-09-29 (Alvaro)*: the exposure
+      (`exposure_entity_time`, `avg_active_entity`) switches here to the
+      effect's running count of entities at risk, asserted equal to
+      `risk_set_exposure()` on every fixture (and the 2.11 MLE identity test
+      green) before that post-walk loop is deleted; `mask_cursor()` and
+      `mask_flips()`, left without readers, are deleted (ADR-0054)
+      — *note 2026-09-29*: the atom recorder's log (`record_*`, made linear
+      by 2.3c) exists only for the replay retired here; it goes with it,
+      the batch walk keeping only per-event moves as the handle does
+      — *answered 2026-09-30 (Alvaro)*: the deferred path keeps a verdict
+      on the output that estimation raises (an object without one asks to
+      be preprocessed again); the choice's candidate warning reads its
+      sender's row per dependent event (linear, accepted)
+      — *done 2026-09-30 (goldfish-ce), guard `8021b82`, code `532471a`*:
+      check in the walk off the effect (rate O(1); choice one row); the
+      whole-sequence warnings from crossings the effect follows;
+      `validate_support_constraint()` raises a verdict (snapshots
+      unchanged); exposure = the effect's running sum, asserted
+      `identical()` to `risk_set_exposure()` over the whole suite, then the
+      loop deleted. Retired: the post-walk validation and its readers,
+      `mask_cursor()`, `mask_flips()`, the stale-mask refusal,
+      `realize_pending_masks()`, the replay; the batch record already held
+      only pending moves (compacted at each flush). The pooled realization
+      and `flip_reader()` moved to test helpers (oracle). Guard red +16.7 KB
+      / +3.18 MB, green -0.45 KB / +17.7 KB; rate bound tightened to 1 KB
+      when a per-event recount slipped under 4 KB. 4.4a guard unskipped.
+      Suite 9513 / 0 / 5, six baseline files PASS, `_snaps/` unchanged but
+      the deleted `support_mask_sparse.md`. Budget constrained alloc 44270
+      MB (recorded 44910; inside the band).
+- [x] 4.7 Timing and allocation on CollegeMsg subsets (1k/5k/10k, median of
+      three warm runs) for a constrained choice and a constrained rate plus
+      choice, before 4.5 and after 4.6. Include the in-walk observed-event
+      check against the end-of-walk check; if the in-walk check adds walk
+      time the end check avoids, keep the abort at the end (D9)
+      — *extended 2026-09-29*: also preprocessed object size, and the 2.0
+      generated fixture beside CollegeMsg, each against the design's
+      prediction (object sizes byte-identical, walk time down by the
+      post-walk realization)
+      — *extended 2026-09-29 (D9 amendment)*: add the generated fixture's
+      joint rate plus choice cell with the observed-event validation ON
+      (the timing script stubs it for CollegeMsg, whose repeats the
+      constraint rejects): 8.3-9.3 s and ~14.3 GB before, ~13 GB of it the
+      validation's mask copies; predicted near zero after 4.6
+      — and the stored point-stream sizes of the point-choice cells before
+      and after 4.5b (the stream grows where composition meets a constraint)
+      — *done 2026-09-30 (goldfish-ce), tree `8890bfb`, detached worktree,
+      alone*: allocation down in every cell (CollegeMsg 10k: choice 1589 ->
+      801 MB, rate 1226 -> 496, joint 2423 -> 1371; generated joint 1036 ->
+      597), object sizes identical (+0.03 MB where the point stream grew).
+      Walk time UP 2-28% (10k joint 1.60 -> 1.89 s; generated joint 0.74 ->
+      0.91 s): the prediction (time down) is refuted. Split in one session:
+      the in-walk check is 5-19% (10k joint +0.31 s; it runs under the
+      script's stub, which only stubs the raise, while "before" skipped
+      validation entirely); without it the walk is still +4-18% (per-row
+      effect stepping in R against the old vectorized post-walk folds).
+      Validated joint generated cell (validation ON): 1.60 s / 14335 MB at
+      `8e36702` -> 0.98 s / 597 MB, so the in-walk check costs less than the
+      end-of-walk check it replaced; the abort stays in the walk (D9).
+      Point streams (update cols): CollegeMsg 1k 464 -> 547, 5k 1846 ->
+      2019, 10k 3506 -> 3766; generated 1722 -> 2990 (every flipped cell,
+      not only event senders' rows; <= 0.09 MB).
+      *Amended 2026-10-03 (task 8.5):* the refuted time prediction and
+      the choice check's row reads (the accepted sender row, and about
+      two `n2` rows per dependent event under a flipping point mask) are
+      now in the design's Storage section revision of that date.
+- [x] 4.8 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      SKIP; every reference family PASS.
+      — *done 2026-09-30, the `532471a` run* (4.7 changed no code): 9513 /
+      0 / 5, six baseline files PASS, every reference family PASS.
 
 ## 5. Fixtures F2–F5 with oracle and replay arms (D6, D8)
 
-- [ ] 5.1 F2 creation/dissolution: the harness's flavored mode (mutually
+- [x] 5.1 F2 creation/dissolution: the harness's flavored mode (mutually
       exclusive, derived masks); per-flavor rate and choice oracles; three
       goldfish routes (container, standalone single-flavor specs,
       de-flavored layers with hand-written masks) equal within 1e-6 per
       process; frame identity per process; handle replay with exclusion.
-- [ ] 5.2 F3 constraint on an object no formula reads: exogenous `emails`
+      — *done 2026-10-01 (goldfish-ce), `25766e4`*: 8 actors, 200 events
+      (111 creation, 89 dissolution); frames identical per flavor and
+      family; routes equal exactly; oracle worst 5.6e-12 (dissolution
+      choice). `walk_replay_against_batch()` moved to
+      `helper-walk-replay.R`. Bites when both flavors derive `!tie`.
+      9971 / 0 / 5, six baseline files PASS.
+- [x] 5.2 F3 constraint on an object no formula reads: exogenous `emails`
       stream driving `~ !tie(emails)` on `choice ~ recip` (and a rate
       variant with the row-reduction); oracle, frame identity, handle
       replay with exclusion.
-- [ ] 5.3 F4 composition change on F1: `present`/`active` changes with
+      — *done 2026-10-01 (goldfish-ce), `445e3cc`*: the gating fixture (8
+      actors, 120 events, senders 1-3 email every other node); choice
+      frame identical, clogit 1.7e-14; replay 240 checks, 8 excluded; the
+      rate variant is 2.3a's test on the same fixture (frame + glm). Bites
+      when the choice's availability effect is dropped. 10221 / 0 / 5, six
+      baseline files PASS.
+- [x] 5.3 F4 composition change on F1: `present`/`active` changes with
       actors leaving and returning; absent actors have no rows; presence
       flips are censored rows; rate and choice oracles; frame identity;
       handle replay with `walk_advance_presence()`.
-- [ ] 5.4 F5 one modeled flavor on F2's data: `rate = list(creation ~ ...)`,
+      — *revised 2026-09-29 (ADR-0103)*: goldfish closes the rate interval
+      at a presence change only from `process-simulation` task 2.11c, which
+      is applied at the trunk merge, so F4's rate arm (rate oracle and rate
+      frame identity) moves there. This task keeps the choice oracle and
+      frame, and the handle replay, none of which depends on the boundary.
+      The harness names the variable `active` (`present` is its former
+      name, which manynet renames on a node frame only).
+      — *done 2026-10-01 (goldfish-ce), `759873f`*: N3 and N7 leave and return
+      (10 actors, 150 events); choice frame identical, no row for an absent
+      node, clogit 2.0e-11; replay 300 checks, 13 excluded. Bites when the
+      writer gets no receiver presence changes. 10533 / 0 / 5, six baseline
+      files PASS.
+- [x] 5.4 F5 one modeled flavor on F2's data: `rate = list(creation ~ ...)`,
       `choice = list(creation ~ ...)`; dissolution events as censored rows
       and state updates; equality with F2's creation blocks; oracle; handle
       replay.
-- [ ] 5.5 Verification: `NOT_CRAN=true` suite green; baselines PASS not
+      — *done 2026-10-01 (goldfish-ce), `d47139b`*: creation alone keyed on
+      F2's sequence; 89 dissolution events are censored rows; equals F2's
+      creation blocks; glm 3.1e-14, clogit 1.8e-12; replay 222 checks, 377
+      excluded (the replay helper now maps an unflavored dependent row to
+      the layer's processes). Bites when a focal-layer covariate event
+      closes no interval. 10774 / 0 / 5, six baseline files PASS.
+- [x] 5.5 Verification: `NOT_CRAN=true` suite green; baselines PASS not
       SKIP; the simulation README's delta table filled for every fixture.
+      — *done 2026-10-01, the `d47139b` run* (5.5 adds only the README,
+      `3fff624`): 10774 / 0 / 5, six baseline files PASS; the delta table
+      covers F1-F5.
 
 ## 6. Close
 
-- [ ] 6.1 Re-check the three deltas against the living spec and the
+- [x] 6.1 Re-check the three deltas against the living spec and the
       predecessor's wording: `bash .plan/opsx-spec-placement-check.sh
       constraint-objects-on-shared-walk` (the `support-constraint` block is
       written against the post-predecessor text, so a pre-fold failure there
       is expected deferral); `openspec validate
       constraint-objects-on-shared-walk --strict` clean.
-- [ ] 6.2 `NEWS.d/constraint-objects-on-shared-walk--shared-walk-constraints.md`
+      — *done 2026-10-01 (goldfish-ce)*: two stale scenarios corrected
+      (Alvaro, via goldfish-0c, and the same reversal in the second): the
+      `support-constraint` scenario now says a constraint-only object's
+      events close every exact-time rate interval whose mask reads them
+      (ADR-0103, task 2.3a), renamed "is threaded onto the shared walk";
+      the `simulation-cross-validation` composition scenario now covers the
+      choice and hands the rate arm to `process-simulation` 2.11c (task
+      5.3's revision). Placement check OK (7 placements, no deferral);
+      `validate --strict` clean.
+- [x] 6.2 `NEWS.d/constraint-objects-on-shared-walk--shared-walk-constraints.md`
       (constraints on any object maintained by the one walk; handle no
       longer refuses them) and
       `NEWS.d/constraint-objects-on-shared-walk--simulation-tests.md`
       (developer-facing: the cross-validation harness). No `NEWS.md` or
       Version edit on the branch.
-- [ ] 6.3 Vault: ADR-0073 `spec:`/open questions current; dashboard
+      — *done 2026-10-01 (goldfish-ce)*: the shared-walk fragment (created
+      by 2.3a) gains the walk, handle and check bullets and the refusal of
+      constrained objects from an earlier version (4.6); the
+      simulation-tests fragment added. No `NEWS.md` or Version edit.
+- [x] 6.3 Vault: ADR-0073 `spec:`/open questions current; dashboard
       fragment in `_dashboard-inbox/`; session note closed; the open extent
       cell handed to `observation-tail-right-censoring` in its own
       `progress.md` note.
-- [ ] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines
+      — *done 2026-10-01 (goldfish-ce)*: ADR-0073 discussion log brought
+      current (ADR-0103, ADR-0105, ADR-0106, ADR-0108, the fixtures; its
+      ADR-0068 link path repaired); dashboard fragment written; session note
+      `2026-10-01-constraint-objects-availability-effect-and-fixtures`
+      closed; the extent cell handed to `observation-tail-right-censoring`
+      in its `progress.md` (claimed for the write, released).
+- [x] 6.4 Final verification: full `NOT_CRAN=true` suite green; baselines
       PASS not SKIP; `status: landed (feature_simulation, awaiting fold)` in
       `proposal.md`.
+      — *done 2026-10-01 (goldfish-ce), suite on `d79f200`*: 10774 / 0 / 5,
+      six baseline files PASS; `proposal.md` marked landed.
+
+## 8. Conformance follow-up, groups 0-4 (added 2026-10-03)
+
+From
+`.plan/develop/constraint-objects-on-shared-walk-groups0-4-conformance.md`
+(evidence in the folder of the same name), inspected at `0a99c74` over
+`663096d..7b56821`. The code computes correctly: suite 10774 / 0 / 5, six
+baseline files PASS, `_baselines/` untouched, the stored fields and encodings
+unchanged, every detector the groups added red under ablation except two. The
+spec still requires a mechanism ADR-0105 replaced, and one tie rule has no
+detector. 8.1 and 8.2 block the fold; they apply before group 7.
+
+- [x] 8.1 **blocks**: `specs/multi-process-walk/spec.md:77-79` says atom
+      moves stamped at the current clock "SHALL be held until the clock
+      passes that stamp"; the handle steps with
+      `walk_advance(t, inclusive = FALSE)` instead (ADR-0105). The same
+      wording is in `proposal.md:69-72` and the design's D3 storage
+      paragraph (`design.md:446-449`). Rewrite all three to the mechanism
+      that landed, carrying every living scenario. Verify: `openspec
+      validate --strict` and the placement check clean; no "held until"
+      wording left.
+      — *done 2026-10-03*: the handle requirement now states one clock
+      rule (state at the clock includes every row stamped up to it), the
+      observed-stamp driver's `walk_advance(handle, t, inclusive = FALSE)`
+      with the tied rows applied after injection, and a negative clause
+      (no pending set inside the handle). The MODIFIED block keeps the
+      three living scenarios by exact name plus its added one. Also
+      rewritten beyond the three named sites, same stale mechanism: D3's
+      decision body (now points at its own revision), the Risks line
+      ("D3's deferred moves"), and the proposal's Impact code line
+      ("deferred atom moves at a tied stamp"; `R/simulate_anchored.R`
+      added there). `grep -rn "held until\|held in a pending\|defers
+      atom\|deferred atom"` over the change, tasks.md aside: empty.
+      `openspec validate --strict`: valid; placement check: OK (7
+      placements). Artifact-only, no suite run needed for the text; the
+      suite runs with 8.2.
+- [x] 8.2 **blocks**: the batch strictly-before tie rule
+      (`R/support_mask_maintain.R:310`) has no detector: `<` to `<=` keeps
+      every test green (8 files at `0a99c74`, all 35 `support_constraint`
+      files at tip), because the tied fixtures place the constraint row
+      after the call and never reach "precedes it in schedule order". The
+      case is reachable: a choice-only `emails` process ahead of a
+      constrained choice-only `calls` process gives N2 the allowed set
+      {1, 2, 3, 5, 6} under the shipped rule and {1, 2, 3, 6} under `<=`
+      (the report's `probe-tie-flush-joint.R`). Commit that fixture.
+      Verify: the `<=` ablation is red.
+      — *done 2026-10-03, batch half only*: `test-constraint_atoms_operands.R`
+      "an atom event ahead of a dependent event at its stamp lags" builds
+      the joint fixture, asserts the schedule puts the `emails` dependent
+      row ahead of the call at t = 2, and that N2's choice probabilities
+      at its call are positive exactly on {1, 3, 5, 6} (the report's
+      {1, 2, 3, 5, 6} counts the self cell of the stored grid; the
+      probability excludes it). Red under `<=` at
+      `R/support_mask_maintain.R` `flush_atom_moves()` (copy and restore,
+      `cmp` clean): 1 failure, that test, 125 / 1 / 0 in the file; green
+      shipped, 126 / 0 / 0. Full `NOT_CRAN=true` suite: 13192 / 0 / 7
+      skipped (all opt-in or environmental), six baseline files PASS with 0
+      skipped. **The handle half is NOT closed**: "on the
+      handle alike" fails for a dependent event of another process (or of
+      the same process) injected at the stamp, so the fixture carries no
+      replay arm; see 8.2a.
+      *Amended 2026-10-03 (8.7b):* the red above was measured at
+      `57d0370`, before 8.2b. Under 8.2b's order the row that moves the
+      atom always follows the call, so `<` to `<=` alone is now an
+      equivalent mutant and leaves this test green; the order key carries
+      the rule (red under the old key: the 8.2b tests), and `<` is pinned
+      by the unit test "an atom move is written only once the clock
+      passes its stamp" (red under `<=`: 4 failures). The test is renamed
+      "an atom event of an earlier process at a call's stamp lags" and its
+      comment says only the emails dependent row leads the call.
+- [x] 8.2a **blocks** (added 2026-10-03, found applying 8.2): at a stamp
+      shared by dependent events, the anchored driver
+      (`simulate_anchored_replicate()`) evaluates and injects one event at
+      a time, so an event injected at t is live when a later event at t
+      that reads its layer through a constraint is evaluated. This holds
+      for a dependent event of another process and of the same one. Cross
+      process: a tied `emails` event injected at t = 2 is live at the tied
+      constrained `calls` event, live mask {1, 3, 6}, batch {1, 3, 5, 6};
+      over 400 anchored replicates N2's call never drew the tied emails
+      receiver where the batch rule allows it about one time in four
+      (probes: coordinator scratchpad `co8/probe82.R`, `co8/probe82b.R`).
+      Same process: under `~ !tie(calls)`, N2's second call at t = 2 has
+      live {1, 4, 5, 6}, batch {1, 3, 4, 5, 6} (`co8/probe82c.R`). The
+      test helper `walk_replay_against_batch()` steps the same per-event
+      pattern. ADR-0105 covered exogenous rows sharing a stamp, not this.
+      *Decided 2026-10-03 (Alvaro, ADR-0114): the anchored driver and
+      `walk_replay_against_batch()` evaluate every dependent event at a
+      stamp before injecting any.* Verify: the handle-alike scenario
+      holds for the tied dependent case under the chosen rule, with a
+      detector red under the other pattern.
+      — *done 2026-10-03*: `simulate_anchored_replicate()` draws every
+      event of a stamp before injecting any (buffers sized to the largest
+      stamp, built once before the loop; `k` counts accepted draws as
+      before); `walk_replay_against_batch()` evaluates every dependent row
+      of a stamp first, then applies that stamp's covariate and exogenous
+      rows in schedule order (stamp bounds computed once). Detectors, red
+      on the shipped driver and helper: `test-simulate_anchored.R` "a tied
+      event of another process is not in force at a stamp" (the choice
+      row the mark step sees at N2's tied call: {1, 3, 6} against {1, 3,
+      5, 6}) and "... of the same process ..." (`~ !tie(calls)`, second
+      tied call: {1, 4, 5, 6} against {1, 3, 4, 5, 6}), one failure each,
+      asserted on the evaluation the mark step receives, not on draw
+      frequencies; `test-walk_handle.R` "a tied dependent event of another
+      process is not in force" through the helper, red with the old
+      helper (1 failure: live 0.333 0.000 0.333 0.000 0.000 0.333 against
+      batch 0.25 0 0.25 0 0.25 0.25). Identity: the 154 anchored
+      replicates the nine simulation-related test files produce at their
+      fixed seeds are `identical()` before and after (spec dropped), 4 of
+      them with tied drawn stamps; the helper's callers
+      (`test-walk_handle.R`, `test-simulation_cross_validation.R`) green.
+      Sweep of the other `walk_inject()` users: `test-walk_handle.R`'s two
+      inline replay loops (the multi-process and single-process replay
+      tests) step per schedule position; `walk_two_process()` has 3
+      cross-process tied stamps there but no statistic or mask reads the
+      other layer at the tied sender, so they agree; under 8.2b's schedule
+      order they evaluate a stamp's dependent rows first anyway.
+      `test-preprocess_parity.R`, `test-simulate.R` and
+      `test-support_gate_self_exclusion.R` inject single events with no
+      evaluation at a tie; the free-running driver injects at drawn
+      continuous times (no tie). Delta: the handle requirement now says
+      every dependent event of a stamp is evaluated before any is
+      injected, with a new scenario "tied dependent events are evaluated
+      before any is injected" (every living scenario kept; validate and
+      placement clean). NEWS.d `constraint-objects-on-shared-walk--tied-stamps.md`.
+      Suite 13221 / 0 / 7 skipped, six baseline files PASS. Batch
+      statistics at a cross-process tie are 8.2b.
+      *Amended 2026-10-03 (8.7b):* the helper detector's red was measured
+      before 8.2b. Under 8.2b's order every dependent row of a stamp
+      already precedes its other rows, so the per-position helper
+      evaluates in the grouped order and reverting the helper alone is now
+      an equivalent mutant (green, re-check). The anchored detectors still
+      bite (2 failures under the per-event driver).
+- [x] 8.2b **blocks** (added 2026-10-03, Alvaro, ADR-0114 extended): batch
+      statistics at a stamp shared by dependent events of different
+      processes read rows in schedule order (emails' `tie(calls)` sees a
+      tied call), while masks read strictly before. Make the batch read
+      strictly before the stamp for statistics too, so it agrees with the
+      masks and with the grouped replay (8.2a). Gate: before any code
+      change, measure which frozen baselines, goldens and references hold
+      cross-process tied stamps where a statistic reads another layer; a
+      frozen baseline that would move stops the task for the coordinator
+      (refreezes happen only on the trunk). Verify: a detector red on the
+      shipped batch at the probe's tie; batch equals the grouped replay on
+      statistics and masks at cross-process ties; within-process outputs
+      unchanged.
+      — *done 2026-10-03*: gate first (no code committed): a prototype
+      of the order in a detached worktree ran the full suite at 13220 / 1
+      / 7: the six baseline files, the C++ and parity goldens,
+      `constraint_atoms_refs.rds`, `fixtures/simulated_events.rds`, the
+      classical and likelihood references and the budget tests all PASS;
+      no frozen generator builds a joint spec. Cleared by the
+      coordinator. Then `build_joint_schedule()` orders by `(time,
+      !dependent, stream_index)`, one radix key resolved at build.
+      Detector, `test-walk_handle.R` "a statistic does not read a tied
+      event of another process" (calls 2 -> 3 and emails 2 -> 1 at t =
+      2, the emails choice reading `tie(calls)`): red on the shipped batch
+      with 2 failures (N2's `tie(calls)` row sums to 1, not 0; the grouped
+      replay's live row 0.1821 0 0.1821 0.2716 0.1821 0.1821 against the
+      batch's 0.1911 0 0.1416 0.2851 0.1911 0.1911), green after. The
+      `test-preprocess_parity.R:765` pin "the shared schedule is ordered
+      by (time, stream_index)" was a structural pin, not a frozen number:
+      rewritten by hand as "a stamp's dependent rows precede its other
+      rows, then streams" asserting the new order (plus that the fixture
+      has a tied dependent stamp). Identity: of the 288 merged-walk outputs
+      13 preprocessing test files produce (constraint atoms, parity, joint,
+      coefficient, two-mode and DyNAM-i baselines, classical, simulation
+      cross-validation, coordination, REM and rate constraints, flavored
+      dependent events, walk handle), the 280 with no cross-process
+      dependent tie are `identical()` before and after; 6 of the 8 with
+      one changed (toy joints only). Schedules the order changes, over all
+      test files (`gate-moves.log`, coordinator scratchpad `co8/`): the
+      calls + emails joints on `walk_fixture_data()` (3 tied stamps) in
+      `test-simulate.R` (70 schedules), `test-walk_handle.R` (12),
+      `test-preprocess_joint.R` (9), `test-simulate_anchored.R` (4),
+      `test-intercept_only_rate.R` (2), `test-simulation_steps.R` (1); its
+      windowed twin in `test-preprocess_parity.R` (3); and the one-stamp
+      8.2 / 8.2a tie fixtures (`test-constraint_atoms_operands.R` 2,
+      `test-walk_handle.R` 2, `test-simulate_anchored.R` 1). Design D10
+      (tie semantics for masks and statistics, with its storage and cost
+      note); the merged-walk requirement states the order and gains the
+      scenario "a tied event of another process is not read at its
+      stamp", the 8.2a scenario covers statistics (every living scenario
+      kept; validate and placement clean). NEWS.d bullet added to
+      `constraint-objects-on-shared-walk--tied-stamps.md`. Suite 13240 / 0
+      / 7 skipped, six baseline files PASS; `_baselines/` untouched.
+      *Amended 2026-10-03 (8.7b):* the order also removed a self-read the
+      note above did not name. When an earlier-planned process reads a
+      later one's layer, that layer's covariate stream had a lower
+      `stream_index` than the later process's dependent stream, so the
+      later process applied and read its own event's update at its own
+      evaluation, at untied stamps too. Now a test ("a process does not
+      read its own event at its evaluation"), red under the old key; D10
+      and the NEWS fragment name it. The "permuted" counts above cover
+      both kinds: the re-check's audit of every schedule the suite builds
+      found 109 permuted, none of the self-read kind before this test.
+- [x] 8.3 **should-fix**: the D4 extent exemption has no detector (flipping
+      `is_constraint_only_row()` stays green), and the 2.3a boundary rows
+      reach past the exempt end (a trailing `emails` event at t = 9 stores
+      a censored row with interval 4 while `end_time` stays 5). Add a
+      detector for the predicate, and record in D4 and the 2.3a tick note
+      that the boundary rows answer part of the extent question D4 leaves
+      open; the keep-or-trim decision is handed to
+      `observation-tail-right-censoring` 0.3 (note added there).
+      — *done 2026-10-03*: `test-constraint_atoms_operands.R` "a
+      constraint-only row does not extend the walk extent": the predicate
+      flags exactly the `emails` rows, the resolved end and the stored
+      `end_time` are 5, and a twin whose rate formula reads
+      `indeg(emails)` ends at 9. Red with `is_constraint_only_row()`
+      returning all `FALSE` (copy and restore, `cmp` clean): 3 failures,
+      all in this test (127 / 3 / 0 in the file); green shipped, 130 /
+      0 / 0. Rows kept or trimmed: unchanged. Recorded in D4 (dated note)
+      and the 2.3a tick note; the hand-off note in
+      `observation-tail-right-censoring` 0.3 is already there (tracked at
+      `1bc74a9`). Suite 13196 / 0 / 7 skipped, six baseline files PASS.
+- [x] 8.4 **should-fix**, record: the walk-time regression has no tracked
+      owner. The unconstrained exact-time rate walk is 20-33 percent slower
+      (0.117 s at `663096d`, 0.141-0.156 s at `0a99c74`, 0.143 s at
+      `3cb92d9`), about two thirds of it `availability_step()` stepping the
+      presence effect in R on every stored row; the CollegeMsg unconstrained
+      joint walk 3.65 to 4.01 s. The 4.9 fast path proposed for it lives
+      only in `progress.md`. Record the measurement in tasks.md and name
+      the successor that owns 4.9. *Owner 2026-10-03 (Alvaro):*
+      `availability-one-object-per-loop` task 6.6b, which owns
+      `availability_step()` and takes the fast path with the per-row
+      `c()` growth and by-name `[[fid]]` lookups. This task closes by
+      recording that hand-off in D4's storage note.
+      — *done 2026-10-03, record only*: the fast path was taken as
+      `availability-one-object-per-loop` 6.6b, fix `5689797` (idle rows
+      skipped, routes resolved before the loop, no per-row growth or
+      by-name lookup): unconstrained exact-time rate 0.142 to 0.127 s on
+      the 1500-actor fixture, still 8.5 percent over 0.117 s at
+      `663096d`; the remainder is the `availability_step()` call itself
+      (stubbed out: 0.116-0.118 s). CollegeMsg unconstrained joint walk
+      unchanged by it (3.68 s). Recorded in the design's Storage section
+      (the 2026-10-03 revision's unconstrained-rate bullet, which is what
+      "D4's storage note" names: the Storage section has no D4
+      paragraph). No code here.
+- [x] 8.5 **should-fix**: the design's Storage section is stale. The
+      observed-event check reads the sender's row (about 36 KB per
+      dependent event), not one mask cell (accepted only in 4.6's note);
+      the predicted time drop was refuted; the 2.3a row bound is computed
+      as C/(E+C) where rows grow by C/E, and the measured +56 percent sits
+      above it. Amend D4's storage paragraph and the 2.3a/2.3b tick notes.
+      *Added 2026-10-03* (from the `availability-one-object-per-loop`
+      follow-up re-check, `.plan/develop/`
+      `availability-one-object-per-loop-followup-conformance.md`, G-D; the
+      hand-off its 6.7 sent to `likelihood-site-cleanup-and-cost` had no
+      receiving task there and is walk code): under a flipping point mask
+      the observed-event check still reads about two `n2` rows per
+      dependent event. Record it in the same storage paragraph as the
+      accepted row read, with the measured size.
+      — *done 2026-10-03*: a dated revision under the Storage section
+      ("what was measured against these predictions") records the choice
+      check's sender-row read (about 36 KB per dependent event at 1500
+      actors, accepted 2026-09-30), the flipping-point-mask candidate
+      re-reads in the same paragraph (about two `n2` rows, 12 KB per
+      dependent event; 6080 row-sized allocations, 35 MB over 2995 events;
+      accepted below the 0.2 MB rule, no task takes the per-sender epoch),
+      the refuted time drop (4.7: +2-28 percent), the corrected 2.3a
+      bound (rows grow by C/E, +100 percent, against C/(E+C); time +56
+      percent above the stated 50) and the unpredicted unconstrained-rate
+      cost (detail and owner in 8.4). Tick notes 2.3b and 4.7 amended
+      with pointers. Artifact-only.
+- [x] 8.6 **should-fix**: `proposal.md:142` says no reference moves for
+      unconstrained or covered models; 4.5b moved the covered `choice`
+      reference and two covered point-choice parity goldens. Correct the
+      Impact line.
+      — *done 2026-10-03*: the Numbers bullet now says no estimate moves
+      and outputs are byte-identical except the point-encoded choice
+      availability stream, naming the refrozen covered `choice` reference
+      and the `user_constraint__choice` / `constraint_bound__choice`
+      goldens (sender rows asserted equal, approved), and the by-design
+      2.3a rate move (`uncovered_rate`, the rate goldens). validate
+      --strict and placement clean. Artifact-only.
+- [x] 8.7 **should-fix**: the "byte-identical" reference tests
+      (`test-constraint_atoms_operands.R:46,98`) use `expect_equal()`; use
+      `expect_identical()`. Verify: they stay green.
+      — *done 2026-10-03*: both kept-field comparisons (constrained
+      families, joint families per fid) now `expect_identical()`; green,
+      the file 130 / 0 / 0. Left as is: the plan-effects capture test
+      (`:27-38`), which no task text calls byte-identical. Suite 13196 / 0
+      / 7 skipped, six baseline files PASS.
+- [x] 8.7a **should-fix** (added 2026-10-03, Alvaro assigned it here; from
+      the `availability-one-object-per-loop` follow-up re-check, G-H,
+      pre-existing at `9e195dc`): on the 1500-actor rate fixture
+      `~ indeg(emails) >= 0` excludes nothing yet costs 0.61 s and 822 MB
+      against 0.127 s and 95 MB unconstrained, about 0.15 MB per event in
+      the constraint atom's per-event maintenance. Attribute it line by
+      line (Rprofmem in a detached worktree). If it is a walk-cost
+      violation (a copy, growth, a by-name lookup or a grid per event),
+      write the cost guard red first and fix it, with stored objects
+      byte-identical and the baselines PASS. If it is proportional to the
+      cells the atom changes, record why in D4's storage paragraph instead.
+      Verify: allocation and time on that fixture before and after, back
+      to back on optimized builds.
+      — *done 2026-10-03, recorded and handed off (Alvaro)*: attributed
+      with `Rprofmem` in a detached worktree at `904856a` (`-O2`
+      build): 0.615 s / 822 MB against 0.128 s / 95 MB unconstrained
+      (median of 9 warm runs); 649 MB of the 825 MB allocated in blocks
+      of 1 KB or more is under `advance_constraint_atom_store()`, about
+      0.22 MB per emails event (2991 events): `to_alter()` 378,
+      `collapse_entries()` 116, `project_entries()` 103,
+      `update_DyNAM_rate_indeg()` 34,
+      `linear_entries()` 17 MB; about 0.27 s of the time gap in the atom
+      store, 0.11 s in `to_alter()`. Not a copy, growth, by-name lookup
+      or grid in the atom store, and not proportional to the cells the
+      atom changes: it scales with `n1` per event because the shared
+      broadcast-effect contract emits a degree change as `n1 - 1` dyad
+      rows that the atom path collapses back to one entry, the same cost
+      every degree statistic pays. A vectorized `to_alter()` was tried
+      and allocated more (925 MB); dropped. The fix (at-kind emission,
+      `to_ego()` / `to_alter()` deleted) is handed to
+      `initial-stats-at-kind` 3.2 / 3.3 (its note is on trunk,
+      `335c150`). Recorded in the design's Storage revision. No code.
+- [x] 8.7b **should-fix** (added 2026-10-03, from the follow-up re-check,
+      gaps A-D): (A) after 8.2b the 8.2 detector (`<` to `<=`) and the 8.2a
+      replay-helper detector are equivalent mutants: every dependent row now
+      leads its stamp, so neither single-site ablation is red any more;
+      amend the 8.2 and 8.2a tick notes and D10 to say the order key carries
+      the rule and which detectors bite, fix the
+      `test-constraint_atoms_operands.R` comment that says the emails event
+      is "scheduled ahead" (only its dependent row is), and pin
+      `flush_atom_moves()`'s strict comparison with a unit test that is red
+      under `<=`; (B) the new order key also fixed a self-read: when an
+      earlier-planned process reads a later one's layer, the later process's
+      own covariate stream sorted ahead of its dependent rows and it read
+      its own event's update at its own evaluation, at untied stamps too;
+      add the re-check's fixture as a test red under the old key, and record
+      the case in D10, the 8.2b tick note and the NEWS.d fragment; (C) the
+      proposal's Numbers line ("byte-identical except the point stream") is
+      false for joint specifications after 8.2b, and the mask-timing bullet
+      and the Code line omit the grouping and the statistics rule; correct
+      them; (D) NEWS.d bullet 2 says joint fits' estimates may move, but
+      joint specifications cannot be estimated on this branch
+      (`reject_joint_specification()`), single and flavored fits do not
+      move, and the self-read is missing; rewrite it to what a user can
+      observe (anchored simulation and preprocessed joint objects at tied
+      stamps). Optional, if small: restate the composition carve-out in the
+      merged-walk requirement. Verify: the new unit pin red under `<=`, the
+      self-read test red under the old key, validate and placement clean,
+      suite green with baselines PASS.
+      — *done 2026-10-03*: (A) tick notes 8.2 and 8.2a amended, D10
+      gains "which detectors bite"; the 8.2 test renamed and its comment
+      fixed (only the emails dependent row leads the call); new unit pin
+      in `test-constraint_atoms_operands.R` "an atom move is written only
+      once the clock passes its stamp", red under `<=` at
+      `flush_atom_moves()` with 4 failures, all in it (132 / 4 in the
+      file; 136 / 0 shipped). (B) `test-walk_handle.R` "a process does
+      not read its own event at its evaluation": calls planned first
+      reads `tie(emails)`, emails' choice reads its inertia at untied
+      stamps 1.5 and 2.5; red under the old key `order(time,
+      stream_index)` with 5 failures in it (N2's and N3's own events read
+      as 1, and the replay rows), green at head; recorded in D10, the
+      8.2b note and the NEWS fragment. (C) proposal: the mask-timing
+      bullet gains the one-rule extension (grouping and statistics), the
+      Code line names the grouped draws and `build_joint_schedule()`, and
+      Numbers names joint specifications as the second exception (no
+      reachable estimate moves; anchored draws at tied stamps can). (D)
+      NEWS bullet 2 rewritten to what a user can observe: preprocessed
+      joint specifications reading a tied event of another process, or
+      their own event when an earlier process reads their layer. Optional
+      taken: the merged-walk requirement restates that composition
+      changes are not schedule rows and are in force at the stamp; D10's
+      allocation wording says nothing n-scaled (about 0.2 KB of
+      constant-size wrappers). validate --strict and placement clean.
+      Suite 13259 / 0 / 7 skipped, six baseline files PASS.
+- [x] 8.8 Verification: `NOT_CRAN=true` suite green; baselines and goldens
+      PASS not SKIP; `openspec validate --strict` and the placement check
+      clean; a scoped re-check of gaps 1-7 by a fresh conformance-inspector
+      agent. Notes not owned here: per-row `c()` growth and by-name
+      `[[fid]]` lookups go with 4.9; censored rate rows restating held
+      values (`preprocess-output-writers`, pre-existing); the 4.4a guard
+      checks function names only (optional); the walk budget's band cannot
+      see constraint-path costs (budget tooling).
+      The constraint atom's per-event maintenance cost is task 8.7a
+      (owner decided 2026-10-03).
+      Done 2026-10-03. The re-check
+      (`.plan/develop/constraint-objects-on-shared-walk-followup-conformance.md`,
+      a fresh agent at `1c8cbf2`) reports CONFORMANT: every gap of the groups
+      0-4 and 5-6 reports closed or handed to a task that exists; 8.2b holds
+      against an independent oracle (40 rows, 24 tied; r, cpp and gather
+      agree); 280 of 280 unpermuted walk outputs, 156 anchored and 112
+      free-running replicates identical; nothing frozen moved; suite 13240 /
+      0 / 7. Its should-fixes A-D are 8.7b; after 8.7b the suite is 13259 /
+      0 / 7 with the six baseline files PASS (0 skipped), validate and
+      placement clean, and the coordinator re-ran the `flush_atom_moves()`
+      pin (`<=`: 132 / 4; clean 136 / 0).
+
+
+## 7. Conformance follow-up, groups 5-6 (added 2026-10-02)
+
+From
+`.plan/develop/constraint-objects-on-shared-walk-groups5-6-conformance.md`.
+Groups 5-6 conform: every fixture arm has a test, every detector bites under
+its named mutation, the suite reproduces at 10774 / 0 / 5. Three small items
+before the fold.
+
+
+- [x] 7.1 **should-fix**: OpenSpec references in code and documentation:
+      the comment at `tests/testthat/test-simulation_cross_validation.R:648-649`
+      names "process-simulation 2.11c", and
+      `tests/testthat/_references/simulation_v1/README.md:88,92` cite
+      ADR-0103 and task 2.11c. Rewrite by hand to state the rule (presence
+      changes close the rate interval; the rate arm waits on that rule) with
+      no artifact pointer.
+      — *done 2026-10-03*: rewritten by hand. The F4 comment says there is
+      no rate arm yet because the oracle splits the rate's exposure at
+      every presence change and goldfish does not yet close the rate
+      interval there; the README's F3 paragraph states the rule (each
+      `emails` event closes the interval with a censored row, so the rate
+      integrates the risk set over the time each state was in force) and
+      F4's says a presence change must close it the same way, the rate arm
+      following once it does. No ADR, task or change name left in either
+      file; an added-lines scan over `R/`, `tests/` and `src/` since
+      `1bc74a9` finds none. Suite 13240 / 0 / 7 skipped, six baseline
+      files PASS.
+- [x] 7.2 **note**, record only: commit `759873f` (F4) also deleted
+      `openspec/changes/exact-time-diagnostic-cost/` (389 lines) without
+      saying so; the deletion belongs to `likelihood-site-cleanup-and-cost`,
+      which absorbed that change (its proposal says so; recoverable at
+      `e42d05e`). Noted here for whoever folds the branch.
+      — *recorded 2026-10-03*: confirmed. `git show --stat 759873f`
+      removes the five files of `openspec/changes/exact-time-diagnostic-cost/`
+      (389 deletions); all five are at `e42d05e`;
+      `likelihood-site-cleanup-and-cost/proposal.md:65` says it absorbs
+      that change. Nothing to restore; the fold should not re-add the
+      directory.
+- [x] 7.3 Handed to `estimation-contract-matrix` 2.3a: the F2 standalone
+      and de-flavored routes are compared with the container, not the
+      oracle (a 2e-6 bound where the spec says 1e-6 each; measured gap 0),
+      and `skip_if_not_installed("survival")` sits inside the F2 loop so a
+      missing package would skip the `glm` arms the design says never skip.
+      — *recorded 2026-10-03*: the receiving task exists:
+      `estimation-contract-matrix/tasks.md` 2.3a (added 2026-10-02) names
+      both items (routes compared with the container at 2e-6, the
+      `survival` skip inside the F2 loop) and verifies with `survival`
+      mocked absent. Nothing changed here.

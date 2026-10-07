@@ -227,7 +227,11 @@ project_entries <- function(node1, node2, values, from, to, n1, n2) {
 #' materialized fresh at seeding and lives in exactly one environment binding.
 #' Anything else, or a value whose type does not already match the buffer's,
 #' takes ordinary subassignment, so the buffer is returned either way and the
-#' caller's code reads the same whether or not the write was in place.
+#' caller's code reads the same whether or not the write was in place. A
+#' length-1 buffer always takes subassignment: a scalar is not materialized
+#' fresh (a scalar comparison returns R's shared `TRUE` or `FALSE`, a literal
+#' in byte-compiled code lives in the constant pool), and its copy costs
+#' nothing.
 #'
 #' @param buffer the stored value.
 #' @param entries,values as returned by [project_entries()].
@@ -237,7 +241,8 @@ write_entries <- function(buffer, entries, values) {
     return(buffer)
   }
   if (
-    typeof(buffer) == typeof(values) &&
+    length(buffer) > 1L &&
+      typeof(buffer) == typeof(values) &&
       typeof(buffer) %in% c("double", "logical")
   ) {
     set_entries(buffer, linear_entries(buffer, entries), values)

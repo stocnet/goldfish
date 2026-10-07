@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // estimate_DyNAM_MM
-List estimate_DyNAM_MM(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_DyNAM_MM(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_DyNAM_MM(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_dyad_sender_init, const arma::mat& active_dyad_sender_update, const arma::vec& active_dyad_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
+RcppExport SEXP _goldfish_estimate_DyNAM_MM(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_dyad_sender_initSEXP, SEXP active_dyad_sender_updateSEXP, SEXP active_dyad_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -24,16 +24,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_update_pointer(stat_mat_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type stat_mat_broadcast(stat_mat_broadcastSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_broadcast_pointer(stat_mat_broadcast_pointerSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_init(active_sender_initSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type active_sender_update(active_sender_updateSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_update_pointer(active_sender_update_pointerSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_init(active_dyad_sender_initSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_sender_update(active_dyad_sender_updateSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_update_pointer(active_dyad_sender_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_init(active_dyad_initSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_update(active_dyad_updateSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_update_pointer(active_dyad_update_pointerSEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type active_dyad_is_point(active_dyad_is_pointSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
@@ -42,13 +41,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_availability(return_availabilitySEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_MM(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
+    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_MM(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
     return rcpp_result_gen;
 END_RCPP
 }
 // estimate_DyNAM_choice
-List estimate_DyNAM_choice(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_DyNAM_choice(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_DyNAM_choice(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
+RcppExport SEXP _goldfish_estimate_DyNAM_choice(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -65,7 +64,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type active_dyad_is_point(active_dyad_is_pointSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
@@ -74,13 +72,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_availability(return_availabilitySEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_choice(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
+    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_choice(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
     return rcpp_result_gen;
 END_RCPP
 }
 // estimate_DyNAM_rate
-List estimate_DyNAM_rate(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::vec& timespan, const arma::vec& is_dependent, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_total_rate, const bool return_probabilities, const bool return_availability, const bool return_conditional_scores, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_DyNAM_rate(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_total_rateSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP return_conditional_scoresSEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_DyNAM_rate(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::vec& timespan, const arma::vec& is_dependent, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_total_rate, const bool return_probabilities, const bool return_availability, const bool return_conditional_scores, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace, const bool force_shifted_normalizer, const bool report_normalizer_route);
+RcppExport SEXP _goldfish_estimate_DyNAM_rate(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_total_rateSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP return_conditional_scoresSEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP, SEXP force_shifted_normalizerSEXP, SEXP report_normalizer_routeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -96,13 +94,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_init(active_sender_initSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type active_sender_update(active_sender_updateSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_update_pointer(active_sender_update_pointerSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_init(active_dyad_initSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_update(active_dyad_updateSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_update_pointer(active_dyad_update_pointerSEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_margins(return_marginsSEXP);
@@ -112,13 +106,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_conditional_scores(return_conditional_scoresSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_rate(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace));
+    Rcpp::traits::input_parameter< const bool >::type force_shifted_normalizer(force_shifted_normalizerSEXP);
+    Rcpp::traits::input_parameter< const bool >::type report_normalizer_route(report_normalizer_routeSEXP);
+    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_rate(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace, force_shifted_normalizer, report_normalizer_route));
     return rcpp_result_gen;
 END_RCPP
 }
 // estimate_DyNAM_rate_ordered
-List estimate_DyNAM_rate_ordered(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_DyNAM_rate_ordered(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_DyNAM_rate_ordered(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
+RcppExport SEXP _goldfish_estimate_DyNAM_rate_ordered(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -132,13 +128,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_init(active_sender_initSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type active_sender_update(active_sender_updateSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_update_pointer(active_sender_update_pointerSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_init(active_dyad_initSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_update(active_dyad_updateSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_update_pointer(active_dyad_update_pointerSEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_margins(return_marginsSEXP);
@@ -146,13 +138,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_availability(return_availabilitySEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_rate_ordered(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
+    rcpp_result_gen = Rcpp::wrap(estimate_DyNAM_rate_ordered(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
     return rcpp_result_gen;
 END_RCPP
 }
 // estimate_REM
-List estimate_REM(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::vec& timespan, const arma::vec& is_dependent, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_total_rate, const bool return_probabilities, const bool return_availability, const bool return_conditional_scores, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_REM(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_total_rateSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP return_conditional_scoresSEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_REM(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::vec& timespan, const arma::vec& is_dependent, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_dyad_sender_init, const arma::mat& active_dyad_sender_update, const arma::vec& active_dyad_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_total_rate, const bool return_probabilities, const bool return_availability, const bool return_conditional_scores, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace, const bool force_shifted_normalizer, const bool report_normalizer_route);
+RcppExport SEXP _goldfish_estimate_REM(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_dyad_sender_initSEXP, SEXP active_dyad_sender_updateSEXP, SEXP active_dyad_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_total_rateSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP return_conditional_scoresSEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP, SEXP force_shifted_normalizerSEXP, SEXP report_normalizer_routeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -165,16 +157,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_update_pointer(stat_mat_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type stat_mat_broadcast(stat_mat_broadcastSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_broadcast_pointer(stat_mat_broadcast_pointerSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_init(active_sender_initSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type active_sender_update(active_sender_updateSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_update_pointer(active_sender_update_pointerSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_init(active_dyad_sender_initSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_sender_update(active_dyad_sender_updateSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_update_pointer(active_dyad_sender_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_init(active_dyad_initSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_update(active_dyad_updateSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_update_pointer(active_dyad_update_pointerSEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type active_dyad_is_point(active_dyad_is_pointSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
@@ -185,13 +176,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_conditional_scores(return_conditional_scoresSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_REM(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace));
+    Rcpp::traits::input_parameter< const bool >::type force_shifted_normalizer(force_shifted_normalizerSEXP);
+    Rcpp::traits::input_parameter< const bool >::type report_normalizer_route(report_normalizer_routeSEXP);
+    rcpp_result_gen = Rcpp::wrap(estimate_REM(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores, event_weights, return_event_information_trace, force_shifted_normalizer, report_normalizer_route));
     return rcpp_result_gen;
 END_RCPP
 }
 // estimate_REM_ordered
-List estimate_REM_ordered(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_sender_init, const arma::mat& active_sender_update, const arma::vec& active_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
-RcppExport SEXP _goldfish_estimate_REM_ordered(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_sender_initSEXP, SEXP active_sender_updateSEXP, SEXP active_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
+List estimate_REM_ordered(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::mat& stat_mat_broadcast, const arma::vec& stat_mat_broadcast_pointer, const arma::vec& active_dyad_sender_init, const arma::mat& active_dyad_sender_update, const arma::vec& active_dyad_sender_update_pointer, const arma::vec& active_dyad_init, const arma::mat& active_dyad_update, const arma::vec& active_dyad_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, const bool active_dyad_is_point, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities, const bool return_availability, const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights, const bool return_event_information_trace);
+RcppExport SEXP _goldfish_estimate_REM_ordered(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP stat_mat_broadcastSEXP, SEXP stat_mat_broadcast_pointerSEXP, SEXP active_dyad_sender_initSEXP, SEXP active_dyad_sender_updateSEXP, SEXP active_dyad_sender_update_pointerSEXP, SEXP active_dyad_initSEXP, SEXP active_dyad_updateSEXP, SEXP active_dyad_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP active_dyad_is_pointSEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP, SEXP return_availabilitySEXP, SEXP event_weightsSEXP, SEXP return_event_information_traceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -202,16 +195,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_update_pointer(stat_mat_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type stat_mat_broadcast(stat_mat_broadcastSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type stat_mat_broadcast_pointer(stat_mat_broadcast_pointerSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_init(active_sender_initSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type active_sender_update(active_sender_updateSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type active_sender_update_pointer(active_sender_update_pointerSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_init(active_dyad_sender_initSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_sender_update(active_dyad_sender_updateSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_sender_update_pointer(active_dyad_sender_update_pointerSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_init(active_dyad_initSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type active_dyad_update(active_dyad_updateSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type active_dyad_update_pointer(active_dyad_update_pointerSEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_1(n_actors_1SEXP);
     Rcpp::traits::input_parameter< const int >::type n_actors_2(n_actors_2SEXP);
     Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< const bool >::type active_dyad_is_point(active_dyad_is_pointSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
@@ -220,7 +212,37 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_availability(return_availabilitySEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type event_weights(event_weightsSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_event_information_trace(return_event_information_traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimate_REM_ordered(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
+    rcpp_result_gen = Rcpp::wrap(estimate_REM_ordered(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_dyad_sender_init, active_dyad_sender_update, active_dyad_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, event_weights, return_event_information_trace));
+    return rcpp_result_gen;
+END_RCPP
+}
+// alloc_probe_enabled
+bool alloc_probe_enabled();
+RcppExport SEXP _goldfish_alloc_probe_enabled() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(alloc_probe_enabled());
+    return rcpp_result_gen;
+END_RCPP
+}
+// alloc_probe_start
+void alloc_probe_start(double threshold_bytes);
+RcppExport SEXP _goldfish_alloc_probe_start(SEXP threshold_bytesSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type threshold_bytes(threshold_bytesSEXP);
+    alloc_probe_start(threshold_bytes);
+    return R_NilValue;
+END_RCPP
+}
+// alloc_probe_stop
+double alloc_probe_stop();
+RcppExport SEXP _goldfish_alloc_probe_stop() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(alloc_probe_stop());
     return rcpp_result_gen;
 END_RCPP
 }
@@ -385,12 +407,15 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_goldfish_estimate_DyNAM_MM", (DL_FUNC) &_goldfish_estimate_DyNAM_MM, 25},
-    {"_goldfish_estimate_DyNAM_choice", (DL_FUNC) &_goldfish_estimate_DyNAM_choice, 22},
-    {"_goldfish_estimate_DyNAM_rate", (DL_FUNC) &_goldfish_estimate_DyNAM_rate, 28},
-    {"_goldfish_estimate_DyNAM_rate_ordered", (DL_FUNC) &_goldfish_estimate_DyNAM_rate_ordered, 24},
-    {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 29},
-    {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 25},
+    {"_goldfish_estimate_DyNAM_MM", (DL_FUNC) &_goldfish_estimate_DyNAM_MM, 24},
+    {"_goldfish_estimate_DyNAM_choice", (DL_FUNC) &_goldfish_estimate_DyNAM_choice, 21},
+    {"_goldfish_estimate_DyNAM_rate", (DL_FUNC) &_goldfish_estimate_DyNAM_rate, 26},
+    {"_goldfish_estimate_DyNAM_rate_ordered", (DL_FUNC) &_goldfish_estimate_DyNAM_rate_ordered, 20},
+    {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 30},
+    {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 24},
+    {"_goldfish_alloc_probe_enabled", (DL_FUNC) &_goldfish_alloc_probe_enabled, 0},
+    {"_goldfish_alloc_probe_start", (DL_FUNC) &_goldfish_alloc_probe_start, 1},
+    {"_goldfish_alloc_probe_stop", (DL_FUNC) &_goldfish_alloc_probe_stop, 0},
     {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 16},
     {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 15},
     {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 18},

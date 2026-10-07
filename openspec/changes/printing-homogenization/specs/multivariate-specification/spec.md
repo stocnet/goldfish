@@ -107,7 +107,7 @@ argument of `set_parameters()`.
 - **THEN** it uses `coef_layout()` to group the flat coefficient vector into
   per-process blocks, while `coef()` still returns the flat named vector.
 
-#### Scenario: numeric inputs remain accepted
+#### Scenario: single-process surfaces are unaffected
 - **WHEN** `estimate_dynam()` is called with a numeric `initial_parameters`, or
   `simulate()` is called on a single `goldfishSpec` with a numeric
   `coef`

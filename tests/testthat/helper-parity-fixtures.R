@@ -23,9 +23,70 @@ parity_strip_deco <- function(prep) {
     "nodes2",
     "node_lookup",
     "model_spec",
-    "support_validated"
+    "support_validated",
+    parity_intercept_scalars
   )
   prep[setdiff(names(prep), deco)]
+}
+
+# The rate's exposure and the risk set it averages. The recipe loops averaged
+# the risk set over stored events, counting senders even for a REM; the walk
+# now weights it by the interval each row integrates, so the loops' goldens
+# hold a value the walk no longer means to produce. Both scalars are compared
+# against the intercept-only maximum-likelihood rate in
+# test-exposure_entity_time.R instead, and dropped here from both sides.
+parity_intercept_scalars <- c("exposure_entity_time", "avg_active_entity")
+
+# Availability fields that restate the folded object: the per-change lists
+# beside the update buffers, the fold flags, and the raw presences stashed on
+# the support mask. Every engine reads the folded object, so a comparison
+# restricted to the remaining fields has to hold across their removal.
+availability_retired_fields <- c(
+  "active_sender_changes",
+  "active_dyad_changes",
+  "active_sender_folded",
+  "active_dyad_folded"
+)
+availability_retired_mask_fields <- c(
+  "sender_presence_init",
+  "receiver_presence_init",
+  "receiver_presence_update",
+  "receiver_presence_update_pointer"
+)
+
+# A dyad loop's output keeps a sender side only as an outer object's own
+# factor, so the fields are compared on the sender loop alone; the outer
+# factors are checked cell by cell by `test-availability_vector_fold.R`.
+availability_sender_fields <- c(
+  "active_sender_init",
+  "active_sender_update",
+  "active_sender_update_pointer"
+)
+
+availability_kept <- function(prep) {
+  retired <- availability_retired_fields
+  if (length(dim(prep$initial_stats)) == 3L) {
+    retired <- c(retired, availability_sender_fields)
+  }
+  prep <- prep[setdiff(names(prep), retired)]
+  if (is.list(prep$support_mask)) {
+    mask <- prep$support_mask
+    prep$support_mask <- mask[
+      setdiff(names(mask), availability_retired_mask_fields)
+    ]
+  }
+  prep
+}
+
+# A merged-walk output against its frozen recipe golden on every field but
+# the retired availability ones, which the goldens still carry and an output
+# no longer does.
+expect_parity_golden <- function(prep, key) {
+  testthat::expect_equal(
+    availability_kept(parity_strip_deco(prep)),
+    availability_kept(parity_frozen(key)),
+    info = key
+  )
 }
 
 parity_prep_by <- function(out, family, flavor = NULL) {
@@ -47,6 +108,23 @@ parity_prep_by <- function(out, family, flavor = NULL) {
 # already, so an assertion compares `parity_strip_deco(merged)` against the
 # golden directly. Regenerated only by resurrecting the loops; the frozen 1e-6
 # coefficient baselines do not cover a statistics object that changed shape.
+#
+# Two entries are the exception: `user_constraint__rate` and
+# `constraint_bound__rate` were refrozen from the merged walk when an event
+# of a layer only the constraint reads (`net2` there) started closing the
+# rate's interval. They differ from the loops' capture only by those
+# right-censored rows and what follows from them (pointers, intervals, the
+# mask snapshot times); the dependent rows' statistics are unchanged.
+#
+# Four more were refrozen from the merged walk when a choice's point
+# availability became the true grid of every sender, with every flipped
+# cell stored, instead of each event sender's row written at its own
+# event: `flavored_oracle__3`, `flavored_oracle__4`,
+# `user_constraint__choice` and `constraint_bound__choice`. Only
+# `active_dyad_init`, `active_dyad_update` and `active_dyad_update_pointer`
+# moved, and every dependent event's sender row -- the only part the
+# likelihood reads -- was checked equal to the loops' before refreezing.
+# `opportunity__choice` did not move.
 parity_frozen <- local({
   cache <- NULL
   function(key) {
@@ -58,7 +136,11 @@ parity_frozen <- local({
     if (!key %in% names(cache)) {
       stop("no frozen recipe golden for key ", sQuote(key), call. = FALSE)
     }
-    cache[[key]]
+    golden <- cache[[key]]
+    if (!is.list(golden)) {
+      return(golden)
+    }
+    golden[setdiff(names(golden), parity_intercept_scalars)]
   }
 })
 

@@ -17,6 +17,25 @@ its atoms strictly before the event's stamp on every path: an atom-object
 event at a dependent event's own stamp is not in force for that event's
 mask, on the batch walk and on the handle alike.
 
+#### Scenario: constraint atom produces no estimated column
+- **WHEN** a model with effects `~ inertia(net)` and `support_constraint = ~ tie(other)` is
+  preprocessed
+- **THEN** the output statistics contain exactly the `inertia(net)` column; `tie(other)`
+  appears in `plan$effects` with `role = "constraint"` and contributes no column and no
+  coefficient.
+
+#### Scenario: atom state updated by the existing effect machinery
+- **WHEN** an event updates the network read by a constraint atom
+- **THEN** the atom's `stat_state` is updated by the same `update_*` function an estimated
+  effect would use, and the mask re-evaluates at the touched cells.
+
+#### Scenario: availability-dependent atom rejected
+- **WHEN** a constraint atom's definition reads the active risk set (an availability-derived
+  effect)
+- **THEN** parsing aborts with a `cli` error explaining that a constraint may not depend on
+  the risk set it defines.
+
+
 #### Scenario: the constraint role is read, not only written
 - **WHEN** a constrained model is compiled
 - **THEN** its atoms appear in `plan$effects` with `role = "constraint"`, and
@@ -30,13 +49,15 @@ mask, on the batch walk and on the handle alike.
 - **THEN** the event sequence is advanced by one walk, with no second state
   container, schedule or event loop maintained for the constraint
 
-#### Scenario: a constraint-only object is threaded without moving anything else
+#### Scenario: a constraint-only object is threaded onto the shared walk
 - **WHEN** a specification whose `support_constraint` reads a changing
   object no formula term reads is preprocessed
 - **THEN** that object's registry id follows every unit object's, its
-  stream follows every unit stream, no engine folds a statistic from it and
-  no right-censoring row is emitted for its events, and an unconstrained or
-  already-covered specification preprocesses byte-identically to before
+  stream follows every unit stream, no engine folds a statistic from it,
+  each of its events closes the open interval of every exact-time rate
+  whose mask reads it with a right-censored row (ADR-0103), and an
+  unconstrained or already-covered specification preprocesses
+  byte-identically to before
 
 #### Scenario: the mask lags a tied atom event on both paths
 - **WHEN** an atom-object event shares a dependent event's stamp and

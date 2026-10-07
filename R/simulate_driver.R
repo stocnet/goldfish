@@ -296,7 +296,7 @@ default_accept <- function(event, handle) TRUE
 # space in one known order, so a step that needs one ego's block takes it
 # (`n_actors2` rows per ego) and a step that couples egos still sees them all.
 evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
-  state <- simulation_fid_state(handle, fid)
+  state <- simulation_fid_state(handle, fid, sender = sender)
   map <- handle$process_map
   row <- match(fid, map$fid)
   stats_rows <- state$stat_mat
@@ -326,8 +326,11 @@ evaluate_fid <- function(handle, fid, theta, evaluate, sender = NULL) {
 # live mask survives the deferral, so the deferred fid draws inside the same
 # support the modeled one does: senders gated by the mask's rows, receivers
 # by the drawing sender's row of the mask. Presence alone would let a
-# completed choice pick a receiver the constraint excludes.
-simulation_fid_state <- function(handle, fid) {
+# completed choice pick a receiver the constraint excludes. That row is read
+# off the mask at its kind and handed on at the alter encoding, so no grid
+# is composed per draw; without a `sender` (reading the shapes only) the
+# receivers are presence.
+simulation_fid_state <- function(handle, fid, sender = NULL) {
   if (!fid %in% handle$deferred$fid) {
     return(walk_build_state(handle, fid))
   }
@@ -364,21 +367,24 @@ simulation_fid_state <- function(handle, fid) {
       twomode_or_reflexive = TRUE
     ))
   }
-  receivers <- if (is.null(support)) {
-    list(dyad = present2, encoding = "alter")
+  receivers <- if (is.null(support) || is.null(sender)) {
+    present2
   } else {
-    grid <- support_to_grid(support$value, support$stored_kind, n1, n2)
-    list(
-      dyad = matrix(present2, n1, n2, byrow = TRUE) & grid,
-      encoding = "point"
-    )
+    present2 &
+      as.logical(support_row(
+        support$value,
+        support$stored_kind,
+        sender,
+        n1,
+        n2
+      ))
   }
   list(
     model_type = "DyNAM-M",
     stat_mat = matrix(0, n1 * n2, 0L),
     active_sender = present1,
-    active_dyad = receivers$dyad,
-    active_dyad_encoding = receivers$encoding,
+    active_dyad = receivers,
+    active_dyad_encoding = "alter",
     n_actors1 = n1,
     n_actors2 = n2,
     # Whether the two sides are different node sets, so a self-loop is a legal
@@ -462,6 +468,19 @@ mark_evaluation <- function(
   if (is.na(choice_fid)) {
     return(evaluation)
   }
+  evaluation$choice <- choice_evaluation(
+    handle,
+    choice_fid,
+    theta,
+    evaluate,
+    routing
+  )
+  evaluation
+}
+
+# A choice fid's evaluation as a function of the sender, so only that
+# sender's row is ever computed.
+choice_evaluation <- function(handle, choice_fid, theta, evaluate, routing) {
   # A choice step never reads the clock, so the pinned table and time are not
   # needed to resolve its inputs.
   inputs <- fid_evaluation_inputs(
@@ -472,10 +491,9 @@ mark_evaluation <- function(
     pinned = list(),
     t = NA_real_
   )
-  evaluation$choice <- function(sender) {
+  function(sender) {
     evaluate_fid(handle, choice_fid, inputs$theta, inputs$step, sender = sender)
   }
-  evaluation
 }
 
 # The per-fid shapes, read once at open: they are fixed by the compiled engines
@@ -1031,6 +1049,8 @@ simulation_process_labels <- function(map) {
 # `times` is the resolved variant from `resolve_simulation_times()`: the
 # `times` run, its `source`, and the specification's `default` and `reason`.
 # `replayed` holds the replayed rows the clock reached (replayed_frame()).
+# `n_stamps_skipped` counts the observed stamps a time-anchored run could not
+# draw at; a free-running run walks no stamps, so it is NA there.
 new_goldfish_sim <- function(
   events,
   replayed,
@@ -1044,7 +1064,8 @@ new_goldfish_sim <- function(
   trajectory,
   latent,
   spec,
-  replicate
+  replicate,
+  n_stamps_skipped = NA_integer_
 ) {
   # The latent path is written only when a provider supplied one, so a plain
   # run carries no column of NULLs.
@@ -1072,7 +1093,8 @@ new_goldfish_sim <- function(
         window_end = window_end,
         trajectory = trajectory,
         n_replayed = nrow(replayed),
-        n_skipped = sum(replayed$skipped)
+        n_skipped = sum(replayed$skipped),
+        n_stamps_skipped = n_stamps_skipped
       ),
       latent = latent_path,
       replicate = replicate
@@ -1115,6 +1137,13 @@ print.goldfishSim <- function(x, ...) {
     n_skipped <- x$diagnostics$n_skipped
     cli::cli_text(
       "Replayed {n_replayed} observed event{?s}; {n_skipped} skipped."
+    )
+  }
+  n_stamps_skipped <- x$diagnostics$n_stamps_skipped %||% NA_integer_
+  if (!is.na(n_stamps_skipped)) {
+    n_stamps <- x$diagnostics$n_proposals + n_stamps_skipped
+    cli::cli_text(
+      "Walked {n_stamps} observed stamp{?s}; {n_stamps_skipped} skipped."
     )
   }
   if (isTRUE(x$capped)) {

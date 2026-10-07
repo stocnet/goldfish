@@ -130,8 +130,8 @@ dynami_choice_availability <- function(data) {
 # `active_dyad` point encoding. The choice risk set reads only the event
 # sender's row, so `build_active_dyad_point()` seeds the dense n1 x n2 init from
 # the first event and emits net (sender, group, replace) flips per later event --
-# the maintained-availability object `compute_step.default` consumes when
-# `active_dyad_folded` is set. Base receiver presence is all groups present
+# the maintained-availability object `compute_step.default` consumes by
+# walking its point buffer. Base receiver presence is all groups present
 # (groups never leave the object); the masks carry the occupancy restriction.
 dynami_fold_availability <- function(prep, masks) {
   n1 <- length(prep$active_sender_init)
@@ -524,11 +524,9 @@ dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
   prep$event_sender <- unlist(prep$event_sender)
   prep$event_receiver <- unlist(prep$event_receiver)
   prep$active_sender_init <- rep(TRUE, n1)
-  prep$active_sender_changes <- list()
   prep$active_sender_update <- NULL
   prep$active_sender_update_pointer <- NULL
   prep$active_dyad_init <- rep(TRUE, if (is_rate) n1 else n2)
-  prep$active_dyad_changes <- list()
   prep$active_dyad_update <- NULL
   prep$active_dyad_update_pointer <- NULL
   prep$active_dyad_encoding <- NULL

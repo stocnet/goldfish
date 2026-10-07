@@ -21,7 +21,11 @@ the specification from the fit's stored formula, model and sub-model: a fit
 carries neither its specification nor the stocnet it was fitted on, and SHALL
 say so rather than failing inside the walk. The rebuild SHALL keep the fit's
 terms as written and the intercept the fit estimated, so simulating a fit
-compiles the model that was estimated without re-announcing an intercept. The mark of an event
+compiles the model that was estimated without re-announcing an intercept. A
+fitted result SHALL carry the support constraint and the modeled flavor it was
+estimated with, and the rebuild SHALL pass both to the specification, so a
+constrained fit simulates under the support it was estimated on and a fit of
+one modeled flavor simulates that flavor, not the whole layer. The mark of an event
 on a flavored layer SHALL carry that flavor's update value, so a simulated
 dissolution removes the tie a creation made.
 A simulation run SHALL open the walk once per replicate and SHALL NOT
@@ -78,6 +82,20 @@ state every engine reads.
   added, is simulated with `simulate(fit, data =)`
 - **THEN** the rebuilt specification carries the intercept, the run emits no
   intercept message, and the fit's coefficients apply to the same terms.
+
+#### Scenario: a constrained fit simulates under its constraint
+
+- **WHEN** a DyNAM fit estimated with a `support_constraint` is simulated with
+  `simulate(fit, data =)`
+- **THEN** the rebuilt specification carries the same constraint, and no
+  simulated event falls on a dyad the constraint excludes at that event.
+
+#### Scenario: a fit of one modeled flavor rebuilds that flavor
+
+- **WHEN** a fit estimated from a specification with `modeled_flavor` set is
+  simulated with `simulate(fit, data =)`
+- **THEN** the rebuilt specification models that flavor only, exactly as the
+  specification the fit was estimated from did.
 
 #### Scenario: a specification of only exogenous covariates simulates
 
@@ -158,7 +176,10 @@ specification carries a clock — a timed rate, or the constant exponential rate
 choice-only DyNAM gains on request — and an ordered (Cox) rate or a coordination
 process SHALL simulate time-anchored only, `times = "generated"` on it aborting
 stating why; anchored
-runs are bounded by the observed stream and take no stopping arguments.
+runs are bounded by the observed stream and take no stopping arguments. An
+anchored stamp SHALL keep its observed layer and flavor, and a stamp whose
+redraw has no support in the simulated state SHALL be skipped and counted,
+never clamped.
 Documentation SHALL use the vocabulary "free-running" and "time-anchored" and
 SHALL NOT describe the axis as conditional/unconditional.
 
@@ -195,6 +216,20 @@ SHALL NOT describe the axis as conditional/unconditional.
 - **THEN** a message states that the specification's default is `"generated"`
   and that the observed stamps are held, and the result records `times` as
   requested.
+
+#### Scenario: an anchored run takes no targets or guard
+
+- **WHEN** a specification is simulated with `times = "observed"` and
+  `n_events`, `horizon` or `control_sim` is supplied
+- **THEN** `simulate()` aborts naming the supplied arguments, before any walk
+  opens.
+
+#### Scenario: an unsupported stamp is skipped and counted
+
+- **WHEN** a choice-only DyNAM is simulated time-anchored and a stamp's held
+  sender has no receiver available in the simulated state
+- **THEN** no event is drawn at that stamp, the replicate's count of skipped
+  stamps increments, and the run continues at the next stamp.
 
 ### Requirement: Free-running clocks are keyed on the distribution axis
 
@@ -404,8 +439,10 @@ while modeled components simulate around them). The record SHALL ride the
 statistics that touch completed or replayed components. A replayed event whose
 precondition fails in the simulated state (e.g. a deletion of a tie no
 simulated creation created) SHALL be skipped and counted, never force-applied
-as a state clamp; the skip count SHALL be reported on the result, and past a
-documented threshold the run SHALL be flagged incoherent.
+as a state clamp; the skip count SHALL be reported on the result per
+replicate, beside the number of replayed events the run reached, as a
+descriptor of how far the replayed flavors acted on the simulated state, and
+SHALL NOT stop, flag, warn about, or exclude a replicate.
 
 #### Scenario: replayed deletion with no matching tie is skipped
 
@@ -424,11 +461,12 @@ documented threshold the run SHALL be flagged incoherent.
   accepted and not used, and the regime record shows `dissolution` as
   `anchored-replay` requested by the call.
 
-#### Scenario: excessive drift flags the run
+#### Scenario: skip counts describe the replay and nothing acts on them
 
-- **WHEN** the share of skipped replayed events exceeds the documented threshold
-- **THEN** the result is flagged incoherent and the flag is visible in the print
-  and to `gof_*` consumers.
+- **WHEN** a hybrid run skips most of the replayed events it reaches
+- **THEN** each replicate reports how many replayed events it reached and how
+  many it skipped, the pool summary carries both per replicate, and no
+  replicate is flagged, stopped, warned about, or dropped from the pool.
 
 ### Requirement: Simulated pools are evaluator-compatible
 
@@ -448,9 +486,13 @@ attaching a writer sink to the simulation walk.
 
 ### Requirement: Simulation requires a generatively-complete specification
 
-`simulate()` SHALL require a generatively-complete specification — every modeled
-DyNAM flavor carrying both a rate and a choice, so an event's who/when (rate) and
-whom (choice) can both be drawn — by running the generative-readiness completion
+`simulate()` SHALL require a specification generatively complete for the variant
+it runs — under `times = "generated"` every modeled DyNAM flavor carrying both a
+rate and a choice, so an event's who/when (rate) and whom (choice) can both be
+drawn; under `times = "observed"` each carrying its choice, and a rate only if
+the model has one, a process without a rate drawing at the observed stamps (a
+choice-only DyNAM holding the observed sender, a coordination process drawing
+its pair) — by running the generative-readiness completion
 transform (`make-multivariate-spec`) **once** at entry, before the draw loop opens
 the walk handle. A flavor keyed in one sub-model and omitted from the other SHALL
 be completed with its zero-information default and warned once: a **rate-only
@@ -461,9 +503,22 @@ whose per-actor intercept SHALL be **pinned** (zero free parameters, never read 
 process, or from the requested event count / time window for a fully rate-less
 process. A **choice-only** DyNAM SHALL NOT be rate-completed by default — its default
 timing is time-anchored — and SHALL gain a constant exponential rate only when
-`times = "generated"` is requested. REM requires only a rate and is already
+`times = "generated"` is requested. A pinned rate's scalars (`n_dep_events`,
+`total_time`, `exposure_entity_time`) SHALL be read from the fitted result when
+`simulate()` is called on a fit, carried into completion by the rebuilt
+specification with no preprocessing pass, unless `control_prep` sets a window
+or asks for the exact exposure, which takes the specification path below; from
+a specification they SHALL default to the
+endpoint approximation of the risk set, `(n_start + n_end) / 2` entities
+present at the window's start and end times `total_time` (senders for a DyNAM
+rate, dyads without the self-dyad on a one-mode layer for REM), and
+`set_preprocessing(exposure = "exact")` SHALL run a preprocessing pass instead;
+a message SHALL say so when the approximation might differ from the exact value
+(a composition change inside the window, or a support constraint on the
+process). REM requires only a rate and is already
 complete. `walk_open()`
-SHALL assert completeness, so the draw loop never opens an incomplete specification.
+SHALL assert completeness for the variant it serves, so the draw loop never opens
+a specification missing a family that variant draws from.
 A completed fid SHALL be evaluated through its built-in evaluate step: a
 completed uniform choice as an equiprobable draw over the fid's receiver
 support, and a completed pinned rate as the constant per-actor rate
@@ -518,7 +573,8 @@ mask, the mask the process's modeled sub-model reads.
 #### Scenario: incomplete spec that reaches the walk is rejected
 
 - **WHEN** a code path reaches `walk_open()` with a half-specified DyNAM
-  specification that skipped the completion transform
+  specification that skipped the completion transform, missing a choice, or
+  missing a rate for a free-running run
 - **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
   simulating events with a missing rate or choice.
 
@@ -552,3 +608,31 @@ mask, the mask the process's modeled sub-model reads.
   `times = "generated"`
 - **THEN** no baseline rate is fabricated; timing comes from the anchored
   strategy, and only the choice marks are drawn from the model.
+
+#### Scenario: an unflavored choice-only DyNAM opens the walk time-anchored
+
+- **WHEN** a single-process, unflavored choice-only DyNAM specification is
+  simulated with its default `times = "observed"`
+- **THEN** the walk opens without a rate, each observed stamp keeps its
+  observed sender, and the receiver is drawn from the choice.
+
+#### Scenario: a fit pins its completed rate from its own scalars
+
+- **WHEN** a fitted choice-only DyNAM is simulated with `times = "generated"`
+- **THEN** the completed rate is pinned from the fit's `n_dep_events`,
+  `total_time` and `exposure_entity_time`, and no preprocessing pass runs.
+
+#### Scenario: a specification pins from the endpoint approximation
+
+- **WHEN** a choice-only DyNAM specification on nodes whose composition changes
+  inside the window is simulated with `times = "generated"`
+- **THEN** the completed rate is pinned with the risk set approximated as the
+  average of the entities present at the window's start and end, and a message
+  names `set_preprocessing(exposure = "exact")` as the way to the exact value.
+
+#### Scenario: the exact exposure is asked for
+
+- **WHEN** the same specification is simulated with
+  `control_prep = set_preprocessing(exposure = "exact")`
+- **THEN** a preprocessing pass computes the time-weighted exposure, the pin
+  equals the one a fit of the same data carries, and no message is shown.

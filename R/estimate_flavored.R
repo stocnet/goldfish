@@ -132,7 +132,8 @@ estimate_flavored <- function(
       support_constraint = spec$processes[[flavor]]$constraint,
       recorded_flavor = flavor,
       progress = progress,
-      verbose = verbose
+      verbose = verbose,
+      specification = spec
     )
   })
   names(results) <- as.character(process_map$fid)

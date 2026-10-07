@@ -79,15 +79,13 @@ void accumulate_availability(
 }
 
 arma::rowvec event_score_row(
-    const arma::mat& X,
-    const arma::vec& w,
+    const arma::rowvec& weighted_sum,
     double c,
+    const arma::mat& X,
     arma::uword obs,
     bool dependent
 ) {
-  // `w` is zero outside the risk set (header contract), so the weighted mean
-  // needs no mask and stays a single BLAS reduction.
-  arma::rowvec score = -c * (w.t() * X);
+  arma::rowvec score = -c * weighted_sum;
   if (dependent) score += X.row(obs);
   return score;
 }
@@ -153,12 +151,21 @@ Rcpp::RObject scatter_event_probabilities(
     }
     return Rcpp::wrap(grid);
   }
+  // A plain vector, as the event-loop kernels return on these axes: wrapping an
+  // arma::vec would give R an n x 1 matrix.
   const arma::uvec& index = axis_j ? index_j : index_i;
-  arma::vec full(axis_j ? n_actors_2 : n_actors_1, fill::zeros);
+  Rcpp::NumericVector full(axis_j ? n_actors_2 : n_actors_1);
+  const arma::uword n_full = full.size();
   for (arma::uword r = 0; r < probabilities.n_elem; ++r) {
-    full(index(r)) = probabilities(r);
+    // The R vector's indexing is unchecked, so the actor slot is.
+    if (index(r) >= n_full) {
+      Rcpp::stop(
+        "scatter_event_probabilities(): an actor index is out of range."
+      );
+    }
+    full[index(r)] = probabilities(r);
   }
-  return Rcpp::wrap(full);
+  return full;
 }
 
 //' Exercise the shared per-event reductions from R
@@ -200,7 +207,11 @@ List event_reductions_probe(
 
   return List::create(
     Named("rank") = rank_of_observed(w, allowed, obs),
-    Named("score") = event_score_row(X, w, c, obs, dependent),
+    // `w` is zero outside the risk set (header contract), so the weighted
+    // sum needs no mask.
+    Named("score") = event_score_row(
+      arma::rowvec(w.t() * X), c, X, obs, dependent
+    ),
     Named("observed_a") = observed_a,
     Named("expected_a") = expected_a,
     Named("observed_b") = observed_b,

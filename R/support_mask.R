@@ -47,129 +47,6 @@ support_to_grid <- function(support, mask_kind, n1, n2) {
   )
 }
 
-#' A cursor over a support mask's flat update stream
-#'
-#' The mask reaches its consumers as an initial value plus a stream of the
-#' entries that flipped, keyed by a cumulative per-event pointer, instead of one
-#' stored value per event. Every consumer walks the stored events in order, so a
-#' cursor that advances with them reconstructs the value at each without the
-#' timeline ever existing at once. That difference is the whole point: on 1899
-#' actors and 1500 events the stored timeline was 10.95 MB carrying one changed
-#' entry.
-#'
-#' The cursor returns a fresh value rather than mutating one in place, so a
-#' consumer may hold on to what it was given. That costs one kind-sized copy per
-#' event, which for a separable mask is a vector and for a point mask is the
-#' grid the consumer was going to build anyway.
-#'
-#' @param support_mask the `support_mask` list a preprocessing produced, or
-#'   `NULL` for an unconstrained model.
-#' @return a function of the stored event index returning the mask at its stored
-#'   kind, to be called with ascending indices.
-#' @noRd
-mask_cursor <- function(support_mask) {
-  if (is.null(support_mask)) {
-    return(function(e) NULL)
-  }
-  abort_if_stale_support_mask(support_mask)
-  value <- support_mask$initial
-  update <- support_mask$update
-  pointer <- support_mask$update_pointer
-  seen <- 0L
-  function(e) {
-    hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
-    if (hi > seen) {
-      at <- update[1L, (seen + 1L):hi]
-      value[at] <<- as.logical(update[2L, (seen + 1L):hi])
-      seen <<- hi
-    }
-    value
-  }
-}
-
-#' A reader of a support mask's per-event flips
-#'
-#' [mask_cursor()] answers "what is the mask now"; this answers "what just
-#' changed", which is what an incrementally maintained consumer needs. A
-#' consumer that keeps a derived quantity -- a per-sender count of allowed
-#' receivers, say -- adjusts it from the flips and never reconstructs the mask
-#' at all.
-#'
-#' @param support_mask the `support_mask` list a preprocessing produced.
-#' @return a function of the stored event index returning
-#'   `list(entries, values)` for that event, to be called with ascending
-#'   indices.
-#' @noRd
-mask_flips <- function(support_mask) {
-  abort_if_stale_support_mask(support_mask)
-  flip_reader(support_mask$update, support_mask$update_pointer)
-}
-
-#' Refuse a support mask that predates the update stream
-#'
-#' A preprocessed object built before the mask became a stream carries its
-#' timeline as `support`, one stored value per event, and no update buffer.
-#' Reading it through a cursor would not fail: it would find no flips and hand
-#' back the initial mask at every event, so the model would be estimated on a
-#' constraint frozen at time zero.
-#'
-#' The epoch stamp cannot catch this. `prep_version` moves once per RELEASE
-#' whose layout differs from the previous release's, and both layouts are epoch
-#' 2 within this development line, so the object is current in stamp and stale
-#' in content -- the case `format_version.R` names explicitly and assigns to the
-#' consumer. This is that consumer check: it names the component it needs rather
-#' than guessing at the object's age.
-#'
-#' @param support_mask a preprocessed object's `support_mask`.
-#' @noRd
-abort_if_stale_support_mask <- function(
-  support_mask,
-  call = rlang::caller_env()
-) {
-  if (!is.null(support_mask$update)) {
-    return(invisible(NULL))
-  }
-  cli::cli_abort(
-    c(
-      "This preprocessed object's {.field support_mask} predates the mask
-       update stream.",
-      "x" = "It carries a stored mask per event ({.field support}) and no
-             {.field update} buffer, so its constraint cannot be read over
-             time.",
-      "i" = "Preprocess the specification again with this version of
-             {.pkg goldfish}."
-    ),
-    call = call
-  )
-}
-
-#' The per-event slice of any flat `(entry, replace)` buffer
-#'
-#' The support mask's update stream and the two presence crossings buffers are
-#' the same shape -- entries in the first row, replacements in the second, keyed
-#' by a cumulative per-event pointer -- so one reader serves all three.
-#'
-#' @param update a 2-row `(entry, replace)` matrix.
-#' @param pointer the cumulative per-event pointer into its columns.
-#' @return a function of the stored event index, to be called with ascending
-#'   indices.
-#' @noRd
-flip_reader <- function(update, pointer) {
-  seen <- 0L
-  function(e) {
-    hi <- if (is.null(pointer) || length(pointer) < e) 0L else pointer[[e]]
-    if (hi <= seen) {
-      return(list(entries = integer(0), values = logical(0)))
-    }
-    cols <- (seen + 1L):hi
-    seen <<- hi
-    list(
-      entries = as.integer(update[1L, cols]),
-      values = as.logical(update[2L, cols])
-    )
-  }
-}
-
 #' One sender's row of a support mask, without building the grid
 #'
 #' Every dyad-side consumer reads the mask one row at a time -- the choice risk
@@ -194,7 +71,10 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
     "3" = rep(as.logical(support), n2),
     "2" = rep(as.logical(support[[sender]]), n2),
     "1" = as.logical(support),
-    "0" = as.logical(matrix(support, n1, n2)[sender, ]),
+    # The stored vector is the grid in column-major order, so row `sender`
+    # is every n1-th entry from `sender` on; reshaping it into a matrix
+    # first would copy all n1 x n2 cells to read n2 of them.
+    "0" = as.logical(support[sender + n1 * (seq_len(n2) - 1L)]),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
 }
@@ -205,8 +85,7 @@ support_row <- function(support, stored_kind, sender, n1, n2) {
 #' kind. A separable mask answers it without a grid: an alter mask gives every
 #' sender the same answer, an ego mask gives each sender its own, and a global
 #' mask gives everyone the same. Only a genuinely dyadic mask is reduced row by
-#' row, and even then the grid is built once for the event rather than as a
-#' `rep()`-broadcast intermediate.
+#' row, and even then over its stored vector, without building the grid.
 #'
 #' The preprocessing folds MAINTAIN this as a count rather than recomputing it;
 #' this is the from-scratch form, for a consumer that reads one event at a time
@@ -259,13 +138,27 @@ sender_gate_from_mask <- function(
     "3" = if (isTRUE(as.logical(support))) rep(sum(active_2), n1) else 0L,
     "2" = ifelse(as.logical(support), sum(active_2), 0L),
     "1" = rep(sum(as.logical(support) & active_2), n1),
-    "0" = rowSums(matrix(as.logical(support), n1, n2)[,
-      active_2,
-      drop = FALSE
-    ]),
+    "0" = point_receiver_count(support, active_2, n1, n2),
     cli::cli_abort("Unknown mask kind {.val {stored_kind}}.")
   )
   count - own > 0
+}
+
+# Each sender's allowed, present receivers under a dyadic (kind 0) mask, the
+# self-dyad included. The count is taken on the stored column-major vector:
+# with every receiver present that is a pass over it, and otherwise only the
+# present receivers' columns are copied, never the whole grid twice as a
+# reshape and a column subset would.
+point_receiver_count <- function(support, active_2, n1, n2) {
+  if (!is.logical(support)) {
+    support <- as.logical(support)
+  }
+  if (all(active_2)) {
+    return(.rowSums(support, n1, n2))
+  }
+  columns <- which(as.logical(active_2))
+  cells <- rep((columns - 1L) * n1, each = n1) + seq_len(n1)
+  .rowSums(support[cells], n1, length(columns))
 }
 
 # A self-dyad exists only where both axes name one node set. A caller asking

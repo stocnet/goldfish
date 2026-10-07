@@ -13,10 +13,11 @@
 walk_open(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  times = c("generated", "observed"),
   call = rlang::caller_env()
 )
 
-walk_advance(handle, t, call = rlang::caller_env())
+walk_advance(handle, t, inclusive = TRUE, call = rlang::caller_env())
 
 walk_schedule(handle, event, call = rlang::caller_env())
 
@@ -34,11 +35,20 @@ as a one-process join).}
 \item{control_preprocessing}{preprocessing options, as for
 \code{\link[=preprocess_joint]{preprocess_joint()}}.}
 
+\item{times}{the simulation variant the walk serves: \code{"generated"} (a
+free-running run, or joint estimation) or \code{"observed"} (a time-anchored
+run, where a DyNAM process without a rate draws at the observed stamps).}
+
 \item{call}{the calling environment, for error reporting.}
 
 \item{handle}{a \code{goldfishWalk} from \code{\link[=walk_open]{walk_open()}}.}
 
 \item{t}{the clock time to advance to.}
+
+\item{inclusive}{whether the rows stamped at \code{t} are applied. \code{FALSE}
+stops strictly before \code{t} while moving the composition up to and
+including \code{t}, which is the state the batch preprocessing evaluates an
+observed event at: the rows sharing its stamp come after it.}
 
 \item{event}{a list describing one event to apply: \code{layer} (the object name),
 plus \code{sender} / \code{receiver} (a dyadic layer) or \code{node} (a nodal attribute),
@@ -96,9 +106,10 @@ every consumer sees it.
 
 These are internal building blocks: not exported, committing to no
 user-facing signature. \code{walk_open()} \strong{asserts} its specification is
-generatively complete (every modeled DyNAM flavor carrying both a rate and a
-choice) and aborts pointing to \code{\link[=simulate]{simulate()}} / \code{estimate_dynes()} otherwise;
-it never performs completion itself.
+generatively complete for the variant it serves (every modeled DyNAM flavor
+carrying a choice, and a rate as well unless the run is time-anchored) and
+aborts pointing to \code{\link[=simulate]{simulate()}} / \code{estimate_dynes()} otherwise; it never
+performs completion itself.
 
 A family whose sub-models all carry no effects — the uniform choice
 completion gives a rate-only DyNAM, or an authored \code{rate = ~ 1} — has

@@ -121,6 +121,26 @@ coverage predicate then holds for every constraint by construction.
 guards; a second registry for constraint objects — a second registry is the
 private walk under another name.
 
+*Revised 2026-09-29 (Alvaro, ADR-0103):* a constraint-only object's event
+closes the open interval of every exact-time rate whose mask reads it,
+with a right-censored row, as every non-dependent event does. It still
+folds no statistic: the engine's local id stays `NA`, so no column moves;
+the boundary is emitted because the event changes that rate's risk set.
+Measured before the decision (8 actors, 120 events, 21 `emails` events
+gating three senders under `~ !tie(emails)`): today's private walk stores
+687 rate rows with no boundary, the process defines 834, and the estimates
+miss the process's likelihood by 6.5e-3; with a rate term reading the same
+layer (`outdeg(emails)`) goldfish already splits the intervals exactly as
+the process does. Sequencing keeps the detector: task 2.2 threads with no
+boundary, byte-identical to the task 0.2 references, and task 2.3a then
+adds the boundary and re-captures the one reference it moves
+(`uncovered_rate`), asserting the difference is exactly the new censored
+rows. (*Corrected the same day:* this first named the `rate` family too,
+but its constraint reads its focal layer, whose events are dependent events
+and already close the interval, so it does not move.) The presence half of
+ADR-0103 is `process-simulation` task 2.11c, applied at the trunk merge
+because it moves the fisheries rate and REM baselines.
+
 ### D2 — The private atom walk is retired, detector-first
 
 Following the predecessor's D4 (the private walk goes last): first capture
@@ -148,12 +168,13 @@ one idea is the defect the predecessor named.
 The batch contract stands: `advance(t)` applies atom events strictly before
 `t`, a lagged risk set, documented in `preprocess_support_mask()` and
 encoded in every byte-identity reference and the classical parity route.
-The handle conforms: atom moves collected from an object event stamped at
-the current clock are held in a pending set and folded into the live mask
-only when the clock advances past that stamp (or on the next `walk_advance`
-beyond it), so `walk_evaluate()` at `t` sees the mask over atoms strictly
-before `t` exactly as the batch snapshot does, while statistics and
-presence keep their in-force-at-the-stamp behavior. A new fixture puts an
+The handle conforms through its driver: a driver evaluating an observed
+event at its stamp steps strictly before it (`walk_advance(t, inclusive =
+FALSE)`, the revision below), so `walk_evaluate()` at `t` sees the mask over
+atoms strictly before `t` exactly as the batch snapshot does. (First
+planned as a pending set of atom moves inside the handle, folded into the
+live mask once the clock passed the stamp; built and withdrawn, see the
+revision.) A new fixture puts an
 `emails` event at a call's own stamp, ordered before it, and asserts
 batch-vs-replay equality there — the tie the current fixtures avoid.
 *Rejected:* aligning the mask with statistics (in force when scheduled
@@ -161,6 +182,22 @@ before the event) — one clock rule for all three state kinds is cleaner,
 but it changes the documented contract, moves every constrained fit with a
 tied stamp, and re-mints the byte-identity references; recorded as the
 alternative to revisit in ADR-0073's open questions, not taken here.
+
+*Revised 2026-09-29 (Alvaro, ADR-0105):* the rule stands, the mechanism
+does not. Deferring the atom moves inside the handle was built and fixed the
+tie for an anchored run and a replay, but it broke free-running simulation
+(seven tests): after an event injected at `t`, or an exogenous breakpoint at
+`t`, the free-running driver evaluates for the next event, strictly after
+`t`, where the moves at `t` must count, and the handle's clock reads `t` in
+both cases. Deferring only the touched set would not do either, since the
+live mask recomputes from the atom buffer. Instead the handle keeps one clock
+rule (the state at its clock includes every row stamped up to it), and a
+driver that evaluates an observed event at its stamp steps strictly before
+the stamp: `walk_advance(t, inclusive = FALSE)` applies the rows stamped
+before `t` and the composition up to and including `t`, and the rows sharing
+the stamp are applied after the event is injected, which is the order the
+batch schedule gives them. The time-anchored driver steps this way; the
+free-running driver is unchanged.
 
 ### D4 — Constraint-only rows are exempt from the walk extent until the censoring change decides
 
@@ -171,6 +208,22 @@ a row is a real exogenous event (ADR-0069 read literally) is the cell
 `observation-tail-right-censoring`'s matrix must carry, and its D1/D2 own
 the answer. The exemption is implemented as one predicate with a comment
 naming the open cell, so flipping it is one line and one test.
+
+*Recorded 2026-10-03 (conformance follow-up, task 8.3):* the test now
+exists. `test-constraint_atoms_operands.R` ("a constraint-only row does
+not extend the walk extent") pins the predicate on a rate whose last row
+is a constraint-only `emails` event at t = 9 after the last call at 5:
+`end_time` 5, against 9 for a twin whose formula reads `emails`; flipping
+`is_constraint_only_row()` turns it red. The exemption now governs
+`end_time` alone, though. Task 2.3a's boundary rows are emitted for every
+constraint-only row, past the exempt end too: that fixture stores a
+censored rate row at t = 9 with interval 4 while `end_time` stays 5, so
+`end_time < max(event_time)` on the stored object. The stored rows thereby
+answer part of the extent cell ("extends") that this decision leaves
+open. Whether such trailing rows are kept or trimmed is not decided here;
+it is handed to `observation-tail-right-censoring` task 0.3 (its note of
+2026-10-03), whose matrix owns the cell. No row is kept or trimmed
+differently by this change.
 
 ### D5 — One seeded harness, hand-built frames, the process's own risk-set rule
 
@@ -189,6 +242,10 @@ row (the row-reduction), an absent node contributes no row on either axis,
 and every non-dependent event — an exogenous constraint-object event, a
 composition change, an unmodeled-flavor event — closes the open interval
 with a censored rate row (`outcome = 0`, its `dt`) and opens a new one.
+(*2026-09-29, ADR-0103:* this is the rule goldfish adopts, not only the
+oracle's. For a constraint-only object it lands here, task 2.3a; for a
+composition change in `process-simulation` task 2.11c, at the trunk merge,
+so F4's rate arm moves there.)
 Effects are limited to those whose update rule the DGP mirrors exactly on a
 0/1 state matrix: rate `1 + indeg + outdeg` (present-tie counts), choice
 `recip + trans` (`trans` as the two-path count `(S %*% S)[i, j]`, never
@@ -206,7 +263,7 @@ handle — the oracle must not share goldfish's state code.
 | F1 baseline (DyNAM, also REM rate) | `estimate_dynam(rate)` ↔ `glm(poisson, offset(log dt))`; `estimate_rem` ↔ dyadic `glm` | `estimate_dynam(choice)` ↔ `mlogit`/`clogit` | — |
 | F2 creation/dissolution flavors, derived masks | per flavor, gated senders dropped | per flavor over the allowed set | container = standalone single-flavor specs = de-flavored layers |
 | F3 constraint on an object no formula reads | `~ !tie(emails)`, `choice ~ recip` | same | handle replay, `n_excluded > 0` |
-| F4 composition change on F1 | absent nodes: no rows; presence flips: censored rows | absent receivers excluded | handle replay with `walk_advance_presence()` |
+| F4 composition change on F1 | absent nodes: no rows; presence flips: censored rows (rate arm moved to `process-simulation` 2.11c, 2026-09-29) | absent receivers excluded | handle replay with `walk_advance_presence()` |
 | F5 one flavor modeled on F2's data | dissolution events: censored rows | creation only | equals F2's creation blocks |
 
 Arms: (a) goldfish fit versus the oracle on the hand-built frame, gate 1e-6
@@ -241,6 +298,336 @@ before evaluating; compares `walk_evaluate()` to
 F4 and F5 with `expect_gt(n_excluded, 0)`, so the substrate half and the
 testing half of this change meet on the same fixtures.
 
+### D9 — The batch walk composes masks live, as the handle does (added 2026-09-27)
+
+Today the batch walk records the constraint atoms as it goes
+(`advance_recorders_for_event()`), but composes them into masks only
+afterwards: `realize_pending_masks()` replays the recorded atoms at each
+fid's requested snapshot times (a choice's own events, a rate's rows), and
+`fold_active_sender_support()` / `fold_active_dyad_support()` /
+`build_active_dyad_point()` then fold each mask into the stored
+availability. Nothing in the walk needs that order. The statistics are
+computed over every dyad whatever the mask; the mask only filters the risk
+set. The post-walk order is inherited from the recipe loops, which finalized
+their output before a mask existed. Pooling one atom stream across fids
+with a union of snapshot times was the reason to keep it once the walk
+merged. The stepping handle already does it live:
+`walk_build_live_masks()` feeds the batch's own `build_mask_maintainer()`
+the atom entries each object event moved, and `walk_live_support()` reads
+the current mask.
+
+The batch walk uses that same construction. At each object event it collects
+the atom moves, and under D3's rule a move stamped at the current clock waits
+until the clock passes it. At each stored row it reads every constrained
+fid's current mask and folds that fid's availability incrementally: the
+rate's sender gate through per-sender allowed-receiver counts, which change
+only on a flipped cell or a presence change, and the choice's `active_dyad`
+as net flips of the event sender's row. What is stored does not change; the
+flip streams are the same objects, emitted as the walk goes. Three things
+follow:
+- a constrained process's exposure is a running sum on the same walk (no
+  row-time list, no second realization);
+- the observed dyad can be checked against the mask at its own event rather
+  than after the whole walk;
+- one mask path serves batch and handle, so they cannot drift.
+
+Detector-first, as D2: capture the folded availability and mask streams of
+every constrained reference family (rate, choice, rate plus choice, REM,
+flavored derived masks, coordination) before the switch, and delete
+`realize_pending_masks()`'s replay and the three post-walk folds only once
+all match byte-identically. *Rejected:* keep the post-walk realization and
+request extra snapshot times for the exposure. It works, but it keeps a
+second composition path beside the handle's and a row-time list per
+constrained consumer, the very duplication this change retires.
+
+*Settled 2026-09-28 (Alvaro) — the observed event is checked in the walk.*
+At each dependent event, the walk checks the event against the live mask
+and the active status the risk set is built from. It aborts there, with
+today's message and condition, when the observed dyad is excluded, the
+risk set is empty, or (rate) the observed sender is gated out. With the
+mask live and the sender gate a maintained count, the check reads one mask
+cell, one presence entry and one count per dependent event. So a bad
+event stops preprocessing where it happens instead of after the whole walk.
+The verdicts that describe the whole sequence can only be reached at the
+end, so they stay warnings there: a receiver never an allowed candidate, a
+sender never at risk, forced choices. The exception is time. If task 4.7
+measures the in-walk check adding walk time that the end-of-walk check
+avoids, the abort stays at the end, and the timing is recorded as the
+reason.
+
+*Amended 2026-09-29 (Alvaro) — one availability tracker per fid.* The
+live masks landed first (`926a8d9`): the batch walk builds them with the
+handle's `walk_build_live_masks()`, writes the atom moves strictly before
+each stored row, and each fid collapses its flips into its row, so
+`realize_pending_masks()` is not called and every reference matches. The
+availability folds then showed where the memory goes, and it is not the
+masks. `mask_cursor()` hands each reader a fresh copy of the mask per event
+by design, so the observed-event validation copies the whole mask on every
+event to read one row or one cell (about 13 GB on the generated fixture's
+joint rate plus choice, 1500 actors, before and after the live masks), and
+the post-walk folds build size-`n` vectors on every stored row (40-63 KB a
+row). Everything downstream needs little per row: the rate's stored gate
+changes only where a sender's count of allowed present receivers crosses
+zero; the choice needs the event sender's row; the observed-event check
+needs one mask cell, one presence entry and one count; the exposure
+(`process-simulation` 2.11b) needs the number of entities at risk times the
+interval; the handle's `walk_risk_set()` needs the same gate live.
+
+So each constrained fid carries an availability tracker, maintained during
+the walk from the two flip streams the walk already has, the live mask's
+flips and the presence changes. It holds the presence vectors and the
+per-sender allowed-receiver counts, updated in place and only where a flip
+lands; the gate (rate) or the event sender's row read by linear index on
+the stored mask (choice, rule 2), never a grid; and the count of entities at
+risk as a scalar. At each stored row it writes only the availability
+entries that changed, in the buffers the folds produced; at each dependent
+event it answers the observed-event check in constant time; it accumulates
+the counters the whole-sequence warnings need (receivers ever allowed,
+senders ever at risk, forced choices). One tracker type with a variant per
+encoding (rate gate; choice alter, outer, point; REM and coordination)
+replaces `fold_active_sender_support()`, `fold_active_dyad_support()` and
+`build_active_dyad_point()`, and is what the handle reads, so batch and
+simulation share it. Presence is applied with the writer's own rule (a
+composition change lands on the next stored row) until `process-simulation`
+2.11c makes presence changes rows of their own (ADR-0103); the references
+guard the rule. *Rejected:* fixing `mask_cursor()`'s copy alone. It removes
+the 13 GB, but keeps a second, post-walk path beside the handle's and gives
+2.11b no running count.
+
+*Revised the same day (Alvaro) — availability is maintained as an effect.*
+Not a new tracker type: availability is kept the way an effect is, which is
+also what `active-availability-stat` already requires (one availability
+object per loop, stored at its minimal encoding, `avg_active_entity`
+computed during the loop from the maintained object) and what the cost
+rules require of a new consumer (the shared writers and `R/broadcast_kind.R`,
+no walk or buffer format of its own). Per fid, the stat is `active_sender`
+(ego kind) or `active_dyad` (alter, outer or point), held in memory and
+updated in place through `write_entries()` / the C++ `set_entries()`; the
+cache holds the per-sender count of allowed present receivers and the count
+of entities at risk. Its inputs are the live mask's flips and the presence
+changes; its outputs are changes written by the existing writers (initial
+value, update buffer, pointer). The handle reads the same stat and cache
+through `walk_risk_set()`, so batch and simulation share one path. The
+effect is maintained for every exact-time rate fid, constrained or not
+(unconstrained, the stat is presence alone), because the exposure
+(`exposure_entity_time`, `avg_active_entity`) now reads its running count
+here rather than `risk_set_exposure()`'s post-walk loop.
+
+The choice's point stream changes. Today it is lazy: the initial grid
+carries the first event's receiver presence in every row but the first
+sender's, and each event emits only the event sender's row, against the
+last time that row was emitted. As an effect the grid is the true
+availability for every row from the start, and every cell that flips is
+emitted when it flips; a receiver presence change writes its whole column.
+Each dependent event's sender row, the only part the likelihood reads, is
+unchanged, and that is asserted before the moved references are refrozen
+(Alvaro approved refreezing on the branch: the point-encoded choice
+families of `constraint_atoms_refs.rds` and the point-choice entries of the
+parity goldens). The stream grows where composition changes meet a
+constraint; 4.7 records the sizes. The REM and coordination fold already
+emits every flipped cell and keeps its stream. When the folds and the
+validation go, `mask_cursor()` and `mask_flips()` lose their last readers
+and are deleted (ADR-0054).
+
+### D10 — At a stamp, no row informs an evaluation at that stamp, of any process (added 2026-10-03)
+
+*Alvaro, ADR-0114 (extends ADR-0105; tasks 8.2a and 8.2b).* Applying 8.2
+found two gaps at a stamp shared by dependent events. The time-anchored
+driver evaluated and injected one event at a time, so an event injected at
+`t` restricted the mask of a later event at `t`, of another process or of
+the same one. And the batch itself was split: masks read their atoms
+strictly before the stamp (D3), while statistics read rows in schedule
+order, so a later process's statistic saw an earlier process's tied event
+(emails' `tie(calls)` saw a call at its own stamp). The rule is now one for
+every kind of state: rows of any process stamped at `t` never inform an
+evaluation at `t`.
+
+- *The batch.* `build_joint_schedule()` orders by time, then every
+  dependent row of a stamp before its other rows, then stream order. A
+  single process is unaffected (its dependent stream is the first one
+  added, so the old order already put its dependent rows first); only a
+  joint specification whose later unit has a dependent row at a stamp an
+  earlier unit's covariate or exogenous row shares moves. Composition
+  changes are not schedule rows and keep their in-force-at-the-stamp rule.
+- *The drivers.* A driver replaying observed stamps (the time-anchored
+  driver, the replay test helper) evaluates every dependent event of a
+  stamp over the state strictly before it, then injects them in order;
+  the free-running driver draws continuous times and is unchanged.
+
+*Rejected:* holding injected atom moves inside the handle (ADR-0105's
+Option A; it fixes masks only and breaks free-running simulation), and
+narrowing the scenario to exogenous rows (it leaves the batch's statistics
+and masks disagreeing at a cross-process tie).
+
+**Storage and per-event cost.** No stored object is added and none
+changes shape. The ordering is one extra radix key in the single
+`order()` call that builds the schedule, resolved once before the walk;
+nothing is evaluated per event. The anchored driver keeps a stamp's drawn
+events in three lists sized once to the largest stamp before its loop and
+writes into them by position; per event it allocates nothing n-scaled
+beyond the drawn event itself (the follow-up re-check measured about 0.2
+KB of constant-size wrappers per event: the `list(latent)` slot and the
+flush's `seq_len()`). Measured: of 288 merged-walk outputs the preprocessing
+test families produce, the 280 whose schedules have no cross-process
+dependent tie are `identical()` before and after; the 154 anchored
+replicates of the simulation tests are `identical()`. The frozen
+baselines, goldens and references hold no joint specification with such
+a tie and do not move.
+
+*Recorded 2026-10-03 (task 8.7b, the follow-up re-check):*
+
+- *The order also removed a self-read, at untied stamps too.* When an
+  earlier-planned process reads a later process's layer, the earlier unit
+  registers that layer's covariate stream first, so it took a lower
+  `stream_index` than the later unit's own dependent stream. Under the old
+  `(time, stream_index)` order the later process then applied its own
+  event's update before evaluating that event, and read it (its inertia at
+  its own dyad was 1). The new order puts every dependent row of a stamp
+  first, so this cannot happen. The old comment "dependent streams indexed
+  before their own covariate stream" was false for such joints. No suite
+  fixture built this schedule; `test-walk_handle.R` "a process does not
+  read its own event at its evaluation" now does, red under the old order.
+- *Which detectors bite.* The order key now carries the strictly-before
+  rule for masks as well as statistics: a row that moves an atom at `t`
+  always follows every dependent row at `t`, so the mask has flushed
+  before the move is recorded. `flush_atom_moves()`'s strict `<` is kept
+  as a second guard and is no longer observable end to end: changing it to
+  `<=` leaves the 8.2 fixture green, and so does reverting the replay
+  helper to its per-position pattern, both now equivalent mutants. What
+  bites: the order key (the 8.2b statistics test, the self-read test and
+  the parity ordering pin), the anchored driver's grouping (the two
+  anchored detectors), and `<` itself through a unit pin on the record
+  ("an atom move is written only once the clock passes its stamp").
+
+## Storage and per-event cost (added 2026-09-29)
+
+Required by the per-event cost rules (`.claude/rules/walk-cost.md`),
+which postdate this design. `n1`, `n2` are the sender and receiver counts,
+`E` the dependent events, `C` the rows of the streams only constraints read.
+
+**D1 (constraint-only objects on the shared walk).** New stored object:
+none. The registry gains one row per constraint-only object and the joint
+schedule `C` rows, both built once before the walk. The state container
+gains the object itself, which the private walk already held in its own
+container, so memory moves rather than grows: one copy of the object
+instead of two (the shared state plus the private walk's). Per event: a
+constraint-only row applies its write in place through the shared writers
+and advances the atom store's changed cells, exactly as a covered
+constraint's row does today; nothing of size `n1`, `n2` or `n1 x n2` is
+allocated. Reads: the atom store reads the changed cells only. Prediction
+before implementation: for the uncovered case, walk time and allocation
+fall by the private walk's cost (its own `fetch_events()`, state
+container and event loop over the `C` rows); for unconstrained and covered
+models nothing moves, since the registry and schedule are byte-identical.
+The preprocessed object is byte-identical until task 2.3a.
+
+**Task 2.3a (constraint-only rows close the rate interval).** The
+exact-time rate's stored rows gain one right-censored row per `C` event,
+held in the existing flat stores (statistic update buffer and pointer,
+`event_time`, `is_dependent`), so the object grows by `C` pointer entries
+and the stored rows those events change; no new object, no grid. Per
+event: the same row emission any covariate row triggers. Prediction: rate
+object size grows in proportion to `C / (E + C)`; walk time moves by the
+same proportion at most.
+
+**D3 (the tied stamp on the handle; revised 2026-10-03 to the mechanism
+that landed, ADR-0105).** New stored object: none, and no pending state.
+The handle keeps one clock rule; a driver evaluating an observed event at
+its stamp calls `walk_advance(t, inclusive = FALSE)`, which stops the
+schedule cursor before the rows sharing `t` (one extra comparison per
+row) and applies them after the event is injected, through the same atom
+store and writers as any other row. Nothing is allocated per event beyond
+what those rows already change. (The pending set of held atom moves this
+paragraph first described was built and withdrawn: it broke free-running
+simulation, and deferring only the touched set would have read post-tie
+atoms through the live mask's recompute.)
+
+**D9 (live masks in the batch walk).** Stored objects: unchanged. The
+mask stream and the folded `active_sender` / `active_dyad` keep their
+current shape (initial value, flat update buffer, per-event pointer, at
+their broadcast kind); only when they are written moves, from after the
+walk to during it. Per event: the live mask maintainer updates the cells
+the atom moves touched; the rate's sender gate is a per-sender count of
+allowed present receivers, changed only at a flipped cell or a presence
+change; the choice's `active_dyad` is the net flips of the event sender's
+row, read by linear index on the stored vector (rule 2), never through
+the grid. The observed-event check reads one mask cell, one presence
+entry and one count. Nothing of size `n1 x n2` is allocated per event.
+Prediction: object sizes byte-identical; walk time of a constrained
+choice falls by the post-walk realization's cost (the `realize_pending_masks()`
+replay and the three folds); the in-walk check adds `O(1)` per dependent
+event.
+
+**Revised 2026-10-03 (conformance follow-up, task 8.5): what was
+measured against these predictions.** Three statements above did not
+hold, and one read the live code takes was accepted later without the
+paragraph changing.
+
+- *The observed-event check reads a row, not a cell.* The choice check
+  (`availability_check_event()`) reads the event sender's row of the mask
+  by linear index on the stored vector (`mask[sender + row_offsets]`, an
+  `&` and a `which()`), about 36 KB per dependent event at 1500 actors.
+  It is a read at the stored kind, which rule 2 permits, and was accepted
+  by Alvaro on 2026-09-30 (task 4.6's note); the paragraph's "one mask
+  cell, one presence entry and one count" holds for the rate check only.
+  Under a mask that flips on almost every event (a dynamic point
+  constraint such as `~ !tie(calls)`), the check's candidate marking
+  (`availability_mark_candidates()`) also re-reads the sender's row once
+  per new epoch, about two `n2` rows per dependent event: 6080 row-sized
+  allocations, 35 MB over 2995 dependent events (about 12 KB per event)
+  at 1500 actors. Accepted on the same terms, below the rules' 0.2 MB per
+  event; a per-sender epoch would remove it, which no task here takes.
+- *The time drop D9 predicted was refuted.* Task 4.7 measured walk time
+  up 2-28 percent while allocation fell in every cell; the in-walk check
+  is 5-19 percent of it and per-row effect stepping in R the rest.
+- *The 2.3a row bound was mis-stated.* The rate's stored rows grow by
+  `C / E` (one censored row per constraint-only event), not by
+  `C / (E + C)`; on the 2.0 fixture rows went 2995 to 5986 (+100
+  percent) and the object 9.01 to 9.21 MB. Walk time grew 56 percent
+  (0.380 to 0.591 s, the groups 0-4 inspection) against a stated 50
+  percent bound, still above it after 4.6 retired the fold 2.3b blamed.
+- *The unconstrained exact-time rate pays for the availability effect.*
+  D9's revision gives every exact-time rate an availability effect
+  stepped on every stored row, and this paragraph predicted nothing for
+  that path. It measured 20-33 percent slower (0.117 s at `663096d`,
+  0.141-0.156 s at `0a99c74`), about two thirds of it
+  `availability_step()`; the CollegeMsg unconstrained joint walk went
+  3.65 to 4.01 s. The fast path for it (task 8.4) is owned by
+  `availability-one-object-per-loop` task 6.6b, which owns
+  `availability_step()` and took it in `5689797` (idle rows skipped,
+  walk routes resolved before the loop, the per-row `c()` growth and
+  by-name `[[fid]]` lookups gone): 0.142 to 0.127 s on the 1500-actor
+  rate (the follow-up re-check; 6.6b's own note reads 0.141-0.143 to
+  0.128 s), still 8.5 percent over the 0.117 s pre-regression figure.
+  The remainder is the step call itself (about 3 us a row: stubbing
+  `availability_step()` out gives 0.116-0.118 s); the CollegeMsg walk
+  did not move with it.
+- *A no-op alter constraint pays its atom's degree update at the grid's
+  width (task 8.7a).* On the 1500-actor rate, `~ indeg(emails) >= 0`
+  excludes nothing yet costs 0.615 s and 822 MB against 0.128 s and 95 MB
+  unconstrained. `Rprofmem` (allocations of 1 KB or more, 825 MB in all)
+  puts 649 MB under `advance_constraint_atom_store()`, about 0.22 MB per
+  emails event over 2991 events: `to_alter()` 378 MB (its `setdiff()`,
+  `lapply()`, `cbind()` and `rbind()`), `collapse_entries()` 116 MB (the
+  `duplicated()`), `project_entries()` 103 MB,
+  `update_DyNAM_rate_indeg()` 34 MB and `linear_entries()` 17 MB; about
+  0.27 s of the time gap is inside the atom store, 0.11 s of it in
+  `to_alter()`. The cost scales with `n1` per event, not with the cells
+  the atom changes (one receiver entry): the shared broadcast-effect
+  contract reports a degree change on the dyad grid's terms, `n1 - 1`
+  rows that `collapse_operand_delta()` folds back to one alter entry.
+  The atom store adds no copy, growth or lookup of its own, and every
+  degree statistic pays the same (the walk-cost reference table's +0.20
+  MB per event for `indeg`, +0.21 MB for a degree constraint). The fix,
+  at-kind emission with `to_ego()` / `to_alter()` deleted, is handed to
+  `initial-stats-at-kind` tasks 3.2 and 3.3 (Alvaro, 2026-10-03).
+
+**Guards.** Each group changing per-event code opens with a cost guard
+on a generated fixture large enough that one grid dominates the noise
+(at least 1000 actors: one double grid is 8 MB), recorded failing on the
+unfixed code, and closes with a measurement of walk time, allocation and
+object size against the values before the group.
+
 ## Risks / Trade-offs
 
 - [Threading touches `build_shared_objects()`/`build_joint_schedule()`, the
@@ -250,8 +637,9 @@ testing half of this change meet on the same fixtures.
 - [The uncovered case's numbers could move between private replay and
   shared walk] → same strictly-before rule on both, and a reference captured
   before the threading is the detector.
-- [A tied stamp makes the handle's live mask lead the batch] → D3's deferred
-  moves plus a fixture that reaches the tie.
+- [A tied stamp makes the handle's live mask lead the batch] → the
+  anchored driver's strict stepping (D3 revision, ADR-0105) plus a fixture
+  that reaches the tie.
 - [The oracle frame silently uses goldfish's rule instead of the process's]
   → the frames are built inside the DGP loop from the DGP's own state; arm
   (b) then compares them to goldfish's export, so a disagreement is visible
@@ -273,7 +661,8 @@ Commit per task on `feature_simulation`; `NOT_CRAN=true` green with
 baselines PASS at each. Order: references for the uncovered case (D2 step
 one) → harness and F1 (D5, D6) so the oracle path exists before the
 substrate moves → threading (D1) with byte-identity → handle conformance and
-tie fixture (D3) → retirement (D2 step three) → fixtures F2–F5 with replay
+tie fixture (D3) → retirement (D2 step three) → live masks in the batch
+walk (D9) → fixtures F2–F5 with replay
 arms (D6, D8) → close. `status: landed (feature_simulation, awaiting fold)`
 at the end; no archive on the branch.
 
@@ -283,5 +672,8 @@ at the end; no archive on the branch.
   walk extent (D4; `observation-tail-right-censoring` D1/D2 own it).
 - Whether the mask rule should later align with statistics and presence at
   a tied stamp (D3's rejected alternative; ADR-0073 open question).
+- ~~Whether the observed-dyad check moves into the walk or stays after
+  preprocessing~~ Settled 2026-09-28: in the walk, aborting at the event,
+  unless 4.7 measures a walk-time cost the end check avoids (D9).
 - Whether `preprocess_support_mask()` has a test-only caller worth keeping
   as a helper under ADR-0054's oracle rule, or goes.

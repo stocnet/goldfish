@@ -74,7 +74,15 @@
       — *done 2026-09-18* `2782407`. No moved test existed (1.2). The
       reduction message now says "other than itself" (snapshot reviewed).
       `own_receiver_count()` branches per kind instead of subtracting a
-      masked term
+      masked term. **Deviation (recorded 2026-10-03, conformance gap
+      5):** the fold's caller derives the flag as
+      `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2
+      and this task state; the two agree on
+      every layer exercised (a square two-mode layer included). At
+      `79dca89` that caller is the `drop_diagonal` default of
+      `build_engine_availability()` (`R/preprocess_joint.R:1365`), which
+      also feeds the in-walk validation. `allow-reflexive-user` task 2.3a
+      resolves the derivation once
 - [x] 2.3 Relational and panel risk-set sizes agree (D5): on a fixture both
       paths read, the relational pin's `|R|` from preprocessing equals the
       panel path's `support_grid_at()` count. Verify: the test fails on the
@@ -135,3 +143,129 @@
       — *done 2026-09-18* `1ba7cd9`: 9037 / 0 / 4, 0 errors, six baseline
       files PASS with 0 skipped; no new lint on a touched line; validate
       passes
+
+## 4. Conformance follow-up (added 2026-10-02)
+
+From `.plan/develop/support-gate-self-exclusion-conformance.md` (two runs, the
+second as `-run2.md`). The post-landing inspection found the code correct and
+the detectors short of the task text: three of the four self-exclusion sites
+and the deferred simulation caller survive single-site ablation with every
+committed test green. Blocks the fold until 4.1 and 4.2 close; the rest before
+archive.
+
+
+- [x] 4.1 **blocks** (reopens 2.1): per-kind detectors at every event. The
+      alter-flip (`R/model_preprocess.R:384-394`), ego/global-flip
+      (`:398-410`) and receiver-crossing (`:437`) exclusions can each be
+      removed with the suite green. Commit a seeded property check of the
+      folded gate and `sender_gate_from_mask()` against the dense oracle for
+      all four kinds, one- and two-mode, with mask flips and receiver
+      crossings (the report's `property_fold_vs_oracle.R` is a template),
+      plus an undirected one-mode flavored fixture. Verify: each of the
+      three single-site ablations turns the new test red.
+      — *done 2026-10-03* (fu/support-gate-g4). Two tests in
+      `test-support_gate_self_exclusion.R`: a seeded property check (4 kinds
+      x one-/two-mode x 12 seeds x 20 events, 4 actors with sparse presence,
+      mask flips every event, a diagonal flip every other event at point
+      kind, receiver crossings) of `fold_gate_timeline()` and
+      `sender_gate_from_mask()` against `oracle_sender_gate()`, with guards
+      that crossings occur and that the self-only case is reached at every
+      one-mode kind (never at two-mode); and the undirected one-mode
+      flavored fixture (`self_only_sender_data()` undirected, t = 6
+      dropped) against the oracle at every stored event. Sites moved since
+      the report: the per-kind updates now live in
+      `availability_gate_flips()` / `availability_gate_receiver()`
+      (`R/availability_effect.R`). Ablations in a detached worktree at
+      `79dca89`, each red in the property test only: alter flip (`if (dd)`
+      block, :338) 1 failed expectation; ego flip (:352) 1; global flip
+      (:360) 1; receiver crossing (:397) 4 (folded gate, all four one-mode
+      kinds); point flip (:322, not required) 1
+- [x] 4.2 **blocks** (extends 3.3): the simulation driver's deferred-rate
+      caller (`R/simulate_driver.R:347-354`) has no detector; forcing its
+      flag to `FALSE` leaves the suite green while a `rate = ~ 1` beside a
+      modeled choice on the 1.1 fixture aborts on every seed. Add that
+      variant to the regression test. Verify: the flag ablation is red.
+      — *done 2026-10-03* (fu/support-gate-g4). New test "a deferred
+      intercept-only rate never draws a saturated sender": `rate = ~ 1`
+      beside `choice = ~ inertia` on the 1.1 fixture, 5 seeds, no NA
+      receiver and no self event, with a guard that `walk_deferred_fids()`
+      lists the rate. Ablation (`simulation_fid_state()`'s flag set to
+      `FALSE`, `R/simulate_driver.R:356`): the test errors on its first
+      seed with "missing value where TRUE/FALSE needed" (the 2.8 abort);
+      green restored
+- [x] 4.3 **should-fix**: `test-support_mask_sparse.R:151` and `:392` still
+      compute the gate reference without `self` (the proposal's Impact
+      promised they would be re-run with the flag); live walk against batch
+      is compared only at the opening state, task 3.1 asked for every event
+      by extending `test-walk_handle.R`; `validate_prep_support()`'s flag
+      derivation (`R/model_estimate.R:1243`) has no detector because the
+      validation tests pass the flag directly. Verify: a flipped flag at
+      each site is red.
+      — *done 2026-10-03* (fu/support-gate-g4). (i) Both sparse-mask gate
+      references (now `test-support_mask_sparse.R:193` and `:457`) read
+      `oracle_sender_gate(..., one_mode = TRUE)` and their comments state
+      the self-dyad rule. **Deviation:** neither fixture reaches a
+      self-only sender (an `indeg >= 0` mask and a `tie(contignet)` mask
+      with no diagonal), so the batch flag ablation leaves that file green;
+      the rule is pinned there in words and by the self-exclusion file,
+      not detected. (ii) `test-walk_handle.R` gains "a sender with only
+      itself left replays live against batch": the 1.1 fixture through
+      `walk_replay_against_batch()`, which now also counts gated-out
+      senders of the compared rate rows (`n_gated`, asserted > 0). It
+      compares at every dependent event, the rows the replay evaluates.
+      Ablation of the walk's flag (`R/walk_handle.R:446`): 5 failed
+      expectations in that test. (iii) `validate_prep_support()` no longer
+      exists: the observed-event check now runs in the walk on the
+      availability effect, whose flag is the batch fold's
+      (`build_engine_availability()`, `R/preprocess_joint.R:1365`). New
+      end-to-end test "a self-only sender's observed event meets an empty
+      risk set" (`~ alter(x) > 0`, only N1 has x > 0, N1's event at t = 3)
+      through `preprocess_joint()`; with that flag set to `FALSE` it is red
+      (the verdict becomes "observed dyad is excluded"), as are the six
+      other fixture tests that read the batch gate
+- [x] 4.4 **should-fix**: assert the scenario clauses the tests skip: the
+      self-only sender absent from `n_candidates` and from the rate
+      exposure (`test-support_gate_self_exclusion.R:154`), and the alter
+      scenario's mask stored at alter kind through the parser (`:60` drives
+      the fold with a hand-made mask).
+      — *done 2026-10-03* (fu/support-gate-g4). Two tests: "the self-only
+      sender is no rate candidate and carries no exposure" (the rate gather
+      of the 1.1 fixture: `n_candidates` = 3 3 3 3 3 3 3 4 4 3, N1 among the
+      candidate rows only at events 8 and 9, and at least one
+      right-censored row without it) and "a separable constraint gates out
+      a self-only sender at alter kind" (`~ alter(x) > 0` through
+      `make_specification()` and `preprocess_joint()`: `stored_kind` 1L, a
+      length-4 vector, gate F T T T at every stored event). Ablation of the
+      batch flag (`R/preprocess_joint.R:1365` set to `FALSE`): both red
+- [x] 4.5 **should-fix**, record only: the fold's caller
+      (`R/preprocess_joint.R:1708`) derives the flag as
+      `identical(ctx$nodes, ctx$nodes2)`, not from the model spec as D2 and
+      task 2.2 state; equivalent today. Note the deviation in 2.2's tick;
+      `allow-reflexive-user` task 2.3a resolves the derivation once. The
+      same change owns the stale sender-loop gate wording in the living
+      `active-availability-stat` spec (`spec.md:126-131`, no self-exclusion)
+      and the `own` vector allocated at every flipped event for all kinds
+      (`R/model_preprocess.R:370`, +57.9 MB on the point-constrained
+      CollegeMsg fold, read only by the ego and global branches).
+      — *done 2026-10-03* (fu/support-gate-g4), record only: the deviation
+      is noted in 2.2's tick; the flag source, the stale
+      `active-availability-stat` wording and the allocation stay with
+      `allow-reflexive-user` 2.3a. Found at `79dca89`: the per-kind updates
+      moved to `availability_gate_flips()` (`ec4b3c0`, availability as an
+      effect), where `own` is built only inside the alter branch (under
+      `drop_diagonal`, sized by the flipped entries), the ego branch
+      (flipped entries) and the global branch (`n1`); the point branch
+      allocates none. 2.3a(ii)'s premise and its line references
+      (`model_preprocess.R:370`, `preprocess_joint.R:1708`) are stale
+- [x] 4.6 Verification: `NOT_CRAN=true` suite green; six baseline files
+      PASS not SKIP and byte-identical; a scoped re-check of gaps 1-8 of
+      the report by a fresh conformance-inspector agent before the fold.
+      Done 2026-10-03 at `676efd3`: PASS 13180, FAIL 0, SKIP 7 (all
+      environmental or opt-in); six baseline files PASS, 0 skipped;
+      `_baselines/` identical to `79dca89`. The re-check
+      (`.plan/develop/support-gate-self-exclusion-followup-conformance.md`)
+      reran every ablation and reports CONFORMANT: gaps 1-8 closed; the
+      4.3 sparse-fixture deviation is accepted because the property test
+      and the fixture tests detect the rule. Its new note, the coordination
+      self-exclusion in `symmetric_receiver_count()` with no detector, goes
+      to `availability-one-object-per-loop`, which introduced it.

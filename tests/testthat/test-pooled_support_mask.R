@@ -96,7 +96,8 @@ test_that("pooled masks equal per-fid masks over one shared atom (a)", {
     nodes = "actors",
     nodes2 = "actors",
     symmetric = FALSE,
-    prep_envir = fx$env
+    prep_envir = fx$env,
+    atoms_factory = build_atom_maintainer
   )
 
   ref_tie <- per_fid_mask(fx, fx$sub_tie, times_tie)
@@ -131,7 +132,8 @@ test_that("several fids sharing one constraint id are evaluated once (a)", {
     nodes = "actors",
     nodes2 = "actors",
     symmetric = FALSE,
-    prep_envir = fx$env
+    prep_envir = fx$env,
+    atoms_factory = build_atom_maintainer
   )
   expect_equal(
     mask_timeline(pooled[[1L]]),
@@ -211,7 +213,8 @@ test_that("a NULL-constraint request yields a NULL mask", {
     nodes = "actors",
     nodes2 = "actors",
     symmetric = FALSE,
-    prep_envir = fx$env
+    prep_envir = fx$env,
+    atoms_factory = build_atom_maintainer
   )
   expect_null(pooled[[1L]])
   expect_false(is.null(pooled[[2L]]))

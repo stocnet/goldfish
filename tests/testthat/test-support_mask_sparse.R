@@ -21,19 +21,14 @@ mask_call_counts <- function(expr) {
   counts <- new.env(parent = emptyenv())
   counts$maintainers <- 0L
   counts$evaluations <- 0L
-  orig_build <- build_atom_maintainer
   orig_store <- build_constraint_atom_store
   orig_assemble <- assemble_support_mask
-  # The atom pool is built once per layer by WHICHEVER maintainer keeps it: the
-  # merged walk records it inline through `build_constraint_atom_store()` for a
-  # constraint it can cover, and private `build_atom_maintainer()` walk keeps
-  # the ones it cannot (a flavored derived mask). Counting both is what makes
-  # "one pool for the layer" hold across the two mechanisms.
+  # The atom pool is built once per layer by the merged walk, which records it
+  # inline through `build_constraint_atom_store()` for every constraint: an
+  # object only a constraint reads is on the shared schedule too. (The private
+  # `build_atom_maintainer()` walk that once kept such constraints is now a
+  # test oracle, out of the package.)
   local_mocked_bindings(
-    build_atom_maintainer = function(...) {
-      counts$maintainers <- counts$maintainers + 1L
-      orig_build(...)
-    },
     build_constraint_atom_store = function(...) {
       counts$maintainers <- counts$maintainers + 1L
       orig_store(...)
@@ -150,8 +145,9 @@ test_that("a rate + choice layer maintains one mask, not one per family", {
 
 test_that("the rate gate equals the row reduction of the shared mask", {
   # The backbone: whatever representation the mask is in, the sender gate
-  # estimation consumes must equal a from-scratch
-  # `rowSums(mask & receiver-availability) > 0`, boolean-exact at every event.
+  # estimation consumes must equal a from-scratch reduction of the mask over
+  # the present receivers other than the sender itself (one node set here),
+  # boolean-exact at every event.
   fx <- sparse_mask_data()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -164,12 +160,25 @@ test_that("the rate gate equals the row reduction of the shared mask", {
     compute_statistics(spec, "DyNAM", "rate")
   ))
   sm <- prep$support_mask
-  n1 <- length(sm$sender_presence_init %||% prep$active_sender_init)
-  n2 <- length(sm$receiver_presence_init %||% rep(TRUE, fx$n_actors))
+  # The presence the gate folded in, from the same model without the
+  # constraint (same stored rows: the constraint reads a term's object).
+  unconstrained <- suppressMessages(suppressWarnings(compute_statistics(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~ inertia + recip,
+      layer = "call_network",
+      data = fx$data
+    ),
+    "DyNAM",
+    "rate"
+  )))
+  expect_identical(unconstrained$event_time, prep$event_time)
+  n1 <- length(prep$active_sender_init)
+  n2 <- fx$n_actors
   presence <- walk_presence_buffer(
-    sm$sender_presence_init %||% prep$active_sender_init,
-    prep$active_sender_update,
-    prep$active_sender_update_pointer,
+    unconstrained$active_sender_init,
+    unconstrained$active_sender_update,
+    unconstrained$active_sender_update_pointer,
     length(prep$event_time)
   )
   gate <- walk_presence_buffer(
@@ -178,10 +187,10 @@ test_that("the rate gate equals the row reduction of the shared mask", {
     prep$active_sender_update_pointer,
     length(prep$event_time)
   )
-  receivers <- sm$receiver_presence_init %||% rep(TRUE, n2)
+  receivers <- unconstrained$active_dyad_init == 1
   for (e in seq_along(prep$event_time)) {
     grid <- mask_grid_at_event(sm, e, n1, n2)
-    ref <- rowSums(grid & rep(receivers, each = n1)) > 0
+    ref <- oracle_sender_gate(grid, receivers, one_mode = TRUE)
     expect_identical(unname(gate[[e]]), unname(presence[[e]] & ref))
   }
 })
@@ -364,7 +373,7 @@ test_that("the maintained availability collapses presence and the constraint", {
   )
   sm <- con$support_mask
   n2 <- length(raw$active_dyad_init)
-  n1 <- length(con$active_sender_init)
+  n1 <- dim(con$initial_stats)[1]
 
   # The composition really moves, otherwise the rest of this test is vacuous.
   expect_gt(length(unique(vapply(presence, sum, numeric(1)))), 1L)
@@ -380,9 +389,13 @@ test_that("the maintained availability collapses presence and the constraint", {
   expect_gt(gated_while_allowed, 0L)
 })
 
-composition_rate_prep <- function(data, constraint = NULL) {
+composition_rate_prep <- function(
+  data,
+  constraint = NULL,
+  formula = create_bilat ~ 1 + indeg(bilatnet)
+) {
   suppressMessages(suppressWarnings(estimate_dynam(
-    create_bilat ~ 1 + indeg(bilatnet),
+    formula,
     sub_model = "rate",
     data = data,
     preprocessing_only = TRUE,
@@ -391,16 +404,22 @@ composition_rate_prep <- function(data, constraint = NULL) {
 }
 
 test_that("the rate gate follows receiver departures, not only mask flips", {
-  # The gate is `presence & (rowSums(mask & receiver-presence) > 0)`, and BOTH
-  # of its inner axes move over this sequence. The constraint has to be
-  # POINT-kind for a departure to be visible: a separable mask shares one
+  # The gate is sender presence and at least one allowed, present receiver
+  # other than the sender itself, and BOTH of the reduction's inner axes
+  # move over this sequence. The constraint has to be POINT-kind for a
+  # departure to be visible: a separable mask shares one
   # allowed set across every sender, so all of it would have to leave before
   # any gate moved, while a point mask gives sender i its own row, which can
   # be small enough that a single departure empties it.
   data <- composition_fixture()
   # The unconstrained run supplies both raw timelines the constrained run
-  # folds together.
-  raw <- composition_rate_prep(data)
+  # folds together. An event of a layer only the constraint reads closes the
+  # constrained rate's interval, so the unconstrained run reads `contignet`
+  # through a term to store the same rows; its statistics are not used.
+  raw <- composition_rate_prep(
+    data,
+    formula = create_bilat ~ 1 + indeg(bilatnet) + indeg(contignet)
+  )
   con <- composition_rate_prep(data, ~ tie(contignet))
   n_stored <- length(con$event_time)
   expect_identical(length(raw$event_time), n_stored)
@@ -436,7 +455,7 @@ test_that("the rate gate follows receiver departures, not only mask flips", {
   for (e in seq_len(n_stored)) {
     grid <- mask_grid_at_event(sm, e, n1, n2)
     ref <- senders[[e]] &
-      (rowSums(grid & rep(receivers[[e]], each = n1)) > 0)
+      oracle_sender_gate(grid, receivers[[e]], one_mode = TRUE)
     expect_identical(unname(gate[[e]]), unname(ref))
   }
 })
@@ -589,12 +608,11 @@ test_that("each flavor's mask is its derived half of the allowed set", {
 
 # --- 5.5 the mask as a stream, and the gate as a counter -------------------- #
 
-test_that("a symmetrised mask is stored at point kind whatever its atoms say", {
-  # `m & t(m)` of a row-constant mask is an outer product, so symmetrising
-  # destroys separability: a coordination constraint whose atoms are all
-  # receiver-axis still has to be stored dense. The atoms' axis-union is kept
-  # separately, because it is what the tree is EVALUATED at -- only the storage
-  # is forced.
+test_that("a symmetrised vector mask keeps its own kind", {
+  # `m & t(m)` of a column-constant mask is the outer product m[i] & m[j], so a
+  # coordination constraint whose atoms are all receiver-axis stays a vector:
+  # the mask is stored at its kind, flagged symmetric, and the availability
+  # folds it into both factors instead of a grid.
   fx <- sparse_mask_data()
   prep <- suppressMessages(suppressWarnings(estimate_dynam(
     calls_dependent ~ inertia,
@@ -605,8 +623,11 @@ test_that("a symmetrised mask is stored at point kind whatever its atoms say", {
   )))
   sm <- prep$support_mask
   expect_identical(sm$mask_kind, 1L)
-  expect_identical(sm$stored_kind, 0L)
-  expect_identical(dim(sm$initial), c(fx$n_actors, fx$n_actors))
+  expect_identical(sm$stored_kind, 1L)
+  expect_true(sm$symmetric)
+  expect_null(dim(sm$initial))
+  expect_length(sm$initial, fx$n_actors)
+  expect_identical(prep$active_dyad_encoding, "outer")
 
   # The control: the same constraint on a non-symmetric family keeps its
   # separable storage.
@@ -661,7 +682,7 @@ test_that("the sender gate emits only zero-crossings", {
     preprocessing_only = TRUE,
     support_constraint = ~ indeg(call_network) >= 0
   )))
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
   expect_identical(ncol(prep$active_sender_update), 0L)
   expect_true(all(prep$active_sender_init))
 
@@ -710,9 +731,11 @@ test_that("a sender-axis-only constraint allocates no dyad mask", {
 
 test_that("the shared mask serves sub-models that store it differently", {
   # A layer's rate and its COORDINATION choice share one atom pool and one
-  # evaluation, and differ only in whether the stored mask is symmetrised. That
-  # is the case the per-request `symmetric` exists for: sharing the pool must
-  # not force one sub-model to store the other's shape.
+  # evaluation, and differ only in whether the mask is symmetrised. That is
+  # the case the per-request `symmetric` exists for: sharing the pool must not
+  # force one sub-model to store the other's shape. A vector mask is stored at
+  # its kind either way, its symmetry left to the coordination availability's
+  # two factors, so both read the one maintainer.
   fx <- sparse_mask_data()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -732,31 +755,11 @@ test_that("the shared mask serves sub-models that store it differently", {
     function(out) out$support_mask$stored_kind,
     integer(1)
   )
-  # One sub-model stores the separable mask, the other the symmetrised grid.
-  expect_setequal(kinds, c(0L, 1L))
-})
-
-# --- 8.2 an object from before the stream is refused, not misread ----------- #
-
-test_that("a support_mask predating the update stream is refused", {
-  local_reproducible_output()
-  # The hazard is silence, not failure: a cursor over an absent update buffer
-  # finds no flips and returns the initial mask at every event, so the model is
-  # estimated on a constraint frozen at time zero. The epoch stamp cannot see
-  # it -- both layouts are epoch 2 inside this development line -- so the
-  # consumer names the component it needs.
-  stale <- list(
-    support = list(matrix(TRUE, 2L, 2L), matrix(FALSE, 2L, 2L)),
-    initial = matrix(TRUE, 2L, 2L),
-    stored_kind = 0L,
-    n_stored = 2L
+  expect_identical(unname(kinds), c(1L, 1L))
+  symmetric <- vapply(
+    counts$value,
+    function(out) out$support_mask$symmetric,
+    logical(1)
   )
-  expect_snapshot(error = TRUE, mask_cursor(stale))
-  expect_error(mask_flips(stale), "predates the mask update stream")
-
-  # A mask that legitimately never moves has an EMPTY buffer, not an absent
-  # one, and is read without complaint.
-  empty <- mask_from_timeline(list(matrix(TRUE, 2L, 2L), matrix(TRUE, 2L, 2L)))
-  expect_identical(ncol(empty$update), 0L)
-  expect_silent(mask_cursor(empty))
+  expect_setequal(symmetric, c(FALSE, TRUE))
 })

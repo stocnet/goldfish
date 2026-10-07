@@ -722,8 +722,6 @@ gather_from_prep <- function(prep, spec) {
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
-    verbose = FALSE,
-    impute = FALSE,
     active_dyad_encoding = active_dyad_encoding
   )
 
@@ -755,7 +753,9 @@ gather_from_prep <- function(prep, spec) {
 #'   \item{`"outer"`}{both axes are dynamic but separable — the risk set is
 #'     dyadic (REM / REM-ordered / DyNAM-MM fold both presences) or a pure
 #'     ego-kind support atom adds a sender-axis factor; stored as two factor
-#'     vectors with cell `(i, j) = f1[i] & f2[j]`.}
+#'     vectors with cell `(i, j) = f1[i] & f2[j]`. A one-sided choice object
+#'     stores the receiver factor alone: its likelihood conditions on the
+#'     observed sender, so an ego-kind atom there only validates.}
 #'   \item{`"alter"`}{only the receiver axis is dynamic (DyNAM-M choice/rate
 #'     with no constraint, or a pure alter-/scalar-kind support atom) — one
 #'     length-n2 vector.}
@@ -794,11 +794,13 @@ active_dyad_encoding_for <- function(spec) {
 #' Consumers read per-event availability through these helpers and never branch
 #' on the encoding. At `"alter"` `active_dyad` is the receiver-axis logical
 #' vector; at `"outer"` cell `(i, j) = active_sender[i] & active_dyad[j]` (two
-#' factor vectors); at `"point"` `active_dyad` is the dense `n1 x n2` logical
-#' and the cell is read directly. `active_dyad_row()` returns the length-n2
-#' availability for a given sender, `active_dyad_cell()` a single dyad, and
-#' `active_dyad_count()` the number of available dyads (the intercept
-#' denominator's per-event TRUE-count).
+#' factor vectors), except for a one-sided choice object, which stores no
+#' sender factor: its row and cell are the receiver factor for any sender,
+#' since that sender is given; at `"point"` `active_dyad` is the dense
+#' `n1 x n2` logical and the cell is read directly. `active_dyad_row()`
+#' returns the length-n2 availability for a given sender, `active_dyad_cell()`
+#' a single dyad, and `active_dyad_count()` the number of available dyads (the
+#' intercept denominator's per-event TRUE-count).
 #' @noRd
 active_dyad_row <- function(
   encoding,
@@ -809,7 +811,8 @@ active_dyad_row <- function(
   if (identical(encoding, "point")) {
     active_dyad[sender_i, ]
   } else if (identical(encoding, "outer")) {
-    if (isTRUE(active_sender[sender_i] == 1)) {
+    # No sender factor is a choice object, whose sender is given.
+    if (is.null(active_sender) || isTRUE(active_sender[sender_i] == 1)) {
       active_dyad
     } else {
       active_dyad & FALSE
@@ -831,7 +834,7 @@ active_dyad_cell <- function(
     return(as.logical(active_dyad[sender_i, receiver_j]))
   }
   avail_j <- active_dyad[receiver_j]
-  if (identical(encoding, "outer")) {
+  if (identical(encoding, "outer") && !is.null(active_sender)) {
     avail_j & isTRUE(active_sender[sender_i] == 1)
   } else {
     avail_j
@@ -852,7 +855,8 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
 #' Assemble the flat-buffer `goldfishStat` object
 #'
 #' Shared output assembly for the default writer: computes the intercept
-#' scalars (`n_dep_events`, `total_time`, `avg_active_entity`) and the
+#' scalars (`n_dep_events`, `total_time`; the exposure and
+#' `avg_active_entity` follow the support fold) and the
 #' composition-change C-format presence matrices, then wraps the per-event
 #' fields produced by the writer into a `goldfishStat` object.
 #'
@@ -881,35 +885,9 @@ assemble_default_output <- function(
 ) {
   n_dep_events <- NULL
   total_time <- NULL
-  avg_active_entity <- NULL
   if (is_exact_time) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
-    nActors <- sum(active_sender_init)
-    if (length(active_sender_changes) > 0 && n_stored > 0) {
-      changesTime <- vapply(active_sender_changes, `[[`, double(1), "time")
-      changesReplace <- vapply(
-        active_sender_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-      timeAcc <- start_time
-      previousTime <- -Inf
-      activeAcc <- 0
-      for (i in seq_len(n_stored)) {
-        timeAcc <- timeAcc + intervals[i]
-        changesAt <- changesTime > previousTime & changesTime <= timeAcc
-        nActors <- nActors +
-          sum(changesReplace[changesAt]) -
-          sum(!changesReplace[changesAt])
-        activeAcc <- activeAcc + nActors
-        previousTime <- timeAcc
-      }
-      avg_active_entity <- activeAcc / n_stored
-    } else {
-      avg_active_entity <- nActors
-    }
   }
 
   active_sender_update <- NULL
@@ -951,15 +929,16 @@ assemble_default_output <- function(
       event_receiver = event_receiver,
       event_pos = seq_len(n_stored),
       active_sender_init = active_sender_init,
-      active_sender_changes = active_sender_changes,
       active_dyad_init = active_dyad_init,
-      active_dyad_changes = active_dyad_changes,
       active_dyad_encoding = active_dyad_encoding,
       start_time = start_time,
       end_time = end_time,
       n_dep_events = n_dep_events,
       total_time = total_time,
-      avg_active_entity = avg_active_entity,
+      # The exposure and the risk set it averages are filled once the support
+      # fold has run, since both count the post-gate entities.
+      exposure_entity_time = NULL,
+      avg_active_entity = NULL,
       active_sender_update = active_sender_update,
       active_sender_update_pointer = active_sender_update_pointer,
       active_dyad_update = active_dyad_update,

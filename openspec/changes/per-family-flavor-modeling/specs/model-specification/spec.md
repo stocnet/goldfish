@@ -1,6 +1,15 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: layer identifies the dependent process; the LHS does not
+**Reason**: ADR-0056 reverses one of its scenarios (a mismatched rate/choice
+key set is recorded as a completion gap instead of rejected). A `## MODIFIED`
+block cannot drop a scenario, so the requirement is re-added below under a name
+that states the new rule; every other scenario is carried over unchanged.
+**Migration**: none for users; the `layer`/LHS contract is the same.
+
+## ADDED Requirements
+
+### Requirement: layer identifies the dependent process; a family gap is recorded, not rejected
 
 The rate and choice formulas SHALL leave the left-hand side empty; the dependent process is
 named by the `layer` argument or by `info$focal` (with `layer` overriding it when both are
@@ -24,6 +33,24 @@ layer that carries a `flavor` column SHALL model all rows and emit a
 `cli_inform` making that visible. Legacy `make_dependent_events()`-wrapper
 data resolves the dependent-object name to (focal layer, its stamped flavor
 key) internally, without the inform.
+
+#### Scenario: layer set by a legacy wrapper resolves as a stocnet layer
+- **WHEN** data was assembled through the deprecated `make_dependent_events()` wrapper
+  and `layer` names the layer that wrapper created
+- **THEN** the specification resolves it through the stocnet layer vocabulary — the same
+  path as directly-constructed stocnet input, with no separate lookup.
+
+#### Scenario: dependent object on the LHS is rejected
+- **WHEN** a rate or choice formula is written with a dependent-events object on the LHS
+  (e.g. `callsDep ~ ...`)
+- **THEN** `make_specification()` aborts with an error directing the user to use the `layer`
+  argument with an empty LHS.
+
+#### Scenario: rate and choice share the dependent without an equality check
+- **WHEN** both `rate` and `choice` are supplied with empty LHS and a single `layer`
+- **THEN** both submodels reference the same dependent process by construction, with no
+  rate-vs-choice LHS comparison required.
+
 
 #### Scenario: One modeled flavor selects the dependent rows
 - **WHEN** `make_specification(rate = list(creation ~ inertia()), layer = "treaties",

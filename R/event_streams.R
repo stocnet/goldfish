@@ -238,6 +238,10 @@ split_stocnet_streams <- function(
         stringsAsFactors = FALSE
       )
       stream$value <- values[sel]
+      # Composition rides the `active` variable only. `present` is its former
+      # name: manynet renames it to `active` on a node frame
+      # (`rename_nodes()`), but a `changes` row that still says `present` is
+      # an ordinary attribute here and switches no node in or out.
       if (identical(v, "active")) {
         composition <- split_composition(stream, mode_map, focal)
       } else {

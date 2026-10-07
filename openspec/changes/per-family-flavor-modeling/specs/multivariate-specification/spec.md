@@ -2,11 +2,15 @@
 
 ### Requirement: Generative-readiness completion fills half-specified flavors
 
-A specification SHALL be made *generatively complete* — every modeled DyNAM
-flavor (the choice / choice_coordination sub-model family) carrying both a rate
-and a choice — by a completion transform run at the consumer's entry whenever
-it is used to **generate** events (drive the walk handle via `simulate()` or an
-augmenter) or to be estimated **jointly** (`estimate_dynes()`). A flavor **keyed in one
+A specification SHALL be made *generatively complete* for the variant it runs
+by a completion transform run at the consumer's entry whenever it is used to
+**generate** events (drive the walk handle via `simulate()` or an augmenter) or
+to be estimated **jointly** (`estimate_dynes()`). For free-running generation and
+joint estimation every modeled DyNAM flavor (the choice / choice_coordination
+sub-model family) carries both a rate and a choice; for time-anchored simulation
+it carries its choice, and a rate only if the model has one, a process without a
+rate drawing at the observed stamps (a choice-only DyNAM holding the observed
+sender, a coordination process drawing its pair). A flavor **keyed in one
 sub-model list and omitted from the other** SHALL have the missing sub-model filled
 with its zero-information default and SHALL emit a `cli` **warning** naming
 the layer, flavor, sub-model, and the default applied; the warning SHALL fire at
@@ -50,20 +54,20 @@ regardless of the underlying event stream's time representation (numeric, `POSIX
 `Date`, or character) — the pin computation SHALL NOT propagate a `difftime` or other
 non-numeric temporal object into `T_w`. `|R_w|` (the period's average rate-entity
 size) SHALL be **supplied by the consumer**, its source keyed on how the flavor is
-observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or, for
-an **unflavored relational** layer (no flavor keying on the process), a
-time-weighted `avg_active_entity` sourced from goldfish's own preprocessing scalars
+observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or, for a
+**relational** layer, flavored or not, the
+time-weighted `avg_active_entity` (`exposure_entity_time / total_time`, per flavor on
+a flavored layer) sourced from goldfish's own preprocessing scalars
 (see design D9a, D3) — and the period partition SHALL follow the half-open membership
 convention `findInterval(t, wave_times, rightmost.closed = TRUE)` (interior
 boundaries left-closed/right-open, final period right-closed). A **flavored**
-relational (event-observed, non-panel) layer's missing rate SHALL, until a
-flavor-aware relational risk-set source exists, use the same wave-endpoint/Hamming-diff
-derivation as a panel layer over the layer's own observed time extent — never the
+relational (event-observed, non-panel) layer's missing rate SHALL read
+its own flavor's exposure over the layer's own observed time extent — never the
 range of an unrelated layer in the same joint dataset. A completed rate whose pinned
 layer has **no timed events at all** (every row is `time = NA` history) SHALL, on a
-**panel**-observed layer (or the flavored-relational fallback that shares the panel
-derivation), emit a `cli` **warning** naming the layer and pin to a **zero hazard**
-(`intercept_w = -Inf`, the flavor cannot fire); on an **unflavored relational** layer,
+**panel**-observed layer, emit a `cli` **warning** naming the layer and pin to a
+**zero hazard** (`intercept_w = -Inf`, the flavor cannot fire); on a **relational**
+layer, flavored or not,
 whose risk-set scalars (`total_time`, `avg_active_entity`) would be zero and admit no
 finite pin, it SHALL **abort** with a `cli` error naming the layer. A **per-period**
 empty wave in a multi-wave grid (nothing changed between two boundaries) is NOT this
@@ -126,12 +130,11 @@ leaving the recorded gap for the generative consumers to complete.
 #### Scenario: a layer with no timed events warns (panel) or aborts (relational)
 - **WHEN** a completed rate's pinned layer carries no timed events at all (every row
   is `time = NA` history)
-- **THEN** a **panel**-observed layer (or a flavored relational layer on the panel
-  fallback) emits a `cli` warning naming the layer and completes to a zero-hazard pin
-  (`intercept_w = -Inf`), whereas an **unflavored relational** layer aborts with a
-  `cli` error naming the layer, because its `total_time` / `avg_active_entity` scalars
-  are zero and no finite pin exists; a per-period empty wave in a multi-wave grid does
-  neither and stays a silent `-Inf`.
+- **THEN** a **panel**-observed layer emits a `cli` warning naming the layer and
+  completes to a zero-hazard pin (`intercept_w = -Inf`), whereas a **relational**
+  layer, flavored or not, aborts with a `cli` error naming the layer, because its
+  `total_time` / `avg_active_entity` scalars are zero and no finite pin exists; a
+  per-period empty wave in a multi-wave grid does neither and stays a silent `-Inf`.
 
 #### Scenario: an unflavored relational layer's completed rate uses the relational risk-set source
 - **WHEN** a missing rate is completed for an **unflavored** process on a layer that

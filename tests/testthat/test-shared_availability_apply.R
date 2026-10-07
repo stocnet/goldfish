@@ -112,7 +112,7 @@ test_that("the time-varying gate emits active_sender crossings", {
     sub_model = "rate",
     preprocessing_only = TRUE
   ))
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
   # One crossing per gated actor, all at the same event, so the apply walks a
   # multi-column per-event slice rather than a single flip.
   expect_equal(ncol(prep$active_sender_update), fx$n_cross)

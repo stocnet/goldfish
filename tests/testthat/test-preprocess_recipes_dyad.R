@@ -37,9 +37,12 @@ test_that("dynam choice recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_entity)
-  expect_identical(nrow(preproData$active_sender_update), 2L)
+  # The choice loop folds no sender side, so composition reaches the output
+  # through the receiver buffer alone.
+  expect_null(preproData$active_sender_update)
+  expect_identical(nrow(preproData$active_dyad_update), 2L)
   expect_length(
-    preproData$active_sender_update_pointer,
+    preproData$active_dyad_update_pointer,
     length(preproData$is_dependent)
   )
 })
@@ -171,8 +174,9 @@ test_that("rem rate recipe stores the intercept scalars and presence format", {
     sum(preproData$is_dependent == 1L)
   )
   expect_equal(preproData$total_time, sum(preproData$intervals))
+  # A REM's risk set is its dyads: at most 5 x 4 on five actors.
   expect_gt(preproData$avg_active_entity, 0)
-  expect_lte(preproData$avg_active_entity, 5)
+  expect_lte(preproData$avg_active_entity, 20)
   expect_identical(nrow(preproData$active_sender_update), 2L)
   expect_identical(ncol(preproData$active_sender_update), nrow(compChange))
   expect_length(

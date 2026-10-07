@@ -24,6 +24,16 @@
 #' carries a timed rate, time-anchored when its rate is ordered, it coordinates,
 #' or it has no rate.
 #'
+#' A time-anchored run walks the observed events of the modeled layers in
+#' order. Each keeps its time, layer and flavor, and the run redraws what the
+#' model draws: the sender from the rate and the receiver from the choice, or
+#' the dyad for a REM. A DyNAM with no rate models no sender, so the observed
+#' sender is held and only the receiver is redrawn. An observed event whose
+#' redraw the simulated state cannot support, such as a sender with no
+#' receiver its choice allows, is skipped and counted rather than forced. The
+#' observed stream bounds the run, so it takes no `n_events`, `horizon` or
+#' `control_sim`. Coordination processes cannot be simulated yet.
+#'
 #' Observed exogenous streams — covariate changes and node composition — march
 #' along with the simulated clock. A free-running run that passes the end of
 #' the observation window holds that state rather than inventing its
@@ -54,7 +64,12 @@
 #' them, and each one restarts the clock, as it censors the rate in
 #' estimation. A replayed event the simulated state cannot take, such as the
 #' dissolution of a tie no simulated creation made, is skipped rather than
-#' forced, and counted.
+#' forced, and counted. The counts, `n_replayed` and `n_skipped` in
+#' `diagnostics`, describe how far the replayed flavors could act on the
+#' simulated sequence; no count stops, flags or removes a replicate. A run
+#' that reaches the end of the observation window replays every observed
+#' event of those flavors, so `n_replayed` is smaller only when a target or a
+#' guard stops the run first.
 #'
 #' Every step of the loop is replaceable — see [set_simulation_steps()] for the
 #' plug points and [set_parameter_provider()] for parameters that change during
@@ -70,14 +85,16 @@
 #'   or a [set_parameter_provider()]. A fitted model supplies its own estimates
 #'   and needs none.
 #' @param data the stocnet to simulate on. Required on a fitted model, which
-#'   stores its formula and estimates but not the data it was fitted on.
+#'   stores its formula and estimates but not the data it was fitted on. The
+#'   model is rebuilt with the support constraint and the modeled flavor the
+#'   fit was estimated with.
 #' @param times `"generated"` for a free-running run or `"observed"` for a
 #'   time-anchored one. Defaults to [times_of()], which reads the variant from
 #'   what the model can honor; an explicit value it cannot honor is refused
 #'   with the reason.
-#' @param n_events stop after this many events.
+#' @param n_events stop after this many events. Free-running only.
 #' @param horizon stop at this time. With neither `n_events` nor `horizon`,
-#'   the end of the observation window.
+#'   the end of the observation window. Free-running only.
 #' @param replay flavors to replay from their observed events instead of
 #'   drawing them, named as the process labels name them (`"calls ›
 #'   dissolution"`). A flavor the specification does not model is replayed
@@ -87,7 +104,7 @@
 #'   own steps.
 #' @param control_prep preprocessing options, from [set_preprocessing()].
 #' @param control_sim the guards that stop a runaway replicate, from
-#'   [set_simulation_guard()].
+#'   [set_simulation_guard()]. Free-running only.
 #' @param ... passed between methods. The specification method refuses any
 #'   argument it does not take.
 #'
@@ -99,9 +116,12 @@
 #'   and its `times_source` (`"specification"` or `"requested"`), the `capped`
 #'   flag and run `diagnostics`: the `stop_reason` (`"n_events"` or
 #'   `"horizon"` for a target; `"max_events"`, `"rate_trajectory"` or
-#'   `"clock_resolution"` for a guard), the counts of events and proposals,
-#'   the `end_time` the clock reached, the `window_end`, the total-rate
-#'   `trajectory`, and the counts `n_replayed` and `n_skipped`. For
+#'   `"clock_resolution"` for a guard; `"observed"` for a time-anchored run),
+#'   the counts of events and proposals, the `end_time` the clock reached, the
+#'   `window_end`, the total-rate `trajectory` (empty for a time-anchored
+#'   run), the counts `n_replayed` and `n_skipped`, and `n_stamps_skipped`,
+#'   the observed events a time-anchored run skipped (`NA` when
+#'   free-running). For
 #'   `nsim > 1` a `goldfishSimPool`: a list of them that prints in aggregate,
 #'   whose `summary()` gives one row per replicate, and whose replicates are
 #'   selected with [filter_simulation()].
@@ -138,6 +158,7 @@ simulate.goldfishJointSpec <- function(
 ) {
   call <- rlang::current_env()
   rlang::check_dots_empty()
+  guard_supplied <- !missing(control_sim)
   control_sim <- resolve_simulation_guard(control_sim, call)
   # A flavor replayed on request is dropped before anything reads the
   # specification, so from here on it is exactly an unmodeled flavor.
@@ -152,15 +173,10 @@ simulate.goldfishJointSpec <- function(
     call = call
   )
   times <- resolved_times$times
-  if (identical(times, "observed")) {
-    cli::cli_abort(
-      c(
-        "Time-anchored simulation is not available yet.",
-        "i" = "Run free-running with {.code times = \"generated\"}."
-      ),
-      call = call,
-      class = "goldfish_sim_unsupported"
-    )
+  anchored <- identical(times, "observed")
+  if (anchored) {
+    abort_on_anchored_arguments(n_events, horizon, guard_supplied, call)
+    abort_on_coordination(resolved_times, call)
   }
   abort_on_effect_free_process(object, call)
   steps <- resolve_simulation_steps(steps, call)
@@ -207,6 +223,18 @@ simulate.goldfishJointSpec <- function(
     set.seed(seed)
   }
   runs <- lapply(seq_len(nsim), function(replicate) {
+    if (anchored) {
+      return(simulate_anchored_replicate(
+        spec = completed,
+        provider = provider,
+        steps = steps,
+        replicate = replicate,
+        times = resolved_times,
+        control_prep = control_prep,
+        requested_replay = requested_replay,
+        call = call
+      ))
+    }
     simulate_replicate(
       spec = completed,
       provider = provider,
@@ -403,6 +431,54 @@ drop_replayed_flavors <- function(joint_spec, requested) {
   rebuild_completed_joint(joint_spec, specs)
 }
 
+# A time-anchored run is bounded by the observed stamps: it has no target to
+# reach and no clock to guard. An argument that would be ignored is refused,
+# so a caller never believes a stop took effect that could not.
+abort_on_anchored_arguments <- function(
+  n_events,
+  horizon,
+  guard_supplied,
+  call
+) {
+  supplied <- c(
+    n_events = !is.null(n_events),
+    horizon = !is.null(horizon),
+    control_sim = guard_supplied
+  )
+  if (!any(supplied)) {
+    return(invisible(NULL))
+  }
+  arguments <- names(supplied)[supplied]
+  cli::cli_abort(
+    c(
+      "{.arg {arguments}} {?does/do} not apply to a time-anchored run.",
+      "x" = "The observed event times bound the run, so there is no target to
+             reach and no clock to guard.",
+      "i" = "Drop {.arg {arguments}}, or run free-running with
+             {.code times = \"generated\"}."
+    ),
+    call = call,
+    class = "goldfish_sim_anchored_argument"
+  )
+}
+
+# A coordination process draws its pair from its mechanism's mark
+# distribution, which the anchored run does not implement yet.
+abort_on_coordination <- function(resolved_times, call) {
+  if (!identical(resolved_times$reason, "coordination")) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(
+    c(
+      "Simulating a coordination process is not available yet.",
+      "i" = "Its pair is drawn from the mechanism's mark distribution, which
+             the simulation does not implement yet."
+    ),
+    call = call,
+    class = "goldfish_sim_unsupported"
+  )
+}
+
 # Refuse a DyNAM process whose authored rate is intercept-only and which has
 # no choice. Completion would add a uniform choice, and the process would then
 # carry no effect anywhere: every sender at one constant rate, every receiver
@@ -452,7 +528,8 @@ abort_on_effect_free_process <- function(joint_spec, call) {
 
 # Rebuild the specification a fit was estimated from. A `goldfishFit` stores
 # its formula (two-sided, the response naming the focal layer), its model and
-# its sub-model, but NOT the specification object and NOT the data -- so the
+# its sub-model, its support constraint and its modeled flavor,
+# but NOT the specification object and NOT the data -- so the
 # data comes from the caller, who has it, rather than from a copy of the whole
 # stocnet carried on every fitted model.
 specification_from_fit <- function(fit, data, call) {
@@ -483,7 +560,25 @@ specification_from_fit <- function(fit, data, call) {
   # fit never estimated.
   family <- if (is_choice_family(fit$model_spec)) "choice" else "rate"
   sub_model <- fit$model_spec$sub_model %||% fit$sub_model
-  args <- list(layer = layer, model = fit$model, data = data)
+  # A flavor selected by a dependent-events name is rebuilt through that name,
+  # which derives no flavor mask, as its estimation did not. Any other modeled
+  # flavor is keyed, so a mutually exclusive layer derives its mask again.
+  flavor <- fit$modeled_flavor
+  dependent <- attr(flavor, "dependent")
+  if (!is.null(dependent)) {
+    layer <- dependent
+  } else if (!is.null(flavor)) {
+    rhs <- list(stats::as.formula(
+      call("~", as.name(flavor), rhs[[2L]]),
+      env = environment(rhs)
+    ))
+  }
+  args <- list(
+    layer = layer,
+    model = fit$model,
+    data = data,
+    support_constraint = fit$support_constraint
+  )
   args[[family]] <- rhs
   args[[paste0(family, "_sub_model")]] <- sub_model
   do.call(make_specification, args)

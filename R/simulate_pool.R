@@ -37,8 +37,10 @@ new_goldfish_sim_pool <- function(replicates) {
 #'
 #'   `summary()` on a pool returns the data frame the conditions read, one row
 #'   per replicate: `replicate`, `n_events`, `end_time` (the clock when the
-#'   run stopped), `stop_reason`, `capped`, `n_proposals` and
-#'   `acceptance_rate`.
+#'   run stopped), `stop_reason`, `capped`, `n_proposals`,
+#'   `acceptance_rate`, `n_replayed` and `n_skipped` (replayed events reached
+#'   and skipped), and `n_stamps_skipped` (observed stamps a time-anchored run
+#'   could not draw at; `NA` for a free-running run).
 #'
 #' @family simulation
 #' @export
@@ -131,7 +133,12 @@ summary.goldfishSimPool <- function(object, ...) {
       1
     ),
     n_replayed = vapply(diagnostics, function(d) as.integer(d$n_replayed), 1L),
-    n_skipped = vapply(diagnostics, function(d) as.integer(d$n_skipped), 1L)
+    n_skipped = vapply(diagnostics, function(d) as.integer(d$n_skipped), 1L),
+    n_stamps_skipped = vapply(
+      diagnostics,
+      function(d) as.integer(d$n_stamps_skipped %||% NA_integer_),
+      1L
+    )
   )
 }
 
@@ -195,6 +202,20 @@ print.goldfishSimPool <- function(x, ...) {
     cli::cli_text(
       "Replayed events skipped per replicate: min {low_skipped} · median
        {middle_skipped} · max {high_skipped}"
+    )
+  }
+  # Every anchored replicate walks every observed stamp, so the total is said
+  # once and only the skipped count varies.
+  if (any(!is.na(replicates$n_stamps_skipped))) {
+    stamps_skipped <- replicates$n_stamps_skipped
+    n_stamps <- first$diagnostics$n_proposals +
+      first$diagnostics$n_stamps_skipped
+    low_stamps <- min(stamps_skipped)
+    middle_stamps <- stats::median(stamps_skipped)
+    high_stamps <- max(stamps_skipped)
+    cli::cli_text(
+      "Observed stamps skipped per replicate (of {n_stamps}): min
+       {low_stamps} · median {middle_stamps} · max {high_stamps}"
     )
   }
   reasons <- sort(table(replicates$stop_reason), decreasing = TRUE)

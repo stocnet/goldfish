@@ -71,9 +71,14 @@ read. Add the field in 2.1's commit.
       reads the same test rather than a timing.
 - [x] 3.1 Point the mask maintainer at the plan's atom state. The mask stays a
       stream; only where it reads its atoms changes.
-- [ ] 3.2 Verify byte-identity against every reference captured in task 1.2,
+- [x] 3.2 Verify byte-identity against every reference captured in task 1.2,
       then retire `build_atom_maintainer()`'s state container, schedule and
       event loop.
+      — *done 2026-09-29 by `constraint-objects-on-shared-walk`* (goldfish-ce):
+      every task 1.2 reference, plus two for a constraint on an object no
+      formula reads, matches byte-identically on the shared walk (`b1b2103`);
+      the private walk left the package for a test oracle helper
+      (`0835fb3`, per ADR-0054).
 - [x] 3.3 Confirm windowed constraint atoms still resolve. Their derivations
       already enter `plan$derivations`, so their expiry streams should ride the
       shared schedule with no constraint-specific branch — wiring that exists

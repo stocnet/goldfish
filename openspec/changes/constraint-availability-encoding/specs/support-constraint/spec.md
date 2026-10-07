@@ -21,6 +21,24 @@ present at event `e`. The validation SHALL therefore read the node presence at e
 event from the composition-change stream, for the choice family as well as the rate
 family, and SHALL NOT hold either presence vector at its time-zero value.
 
+#### Scenario: observed dyad excluded by the constraint
+- **WHEN** a dependent event's `(sender, receiver)` has `mask[i, j] == 0` at its event time
+- **THEN** preprocessing aborts with a `cli` error naming the event, dyad, and constraint.
+
+#### Scenario: empty risk set
+- **WHEN** the mask allows zero candidates at a dependent event's time
+- **THEN** preprocessing aborts with a `cli` error (the softmax denominator is undefined).
+
+#### Scenario: forced choice warns
+- **WHEN** exactly one candidate is allowed at a dependent event's time
+- **THEN** preprocessing emits a `cli` warning that the event contributes zero to the
+  choice log-likelihood.
+
+#### Scenario: never-active node warns
+- **WHEN** a node is excluded by the mask at every event time in the sequence
+- **THEN** preprocessing emits a `cli` warning naming the inert node.
+
+
 #### Scenario: a choice constraint reports senders it gates out entirely
 - **WHEN** a choice-family `support_constraint` leaves a present sender with no
   allowed receiver at any stored event, and that sender is never observed

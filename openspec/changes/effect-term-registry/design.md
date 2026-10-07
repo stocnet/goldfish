@@ -117,6 +117,25 @@ working contract for the specs/tasks.)
   (today a separate eligibility list). Folding it here removes that fragmentation
   and pairs naturally with `reflexive` (e). **Review needed**: reconcile with the
   existing eligibility predicate so encoding behaviour is byte-identical.
+  *Revised 2026-10-01 (Alvaro; from `initial-stats-at-kind`, ADR-0112):* a
+  boolean is not enough. The field becomes `broadcast_kind`, the axis the
+  statistic varies on, encoded as the live `classify_broadcast_kind()` does:
+  `0` point (cell-specific), `1` alter (constant over senders, holding the
+  receiver), `2` ego (constant over receivers, holding the sender), `3` global,
+  and `4` **resolved from a user argument** — the degree family and
+  `node_trans` are `1` or `2` according to their `type` argument, so the
+  `term_def` carries `4` and `construct_term()` resolves it to `1` or `2` from
+  the bound `type` (D2f) at construction, never per event. A sender-indexed
+  variant collapses every non-global kind to `0`. The kind drives three
+  contracts the registry owns together: the update encoding (`4 → 1/2` enters
+  `stat_mat_broadcast`), the **init shape** (`init_*` returns `stat` at that
+  kind: a scalar for `3`, a vector of the held axis for `1` and `2`, the grid
+  for `0`; `initial-stats-at-kind` lands that contract on the live inits and
+  the registry inherits it), and the cache shape (`closure-effects-refactor`
+  D2). `reflexive` (e) stays separate: the diagonal is applied where a
+  kind-shaped value is read, not stored (ADR-0063). The missing `node_trans`
+  classification (today `0`, so its projections are stored as point cells) is
+  `closure-effects-refactor`'s to fix before this field is populated.
 
 **(e) Validity constraints**
 - `network` — required object kind(s): network layer, actor attribute, global

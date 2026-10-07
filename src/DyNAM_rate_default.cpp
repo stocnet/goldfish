@@ -8,13 +8,6 @@
 using namespace Rcpp;
 using namespace arma;
 
-
-inline arma::mat reduce_mat_to_vector(
-    const arma::mat& stat_mat,
-    const int& n_actors_1,
-    const int& n_actors_2,
-    const bool& twomode_or_reflexive);
-
 // @inherit estimate_REM params return description
 
 //' Calculation for estimating an DyNAM-rate model
@@ -33,13 +26,9 @@ inline arma::mat reduce_mat_to_vector(
      const arma::vec& active_sender_init,
      const arma::mat& active_sender_update,
      const arma::vec& active_sender_update_pointer,
-     const arma::vec& active_dyad_init,
-     const arma::mat& active_dyad_update,
-     const arma::vec& active_dyad_update_pointer,
      const int n_actors_1,
      const int n_actors_2,
      const bool twomode_or_reflexive,
-     bool impute = true,
      const bool return_event_scores = false,
      const bool return_ranks = false,
      const bool return_margins = false,
@@ -48,8 +37,15 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_availability = false,
      const bool return_conditional_scores = false,
      const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
-     const bool return_event_information_trace = false
+     const bool return_event_information_trace = false,
+     const bool force_shifted_normalizer = false,
+     const bool report_normalizer_route = false
  ) {
+   // The sender loop's statistics are one row per sender, read as they are:
+   // preprocessing reduces them to the sender before they reach this kernel.
+   if (stat_mat_init.n_rows != static_cast<arma::uword>(n_actors_1)) {
+     Rcpp::stop("The rate statistics must have one row per sender.");
+   }
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
    int n_events = is_dependent.n_elem;
@@ -149,21 +145,27 @@ inline arma::mat reduce_mat_to_vector(
    }
 
    // Check whether there are composition change and initialize
-   // the presence of actor1 and actor2
+   // the sender presence, the one availability object of the sender loop
    bool has_composition_change1 = true;
    int active_sender_update_id = 0;
    if (active_sender_update.n_elem == 0) {
      has_composition_change1 = false;
    }
    arma::vec active_sender = active_sender_init;
-   
-   bool has_composition_change2 = true;
-   int active_dyad_update_id = 0;
-   if (active_dyad_update.n_elem == 0) {
-     has_composition_change2 = false;
+
+   // Event-sized work buffers, allocated once and overwritten at every event.
+   arma::vec rates(n_actors_1);
+   arma::vec lin_pred(n_actors_1);
+   arma::vec weights;
+   arma::vec probabilities;
+   std::vector<margin_side> margin_sides;
+   if (return_margins) {
+     margin_sides.push_back(margin_side(&margin_observed, &margin_expected));
    }
-   arma::vec active_dyad = active_dyad_init;
-   
+
+   // Intervals whose diagnostic normalizer came from the shifted pass.
+   int n_shifted_normalizer = 0;
+
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
      // update stat_mat with the combined buffer covering all stored events
@@ -178,21 +180,6 @@ inline arma::mat reduce_mat_to_vector(
      );
 
 
-     // impute the missing statistics if necessary
-     if (impute) {
-       for (int i = 0; i < n_parameters; i++) {
-         // Construct a view for the i-th column of the stat_matrix and
-         // do the impute
-         arma::vec current_col(
-             stat_mat.colptr(i),
-             n_actors_1 * n_actors_2,
-             false
-         );
-         current_col.elem(find_nonfinite(current_col)).fill(
-             mean(current_col.elem(find_finite(current_col))));
-       }
-     }
-     
      // update presence
      if (has_composition_change1) {
        apply_availability_updates(
@@ -200,14 +187,6 @@ inline arma::mat reduce_mat_to_vector(
          [&](int c) {
            active_sender(active_sender_update(0, c) - 1) =
              active_sender_update(1, c);
-         });
-     }
-     if (has_composition_change2) {
-       apply_availability_updates(
-         active_dyad_update_id, active_dyad_update_pointer(id_event),
-         [&](int c) {
-           active_dyad(active_dyad_update(0, c) - 1) =
-             active_dyad_update(1, c);
          });
      }
      
@@ -220,10 +199,6 @@ inline arma::mat reduce_mat_to_vector(
      double timespan_current_event = timespan(id_event);
      // declare the ids of the sender and the receiver,
      const int id_sender = dep_event_mat(0, id_event) - 1;
-     //int sender_corr = 0;
-     arma::mat reduce_stat_mat =
-       reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
-                            twomode_or_reflexive);
      const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
      // The shared reductions read a rate vector, which this loop does not
      // otherwise need, so it stores the very doubles it already computes rather
@@ -233,7 +208,7 @@ inline arma::mat reduce_mat_to_vector(
      //
      // The reason is consistency, NOT coefficient safety, and the difference
      // between those two was measured rather than assumed. `rates` feeds only
-     // the reductions -- the margins, the rank, and the stored per-event score;
+     // the reductions -- the margins, the rank, and the probability vector;
      // the normalizer and the derivative are accumulated from
      // `exp_current_sender` directly, so rebuilding it CANNOT move a
      // coefficient, and does not: patching in the GEMV leaves every frozen
@@ -249,33 +224,27 @@ inline arma::mat reduce_mat_to_vector(
      // comment, not a test, is the guard on this line.
      //
      // Zero on inactive senders, as the header requires.
-     const bool need_rates = do_rank || return_margins || return_event_scores;
-     arma::vec rates;
-     if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
-     // go through all actor1
+     const bool need_probabilities =
+       return_probabilities || return_margins || return_conditional_scores;
+     const bool need_rates = do_rank || return_margins || need_probabilities;
+     if (need_rates) rates.zeros();
+     // go through all actor1; `lin_pred` keeps each active sender's linear
+     // predictor for the diagnostics below, so they need no second GEMV
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
+         lin_pred(i) = dot(stat_mat.row(i), parameters);
          // exp_current_sender is \exp(\beta^T s)
-         double exp_current_sender =
-           std::exp(dot(reduce_stat_mat.row(i), parameters));
+         double exp_current_sender = std::exp(lin_pred(i));
          if (need_rates) rates(i) = exp_current_sender;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
-           exp_current_sender * (reduce_stat_mat.row(i));
+           exp_current_sender * (stat_mat.row(i));
          fisher_current_event += exp_current_sender *
-           ((reduce_stat_mat.row(i).t()) * (reduce_stat_mat.row(i)));
-       }// else if (i < id_sender) {
-        // sender_corr += 1;
-       //}
+           ((stat_mat.row(i).t()) * (stat_mat.row(i)));
+       }
      }
-     //id_sender -= sender_corr;
      // add the quantities of a current event to the variables to be returned
      // derivative
-     //Rcpp::Rcout << std::endl << "Event:" << id_event + 1 << std::endl;
-     //Rcpp::Rcout << "presence:" << active_sender << std::endl;
-     //Rcpp::Rcout << "mat:" << std::endl << reduce_stat_mat << std::endl;
-     //Rcpp::Rcout << "timespan:" << timespan_current_event << std::endl;
-     //Rcpp::Rcout << "Derivative:" << weighted_sum_current_event << std::endl;
      derivative -= timespan_current_event * weighted_sum_current_event;
 
      // fisher matrix
@@ -284,26 +253,21 @@ inline arma::mat reduce_mat_to_vector(
        fisher_current_event, timespan_current_event, id_event, weights_mat,
        weighted_information, event_information_trace
      );
-     //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
      if (return_total_rate) total_rate(id_event) = normalizer;
      // logLikelihood
      intervalLogL(id_event) = - timespan_current_event * normalizer;
      if (is_dependent(id_event)) {
        intervalLogL(id_event) +=
-         dot(reduce_stat_mat.row(id_sender), parameters);
-       derivative += reduce_stat_mat.row(id_sender);
-       //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
-       //Rcpp::Rcout << "sender:" << id_sender << std::endl;
+         dot(stat_mat.row(id_sender), parameters);
+       derivative += stat_mat.row(id_sender);
      }
      if (return_margins) {
        // Compensator scale: c = Dt on the raw rates, so the contribution is
        // Dt * lambda_i. A right-censored interval still accumulates exposure on
        // the expected side but has no observed mover to count.
-       std::vector<margin_side> sides;
-       sides.push_back(margin_side(&margin_observed, &margin_expected));
        accumulate_margins(
          rates, timespan_current_event, active_sender, id_sender,
-         is_dependent(id_event) == 1, sides
+         is_dependent(id_event) == 1, margin_sides
        );
      }
      if (do_rank) {
@@ -321,27 +285,44 @@ inline arma::mat reduce_mat_to_vector(
          &availability_exposure, &availability_opportunities
        );
      }
-     // Quantities that enter as a ratio or as a log of the normalizer, from a
-     // max-shifted pass computed BESIDE the raw one above rather than replacing
-     // it. The likelihood's total rate must stay on the absolute scale — it
-     // enters as -Dt * T, so shifting it would be a different model, not a
-     // stabilization — and leaving the raw pass untouched is also what keeps
-     // every frozen coefficient exactly where it was. These three are
-     // shift-invariant, and are exact where the raw ratio silently returns 1
-     // (subnormal underflow) or NaN (overflow).
-     if (
-       return_probabilities || return_margins || return_total_rate ||
-       return_conditional_scores
-     ) {
-       arma::vec lin_pred = reduce_stat_mat * parameters;
-       arma::vec weights;
-       double log_normalizer =
-         log_sum_exp_masked(lin_pred, active_sender, weights);
-       double shifted_total = arma::sum(weights);
-       arma::vec probabilities = weights / shifted_total;
+     // Quantities that enter as a ratio or as a log of the normalizer: the
+     // conditional component, the probability vector and what reads it. The
+     // likelihood's total rate stays on the absolute scale -- it enters as
+     // -Dt * T, so shifting it would be a different model, not a
+     // stabilization -- and these are derived from that same raw pass:
+     // log T = log(normalizer) and p = rates / normalizer, exact whenever the
+     // normalizer is a normal positive double. Where it is not -- the raw sum
+     // overflowed to Inf, underflowed to 0, or is subnormal, so the ratio
+     // would carry only a few significant bits -- the max-shifted log-sum-exp
+     // takes over, which is exact in all three. The probability vector is
+     // formed only for the primitives that read it.
+     if (need_probabilities || return_total_rate) {
+       const bool raw_usable =
+         !force_shifted_normalizer && std::isnormal(normalizer);
+       double log_normalizer;
+       if (raw_usable) {
+         log_normalizer = std::log(normalizer);
+         if (need_probabilities) probabilities = rates / normalizer;
+       } else {
+         ++n_shifted_normalizer;
+         log_normalizer =
+           log_sum_exp_masked(lin_pred, active_sender, weights);
+         const double shifted_total = arma::sum(weights);
+         // An empty risk set (every candidate masked) leaves no weight to
+         // normalize: each probability is 0, not 0 / 0.
+         if (need_probabilities) {
+           if (shifted_total > 0) {
+             probabilities = weights / shifted_total;
+           } else {
+             probabilities.zeros(weights.n_elem);
+           }
+         }
+       }
        if (return_total_rate) {
+         // The observed sender's predictor read from its row, as the interval
+         // log-likelihood reads it: `lin_pred` holds active senders only.
          conditional_logl(id_event) = is_dependent(id_event)
-           ? lin_pred(id_sender) - log_normalizer
+           ? dot(stat_mat.row(id_sender), parameters) - log_normalizer
            : NA_REAL;
        }
        if (return_margins && is_dependent(id_event)) {
@@ -356,8 +337,13 @@ inline arma::mat reduce_mat_to_vector(
        }
        if (return_conditional_scores) {
          if (is_dependent(id_event)) {
+           // On the raw route p' X is the weighted sum the derivative
+           // took, over the normalizer; only the fallback forms it afresh.
            conditional_scores.row(id_event) = event_score_row(
-             reduce_stat_mat, probabilities, 1.0, id_sender, true
+             raw_usable
+               ? arma::rowvec(weighted_sum_current_event / normalizer)
+               : arma::rowvec(probabilities.t() * stat_mat),
+             1.0, stat_mat, id_sender, true
            );
          } else {
            conditional_scores.row(id_event).fill(NA_REAL);
@@ -367,20 +353,22 @@ inline arma::mat reduce_mat_to_vector(
      // The stored per-event score comes from the shared reduction over the same
      // `rates` the margin and rank reductions read, rather than from the
      // before/after difference of the running derivative, so the definition
-     // lives in one place instead of once per kernel. The derivative above is
+     // lives in one place instead of once per kernel. Its weighted sum is the
+     // one the loop above accumulated for the derivative, so the stored row
+     // reports the numbers the likelihood used. The derivative above is
      // deliberately untouched: it drives the optimizer, and no coefficient may
      // move.
      if (return_event_scores) {
        event_scores.row(id_event) = event_score_row(
-         reduce_stat_mat, rates, timespan_current_event, id_sender,
-         is_dependent(id_event) == 1
+         weighted_sum_current_event, timespan_current_event, stat_mat,
+         id_sender, is_dependent(id_event) == 1
        );
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);
    }
    
-   return List::create(
+   List out = List::create(
      Named("derivative") = derivative,
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
@@ -399,28 +387,11 @@ inline arma::mat reduce_mat_to_vector(
      Named("weighted_information") = weighted_information,
      Named("event_information_trace") = event_information_trace
    );
- }
-
-
- inline arma::mat reduce_mat_to_vector(
-     const arma::mat& stat_mat,
-     const int& n_actors_1,
-     const int& n_actors_2,
-     const bool& twomode_or_reflexive
- ) {
-   int n_parameters = stat_mat.n_cols;
-   arma::mat reduced_data_mat(n_actors_1, n_parameters);
-   arma::rowvec temp(n_parameters);
-   for (int i = 0; i < n_actors_1; ++i) {
-     temp.zeros();
-     int id_start = i * n_actors_2;
-     temp = sum(stat_mat.rows(id_start, id_start + n_actors_2 - 1), 0);
-     if (!twomode_or_reflexive) {
-       temp -= stat_mat.row(id_start + i);
-       reduced_data_mat.row(i) = temp / (n_actors_2 - 1);
-     } else {
-       reduced_data_mat.row(i) = temp / n_actors_2;
-     }
+   if (report_normalizer_route) {
+     out.push_back(n_shifted_normalizer, "n_shifted_normalizer");
+     out.push_back(
+       static_cast<double>(probabilities.n_elem), "probability_buffer_size"
+     );
    }
-   return reduced_data_mat;
+   return out;
  }

@@ -25,16 +25,15 @@ List estimate_DyNAM_MM(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& active_sender_init,
-    const arma::mat& active_sender_update,
-    const arma::vec& active_sender_update_pointer,
+    const arma::vec& active_dyad_sender_init,
+    const arma::mat& active_dyad_sender_update,
+    const arma::vec& active_dyad_sender_update_pointer,
     const arma::vec& active_dyad_init,
     const arma::mat& active_dyad_update,
     const arma::vec& active_dyad_update_pointer,
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute = true,
     const bool active_dyad_is_point = false,
     const bool return_event_scores = false,
     const bool return_ranks = false,
@@ -115,10 +114,12 @@ List estimate_DyNAM_MM(
     // Unordered-dyad position -> endpoint actor, one map per member. The
     // triangle walk is the same at every event, so both the margin and the
     // availability reductions scatter through these rather than rebuilding
-    // them per event.
-    arma::uvec dyad_endpoint_a(n_dyads);
-    arma::uvec dyad_endpoint_b(n_dyads);
-    {
+    // them per event. Built only when one of those reductions is requested.
+    arma::uvec dyad_endpoint_a;
+    arma::uvec dyad_endpoint_b;
+    if (return_margins || return_availability) {
+        dyad_endpoint_a.set_size(n_dyads);
+        dyad_endpoint_b.set_size(n_dyads);
         int idx_m = 0;
         for (int a = 1; a < n_actors_1; ++a) {
             for (int b = 0; b < a; ++b) {
@@ -141,11 +142,11 @@ List estimate_DyNAM_MM(
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
     bool has_composition_change1 = true;
-    int active_sender_update_id = 0;
-    if (active_sender_update.n_elem == 0) {
+    int active_dyad_sender_update_id = 0;
+    if (active_dyad_sender_update.n_elem == 0) {
         has_composition_change1 = false;
     }
-    arma::vec active_sender = active_sender_init;
+    arma::vec active_dyad_sender = active_dyad_sender_init;
 
     bool has_composition_change2 = true;
     int active_dyad_update_id = 0;
@@ -153,13 +154,52 @@ List estimate_DyNAM_MM(
         has_composition_change2 = false;
     }
     // `active_dyad` is the folded per-event risk mask. At the outer encoding it is
-    // the length-n2 receiver vector (dyad (i, j) available iff active_sender(i) &
-    // active_dyad(j)). At the point encoding it is a flattened n1 x n2 mask
-    // (sender-major: dyad (i, j) at i * n_actors_2 + j) — a symmetrised support
-    // constraint folded in — maintained by a (node1, node2, replace)
-    // buffer and read cell-wise.
+    // the length-n2 receiver vector (dyad (i, j) available iff
+    // active_dyad_sender(i) & active_dyad(j), the sender factor being the
+    // object's own second factor). At the point encoding it is a flattened
+    // n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j) — a
+    // symmetrised support constraint folded in — maintained by a
+    // (node1, node2, replace) buffer and read cell-wise; the sender factor is
+    // then empty and unread.
     arma::vec active_dyad = active_dyad_init;
 
+    // The directed risk set over all n1 * n2 dyads (sender-major), one buffer
+    // per evaluation. A directed dyad is at risk when the grid cell (point) or
+    // both factors (outer) allow it, and it is not a self-tie unless the model
+    // admits one. It is filled once here and then rewritten by the same updates
+    // that write the availability, in the cells each flip reaches, so an event
+    // pays for what changed rather than for the grid.
+    const arma::uword n_directed =
+      static_cast<arma::uword>(n_actors_1) * n_actors_2;
+    auto at_risk = [&](int i, int j) -> double {
+        if (!twomode_or_reflexive && i == j) return 0;
+        const bool available = active_dyad_is_point
+          ? active_dyad(i * n_actors_2 + j) == 1
+          : active_dyad_sender(i) == 1 && active_dyad(j) == 1;
+        return available ? 1 : 0;
+    };
+    arma::vec allowed(n_directed);
+    for (int i = 0; i < n_actors_1; ++i) {
+        for (int j = 0; j < n_actors_2; ++j) {
+            allowed(i * n_actors_2 + j) = at_risk(i, j);
+        }
+    }
+
+    // Event-sized work buffers, allocated once and overwritten at every event.
+    arma::vec lin_pred(n_directed);
+    arma::vec dyad_probabilities;
+    arma::mat weighted_deviations(n_dyads, n_parameters);
+    std::vector<margin_side> margin_sides;
+    if (return_margins) {
+        // A dyad credits BOTH its members, into the same accumulator pair:
+        // two reduction sides over one pair of vectors, so each totals 2n.
+        margin_sides.push_back(
+          margin_side(&margin_observed, &margin_expected, &dyad_endpoint_a)
+        );
+        margin_sides.push_back(
+          margin_side(&margin_observed, &margin_expected, &dyad_endpoint_b)
+        );
+    }
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -173,28 +213,18 @@ List estimate_DyNAM_MM(
           stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
           twomode_or_reflexive
         );
-        // impute the missing statistics if necessary
-        if (impute) {
-            for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of
-                // the stat_matrix and do the impute
-                arma::vec current_col(
-                    stat_mat.colptr(i),
-                    n_actors_1 * n_actors_2,
-                    false
-                );
-                current_col.elem(find_nonfinite(current_col)).fill(
-                    mean(current_col.elem(find_finite(current_col))));
-            }
-        }
 
         // update presence
         if (has_composition_change1) {
             apply_availability_updates(
-              active_sender_update_id, active_sender_update_pointer(id_event),
+              active_dyad_sender_update_id,
+              active_dyad_sender_update_pointer(id_event),
               [&](int c) {
-                active_sender(active_sender_update(0, c) - 1) =
-                  active_sender_update(1, c);
+                const int i = active_dyad_sender_update(0, c) - 1;
+                active_dyad_sender(i) = active_dyad_sender_update(1, c);
+                for (int j = 0; j < n_actors_2; ++j) {
+                    allowed(i * n_actors_2 + j) = at_risk(i, j);
+                }
               });
         }
         if (has_composition_change2) {
@@ -202,19 +232,19 @@ List estimate_DyNAM_MM(
               active_dyad_update_id, active_dyad_update_pointer(id_event),
               [&](int c) {
                 if (active_dyad_is_point) {
-                    active_dyad(
-                      (active_dyad_update(0, c) - 1) * n_actors_2 +
-                      (active_dyad_update(1, c) - 1)
-                    ) = active_dyad_update(2, c);
+                    const int i = active_dyad_update(0, c) - 1;
+                    const int j = active_dyad_update(1, c) - 1;
+                    active_dyad(i * n_actors_2 + j) = active_dyad_update(2, c);
+                    allowed(i * n_actors_2 + j) = at_risk(i, j);
                 } else {
-                    active_dyad(active_dyad_update(0, c) - 1) =
-                      active_dyad_update(1, c);
+                    const int j = active_dyad_update(0, c) - 1;
+                    active_dyad(j) = active_dyad_update(1, c);
+                    for (int i = 0; i < n_actors_1; ++i) {
+                        allowed(i * n_actors_2 + j) = at_risk(i, j);
+                    }
                 }
               });
         }
-
-        // TO check(gutian): handle ignorant
-
 
         // We calculate the derivative, log-Likelihood, and fisher information
         // matrix of a current event. Staged dyad-triangle softmax:
@@ -228,26 +258,7 @@ List estimate_DyNAM_MM(
         const int id_receiver = dep_event_mat(1, id_event) - 1;
 
         // linear predictors x_{ij} = beta^T s_{ij}, sender-major (row i*n2 + j)
-        arma::vec lin_pred = stat_mat * parameters;
-
-        // risk-set mask over directed dyads (sender-major), as in REM_ordered:
-        // dyad (i -> j) available iff sender i active, receiver j in the folded
-        // support/presence mask, and (twomode_or_reflexive || j != i).
-        arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
-        for (int i = 0; i < n_actors_1; ++i) {
-            if (active_sender(i) == 1) {
-                int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
-                // point encoding: sender i's row starts at i * n_actors_2;
-                // outer encoding: the receiver vector is read directly.
-                int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
-                for (int j = 0; j < n_actors_2; ++j) {
-                    if (active_dyad(dyad_offset + j) == 1 &&
-                        (j != not_allowed_receiver)) {
-                        allowed(i * n_actors_2 + j) = 1;
-                    }
-                }
-            }
-        }
+        lin_pred = stat_mat * parameters;
 
         // per-sender softmax: log-normalizer logZ_i and expected statistic E_i
         // (one GEMV per sender). A fully masked sender maps to E_i = 0; every
@@ -300,8 +311,7 @@ List estimate_DyNAM_MM(
         // Opt-in primitives via the shared reductions, over the unordered-dyad
         // triangle: coordination ranks and marginalises over its realized risk
         // set, which is that pair list, not the n1 x n2 grid.
-        arma::vec dyad_probabilities;
-        if (return_margins || return_probabilities || return_event_scores) {
+        if (return_margins || return_probabilities) {
             dyad_probabilities = dyad_weights / normalizer;
         }
         if (return_ranks) {
@@ -326,24 +336,15 @@ List estimate_DyNAM_MM(
             );
         }
         if (return_margins) {
-            // A dyad credits BOTH its members, into the same accumulator pair:
-            // two reduction sides over one pair of vectors, so each totals 2n.
-            std::vector<margin_side> sides;
-            sides.push_back(
-              margin_side(&margin_observed, &margin_expected, &dyad_endpoint_a)
-            );
-            sides.push_back(
-              margin_side(&margin_observed, &margin_expected, &dyad_endpoint_b)
-            );
             accumulate_margins(
-              dyad_probabilities, 1.0, allowed_dyad, idx_obs, true, sides
+              dyad_probabilities, 1.0, allowed_dyad, idx_obs, true, margin_sides
             );
         }
         if (return_probabilities) {
             // Same triangle walk as the margin block: `idx_m` reconstructs its
             // members (a > b), and the pair's probability lands on both sides
             // of the diagonal.
-            arma::mat probabilities(n_actors_1, n_actors_1, fill::zeros);
+            NumericMatrix probabilities(n_actors_1, n_actors_1);
             int idx_m = 0;
             for (int a = 1; a < n_actors_1; ++a) {
                 for (int b = 0; b < a; ++b) {
@@ -355,7 +356,7 @@ List estimate_DyNAM_MM(
                     ++idx_m;
                 }
             }
-            event_probabilities[id_event] = wrap(probabilities);
+            event_probabilities[id_event] = probabilities;
         }
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D) / normalizer;
@@ -365,12 +366,14 @@ List estimate_DyNAM_MM(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(D, dyad_probabilities, 1.0, idx_obs, true);
+              event_score_row(g, 1.0, D, idx_obs, true);
         }
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g
+        weighted_deviations = D;
+        weighted_deviations.each_col() %= dyad_weights;
         fisher_current_event =
-          (D.each_col() % dyad_weights).t() * D / normalizer - g.t() * g;
+          weighted_deviations.t() * D / normalizer - g.t() * g;
         fisher += fisher_current_event;
         accumulate_event_information(
           fisher_current_event, 1.0, id_event, weights_mat,

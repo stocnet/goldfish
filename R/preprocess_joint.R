@@ -274,7 +274,11 @@ assemble_process_unit <- function(
 # so a walk that draws them needs its state. Appending keeps every oid a term
 # resolved to where it was, so a model that reads its own focal layer gets the
 # same registry as before.
-build_shared_objects <- function(units) {
+#
+# An object only a support constraint reads joins last, after the focal
+# layers, for the same reason: every oid registered above stays put, and no
+# unit reads it, so each unit's `shared_to_local` is `NA` there.
+build_shared_objects <- function(units, support_constraints = NULL) {
   registry_rows <- list()
   keys <- character(0)
   for (unit in units) {
@@ -302,6 +306,21 @@ build_shared_objects <- function(units) {
       unit$spec_map
     )
   }
+  registered <- c(keys, network_keys)
+  unit_keys <- registered
+  for (sub_plan in support_constraints) {
+    objs <- sub_plan$objects
+    # A static atom object has no events for the walk to step; the atom
+    # store seeds it from the data, so only a changing one joins.
+    dynamic <- constraint_atom_object_keys(sub_plan)$dynamic_keys
+    for (i in seq_len(nrow(objs))) {
+      if (objs$key[i] %in% registered || !objs$key[i] %in% dynamic) {
+        next
+      }
+      registered <- c(registered, objs$key[i])
+      registry_rows[[length(registry_rows) + 1L]] <- objs[i, , drop = FALSE]
+    }
+  }
   registry <- do.call(rbind, registry_rows)
   registry$oid <- seq_len(nrow(registry))
   rownames(registry) <- NULL
@@ -320,7 +339,8 @@ build_shared_objects <- function(units) {
   list(
     registry = registry,
     shared_to_local = shared_to_local,
-    local_to_shared = local_to_shared
+    local_to_shared = local_to_shared,
+    constraint_only = registry$name[!registry$key %in% unit_keys]
   )
 }
 
@@ -446,12 +466,18 @@ schedule_stream_part <- function(
 # process routes on); every distinct covariate stream contributes state-update
 # rows targeting its shared object. A stream shared across processes -- an
 # exogenous covariate, or a focal network another process reads -- is fetched and
-# added once. Ordering is `(time, stream_index)`, dependent streams indexed
-# before their own covariate stream so an event is evaluated at the state before
-# it is applied. A focal layer registered only because events are written into
+# added once. Ordering is by time, then every dependent row of a stamp before
+# its other rows, then `stream_index`, so the events sharing a stamp are all
+# evaluated at the state before any of them, or any other row of that stamp,
+# is applied. A focal layer registered only because events are written into
 # it has no term to plan its stream, so the stream is added after every other,
-# without moving the ones a term planned.
-build_joint_schedule <- function(units, shared_objects) {
+# without moving the ones a term planned. A stream only a support constraint
+# reads comes last of all, for the same reason.
+build_joint_schedule <- function(
+  units,
+  shared_objects,
+  support_constraints = NULL
+) {
   parts <- list()
   next_index <- 0L
   dep_seen <- character(0)
@@ -511,6 +537,32 @@ build_joint_schedule <- function(units, shared_objects) {
     }
   }
 
+  # The layer is not the focal one, so any unit's source fetches it alike.
+  constraint_src <- focal_sources[[1L]]
+  for (sub_plan in support_constraints) {
+    eol <- sub_plan$events_objects_link
+    rows <- seq_len(nrow(eol))[-1]
+    oids <- match(eol$name[rows], shared_objects$registry$name)
+    fresh <- !(eol$events[rows] %in% stream_seen) & !(oids %in% targets_seen)
+    if (!any(fresh)) {
+      next
+    }
+    rows <- rows[fresh]
+    oids <- oids[fresh]
+    wanted <- vapply(
+      sub_plan$fetch_plan,
+      function(entry) entry$stream %in% eol$events[rows],
+      logical(1)
+    )
+    events <- fetch_events(sub_plan$fetch_plan[wanted], src = constraint_src)
+    for (i in seq_along(rows)) {
+      stream_key <- eol$events[rows[i]]
+      stream_seen <- c(stream_seen, stream_key)
+      targets_seen <- c(targets_seen, oids[i])
+      add_part(events[[stream_key]], oids[i], eol$name[rows[i]], FALSE)
+    }
+  }
+
   # A degenerate layer contributes no stream (every event dropped, e.g. all its
   # times are `NA`): the walk then steps nothing and its engines finalize an
   # empty timeline (`total_time = 0`), which is what the generative degenerate-
@@ -538,7 +590,13 @@ build_joint_schedule <- function(units, shared_objects) {
   }
   time <- combine("time")
   stream_index <- combine("stream_index")
-  ordering <- order(time, stream_index, method = "radix")
+  dependent <- combine("dependent")
+  # At a stamp every dependent row comes first, then the other rows in
+  # stream order: no row stamped at t informs an evaluation at t, whichever
+  # process it belongs to, so a statistic reads the same state strictly
+  # before the stamp that a support mask does. A single process is
+  # unaffected, its dependent stream being the first one added.
+  ordering <- order(time, !dependent, stream_index, method = "radix")
   value <- do.call(c, lapply(parts, `[[`, "value"))
 
   list(
@@ -552,7 +610,7 @@ build_joint_schedule <- function(units, shared_objects) {
     value = value[ordering],
     layer = combine("layer")[ordering],
     flavor = combine("flavor")[ordering],
-    dependent = combine("dependent")[ordering],
+    dependent = dependent[ordering],
     stream_index = stream_index[ordering],
     n = length(ordering)
   )
@@ -616,15 +674,16 @@ build_merged_blocks <- function(
     }
   }
 
-  shared_objects <- build_shared_objects(units)
+  # One compiled sub-plan per `constraint_id`, shared across the families of the
+  # layer that owns it (compile once, snapshot per fid). Compiled before the
+  # registry, which carries the objects only a constraint reads.
+  support_constraints <- build_joint_support_constraints(joint_spec, units)
+
+  shared_objects <- build_shared_objects(units, support_constraints)
   for (key in names(units)) {
     units[[key]]$shared_to_local <- shared_objects$shared_to_local[[key]]
     units[[key]]$local_to_shared <- shared_objects$local_to_shared[[key]]
   }
-
-  # One compiled sub-plan per `constraint_id`, shared across the families of the
-  # layer that owns it (compile once, snapshot per fid).
-  support_constraints <- build_joint_support_constraints(joint_spec, units)
 
   # One source over the shared data drives the shared state; the cross-process
   # effect unions (one per block, deduplicating on resolved effect identity)
@@ -661,7 +720,7 @@ build_merged_blocks <- function(
     joint_spec$data,
     shared_src
   )
-  schedule <- build_joint_schedule(units, shared_objects)
+  schedule <- build_joint_schedule(units, shared_objects, support_constraints)
   # The same pre-walk guards `prepare_recipe_context()` runs when it builds its
   # own state and schedule: a global attribute with a missing initial value or a
   # missing replace event has nothing to summarize from, and a node whose mode
@@ -715,6 +774,10 @@ build_merged_blocks <- function(
         "derived_name"
       ),
       support_constraints = support_constraints,
+      # The objects only a support constraint reads. Their rows move a mask;
+      # whether they may also extend the observation window is not settled,
+      # so for now they leave it where the other rows put it.
+      constraint_only = shared_objects$constraint_only,
       process_map = joint_spec$process_map
     ),
     class = "goldfishBlock"
@@ -1211,18 +1274,6 @@ merged_covariate_step <- function(
   invisible(NULL)
 }
 
-# The fid of the consumer a dependent event on `flavor` belongs to within a
-# unit, or `NA` when no modeled flavor of the unit owns it (an unmodeled-flavor
-# event on a modeled layer -- a boundary for the unit's rates, an observation of
-# none). A plain process has one fid and a NA flavor.
-engine_owning_fid <- function(engine, flavor) {
-  if (engine$plain) {
-    return(engine$fids[1L])
-  }
-  i <- match(flavor, engine$flavors)
-  if (is.na(i)) NA_integer_ else engine$fids[i]
-}
-
 # Route a dependent event within one owning unit: a dependent write to the fid
 # that owns `flavor`, and -- when the interval is positive -- a right-censored
 # write to every OTHER right-censoring consumer of the unit (the cross-flavor
@@ -1230,17 +1281,23 @@ engine_owning_fid <- function(engine, flavor) {
 # timed rate unit. Mirrors `route_dependent_event()` but resolves the owner by
 # fid so a plain (NA-flavor) process routes correctly.
 merged_route_dependent <- function(engine, flavor, event_info) {
-  own_fid <- engine_owning_fid(engine, flavor)
-  own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
+  # The slot of the fid a dependent event on `flavor` belongs to within the
+  # unit, or NA when no modeled flavor of the unit owns it (an
+  # unmodeled-flavor event on a modeled layer -- a boundary for the unit's
+  # rates, an observation of none). A plain process has one fid and a NA
+  # flavor.
+  slot <- if (engine$plain) 1L else match(flavor, engine$flavors)
+  owner <- if (is.na(slot)) engine$unowned_route else engine$own_routes[[slot]]
+  own <- owner$route
   if (!is.null(own)) {
-    consumer_write_dependent(own, event_info)
+    consumer_write_dependent(own$consumer, event_info)
+    merged_row_availability(engine, own, event_info)
   }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
-    for (cs in engine$rc_consumers) {
-      if (!identical(cs, own)) {
-        consumer_write_rc(cs, event_info)
-      }
+    for (route in engine$rc_routes[owner$others]) {
+      consumer_write_rc(route$consumer, event_info)
+      merged_row_availability(engine, route, event_info)
     }
   }
   invisible(NULL)
@@ -1249,8 +1306,382 @@ merged_route_dependent <- function(engine, flavor, event_info) {
 # A right-censoring boundary for every right-censoring consumer of a unit (the
 # caller gates on a positive interval). Mirrors `route_right_censored_event()`.
 merged_route_rc <- function(engine, event_info) {
-  for (cs in engine$rc_consumers) {
-    consumer_write_rc(cs, event_info)
+  for (route in engine$rc_routes) {
+    consumer_write_rc(route$consumer, event_info)
+    merged_row_availability(engine, route, event_info)
+  }
+  invisible(NULL)
+}
+
+# Each consumer's row route, resolved once before the walk so a stored row
+# looks nothing up by name: the consumer, its availability effect, and its
+# live mask entry and stream. `rc_routes` holds the right-censoring
+# consumers in their own order. `own_routes[[i]]` is the route of the fid
+# owning the unit's i-th flavor (the one fid of a plain process) with the
+# right-censoring routes that are not its own consumer; `unowned_route`
+# serves an event no modeled flavor owns, which reaches every one of them.
+resolve_engine_routes <- function(engine) {
+  live <- engine$live_masks
+  route_of <- function(key, consumer) {
+    if (is.null(consumer)) {
+      return(NULL)
+    }
+    entry <- if (!is.null(live)) live$by_fid[[key]]
+    list(
+      consumer = consumer,
+      av = engine$availability[[key]],
+      mask_entry = entry,
+      mask_stream = if (!is.null(entry)) live$streams[[key]]
+    )
+  }
+  rc_keys <- names(engine$rc_consumers)
+  engine$rc_routes <- lapply(rc_keys, function(key) {
+    route_of(key, engine$rc_consumers[[key]])
+  })
+  owner_of <- function(key) {
+    own <- if (is.na(key)) NULL else engine$consumers[[key]]
+    others <- !vapply(
+      engine$rc_routes,
+      function(route) identical(route$consumer, own),
+      logical(1)
+    )
+    list(route = route_of(key, own), others = which(others))
+  }
+  owned <- if (engine$plain) engine$fids[1L] else engine$fids
+  engine$own_routes <- lapply(as.character(owned), owner_of)
+  engine$unowned_route <- owner_of(NA_character_)
+  invisible(NULL)
+}
+
+# A consumer of `engine` stored the row `event_info` describes: read its
+# live mask there, step its availability over the row, and check the row's
+# observed event against it when the row is a dependent one.
+merged_row_availability <- function(engine, route, event_info) {
+  time <- event_info$time
+  if (!is.null(route$mask_entry)) {
+    live_mask_row(
+      engine$live_masks,
+      route$mask_entry,
+      route$mask_stream,
+      time
+    )
+  }
+  av <- route$av
+  if (!is.null(av)) {
+    availability_step(
+      av,
+      availability_presence_target(av$changes1, av$cursor1, time),
+      availability_presence_target(av$changes2, av$cursor2, time),
+      event_info$sender,
+      event_info$interval
+    )
+    if (event_info$is_dependent == 1L) {
+      availability_check_event(
+        av,
+        av$rows,
+        event_info$sender,
+        event_info$receiver
+      )
+    }
+  }
+  invisible(NULL)
+}
+
+# Each output's availability effect, keyed by fid, or NULL where the
+# writer's own stream is the stored one: a rate gated by its constraint, a
+# choice, REM or coordination risk set folded with its constraint or with
+# an opportunity list, and an unconstrained exact-time rate, whose effect
+# keeps only the count at risk. Built before the walk, over the masks as
+# they stand then. The walk handle builds the same effects over its own
+# time-ordered composition changes and keeps no stream (`record = FALSE`);
+# it reads the risk set of an unconstrained fid off presence directly
+# (`unconstrained = FALSE`). `drop_diagonal` is the rate gate's self-dyad
+# rule: on one node set a sender is not its own receiver.
+build_engine_availability <- function(
+  engine,
+  live_masks,
+  opportunities = NULL,
+  changes1 = availability_changes(engine$ctx$active_sender_changes),
+  changes2 = availability_changes(engine$ctx$active_dyad_changes),
+  record = TRUE,
+  unconstrained = TRUE,
+  drop_diagonal = identical(engine$ctx$nodes, engine$ctx$nodes2)
+) {
+  ctx <- engine$ctx
+  # Keyed by fid, not by consumer: the walk handle replaces the consumers
+  # with one recorder of its own.
+  keys <- as.character(
+    if (is.null(engine$consumer_specs)) {
+      engine$fids[1L]
+    } else {
+      engine$fids
+    }
+  )
+  spec <- engine$spec_map
+  effect <- function(variant, entry = NULL, ...) {
+    mask <- if (!is.null(entry)) {
+      live_masks$maintainers[[entry$store]][[entry$maintainer]]
+    }
+    new_availability_effect(
+      variant,
+      ctx$n1,
+      ctx$n2,
+      ctx$active_sender_init,
+      ctx$active_dyad_init,
+      changes1,
+      changes2,
+      mask = mask,
+      stored_kind = entry$stored_kind,
+      record = record,
+      drop_diagonal = drop_diagonal,
+      ...
+    )
+  }
+  effects <- lapply(keys, function(key) {
+    constraint <- walk_fid_constraint(engine, as.integer(key))
+    entry <- if (!is.null(live_masks)) live_masks$by_fid[[key]]
+    if (engine$is_sender) {
+      if (!is.null(constraint)) {
+        return(effect("gate", entry))
+      }
+      if (unconstrained && isTRUE(engine$is_exact_time)) {
+        return(effect("presence"))
+      }
+      return(NULL)
+    }
+    if (is.null(constraint)) {
+      if (!is.null(opportunities) && is_choice_family(spec)) {
+        return(effect("point", opportunities = opportunities))
+      }
+      if (unconstrained && isTRUE(engine$is_exact_time)) {
+        return(effect("presence_dyad"))
+      }
+      return(NULL)
+    }
+    # The observed-event check reads each sender's allowed-receiver count,
+    # which only the rate gate needs for its own value.
+    # A REM or coordination mask of alter, ego or global kind is two factor
+    # vectors; only a point-kind one needs the grid. Coordination's
+    # symmetrisation folds a vector mask into both factors, which needs both
+    # factors on one node set.
+    if (risk_set_is_dyadic(spec)) {
+      symmetric <- risk_set_symmetrize(spec)
+      encoding <- active_dyad_encoding_decide(
+        "outer",
+        constraint$mask_kind,
+        has_opportunity = FALSE
+      )
+      factors <- identical(encoding, "outer") &&
+        !is.null(entry) &&
+        entry$stored_kind > 0L &&
+        (!symmetric || ctx$n1 == ctx$n2)
+      return(effect(
+        if (factors) "factors" else "dyad",
+        entry,
+        symmetric = symmetric,
+        count = record
+      ))
+    }
+    encoding <- active_dyad_encoding_decide(
+      risk_set_encoding(spec),
+      constraint$mask_kind,
+      !is.null(opportunities)
+    )
+    effect(encoding, entry, opportunities = opportunities, count = record)
+  })
+  names(effects) <- keys
+  effects <- Filter(Negate(is.null), effects)
+  if (length(effects) == 0L) NULL else effects
+}
+
+# The batch walk's live masks: the mask maintainers the stepping handle builds
+# (`walk_build_live_masks()`), shared rather than copied, plus one stream per
+# constrained fid. A fid's mask is read at each row it stores, over the atoms
+# strictly before the row's stamp: the walk records each atom move without
+# writing it (`advance_recorders_for_event(write = FALSE)`), and the first row
+# stored at a new stamp writes the moves before it, recomputes every distinct
+# mask of that atom store once and hands the flips to every fid reading it.
+# Each fid collapses the flips gathered since its previous row into that
+# row's changes, which is the stream the post-walk replay used to produce.
+# `NULL` when no engine carries a constraint.
+build_batch_live_masks <- function(engines, recorders) {
+  live <- walk_build_live_masks(engines, recorders)
+  fids <- names(live$by_fid)
+  if (length(fids) == 0L) {
+    return(NULL)
+  }
+  live$stores <- recorders$stores
+  live$union_time <- rep(-Inf, length(recorders$stores))
+  live$streams <- new.env(parent = emptyenv())
+  for (fid in fids) {
+    stream <- new.env(parent = emptyenv())
+    stream$pending <- list()
+    stream$n_rows <- 0L
+    stream$n_changes <- integer(64L)
+    stream$entries <- vector("list", 64L)
+    stream$values <- vector("list", 64L)
+    live$streams[[fid]] <- stream
+  }
+  live
+}
+
+# A fid stores a row at `t`: bring its atom store's masks to `t` if no row
+# at `t` has yet, then close the fid's row. `entry` and `stream` are the
+# fid's live mask entry and stream, resolved before the walk.
+live_mask_row <- function(live, entry, stream, t) {
+  s <- entry$store
+  if (live$union_time[[s]] < t) {
+    live$touched[[s]] <- flush_atom_moves(
+      live$stores[[s]],
+      t,
+      live$touched[[s]]
+    )
+    moved <- live$touched[[s]]
+    flips <- lapply(live$maintainers[[s]], function(mask) {
+      mask$recompute(moved)
+    })
+    live$touched[[s]] <- vector("list", length(moved))
+    for (reader in live$readers[[s]]) {
+      reader_stream <- reader$stream
+      reader_flips <- flips[[reader$maintainer]]
+      reader_stream$pending[[length(reader_stream$pending) + 1L]] <-
+        reader_flips
+      if (!is.null(reader$effect)) {
+        availability_push_flips(reader$effect, reader_flips)
+      }
+    }
+    live$union_time[[s]] <- t
+  }
+  close_mask_row(stream)
+}
+
+# The fids reading each atom store, resolved once before the walk: per store
+# (by position), each reader's mask stream, the maintainer index its flips
+# come from, and its availability effect or NULL.
+resolve_live_readers <- function(live) {
+  lapply(seq_along(live$stores), function(s) {
+    lapply(live$fids_by_store[[as.character(s)]], function(reader) {
+      list(
+        stream = live$streams[[reader]],
+        maintainer = live$by_fid[[reader]]$maintainer,
+        effect = live$effects[[reader]]
+      )
+    })
+  })
+}
+
+# One stored row of a fid's mask stream: the flips gathered since the previous
+# row, an entry flipped twice kept at its last value, as the replay collapsed
+# them. The buffers double when full and are taken out of the stream before
+# they are written, so a row copies nothing.
+close_mask_row <- function(stream) {
+  k <- stream$n_rows + 1L
+  capacity <- length(stream$n_changes)
+  if (k > capacity) {
+    capacity <- 2L * capacity
+  }
+  n_changes <- stream$n_changes
+  stream$n_changes <- NULL
+  length(n_changes) <- capacity
+  entries <- stream$entries
+  stream$entries <- NULL
+  length(entries) <- capacity
+  values <- stream$values
+  stream$values <- NULL
+  length(values) <- capacity
+
+  n_changes[k] <- 0L
+  at <- unlist(lapply(stream$pending, `[[`, "entries"), use.names = FALSE)
+  if (!is.null(at)) {
+    vv <- unlist(lapply(stream$pending, `[[`, "values"), use.names = FALSE)
+    collapsed <- collapse_entries(at, vv)
+    entries[k] <- list(collapsed$entries)
+    values[k] <- list(collapsed$values)
+    n_changes[k] <- length(collapsed$entries)
+  }
+
+  stream$n_changes <- n_changes
+  stream$entries <- entries
+  stream$values <- values
+  stream$pending <- list()
+  stream$n_rows <- k
+  invisible(NULL)
+}
+
+# A fid's finished mask stream, in the shape the pooled realization returned.
+live_mask_stream <- function(live, fid, constraint, n_stored) {
+  entry <- live$by_fid[[fid]]
+  stream <- live$streams[[fid]]
+  n <- stream$n_rows
+  if (n != n_stored) {
+    cli::cli_abort(
+      "The live mask of fid {fid} has {n} row{?s}, its output {n_stored}.",
+      .internal = TRUE
+    )
+  }
+  rows <- seq_len(n)
+  at_vec <- unlist(stream$entries[rows], use.names = FALSE)
+  val_vec <- unlist(stream$values[rows], use.names = FALSE)
+  list(
+    initial = live$maintainers[[entry$store]][[entry$maintainer]]$initial(),
+    update = if (length(at_vec) > 0L) {
+      rbind(as.numeric(at_vec), as.numeric(val_vec))
+    } else {
+      matrix(0, 2L, 0L)
+    },
+    update_pointer = cumsum(stream$n_changes[rows]),
+    n_stored = n,
+    mask_kind = constraint$mask_kind,
+    stored_kind = entry$stored_kind,
+    symmetric = entry$symmetric
+  )
+}
+
+# The shared oids of the objects only a support constraint reads that this
+# engine's masks read. Resolved once before the walk; empty for an engine that
+# stores no interval (an ordered rate or a choice reads its mask at its own
+# events only).
+engine_constraint_only_oids <- function(engine, merged) {
+  if (!isTRUE(engine$is_exact_time)) {
+    return(integer(0))
+  }
+  keys <- unlist(
+    lapply(engine_constraints(engine), function(sub_plan) {
+      constraint_atom_object_keys(sub_plan)$dynamic_keys
+    }),
+    use.names = FALSE
+  )
+  oids <- match(unique(keys), merged$objects$key)
+  oids[merged$objects$name[oids] %in% merged$constraint_only]
+}
+
+# A constraint-only object's event at time `t` for an engine that folds no
+# statistic from it: the engine's clock advances and its open interval closes
+# with a right-censored row, exactly as a covariate event it does read would
+# do, with no statistic update.
+merged_constraint_boundary <- function(
+  engine,
+  t,
+  sender,
+  receiver,
+  is_valid_event
+) {
+  interval <- t - engine$last_time
+  engine$i_total <- engine$i_total + 1L
+  if (is_valid_event) {
+    engine$last_time <- t
+    if (interval > 0) {
+      merged_route_rc(
+        engine,
+        list(
+          is_dependent = 0L,
+          interval = interval,
+          time = t,
+          sender = sender,
+          receiver = receiver
+        )
+      )
+    }
   }
   invisible(NULL)
 }
@@ -1530,32 +1961,20 @@ constraint_atom_object_keys <- function(sub_plan) {
   list(keys = keys, dynamic_keys = keys[dynamic])
 }
 
-# A recorder can maintain a constraint's atoms over the merged walk only when
-# every atom object that CHANGES is one the shared schedule visits. A static
-# atom object never changes, so its seed value is enough; a dynamic one absent
-# from the shared registry (a constraint-only network the units never compiled)
-# is not seen by the walk, and that constraint falls back to the private walk.
-recorder_covers_constraint <- function(sub_plan, shared_object_keys) {
-  dyn <- constraint_atom_object_keys(sub_plan)$dynamic_keys
-  all(dyn %in% shared_object_keys)
-}
-
 # Seed one atom store per (model, node sides, atom signature) the engines carry,
-# for every constraint the merged walk can cover, and index them by the object
-# key whose covariate events advance them. The stores are filled during the walk
-# (`advance_recorders_for_event()`) and read back at mask realization
-# (`recorder_atoms_factory()`), replacing the private atom walk for covered
-# constraints while leaving the uncovered ones to it.
-build_walk_recorders <- function(engines, shared_object_keys) {
+# for every constraint, and index them by the object key whose covariate events
+# advance them. The stores are moved during the walk
+# (`advance_recorders_for_event()`), and the live masks read the moves as
+# each stored row asks for them. Every object a constraint's atoms read is
+# on the shared schedule, the ones no formula term reads included, so no
+# constraint needs a walk of its own.
+build_walk_recorders <- function(engines) {
   lookup <- new.env(parent = emptyenv())
   by_key <- list()
   stores <- list()
   for (engine in engines) {
     ctx <- engine$ctx
     for (sub_plan in engine_constraints(engine)) {
-      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
-        next
-      }
       signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
       key <- paste(engine$model, ctx$nodes, ctx$nodes2, signature, sep = "\v")
       if (!is.null(lookup[[key]])) {
@@ -1589,7 +2008,8 @@ advance_recorders_for_event <- function(
   shape,
   event_args,
   state,
-  time
+  time,
+  write = TRUE
 ) {
   for (idx in recorders$by_key[[key]]) {
     advance_constraint_atom_store(
@@ -1598,83 +2018,18 @@ advance_recorders_for_event <- function(
       shape,
       event_args,
       state,
-      time
+      time,
+      write = write
     )
   }
   invisible(NULL)
 }
 
-# Atoms factory for `preprocess_pooled_support_masks()` that returns a covered
-# constraint's recorded-and-replayed atom pool instead of walking it again;
-# absent a recorder (an uncovered constraint) it defers to the private walk.
-recorder_atoms_factory <- function(recorders) {
-  function(sub_plan, model, nodes, nodes2, prep_envir, src) {
-    signature <- paste(sort(sub_plan$atom_labels), collapse = "\r")
-    key <- paste(model, nodes, nodes2, signature, sep = "\v")
-    store <- recorders$lookup[[key]]
-    if (is.null(store)) {
-      build_atom_maintainer(sub_plan, model, nodes, nodes2, prep_envir, src)
-    } else {
-      constraint_replay_atoms(store)
-    }
-  }
-}
-
-realize_pending_masks <- function(pending, recorders = NULL) {
-  lengths <- vapply(pending, function(p) length(p$requests), integer(1))
-  masks <- lapply(lengths, function(n) vector("list", n))
-  owner <- rep(seq_along(pending), lengths)
-  requests <- unlist(lapply(pending, function(p) p$requests), recursive = FALSE)
-  if (length(requests) == 0L) {
-    return(masks)
-  }
-
-  key <- vapply(
-    seq_along(requests),
-    function(i) {
-      ctx <- pending[[owner[[i]]]]$engine$ctx
-      paste(
-        pending[[owner[[i]]]]$engine$model,
-        ctx$nodes,
-        ctx$nodes2,
-        sep = "\v"
-      )
-    },
-    character(1)
-  )
-  for (group in split(seq_along(requests), key)) {
-    engine <- pending[[owner[[group[[1L]]]]]]$engine
-    ctx <- engine$ctx
-    atoms_factory <- if (is.null(recorders)) {
-      build_atom_maintainer
-    } else {
-      recorder_atoms_factory(recorders)
-    }
-    realized <- preprocess_pooled_support_masks(
-      requests[group],
-      model = engine$model,
-      nodes = ctx$nodes,
-      nodes2 = ctx$nodes2,
-      prep_envir = engine$prep_envir,
-      src = ctx$src,
-      atoms_factory = atoms_factory
-    )
-    for (k in seq_along(group)) {
-      i <- group[[k]]
-      slot <- i -
-        (if (owner[[i]] > 1L) sum(lengths[seq_len(owner[[i]] - 1L)]) else 0L)
-      masks[[owner[[i]]]][[slot]] <- realized[[k]]
-    }
-  }
-  masks
-}
-
 # Phase one of finalizing an engine: build the tail, pick the family's fold, and
-# finalize every consumer's writer WITHOUT realizing a mask. A constraint
-# belongs to the `(layer, flavor)` process rather than to a sub-model family, so
-# a layer's rate engine and its choice engine have to reach one atom pool, and
-# that is only possible once both timelines exist. `run_merged_walk()` realizes
-# them all between this and `render_walk_engine()`.
+# finalize every consumer's writer. The masks and the availability were kept
+# by the walk as it went (a constraint belongs to the `(layer, flavor)`
+# process, so a layer's rate engine and its choice engine read one atom
+# store); `render_walk_engine()` writes them onto each output.
 finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -1694,42 +2049,46 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
     project_initial_stats <- function(stats, effect_map) {
       stats[, effect_map, drop = FALSE]
     }
-    finish_output <- function(out, constraint, support_mask = NULL) {
+    finish_output <- function(
+      out,
+      constraint,
+      support_mask = NULL,
+      availability = NULL
+    ) {
       if (is.null(constraint)) {
         return(out)
       }
       out$support_mask <- support_mask
-      # The self-dyad is a receiver only where the two axes name different
-      # node sets; on one node set a sender never acts on itself.
-      fold_active_sender_support(
-        out,
-        out$support_mask,
-        ctx$active_dyad_init,
-        drop_diagonal = identical(ctx$nodes, ctx$nodes2)
-      )
+      availability_finish(availability, out)
     }
-    scalar_entity <- "sender"
   } else {
     project_initial_stats <- function(stats, effect_map) {
       stats[,, effect_map, drop = FALSE]
     }
-    finish_output <- function(out, constraint, support_mask = NULL) {
+    # The dyad loop stores one object, `active_dyad`. Only a REM or
+    # coordination object at the outer encoding has a sender side, its own
+    # second factor; a choice never folds the sender and a point grid
+    # already holds it, so the writer's raw sender presence is not kept.
+    dyadic <- risk_set_is_dyadic(engine$spec_map)
+    finish_output <- function(
+      out,
+      constraint,
+      support_mask = NULL,
+      availability = NULL
+    ) {
       if (!is.null(constraint)) {
         out$support_mask <- support_mask
-        return(fold_active_dyad_support(
-          out,
-          out$support_mask,
-          spec_map,
-          constraint$mask_kind,
-          opportunitiesList = opportunities
-        ))
       }
-      if (!is.null(opportunities) && is_choice_family(spec_map)) {
-        out <- fold_active_dyad_opportunity(out, opportunities)
+      if (!is.null(availability)) {
+        out <- availability_finish(availability, out)
+      }
+      if (!dyadic || !identical(out$active_dyad_encoding, "outer")) {
+        out$active_sender_init <- NULL
+        out$active_sender_update <- NULL
+        out$active_sender_update_pointer <- NULL
       }
       out
     }
-    scalar_entity <- "dyad"
   }
 
   single <- is.null(engine$consumer_specs)
@@ -1753,15 +2112,60 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   list(
     engine = engine,
     finalized = finalized,
-    requests = consumer_mask_requests(finalized),
     finish_output = finish_output,
-    scalar_entity = scalar_entity,
     single = single
   )
 }
 
-# Phase two: fold each consumer's realized mask in, render, and decorate.
-render_walk_engine <- function(pending, masks, weight_risk_set) {
+# Each finalized consumer's mask stream, from the live masks the walk kept, in
+# the order `render_walk_engine()` reads them; `NULL` for a consumer with no
+# constraint.
+walk_engine_masks <- function(pending, live_masks) {
+  keys <- if (pending$single) {
+    as.character(pending$engine$fids[1L])
+  } else {
+    names(pending$engine$consumers)
+  }
+  lapply(seq_along(pending$finalized), function(j) {
+    f <- pending$finalized[[j]]
+    if (is.null(f$constraint)) {
+      return(NULL)
+    }
+    live_mask_stream(
+      live_masks,
+      keys[[j]],
+      f$constraint,
+      length(f$out$event_time)
+    )
+  })
+}
+
+# The availability effect of output `key`, whichever engine holds it.
+walk_output_availability <- function(engines, key) {
+  for (engine in engines) {
+    av <- engine$availability[[key]]
+    if (!is.null(av)) {
+      return(av)
+    }
+  }
+  NULL
+}
+
+# Each finalized consumer's availability effect, in the order
+# `render_walk_engine()` reads them; `NULL` where the writer's stream
+# stands.
+walk_engine_availability <- function(pending) {
+  keys <- if (pending$single) {
+    as.character(pending$engine$fids[1L])
+  } else {
+    names(pending$engine$consumers)
+  }
+  lapply(keys, function(key) pending$engine$availability[[key]])
+}
+
+# Phase two: write each consumer's mask stream and availability onto it,
+# render, and decorate.
+render_walk_engine <- function(pending, masks, availability = NULL) {
   engine <- pending$engine
   ctx <- engine$ctx
   spec_map <- engine$spec_map
@@ -1769,9 +2173,8 @@ render_walk_engine <- function(pending, masks, weight_risk_set) {
     pending$finalized,
     masks,
     pending$finish_output,
-    pending$scalar_entity,
-    weight_risk_set = weight_risk_set,
-    names = if (pending$single) NULL else names(engine$consumers)
+    names = if (pending$single) NULL else names(engine$consumers),
+    availability = availability
   )
 
   # `finalize_consumers()` returns one object for a single output and a
@@ -1879,6 +2282,7 @@ resolve_walk_extent <- function(merged, control_preprocessing) {
   } else {
     rep(TRUE, schedule$n)
   }
+  real_event <- real_event & !is_constraint_only_row(schedule, merged)
   resolve_walk_window(
     control_preprocessing$start_time,
     control_preprocessing$end_time,
@@ -1886,6 +2290,14 @@ resolve_walk_extent <- function(merged, control_preprocessing) {
     if (any(real_event)) max(schedule$time[real_event]) else 0,
     has_window_effect = has_window_effect
   )
+}
+
+# A row of an object only a support constraint reads is not counted as a real
+# event for the walk's extent: it changes a mask, and whether such a row may
+# extend the observation window is not settled. Kept to this one predicate so
+# the rule changes in one place.
+is_constraint_only_row <- function(schedule, merged) {
+  schedule$layer %in% merged$constraint_only
 }
 
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
@@ -1925,10 +2337,65 @@ run_merged_walk <- function(
     new_writer = new_writer
   )
 
-  # One atom store per covered constraint, maintained over this walk's shared
-  # state instead of a private walk of its own. A constraint the shared schedule
-  # cannot cover keeps its private walk, so this never regresses one.
-  recorders <- build_walk_recorders(engines, merged$objects$key)
+  # One atom store per constraint, maintained over this walk's shared state
+  # instead of a private walk of its own: every object a constraint reads is
+  # on the shared schedule.
+  recorders <- build_walk_recorders(engines)
+  live_masks <- build_batch_live_masks(engines, recorders)
+  for (engine in engines) {
+    engine$live_masks <- live_masks
+    engine$availability <- build_engine_availability(
+      engine,
+      live_masks,
+      control_preprocessing$opportunities_list
+    )
+  }
+  # Each constrained output's dependent events are checked in the walk. On
+  # the deferred path (`validate_support = FALSE`) the verdict is kept on
+  # the output for estimation, which picks the check by the risk set's
+  # axis; the immediate path picks it by the process's family and names
+  # the process.
+  process_map <- merged$process_map
+  for (engine in engines) {
+    for (key in names(engine$availability)) {
+      av <- engine$availability[[key]]
+      if (is.null(av$count)) {
+        next
+      }
+      row <- match(as.integer(key), process_map$fid)
+      family <- if (validate_support) {
+        identical(process_map$family[row], "rate")
+      } else {
+        identical(risk_set_axis(engine$model_spec), "sender")
+      }
+      availability_enable_check(
+        av,
+        if (family) "rate" else "choice",
+        label = if (validate_support) {
+          render_process_label(process_map, process_map$fid[row])
+        },
+        immediate = validate_support
+      )
+    }
+  }
+  # A mask flip reaches a fid's availability through the live masks, which
+  # hand it to every fid reading that mask.
+  if (!is.null(live_masks)) {
+    live_masks$effects <- do.call(
+      c,
+      unname(lapply(engines, function(engine) engine$availability))
+    )
+    live_masks$readers <- resolve_live_readers(live_masks)
+  }
+  for (engine in engines) {
+    resolve_engine_routes(engine)
+  }
+  # An event of an object only a support constraint reads changes the risk
+  # set of every exact-time rate whose mask reads it, though no statistic, so
+  # it closes that rate's open interval like any other non-dependent event.
+  for (engine in engines) {
+    engine$constraint_only_oids <- engine_constraint_only_oids(engine, merged)
+  }
 
   # The shared clock spans every process's events; each unit's per-unit clock
   # starts here so its first recorded interval is measured from the window open.
@@ -2126,6 +2593,15 @@ run_merged_walk <- function(
     for (engine in engines) {
       loid <- engine$shared_to_local[oid]
       if (is.na(loid)) {
+        if (oid %in% engine$constraint_only_oids) {
+          merged_constraint_boundary(
+            engine,
+            t,
+            ev_sender,
+            ev_receiver,
+            is_valid_event
+          )
+        }
         next
       }
       interval <- t - engine$last_time
@@ -2164,7 +2640,15 @@ run_merged_walk <- function(
     # did, so their stores advance here, once per covariate event and before the
     # write, exactly where the private walk applies the same event to its own
     # container.
-    advance_recorders_for_event(recorders, key, shape, event_args, state, t)
+    advance_recorders_for_event(
+      recorders,
+      key,
+      shape,
+      event_args,
+      state,
+      t,
+      write = FALSE
+    )
 
     # The state write, after every reader saw the pre-update state. The
     # container is a plain list, so the subassignment rebinds `state` here; a
@@ -2211,12 +2695,8 @@ run_merged_walk <- function(
     }
   }
 
-  # Finalize every engine's writers first, then realize ALL their masks in one
-  # pooled pass, then render. A `support_constraint` belongs to the
-  # `(layer, flavor)` process, so a layer's rate engine and its choice engine
-  # read one mask over one atom pool -- which needs both timelines in hand, and
-  # is why the realization sits between the two halves rather than inside
-  # either.
+  # Finalize every engine's writers, then render each with the mask streams
+  # its fids read during the walk.
   pending <- lapply(
     engines,
     finalize_walk_engine,
@@ -2224,49 +2704,38 @@ run_merged_walk <- function(
     end_time = end_time,
     opportunities = control_preprocessing$opportunities_list
   )
-  masks <- realize_pending_masks(pending, recorders)
-
-  # The intercept scalar is the time-weighted average risk-set size only when
-  # the walk has more than one dependent (layer, flavor) stream: competing
-  # processes break a fid's intervals at events it does not own, so the sizes
-  # must be weighted by how long each was in force. A single-process walk -- one
-  # dependent stream, whatever its sub-model families -- has even intervals per
-  # event, so it averages per stored event exactly as the single-process recipe
-  # loop does. Keyed on the dependent streams rather than on the per-engine
-  # consumer machinery, which carries a spec even for one output.
-  weight_risk_set <- nrow(unique(
-    merged$process_map[, c("layer", "flavor")]
-  )) >
-    1L
+  masks <- lapply(pending, function(p) walk_engine_masks(p, live_masks))
 
   outputs <- list()
   for (i in seq_along(pending)) {
     engine_outputs <- render_walk_engine(
       pending[[i]],
       masks[[i]],
-      weight_risk_set
+      walk_engine_availability(pending[[i]])
     )
     outputs[names(engine_outputs)] <- engine_outputs
   }
 
-  # Engine-readiness: fail fast, per fid, when a derived mask contradicts the
-  # user constraint and leaves an empty risk set -- naming the process the empty
-  # set belongs to via the label rendered from the map. The check is stamped so
-  # estimation does not re-run it, exactly as the flavored driver does.
-  # `validate_support = FALSE` defers it, as the recipe estimation surface does:
-  # the recipe loops validate at estimation, not at preprocessing, so a
-  # single-process spec preprocessed on its own (`compute_statistics()`) is not
-  # rejected for a constraint an estimation would reject. The stamp is withheld
-  # too, so estimation re-runs the check on the deferred path.
-  process_map <- merged$process_map
+  # Engine-readiness: an observed event a constraint contradicts failed at
+  # its own event during the walk, naming the process via the label
+  # rendered from the map; what describes the whole sequence is warned here,
+  # per fid. The check is stamped so estimation does not re-run it, exactly
+  # as the flavored driver does. `validate_support = FALSE` defers it, as
+  # the recipe estimation surface does: the recipe loops validate at
+  # estimation, not at preprocessing, so a single-process spec preprocessed
+  # on its own (`compute_statistics()`) is not rejected for a constraint an
+  # estimation would reject. The walk keeps its verdict on the output
+  # instead, and the stamp is withheld, so estimation raises it.
   if (validate_support) {
     for (i in seq_len(nrow(process_map))) {
       key <- as.character(process_map$fid[i])
-      validate_prep_support(
-        outputs[[key]],
-        is_rate_family = identical(process_map$family[i], "rate"),
-        process_label = render_process_label(process_map, process_map$fid[i])
-      )
+      av <- walk_output_availability(engines, key)
+      if (!is.null(av$check)) {
+        validate_support_constraint(
+          availability_verdict(av),
+          process_label = av$check$label
+        )
+      }
       outputs[[key]]$support_validated <- TRUE
     }
   }

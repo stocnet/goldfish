@@ -67,11 +67,18 @@
 # and pointing to the surfaces that DO complete.
 assert_generatively_complete <- function(
   joint_spec,
+  times = "generated",
   call = rlang::caller_env()
 ) {
   gaps <- list()
   for (spec in joint_spec$specifications) {
     needed <- expected_families(spec$model)
+    # A time-anchored run holds what the likelihood conditions on. A DyNAM
+    # choice is conditional on its sender, so without a rate the observed
+    # sender is held and the choice alone has something to draw.
+    if (identical(times, "observed") && "choice" %in% needed) {
+      needed <- setdiff(needed, "rate")
+    }
     for (proc in spec_processes(spec)) {
       missing <- setdiff(needed, names(proc$submodels))
       for (family in missing) {
@@ -318,9 +325,10 @@ walk_fold_engine <- function(engine) {
 #'
 #' These are internal building blocks: not exported, committing to no
 #' user-facing signature. `walk_open()` **asserts** its specification is
-#' generatively complete (every modeled DyNAM flavor carrying both a rate and a
-#' choice) and aborts pointing to [simulate()] / `estimate_dynes()` otherwise;
-#' it never performs completion itself.
+#' generatively complete for the variant it serves (every modeled DyNAM flavor
+#' carrying a choice, and a rate as well unless the run is time-anchored) and
+#' aborts pointing to [simulate()] / `estimate_dynes()` otherwise; it never
+#' performs completion itself.
 #'
 #' A family whose sub-models all carry no effects — the uniform choice
 #' completion gives a rate-only DyNAM, or an authored `rate = ~ 1` — has
@@ -335,6 +343,9 @@ walk_fold_engine <- function(engine) {
 #'   as a one-process join).
 #' @param control_preprocessing preprocessing options, as for
 #'   [preprocess_joint()].
+#' @param times the simulation variant the walk serves: `"generated"` (a
+#'   free-running run, or joint estimation) or `"observed"` (a time-anchored
+#'   run, where a DyNAM process without a rate draws at the observed stamps).
 #' @param call the calling environment, for error reporting.
 #'
 #' @return `walk_open()` returns a `goldfishWalk` object.
@@ -343,9 +354,11 @@ walk_fold_engine <- function(engine) {
 walk_open <- function(
   spec,
   control_preprocessing = set_preprocessing_opt(),
+  times = c("generated", "observed"),
   call = rlang::caller_env()
 ) {
   lifecycle::signal_stage("experimental", "walk_open()")
+  times <- rlang::arg_match(times)
 
   joint_spec <- if (inherits(spec, "goldfishJointSpec")) {
     spec
@@ -362,7 +375,7 @@ walk_open <- function(
   # The generative-completeness assert (never completion): a spec that skipped
   # complete_generative_spec() fails loudly here rather than opening a walk with
   # a mismatched fid set.
-  assert_generatively_complete(joint_spec, call)
+  assert_generatively_complete(joint_spec, times, call)
 
   # Only a family with no effect anywhere is left out of the compile. The
   # specification and its process_map are kept whole, so every fid keeps its
@@ -417,9 +430,26 @@ walk_open <- function(
   # shared state, through the same stores the batch walk records into, and a
   # fid's mask is recomputed from the atom entries that moved since it was last
   # read.
-  walk_assert_covered_constraints(engines, merged$objects$key, call)
-  recorders <- build_walk_recorders(engines, merged$objects$key)
+  recorders <- build_walk_recorders(engines)
   live_masks <- walk_build_live_masks(engines, recorders)
+  # A constrained fid's risk set is the availability effect the batch walk
+  # keeps, stepped when the risk set is read, over the handle's own
+  # composition changes and with no stream kept.
+  for (engine in engines) {
+    engine$availability <- build_engine_availability(
+      engine,
+      live_masks,
+      changes1 = engine$presence1_changes,
+      changes2 = engine$presence2_changes,
+      record = FALSE,
+      unconstrained = FALSE,
+      drop_diagonal = !isTRUE(engine$model_spec$is_two_mode)
+    )
+  }
+  live_masks$effects <- do.call(
+    c,
+    unname(lapply(engines, function(engine) engine$availability))
+  )
 
   schedule <- merged$schedule
   start_time <- if (schedule$n > 0L) min(schedule$time) else 0
@@ -521,9 +551,18 @@ walk_apply_object_event <- function(handle, oid, shape, event_args, t) {
 #' @rdname walk_handle
 #' @param handle a `goldfishWalk` from [walk_open()].
 #' @param t the clock time to advance to.
+#' @param inclusive whether the rows stamped at `t` are applied. `FALSE`
+#'   stops strictly before `t` while moving the composition up to and
+#'   including `t`, which is the state the batch preprocessing evaluates an
+#'   observed event at: the rows sharing its stamp come after it.
 #' @return `walk_advance()` returns the handle invisibly.
 #' @keywords internal
-walk_advance <- function(handle, t, call = rlang::caller_env()) {
+walk_advance <- function(
+  handle,
+  t,
+  inclusive = TRUE,
+  call = rlang::caller_env()
+) {
   walk_assert_open(handle, call)
   if (t < handle$current_time) {
     cli::cli_abort(
@@ -549,7 +588,11 @@ walk_advance <- function(handle, t, call = rlang::caller_env()) {
       Inf
     }
     next_time <- min(exo_time, queued_time)
-    if (!is.finite(next_time) || next_time > t) {
+    if (
+      !is.finite(next_time) ||
+        next_time > t ||
+        (!inclusive && next_time == t)
+    ) {
       break
     }
     # An observed exogenous row goes before a driver-scheduled event sharing
@@ -1067,39 +1110,6 @@ walk_evaluate_choice_matrix <- function(state, theta) {
 # Live risk sets.
 # --------------------------------------------------------------------------- #
 
-# Abort when a constraint's atoms read a dynamic object the shared schedule
-# never visits (a constraint-only network no formula term reads). The batch
-# walk replays such a constraint over a private walk after the fact; a stepping
-# handle has no after, and a mask frozen at its seed would silently simulate a
-# different model.
-walk_assert_covered_constraints <- function(
-  engines,
-  shared_object_keys,
-  call = rlang::caller_env()
-) {
-  uncovered <- character(0)
-  for (engine in engines) {
-    for (sub_plan in engine_constraints(engine)) {
-      if (!recorder_covers_constraint(sub_plan, shared_object_keys)) {
-        uncovered <- c(uncovered, sub_plan$atom_labels)
-      }
-    }
-  }
-  if (length(uncovered) == 0L) {
-    return(invisible(NULL))
-  }
-  cli::cli_abort(
-    c(
-      "The walk handle cannot maintain this support constraint.",
-      "x" = "Constraint atom{?s} {.val {unique(uncovered)}} read{?s/} a
-             changing object no formula term reads, so the shared walk never
-             steps its events."
-    ),
-    call = call,
-    class = "goldfish_walk_unsupported"
-  )
-}
-
 # The compiled constraint one fid's risk set carries: a multi-output engine
 # reads it off its consumer specs, a single-output engine off its own plan.
 walk_fid_constraint <- function(engine, fid) {
@@ -1133,8 +1143,9 @@ walk_live_atoms <- function(store) {
 # a live mask cannot drift from the stored stream.
 #
 # `live` carries: `touched` (per store, the atom entries moved since the last
-# read), `maintainers` / `maintainer_keys` (per store), and `by_fid` (store,
-# maintainer, mask kind and stored kind per constrained fid).
+# read), `maintainers` / `maintainer_keys` (per store), `by_fid` (store,
+# maintainer, mask kind and stored kind per constrained fid), and
+# `fids_by_store` (the fids reading each store).
 walk_build_live_masks <- function(engines, recorders) {
   live <- new.env(parent = emptyenv())
   live$touched <- lapply(
@@ -1160,12 +1171,17 @@ walk_build_live_masks <- function(engines, recorders) {
       ]]
       s <- which(vapply(recorders$stores, identical, logical(1), store))
       mask_kind <- as.integer(sub_plan$mask_kind)
-      stored_kind <- if (symmetric) 0L else mask_kind
+      # A symmetric point mask is stored symmetrised, on the grid. A symmetric
+      # vector mask is stored at its own kind: its symmetric cell m[i] & m[j]
+      # is the outer product of the vector, which its consumers fold into
+      # both factors of the availability without a grid.
+      symmetrize_grid <- symmetric && mask_kind == 0L
+      stored_kind <- mask_kind
       maintainer_key <- paste(
         paste(deparse(sub_plan$expr), collapse = ""),
         paste(sub_plan$atom_labels, collapse = "\r"),
         mask_kind,
-        symmetric,
+        symmetrize_grid,
         sep = "\v"
       )
       m <- match(maintainer_key, live$maintainer_keys[[s]])
@@ -1174,7 +1190,7 @@ walk_build_live_masks <- function(engines, recorders) {
           walk_live_atoms(store),
           sub_plan$expr,
           sub_plan$atom_labels,
-          symmetric,
+          symmetrize_grid,
           mask_kind,
           stored_kind
         )
@@ -1189,9 +1205,16 @@ walk_build_live_masks <- function(engines, recorders) {
         store = s,
         maintainer = m,
         mask_kind = mask_kind,
-        stored_kind = stored_kind
+        stored_kind = stored_kind,
+        symmetric = symmetric
       )
     }
+  }
+  fids <- names(live$by_fid)
+  live$fids_by_store <- if (length(fids) > 0L) {
+    split(fids, vapply(fids, function(f) live$by_fid[[f]]$store, integer(1)))
+  } else {
+    list()
   }
   live
 }
@@ -1204,7 +1227,7 @@ walk_collect_atom_moves <- function(live, recorders, key) {
   for (s in unique(recorders$by_key[[key]])) {
     store <- recorders$stores[[s]]
     touched <- live$touched[[s]]
-    for (r in seq_along(store$record_gid)) {
+    for (r in seq_len(store$record_n)) {
       entries <- store$record_entries[[r]]
       if (length(entries) == 0L) {
         next
@@ -1213,10 +1236,9 @@ walk_collect_atom_moves <- function(live, recorders, key) {
       touched[[gid]] <- unique(c(touched[[gid]], entries))
     }
     live$touched[[s]] <- touched
-    store$record_time <- numeric(0)
-    store$record_gid <- integer(0)
-    store$record_entries <- list()
-    store$record_values <- list()
+    # Emptied by its count, keeping the buffers, so a stepping walk does not
+    # reallocate the record on every event.
+    store$record_n <- 0L
   }
   invisible(NULL)
 }
@@ -1233,10 +1255,20 @@ walk_live_support <- function(handle, fid) {
   s <- entry$store
   moved <- live$touched[[s]]
   if (any(lengths(moved) > 0L)) {
-    for (maintainer in live$maintainers[[s]]) {
+    flips <- lapply(live$maintainers[[s]], function(maintainer) {
       maintainer$recompute(moved)
-    }
+    })
     live$touched[[s]] <- vector("list", length(moved))
+    # Every fid reading this store's masks takes the flips into its
+    # availability, since reading the masks consumed the moves.
+    for (reader in live$fids_by_store[[as.character(s)]]) {
+      if (!is.null(live$effects[[reader]])) {
+        availability_push_flips(
+          live$effects[[reader]],
+          flips[[live$by_fid[[reader]]$maintainer]]
+        )
+      }
+    }
   }
   list(
     value = live$maintainers[[s]][[entry$maintainer]]$value(),
@@ -1245,76 +1277,63 @@ walk_live_support <- function(handle, fid) {
   )
 }
 
-# The fid's live risk set in the shapes the process-state evaluators read,
-# folded as the batch finalizers fold it: a rate's sender gate is presence and
-# at least one allowed present receiver; REM and coordination read the whole
-# dyad grid with both presences in it, coordination symmetrised; a choice
+# The fid's live risk set in the shapes the process-state evaluators read.
+# A constrained fid reads its availability effect, the one the batch walk
+# keeps, stepped over the mask flips and composition changes since the last
+# read: a rate's sender gate is presence and at least one allowed present
+# receiver; REM and coordination read the dyad grid with both presences in
+# it when the mask is point-kind, coordination symmetrised, and otherwise
+# the two factors of the outer encoding, each presence ANDed with the mask
+# on its own axis (both, for coordination's symmetric vector mask); a choice
 # reads the receiver axis, as a vector when the mask is column-broadcast or
-# gates only senders, as a grid when it is genuinely dyadic.
+# gates only senders, as a grid when it is genuinely dyadic. The value
+# handed back is the effect's own buffer, written in place by the next
+# step: read it before the walk moves.
 walk_risk_set <- function(handle, engine, fid) {
   n1 <- engine$n1
-  n2 <- engine$n2
   p1 <- engine$presence1
   p2 <- engine$presence2
   support <- walk_live_support(handle, fid)
 
-  if (engine$is_sender) {
-    gate <- if (is.null(support)) {
-      TRUE
-    } else {
-      sender_gate_from_mask(
-        support$value,
-        support$stored_kind,
-        p2,
-        n1,
-        n2,
-        # NOT `engine$twomode_or_reflexive`: that is TRUE on every rate
-        # engine, whose own statistics have no receiver axis.
-        drop_diagonal = !isTRUE(engine$model_spec$is_two_mode)
-      )
-    }
-    return(list(
-      active_sender = p1 & gate,
-      active_dyad = rep(TRUE, n1),
-      encoding = "alter"
-    ))
-  }
   if (is.null(support)) {
+    if (engine$is_sender) {
+      return(list(
+        active_sender = p1 & TRUE,
+        active_dyad = rep(TRUE, n1),
+        encoding = "alter"
+      ))
+    }
     return(list(active_sender = p1, active_dyad = p2, encoding = "alter"))
   }
 
-  spec <- engine$spec_map
-  support_grid <- support_to_grid(
-    support$value,
-    support$stored_kind,
-    n1,
-    n2
-  )
-  if (risk_set_is_dyadic(spec)) {
-    dyads <- outer(p1, p2, "&") & support_grid
-    if (risk_set_symmetrize(spec)) {
-      dyads <- symmetrize_mask(dyads)
-    }
-    return(list(active_sender = p1, active_dyad = dyads, encoding = "point"))
-  }
-  encoding <- active_dyad_encoding_decide(
-    risk_set_encoding(spec),
-    support$mask_kind
-  )
+  av <- engine$availability[[as.character(fid)]]
+  availability_step(av, engine$presence1_cursor, engine$presence2_cursor)
   switch(
-    encoding,
+    av$variant,
+    gate = list(
+      active_sender = av$value,
+      active_dyad = rep(TRUE, n1),
+      encoding = "alter"
+    ),
     alter = list(
       active_sender = p1,
-      active_dyad = p2 & support_grid[1L, ],
+      active_dyad = av$value,
       encoding = "alter"
     ),
     # An ego-kind mask gates senders only, and the choice risk set is read
     # from the drawing sender's row, so the receiver axis is presence alone.
-    outer = list(active_sender = p1, active_dyad = p2, encoding = "alter"),
-    point = list(
+    outer = list(
       active_sender = p1,
-      active_dyad = matrix(p2, n1, n2, byrow = TRUE) & support_grid,
-      encoding = "point"
+      active_dyad = av$value,
+      encoding = "alter"
+    ),
+    point = ,
+    dyad = list(active_sender = p1, active_dyad = av$value, encoding = "point"),
+    # REM and coordination with a vector-kind mask: the effect's two factors.
+    factors = list(
+      active_sender = av$value1,
+      active_dyad = av$value,
+      encoding = "outer"
     )
   )
 }

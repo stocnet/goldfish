@@ -259,6 +259,13 @@
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
+#'   \item{support_constraint}{the one-sided `support_constraint` formula the
+#'   model was estimated with, or `NULL` when it had none. A flavor's derived
+#'   mask is not included: it follows from the data's flavor style.}
+#'   \item{modeled_flavor}{the flavor whose events were modeled, or `NULL`
+#'   when every event of the layer was. A flavor selected through a
+#'   dependent-events name carries that name as its `dependent` attribute.
+#'   [simulate()] rebuilds the model from these two and `formula`.}
 #'   \item{backend}{a character value naming the computational implementation
 #'   that produced the fit (`"cpp"`, `"r"` or `"gather"`), after any
 #'   estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
@@ -827,7 +834,8 @@ estimate_from_specification <- function(
     support_constraint = spec$constraint,
     modeled_flavor = spec$modeled_flavor,
     output = output,
-    max_length = max_length
+    max_length = max_length,
+    specification = spec
   )
 }
 
@@ -1084,234 +1092,6 @@ compute_statistics <- function(
     preprocessing_only = TRUE,
     max_length = max_length,
     ...
-  )
-}
-
-# Preprocessing-time set-size validation for a support_constraint.
-# Fails fast — before the C++ likelihood — with event context. Cases:
-#   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
-#   B dependent event's own sender has 0 live receivers                  -> error
-#   D the whole risk set is empty at a dependent event                   -> error
-#   C the risk set has exactly 1 candidate (forced choice)               -> warn
-#   E a node is never at risk / never a candidate across the sequence    -> warn
-# Case E is per family: choice warns on a receiver never an allowed candidate
-# AND on a sender allowed no receiver at any event; rate warns on a sender never
-# at risk. A never-observed such node is a legitimate wider-population model, so
-# it warns rather than errors.
-# Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
-# not an error) — only the dependent event's own sender triggers A/B.
-# `process_label` names the process the failing object belongs to when several
-# are preprocessed together, so the message identifies which one is empty. It is
-# rendered for display only, never parsed back.
-validate_support_constraint <- function(
-  support_mask,
-  event_sender,
-  event_receiver,
-  is_dependent,
-  active_1,
-  active_2,
-  family,
-  drop_diagonal,
-  process_label = NULL,
-  active_2_update = NULL,
-  active_2_update_pointer = NULL
-) {
-  # A cursor over the flip stream: the validation already walks the dependent
-  # events in ascending order, so this is a change of source, not of logic.
-  mask_at <- mask_cursor(support_mask)
-  stored_kind <- support_mask$stored_kind %||% 0L
-  in_process <- if (is.null(process_label)) {
-    NULL
-  } else {
-    c("i" = "Process {.field {process_label}}.")
-  }
-  dep <- which(is_dependent == 1L)
-  n1 <- length(active_1)
-  n2 <- length(active_2)
-  forced <- integer(0)
-
-  if (family == "choice") {
-    ever_candidate <- logical(n2)
-    ever_present <- logical(n2)
-    ever_at_risk_sender <- logical(n1)
-    # All four verdicts below are defined over "allowed AND present receivers",
-    # so the receiver presence is read at the event, the way the rate branch
-    # does. Freezing it at time zero is wrong in both directions: an observed
-    # receiver that joined late reads as an excluded dyad, and a receiver that
-    # joins mid-sequence and is never allowed goes unnamed.
-    receivers_at <- presence_cursor(
-      active_2,
-      active_2_update,
-      active_2_update_pointer
-    )
-    for (e in dep) {
-      mask_e <- mask_at(e)
-      present <- receivers_at(e)
-      ever_present <- ever_present | present
-      allowed <- which(
-        support_row(mask_e, stored_kind, event_sender[[e]], n1, n2) &
-          present &
-          # The sender is not among its own candidates on one node set,
-          # whatever the mask allows on the diagonal.
-          !(drop_diagonal & seq_len(n2) == event_sender[[e]])
-      )
-      ever_candidate[allowed] <- TRUE
-      # Sender-side counterpart of the never-a-candidate warning: which senders
-      # ever have an allowed, present receiver. Read at the mask's own kind, so
-      # a separable mask answers for every sender without building a grid.
-      gate <- sender_gate_from_mask(
-        mask_e,
-        stored_kind,
-        present,
-        n1,
-        n2,
-        drop_diagonal
-      )
-      ever_at_risk_sender <- ever_at_risk_sender | (active_1 & gate)
-      if (length(allowed) == 0L) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: empty risk set at event {e}.",
-          "x" = "Sender {event_sender[[e]]} has no allowed, present receiver.",
-          in_process
-        ))
-      }
-      if (!(event_receiver[[e]] %in% allowed)) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: the observed dyad is excluded.",
-          "x" = "Event {e}: receiver {event_receiver[[e]]} is not allowed for
-                 sender {event_sender[[e]]}.",
-          in_process
-        ))
-      }
-      if (length(allowed) == 1L) {
-        forced <- c(forced, e)
-      }
-    }
-    # "Present" here means present at some event across the sequence, not at
-    # time zero: a receiver that joins mid-sequence and is never allowed is
-    # named, and one absent throughout is not (it is not part of any risk set).
-    never <- which(ever_present & !ever_candidate)
-    if (length(never) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} receiver{?s} present
-               at some event, never an allowed candidate.",
-        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
-      ))
-    }
-    # A sender allowed no receiver at any event is a legitimate model -- the
-    # constraint may describe a wider population than the observed events -- so
-    # this is a warning, not an error, and mirrors the rate family's
-    # "never at risk". An observed sender in this set errors above at its own
-    # event; this names the pattern over the whole sequence for the rest.
-    never_sender <- which(active_1 & !ever_at_risk_sender)
-    if (length(never_sender) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never_sender)} present
-               sender{?s} allowed no receiver at any event.",
-        "i" = "{cli::qty(length(never_sender))}Node{?s}: {.val {never_sender}}."
-      ))
-    }
-  } else {
-    ever_active <- logical(n1)
-    # The gate is the same per-sender allowed-receiver count the fold
-    # maintains, computed here from the mask's own kind: a separable mask
-    # answers without a grid at all, and only a genuinely dyadic one is reduced
-    # row by row. Both of its inner axes move, so the receiver presence is read
-    # at the event too; freezing it at time zero would keep a sender whose only
-    # allowed receivers have departed on the allowed side of the check.
-    receivers_at <- presence_cursor(
-      active_2,
-      active_2_update,
-      active_2_update_pointer
-    )
-    for (e in dep) {
-      gate <- sender_gate_from_mask(
-        mask_at(e),
-        stored_kind,
-        receivers_at(e),
-        n1,
-        n2,
-        drop_diagonal
-      )
-      ever_active <- ever_active | (active_1 & gate)
-      if (!gate[event_sender[[e]]]) {
-        cli::cli_abort(c(
-          "{.arg support_constraint}: the observed sender is gated out.",
-          "x" = "Event {e}: sender {event_sender[[e]]} has no allowed, present
-                 receiver.",
-          in_process
-        ))
-      }
-      if (sum(active_1 & gate) == 1L) {
-        forced <- c(forced, e)
-      }
-    }
-    never <- which(active_1 & !ever_active)
-    if (length(never) > 0) {
-      cli::cli_warn(c(
-        "!" = "{.arg support_constraint}: {length(never)} present sender{?s}
-               never at risk (always gated out).",
-        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
-      ))
-    }
-  }
-
-  if (length(forced) > 0) {
-    cli::cli_warn(c(
-      "!" = "{.arg support_constraint}: {length(forced)} event{?s} with a
-             single candidate (forced choice; contributes 0 to the
-             log-likelihood).",
-      "i" = "{cli::qty(length(forced))}Event{?s}: {.val {forced}}."
-    ))
-  }
-  invisible(NULL)
-}
-
-# Run the set-size validation on a preprocessed object, picking the presence
-# vectors the check needs. Rate reads the raw sender presence stashed by the
-# fold (the object's own `active_sender_init` is already the folded
-# availability), and the dyad fold likewise overwrites `active_dyad_init`, so
-# both read the unfolded vectors the mask stashed. A constraint-free object has
-# no mask and nothing to validate.
-validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
-  if (is.null(prep$support_mask)) {
-    return(invisible(NULL))
-  }
-  # One node set, so a sender is never among its own allowed receivers. The
-  # preprocessed object names both sides, whatever produced it.
-  drop_diagonal <- !isTRUE(prep$model_spec$is_two_mode)
-  validate_support_constraint(
-    prep$support_mask,
-    prep$event_sender,
-    prep$event_receiver,
-    prep$is_dependent,
-    if (is_rate_family && !is.null(prep$support_mask$sender_presence_init)) {
-      prep$support_mask$sender_presence_init
-    } else {
-      prep$active_sender_init
-    },
-    if (!is.null(prep$support_mask$receiver_presence_init)) {
-      prep$support_mask$receiver_presence_init
-    } else {
-      prep$active_dyad_init
-    },
-    family = if (is_rate_family) "rate" else "choice",
-    drop_diagonal = drop_diagonal,
-    process_label = process_label,
-    # Both branches read the receiver presence as the composition moves. The
-    # rate fold leaves the raw receiver crossings in `active_dyad_update`; the
-    # dyad fold rewrites that buffer into the folded availability, so the choice
-    # branch reads the raw crossings the fold stashed before overwriting it.
-    active_2_update = if (is_rate_family) {
-      prep$active_dyad_update
-    } else {
-      prep$support_mask$receiver_presence_update
-    },
-    active_2_update_pointer = if (is_rate_family) {
-      prep$active_dyad_update_pointer
-    } else {
-      prep$support_mask$receiver_presence_update_pointer
-    }
   )
 }
 
@@ -1915,8 +1695,11 @@ warn_probabilities_footprint <- function(
   spec,
   call = rlang::caller_env()
 ) {
-  n_senders <- length(prep$active_sender_init)
-  n_receivers <- length(prep$active_dyad_init)
+  # The statistics array has the sides' sizes on every loop; the availability
+  # fields do not (a dyad loop stores no sender vector, a point one a grid).
+  dims <- dim(prep$initial_stats)
+  n_senders <- if (length(dims) > 0L) dims[[1L]] else 0L
+  n_receivers <- if (length(dims) == 3L) dims[[2L]] else 0L
   if (n_senders == 0 && n_receivers == 0) {
     return(invisible())
   }
@@ -2080,6 +1863,44 @@ resolve_preprocessed <- function(
   )
 }
 
+# The support constraint a fit records: the user's formula, not the parsed
+# plan estimation ran on. A flavor's derived mask is left out because the
+# rebuild derives it again from the data's flavor style. Kept without its
+# environment, as the fit's formula is, so a fit carries none of the
+# caller's objects.
+fit_support_constraint <- function(specification, support_constraint) {
+  constraint <- if (!is.null(specification)) {
+    specification$support_constraint
+  } else if (inherits(support_constraint, "formula")) {
+    support_constraint
+  }
+  if (is.null(constraint)) {
+    return(NULL)
+  }
+  stats::as.formula(deparse1(constraint), env = new.env(parent = emptyenv()))
+}
+
+# The modeled flavor a fit records. A flavor selected by a dependent-events
+# name carries that name as its `dependent` attribute: that path derives no
+# flavor mask, so the rebuild names the process the same way instead of
+# keying the flavor, which would derive one.
+fit_modeled_flavor <- function(flavor, specification, dependent_alias) {
+  if (length(flavor) == 0L) {
+    return(NULL)
+  }
+  dependent <- dependent_alias
+  if (
+    !is.null(specification) &&
+      !identical(specification$layer, specification$focal)
+  ) {
+    dependent <- specification$layer
+  }
+  if (!is.null(dependent)) {
+    attr(flavor, "dependent") <- dependent
+  }
+  flavor
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -2102,7 +1923,8 @@ estimate_wrapper <- function(
   support_constraint = NULL,
   modeled_flavor = NULL,
   recorded_flavor = NULL,
-  flavor_plan = NULL
+  flavor_plan = NULL,
+  specification = NULL
 ) {
   output <- match.arg(output)
 
@@ -2303,8 +2125,12 @@ estimate_wrapper <- function(
   # A dependent-events object name on the LHS (the legacy call surface, e.g.
   # `create_bilat ~ ...`) resolves to its focal layer and stamped flavor before
   # parsing, so the rest of the pipeline sees an ordinary focal layer.
+  dependent_alias <- NULL
   if (!is_legacy) {
     aliased <- resolve_dependent_alias(formula, work_data, modeled_flavor)
+    if (!identical(aliased$formula, formula)) {
+      dependent_alias <- deparse1(formula[[2L]])
+    }
     formula <- aliased$formula
     modeled_flavor <- aliased$modeled_flavor
   }
@@ -3032,7 +2858,7 @@ estimate_wrapper <- function(
   if (
     is.null(constraint_plan) &&
       !is.null(opportunities_effective) &&
-      isTRUE(prep$active_dyad_folded)
+      identical(prep$active_dyad_encoding, "point")
   ) {
     opportunities_effective <- NULL
   }
@@ -3045,13 +2871,20 @@ estimate_wrapper <- function(
     # Fail fast before the likelihood: excluded observed dyads / empty risk sets
     # error; forced choices and never-active nodes warn. The rate (sender-axis)
     # family uses the sender-gate policy; choice and REM check the observed dyad
-    # directly. A multi-flavor object was validated at preprocessing time, so
-    # re-running here would only duplicate every warning it emitted.
+    # directly. The walk checked every observed event as it went and kept
+    # the verdict on the object; it is raised here. A multi-flavor object
+    # was validated at preprocessing time, so raising it again would only
+    # duplicate every warning it emitted.
     if (!isTRUE(prep$support_validated)) {
-      validate_prep_support(
-        prep,
-        identical(risk_set_axis(model_spec), "sender")
-      )
+      if (is.null(prep$support_verdict)) {
+        cli::cli_abort(c(
+          "This preprocessed object carries no {.arg support_constraint}
+           check.",
+          "i" = "It was preprocessed by an earlier version of goldfish;
+                 preprocess it again."
+        ))
+      }
+      validate_support_constraint(prep$support_verdict)
     }
     # Every wired family folds its availability during preprocessing — a rate
     # constraint into `active_sender`, a choice / REM / coordination constraint
@@ -3059,10 +2892,7 @@ estimate_wrapper <- function(
     # no standalone mask or sender gate is assembled here. A folded one-sided
     # choice constraint already carries any user opportunity list, so the
     # per-iteration opportunity recompute is skipped.
-    if (
-      identical(risk_set_axis(model_spec), "receiver_given_sender") &&
-        isTRUE(prep$active_dyad_folded)
-    ) {
+    if (identical(risk_set_axis(model_spec), "receiver_given_sender")) {
       opportunities_effective <- NULL
     }
   }
@@ -3089,8 +2919,6 @@ estimate_wrapper <- function(
     } else {
       ifelse(has_windows, 30, 10)
     },
-    parallelize = FALSE,
-    cpus = 1,
     verbose = verbose,
     progress = progress,
     opportunitiesList = opportunities_effective
@@ -3186,6 +3014,17 @@ estimate_wrapper <- function(
     env = new.env(parent = emptyenv())
   )
   result$formula <- formula_keep
+  # Beyond its formula, simulating a fit rebuilds the process from the
+  # support constraint and the modeled flavor it was estimated with. Both
+  # are recorded even when absent, so a fit states it was unconstrained.
+  result["support_constraint"] <- list(
+    fit_support_constraint(specification, support_constraint)
+  )
+  result["modeled_flavor"] <- list(fit_modeled_flavor(
+    recorded_flavor %||% modeled_flavor,
+    specification,
+    dependent_alias
+  ))
   # The self-contained data has no caller-scope dependent object for the broom /
   # diagnostic surface to `get()`, so carry the modeled dependent events on the
   # result (labels resolved from the mode map), in event-schedule order.

@@ -184,7 +184,13 @@ test_that("the R mirror agrees with the C++ helper on scores", {
   for (scale in list(1 / sum(fx$w), 2.5)) {
     for (dependent in c(TRUE, FALSE)) {
       expect_equal(
-        mirror_score(fx$X, fx$w, scale, observed = 4L, dependent = dependent),
+        mirror_score(
+          as.vector(fx$w %*% fx$X),
+          scale,
+          fx$X,
+          observed = 4L,
+          dependent = dependent
+        ),
         as.vector(reduce(fx, c = scale, obs = 3L, dependent = dependent)$score),
         tolerance = 1e-10
       )

@@ -80,7 +80,27 @@ result_format_status <- function(x) {
 }
 
 preprocessed_format_status <- function(x) {
-  format_status(x$prep_version, PREP_VERSION)
+  status <- format_status(x$prep_version, PREP_VERSION)
+  if (identical(status, "current") && lacks_availability_buffers(x)) {
+    return("outdated")
+  }
+  status
+}
+
+# The consumer-side check the stamp cannot make: composition changes held only
+# as a per-change list, without the update buffers every engine now walks.
+# Estimating such an object would read as if nobody ever left, so it is
+# outdated however it is stamped. An object carrying both the list and the
+# buffers is read, the list ignored.
+lacks_availability_buffers <- function(x) {
+  for (axis in c("active_sender", "active_dyad")) {
+    changes <- x[[paste0(axis, "_changes")]]
+    pointer <- x[[paste0(axis, "_update_pointer")]]
+    if (length(changes) > 0L && is.null(pointer)) {
+      return(TRUE)
+    }
+  }
+  FALSE
 }
 
 format_status <- function(stamp, current) {

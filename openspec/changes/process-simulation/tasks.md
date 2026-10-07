@@ -68,7 +68,10 @@
       ride the same path; replay matches batch exactly on dyadic,
       receiver-axis and flavored fixtures. **Gap:** a constraint on a changing
       object no formula term reads is not stepped by the shared schedule, so
-      the handle aborts on it (`goldfish_walk_unsupported`). (b)+(c)
+      the handle aborts on it (`goldfish_walk_unsupported`) — *closed
+      2026-09-29 by `constraint-objects-on-shared-walk` (`b1b2103`): the
+      object rides the shared schedule and the handle maintains its mask
+      live; the refusal is gone.* (b)+(c)
       `a21b20c`: presence cursors, `walk_schedule()`,
       `walk_next_breakpoint()`; windows already ran on the merged walk
       (`preprocess-one-walk`), so (c) added the breakpoint API and the windowed
@@ -598,12 +601,74 @@
       last observed rows replay. Finding (not fixed): a creation-only run
       with replay disabled can draw a sender whose creation mask row is empty
       (choice returns `NA`)
-- [ ] 2.8b Incoherence flag past a documented threshold of skipped replayed
+- [x] 2.8b Incoherence flag past a documented threshold of skipped replayed
       events (split from 2.8 on 2026-09-15): the threshold constant is the
       design's open `[surface]` question, settled against fixtures
-- [ ] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
+      — *rewritten 2026-09-25 (explore, ADR-0094; D9 amendment)*: **no
+      threshold, no flag, no argument.** The skip counts are a descriptor of
+      how far the replayed flavors acted on the simulated state, and nothing
+      stops, warns about or excludes a replicate on them. Documentation only:
+      the `simulate()` roxygen says what `n_replayed` and `n_skipped` mean,
+      that `n_replayed` is the observed count unless a target or guard stops
+      the run first, and that no count flags a run; `devtools::document()`.
+      No code, no test change
+      — *done 2026-09-25* `b377e98` (goldfish-b2), 9037 / 0 / 4, six baseline
+      files PASS. The roxygen paragraph on replayed flavors in `simulate()`
+      carries it; no NEWS bullet (a documentation clarification)
+- [x] 2.3 Time-anchored variant on every family (`times = "observed"`): marks
       redrawn at observed stamps from the fitted conditionals; per-flavor
       anchoring through the regime record
+      — *settled 2026-09-25 (explore, ADR-0095; D6 amendment)*: the run walks
+      the dependent rows of the modeled layers on the merged schedule; an
+      unmodeled flavor's rows stay replayed. Each stamp keeps its observed
+      layer and flavor; the sender is redrawn from the rate and the receiver
+      from its choice row (DyNAM with a rate), the receiver alone with the
+      observed sender held (choice-only DyNAM), the dyad from the rate (REM).
+      A stamp with no support is skipped and counted
+      (`diagnostics$n_stamps_skipped`, pool summary column); the stamp total
+      is stated in the prints. `stop_reason = "observed"`, `capped = FALSE`,
+      `end_time` the last stamp, empty trajectory. `n_events`, `horizon` and
+      `control_sim` refused when supplied (one condition class).
+      Coordination refused until 2.6; the ordered rate not special-cased. A
+      fitted model anchors through the rebuilt specification. Per-flavor
+      anchoring moves to 2.3b. Tests (new file `test-simulate_anchored.R`):
+      observed stamps and layers kept, marks redrawn, on DyNAM rate+choice,
+      choice-only DyNAM, REM and a fitted model; an unmodeled flavor replayed
+      under anchoring; an unsupported stamp skipped and counted; the argument
+      refusals; the coordination refusal; prints and pool summary. The
+      snapshots that pinned the refusal become runs
+      — *amended 2026-09-25 (explore, ADR-0097; D5 amendment)*: 2.3 owns the
+      variant-dependent completeness rule: `walk_open()` learns the variant and
+      opens a DyNAM process without a rate for a time-anchored run; a missing
+      choice, or a missing rate under free-running, still aborts. Tests add an
+      unflavored single-process choice-only run and the `walk_open()` case
+      — *done 2026-09-25* `0d7e1ae` (goldfish-b2), 9089 / 0 / 4, six baseline
+      files PASS. `R/simulate_anchored.R` (`simulate_anchored_replicate()`,
+      `anchored_stamps()`, `anchored_evaluation()`; a choice-only stamp's
+      "rate" is the indicator of the held sender, so the mark step is
+      unchanged); `choice_evaluation()` factored out of `mark_evaluation()`;
+      `walk_open(times =)`; refusals `goldfish_sim_anchored_argument` and
+      `goldfish_sim_unsupported` (coordination). `n_stamps_skipped` is NA on a
+      free-running run. **Finding:** holding every observed sender keeps each
+      sender's out-degree equal to the observed one, so the flavor masks
+      alone never empty a held sender's row (0 skips on 20 seeds of three
+      fixtures); the skip test triggers it through the `mark` plug point. A
+      skip needs a constraint on simulated state beyond the sender's own
+      out-ties, or the 2.8c gate defect. The steps' dry call hands `mark` a
+      toy evaluation with no layer, so a step wrapping `default_mark()` must
+      answer it directly (not fixed). The old refusal snapshots became runs
+- [ ] 2.3b Per-flavor anchoring (split from 2.3 on 2026-09-25, ADR-0095):
+      hold one flavor's observed stamps, redrawing its marks, inside an
+      otherwise free-running run, recorded through the regime record. A
+      second loop; its argument name and interaction with `replay =` are
+      open (ask before implementing)
+- [ ] 2.8c The rate-with-choice sender gate follows a saturated choice mask
+      (added 2026-09-25, the 2.8 finding; ADR-0095): a sender whose choice
+      row is all zero in the simulated state gets zero rate, so a DyNAM with
+      a rate and a choice never draws a sender it cannot give a receiver
+      (today the choice returns `NA` and `merged_build_event_args()`
+      aborts). Changes free-running draws on saturating runs; ask before
+      settling where the gate reads the mask
 - [ ] 2.4 ~~Weibull/Gompertz free-running clocks~~ **Moved 2026-09-15 to
       `parametric-rates` task 3.4a** (ADR-0074): the clocks are `clock`
       steps owned by the change that owns the distribution axis; this
@@ -622,6 +687,10 @@
       `two-sided-coordination` task 2.5a** (ADR-0074): per-mechanism mark
       kernels are `mark` steps owned by the change that defines the
       mechanisms; its 2.5 fixtures seed them.
+      — *note 2026-09-25 (ADR-0097)*: coordination has no rate, and the
+      anchored completeness rule 2.3 lands already opens its walk; 2.6 adds
+      the pair draw from the mark multinomial and lifts 2.3's coordination
+      refusal
 - [ ] 2.7 Windowed effects in free-running simulation (after 2.0c; revised
       2026-09-15, D8): the handle fans an injected source-layer event out to
       each derived `layer_ω` (entry row now, expiry scheduled through
@@ -648,7 +717,7 @@
       multi-period relational fixture reproduces each period's `count_w`; single-window
       reduction matches the upstream value byte-for-byte
 
-- [ ] 2.11 Exposure integral on the merged walk (added 2026-09-15, D5): the
+- [x] 2.11 Exposure integral on the merged walk (added 2026-09-15, D5): the
       walk accumulates, per timed fid, `∫|R_w(t)| dt` — the sum over
       intervals of `dt × |active ∩ gated senders|`, presence changes applied
       at their stamps — and stores it beside `total_time` on the
@@ -670,6 +739,204 @@
       stopgap, and `per-family-flavor-modeling`'s delta pins such a gap to a
       zero hazard. When this lands the flavored relational pin reads it;
       coordinate that delta's wording with its owner
+      — *settled 2026-09-26 (explore, ADR-0098; D5 amendment)*: computed in
+      preprocessing by extending `time_weighted_risk_set()` (no live
+      accumulator on the simulation walk; the D5 / 2.11 re-pin question stays
+      open), in `assemble_default_output()` and the support-gate fold, for
+      every exact-time output. The field is `exposure_entity_time` (active
+      senders after the gate for DyNAM, active dyads for REM), not
+      `exposure_actor_time`; `avg_active_entity = exposure_entity_time /
+      total_time`. The flavored relational pin reads its per-flavor exposure
+      (the stopgap sentence is already replaced in the three copies of the
+      completion requirement). The `goldfishStat` print's field table gains
+      the row. Spec delta: `specs/active-availability-stat/spec.md`. Report
+      every frozen baseline that moves (measured before: the DyNAM sender
+      baselines pass with the time-weighted seed, REM untested); stop before
+      committing if one fails at 1e-6
+      — *settled 2026-09-27 (explore, goldfish-ec; ADR-0099)*: the exposure
+      is the engine's row alignment (presence and support applied at the
+      row, as the compensator reads them), so `n_dep_events /
+      exposure_entity_time` is exactly the intercept-only MLE; not the
+      continuous integral over the change stream (fisheries 145.4799 vs
+      145.4176). A single-output REM counts senders today; it moves to dyads,
+      and the dyad count drops the self-dyad on a one-mode layer (read from
+      the resolved self-tie rule once `allow-reflexive-user` lands; note in
+      its task 2.2). `time_weighted_risk_set()` learns the `"outer"`
+      encoding (it reads only `"point"` today and fails on fish_rem) and is
+      rewritten as a running sum: no per-row presence list, and never a
+      per-row dense dyad matrix (about 14 MB a row on CollegeMsg). Baselines
+      measured with the dyad seed: every REM cell passes the relative 1e-6
+      (abs 1.6e-6 se_rem, 5.7e-6 fish_rem, 1.3e-5 global_rem); the two-mode
+      REM cell is unmeasured. Before/after timing on CollegeMsg subsets
+      (1k/5k/10k, median of three warm runs; before at `e362b94` recorded in
+      `progress.md`): rate, choice, constrained choice and REM preprocessing,
+      the pin pass, and the exposure computation itself
+      — *settled 2026-09-28 (Alvaro), the site:* the exposure is computed in
+      ONE place, `render_finalized_consumers()`, where both producers (the
+      joint walk and the flavored driver) finish every output after the
+      fold, and where the flavored path already calls
+      `time_weighted_risk_set()`. It applies to every exact-time output,
+      single-process included (the `weight_risk_set` flag goes). The event
+      average leaves `assemble_default_output()` and
+      `fold_active_sender_support()`; no exposure code goes into the fold,
+      which `constraint-objects-on-shared-walk` D9 retires as a post-walk
+      step. The computation is one loop over the stored output rows, not a
+      second walk through the events
+      — *done 2026-09-28 (goldfish-ce), `c323fdc`*: `risk_set_exposure()`
+      in `render_finalized_consumers()` (senders; "outer" dyads as the
+      factor product less the diagonal; "point" dyads by per-cell flips);
+      tested as `n_dep_events / exposure_entity_time` = the intercept-only
+      MLE (`~ 1 + offset(x, coef = 0)`) to 1e-9, guards proven by
+      mutation. Alvaro settled: the flavored pin's stand-in is keyed on
+      every flavor of the layer; a zero window gives 0 and 0; the parity
+      goldens drop the two scalars from both sides; three tests that
+      pinned a default Newton stop converge tightly. Frozen baselines all
+      PASS (the two-mode REM cell too); none moved beyond 1e-6. The window
+      is the formula's combined schedule (ADR-0100), which 2.11b's
+      equality test must respect
+- [x] 2.2n The fit rebuild keeps the support constraint and the modeled
+      flavor (added 2026-09-27, ADR-0099; schedule: after 2.11, before
+      2.11b): a fit stores neither today, so `simulate(fit, data =)` on a
+      constrained fit draws outside the support it was estimated on, and a
+      fit of one `modeled_flavor` is rebuilt as the whole layer. The fit
+      stores the constraint formula and the modeled flavor as estimated;
+      `specification_from_fit()` passes both to `make_specification()`
+      (and `allow_reflexive` once `allow-reflexive-user` lands, whichever of
+      the two lands second). Spec delta: `process-simulation` "Simulation
+      drives the walk handle from a specification and parameters", sentence
+      and two scenarios. Tests: a constrained fit's simulated events never
+      fall on an excluded dyad; a one-flavor fit rebuilds that flavor
+      — *done 2026-09-29 (goldfish-ce), `531a184`*: the fit records
+      `support_constraint` (the user's formula; a flavor's derived mask
+      is re-derived from the data's flavor style at the rebuild) and
+      `modeled_flavor`, both kept when absent; the rebuild passes the
+      constraint and keys the flavor. Alvaro settled: top-level fit
+      components; the user formula, not the composed one; no stale-fit
+      abort and no fit-version bump (dev line before 2.0.0); a flavor
+      selected by a dependent-events name carries it as a `dependent`
+      attribute and rebuilds through `layer =`, deriving no mask, as its
+      estimation did not. Container process fits record their own flavor.
+      Spec delta was already folded (2026-09-27). Tests: constrained REM
+      and DyNAM choice fits equal the specification's run and never land
+      on an excluded dyad; one-flavor, container and both dependent-name
+      paths; guards proven by five mutations. `allow_reflexive` not
+      passed: `make_specification()` has no such argument yet
+- [ ] 2.11b The pin's scalars on every fit, and an approximation for a
+      specification (added 2026-09-26, ADR-0098; after 2.11): every DyNAM and
+      REM preprocessing, the choice family included, computes `n_dep_events`,
+      `total_time`, `exposure_entity_time` and `avg_active_entity`, and every
+      fit carries them; `simulate()` on a fit pins a completed rate from them
+      with no preprocessing pass. From a specification the pin defaults to
+      the endpoint approximation `|R| ≈ (n_start + n_end) / 2`, entities
+      present at the window's start and end, times `total_time`;
+      `set_preprocessing(exposure = c("approximate", "exact"))` asks for the
+      preprocessing pass (estimation always computes the exact value). One
+      message, class `goldfish_sim_approximate_exposure`, when the
+      approximation might differ: the layer's nodes change composition inside
+      the window, or the process carries a support constraint (derived flavor
+      masks included); it names `set_preprocessing(exposure = "exact")`.
+      Roxygen for `set_preprocessing()` and `simulate()`,
+      `devtools::document()`, a `NEWS.d` bullet. Tests: a choice fit carries
+      the four scalars; a fitted choice-only DyNAM simulated generated pins
+      from them without a pass; a specification with composition changes pins
+      from the endpoint approximation with the message; `exposure = "exact"`
+      pins as the fit does, silently; a fixed-population specification with
+      no support constraint pins silently and equals the exact pin
+      — *settled 2026-09-27 (explore, goldfish-ec; ADR-0099)*: a choice's
+      scalars come from the same walk, not an extra pass. The walk keeps a
+      running sum per exposure consumer over the rows a rate would store
+      (every event with a positive interval, plus the window-end boundary),
+      so a choice fit equals a rate fit on the same data (test). Unconstrained:
+      two scalars per consumer, nothing else held. Constrained: the gate needs
+      the mask at those rows and masks are realized after the walk, so the
+      row times (one numeric vector, 8 bytes a row) are kept for the mask
+      request and the gate is counted as the rate fold counts it, streaming;
+      both are discarded once the four scalars exist. The fit gains four
+      length-one numerics. `simulate()` on a fit carries them into completion
+      through the rebuilt specification (no pass); a `control_prep` window or
+      `exposure = "exact"` takes the specification path. The endpoint count
+      follows the model: senders for DyNAM, dyads without the self-dyad on a
+      one-mode layer for REM, a derived flavor mask applied at the endpoint
+      states. In a flavored container each process fit carries its own
+      scalars; `printing-homogenization` 6.2a reads them. Same before/after
+      timing as 2.11
+      — *revised 2026-09-27 (explore, goldfish-ec; Alvaro chose the detour)*:
+      2.11b waits for `constraint-objects-on-shared-walk`, including its D9
+      (the batch walk composes masks live, as the handle does). With the
+      mask live at every row, a constrained choice's exposure is a plain
+      running sum like any other consumer, and the row-time list above is
+      not built. Order: `rate-init-value-copy-free-updates` → 2.11 → 2.2n →
+      `constraint-objects-on-shared-walk` → 2.11b.
+      `relational_window_risk_set()` is repurposed as the exact path only.
+      It runs for `set_preprocessing(exposure = "exact")`, and for a fit
+      simulated with a different window when the exact value is asked for.
+      The default specification path (endpoint approximation) and the fit
+      path (stored scalars) never run it. Its stand-in rate carries the
+      process's own support constraint and modeled flavor, and on a
+      flavored layer a flavor-keyed stand-in with the derived mask, so it
+      returns that process's exposure. That is also the per-flavor
+      exposure 2.11's flavored relational pin reads. Test: its value equals
+      the scalars a fit of the same data and process carries.
+      At 2.11b, decide whether the in-walk running sum the choice needs
+      replaces 2.11's post-walk loop in `render_finalized_consumers()` for
+      every consumer, so the exposure is gathered in the one walk
+      — *note 2026-09-29 (constraint-objects-on-shared-walk D9 amendment)*:
+      the running sum reads the count of entities at risk that the
+      availability tracker (its task 4.5b) keeps per fid during the walk;
+      a choice fid's tracker is advanced at every row a rate would store
+      — *revised the same day (Alvaro)*: availability is maintained as an
+      effect, not a tracker type, and `constraint-objects-on-shared-walk`
+      4.6 already switches every exact-time rate's exposure to its running
+      count (replacing `risk_set_exposure()`'s post-walk loop). What stays
+      for 2.11b: the choice fid's scalars, from the same effect advanced at
+      every row a rate would store, and the fit and pin surface
+- [ ] 2.11c Presence changes close the rate interval (added 2026-09-29,
+      ADR-0103; **applied at the trunk merge**, not on `feature_simulation`):
+      every presence (`active`) change inside the window closes the open
+      interval of each exact-time rate (DyNAM rate, REM) with a
+      right-censored row and opens a new one, as any other non-dependent
+      event does. Today a presence change is not a row of its own: the
+      engine applies it to the whole interval ending at the next stored row
+      (ADR-0100, superseded). Measured on a simulated sequence (8 actors,
+      120 events, 6 presence changes): goldfish stores 884 rate rows over
+      120 intervals where the process defines 925 over 126, and its
+      estimates miss the process's likelihood by 2.9e-3; the end-of-interval
+      rule reproduces goldfish to 4.4e-13. The ordered rate and the choice
+      condition at events only and do not change. The exposure becomes the
+      continuous integral over the presence stream (fisheries: 145.4176,
+      was 145.4799); 2.11's intercept-only MLE identity holds on the new
+      rows. Baselines: `fish_dynam_rate` and `fish_rem` (fisheries links
+      `sovchanges` as presence) move; they are refrozen on the trunk under
+      ADR-0021 (derive the value, measure, refreeze beside the derivation),
+      which is why this task cannot land on the branch (ADR-0040). The
+      constraint-only object half of ADR-0103 lands on the branch in
+      `constraint-objects-on-shared-walk` (task 2.3a). Spec delta:
+      `multi-process-walk` "Every non-dependent event closes the open rate
+      interval". Tests: the rate arm of `constraint-objects-on-shared-walk`
+      fixture F4 (moved here from its task 5.3): goldfish's exported rate
+      rows equal the harness frame, whose presence changes close intervals,
+      and the fit equals `glm(poisson, offset(log(dt)))` within 1e-6; the
+      fisheries exposure equals the continuous integral; the 2.11 MLE
+      identity on a fixture with presence changes; the ordered-rate and
+      choice fits on fisheries unchanged. NEWS.d bullet (user-visible:
+      exact-time fits with composition changes move)
+
+- [ ] 2.11d The live mask carries its `symmetric` flag to its readers (added
+      2026-10-02, from the `availability-one-object-per-loop` conformance
+      reports). `walk_build_live_masks()` now stores a coordination vector
+      mask at its own kind with `symmetric = TRUE` (`R/walk_handle.R:1174-1179`),
+      but `walk_live_support()` (`:1249-1278`) returns `value`, `mask_kind`
+      and `stored_kind` and drops the flag, so a consumer reads `m[k]` where
+      the cell is `m[i] & m[j]`; `simulation_fid_state()`'s deferred-rate
+      path (`R/simulate_driver.R:350`) would gate every sender alike when
+      the sibling is a coordination choice. Unreachable today because
+      simulating coordination aborts; it becomes reachable with the
+      coordination clocks. Return the flag and honor it in the two readers,
+      or abort on a symmetric vector mask there. Also: when 2.11c rewrites
+      the comment at `test-simulation_cross_validation.R:648-649`, it drops
+      the "(process-simulation 2.11c)" pointer and states the rule. Verify:
+      a coordination choice beside a deferred rate on a vector constraint
+      draws the gate `m[i] & m[j]`, asserted against a dense oracle.
 
 ## 3. Tests and documentation
 

@@ -164,8 +164,8 @@ test_that("a separable constraint stores one vector per snapshot, not a grid", {
     support_constraint = ~ indeg(call_network) >= 0
   )
   mask <- prep$support_mask
-  n1 <- length(mask$sender_presence_init %||% prep$active_sender_init)
-  n2 <- length(mask$receiver_presence_init)
+  n1 <- length(prep$active_sender_init)
+  n2 <- length(prep$active_dyad_init)
 
   first <- mask_timeline(mask)[[1L]]
   expect_equal(mask$stored_kind, 1L)

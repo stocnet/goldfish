@@ -27,7 +27,6 @@ List estimate_DyNAM_choice(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute,
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
     const bool return_ranks = false,
@@ -116,6 +115,21 @@ List estimate_DyNAM_choice(
     // n opportunity — maintained by a (node1, node2, replace) buffer; the risk set
     // reads the current sender's row, so no separate support matrix is needed.
 
+    // Event-sized work buffers, allocated once and overwritten at every event.
+    // The sender's statistics block is not contiguous in the column-major
+    // stat_mat, so it is copied into `current_data_matrix`, a buffer of fixed
+    // size, rather than into a fresh matrix each event.
+    arma::mat current_data_matrix(n_actors_2, n_parameters);
+    arma::vec lin_pred(n_actors_2);
+    arma::vec allowed(n_actors_2);
+    arma::vec weights;
+    arma::vec probabilities;
+    arma::mat weighted_data_matrix(n_actors_2, n_parameters);
+    std::vector<margin_side> margin_sides;
+    if (return_margins) {
+        margin_sides.push_back(margin_side(&margin_observed, &margin_expected));
+    }
+
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
         // update stat_mat
@@ -128,21 +142,6 @@ List estimate_DyNAM_choice(
           stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
           twomode_or_reflexive
         );
-
-        // impute the missing statistics if necessary
-        if (impute) {
-            for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of the stat_matrix
-                // and do the impute
-                arma::vec current_col(
-                    stat_mat.colptr(i),
-                    n_actors_1 * n_actors_2,
-                    false
-                );
-                current_col.elem(find_nonfinite(current_col)).fill(
-                    mean(current_col.elem(find_finite(current_col))));
-            }
-        }
 
         // update presence / availability (applied before this event's likelihood)
         if (has_composition_change) {
@@ -168,12 +167,11 @@ List estimate_DyNAM_choice(
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
-        // declare the subviews of th stat mat corresponding to this event
-        const arma::mat& current_data_matrix =
-          stat_mat.rows(
-            id_sender * n_actors_2,
-            (id_sender + 1) * n_actors_2 - 1
-          );
+        // the sender's statistics block for this event
+        current_data_matrix = stat_mat.rows(
+          id_sender * n_actors_2,
+          (id_sender + 1) * n_actors_2 - 1
+        );
         int not_allowed_receiver = -1;
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
         // At the point encoding the sender's row starts at id_sender * n_actors_2;
@@ -183,22 +181,19 @@ List estimate_DyNAM_choice(
         // Staged, numerically stable softmax over the receivers:
         // one GEMV for the linear predictors, the shared max-shift helper for the
         // weights, then a weighted cross-product for the Fisher.
-        arma::vec lin_pred = current_data_matrix * parameters;
-        arma::vec allowed(n_actors_2, fill::zeros);
+        lin_pred = current_data_matrix * parameters;
+        // The risk set is the sender's own row, so it is rewritten in place
+        // for each event's sender rather than kept across events.
         for (int j = 0; j < n_actors_2; j++) {
-            if (active_dyad(dyad_offset + j) == 1 &&
-                (j != not_allowed_receiver)) {
-                allowed(j) = 1;
-            }
+            allowed(j) = active_dyad(dyad_offset + j) == 1 &&
+              j != not_allowed_receiver ? 1 : 0;
         }
-        arma::vec weights;
         double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         // Opt-in primitives via the shared reductions. Ranks read the shifted
         // weights directly (scale-free); margins take the probability vector
         // with c = 1, which is the multinomial family's only scale.
-        arma::vec probabilities;
-        if (return_margins || return_probabilities || return_event_scores) {
+        if (return_margins || return_probabilities) {
             probabilities = weights / normalizer;
         }
         if (return_availability) {
@@ -216,10 +211,8 @@ List estimate_DyNAM_choice(
               rank_of_observed(weights, allowed, id_receiver);
         }
         if (return_margins) {
-            std::vector<margin_side> sides;
-            sides.push_back(margin_side(&margin_observed, &margin_expected));
             accumulate_margins(
-              probabilities, 1.0, allowed, id_receiver, true, sides
+              probabilities, 1.0, allowed, id_receiver, true, margin_sides
             );
         }
         if (return_probabilities) {
@@ -238,12 +231,17 @@ List estimate_DyNAM_choice(
         // optimizer, and no coefficient may move.
         if (return_event_scores) {
             event_scores.row(id_event) =
-              event_score_row(current_data_matrix, probabilities, 1.0, id_receiver, true);
+              event_score_row(
+                expected_stat_current_event, 1.0, current_data_matrix,
+                id_receiver, true
+              );
         }
-        // fisher matrix: sum_j p_j s_j s_j^T - E E^T
+        // fisher matrix: sum_j p_j s_j s_j^T - E E^T, with the weighted copy
+        // written into its buffer rather than formed as a temporary
+        weighted_data_matrix = current_data_matrix;
+        weighted_data_matrix.each_col() %= weights;
         fisher_current_event =
-          (current_data_matrix.each_col() % weights).t() * current_data_matrix /
-          normalizer -
+          weighted_data_matrix.t() * current_data_matrix / normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
         accumulate_event_information(

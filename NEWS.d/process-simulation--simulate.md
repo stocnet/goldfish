@@ -58,9 +58,35 @@
   `"anchored-replay"`) in its `process_map`, the replayed events in
   `replayed`, and `n_replayed` and `n_skipped` in its diagnostics and the
   pool summary.
+* `simulate()` runs time-anchored (`times = "observed"`), the default for a
+  choice-only DyNAM and available on request for a timed model. The observed
+  events of the modeled layers keep their times, layers and flavors, and the
+  marks are redrawn: sender and receiver for a DyNAM with a rate, the
+  receiver alone with the observed sender held for a choice-only DyNAM, the
+  dyad for a REM. An observed event the simulated state cannot support is
+  skipped and counted in `n_stamps_skipped`. A time-anchored run refuses
+  `n_events`, `horizon` and `control_sim`; coordination processes are refused
+  for now.
 * Added `filter_simulation()`, which keeps the replicates of a pool whose
   summary meets every condition, such as `stop_reason == "horizon"`. No
   replicate is excluded unless a filter removes it.
 * Renamed `test_gof()`'s `n_sim` argument to `nsim`, the name `simulate()`
   uses for its replicate count. `test_gof()` now refuses arguments it does
   not take, so a leftover `n_sim` is an error rather than silently ignored.
+* Preprocessing of a timed rate (DyNAM and REM) now stores
+  `exposure_entity_time`, the sum over the rows the rate likelihood
+  integrates of each interval times the entities at risk, and
+  `avg_active_entity` becomes `exposure_entity_time / total_time`, so
+  `n_dep_events / exposure_entity_time` is exactly the intercept-only rate.
+  `avg_active_entity` was an average over stored events; a REM now counts
+  active dyads (without the self-dyad on a one-mode layer) instead of
+  senders. The value seeds the intercept, so estimates move only within the
+  optimizer's tolerance.
+* A completed rate on a flavored, event-observed layer is pinned from that
+  flavor's own exposure instead of the panel wave-endpoint approximation.
+* Fixed `simulate()` on a fitted model dropping the `support_constraint` and
+  the modeled flavor it was estimated with: a constrained fit drew events on
+  dyads its constraint excludes, and a fit of one flavor, such as
+  `rate = list(creation ~ ...)`, simulated every event of the layer. A fit
+  now records both as `support_constraint` and `modeled_flavor`, and the
+  rebuilt model carries them, deriving a flavor's mask again from the data.

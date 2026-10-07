@@ -155,7 +155,12 @@
       there; rule header added) and the `print.goldfishStat`,
       `print.goldfishAlgoNewton`, `print.goldfishPrepCtrl` headers to the
       rule idiom; batch `print.goldfishParams`'s per-coefficient
-      `cli_bullets()` into one call. Snapshots reviewed.
+      `cli_bullets()` into one call. Snapshots reviewed. While there, the
+      `print.goldfishStat` field table is brought current (added
+      2026-10-02, from the `availability-one-object-per-loop` conformance
+      report): it still describes `active_*` as "presence vectors" and its
+      encoding list lacks `point`; the object stores one availability
+      object per loop at `point`, `alter` or `outer`.
 - [ ] 5.6 Verification: `grep -n 'stop(\|warning(\|cat(' R/` outside
       `class_checks.R`/`make_data.R`/deprecated printers reports only
       commented or non-user-facing sites (list them in `progress.md`);
@@ -184,7 +189,14 @@
       reordering against `flavored_row_order()`. Replaces the
       `goldfish_sim_unsupported` abort `process-simulation` 2.1 left. Test: a
       two-flavor container simulates one sequence with both flavors competing
-      on one clock, at the parameters `set_parameters(spec, fit)` returns
+      on one clock, at the parameters `set_parameters(spec, fit)` returns.
+      *Note 2026-09-27 (`process-simulation` 2.11b/2.2n, session
+      goldfish-ec; ADR-0099):* each process fit in the container carries its
+      own `n_dep_events`, `total_time`, `exposure_entity_time` and
+      `avg_active_entity`, and a single fit's rebuild carries its support
+      constraint and modeled flavor. The container rebuild reads both the
+      same way: a completed rate pins from its process fit's scalars with no
+      preprocessing pass, and each process keeps its constraint
 - [ ] 6.3 `initial_parameters` on `estimate_dynam()`, `estimate_rem()`,
       `estimate_dynami()` and the flavored path accepts a `goldfishParams`
       (pinned free slots are the warm start; `NA` slots start at zero as

@@ -1,4 +1,5 @@
 ---
+status: landed (feature_simulation, awaiting fold)
 depends-on: constraint-atoms-as-operands
 ---
 
@@ -56,11 +57,30 @@ continuous-time block.
   snapshot go with them. Detector-first: byte-identity references are
   captured on the new uncovered fixture before the threading, and the
   deletion happens only once every reference matches.
+- **The batch walk keeps masks live** (added 2026-09-27, from
+  `process-simulation` 2.11b; vault ADR-0099). Masks are composed from the
+  atoms as the walk moves them, by the same maintainers the stepping handle
+  already runs live, instead of being realized after the walk at requested
+  snapshot times. Each constrained fid's availability is folded as the walk
+  goes, and the post-walk realization and folds retire once every
+  reference matches byte-identically. A constrained process's exposure
+  then accumulates as a running sum like any other, and the observed dyad
+  can be checked at its own event.
 - **The mask timing rule is stated once**: a support mask reads its atoms
-  strictly before the event's stamp on every path. The batch already does;
-  the handle defers atom moves stamped at the current clock until the clock
-  passes them, so batch and replay agree even when an atom-object event
-  shares a dependent event's stamp.
+  strictly before the event's stamp on every path. The batch already does.
+  The handle keeps one clock rule, its state at the clock including every
+  row stamped up to it, and a driver that evaluates an observed event at
+  its stamp steps strictly before it with `walk_advance(t, inclusive =
+  FALSE)`, applying the rows sharing the stamp after the event, so batch
+  and replay agree even when an atom-object event shares a dependent
+  event's stamp (revised 2026-09-29, ADR-0105: holding the moves inside the
+  handle broke free-running simulation). Extended 2026-10-03 (ADR-0114,
+  tasks 8.2a and 8.2b) to one rule for every kind of state: rows of any
+  process stamped at `t` never inform an evaluation at `t`. A driver
+  replaying observed stamps evaluates every dependent event of a stamp
+  before injecting any, and the batch schedule puts every dependent row of
+  a stamp before its other rows, so statistics read strictly before the
+  stamp as masks do.
 - **Simulation cross-validation tests.** A seeded, self-contained
   data-generating harness in the test helpers, lifted from the loop in
   `.plan/datasets/Simulation.R` with its defects corrected, simulates
@@ -79,6 +99,16 @@ continuous-time block.
   hand-written mask) agree; and that the handle replays the batch on every
   constrained fixture with a non-empty exclusion. DyNAM-coordination is
   excluded: it has no conditional-logit twin.
+- **A constraint-only object's event closes the rate interval** (added
+  2026-09-29, ADR-0103). Each such event is a right-censored boundary for
+  every exact-time rate whose mask reads the object, as every non-dependent
+  event is, so a constrained rate integrates its risk set over the time
+  each state was in force; it folds no statistic. Today's private walk
+  leaves those intervals unsplit and misses the process's likelihood
+  (measured 6.5e-3). No frozen baseline carries such a constraint; the
+  `uncovered_rate` reference is re-captured with the difference
+  asserted. The presence-change half of the same rule is
+  `process-simulation` task 2.11c, applied at the trunk merge.
 - **Not changed**: the walk extent. Whether constraint-only rows count as
   real events for the observation tail is decided in
   `observation-tail-right-censoring`; until then they are exempt, like
@@ -113,16 +143,37 @@ continuous-time block.
   `R/support_mask_maintain.R` (`build_atom_maintainer()` reduced to its
   seed/template part or removed, `preprocess_pooled_support_masks()`
   signature), `R/walk_handle.R` (`walk_assert_covered_constraints()` removed;
-  deferred atom moves at a tied stamp), `R/constraint_parser.R` (object
+  `walk_advance(inclusive = FALSE)` for a tied stamp),
+  `R/simulate_anchored.R` (the anchored driver steps strictly before its
+  stamp and draws every event of a stamp before injecting any),
+  `build_joint_schedule()` (dependent rows first within a stamp), `R/constraint_parser.R` (object
   names exposed to the registry). Tests: `helper-simulate-dgp.R` (new),
   `test-simulation_cross_validation.R` (new), `test-walk_handle.R`,
   `test-constraint_atoms_operands.R`, `test-support_mask_sparse.R` (the
   `mask_call_counts` comment), `helper-constraint-atoms.R` (new reference
   family), `_snaps/walk_handle.md`.
-- **Numbers**: none move for unconstrained or covered models (byte-identity
-  asserted); the uncovered case changes from a private replay to the shared
-  walk with the same strictly-before rule, so its masks are identical by
-  construction and a reference captured before the threading proves it.
+- **Numbers**: no estimate moves for unconstrained or covered models, and
+  their preprocessed outputs are byte-identical (asserted) with one stored
+  exception: the point-encoded choice availability stream. Live masks
+  (4.5b) store the true initial grid and every flipped cell, so the covered
+  constrained `choice` reference and the covered point-choice parity
+  goldens `user_constraint__choice` and `constraint_bound__choice` were
+  refrozen on the branch with Alvaro's approval, after every dependent
+  event's sender row was asserted equal to the old stream's; the
+  uncovered and flavored point-choice entries moved with them. The
+  uncovered case changes from a private replay to the shared walk with the
+  same strictly-before rule, so its masks are identical by construction
+  and a reference captured before the threading proves it; its rate moves
+  by design (2.3a, the `uncovered_rate` reference and the rate parity
+  goldens re-captured with the difference asserted). Joint specifications
+  are the second exception (8.2b): where a later-planned process has a
+  dependent row at a stamp an earlier unit's covariate or exogenous row
+  shares, or where an earlier process reads a later one's layer, the
+  preprocessed joint object moves (6 of the suite's 8 reordered toy
+  joints). Joint specifications cannot be estimated on this branch, and
+  single-process and flavored outputs stay byte-identical, so no estimate
+  a user can reach moves; anchored `simulate()` draws at tied stamps can
+  (8.2a).
 - **Dependencies**: none added. `survival` and `mlogit` are already in
   Suggests; `stats::glm` runs live.
 - **Sequencing**: `depends-on: constraint-atoms-as-operands` (unarchived on

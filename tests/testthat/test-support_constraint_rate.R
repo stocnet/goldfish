@@ -122,7 +122,19 @@ test_that("the folded active_sender equals the from-scratch gate reduction", {
   # From-scratch predecessor reduction: presence AND
   # (rowSums(support & receiver-availability) > 0), per stored event.
   n1 <- length(prep$active_dyad_init)
-  presence <- prep$support_mask$sender_presence_init
+  unconstrained <- estimate_dynam(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~inertia,
+      model = "DyNAM",
+      layer = "calls_dependent",
+      data = d
+    ),
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  )
+  expect_null(unconstrained$active_sender_update)
+  presence <- unconstrained$active_sender_init
   reference <- lapply(mask_timeline(prep$support_mask), function(s) {
     presence & (rowSums(s & rep(prep$active_dyad_init, each = n1)) > 0)
   })
@@ -154,7 +166,7 @@ test_that("the folded active_sender buffer carries only crossings", {
   prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
   # A static gate over a static (present) composition never crosses after the
   # init, so no flip is emitted.
-  expect_true(isTRUE(prep$active_sender_folded))
+  expect_false(is.null(prep$active_sender_update))
   expect_equal(ncol(prep$active_sender_update), 0L)
 })
 
@@ -278,4 +290,30 @@ test_that("a dependent event whose own sender is gated out errors", {
   expect_error(
     estimate_dynam(spec, sub_model = "rate", control_algo = opt)
   )
+})
+
+test_that("an emptied rate risk set fits alike on every backend", {
+  fx <- availability_vector_rem_data()
+  switches <- fx$switches
+  fits <- lapply(c("r", "cpp", "gather"), function(backend) {
+    suppressWarnings(suppressMessages(estimate_dynam(
+      dep ~ 1 + indeg,
+      sub_model = "rate",
+      data = fx$data,
+      support_constraint = ~ global(switches$on) > 0,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        return_interval_loglik = TRUE,
+        return_probabilities = TRUE
+      )
+    )))
+  })
+  for (fit in fits[-1]) {
+    expect_equal(coef(fit), coef(fits[[1]]), tolerance = 1e-10)
+    expect_equal(
+      fit$interval_log_lik,
+      fits[[1]]$interval_log_lik,
+      tolerance = 1e-10
+    )
+  }
 })

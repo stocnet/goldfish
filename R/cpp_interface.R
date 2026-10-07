@@ -5,26 +5,23 @@
 #
 ##################### ###
 
-# Both NA guards on the kernel result -- the initial-parameters check and the
-# Newton loop's step acceptance -- read NA as "the likelihood could not be
-# evaluated here". Some opt-in per-event components carry NA by DESIGN and must
-# be excluded, or the guards report a numerical failure that did not happen:
-# `observed_rank` is allocated NA-filled and written only for dependent events,
-# so any model with a right-censored interval leaves NAs behind whenever ranks
-# are requested. `conditional_logl` (the Cox partial-likelihood component of the
-# exact-time loglik) is NA on right-censored intervals for the same reason: a
-# censored interval realizes no mover, so log p_obs is undefined there. This is
-# the ONLY place the by-design-NA exclusion list lives -- any future per-event
-# NA scan MUST route through this guard, never an ad-hoc is.na() sweep.
-diagnostic_components_with_na <- c(
-  "observed_rank",
-  "conditional_logl",
-  "conditional_scores"
+# Both NA guards on a pass -- the initial-parameters check and the Newton
+# loop's step acceptance -- read NA as "the likelihood could not be evaluated
+# here", so they read only what the optimizer reads: the log-likelihood, the
+# score and the information, under either engine's names for them. The
+# diagnostics are evaluated after the loop, and several carry NA by design (a
+# rank or a conditional component on a right-censored interval, which realizes
+# no mover), so scanning them would report a failure that did not happen.
+estimation_components <- c(
+  "logLikelihood",
+  "derivative",
+  "fisher",
+  "score",
+  "informationMatrix"
 )
 
 has_unexpected_na <- function(res) {
-  scanned <- res[setdiff(names(res), diagnostic_components_with_na)]
-  any(is.na(unlist(scanned)))
+  anyNA(unlist(res[intersect(names(res), estimation_components)]))
 }
 
 # One compiled-engine pass, as a closure over the buffers it needs
@@ -50,7 +47,6 @@ make_engine_evaluator <- function(
   is_rate_model = identical(risk_set_axis(spec), "sender"),
   is_two_mode = FALSE,
   allow_reflexive = FALSE,
-  impute = FALSE,
   seed_intercept = TRUE,
   verbose = FALSE,
   progress = FALSE
@@ -102,7 +98,6 @@ make_engine_evaluator <- function(
   n_events <- sum(stats_list$is_dependent == 1L)
 
   ## ADD INTERCEPT
-  # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   # The data-derived start applies unless the intercept itself was given a
   # value -- fixed, so there is nothing to start, or seeded, so the user chose
@@ -201,8 +196,6 @@ make_engine_evaluator <- function(
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
-      verbose = progress, # output the progress of data gathering
-      impute = impute,
       active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
@@ -219,7 +212,20 @@ make_engine_evaluator <- function(
   } else {
     active_dyad_init
   }
+  # An outer-encoded dyad object is two factors, and the sender one reaches
+  # the dyad kernels as their sender factor. A point grid already holds sender
+  # presence, so the kernels receive no sender vector at all.
+  if (dyad_is_point) {
+    active_sender_init <- numeric(0)
+    active_sender_update <- matrix(0, 0, 0)
+    active_sender_update_pointer <- numeric(0)
+  }
 
+  # `force_shifted_normalizer` and `report_normalizer_route` are a test seam
+  # into the exact-time kernels: the first takes the max-shifted log-sum-exp
+  # even where the raw normalizer is usable, the second returns how many
+  # intervals took that route and the size of the probability buffer. No
+  # estimation path sets them.
   evaluate <- function(
     pars,
     need_scores,
@@ -230,7 +236,9 @@ make_engine_evaluator <- function(
     need_availability = FALSE,
     need_conditional_scores = FALSE,
     event_weights = NULL,
-    need_information_trace = FALSE
+    need_information_trace = FALSE,
+    force_shifted_normalizer = FALSE,
+    report_normalizer_route = FALSE
   ) {
     if (backend == "gather") {
       # The gathered stack computes the exact-time components whenever the
@@ -280,7 +288,6 @@ make_engine_evaluator <- function(
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
-      impute = impute,
       active_dyad_is_point = dyad_is_point,
       return_event_scores = need_scores,
       return_ranks = need_ranks,
@@ -290,7 +297,9 @@ make_engine_evaluator <- function(
       return_availability = need_availability,
       return_conditional_scores = need_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = need_information_trace
+      return_event_information_trace = need_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 
@@ -334,13 +343,9 @@ estimate_c_int <- function(
   return_total_rate = FALSE,
   return_availability = FALSE,
   return_conditional_scores = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
   verbose = FALSE,
   progress = FALSE,
   testing = FALSE,
-  get_data_matrix = FALSE,
-  impute = FALSE,
   opportunitiesList = NULL,
   spec = NULL,
   backend = c("cpp", "gather"),
@@ -354,7 +359,6 @@ estimate_c_int <- function(
   }
 
   minDampingFactor <- initialDamping
-  # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   nParams <- (if (is_rate_model) {
@@ -412,7 +416,6 @@ estimate_c_int <- function(
     is_rate_model = is_rate_model,
     is_two_mode = is_two_mode,
     allow_reflexive = allowReflexive,
-    impute = impute,
     seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
     verbose = verbose,
     progress = progress
@@ -466,40 +469,40 @@ estimate_c_int <- function(
     ))
   }
 
+  # The diagnostics are a function of the returned parameters, so the Newton
+  # iterations evaluate without them and one pass at the vector the fit
+  # returns computes every requested one after the loop. A likelihood-only
+  # call evaluates once, so it takes them in that one pass.
+  diagnostics_requested <- returnIntervalLogL ||
+    return_event_scores ||
+    return_ranks ||
+    return_margins ||
+    return_total_rate ||
+    returnEventProbabilities ||
+    return_availability ||
+    return_conditional_scores
+  evaluate_at <- function(pars, with_diagnostics) {
+    engine$evaluate(
+      pars,
+      with_diagnostics && return_event_scores,
+      with_diagnostics && return_ranks,
+      with_diagnostics && return_margins,
+      with_diagnostics && return_total_rate,
+      with_diagnostics && returnEventProbabilities,
+      with_diagnostics && return_availability,
+      with_diagnostics && return_conditional_scores
+    )
+  }
+
   while (TRUE) {
     ## CALCULATE THE LOGLIKELIHOOD,
     ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
 
-    res <- engine$evaluate(
-      parameters,
-      return_event_scores,
-      return_ranks,
-      return_margins,
-      return_total_rate,
-      returnEventProbabilities,
-      return_availability,
-      return_conditional_scores
-    )
+    res <- evaluate_at(parameters, with_diagnostics = likelihood_only)
 
     logLikelihood <- res$logLikelihood
     score <- as.numeric(res$derivative)
     informationMatrix <- res$fisher
-    if (returnIntervalLogL) {
-      intervalLogL <- as.numeric(res$intervalLogL)
-    }
-    if (return_event_scores) {
-      event_scores <- res$event_scores
-    }
-    if (return_ranks) {
-      observed_rank <- res$observed_rank
-    }
-
-    if (returnEventProbabilities) {
-      # One per-event element, actor-indexed over the whole node set and zero
-      # off the risk set, in the same shape the r backend produces: a vector on
-      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
-      eventProbabilities <- res$event_probabilities
-    }
 
     if (
       isInitialEstimation &&
@@ -537,7 +540,6 @@ estimate_c_int <- function(
         "\nScore: ",
         toString(score)
       )
-      # print(informationMatrix)
     }
 
     step_accepted <- !has_unexpected_na(res) &&
@@ -655,6 +657,27 @@ estimate_c_int <- function(
   } # end of while
 
   ## ESTIMATION: END
+  if (diagnostics_requested) {
+    if (!likelihood_only) {
+      res <- evaluate_at(parameters, with_diagnostics = TRUE)
+    }
+    if (returnIntervalLogL) {
+      intervalLogL <- as.numeric(res$intervalLogL)
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
+    }
+    if (return_ranks) {
+      observed_rank <- res$observed_rank
+    }
+    if (returnEventProbabilities) {
+      # One per-event element, actor-indexed over the whole node set and zero
+      # off the risk set, in the same shape the r backend produces: a vector on
+      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
+      eventProbabilities <- res$event_probabilities
+    }
+  }
+
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)
@@ -682,8 +705,6 @@ estimate_c_int <- function(
     estimationResult$size_intermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
-  # if (testing) estimationResult$intermediateData <-
-  #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) {
     estimationResult$interval_log_lik <- intervalLogL
   }
@@ -929,7 +950,6 @@ estimate_ <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  impute,
   active_dyad_is_point = FALSE,
   return_event_scores = FALSE,
   return_ranks = FALSE,
@@ -939,7 +959,9 @@ estimate_ <- function(
   return_availability = FALSE,
   return_conditional_scores = FALSE,
   event_weights = NULL,
-  return_event_information_trace = FALSE
+  return_event_information_trace = FALSE,
+  force_shifted_normalizer = FALSE,
+  report_normalizer_route = FALSE
 ) {
   # DyNAM-i shares its likelihood with the corresponding DyNAM variant -- that
   # is why it needs no method of its own -- but its preprocessed object comes
@@ -976,7 +998,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1003,7 +1024,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1033,7 +1053,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1065,7 +1084,6 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
@@ -1075,7 +1093,9 @@ estimate_ <- function(
       return_availability = return_availability,
       return_conditional_scores = return_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = return_event_information_trace
+      return_event_information_trace = return_event_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 
@@ -1093,13 +1113,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      active_dyad_init,
-      active_dyad_update,
-      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
@@ -1108,7 +1124,9 @@ estimate_ <- function(
       return_availability = return_availability,
       return_conditional_scores = return_conditional_scores,
       event_weights = event_weights,
-      return_event_information_trace = return_event_information_trace
+      return_event_information_trace = return_event_information_trace,
+      force_shifted_normalizer = force_shifted_normalizer,
+      report_normalizer_route = report_normalizer_route
     )
   }
 
@@ -1124,13 +1142,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      active_dyad_init,
-      active_dyad_update,
-      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
@@ -1155,9 +1169,7 @@ estimate_ <- function(
 #' `compute_statistics(output = "gather")`. The per-iteration model fitting
 #' stays in C++ via `compute_()`, so the one-time expansion in R does not
 #' affect the
-#' estimation hot path. The `verbose` / `impute` arguments are retained for
-#' call-site compatibility; `impute` is always `FALSE` in the current
-#' code paths (the impute machinery was dropped from estimation).
+#' estimation hot path.
 #' @noRd
 gather_ <- function(
   spec,
@@ -1178,8 +1190,6 @@ gather_ <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  verbose,
-  impute,
   active_dyad_encoding = "alter"
 ) {
   if (risk_set_is_dyadic(spec)) {
@@ -1236,9 +1246,6 @@ gather_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      active_dyad_init,
-      active_dyad_update,
-      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive
@@ -1301,7 +1308,10 @@ gather_ <- function(
   if (to <= from) {
     return(NULL)
   }
-  lapply((from + 1L):to, function(entry) {
+  entries <- (from + 1L):to
+  blocks <- vector("list", length(entries))
+  for (k in seq_along(entries)) {
+    entry <- entries[[k]]
     kind <- bc[1, entry]
     fixed <- bc[2, entry]
     rows <- if (kind == 1L) {
@@ -1318,19 +1328,23 @@ gather_ <- function(
         setdiff(seq_len(n2) - 1L, fixed)
       }
       fixed * n2 + alters + 1L
+    } else if (twomode_or_reflexive) {
+      # The whole column, addressed without listing its n1 * n2 rows.
+      TRUE
     } else {
-      cells <- seq_len(n1 * n2)
-      if (twomode_or_reflexive) {
-        cells
-      } else {
-        # The flat position of each reflexive cell (i, i), dropped from the
-        # fan-out. Only the shared prefix of the two axes has one.
-        reflexive <- seq_len(min(n1, n2))
-        cells[-((reflexive - 1L) * n2 + reflexive)]
-      }
+      # Every row but the flat position of each reflexive cell (i, i), dropped
+      # from the fan-out by negative index. Only the shared prefix of the two
+      # axes has one.
+      reflexive <- seq_len(min(n1, n2))
+      -((reflexive - 1L) * n2 + reflexive)
     }
-    list(rows = rows, col = bc[3, entry] + 1L, value = bc[4, entry])
-  })
+    blocks[[k]] <- list(
+      rows = rows,
+      col = bc[3, entry] + 1L,
+      value = bc[4, entry]
+    )
+  }
+  blocks
 }
 
 # Apply the slice of presence (composition-change) updates for one event.
@@ -1354,31 +1368,6 @@ gather_ <- function(
   }
   active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
   active_dyad
-}
-
-# Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
-# receiver block of each sender (rate models). Mirrors the C++
-# reduce_mat_to_vector(): when receivers are restricted (one-mode, not
-# reflexive) the sender's own diagonal row is dropped and the average is
-# over n2 - 1 receivers.
-.gather_reduce <- function(stat_mat, n1, n2, twomode_or_reflexive) {
-  if (n2 == 1L) {
-    return(stat_mat)
-  }
-  n_parameters <- ncol(stat_mat)
-  reduced <- matrix(0, n1, n_parameters)
-  for (i in seq_len(n1)) {
-    id_start <- (i - 1L) * n2
-    block <- stat_mat[(id_start + 1L):(id_start + n2), , drop = FALSE]
-    temp <- colSums(block)
-    if (!twomode_or_reflexive) {
-      temp <- temp - stat_mat[id_start + i, ]
-      reduced[i, ] <- temp / (n2 - 1L)
-    } else {
-      reduced[i, ] <- temp / n2
-    }
-  }
-  reduced
 }
 
 # Gather data for the sender-receiver models (REM, REM-ordered, DyNAM-MM):
@@ -1414,7 +1403,12 @@ gather_sender_receiver_model_r <- function(
   # The outer encoding keeps the length-n2 receiver vector (cell = f1[i] & f2[j]).
   is_point <- identical(active_dyad_encoding, "point")
   active_sender <- active_sender_init
-  active_dyad <- active_dyad_init
+  # The point grid is the builder's own copy, written in place by its update
+  # walk; the other encodings keep a vector, which a subassignment updates.
+  active_dyad <- if (is_point) active_dyad_init * 1 else active_dyad_init
+  # The candidate index of one event, written into a buffer sized to the
+  # largest event can be (every dyad) and trimmed, never grown.
+  idx_buffer <- integer(n_actors1 * n_actors2)
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
@@ -1467,15 +1461,23 @@ gather_sender_receiver_model_r <- function(
     }
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- if (is_point) {
-        .gather_apply_presence_point(
+      if (is_point) {
+        cols <- .availability_event_cols(p2_id, ptr2)
+        if (!is.null(cols)) {
+          set_matrix_cells(
+            active_dyad,
+            as.integer(active_dyad_update[1, cols]),
+            as.integer(active_dyad_update[2, cols]),
+            as.double(active_dyad_update[3, cols])
+          )
+        }
+      } else {
+        active_dyad <- .gather_apply_presence(
           active_dyad,
           active_dyad_update,
           p2_id,
           ptr2
         )
-      } else {
-        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
       }
       p2_id <- ptr2
     }
@@ -1484,12 +1486,18 @@ gather_sender_receiver_model_r <- function(
     id_receiver <- event_mat[2, e] - 1L
     is_dep <- is_dependent[e]
 
-    present1_ids <- which(active_sender == 1) - 1L
+    # Outer: the sender factor names the senders at risk. Point: the grid
+    # already holds sender presence, so a sender is at risk when its row has
+    # an available cell, and the sender factor is not read.
+    present1_ids <- if (is_point) {
+      which(.rowSums(active_dyad, n_actors1, n_actors2) > 0) - 1L
+    } else {
+      which(active_sender == 1) - 1L
+    }
     # Outer: one receiver vector shared by every sender. Point: each sender reads
     # its own dense mask row (both presences n support already folded in).
     present2_ids <- if (is_point) NULL else which(active_dyad == 1) - 1L
 
-    idx <- integer(0)
     n_present <- 0L
     for (i in present1_ids) {
       not_allowed <- if (!twomode_or_reflexive) i else -1L
@@ -1500,7 +1508,9 @@ gather_sender_receiver_model_r <- function(
       }
       allowed <- present2_i[present2_i != not_allowed]
       n_all <- length(allowed)
-      idx <- c(idx, i * n_actors2 + allowed + 1L)
+      if (n_all > 0L) {
+        idx_buffer[n_present + seq_len(n_all)] <- i * n_actors2 + allowed + 1L
+      }
       if (is_dep && i == id_sender) {
         hit <- which(allowed == id_receiver)
         if (length(hit) > 0) {
@@ -1509,6 +1519,7 @@ gather_sender_receiver_model_r <- function(
       }
       n_present <- n_present + n_all
     }
+    idx <- idx_buffer[seq_len(n_present)]
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
     # receiver ids for the shared index vocabulary.
@@ -1574,7 +1585,9 @@ gather_receiver_model_r <- function(
   # (node1, node2, replace) buffer, read as the event sender's row. The alter
   # encoding keeps the length-n2 receiver vector.
   is_point <- identical(active_dyad_encoding, "point")
-  active_dyad <- active_dyad_init
+  # The point grid is the builder's own copy, written in place by its update
+  # walk; the alter encoding keeps a vector, which a subassignment updates.
+  active_dyad <- if (is_point) active_dyad_init * 1 else active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p2_id <- 0L
@@ -1610,15 +1623,23 @@ gather_receiver_model_r <- function(
     bc_id <- bc_ptr
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- if (is_point) {
-        .gather_apply_presence_point(
+      if (is_point) {
+        cols <- .availability_event_cols(p2_id, ptr2)
+        if (!is.null(cols)) {
+          set_matrix_cells(
+            active_dyad,
+            as.integer(active_dyad_update[1, cols]),
+            as.integer(active_dyad_update[2, cols]),
+            as.double(active_dyad_update[3, cols])
+          )
+        }
+      } else {
+        active_dyad <- .gather_apply_presence(
           active_dyad,
           active_dyad_update,
           p2_id,
           ptr2
         )
-      } else {
-        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
       }
       p2_id <- ptr2
     }
@@ -1654,7 +1675,7 @@ gather_receiver_model_r <- function(
 }
 
 # Gather data for the sender models (DyNAM-M-Rate, DyNAM-M-Rate-ordered): the
-# stacked stat matrix is reduced per sender, and present senders become rows.
+# statistics arrive one row per sender, and present senders become rows.
 gather_sender_model_r <- function(
   event_mat,
   is_dependent,
@@ -1666,9 +1687,6 @@ gather_sender_model_r <- function(
   active_sender_init,
   active_sender_update,
   active_sender_update_pointer,
-  active_dyad_init,
-  active_dyad_update,
-  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive
@@ -1721,19 +1739,13 @@ gather_sender_model_r <- function(
       p1_id <- ptr1
     }
 
-    reduced <- .gather_reduce(
-      stat_mat,
-      n_actors1,
-      n_actors2,
-      twomode_or_reflexive
-    )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
     # A rate support_constraint folds the "has >= 1 allowed present receiver"
     # sender gate into `active_sender` during preprocessing, so
     # `active_sender` is the gated sender filter directly — no separate mask.
     present1_ids <- which(active_sender == 1) - 1L
-    rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
+    rows_list[[e]] <- stat_mat[present1_ids + 1L, , drop = FALSE]
     index_i_list[[e]] <- present1_ids + 1L
     if (is_dep) {
       hit <- which(present1_ids == id_sender)

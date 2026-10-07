@@ -584,6 +584,10 @@ joint_staggered <- function() {
 # The wrapper decorations `estimate_wrapper()` / `preprocess_flavored()` add
 # AFTER the walk (metadata for estimation re-entry); the merged driver produces
 # the raw walk output, so strip these before a byte-identity comparison.
+# The constraint check's stamp (`support_validated`) and its kept verdict
+# (`support_verdict`) say which path preprocessed the object, not what it
+# holds: the joint walk raises the check, a standalone preprocessing keeps
+# it for estimation.
 strip_prep_deco <- function(prep) {
   deco <- c(
     "formula",
@@ -593,7 +597,8 @@ strip_prep_deco <- function(prep) {
     "nodes2",
     "node_lookup",
     "model_spec",
-    "support_validated"
+    "support_validated",
+    "support_verdict"
   )
   prep[setdiff(names(prep), deco)]
 }

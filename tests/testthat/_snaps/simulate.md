@@ -48,7 +48,7 @@
     Condition
       Error in `filter_simulation()`:
       ! Cannot filter on stop_reasn: not a column of the pool's summary.
-      i The summary has replicate, n_events, end_time, stop_reason, capped, n_proposals, acceptance_rate, n_replayed, and n_skipped.
+      i The summary has replicate, n_events, end_time, stop_reason, capped, n_proposals, acceptance_rate, n_replayed, n_skipped, and n_stamps_skipped.
 
 ---
 
@@ -68,18 +68,13 @@
       0 replicates
       i Select replicates by their summary with `filter_simulation()`.
 
-# anchoring a timed model is announced, then refused for now
+# anchoring a timed model is announced, then runs
 
     Code
-      simulate(js, coef = sim_two_process_parameters(js), times = "observed",
-      n_events = 2)
+      out <- simulate(js, seed = 1, coef = sim_two_process_parameters(js), times = "observed")
     Message
       Simulating time-anchored, as requested.
       i The specification's default is "generated": it carries a timed rate. The observed event times are held and the marks redrawn at each.
-    Condition
-      Error in `simulate()`:
-      ! Time-anchored simulation is not available yet.
-      i Run free-running with `times = "generated"`.
 
 # a model with no estimated clock cannot generate times
 
@@ -168,15 +163,6 @@
       ! `replay` names a layer without flavors.
       x "calls" has no flavors to replay.
       i Replay applies to a flavored layer; see `add_flavor()`.
-
-# a choice-only DyNAM defaults to time-anchored
-
-    Code
-      simulate(spec, coef = c(0.2, 0.3), n_events = 2)
-    Condition
-      Error in `simulate()`:
-      ! Time-anchored simulation is not available yet.
-      i Run free-running with `times = "generated"`.
 
 # a choice-only DyNAM generates only when asked
 

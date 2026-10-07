@@ -492,7 +492,8 @@ finalize_consumers <- function(
   project_initial_stats,
   finish_output,
   realize_masks = NULL,
-  scalar_entity = "sender"
+  scalar_entity = "sender",
+  drop_self = TRUE
 ) {
   # The writer contract is three staged calls: `finalize()` assembles the
   # default shape, `finish_output()` realizes and folds the support constraint
@@ -528,8 +529,6 @@ finalize_consumers <- function(
     finalized,
     masks,
     finish_output,
-    scalar_entity,
-    weight_risk_set = !single,
     names = if (single) NULL else names(consumers)
   )
 }
@@ -538,25 +537,37 @@ finalize_consumers <- function(
 # finalization so a caller spanning several engines can realize every mask
 # between the two halves.
 #
-# `weight_risk_set` is FALSE for a single-output engine, which averages its
-# intercept scalar per stored event: only competing processes make the intervals
-# uneven enough for the time weighting to differ.
+# An exact-time output's exposure is the running sum its availability
+# effect kept during the walk (`availability_step()`): it counts the risk
+# set the rate likelihood reads, row by row.
 render_finalized_consumers <- function(
   finalized,
   masks,
   finish_output,
-  scalar_entity,
-  weight_risk_set,
-  names = NULL
+  names = NULL,
+  availability = NULL
 ) {
   outputs <- lapply(seq_along(finalized), function(i) {
     out <- finish_output(
       finalized[[i]]$out,
       finalized[[i]]$constraint,
-      masks[[i]]
+      masks[[i]],
+      availability[[i]]
     )
-    if (weight_risk_set && !is.null(out$avg_active_entity)) {
-      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
+    if (!is.null(out$total_time)) {
+      if (is.null(availability[[i]])) {
+        cli::cli_abort(
+          "An exact-time output has no availability to read its exposure
+           from.",
+          .internal = TRUE
+        )
+      }
+      out$exposure_entity_time <- availability[[i]]$exposure
+      out$avg_active_entity <- if (out$total_time > 0) {
+        out$exposure_entity_time / out$total_time
+      } else {
+        0
+      }
     }
     finalized[[i]]$writer$render(out, finalized[[i]]$spec)
   })
@@ -607,64 +618,6 @@ consumer_mask_requests <- function(finalized) {
       symmetric = identical(f$spec$sub_model, "choice_coordination")
     )
   })
-}
-
-# A flavor's intercept scalar: the average size of its post-constraint risk set
-# over the observation window, weighted by how long each interval lasts --
-# (1/T) * integral |R_g(t)| dt, the quantity the baseline-rate starting value
-# `log(n_dep_events / total_time / avg_active_entity)` inverts.
-#
-# The single-process writer averages per stored event instead, which coincides
-# only when intervals are equally long. Competing processes make them uneven by
-# construction: each flavor's risk set is re-read at every other flavor's event
-# and at every flip of its own derived mask, so the sizes must be weighted by
-# the time they were in force.
-#
-# The entity is the one the sub-model's rate is defined over: active senders for
-# the actor-oriented rate, active dyads for the tie-oriented (REM) rate.
-time_weighted_risk_set <- function(out, entity) {
-  n_stored <- length(out$event_time)
-  if (n_stored == 0L) {
-    return(out$avg_active_entity)
-  }
-  presence <- if (identical(entity, "dyad")) {
-    walk_dyad_presence(out, n_stored)
-  } else {
-    walk_presence_buffer(
-      out$active_sender_init,
-      out$active_sender_update,
-      out$active_sender_update_pointer,
-      n_stored
-    )
-  }
-  sizes <- vapply(presence, sum, numeric(1))
-  total_time <- sum(out$intervals)
-  if (total_time <= 0) {
-    return(mean(sizes))
-  }
-  sum(out$intervals * sizes) / total_time
-}
-
-# Walk the folded dyad availability (the REM point encoding: a dense n1 x n2
-# init plus per-event `(node1, node2, replace)` flips) into one logical matrix
-# per stored event.
-walk_dyad_presence <- function(out, n_stored) {
-  cur <- out$active_dyad_init
-  update <- out$active_dyad_update
-  pointer <- out$active_dyad_update_pointer
-  res <- vector("list", n_stored)
-  prev <- 0L
-  for (e in seq_len(n_stored)) {
-    hi <- if (!is.null(pointer)) pointer[e] else 0L
-    if (hi > prev) {
-      cols <- (prev + 1L):hi
-      cur[cbind(update[1L, cols], update[2L, cols])] <-
-        as.logical(update[3L, cols])
-    }
-    prev <- hi
-    res[[e]] <- cur
-  }
-  res
 }
 
 # Route a dependent event over the consumer set: it is the dependent

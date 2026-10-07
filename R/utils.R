@@ -613,6 +613,96 @@ apply_broadcast_update <- function(
   statsArray
 }
 
+# The r engine's in-place counterparts of `apply_flat_update()` and
+# `apply_broadcast_update()`. They write the cells a slice of updates reaches
+# straight into `stats`, the evaluation's own statistics buffer, through
+# `set_entries()`, so an update costs the cells it changes rather than a copy
+# of the buffer. `stats` holds one statistic per column, its rows the sender
+# (sender loop) or the dyad in column-major (sender, receiver) order, so a
+# cell's linear index is the one the n1 x n2 x p array would give it.
+# `zero_diagonal` keeps the self-dyads at zero, which a one-mode dyad or choice
+# loop requires of the statistics it reads; `effect_offset` is 1 when an
+# intercept occupies the first column. They return nothing.
+write_flat_updates <- function(
+  stats,
+  updates_slice,
+  n1,
+  n2,
+  is_sender,
+  effect_offset,
+  zero_diagonal
+) {
+  node1 <- updates_slice[1L, ] + 1L
+  effect <- updates_slice[3L, ] + 1L + effect_offset
+  value <- as.double(updates_slice[4L, ])
+  if (is_sender) {
+    at <- node1 + n1 * (effect - 1L)
+  } else {
+    node2 <- updates_slice[2L, ] + 1L
+    at <- node1 + n1 * (node2 - 1L) + n1 * n2 * (effect - 1L)
+    if (zero_diagonal) value[node1 == node2] <- 0
+  }
+  set_entries(stats, as.integer(at), value)
+  invisible(NULL)
+}
+
+write_broadcast_updates <- function(
+  stats,
+  broadcast_slice,
+  n1,
+  n2,
+  is_sender,
+  effect_offset,
+  twomode_or_reflexive,
+  zero_diagonal
+) {
+  for (b in seq_len(ncol(broadcast_slice))) {
+    kind <- broadcast_slice[1L, b]
+    fixed <- broadcast_slice[2L, b] + 1L
+    effect <- broadcast_slice[3L, b] + 1L + effect_offset
+    value <- broadcast_slice[4L, b]
+    if (is_sender) {
+      set_entries(
+        stats,
+        as.integer(seq_len(n1) + n1 * (effect - 1L)),
+        rep(value, n1)
+      )
+      next
+    }
+    if (kind == 1L) {
+      rows <- seq_len(n1)
+      if (!twomode_or_reflexive) {
+        rows <- rows[rows != fixed]
+      }
+      cols <- rep(fixed, length(rows))
+    } else if (kind == 2L) {
+      cols <- seq_len(n2)
+      if (!twomode_or_reflexive) {
+        cols <- cols[cols != fixed]
+      }
+      rows <- rep(fixed, length(cols))
+    } else {
+      rows <- rep(seq_len(n1), times = n2)
+      cols <- rep(seq_len(n2), each = n1)
+      if (!twomode_or_reflexive) {
+        off <- rows != cols
+        rows <- rows[off]
+        cols <- cols[off]
+      }
+    }
+    values <- rep(as.double(value), length(rows))
+    if (zero_diagonal) {
+      values[rows == cols] <- 0
+    }
+    set_entries(
+      stats,
+      as.integer(rows + n1 * (cols - 1L) + n1 * n2 * (effect - 1L)),
+      values
+    )
+  }
+  invisible(NULL)
+}
+
 
 #' Merge flat update buffers for reuse of a preprocessed object
 #'

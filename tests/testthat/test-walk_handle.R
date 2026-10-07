@@ -361,6 +361,35 @@ test_that("walk_open aborts on an incomplete specification", {
   expect_snapshot(walk_open(js), error = TRUE)
 })
 
+test_that("walk_open opens a process without a rate for an anchored run", {
+  data <- walk_fixture_data()
+  choice_only <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  expect_error(walk_open(choice_only), class = "goldfish_walk_incomplete_spec")
+  handle <- walk_open(choice_only, times = "observed")
+  expect_s3_class(handle, "goldfishWalk")
+})
+
+test_that("walk_open still refuses a missing choice for an anchored run", {
+  data <- walk_fixture_data()
+  rate_only <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+
+  expect_error(
+    walk_open(rate_only, times = "observed"),
+    class = "goldfish_walk_incomplete_spec"
+  )
+})
+
 test_that("walk_open defers a whole effect-free family without renumbering", {
   local_cli_context()
   data <- walk_fixture_data()
@@ -403,67 +432,6 @@ test_that("walk_open defers a whole effect-free family without renumbering", {
     walk_evaluate(alone, 2L, c(0.2, 0.3), sender = 1L)$value
   )
 })
-
-# Replay a specification's observed schedule through the handle and compare
-# each fid's live evaluation at its own dependent events against the batch
-# materialization, stepping the handle with walk_replay_to(). Returns the
-# number of comparisons and of excluded alternatives among the compared choice
-# rows, so a test can confirm the risk set it compared actually excluded
-# something.
-walk_replay_against_batch <- function(spec) {
-  batch <- suppressWarnings(preprocess_joint(spec))
-  map <- attr(batch, "process_map")
-  handle <- suppressWarnings(walk_open(spec))
-  schedule <- handle$schedule
-  dep_count <- stats::setNames(integer(nrow(map)), as.character(map$fid))
-  n_checked <- 0L
-  n_excluded <- 0L
-  for (k in which(schedule$dependent)) {
-    # Driven by schedule position, not by time alone: a dependent row is
-    # evaluated before the covariate rows sharing its stamp. walk_replay_to()
-    # applies every row before k, in schedule order.
-    walk_replay_to(handle, k)
-    # The composition in force at a dependent event includes changes at its
-    # own stamp; the exogenous rows sharing that stamp come after it.
-    walk_advance_presence(handle, schedule$time[k])
-    own <- map$fid[
-      map$layer == schedule$layer[k] &
-        (is.na(map$flavor) | map$flavor %in% schedule$flavor[k])
-    ]
-    for (fid in own) {
-      key <- as.character(fid)
-      dep_count[[key]] <- dep_count[[key]] + 1L
-      row <- map[map$fid == fid, ]
-      is_rate <- identical(row$family, "rate")
-      out <- batch[[key]]
-      n_parameters <- if (is_rate) {
-        ncol(out$initial_stats) + row$has_intercept
-      } else {
-        dim(out$initial_stats)[3]
-      }
-      theta <- rep_len(c(0.4, -0.3, 0.25), n_parameters)
-      live <- walk_evaluate(handle, fid, theta)
-      state <- materialize_process_state(
-        out,
-        model_type = if (is_rate) "DyNAM-M-Rate" else "DyNAM-M",
-        event_index = which(out$is_dependent == 1L)[dep_count[[key]]],
-        has_intercept = row$has_intercept
-      )
-      reference <- evaluate_process_state(state, theta)$value
-      if (is_rate) {
-        expect_equal(live$value, reference)
-      } else {
-        sender <- schedule$sender[k]
-        n2 <- state$n_actors2
-        live_row <- live$value[(sender - 1L) * n2 + seq_len(n2)]
-        expect_equal(live_row, reference)
-        n_excluded <- n_excluded + sum(live_row[-sender] == 0)
-      }
-      n_checked <- n_checked + 1L
-    }
-  }
-  list(n_checked = n_checked, n_excluded = n_excluded)
-}
 
 # calls is modeled; friendship and emails are exogenous layers the formulas
 # read. Two calls events and an emails row share the stamp 2, and a friendship
@@ -559,6 +527,50 @@ walk_constrained_data <- function(emails) {
   )
 }
 
+test_that("a constrained risk set is read off the availability effect", {
+  # The handle keeps the availability the batch walk keeps, stepped when it
+  # is read; it does not rebuild a gate or a grid from the mask.
+  data <- walk_constrained_data(data.frame(
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
+  ))
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  handle <- walk_open(spec)
+  walk_advance(handle, 3)
+  rebuilt <- 0L
+  local_mocked_bindings(
+    sender_gate_from_mask = function(...) {
+      rebuilt <<- rebuilt + 1L
+      stop("rebuilt")
+    }
+  )
+  for (fid in handle$process_map$fid) {
+    engine <- walk_engine_of_fid(handle, fid)
+    risk_set <- walk_risk_set(handle, engine, fid)
+    av <- engine$availability[[as.character(fid)]]
+    read <- if (engine$is_sender) {
+      risk_set$active_sender
+    } else {
+      risk_set$active_dyad
+    }
+    expect_identical(read, av$value, info = fid)
+  }
+  expect_identical(rebuilt, 0L)
+  # By then `emails` holds 2 -> 1 and 3 -> 2: the choice grid excludes them.
+  choice <- walk_engine_of_fid(handle, 2L)$availability[["2"]]$value
+  expect_false(choice[2L, 1L])
+  expect_false(choice[3L, 2L])
+  expect_true(choice[4L, 3L])
+})
+
 test_that("a dyadic support constraint is maintained live on the handle", {
   data <- walk_constrained_data(data.frame(
     from = c(2L, 3L, 4L, 6L),
@@ -576,6 +588,21 @@ test_that("a dyadic support constraint is maintained live on the handle", {
   replay <- walk_replay_against_batch(spec)
   expect_gt(replay$n_checked, 0L)
   expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a sender with only itself left replays live against batch", {
+  # N1 starts tied to every other actor, so its creation rate is gated out
+  # until it dissolves one of them; the live gate has to drop the self-dyad
+  # the creation mask allows, at every event the batch walk stores.
+  spec <- suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ inertia),
+    model = "DyNAM",
+    data = self_only_sender_data()
+  ))
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_gated, 0L)
 })
 
 test_that("a receiver-axis support constraint is maintained live", {
@@ -610,15 +637,13 @@ test_that("a flavored layer's derived masks are maintained live", {
   expect_gt(replay$n_excluded, 0L)
 })
 
-test_that("a constraint on an object no formula reads is refused", {
-  local_cli_context()
-  # The deprecated preprocessing default warns once per session, so whether it
-  # reaches this snapshot depends on test order; the snapshot is the abort.
-  withr::local_options(lifecycle_verbosity = "quiet")
+test_that("a constraint on an object no formula reads replays exactly", {
+  # `emails` is read only by the constraint, so the walk steps it for the
+  # mask alone; the handle maintains that mask live and matches the batch.
   data <- walk_constrained_data(data.frame(
-    from = c(2L, 3L),
-    to = c(1L, 2L),
-    time = c(1.5, 2.5)
+    from = c(2L, 3L, 4L, 6L),
+    to = c(1L, 2L, 3L, 1L),
+    time = c(1.5, 2.5, 3.5, 4.5)
   ))
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -628,7 +653,305 @@ test_that("a constraint on an object no formula reads is refused", {
     data = data,
     support_constraint = ~ !tie(emails)
   )
-  expect_snapshot(walk_open(spec), error = TRUE)
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("an atom moved at an event's own stamp is not yet in force", {
+  # Evaluating an observed event at its stamp, a driver steps strictly
+  # before it, as the batch schedule puts the rows sharing a stamp after the
+  # event. The mask then reads its atoms strictly before the stamp: at N2's
+  # call at t = 2, 2 -> 4 is still excluded (emailed at 1.5, dissolved at 2)
+  # and 2 -> 5 still allowed (emailed at 2).
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 2L),
+      to = c(4L, 4L, 5L),
+      time = c(1.5, 2, 2),
+      layer = "emails",
+      weight = c(1, -1, 1)
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  batch <- suppressWarnings(preprocess_joint(spec))
+  map <- attr(batch, "process_map")
+  choice_fid <- map$fid[map$family == "choice"]
+  out <- batch[[as.character(choice_fid)]]
+  handle <- suppressWarnings(walk_open(spec))
+  calls <- ties[ties$layer == "calls", ]
+  theta <- 0.4
+  for (e in seq_len(nrow(calls))) {
+    walk_advance(handle, calls$time[e], inclusive = FALSE)
+    live <- walk_evaluate(handle, choice_fid, theta)
+    state <- materialize_process_state(
+      out,
+      model_type = "DyNAM-M",
+      event_index = e,
+      has_intercept = FALSE
+    )
+    reference <- evaluate_process_state(state, theta)$value
+    n2 <- state$n_actors2
+    sender <- calls$from[e]
+    expect_equal(
+      live$value[(sender - 1L) * n2 + seq_len(n2)],
+      reference,
+      info = paste("event", e)
+    )
+    walk_inject(
+      handle,
+      list(
+        layer = "calls",
+        sender = sender,
+        receiver = calls$to[e],
+        time = calls$time[e],
+        increment = 1
+      )
+    )
+  }
+  # The tie is reached: at t = 2 the batch excludes 2 -> 4 and allows 2 -> 5.
+  state <- materialize_process_state(
+    out,
+    model_type = "DyNAM-M",
+    event_index = 2L,
+    has_intercept = FALSE
+  )
+  at_tie <- evaluate_process_state(state, theta)$value
+  expect_identical(at_tie[4] == 0, TRUE)
+  expect_identical(at_tie[5] > 0, TRUE)
+})
+
+test_that("a tied dependent event of another process is not in force", {
+  # The emails event 2 -> 5 shares N2's call stamp, t = 2, and is scheduled
+  # ahead of it. Replayed one stamp at a time, every dependent event at t is
+  # evaluated before any row at t applies, and the handle equals the batch.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 5L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  joint <- make_joint_specification(emails, calls, data = data)
+
+  replay <- walk_replay_against_batch(joint)
+
+  expect_identical(replay$n_checked, 16L)
+  expect_gt(replay$n_excluded, 0L)
+})
+
+test_that("a statistic does not read a tied event of another process", {
+  # N2 calls 3 and emails 1 at t = 2; the calls row is scheduled first. The
+  # emails choice reads `tie(calls)`, and at its own stamp it reads the calls
+  # layer strictly before t = 2, as its mask would: 2 -> 3 is not yet a tie.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 2L, 3L),
+      to = c(4L, 1L, 1L),
+      time = c(1.5, 2, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "tie",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(calls),
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  joint <- make_joint_specification(calls, emails, data = data)
+
+  batch <- suppressWarnings(preprocess_joint(joint))
+  map <- attr(batch, "process_map")
+  emails_choice <- as.character(
+    map$fid[map$layer == "emails" & map$family == "choice"]
+  )
+  state <- materialize_process_state(
+    batch[[emails_choice]],
+    model_type = "DyNAM-M",
+    event_index = 2L,
+    has_intercept = FALSE
+  )
+  sender_row <- (2L - 1L) * 6L + seq_len(6L)
+  expect_identical(sum(state$stat_mat[sender_row, 2L]), 0)
+
+  replay <- walk_replay_against_batch(joint)
+  expect_identical(replay$n_checked, 16L)
+})
+
+test_that("a process does not read its own event at its evaluation", {
+  # The calls process is planned first and reads the emails layer, so the
+  # emails covariate stream is registered before the emails process's own
+  # dependent stream. No stamp is tied: the emails choice must still read
+  # its inertia strictly before each of its events, never the event itself.
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(2L, 3L, 4L),
+      time = c(1, 2, 3),
+      layer = "calls",
+      weight = 1
+    ),
+    data.frame(
+      from = c(2L, 3L),
+      to = c(4L, 1L),
+      time = c(1.5, 2.5),
+      layer = "emails",
+      weight = 1
+    )
+  )
+  data <- list(
+    info = list(
+      name = "self",
+      focal = "calls",
+      update = c(calls = "increment", emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:5),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(emails),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  joint <- make_joint_specification(calls, emails, data = data)
+
+  batch <- suppressWarnings(preprocess_joint(joint))
+  map <- attr(batch, "process_map")
+  emails_choice <- as.character(
+    map$fid[map$layer == "emails" & map$family == "choice"]
+  )
+  emails_ties <- ties[ties$layer == "emails", ]
+  for (e in seq_len(nrow(emails_ties))) {
+    state <- materialize_process_state(
+      batch[[emails_choice]],
+      model_type = "DyNAM-M",
+      event_index = e,
+      has_intercept = FALSE
+    )
+    sender_row <- (emails_ties$from[e] - 1L) * 5L + seq_len(5L)
+    expect_identical(
+      sum(state$stat_mat[sender_row, 1L]),
+      0,
+      info = paste("emails event", e)
+    )
+  }
+
+  replay <- walk_replay_against_batch(joint)
+  expect_identical(replay$n_checked, 10L)
 })
 
 test_that("node-composition changes advance with the handle's clock", {
@@ -732,4 +1055,39 @@ test_that("scheduling misuse aborts with cli errors", {
     walk_schedule(handle, c(event, time = 2)),
     class = "goldfish_walk_out_of_order"
   )
+})
+
+test_that("a vector-kind REM constraint at outer replays exactly", {
+  # The handle reads the effect's two factors, as the batch stores them.
+  fx <- suppressWarnings(availability_vector_rem_data())
+  actors <- fx$actors
+  for (constraint in list(~ alter(actors$allow) > 0, ~ ego(actors$allow) > 0)) {
+    spec <- suppressWarnings(suppressMessages(make_specification(
+      rate = ~ 1 + inertia + recip,
+      model = "REM",
+      layer = "dep",
+      data = fx$data,
+      support_constraint = constraint
+    )))
+    replay <- walk_replay_against_batch(spec)
+    expect_gt(replay$n_checked, 0L)
+    expect_gt(replay$n_excluded, 0L)
+  }
+})
+
+test_that("a vector-kind coordination constraint at outer replays exactly", {
+  fx <- suppressWarnings(availability_vector_coord_data())
+  states <- fx$states
+  spec <- suppressWarnings(suppressMessages(make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + indeg + trans,
+    choice_sub_model = "choice_coordination",
+    model = "DyNAM",
+    layer = "create_bilat",
+    data = fx$data,
+    support_constraint = ~ alter(states$allow) > 0
+  )))
+  replay <- walk_replay_against_batch(spec)
+  expect_gt(replay$n_checked, 0L)
+  expect_gt(replay$n_excluded, 0L)
 })
