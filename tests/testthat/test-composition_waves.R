@@ -457,8 +457,10 @@ composition_fit_data <- function(observation) {
   )
 }
 
-composition_fit_spec <- function(data = composition_fit_data("panel")) {
-  events <- composition_fit_data("event")
+composition_fit_spec <- function(
+  data = composition_fit_data("panel"),
+  events = composition_fit_data("event")
+) {
   make_joint_specification(
     make_specification(
       rate = ~ 1 + indeg,
@@ -532,6 +534,106 @@ test_that("estimate_dynes() fits on the snapped composition", {
   pinned <- fit_spec$completed_rates[[calls_rate]]$intercept
   expect_identical(pinned, relational_pin(rewritten))
   expect_false(isTRUE(all.equal(pinned, relational_pin(spec$data))))
+})
+
+test_that("the involvement diffs equal the recipe's after the rewrite", {
+  spec <- composition_fit_spec()
+  snapped <- suppressWarnings(snap_composition_to_waves(spec, fit_waves))
+  expect_false(identical(snapped$data$changes, spec$data$changes))
+  completed <- suppressWarnings(complete_generative_spec(
+    snapped,
+    consumer = "estimate_dynes",
+    wave_times = fit_waves
+  ))
+  recipe <- compile_augmentation_recipe(completed, fit_waves)
+
+  before <- list(
+    friendship = diff_panel_waves(spec$data, "friendship", fit_waves)
+  )
+  expect_identical(recipe_events(before), recipe$events)
+})
+
+# Draws that strand on the real composition: the restart ceiling is lowered so
+# a stranding draw aborts at once instead of looping. N6 joins at the stamp of
+# its only call (interval 2); N4 leaves at 2.5, before its friendship flip to
+# N5 (interval 2) can land.
+strand_spec <- function(change, calls) {
+  data <- function(observation) {
+    out <- composition_fit_data(observation)
+    out$nodes$active <- change$initial
+    out$changes <- data.frame(
+      time = change$time,
+      node = change$node,
+      var = "active"
+    )
+    out$changes$value <- list(list(change$value))
+    ties <- out$ties[out$ties$layer == "friendship", ]
+    out$ties <- rbind(ties, cbind(calls, layer = "calls"))
+    out
+  }
+  composition_fit_spec(data("panel"), events = data("event"))
+}
+
+join_at_event_spec <- function() {
+  strand_spec(
+    list(
+      time = 4,
+      node = "N6",
+      value = TRUE,
+      initial = c(rep(TRUE, 5L), FALSE)
+    ),
+    data.frame(from = c(1L, 2L, 6L), to = c(2L, 3L, 1L), time = c(1, 2, 4))
+  )
+}
+
+leave_before_flip_spec <- function() {
+  strand_spec(
+    list(time = 2.5, node = "N4", value = FALSE, initial = rep(TRUE, 6L)),
+    data.frame(from = c(1L, 2L, 5L), to = c(2L, 3L, 1L), time = c(1, 2, 5))
+  )
+}
+
+# One sim draw of the specification, completed on the fit's grid, with or
+# without the snap.
+sim_draw <- function(spec, snap) {
+  if (snap) {
+    spec <- suppressWarnings(snap_composition_to_waves(spec, fit_waves))
+  }
+  completed <- suppressWarnings(complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = fit_waves
+  ))
+  recipe <- compile_augmentation_recipe(completed, fit_waves)
+  augmenter <- augment_seq_sim(
+    completed,
+    recipe,
+    set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "sim"),
+      seed = 11L
+    )
+  )
+  theta <- numeric(sum(!coef_layout(completed)$fixed))
+  withr::with_seed(1L, suppressWarnings(augmenter$draw(1L, 1L, theta)))
+}
+
+test_that("a sim draw strands on the real composition", {
+  local_mocked_bindings(restart_ceiling = function() 5L)
+  for (spec in list(join_at_event_spec(), leave_before_flip_spec())) {
+    expect_error(
+      sim_draw(spec, snap = FALSE),
+      class = "goldfish_dynes_restart_ceiling"
+    )
+  }
+})
+
+test_that("a sim fit completes on the snapped composition", {
+  local_mocked_bindings(restart_ceiling = function() 5L)
+  for (spec in list(join_at_event_spec(), leave_before_flip_spec())) {
+    run <- composition_fit(spec, routine = "sim")
+    expect_s3_class(run$fit, "goldfishDynesFit")
+    expect_true("goldfish_composition_snapped_warning" %in% run$warnings)
+  }
 })
 
 test_that("a rewrite that changes nothing raises no warning", {
