@@ -124,11 +124,11 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 - [x] 3.3b Expected GREEN from 3.1b with no further code. If not, the gap is
       a design defect: stop and reopen the design instead of patching the
       augmenter. Confirm GREEN and commit.
-- [ ] 3.4 Byte-identity check: on the existing DyNES fixtures and the frozen
+- [x] 3.4 Byte-identity check: on the existing DyNES fixtures and the frozen
       baselines (none of which has an involved in-interval change), fits are
       unchanged and no warning is raised. This is covered by the full-suite
       run. Record the confirmation in `progress.md`.
-- [ ] 3.5 Close the group: NOT_CRAN=true full suite (baselines PASS),
+- [x] 3.5 Close the group: NOT_CRAN=true full suite (baselines PASS),
       `devtools::document()` if any roxygen changed, commit.
 
 ## 4. The normalized composition guard (D4)
