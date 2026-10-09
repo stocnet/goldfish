@@ -247,3 +247,46 @@ test_that("an uninvolved actor's join and leave are kept", {
   out <- rewrite_composition(data, list(1L, 1L), snap_waves)
   expect_identical(snap_rows(out, 3L), snap_expect(c(1, 3), c(FALSE, TRUE)))
 })
+
+test_that("a leave and rejoin inside an involved interval keep the actor in", {
+  # Moving each row on its own would give join @ 2, leave @ 5: absent at w_2.
+  leave_first <- snap_data(
+    time = c(3, 4),
+    node = c(1L, 1L),
+    value = c(FALSE, TRUE)
+  )
+  join_first <- snap_data(
+    time = c(4, 3),
+    node = c(1L, 1L),
+    value = c(TRUE, FALSE)
+  )
+  for (data in list(leave_first, join_first)) {
+    out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+    expect_identical(snap_rows(out, 1L), snap_expect())
+  }
+})
+
+test_that("join, leave, join inside an involved interval is one early join", {
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = c(3, 3.5, 4),
+    node = rep(1L, 3L),
+    value = c(TRUE, FALSE, TRUE)
+  )
+  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(2, TRUE))
+})
+
+test_that("an actor involved on both sides of a wave is present across it", {
+  # Really absent at w_1 = 2 (leave 1.5, join 3).
+  data <- snap_data(time = c(1.5, 3), node = c(1L, 1L), value = c(FALSE, TRUE))
+  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect())
+})
+
+test_that("an actor involved only before a wave leaves at the wave", {
+  # Really absent at w_1 = 2; the join at 3 sits in an uninvolved interval.
+  data <- snap_data(time = c(1.5, 3), node = c(1L, 1L), value = c(FALSE, TRUE))
+  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(c(2, 3), c(FALSE, TRUE)))
+})
