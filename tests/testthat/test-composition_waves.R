@@ -155,6 +155,11 @@ test_that("a two-mode receiver is not read as the same-index first-set node", {
 
 snap_waves <- c(0, 2, 5)
 
+# The warning has its own tests below; the rewrite tests read the data only.
+rewrite_quiet <- function(...) {
+  suppressWarnings(rewrite_composition(...))
+}
+
 # Six actors with the given initial presence and `active` changes.
 snap_data <- function(
   active = rep(TRUE, 6L),
@@ -198,7 +203,7 @@ test_that("an involved actor's join inside its interval moves to its start", {
     node = 1:2,
     value = c(TRUE, TRUE)
   )
-  out <- rewrite_composition(data, list(1L, 2L), snap_waves)
+  out <- rewrite_quiet(data, list(1L, 2L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(0, TRUE))
   expect_identical(snap_rows(out, 2L), snap_expect(2, TRUE))
 })
@@ -210,7 +215,7 @@ test_that("a join exactly at w_k of an actor involved in k moves to w_{k-1}", {
     node = 1L,
     value = TRUE
   )
-  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  out <- rewrite_quiet(data, list(1L, integer()), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(0, TRUE))
 })
 
@@ -221,20 +226,20 @@ test_that("a join exactly at w_k of an actor involved only in k + 1 is kept", {
     node = 1L,
     value = TRUE
   )
-  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  out <- rewrite_quiet(data, list(integer(), 1L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(2, TRUE))
 })
 
 test_that("an involved actor's leave inside its interval moves to its end", {
   data <- snap_data(time = c(1, 3), node = 1:2, value = c(FALSE, FALSE))
-  out <- rewrite_composition(data, list(1L, 2L), snap_waves)
+  out <- rewrite_quiet(data, list(1L, 2L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(2, FALSE))
   expect_identical(snap_rows(out, 2L), snap_expect(5, FALSE))
 })
 
 test_that("a leave exactly at w_{k-1} of an actor involved in k moves to w_k", {
   data <- snap_data(time = 2, node = 1L, value = FALSE)
-  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  out <- rewrite_quiet(data, list(integer(), 1L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(5, FALSE))
 })
 
@@ -244,7 +249,7 @@ test_that("an uninvolved actor's join and leave are kept", {
     node = c(3L, 3L, 1L),
     value = c(FALSE, TRUE, FALSE)
   )
-  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+  out <- rewrite_quiet(data, list(1L, 1L), snap_waves)
   expect_identical(snap_rows(out, 3L), snap_expect(c(1, 3), c(FALSE, TRUE)))
 })
 
@@ -261,7 +266,7 @@ test_that("a leave and rejoin inside an involved interval keep the actor in", {
     value = c(TRUE, FALSE)
   )
   for (data in list(leave_first, join_first)) {
-    out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+    out <- rewrite_quiet(data, list(integer(), 1L), snap_waves)
     expect_identical(snap_rows(out, 1L), snap_expect())
   }
 })
@@ -273,21 +278,21 @@ test_that("join, leave, join inside an involved interval is one early join", {
     node = rep(1L, 3L),
     value = c(TRUE, FALSE, TRUE)
   )
-  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  out <- rewrite_quiet(data, list(integer(), 1L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(2, TRUE))
 })
 
 test_that("an actor involved on both sides of a wave is present across it", {
   # Really absent at w_1 = 2 (leave 1.5, join 3).
   data <- snap_data(time = c(1.5, 3), node = c(1L, 1L), value = c(FALSE, TRUE))
-  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+  out <- rewrite_quiet(data, list(1L, 1L), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect())
 })
 
 test_that("an actor involved only before a wave leaves at the wave", {
   # Really absent at w_1 = 2; the join at 3 sits in an uninvolved interval.
   data <- snap_data(time = c(1.5, 3), node = c(1L, 1L), value = c(FALSE, TRUE))
-  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  out <- rewrite_quiet(data, list(1L, integer()), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(c(2, 3), c(FALSE, TRUE)))
 })
 
@@ -297,10 +302,10 @@ test_that("an actor involved only before a wave leaves at the wave", {
 
 test_that("data with no composition change comes back identical", {
   data <- snap_data()
-  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+  expect_identical(rewrite_quiet(data, list(1L, 2L), snap_waves), data)
 
   data$changes <- NULL
-  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+  expect_identical(rewrite_quiet(data, list(1L, 2L), snap_waves), data)
 })
 
 test_that("changes of uninvolved actors leave the data identical", {
@@ -309,7 +314,7 @@ test_that("changes of uninvolved actors leave the data identical", {
     node = c(3L, 3L),
     value = c(FALSE, TRUE)
   )
-  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+  expect_identical(rewrite_quiet(data, list(1L, 2L), snap_waves), data)
 })
 
 test_that("changes outside the wave window leave the data identical", {
@@ -321,7 +326,7 @@ test_that("changes outside the wave window leave the data identical", {
     node = c(1L, 1L),
     value = c(TRUE, FALSE)
   )
-  expect_identical(rewrite_composition(data, list(1L, 1L), snap_waves), data)
+  expect_identical(rewrite_quiet(data, list(1L, 1L), snap_waves), data)
 })
 
 test_that("a rewrite keeps every row it has no reason to touch", {
@@ -335,7 +340,7 @@ test_that("a rewrite keeps every row it has no reason to touch", {
   other$value <- list(list(30))
   data$changes <- rbind(data$changes, other)
 
-  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+  out <- rewrite_quiet(data, list(1L, 1L), snap_waves)
 
   window_active <- data$changes$var == "active" &
     data$changes$node == 1L &
@@ -355,7 +360,7 @@ test_that("the rewrite never edits nodes", {
     node = 1L,
     value = TRUE
   )
-  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  out <- rewrite_quiet(data, list(1L, integer()), snap_waves)
   expect_false(identical(out$changes, data$changes))
   expect_identical(out$nodes, data$nodes)
 })

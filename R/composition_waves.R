@@ -127,21 +127,32 @@ rewrite_composition <- function(data, involved, wave_times) {
   new_time <- vector("list", length(actors))
   new_node <- vector("list", length(actors))
   new_value <- vector("list", length(actors))
+  snapped <- vector("list", length(actors))
   for (i in seq_along(actors)) {
     actor <- actors[[i]]
     own <- which(composition & ch_node == actor)
     own <- own[order(ch_time[own])]
+    flags <- vapply(involved, function(ids) actor %in% ids, logical(1))
     path <- presence_paths(
       ch_time[own],
       ch_value[own],
       initial[[actor]],
-      vapply(involved, function(ids) actor %in% ids, logical(1)),
+      flags,
       wave_times
     )
     if (identical(path$rewritten, path$real)) {
       next
     }
     drop[in_window & ch_node == actor] <- TRUE
+    snapped[[i]] <- snapped_intervals(
+      path,
+      ch_time[own],
+      ch_value[own],
+      initial[[actor]],
+      flags,
+      wave_times
+    )
+    snapped[[i]]$actor <- rep(actor, nrow(snapped[[i]]))
     new_time[[i]] <- path$rewritten$time
     new_node[[i]] <- rep(actor, length(path$rewritten$time))
     new_value[[i]] <- path$rewritten$value
@@ -153,6 +164,7 @@ rewrite_composition <- function(data, involved, wave_times) {
   new_time <- unlist(new_time, use.names = FALSE)
   new_node <- unlist(new_node, use.names = FALSE)
   new_value <- unlist(new_value, use.names = FALSE)
+  warn_composition_snapped(do.call(rbind, snapped), nodes$label, wave_times)
   data$changes <- splice_composition(
     changes,
     drop,
@@ -198,6 +210,115 @@ presence_paths <- function(time, value, initial, involved, wave_times) {
   rewritten <- minimal_changes(path_time[o], path_value[o], start)
 
   list(real = real, rewritten = rewritten)
+}
+
+# The intervals of one rewritten actor whose real presence was not "present
+# throughout" and so was overridden: absent at the interval start or leaving
+# inside it. Each carries the real change times the rewrite dropped (a time
+# lying on a wave is reported with the first such interval). `involved` flags
+# the intervals the actor is involved in; only those are overridden.
+snapped_intervals <- function(
+  path,
+  time,
+  value,
+  initial,
+  involved,
+  wave_times
+) {
+  n_intervals <- length(wave_times) - 1L
+  state_at <- function(t) c(initial, value)[findInterval(t, time) + 1L]
+  lower <- wave_times[-length(wave_times)]
+  upper <- wave_times[-1L]
+  overridden <- vapply(
+    seq_len(n_intervals),
+    function(k) {
+      inside <- time > lower[[k]] & time < upper[[k]]
+      involved[[k]] && (!state_at(lower[[k]]) || any(!value[inside]))
+    },
+    logical(1)
+  )
+  kept <- paste(path$rewritten$time, path$rewritten$value)
+  real <- paste(path$real$time, path$real$value)
+  dropped <- path$real$time[!real %in% kept]
+  intervals <- which(overridden)
+  claimed <- rep(FALSE, length(dropped))
+  ignored <- vector("list", length(intervals))
+  for (j in seq_along(intervals)) {
+    k <- intervals[[j]]
+    mine <- !claimed & dropped >= lower[[k]] & dropped <= upper[[k]]
+    ignored[[j]] <- dropped[mine]
+    claimed <- claimed | mine
+  }
+  data.frame(
+    interval = intervals,
+    lower = lower[intervals],
+    upper = upper[intervals],
+    ignored = I(ignored)
+  )
+}
+
+# One cli warning for a whole rewrite: a bullet per (actor, interval) whose
+# presence was overridden, with the real times now ignored. The list is capped
+# so a large panel does not flood the console.
+warn_composition_snapped <- function(snapped, labels, wave_times) {
+  if (is.null(snapped) || nrow(snapped) == 0L) {
+    return(invisible())
+  }
+  shown <- seq_len(min(nrow(snapped), 10L))
+  n_more <- nrow(snapped) - length(shown)
+  label <- labels[snapped$actor]
+  lower <- snapped$lower
+  upper <- snapped$upper
+  ignored <- snapped$ignored
+  lines <- vapply(
+    shown,
+    function(i) {
+      paste0(
+        "{.field {label[",
+        i,
+        "]}} in ({lower[",
+        i,
+        "]}, {upper[",
+        i,
+        "]}]",
+        if (length(ignored[[i]]) > 0L) {
+          paste0(
+            ": {cli::qty(length(ignored[[",
+            i,
+            "]]))}real change{?s} at {.val {ignored[[",
+            i,
+            "]]}} ignored"
+          )
+        } else {
+          ": present from the interval start"
+        }
+      )
+    },
+    character(1)
+  )
+  names(lines) <- rep("*", length(lines))
+  if (n_more > 0L) {
+    lines <- c(lines, i = "and {n_more} more")
+  }
+  cli::cli_warn(
+    c(
+      "Composition snapped to the panel waves.",
+      "!" = paste0(
+        "Actors involved in an interval are made present over all of it; ",
+        "their real join and leave times inside it are ignored."
+      ),
+      lines,
+      i = paste0(
+        "The model changes: a moved actor's rate enters the compensator ",
+        "over the whole interval."
+      ),
+      i = paste0(
+        "Relational events stamped at a wave can see an actor moved to that ",
+        "wave one interval early."
+      )
+    ),
+    class = "goldfish_composition_snapped_warning"
+  )
 }
 
 # The change points of a step path given at increasing `time`, starting from

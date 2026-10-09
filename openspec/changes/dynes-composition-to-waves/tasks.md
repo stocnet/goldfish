@@ -85,17 +85,17 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 - [x] 2.3b Make 2.3a pass: return the input object when nothing changes, and
       splice only the rewritten actors' in-window `active` rows otherwise.
       Confirm GREEN and commit.
-- [ ] 2.4a Failing test: the warning. A rewrite of two actors in two
+- [x] 2.4a Failing test: the warning. A rewrite of two actors in two
       intervals raises exactly one `goldfish_composition_snapped_warning`.
       Its snapshot, under a pinned cli context, lists each (actor, interval)
       with the ignored real times and carries the two caveats of D5: the
       moved rate enters the whole interval's compensator, and wave-stamped
       events can see an early join. A no-op rewrite raises nothing. Confirm
       RED and commit the test alone.
-- [ ] 2.4b Implement the warning with `cli::cli_warn()`, interpolating data
+- [x] 2.4b Implement the warning with `cli::cli_warn()`, interpolating data
       rather than literal markup, and letting cli truncate long lists.
       Confirm GREEN and commit.
-- [ ] 2.5 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+- [x] 2.5 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
 
 ## 3. Wiring into `estimate_dynes()` (D1)
 
