@@ -763,3 +763,48 @@ test_that("compute_lik_seq() scores consistent pairings and refuses mixed", {
     class = "goldfish_candidate_mismatch"
   )
 })
+
+# The guard compares a candidate's composition with the specification's, so
+# an augmenter must draw on the composition the fit rewrote.
+
+test_that("every augmenter's candidate binds to the snapped specification", {
+  authored <- composition_fit_spec()
+  for (routine in c("random", "mcmc")) {
+    run <- composition_fit(authored, routine = routine)
+    expect_s3_class(run$fit, "goldfishDynesFit")
+    expect_identical(
+      sum(run$warnings == "goldfish_composition_snapped_warning"),
+      1L,
+      label = routine
+    )
+  }
+
+  snapped <- suppressWarnings(snap_composition_to_waves(authored, fit_waves))
+  for (routine in c("random", "sim")) {
+    completed <- suppressWarnings(complete_generative_spec(
+      snapped,
+      consumer = "estimate_dynes",
+      wave_times = fit_waves
+    ))
+    recipe <- compile_augmentation_recipe(completed, fit_waves)
+    augmenter <- dynes_augmenter_constructors()[[routine]](
+      completed,
+      recipe,
+      set_algorithm_em(
+        augmenter = set_augmenter_options(routine = routine),
+        seed = 11L
+      )
+    )
+    theta <- numeric(sum(!coef_layout(completed)$fixed))
+    draw <- withr::with_seed(
+      1L,
+      suppressWarnings(augmenter$draw(1L, 1L, theta))
+    )[[1L]]
+    expect_identical(
+      composition_normal_form(draw$data),
+      composition_normal_form(completed$data),
+      label = routine
+    )
+    expect_no_error(bind_candidate_data(completed, draw$data))
+  }
+})
