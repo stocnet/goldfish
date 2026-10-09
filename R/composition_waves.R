@@ -382,3 +382,34 @@ splice_composition <- function(changes, drop, time, node, value) {
   added$value <- if (is.list(changes$value)) as.list(value) else value
   rbind(changes[!drop, , drop = FALSE], added)
 }
+
+# The composition of `data` in the form the candidate guard compares: one row
+# per `active` change with numeric time, global node id and logical value,
+# stably sorted by (time, node). Raw `changes` differ in representation alone
+# (NULL against zero rows, numeric against POSIXct times, label against index
+# nodes, wrapped against bare values) and in nodal attribute rows, none of which
+# changes the composition a walk reads.
+composition_normal_form <- function(data) {
+  form <- data.frame(
+    time = numeric(),
+    node = integer(),
+    value = logical()
+  )
+  changes <- data$changes
+  if (is.null(changes) || nrow(changes) == 0L) {
+    return(form)
+  }
+  ch <- as.data.frame(changes)
+  rows <- which(ch$var == "active")
+  if (length(rows) == 0L) {
+    return(form)
+  }
+  form <- data.frame(
+    time = coerce_time(ch$time[rows]),
+    node = to_global_id(ch$node[rows], as.data.frame(data$nodes)),
+    value = as.logical(unlist(unwrap_values(ch$value[rows]), use.names = FALSE))
+  )
+  form <- form[order(form$time, form$node), , drop = FALSE]
+  rownames(form) <- NULL
+  form
+}

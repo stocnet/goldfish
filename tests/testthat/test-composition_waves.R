@@ -654,8 +654,12 @@ nf_data <- function(changes) {
 }
 
 nf_changes <- function(time, node, var = "active", value = TRUE) {
-  changes <- data.frame(time = time, node = node, var = var)
-  changes$value <- lapply(value, list)
+  changes <- data.frame(
+    time = time,
+    node = node,
+    var = rep_len(var, length(time))
+  )
+  changes$value <- lapply(rep_len(value, length(time)), list)
   changes
 }
 
