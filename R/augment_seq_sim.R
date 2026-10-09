@@ -160,15 +160,7 @@ sim_observed_events <- function(context, labels, update) {
   waves <- context$recipe$wave_times
   ties <- as.data.frame(context$base$ties)
   flavor <- ties[["flavor"]] %||% rep(NA_character_, nrow(ties))
-  modeled <- vapply(
-    seq_len(nrow(ties)),
-    function(r) {
-      layer_flavors <- map$flavor[map$layer == ties$layer[[r]]]
-      length(layer_flavors) > 0L &&
-        (anyNA(layer_flavors) || flavor[[r]] %in% layer_flavors)
-    },
-    logical(1)
-  )
+  modeled <- modeled_tie_rows(ties, map)
   keep <- modeled & !is.na(ties$time) & ties$time <= waves[[length(waves)]]
   ties <- ties[keep, , drop = FALSE]
   flavor <- flavor[keep]
