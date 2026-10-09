@@ -197,12 +197,12 @@ walk-alignment's 1.1 references are recorded on.
 - [x] 6.2b Format the warning's times through the data's time class. Align
       the NEWS.d fragment's "original and new times" with what the warning
       shows. Confirm GREEN and commit.
-- [ ] 6.3 Detector for "the specification's normal form is computed once per
+- [x] 6.3 Detector for "the specification's normal form is computed once per
       bound specification": bind two candidates to one specification and
       count `composition_normal_form()` calls (mocked counter), expecting one
       for the specification and one per candidate. Confirm the test fails
       with the memo disabled. Commit.
-- [ ] 6.4 Detector for the no-op at the snap level:
+- [x] 6.4 Detector for the no-op at the snap level:
       `snap_composition_to_waves()` returns the specification identical, with
       no warning, on a fixture whose process specifications carry their own
       data. Confirm the test fails with the identity return at the snap

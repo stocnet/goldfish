@@ -859,3 +859,13 @@ test_that("every augmenter's candidate binds to the snapped specification", {
     expect_no_error(bind_candidate_data(completed, draw$data))
   }
 })
+
+# The no-op at the snap level: with nothing to rewrite the specification comes
+# back as it was, process specifications' own (event-observed) data included,
+# rather than every part being reinstalled with the joint (panel) data.
+test_that("a snap that changes nothing returns the specification itself", {
+  spec <- involvement_spec()
+  expect_false(identical(spec$data, spec$specifications[[1L]]$data))
+  expect_no_warning(snapped <- snap_composition_to_waves(spec, snap_waves))
+  expect_identical(snapped, spec)
+})
