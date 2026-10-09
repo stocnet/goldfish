@@ -184,7 +184,11 @@ rewrite_composition <- function(data, involved, wave_times) {
   new_time <- unlist(new_time, use.names = FALSE)
   new_node <- unlist(new_node, use.names = FALSE)
   new_value <- unlist(new_value, use.names = FALSE)
-  warn_composition_snapped(do.call(rbind, snapped), nodes$label, wave_times)
+  warn_composition_snapped(
+    do.call(rbind, snapped),
+    nodes$label,
+    if (has_changes) changes$time else wave_raw
+  )
   data$changes <- splice_composition(
     changes,
     drop,
@@ -279,17 +283,18 @@ snapped_intervals <- function(
 
 # One cli warning for a whole rewrite: a bullet per (actor, interval) whose
 # presence was overridden, with the real times now ignored. The list is capped
-# so a large panel does not flood the console.
-warn_composition_snapped <- function(snapped, labels, wave_times) {
+# so a large panel does not flood the console. `snapped` holds numeric times;
+# they are shown in the class of `time_template`, the data's own time column.
+warn_composition_snapped <- function(snapped, labels, time_template) {
   if (is.null(snapped) || nrow(snapped) == 0L) {
     return(invisible())
   }
   shown <- seq_len(min(nrow(snapped), 10L))
   n_more <- nrow(snapped) - length(shown)
   label <- labels[snapped$actor]
-  lower <- snapped$lower
-  upper <- snapped$upper
-  ignored <- snapped$ignored
+  lower <- display_time(snapped$lower, time_template)
+  upper <- display_time(snapped$upper, time_template)
+  ignored <- lapply(snapped$ignored, display_time, time_template)
   lines <- vapply(
     shown,
     function(i) {
@@ -339,6 +344,15 @@ warn_composition_snapped <- function(snapped, labels, wave_times) {
     ),
     class = "goldfish_composition_snapped_warning"
   )
+}
+
+# Numeric times as the reader knows them: unchanged for numeric data, formatted
+# in the data's time class otherwise (not epoch seconds).
+display_time <- function(time, template) {
+  if (is.numeric(template) && !inherits(template, c("POSIXct", "Date"))) {
+    return(time)
+  }
+  format(restore_time_class(time, template))
 }
 
 # The change points of a step path given at increasing `time`, starting from
