@@ -25,6 +25,16 @@
       ! The candidate sequence does not match the specification's data in nodes.
       i A candidate may differ from the observed data only in its ties.
 
+# a candidate with another composition is refused naming it
+
+    Code
+      bind_candidate_data(spec, candidate)
+    Condition
+      Error:
+      ! The candidate sequence does not match the specification's data in composition.
+      i `estimate_dynes()` may have snapped the composition to the panel waves, so a fit's specification and sequences carry a composition the authored data does not.
+      i Pair `fit$spec` with the fit's sequences, or the authored specification with the original data.
+
 # sub-model positions off the free layout abort naming the mismatch
 
     Code

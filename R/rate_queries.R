@@ -130,7 +130,47 @@ bind_candidate_data <- function(spec, candidate, call = rlang::caller_env()) {
       class = "goldfish_candidate_mismatch"
     )
   }
+  if (
+    !identical(
+      composition_normal_form(candidate),
+      specification_composition(spec)
+    )
+  ) {
+    cli::cli_abort(
+      c(
+        "The candidate sequence does not match the specification's data in
+         {.field composition}.",
+        "i" = "{.fn estimate_dynes} may have snapped the composition to the
+               panel waves, so a fit's specification and sequences carry a
+               composition the authored data does not.",
+        "i" = "Pair {.code fit$spec} with the fit's sequences, or the authored
+               specification with the original data."
+      ),
+      call = call,
+      class = "goldfish_candidate_mismatch"
+    )
+  }
   install_spec_data(spec, candidate)
+}
+
+# The specification's composition normal form. Every candidate of a fit binds
+# to the same specification, so the form is kept for the `changes` it was
+# computed from: a bind of the same specification reuses it, and a different
+# `changes` recomputes it. A pointer comparison decides, so a hit costs nothing.
+composition_memo <- new.env(parent = emptyenv())
+
+specification_composition <- function(spec) {
+  changes <- spec$data$changes
+  if (
+    !exists("form", envir = composition_memo, inherits = FALSE) ||
+      !identical(composition_memo$changes, changes) ||
+      !identical(composition_memo$nodes, spec$data$nodes)
+  ) {
+    composition_memo$form <- composition_normal_form(spec$data)
+    composition_memo$changes <- changes
+    composition_memo$nodes <- spec$data$nodes
+  }
+  composition_memo$form
 }
 
 # `data` installed on the joint specification and on every process
