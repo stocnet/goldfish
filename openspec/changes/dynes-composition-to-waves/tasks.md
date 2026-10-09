@@ -58,7 +58,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       build `P` interval by interval, and write the minimal change list
       inside `[w_0, w_K]` for each actor whose `P` differs from `S`. Times
       are compared after `coerce_time()`. Confirm GREEN and commit.
-- [ ] 2.2a Failing test: several changes and adjacency.
+- [x] 2.2a Failing test: several changes and adjacency.
       - A leave and rejoin inside an involved interval leaves the actor
         present over the interval and at `w_k`, with no leave at `w_k`,
         under both row orders of the two changes.
@@ -69,7 +69,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
         gets a leave at `w_k`.
 
       Confirm RED and commit the test alone.
-- [ ] 2.2b Make 2.2a pass. If 2.1b built `P` as specified, this should be a
+- [x] 2.2b Make 2.2a pass. If 2.1b built `P` as specified, this should be a
       no-op or an edge fix at the wave points. Confirm GREEN and commit.
 - [ ] 2.3a Failing test: untouched data.
       - When no actor's `P` differs from `S`, the returned data is
