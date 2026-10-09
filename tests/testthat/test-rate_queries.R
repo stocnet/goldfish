@@ -714,3 +714,24 @@ test_that("a position outside the candidate's events aborts naming it", {
     error = TRUE
   )
 })
+
+# A fit's candidates all bind to one specification, so its composition form is
+# computed once and each candidate adds one more.
+test_that("the specification's composition form is computed once per bind set", {
+  rm(list = ls(composition_memo), envir = composition_memo)
+  forms <- 0L
+  original <- composition_normal_form
+  testthat::local_mocked_bindings(
+    composition_normal_form = function(data) {
+      forms <<- forms + 1L
+      original(data)
+    }
+  )
+  spec <- rq_joint_spec(rq_with_composition())
+  candidate <- rq_with_composition()
+  candidate$ties <- rq_candidate_data()$ties
+
+  bind_candidate_data(spec, candidate)
+  bind_candidate_data(spec, candidate)
+  expect_identical(forms, 3L)
+})
