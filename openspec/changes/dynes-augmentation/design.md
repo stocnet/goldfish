@@ -2065,6 +2065,25 @@ The study therefore:
 A rising non-converged share is reported as a finding of its cell, not hidden by the
 exclusion.
 
+**The v1 gate (amended 2026-10-09, user decision).** A replicate counts as converged
+when the exact Newton step from θ̂ to the optimum of its final pool is under **0.1 SE**
+in every coordinate: `max |I⁻¹ s̄ / SE| < 0.1`, where `s̄` is the weighted mean score
+at θ̂ in the fit's final covariance pass and `I⁻¹` is `vcov()`. The M-step's own
+convergence flag is recorded but does not gate. Its 1e-3 tolerance on the raw summed
+score sits below the minibatch noise, so it almost never fires: on the cluster sweep
+it was FALSE in nearly every coupled cell and every cell from f15 up, while the median
+Newton step there was 0.01–0.05 SE. Gating on the flag would have discarded fits that
+sit at their optimum. The Newton step answers what D25 asks, whether θ̂ is at the
+M-step optimum, in the units the SE calibration reads. The 0.1 SE threshold is a v1
+choice: it keeps the optimizer's share of the replicate spread to about 1% of the
+variance (0.1² of one SE²).
+Possible improvements in later versions, none required for v1: a stop rule in the
+M-step itself that is scale-aware (`sgd-scale-aware-default`), so the package's own flag
+becomes the gate; a per-coefficient gate in place of the maximum, so a flat,
+unidentified direction (the `recip` choice at low flip counts) does not decide for the
+whole replicate; and a final Newton step on the pool, which would make the gate hold
+by construction.
+
 *Rejected:* fixing the SGD default first. A scale-aware default (adagrad/Adam, or a
 step scaled by the information) changes every DyNES fit and is its own change
 (`sgd-scale-aware-default`), so the study does not wait on it. *Rejected:* running at

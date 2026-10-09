@@ -831,6 +831,29 @@
       `simulate()` opens its clock at the earliest data time whatever
       `control_prep` says (a `process-simulation` finding); the datasets were
       redrawn on the right window and the bundle rebuilt.
+      **Cluster results in (2026-10-09).** `results_20261009_0911.tar.gz` in
+      the bundle folder: 2034 of 2040 fits, every record stamped with bundle
+      `20261007_0834_15fa5438_ec2203ae`. They are valid for the code at
+      `f663b266` (after the `upstream/feature_simulation` merge), and the
+      pending `dynes-composition-to-waves` and `dynes-augmenter-walk-alignment`
+      changes leave them unchanged, so their "before the 6.2 sweep" ordering
+      does not require a rerun:
+      the study's data has no composition change, no tied observed stamp and
+      no observed event at a wave time (checked over all 8 datasets), and its
+      `start_time = 0` precedes every row, so the legality walk's default
+      `control_prep` reads the same rows. Ten replicates refit at `f663b266`
+      with the same panels and seeds (random, sim, mcmc; coupled and
+      uncoupled; f02–f15) matched the cluster's estimates and SEs to ~1e-15.
+      Those were the fastest replicates (0–1 EM iterations), so the check
+      covers the likelihood, the draws and the Louis covariance, not a long
+      SGD path. **Convergence gate for v1 (user, 2026-10-09; design D25
+      amendment):** exact Newton step to the pool optimum < 0.1 SE; the
+      M-step flag is recorded, not used. **`max_pool` did not cap the pools:**
+      it clamps only the post-acceptance size rule; the retry growth inside
+      an iteration is uncapped, so pools reached 1,000–11,000 and some fits
+      ran 25–34 h. The write-up (6.2.8) states the cost envelope from the
+      recorded pool sizes, not from the cap. Per-cell readings:
+      `.plan/dynes/recovery/FINDINGS.md` (D11–D17, C4).
 - [x] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
       stale round-1 cells. Session ~1 h.
 - [ ] 6.2.1 random cells (8, 100 replicates): on the cluster; merge and
