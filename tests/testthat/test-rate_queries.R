@@ -156,6 +156,86 @@ test_that("a candidate whose nodes differ is refused naming nodes", {
   expect_snapshot(bind_candidate_data(rq_joint_spec(), candidate), error = TRUE)
 })
 
+# A composition row for N3 leaving at time 2.5, in the encodings an authored
+# or a rewritten `changes` can carry.
+rq_with_composition <- function(
+  data = rq_tied_data(),
+  time = 2.5,
+  node = "N3",
+  value = list(list(FALSE)),
+  extra = FALSE
+) {
+  changes <- data.frame(time = time, node = node, var = "active")
+  changes$value <- value
+  if (extra) {
+    changes <- rbind(
+      changes,
+      data.frame(time = 1, node = "N1", var = "age", value = I(list(30)))
+    )
+  }
+  data$changes <- changes
+  data
+}
+
+test_that("a candidate with another composition is refused naming it", {
+  local_cli_context()
+  spec <- rq_joint_spec(rq_with_composition())
+  candidate <- rq_with_composition(rq_candidate_data(), time = 1.5)
+
+  expect_error(
+    bind_candidate_data(spec, candidate),
+    class = "goldfish_candidate_mismatch"
+  )
+  expect_snapshot(bind_candidate_data(spec, candidate), error = TRUE)
+})
+
+test_that("a candidate with composition against none is refused", {
+  expect_error(
+    bind_candidate_data(rq_joint_spec(), rq_with_composition()),
+    class = "goldfish_candidate_mismatch"
+  )
+  expect_error(
+    bind_candidate_data(
+      rq_joint_spec(rq_with_composition()),
+      rq_candidate_data()
+    ),
+    class = "goldfish_candidate_mismatch"
+  )
+})
+
+test_that("a candidate differing in encoding alone is bound", {
+  spec <- rq_joint_spec(rq_with_composition())
+  encodings <- list(
+    index = rq_with_composition(node = 3L),
+    posix = rq_with_composition(
+      time = as.POSIXct(2.5, origin = "1970-01-01", tz = "GMT")
+    ),
+    bare = rq_with_composition(value = list(FALSE)),
+    attribute = rq_with_composition(extra = TRUE)
+  )
+  for (encoding in names(encodings)) {
+    candidate <- encodings[[encoding]]
+    candidate$ties <- rq_candidate_data()$ties
+    expect_identical(
+      bind_candidate_data(spec, candidate)$data,
+      candidate,
+      label = encoding
+    )
+  }
+
+  none <- rq_candidate_data()
+  none$changes <- data.frame(
+    time = numeric(),
+    node = character(),
+    var = character()
+  )
+  none$changes$value <- list()
+  expect_identical(
+    bind_candidate_data(rq_joint_spec(), none)$data,
+    none
+  )
+})
+
 test_that("flat theta maps onto each fid's full coefficient vector", {
   spec <- rq_layout_spec()
   theta <- c(0.1, 0.2, 0.3, -0.4, -1, 0.7)

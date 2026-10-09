@@ -715,3 +715,51 @@ test_that("compositions differing in a time, node or value differ", {
     base
   ))
 })
+
+# compute_lik_seq() pairs a specification with a sequence; the fit's
+# specification and sequences carry the snapped composition, the authored
+# specification and the original data the real one.
+
+lik_theta <- function(spec) {
+  layout <- coef_layout(suppressWarnings(complete_generative_spec(spec)))
+  rep(0.1, sum(!layout$fixed))
+}
+
+lik_call <- function(spec, sequence) {
+  suppressWarnings(compute_lik_seq(
+    spec,
+    sequence,
+    lik_theta(spec),
+    wave_times = fit_waves
+  ))
+}
+
+test_that("compute_lik_seq() scores consistent pairings and refuses mixed", {
+  authored <- composition_fit_spec()
+  run <- composition_fit(authored)
+  fit_spec <- run$fit$spec
+  fit_sequence <- sim_draw(authored, snap = TRUE)[[1L]]$data
+  original <- fit_sequence
+  original$changes <- authored$data$changes
+  expect_false(identical(
+    composition_normal_form(fit_sequence),
+    composition_normal_form(original)
+  ))
+
+  expect_named(
+    lik_call(fit_spec, fit_sequence),
+    c("loglik", "score", "fisher", "degenerate")
+  )
+  expect_named(
+    lik_call(authored, original),
+    c("loglik", "score", "fisher", "degenerate")
+  )
+  expect_error(
+    lik_call(fit_spec, original),
+    class = "goldfish_candidate_mismatch"
+  )
+  expect_error(
+    lik_call(authored, fit_sequence),
+    class = "goldfish_candidate_mismatch"
+  )
+})
