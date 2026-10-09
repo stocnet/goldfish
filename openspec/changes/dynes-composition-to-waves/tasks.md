@@ -163,7 +163,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 
 ## 5. Milestone
 
-- [ ] 5.1 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`): the
+- [x] 5.1 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`): the
       composition snapping and its warning, the v1 approximation it is, and
       the `compute_lik_seq()` behavior change on mixed pairings. No Version
       bump and no `NEWS.md` edit on this branch. Commit.
