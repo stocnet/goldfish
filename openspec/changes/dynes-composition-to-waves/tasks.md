@@ -42,7 +42,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 
 ## 2. The presence-path rewrite (D3, D5)
 
-- [ ] 2.1a Failing test: one actor, one change, against the rewritten
+- [x] 2.1a Failing test: one actor, one change, against the rewritten
       `active` rows of `changes`:
       - a join inside interval `k` of an involved actor moves to `w_{k-1}`;
       - a join exactly at `w_k` of an actor involved in `k` moves to
@@ -53,7 +53,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       - an uninvolved actor's join and leave are kept.
 
       Confirm RED and commit the test alone.
-- [ ] 2.1b Implement the rewrite as the presence path `P` of D3. Build `S`
+- [x] 2.1b Implement the rewrite as the presence path `P` of D3. Build `S`
       from `nodes$active` (default present) and the actor's real changes,
       build `P` interval by interval, and write the minimal change list
       inside `[w_0, w_K]` for each actor whose `P` differs from `S`. Times
