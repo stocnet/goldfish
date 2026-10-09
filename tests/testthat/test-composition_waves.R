@@ -415,6 +415,26 @@ test_that("a long list of snapped actors is truncated", {
   )
 })
 
+test_that("a two-mode receiver's join moves; the first-set twin is untouched", {
+  spec <- involvement_twomode_spec()
+  spec$process_map <- spec$process_map[spec$process_map$layer != "talks", ]
+  involved <- composition_involvement(spec, c(0, 2))
+  expect_identical(involved[[1L]], c(2L, 3L))
+  # P1 (global 1) and O1 (global 3) are both local index 1 of their node set.
+  data <- list(
+    nodes = data.frame(
+      label = c("P1", "P2", "O1", "O2"),
+      mode = c("p", "p", "o", "o"),
+      active = FALSE
+    ),
+    changes = data.frame(time = c(1, 1), node = c(1L, 3L), var = "active")
+  )
+  data$changes$value <- list(list(TRUE), list(TRUE))
+  out <- rewrite_quiet(data, involved, c(0, 2))
+  expect_equal(snap_rows(out, 3L), snap_expect(0, TRUE))
+  expect_equal(snap_rows(out, 1L), snap_expect(1, TRUE))
+})
+
 posix_day <- function(day) {
   as.POSIXct("2020-01-01", tz = "UTC") + day * 86400
 }

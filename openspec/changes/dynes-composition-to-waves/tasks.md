@@ -185,16 +185,16 @@ Group 6 must close before the trunk fold, but it does not gate
 without an involved in-interval composition change, and that is the only data
 walk-alignment's 1.1 references are recorded on.
 
-- [ ] 6.1 Commit this change's `proposal.md`, `design.md`, `specs/` and
+- [x] 6.1 Commit this change's `proposal.md`, `design.md`, `specs/` and
       `.openspec.yaml` (only `tasks.md` is tracked today; a clone has no spec
       to fold). Never `progress.md`.
-- [ ] 6.2a Failing test: on data with POSIXct times, the snapped warning shows
+- [x] 6.2a Failing test: on data with POSIXct times, the snapped warning shows
       the interval bounds and the ignored times in the data's time class,
       not as epoch seconds; a rewrite of POSIXct `changes` writes POSIXct
       rows (pins `restore_time_class()`, which no test reaches today).
       Snapshot under a pinned cli context. Confirm RED and commit the test
       alone.
-- [ ] 6.2b Format the warning's times through the data's time class. Align
+- [x] 6.2b Format the warning's times through the data's time class. Align
       the NEWS.d fragment's "original and new times" with what the warning
       shows. Confirm GREEN and commit.
 - [ ] 6.3 Detector for "the specification's normal form is computed once per
@@ -207,7 +207,7 @@ walk-alignment's 1.1 references are recorded on.
       no warning, on a fixture whose process specifications carry their own
       data. Confirm the test fails with the identity return at the snap
       removed. Commit.
-- [ ] 6.5 Extend the two-mode test through `rewrite_composition()`: the
+- [x] 6.5 Extend the two-mode test through `rewrite_composition()`: the
       second-set node's join moves to `w_{k-1}`, and the first-set node with
       the same local index is untouched. Commit.
 - [ ] 6.6 Record the deviations that live only in `progress.md`: the
