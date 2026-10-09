@@ -112,16 +112,16 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       `complete_generative_spec()`. Install the rewritten data on the joint
       specification and on every process specification, as
       `bind_candidate_data()` rebinds. Confirm GREEN and commit.
-- [ ] 3.2 Characterization test (not a red/green pair: it holds by design):
+- [x] 3.2 Characterization test (not a red/green pair: it holds by design):
       the diffs taken for involvement equal those inside the compiled
       recipe, on a fixture the rewrite changes. Commit.
-- [ ] 3.3a Failing end-to-end test: a seeded sim draw over an interval whose
+- [x] 3.3a Failing end-to-end test: a seeded sim draw over an interval whose
       only remaining events belong to an actor that joins at its first
       event's stamp completes, and a draw with a leave before a flip's end
       completes. Today both strand: guard with the restart ceiling's
       condition so the RED run fails rather than loops. Confirm RED and
       commit the test alone.
-- [ ] 3.3b Expected GREEN from 3.1b with no further code. If not, the gap is
+- [x] 3.3b Expected GREEN from 3.1b with no further code. If not, the gap is
       a design defect: stop and reopen the design instead of patching the
       augmenter. Confirm GREEN and commit.
 - [ ] 3.4 Byte-identity check: on the existing DyNES fixtures and the frozen
