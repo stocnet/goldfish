@@ -645,3 +645,69 @@ test_that("a rewrite that changes nothing raises no warning", {
   expect_no_warning(rewrite_composition(data, list(1L, 2L), snap_waves))
   expect_no_warning(rewrite_composition(snap_data(), list(1L, 2L), snap_waves))
 })
+
+# The composition normal form the candidate guard compares: the `active` rows
+# only, numeric time, global node id, logical value, sorted by (time, node).
+
+nf_data <- function(changes) {
+  list(nodes = data.frame(label = paste0("N", 1:3)), changes = changes)
+}
+
+nf_changes <- function(time, node, var = "active", value = TRUE) {
+  changes <- data.frame(time = time, node = node, var = var)
+  changes$value <- lapply(value, list)
+  changes
+}
+
+test_that("an absent, empty or composition-free changes share one form", {
+  absent <- composition_normal_form(nf_data(NULL))
+  empty <- composition_normal_form(nf_data(nf_changes(numeric(), integer())))
+  other <- composition_normal_form(
+    nf_data(nf_changes(1, 2L, var = "age", value = 30))
+  )
+
+  expect_equal(nrow(absent), 0L)
+  expect_identical(empty, absent)
+  expect_identical(other, absent)
+})
+
+test_that("encoding differences of one composition share one form", {
+  index <- nf_data(nf_changes(c(2, 1), c(2L, 3L), value = c(FALSE, TRUE)))
+  label <- nf_data(nf_changes(c(2, 1), c("N2", "N3"), value = c(FALSE, TRUE)))
+  posix <- nf_data(nf_changes(
+    as.POSIXct(c(2, 1), origin = "1970-01-01", tz = "GMT"),
+    c(2L, 3L),
+    value = c(FALSE, TRUE)
+  ))
+  bare <- index
+  bare$changes$value <- list(FALSE, TRUE)
+  extra <- nf_data(rbind(
+    nf_changes(c(2, 1), c(2L, 3L), value = c(FALSE, TRUE)),
+    nf_changes(1.5, 1L, var = "age", value = 40)
+  ))
+  reference <- composition_normal_form(index)
+
+  expect_equal(reference$time, c(1, 2))
+  expect_equal(reference$node, c(3L, 2L))
+  expect_identical(composition_normal_form(label), reference)
+  expect_identical(composition_normal_form(posix), reference)
+  expect_identical(composition_normal_form(bare), reference)
+  expect_identical(composition_normal_form(extra), reference)
+})
+
+test_that("compositions differing in a time, node or value differ", {
+  base <- composition_normal_form(nf_data(nf_changes(1, 2L)))
+
+  expect_false(identical(
+    composition_normal_form(nf_data(nf_changes(1.5, 2L))),
+    base
+  ))
+  expect_false(identical(
+    composition_normal_form(nf_data(nf_changes(1, 3L))),
+    base
+  ))
+  expect_false(identical(
+    composition_normal_form(nf_data(nf_changes(1, 2L, value = FALSE))),
+    base
+  ))
+})
