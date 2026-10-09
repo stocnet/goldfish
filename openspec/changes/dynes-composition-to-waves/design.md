@@ -189,6 +189,13 @@ not to `changes` as a whole:
 - **Cost:** the specification's normal form is computed once per bound
   specification. The candidate's is O(composition rows) per call, negligible
   next to the walk the call guards. Nothing about it is per event.
+- **Memo:** "once per bound specification" is a single package-level slot
+  holding the last form with the `changes` and `nodes` it came from. A bind
+  reuses it when both are `identical()` to the specification's, so a hit costs
+  a pointer comparison, and any other specification recomputes and replaces
+  it. It holds one specification at a time, which is enough because a fit's
+  candidates all bind to one. The slot keeps that specification's `changes` and
+  `nodes` alive until the next bind.
 - **On mismatch:** the guard aborts with the existing
   `goldfish_candidate_mismatch` class. The cli message names composition as
   the field that differs, says that `estimate_dynes()` may have snapped the
@@ -224,8 +231,9 @@ The warning is a `cli::cli_warn()` with class
 `goldfish_composition_snapped_warning`, raised once, after the rewrite, only
 when some actor's `P` differs from `S`. It shows one bullet per
 (actor, interval) whose path changed, giving the actor label, the interval
-`(w_{k-1}, w_k]`, and the real change times now ignored. Long lists are
-truncated by cli with an "and n more" count. It also states:
+`(w_{k-1}, w_k]`, and the real change times now ignored. cli does not
+truncate separate bullets, so the list is capped by hand at 10 bullets
+followed by an "and n more" line. It also states:
 
 - the model changed: the moved actor's rate enters the compensator over the
   whole interval;
@@ -245,9 +253,12 @@ code. The rewrite runs once per fit, before completion, over:
 - the `active` rows of `data$changes`, grouped by actor, with the `K + 1` wave
   times per actor that has any change.
 
-Its cost is O(R + F + C + A x K) for R relational events, F flips, C
-composition rows and A actors with a composition change. It allocates nothing
-of size `n1 x n2`.
+Its cost is O(R + F + C + A_inv x (C + I)) for R relational events, F flips,
+C composition rows, A_inv involved actors and I the involvement entries over
+all intervals: the path of each involved actor scans the composition rows once
+more, so it is O(involved actors x composition rows). It runs once per fit
+(0.8 s at 2000 involved actors and 20 000 rows) and allocates nothing of size
+`n1 x n2`.
 
 Cost prediction: on the walk-cost budget fixture (CollegeMsg, no composition
 changes) the rewrite is a no-op and the walk's time, allocation and object size

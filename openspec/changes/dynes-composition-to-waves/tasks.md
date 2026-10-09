@@ -159,6 +159,11 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 - [x] 4.3 Characterization test: each built-in augmenter (`random`, `sim`,
       `mcmc`) draws on a rewritten fixture and its candidate binds to the
       fit's specification without abort. Commit.
+      Done as: `random` and `mcmc` through a fit, `random` and `sim` through
+      a direct draw on the snapped specification, plus the 3.3 fits that bind
+      `sim` candidates. A `sim` fit on `composition_fit_spec()` waits on
+      `dynes-augmenter-walk-alignment` 1.2d: its calls sit on the waves, which
+      hangs `sim` with or without a composition change.
 - [x] 4.4 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
 
 ## 5. Milestone
@@ -210,7 +215,7 @@ walk-alignment's 1.1 references are recorded on.
 - [x] 6.5 Extend the two-mode test through `rewrite_composition()`: the
       second-set node's join moves to `w_{k-1}`, and the first-set node with
       the same local index is untouched. Commit.
-- [ ] 6.6 Record the deviations that live only in `progress.md`: the
+- [x] 6.6 Record the deviations that live only in `progress.md`: the
       warning's manual cap of 10 bullets (cli does not truncate separate
       bullets) in design D5; the single-slot memo in D4; and in the 4.3 tick
       note, that the sim case is a direct draw plus the 3.3 fits, because
