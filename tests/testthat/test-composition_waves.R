@@ -359,3 +359,63 @@ test_that("the rewrite never edits nodes", {
   expect_false(identical(out$changes, data$changes))
   expect_identical(out$nodes, data$nodes)
 })
+
+# The warning: one per fit, listing each (actor, interval) whose presence path
+# changed with the real change times now ignored.
+
+snapped_data <- function() {
+  # N1 joins at 1 (interval 1); N2 leaves at 3 (interval 2).
+  snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = c(1, 3),
+    node = 1:2,
+    value = c(TRUE, FALSE)
+  )
+}
+
+test_that("a rewrite of two actors in two intervals warns exactly once", {
+  warnings <- list()
+  withCallingHandlers(
+    rewrite_composition(snapped_data(), list(1L, 2L), snap_waves),
+    warning = function(w) {
+      warnings[[length(warnings) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_length(warnings, 1L)
+  expect_s3_class(warnings[[1L]], "goldfish_composition_snapped_warning")
+})
+
+test_that("the composition warning names each actor, interval and time", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    out <- rewrite_composition(snapped_data(), list(1L, 2L), snap_waves)
+  )
+})
+
+test_that("a long list of snapped actors is truncated", {
+  local_reproducible_output(width = 80)
+  n <- 30L
+  data <- list(
+    nodes = data.frame(label = paste0("N", seq_len(n)), active = FALSE),
+    changes = data.frame(
+      time = rep(1, n),
+      node = seq_len(n),
+      var = "active"
+    )
+  )
+  data$changes$value <- lapply(rep(TRUE, n), list)
+  expect_snapshot(
+    out <- rewrite_composition(data, list(seq_len(n), integer()), c(0, 2, 5))
+  )
+})
+
+test_that("a rewrite that changes nothing raises no warning", {
+  data <- snap_data(
+    time = c(1, 3),
+    node = c(3L, 3L),
+    value = c(FALSE, TRUE)
+  )
+  expect_no_warning(rewrite_composition(data, list(1L, 2L), snap_waves))
+  expect_no_warning(rewrite_composition(snap_data(), list(1L, 2L), snap_waves))
+})
