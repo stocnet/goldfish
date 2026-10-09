@@ -71,7 +71,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       Confirm RED and commit the test alone.
 - [x] 2.2b Make 2.2a pass. If 2.1b built `P` as specified, this should be a
       no-op or an edge fix at the wave points. Confirm GREEN and commit.
-- [ ] 2.3a Failing test: untouched data.
+- [x] 2.3a Failing test: untouched data.
       - When no actor's `P` differs from `S`, the returned data is
         `identical()` to the input. This covers no `changes`, a zero-row
         `changes`, changes only for uninvolved actors, and changes only
@@ -82,7 +82,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       - `nodes` is never edited.
 
       Confirm RED and commit the test alone.
-- [ ] 2.3b Make 2.3a pass: return the input object when nothing changes, and
+- [x] 2.3b Make 2.3a pass: return the input object when nothing changes, and
       splice only the rewritten actors' in-window `active` rows otherwise.
       Confirm GREEN and commit.
 - [ ] 2.4a Failing test: the warning. A rewrite of two actors in two

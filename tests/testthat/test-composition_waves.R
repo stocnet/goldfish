@@ -290,3 +290,72 @@ test_that("an actor involved only before a wave leaves at the wave", {
   out <- rewrite_composition(data, list(1L, integer()), snap_waves)
   expect_identical(snap_rows(out, 1L), snap_expect(c(2, 3), c(FALSE, TRUE)))
 })
+
+# Untouched data: the rewrite returns its input unless some actor's presence
+# path differs, and otherwise edits only the rewritten actors' in-window
+# composition rows.
+
+test_that("data with no composition change comes back identical", {
+  data <- snap_data()
+  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+
+  data$changes <- NULL
+  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+})
+
+test_that("changes of uninvolved actors leave the data identical", {
+  data <- snap_data(
+    time = c(1, 3),
+    node = c(3L, 3L),
+    value = c(FALSE, TRUE)
+  )
+  expect_identical(rewrite_composition(data, list(1L, 2L), snap_waves), data)
+})
+
+test_that("changes outside the wave window leave the data identical", {
+  # Actor 1 is involved but joins before w_0 and leaves after w_K, so it is
+  # present across the whole window already.
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = c(-1, 7),
+    node = c(1L, 1L),
+    value = c(TRUE, FALSE)
+  )
+  expect_identical(rewrite_composition(data, list(1L, 1L), snap_waves), data)
+})
+
+test_that("a rewrite keeps every row it has no reason to touch", {
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = c(-1, 1, 4, 7, 3),
+    node = c(1L, 1L, 1L, 1L, 2L),
+    value = c(FALSE, TRUE, FALSE, TRUE, FALSE)
+  )
+  other <- data.frame(time = 1, node = 1L, var = "age")
+  other$value <- list(list(30))
+  data$changes <- rbind(data$changes, other)
+
+  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+
+  window_active <- data$changes$var == "active" &
+    data$changes$node == 1L &
+    data$changes$time >= 0 &
+    data$changes$time <= 5
+  kept <- data$changes[!window_active, ]
+  head_rows <- out$changes[seq_len(nrow(kept)), ]
+  rownames(kept) <- rownames(head_rows) <- NULL
+  expect_identical(head_rows, kept)
+  expect_false(identical(out$changes, data$changes))
+})
+
+test_that("the rewrite never edits nodes", {
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = 1,
+    node = 1L,
+    value = TRUE
+  )
+  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  expect_false(identical(out$changes, data$changes))
+  expect_identical(out$nodes, data$nodes)
+})
