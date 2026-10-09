@@ -415,6 +415,124 @@ test_that("a long list of snapped actors is truncated", {
   )
 })
 
+# Wiring into estimate_dynes(). Six actors, wave grid c(0, 2, 5). `friendship`
+# is the modeled panel layer with an authored rate; `calls` is a modeled
+# relational layer with no rate, so the completion pins one from the calls
+# risk set, which reads presence. N6 is absent until it joins at 3 and calls
+# N1 at 4, so it is involved in interval 2 and its join snaps to w_1 = 2.
+fit_waves <- c(0, 2, 5)
+
+composition_fit_data <- function(observation) {
+  changes <- data.frame(time = 3, node = "N6", var = "active")
+  changes$value <- list(list(TRUE))
+  list(
+    info = list(
+      name = "cw",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = observation, calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      active = c(rep(TRUE, 5L), FALSE),
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      data.frame(
+        from = c(1L, 2L, 3L, 4L),
+        to = c(2L, 3L, 4L, 5L),
+        time = c(1, 2, 3, 4),
+        layer = "friendship"
+      ),
+      data.frame(
+        from = c(1L, 2L, 3L, 6L, 5L),
+        to = c(2L, 3L, 4L, 1L, 1L),
+        time = c(1, 2, 3, 4, 5),
+        layer = "calls"
+      )
+    ),
+    changes = changes
+  )
+}
+
+composition_fit_spec <- function(data = composition_fit_data("panel")) {
+  events <- composition_fit_data("event")
+  make_joint_specification(
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = ~ inertia + recip,
+      layer = "friendship",
+      model = "DyNAM",
+      data = events
+    ),
+    make_specification(
+      choice = ~ inertia + tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = events
+    ),
+    data = data
+  )
+}
+
+# A one-iteration fit, its warnings' classes collected rather than raised.
+composition_fit <- function(spec = composition_fit_spec(), routine = "random") {
+  classes <- character()
+  fit <- withCallingHandlers(
+    estimate_dynes(
+      spec,
+      set_algorithm_em(
+        n_sequences = 4L,
+        max_iterations = 1L,
+        seed = 1L,
+        augmenter = set_augmenter_options(routine = routine)
+      ),
+      wave_times = fit_waves
+    ),
+    warning = function(w) {
+      classes <<- c(classes, class(w)[[1L]])
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(fit = fit, warnings = classes)
+}
+
+relational_pin <- function(data) {
+  rs <- relational_window_risk_set(data, layer = "calls")
+  pin_intercept_only_rate(rs$count, rs$duration, rs$risk_set_size)
+}
+
+test_that("estimate_dynes() fits on the snapped composition", {
+  spec <- composition_fit_spec()
+  rewritten <- suppressWarnings(rewrite_composition(
+    spec$data,
+    composition_involvement(spec, fit_waves),
+    fit_waves
+  ))
+  expect_false(identical(rewritten$changes, spec$data$changes))
+
+  run <- composition_fit(spec)
+
+  expect_identical(
+    sum(run$warnings == "goldfish_composition_snapped_warning"),
+    1L
+  )
+  fit_spec <- run$fit$spec
+  expect_identical(fit_spec$data$changes, rewritten$changes)
+  for (part in fit_spec$specifications) {
+    expect_identical(part$data$changes, rewritten$changes)
+  }
+  # The completed calls rate is pinned on the snapped composition, which the
+  # original one would not give.
+  map <- fit_spec$process_map
+  calls_rate <- as.character(map$fid[map$layer == "calls" & map$completed])
+  pinned <- fit_spec$completed_rates[[calls_rate]]$intercept
+  expect_identical(pinned, relational_pin(rewritten))
+  expect_false(isTRUE(all.equal(pinned, relational_pin(spec$data))))
+})
+
 test_that("a rewrite that changes nothing raises no warning", {
   data <- snap_data(
     time = c(1, 3),
