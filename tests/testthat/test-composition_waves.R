@@ -524,6 +524,7 @@ test_that("estimate_dynes() fits on the snapped composition", {
   for (part in fit_spec$specifications) {
     expect_identical(part$data$changes, rewritten$changes)
   }
+  expect_identical(run$fit$authored_spec$data, spec$data)
   # The completed calls rate is pinned on the snapped composition, which the
   # original one would not give.
   map <- fit_spec$process_map

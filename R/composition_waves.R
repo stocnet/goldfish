@@ -72,6 +72,26 @@ composition_involvement <- function(
   })
 }
 
+# The joint specification with its composition snapped to `wave_times`, on the
+# joint data and on every process specification's data. It runs before
+# completion, because a completed relational rate is pinned from a risk set
+# that reads presence: pinning on the original composition while the target
+# walks the snapped one would make the target read two compositions. When
+# nothing is snapped the specification comes back untouched, process data
+# included.
+snap_composition_to_waves <- function(
+  spec,
+  wave_times,
+  call = rlang::caller_env()
+) {
+  involved <- composition_involvement(spec, wave_times, call = call)
+  data <- rewrite_composition(spec$data, involved, wave_times)
+  if (identical(data, spec$data)) {
+    return(spec)
+  }
+  install_spec_data(spec, data)
+}
+
 # Rewrites the composition (`active` changes) of `data` so that an actor
 # involved in an interval of `wave_times` is present over the whole interval.
 # `involved` holds one vector of global ids per interval k = (w_{k-1}, w_k],

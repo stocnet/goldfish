@@ -130,9 +130,15 @@ bind_candidate_data <- function(spec, candidate, call = rlang::caller_env()) {
       class = "goldfish_candidate_mismatch"
     )
   }
-  spec$data <- candidate
+  install_spec_data(spec, candidate)
+}
+
+# `data` installed on the joint specification and on every process
+# specification it holds, so no part keeps reading the data it replaces.
+install_spec_data <- function(spec, data) {
+  spec$data <- data
   spec$specifications <- lapply(spec$specifications, function(part) {
-    part$data <- candidate
+    part$data <- data
     part
   })
   spec

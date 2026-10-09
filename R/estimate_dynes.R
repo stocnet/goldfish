@@ -168,13 +168,18 @@ estimate_dynes <- function(
   # and each timed rate's trailing compensator ends at the last wave.
   control_prep$start_time <- wave_times[[1L]]
   control_prep$end_time <- wave_times[[length(wave_times)]]
+  # An actor an interval's draw reads must be present over the whole interval,
+  # or the draw can strand on its zero rate. Snapped before completion so the
+  # pins, the target and every proposal read one composition.
+  # `spec` stays the authored one the fit returns.
+  snapped <- snap_composition_to_waves(spec, wave_times, call = call)
 
   # Completed once, here, on the wave grid the recipe is compiled on: every
   # proposal evaluator the loop builds reads this same object, so a pinned
   # rate cannot move between proposals. Without the grid a multi-wave pin
   # would fall back to one flat plateau over the data's event times.
   completed <- complete_generative_spec(
-    spec,
+    snapped,
     consumer = "estimate_dynes",
     wave_times = wave_times
   )

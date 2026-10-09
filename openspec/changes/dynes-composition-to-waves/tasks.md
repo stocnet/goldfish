@@ -99,7 +99,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 
 ## 3. Wiring into `estimate_dynes()` (D1)
 
-- [ ] 3.1a Failing test: on a fixture with an involved in-interval join,
+- [x] 3.1a Failing test: on a fixture with an involved in-interval join,
       `estimate_dynes()` warns with `goldfish_composition_snapped_warning`.
       The fit's `spec$data` and every `spec$specifications[[i]]$data` carry
       the rewritten composition. A completed relational rate's pin is
@@ -107,7 +107,7 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       `relational_window_risk_set()` on the rewritten and on the original
       data. Keep the fit small (one EM iteration, few sequences). Confirm RED
       and commit the test alone.
-- [ ] 3.1b In `R/estimate_dynes.R`, call involvement and the rewrite after
+- [x] 3.1b In `R/estimate_dynes.R`, call involvement and the rewrite after
       `panel_wave_grid()` and the `control_prep` window, and before
       `complete_generative_spec()`. Install the rewritten data on the joint
       specification and on every process specification, as
