@@ -133,16 +133,16 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
 
 ## 4. The normalized composition guard (D4)
 
-- [ ] 4.1a Failing test: the composition normal form. It equates `NULL`,
+- [x] 4.1a Failing test: the composition normal form. It equates `NULL`,
       zero-row and composition-free `changes`; numeric and POSIXct times;
       label and index nodes; and two `changes` that differ only in a
       non-`active` attribute row. It separates two compositions that differ
       in one change's time, node or value. Confirm RED and commit the test
       alone.
-- [ ] 4.1b Implement the normal form: the `active` rows only, numeric time,
+- [x] 4.1b Implement the normal form: the `active` rows only, numeric time,
       global node id (the `to_global_id()` mapping), logical value, stable
       sort by (time, node). Confirm GREEN and commit.
-- [ ] 4.2a Failing tests:
+- [x] 4.2a Failing tests:
       - `bind_candidate_data()` aborts with `goldfish_candidate_mismatch` on
         a composition difference, with a cli snapshot naming the composition
         and the consistent pairings, and binds on encoding-only differences.
@@ -151,15 +151,15 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
         scores both consistent pairings.
 
       Confirm RED and commit the tests alone.
-- [ ] 4.2b Extend `bind_candidate_data()` in `R/rate_queries.R`. Compute the
+- [x] 4.2b Extend `bind_candidate_data()` in `R/rate_queries.R`. Compute the
       specification's normal form once per bound specification, not per
       candidate, and abort through cli with the existing class. Keep the
       `info` / `nodes` checks and their message as they are. Confirm GREEN
       and commit.
-- [ ] 4.3 Characterization test: each built-in augmenter (`random`, `sim`,
+- [x] 4.3 Characterization test: each built-in augmenter (`random`, `sim`,
       `mcmc`) draws on a rewritten fixture and its candidate binds to the
       fit's specification without abort. Commit.
-- [ ] 4.4 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+- [x] 4.4 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
 
 ## 5. Milestone
 
