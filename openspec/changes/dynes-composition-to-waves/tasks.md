@@ -222,5 +222,11 @@ walk-alignment's 1.1 references are recorded on.
       the sim fit on `composition_fit_spec()` waits on
       `dynes-augmenter-walk-alignment` 1.2d. Correct the design's cost
       formula to O(involved actors x composition rows). Commit.
-- [ ] 6.7 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
+- [x] 6.7 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
       scoped `conformance-inspector` re-check of group 6.
+      Suite PASS 16305 / FAIL 0 / SKIP 5, baselines PASS. Report:
+      `.plan/develop/dynes-composition-to-waves-g6-conformance.md`,
+      CONFORMANT; each new detector is red under its ablation. Its one
+      should-fix gap, the proposal still naming "original and new times", is
+      fixed in this commit. Its notes are optional polish: a test for the
+      warning's no-changes time template, and the quoted ignored times.

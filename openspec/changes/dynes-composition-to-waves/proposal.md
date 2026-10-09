@@ -59,9 +59,10 @@ recovery sweep.
   exactly at `w_{k-1}` (interval `k-1`). That one-interval-early effect is
   accepted in v1 and stated in the warning.
 - **A warning.** One cli warning per fit, with a `goldfish_*` condition class,
-  names the moved actors and the original and new times. It says that the
-  rewrite changes the model (the moved actor's rate enters the compensator over
-  the whole interval) and that the real time is ignored.
+  names each moved actor, the interval, and the real change times now ignored
+  (in the data's time class). It says that the rewrite changes the model (the
+  moved actor's rate enters the compensator over the whole interval) and that
+  the real time is ignored.
 - **One composition for the target and every proposal.** The rewrite runs once,
   before completion, on the data that the likelihood, completion (a pinned
   relational rate reads presence) and all three augmenters read. The
