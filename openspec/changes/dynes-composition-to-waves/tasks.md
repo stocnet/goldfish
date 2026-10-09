@@ -167,6 +167,55 @@ Sequencing: this change lands before `dynes-augmenter-walk-alignment` task
       composition snapping and its warning, the v1 approximation it is, and
       the `compute_lik_seq()` behavior change on mixed pairings. No Version
       bump and no `NEWS.md` edit on this branch. Commit.
-- [ ] 5.2 Flip the change to landed (`status: landed (feature/dynes, awaiting
+- [x] 5.2 Flip the change to landed (`status: landed (feature/dynes, awaiting
       fold)` in `proposal.md`) and run `conformance-inspector` on the whole
       change; triage its report in `.plan/develop/`.
+      Report: `.plan/develop/dynes-composition-to-waves-conformance.md`,
+      CONFORMANT, no blocking gap. Its seven should-fix gaps are group 6
+      below. Its notes are owned elsewhere: the sim fit on
+      `composition_fit_spec()` hangs because calls sit on the waves, which is
+      `dynes-augmenter-walk-alignment` 1.2c/1.2d (folded into 1.2d); the
+      restart-ceiling message that blames coupling for a composition stall
+      goes to `dynes-augmenter-driver-v2`.
+
+## 6. Conformance follow-ups (report of 5.2)
+
+Group 6 must close before the trunk fold, but it does not gate
+`dynes-augmenter-walk-alignment`. None of its tasks changes behavior on data
+without an involved in-interval composition change, and that is the only data
+walk-alignment's 1.1 references are recorded on.
+
+- [ ] 6.1 Commit this change's `proposal.md`, `design.md`, `specs/` and
+      `.openspec.yaml` (only `tasks.md` is tracked today; a clone has no spec
+      to fold). Never `progress.md`.
+- [ ] 6.2a Failing test: on data with POSIXct times, the snapped warning shows
+      the interval bounds and the ignored times in the data's time class,
+      not as epoch seconds; a rewrite of POSIXct `changes` writes POSIXct
+      rows (pins `restore_time_class()`, which no test reaches today).
+      Snapshot under a pinned cli context. Confirm RED and commit the test
+      alone.
+- [ ] 6.2b Format the warning's times through the data's time class. Align
+      the NEWS.d fragment's "original and new times" with what the warning
+      shows. Confirm GREEN and commit.
+- [ ] 6.3 Detector for "the specification's normal form is computed once per
+      bound specification": bind two candidates to one specification and
+      count `composition_normal_form()` calls (mocked counter), expecting one
+      for the specification and one per candidate. Confirm the test fails
+      with the memo disabled. Commit.
+- [ ] 6.4 Detector for the no-op at the snap level:
+      `snap_composition_to_waves()` returns the specification identical, with
+      no warning, on a fixture whose process specifications carry their own
+      data. Confirm the test fails with the identity return at the snap
+      removed. Commit.
+- [ ] 6.5 Extend the two-mode test through `rewrite_composition()`: the
+      second-set node's join moves to `w_{k-1}`, and the first-set node with
+      the same local index is untouched. Commit.
+- [ ] 6.6 Record the deviations that live only in `progress.md`: the
+      warning's manual cap of 10 bullets (cli does not truncate separate
+      bullets) in design D5; the single-slot memo in D4; and in the 4.3 tick
+      note, that the sim case is a direct draw plus the 3.3 fits, because
+      the sim fit on `composition_fit_spec()` waits on
+      `dynes-augmenter-walk-alignment` 1.2d. Correct the design's cost
+      formula to O(involved actors x composition rows). Commit.
+- [ ] 6.7 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
+      scoped `conformance-inspector` re-check of group 6.
