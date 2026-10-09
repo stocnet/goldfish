@@ -148,3 +148,102 @@ test_that("a two-mode receiver is not read as the same-index first-set node", {
   involved <- composition_involvement(spec, c(0, 2))
   expect_identical(involved[[1L]], c(2L, 3L))
 })
+
+# The presence-path rewrite. Wave grid c(0, 2, 5): interval 1 = (0, 2],
+# interval 2 = (2, 5]. Involvement is passed directly, one vector of global ids
+# per interval, so these tests exercise the rewrite alone.
+
+snap_waves <- c(0, 2, 5)
+
+# Six actors with the given initial presence and `active` changes.
+snap_data <- function(
+  active = rep(TRUE, 6L),
+  time = numeric(),
+  node = integer(),
+  value = logical()
+) {
+  changes <- data.frame(
+    time = time,
+    node = node,
+    var = rep("active", length(time))
+  )
+  changes$value <- lapply(value, list)
+  list(
+    nodes = data.frame(label = paste0("N", 1:6), active = active),
+    changes = changes
+  )
+}
+
+# One actor's rewritten `active` rows as (time, value), in time order.
+snap_rows <- function(data, actor) {
+  ch <- as.data.frame(data$changes)
+  sel <- ch$var == "active" & to_global_id(ch$node, data$nodes) == actor
+  out <- data.frame(
+    time = coerce_time(ch$time[sel]),
+    value = as.logical(unlist(unwrap_values(ch$value[sel])))
+  )
+  out <- out[order(out$time), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+snap_expect <- function(time = numeric(), value = logical()) {
+  data.frame(time = as.numeric(time), value = as.logical(value))
+}
+
+test_that("an involved actor's join inside its interval moves to its start", {
+  data <- snap_data(
+    active = c(FALSE, FALSE, rep(TRUE, 4L)),
+    time = c(1, 3),
+    node = 1:2,
+    value = c(TRUE, TRUE)
+  )
+  out <- rewrite_composition(data, list(1L, 2L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(0, TRUE))
+  expect_identical(snap_rows(out, 2L), snap_expect(2, TRUE))
+})
+
+test_that("a join exactly at w_k of an actor involved in k moves to w_{k-1}", {
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = 2,
+    node = 1L,
+    value = TRUE
+  )
+  out <- rewrite_composition(data, list(1L, integer()), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(0, TRUE))
+})
+
+test_that("a join exactly at w_k of an actor involved only in k + 1 is kept", {
+  data <- snap_data(
+    active = c(FALSE, rep(TRUE, 5L)),
+    time = 2,
+    node = 1L,
+    value = TRUE
+  )
+  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(2, TRUE))
+})
+
+test_that("an involved actor's leave inside its interval moves to its end", {
+  data <- snap_data(time = c(1, 3), node = 1:2, value = c(FALSE, FALSE))
+  out <- rewrite_composition(data, list(1L, 2L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(2, FALSE))
+  expect_identical(snap_rows(out, 2L), snap_expect(5, FALSE))
+})
+
+test_that("a leave exactly at w_{k-1} of an actor involved in k moves to w_k", {
+  data <- snap_data(time = 2, node = 1L, value = FALSE)
+  out <- rewrite_composition(data, list(integer(), 1L), snap_waves)
+  expect_identical(snap_rows(out, 1L), snap_expect(5, FALSE))
+})
+
+test_that("an uninvolved actor's join and leave are kept", {
+  data <- snap_data(
+    time = c(1, 3, 4),
+    node = c(3L, 3L, 1L),
+    value = c(FALSE, TRUE, FALSE)
+  )
+  out <- rewrite_composition(data, list(1L, 1L), snap_waves)
+  expect_identical(snap_rows(out, 3L), snap_expect(c(1, 3), c(FALSE, TRUE)))
+})
