@@ -415,6 +415,37 @@ test_that("a long list of snapped actors is truncated", {
   )
 })
 
+posix_day <- function(day) {
+  as.POSIXct("2020-01-01", tz = "UTC") + day * 86400
+}
+
+posix_data <- function() {
+  data <- snapped_data()
+  data$changes$time <- posix_day(data$changes$time)
+  data
+}
+
+test_that("a rewrite of POSIXct changes writes POSIXct rows", {
+  out <- rewrite_quiet(posix_data(), list(1L, 2L), posix_day(snap_waves))
+  expect_s3_class(out$changes$time, "POSIXct")
+  expect_identical(attr(out$changes$time, "tzone"), "UTC")
+  expect_equal(
+    out$changes$time[out$changes$node == 1L],
+    posix_day(0)
+  )
+})
+
+test_that("the composition warning shows times in the data's time class", {
+  local_reproducible_output(width = 80)
+  expect_snapshot(
+    out <- rewrite_composition(
+      posix_data(),
+      list(1L, 2L),
+      posix_day(snap_waves)
+    )
+  )
+})
+
 # Wiring into estimate_dynes(). Six actors, wave grid c(0, 2, 5). `friendship`
 # is the modeled panel layer with an authored rate; `calls` is a modeled
 # relational layer with no rate, so the completion pins one from the calls
