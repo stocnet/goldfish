@@ -195,6 +195,69 @@ test_that("a step evaluates a rate fid once over several of its pairs", {
   expect_lte(max(most), 1L)
 })
 
+# --- Column reads -------------------------------------------------------------
+
+# Count the data-frame row extractions and unique() calls the augmenter's own
+# step code makes, through a trace on the base methods. A call is the step's
+# when the nearest named goldfish frame above it is a `sim_*` function, so
+# the walk's and the evaluator's own data frames are not counted.
+local_sim_frame_reads <- function(env = parent.frame()) {
+  log <- new.env(parent = emptyenv())
+  log$reads <- character()
+  namespace <- asNamespace("goldfish")
+  record <- function(method) {
+    frames <- sys.calls()
+    for (i in rev(seq_along(frames))) {
+      head <- frames[[i]][[1L]]
+      if (!is.name(head) || identical(as.character(head), "FUN")) {
+        next
+      }
+      fn <- sys.function(i)
+      if (!identical(topenv(environment(fn) %||% baseenv()), namespace)) {
+        next
+      }
+      if (startsWith(as.character(head), "sim_")) {
+        log$reads <- c(log$reads, paste(method, as.character(head)))
+      }
+      return(invisible())
+    }
+  }
+  for (method in c("[.data.frame", "unique.data.frame")) {
+    suppressMessages(trace(
+      method,
+      tracer = bquote(.(record)(.(method))),
+      print = FALSE,
+      where = baseenv()
+    ))
+  }
+  withr::defer(
+    {
+      suppressMessages(untrace("[.data.frame", where = baseenv()))
+      suppressMessages(untrace("unique.data.frame", where = baseenv()))
+    },
+    envir = env
+  )
+  log
+}
+
+test_that("a sim step reads no data-frame row and makes no unique() over one", {
+  skip_on_cran()
+  fixture <- wa_sim_fixture("uncoupled")
+  steps <- 0L
+  clock <- sim_clock
+  local_mocked_bindings(
+    sim_clock = function(...) {
+      steps <<- steps + 1L
+      clock(...)
+    }
+  )
+  log <- local_sim_frame_reads()
+  wa_seeded_draw(fixture, 1L)
+  expect_gt(steps, 0L)
+  # The sites, so a failure names where the step still reads a row.
+  expect_identical(sort(unique(log$reads)), character())
+})
+
 # --- One walk -----------------------------------------------------------------
 
 test_that("an uncoupled sim draw opens one walk", {

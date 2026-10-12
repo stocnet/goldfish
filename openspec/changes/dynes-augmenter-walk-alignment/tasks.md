@@ -216,7 +216,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       the driver clips there and the next call starts with a cleared cache.
       The fixture is therefore a receiver leaving at the call's stamp, not
       an exogenous row (see `progress.md`).
-- [ ] 4.4a Failing guard: no `data.frame` row extraction or `unique()` over
+- [x] 4.4a Failing guard: no `data.frame` row extraction or `unique()` over
       data-frame columns in the sim step path (count `[.data.frame` calls per
       step through a trace, as the walk-cost helpers do). Confirm RED and
       commit the test alone.
