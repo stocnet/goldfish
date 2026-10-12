@@ -193,8 +193,16 @@ emit_augmented_data <- function(context, times) {
   )
   ties <- base$ties
   drawn <- ties[rep(NA_integer_, nrow(events)), , drop = FALSE]
-  drawn$from <- events$from
-  drawn$to <- events$to
+  # The recipe names nodes by index; data whose ties name them by label must
+  # get labels back, or the bound rows mix the two and no longer resolve.
+  if (is.character(ties$from)) {
+    labels <- as.data.frame(base$nodes)$label
+    drawn$from <- labels[node_index(events$from, labels)]
+    drawn$to <- labels[node_index(events$to, labels)]
+  } else {
+    drawn$from <- events$from
+    drawn$to <- events$to
+  }
   drawn$time <- as.numeric(times)
   drawn$layer <- events$layer
   if (!"weight" %in% names(ties) && any(value != 1)) {
