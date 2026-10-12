@@ -592,10 +592,11 @@ build_joint_schedule <- function(
   stream_index <- combine("stream_index")
   dependent <- combine("dependent")
   # At a stamp every dependent row comes first, then the other rows in
-  # stream order: no row stamped at t informs an evaluation at t, whichever
-  # process it belongs to, so a statistic reads the same state strictly
-  # before the stamp that a support mask does. A single process is
-  # unaffected, its dependent stream being the first one added.
+  # stream order: the actor's decision precedes the stamp, so no row stamped
+  # at t informs an evaluation at t, whichever process it belongs to, and a
+  # statistic reads the same state strictly before the stamp that a support
+  # mask does. A single process is unaffected, its dependent stream being the
+  # first one added.
   ordering <- order(time, !dependent, stream_index, method = "radix")
   value <- do.call(c, lapply(parts, `[[`, "value"))
 

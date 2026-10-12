@@ -872,3 +872,28 @@ test_that("a snap that changes nothing returns the specification itself", {
   expect_no_warning(snapped <- snap_composition_to_waves(spec, snap_waves))
   expect_identical(snapped, spec)
 })
+
+test_that("at a wave stamp the dependent row precedes a covariate row", {
+  # N6's join (real time 3) snaps to the wave at 2, the stamp of the calls
+  # event 2 -> 3 and of the friendship event 2 -> 3 the calls choice reads.
+  # The composition change is no schedule row: presence is read off the
+  # snapped changes, and so the schedule decides only the dependent event
+  # against the covariate update. The actor's decision precedes the stamp.
+  spec <- composition_fit_spec()
+  snapped <- suppressWarnings(snap_composition_to_waves(spec, fit_waves))
+  expect_identical(snapped$data$changes$time, 2)
+
+  schedule <- build_merged_blocks(snapped)$schedule
+  at_stamp <- which(schedule$time == 2 & schedule$layer == "calls")
+
+  expect_identical(schedule$dependent[at_stamp], c(TRUE, FALSE))
+  expect_identical(
+    schedule$layer[schedule$time == 2],
+    c("friendship", "calls", "friendship", "calls")
+  )
+  expect_identical(
+    schedule$dependent[schedule$time == 2],
+    c(TRUE, TRUE, FALSE, FALSE)
+  )
+  expect_false(any(schedule$shape == "node"))
+})
