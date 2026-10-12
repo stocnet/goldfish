@@ -84,12 +84,66 @@ substrate_context <- function() {
   )
 }
 
-test_that("the walk opens on a flavored, constrained, windowed DyNES fixture", {
-  context <- substrate_context()
-  expect_no_condition(
-    open_augmenter_walk(context),
-    class = "goldfish_walk_unsupported"
+# The calls constraint reads emails, a network no formula term reads, so only
+# the live support can see it change. An email 2 -> 4 lands at t = 3.
+unread_constraint_context <- function() {
+  data <- substrate_data()
+  data$info$update <- c(data$info$update, emails = "increment")
+  data$info$directed <- c(data$info$directed, emails = TRUE)
+  data$info$observation <- c(data$info$observation, emails = "event")
+  emails <- data.frame(
+    from = c(2L, 4L),
+    to = c(4L, 6L),
+    time = c(3, 7),
+    weight = 1,
+    layer = "emails"
   )
+  for (column in setdiff(names(data$ties), names(emails))) {
+    emails[[column]] <- NA
+  }
+  data$ties <- rbind(data$ties, emails[names(data$ties)])
+  spec <- make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg, dissolution ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ inertia(calls, window = 2),
+      layer = "calls",
+      model = "DyNAM",
+      data = data,
+      support_constraint = ~ !tie(emails)
+    ),
+    data = data
+  )
+  waves <- panel_wave_grid(spec, start_time = 0)
+  completed <- suppressWarnings(complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = waves
+  ))
+  new_augmenter_context(
+    completed,
+    compile_augmentation_recipe(completed, waves)
+  )
+}
+
+test_that("a constraint on a network no term reads follows it mid-interval", {
+  handle <- open_augmenter_walk(unread_constraint_context())
+  supported <- function(sender, receiver) {
+    walk_event_supported(handle, "calls", NA_character_, sender, receiver)
+  }
+
+  walk_advance(handle, 2.5)
+  expect_true(supported(2L, 4L))
+  expect_true(supported(1L, 3L))
+
+  walk_advance(handle, 3.5)
+  expect_false(supported(2L, 4L))
+  expect_true(supported(1L, 3L))
 })
 
 test_that("walk_evaluate() masks the choice by the user support constraint", {

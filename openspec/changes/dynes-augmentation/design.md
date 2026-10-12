@@ -822,12 +822,14 @@ augmenters inherit all of it without asking:
   This is the substrate for a DyNES spec whose panel layer carries an unmodeled
   flavor (D19's partially-modeled RE layers).
 
-Three guards the augmenters were blocked on are also gone (see the resolved Open
+Four guards the augmenters were blocked on are also gone (see the resolved Open
 Question at the end of this document): user and derived support constraints are
 maintained live on the handle, composition changes advance through
-`walk_advance()`, and windowed effects run on the merged walk. One refusal
-remains (`goldfish_walk_unsupported`): a constraint reading a *changing* object
-no formula term reads, which `constraint-objects-on-shared-walk` is open against.
+`walk_advance()`, windowed effects run on the merged walk, and a constraint
+reading a *changing* object no formula term reads is stepped by the shared
+schedule too. That last refusal (`goldfish_walk_unsupported`) was lifted by
+`constraint-objects-on-shared-walk` (b1b21033) at the f663b266 merge; no refusal
+remains.
 
 The augmenter-side risk-set restriction (observed pairs with remaining
 support-applicable events, D20) happens **in R**: the driver reads the
@@ -2363,16 +2365,15 @@ package.
   - **Composition change — lifted** (`process-simulation` task 2.0b): presence
     cursors advance through `walk_advance()`.
 
-  **Residual gap, tracked elsewhere, not blocking:** a support constraint whose
-  atoms read a *changing* object that **no formula term reads** is still not
-  stepped by the shared schedule, and the handle refuses it
-  (`goldfish_walk_unsupported`). That is the whole subject of the
-  `constraint-objects-on-shared-walk` change (its `multi-process-walk` delta
-  makes live maintenance of every constraint a SHALL, with the
-  "constraint on an object no formula reads replays exactly" scenario). DyNES
-  inherits the fix; nothing here needs to duplicate it. Task 3.1 keeps a
-  verification step — assert on a real DyNES fixture that `walk_open()` opens
-  and `walk_evaluate()` masks — rather than an implementation step.
+  **Residual gap — lifted:** a support constraint whose atoms read a *changing*
+  object that **no formula term reads** was once refused by the handle
+  (`goldfish_walk_unsupported`). `constraint-objects-on-shared-walk`
+  (b1b21033, merged at f663b266) lifted it: its `multi-process-walk` delta makes
+  live maintenance of every constraint a SHALL, with the "constraint on an
+  object no formula reads replays exactly" scenario. DyNES inherits the fix.
+  The augmenter-side check is a characterization test: a constraint reading
+  such a network flips `walk_event_supported()` when that network changes
+  mid-interval.
 
   The original finding, kept for the record:
   - **Support constraints.** `walk_open()` aborts whenever `merged$support_constraints`
