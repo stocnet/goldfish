@@ -220,7 +220,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       data-frame columns in the sim step path (count `[.data.frame` calls per
       step through a trace, as the walk-cost helpers do). Confirm RED and
       commit the test alone.
-- [ ] 4.4b Build the plan's flip, forced and relational columns once in
+- [x] 4.4b Build the plan's flip, forced and relational columns once in
       `sim_plan()` / `new_sim_attempt()`, and read them by integer index. The
       chain heads become event ids. Confirm GREEN and seeded identity, then
       commit.

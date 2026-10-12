@@ -184,7 +184,8 @@ recipe_start_states <- function(data, wave_times, call) {
 # The mutable per-draw state an augmenter holds over a recipe: how many events
 # each chain has left to place. `take(chain)` hands out the chain's next event
 # id, so chain order holds by construction; `remaining(interval)` lists the
-# chains with events left; `done(interval)` says none are; `reset()` starts a
+# chains with events left; `heads(interval)` is the next event id of each of
+# them, in the same order; `done(interval)` says none are; `reset()` starts a
 # new draw. The recipe itself is never written.
 new_recipe_cursor <- function(recipe) {
   chains <- recipe$chains
@@ -208,6 +209,10 @@ new_recipe_cursor <- function(recipe) {
         invisible(NULL)
       },
       remaining = remaining,
+      heads = function(interval) {
+        keep <- which(left > 0L & chains$interval %in% interval)
+        chains$first[keep] + chains$length[keep] - left[keep]
+      },
       take = function(chain) {
         at <- match(chain, chains$chain)
         if (length(at) != 1L || is.na(at) || left[at] == 0L) {

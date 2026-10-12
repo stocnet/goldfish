@@ -225,6 +225,21 @@ test_that("a cursor lists the chains with events left, per interval", {
   expect_false(cursor$done())
 })
 
+test_that("a cursor's heads are the next event of each listed chain", {
+  recipe <- compile_augmentation_recipe(recipe_count_spec(), c(0, 5, 10))
+  cursor <- new_recipe_cursor(recipe)
+  chain <- recipe$chains$chain[recipe$chains$length == 3L]
+  cursor$take(chain)
+
+  heads <- cursor$heads(2L)
+  expect_identical(recipe$events$chain[heads], cursor$remaining(2L)$chain)
+  expect_identical(
+    heads[recipe$events$chain[heads] == chain],
+    cursor$take(chain)
+  )
+  expect_length(cursor$heads(3L), 0L)
+})
+
 test_that("cursors are independent and never mutate the recipe", {
   recipe <- compile_augmentation_recipe(recipe_state_spec(), c(0, 5, 10))
   frozen <- rlang::duplicate(recipe)

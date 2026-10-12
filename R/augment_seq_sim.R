@@ -126,7 +126,7 @@ sim_plan <- function(context, coupled) {
     rep(waves[[1L]], nrow(recipe$events))
   )
   events <- recipe$events
-  flips <- data.frame(
+  flips <- list(
     event = events$event,
     interval = events$interval,
     chain = events$chain,
@@ -139,10 +139,15 @@ sim_plan <- function(context, coupled) {
       update[events$layer] == "replace",
       events$to_value,
       events$to_value - events$from_value
-    ),
-    stringsAsFactors = FALSE
+    )
   )
   flips$rate_fid <- sim_rate_fid(map, flips$layer, flips$flavor)
+  # The (layer, flavor, sender) pair each flip belongs to, and the row each
+  # event id sits at, so a step finds its candidates by integer comparison.
+  pair <- paste(flips$layer, flips$flavor, flips$sender, sep = "\r")
+  flips$pair <- match(pair, unique(pair))
+  flip_row <- rep(NA_integer_, max(c(0L, flips$event)))
+  flip_row[flips$event] <- seq_along(flips$event)
 
   runner <- new.env(parent = emptyenv())
   list(
@@ -155,15 +160,17 @@ sim_plan <- function(context, coupled) {
     map = map,
     observed = sim_observed_events(context, labels, update),
     flips = flips,
+    flip_row = flip_row,
     rate_fids = map$fid[map$family == "rate"],
     coupled = coupled
   )
 }
 
 # The observed events of the modeled processes up to the last wave, in the
-# order of the observed stream: the initial condition (at or before the
-# observation start, interval 0) and the relational events of each interval
-# (w_{k-1}, w_k]. A flavor no process models is replayed by the driver itself.
+# order of the observed stream, as columns: the initial condition (at or
+# before the observation start, interval 0) and the relational events of each
+# interval (w_{k-1}, w_k]. A flavor no process models is replayed by the
+# driver itself.
 sim_observed_events <- function(context, labels, update) {
   map <- context$spec$process_map
   waves <- context$recipe$wave_times
@@ -173,7 +180,7 @@ sim_observed_events <- function(context, labels, update) {
   keep <- modeled & !is.na(ties$time) & ties$time <= waves[[length(waves)]]
   ties <- ties[keep, , drop = FALSE]
   flavor <- flavor[keep]
-  observed <- data.frame(
+  observed <- list(
     time = as.numeric(ties$time),
     interval = findInterval(ties$time, waves, left.open = TRUE),
     layer = ties$layer,
@@ -181,8 +188,7 @@ sim_observed_events <- function(context, labels, update) {
     sender = node_index(ties$from, labels),
     receiver = node_index(ties$to, labels),
     semantics = sim_semantics(update[ties$layer]),
-    value = ties[["weight"]] %||% rep(1, nrow(ties)),
-    stringsAsFactors = FALSE
+    value = ties[["weight"]] %||% rep(1, nrow(ties))
   )
   observed$rate_fid <- sim_rate_fid(map, observed$layer, observed$flavor)
   observed
@@ -253,33 +259,29 @@ sim_interval_attempt <- function(plan, k, times, parameters, call) {
 
 # The mutable state one attempt's steps share: the forced events (the
 # observed events and earlier intervals' flips up to the interval start, as
-# the columns replay_stamps() reads), the interval's relational events, the
-# recipe cursor over its flips, the step in progress, the values read at the
-# walk's current state, and the density so far.
-# The driver draws only the interval's own events.
+# the columns replay_stamps() reads), the interval's relational events (as
+# columns, a step addressing one by its position), the recipe cursor over its
+# flips, the step in progress, the values read at the walk's current state,
+# and the density so far. The driver draws only the interval's own events.
 new_sim_attempt <- function(plan, k, times, parameters) {
   observed <- plan$observed
   flips <- plan$flips
-  earlier <- flips[flips$interval < k, , drop = FALSE]
-  earlier$time <- times[earlier$event]
-  columns <- c(
-    "time",
-    "layer",
-    "flavor",
-    "sender",
-    "receiver",
-    "semantics",
-    "value",
-    "rate_fid"
-  )
-  forced <- rbind(
-    observed[observed$interval < k, columns, drop = FALSE],
-    earlier[, columns, drop = FALSE]
-  )
+  before <- which(observed$interval < k)
+  earlier <- which(flips$interval < k)
   # Stable, so observed events sharing a stamp keep the stream's order; a
   # drawn flip never shares one.
-  forced <- forced[order(forced$time, method = "radix"), , drop = FALSE]
-  relational <- observed[observed$interval == k, columns, drop = FALSE]
+  time <- c(observed$time[before], times[flips$event[earlier]])
+  sorted <- order(time, method = "radix")
+  forced <- function(column) {
+    c(observed[[column]][before], flips[[column]][earlier])[sorted]
+  }
+  current <- which(observed$interval == k)
+  relational <- lapply(
+    observed[c("time", "layer", "flavor", "sender", "receiver", "semantics")],
+    function(column) column[current]
+  )
+  relational$value <- observed$value[current]
+  relational$rate_fid <- observed$rate_fid[current]
   state <- new.env(parent = emptyenv())
   state$plan <- plan
   state$k <- k
@@ -287,19 +289,20 @@ new_sim_attempt <- function(plan, k, times, parameters) {
   state$wave_end <- plan$waves[[k + 1L]]
   state$parameters <- parameters
   state$forced <- list(
-    time = forced$time,
-    layer = forced$layer,
-    sender = forced$sender,
-    receiver = forced$receiver,
-    field = forced$semantics,
-    value = forced$value,
-    stamp_end = stamp_ends(forced$time)
+    time = time[sorted],
+    layer = forced("layer"),
+    sender = forced("sender"),
+    receiver = forced("receiver"),
+    field = forced("semantics"),
+    value = forced("value"),
+    stamp_end = stamp_ends(time[sorted])
   )
   state$forced_applied <- FALSE
   state$relational <- relational
   state$n_relational <- 0L
   state$cursor <- new_recipe_cursor(plan$recipe)
-  state$n_events <- nrow(relational) + sum(flips$interval == k)
+  state$n_relational_total <- length(current)
+  state$n_events <- length(current) + sum(flips$interval == k)
   state$times <- times
   state$pending <- NULL
   state$time <- NA_real_
@@ -373,9 +376,9 @@ sim_clock <- function(state, t, handle) {
     return(list(wait = 0, fid = state$plan$rate_fids[[1L]], kind = "event"))
   }
   if (!identical(pending$kind, "flip")) {
-    state$time <- pending$event$time
+    state$time <- state$relational$time[[pending$event]]
     return(list(
-      wait = pending$event$time - t,
+      wait = state$time - t,
       fid = sim_event_fid(state, pending$event),
       kind = "event"
     ))
@@ -384,11 +387,12 @@ sim_clock <- function(state, t, handle) {
 }
 
 # The step that follows the last placed event: a candidate selected in
-# proportion to its rate, else a strand.
+# proportion to its rate, else a strand. A relational event is its position
+# in the attempt's relational columns.
 sim_next_step <- function(state, t, handle) {
   relational <- NULL
-  if (state$n_relational < nrow(state$relational)) {
-    relational <- state$relational[state$n_relational + 1L, ]
+  if (state$n_relational < state$n_relational_total) {
+    relational <- state$n_relational + 1L
   }
   # A flip lands strictly inside the gap to the next relational event, so
   # none fits between two events at one stamp: the sibling of a placed event
@@ -402,7 +406,10 @@ sim_next_step <- function(state, t, handle) {
   # An event at the closing wave leaves no room after it for a flip of the
   # interval: it is not weighted, and comes, with certainty, once no flip of
   # the interval is left.
-  if (!is.null(relational) && relational$time == state$wave_end) {
+  if (
+    !is.null(relational) &&
+      state$relational$time[[relational]] == state$wave_end
+  ) {
     if (state$cursor$done(state$k)) {
       return(list(kind = "relational", event = relational))
     }
@@ -419,41 +426,45 @@ sim_next_step <- function(state, t, handle) {
   }
   chosen <- sample_index(weights)
   state$log_q <- state$log_q + log(weights[[chosen]] / total)
-  if (chosen > nrow(options)) {
+  if (chosen > length(options$head)) {
     return(list(kind = "relational", event = relational))
   }
-  list(kind = "flip", option = options[chosen, ])
+  list(kind = "flip", option = options$head[[chosen]])
 }
 
 # Whether the next relational event shares the stamp of the one placed last.
 sim_sibling_pending <- function(state) {
   n <- state$n_relational
   n > 0L &&
-    n < nrow(state$relational) &&
+    n < state$n_relational_total &&
     state$relational$time[[n + 1L]] == state$relational$time[[n]]
 }
 
 # The (layer, flavor, sender) candidates at `t`: the heads of the interval's
 # chains with a flip left, grouped by pair, each weighted by the pair's rate
-# and kept only while some remaining receiver has support now.
+# and kept only while some remaining receiver has support now. A pair is
+# named by the flip row of its first head, `head`.
 sim_flip_options <- function(state, t, handle) {
-  heads <- sim_chain_heads(state, state$cursor$remaining(state$k))
-  pairs <- unique(heads[, c("layer", "flavor", "sender", "rate_fid")])
-  pairs$weight <- vapply(
-    seq_len(nrow(pairs)),
+  flips <- state$plan$flips
+  heads <- sim_chain_heads(state)
+  head <- heads[!duplicated(flips$pair[heads])]
+  rate_fid <- flips$rate_fid[head]
+  weight <- vapply(
+    seq_along(head),
     function(i) {
-      pair <- pairs[i, ]
-      rate <- sim_fid_values(state, handle, pair$rate_fid, t)[[pair$sender]]
+      sender <- flips$sender[[head[[i]]]]
+      rate <- sim_fid_values(state, handle, rate_fid[[i]], t)[[sender]]
       if (!(rate > 0)) {
         return(0)
       }
-      receivers <- sim_pair_receivers(heads, pair)
-      choice <- sim_choice_row(state, handle, pair, t)
+      receivers <- sim_pair_receivers(flips, heads, head[[i]])
+      choice <- sim_choice_row(state, handle, rate_fid[[i]], sender, t)
       if (!any(choice[receivers] > 0)) 0 else rate
     },
     numeric(1)
   )
-  pairs[pairs$weight > 0, , drop = FALSE]
+  keep <- weight > 0
+  list(head = head[keep], rate_fid = rate_fid[keep], weight = weight[keep])
 }
 
 # A relational event's selection weight: its sender's rate on its process
@@ -462,7 +473,10 @@ sim_flip_options <- function(state, t, handle) {
 # placed, and gets no weight; without one, an observed event's support is
 # only its own dyad's, which no flip of another dyad moves.
 sim_relational_weight <- function(state, event, t, handle) {
-  fid <- event$rate_fid
+  relational <- state$relational
+  fid <- relational$rate_fid[[event]]
+  sender <- relational$sender[[event]]
+  receiver <- relational$receiver[[event]]
   if (is.na(fid)) {
     return(1)
   }
@@ -471,12 +485,12 @@ sim_relational_weight <- function(state, event, t, handle) {
   choice_fid <- paired_choice_fid(map, fid)
   if (is.na(choice_fid)) {
     n2 <- length(values) / n_actors(handle)
-    return(values[[(event$sender - 1L) * n2 + event$receiver]])
+    return(values[[(sender - 1L) * n2 + receiver]])
   }
-  rate <- values[[event$sender]]
+  rate <- values[[sender]]
   if (state$plan$coupled && rate > 0) {
-    choice <- sim_fid_values(state, handle, choice_fid, t, event$sender)
-    if (!(choice[[event$receiver]] > 0)) {
+    choice <- sim_fid_values(state, handle, choice_fid, t, sender)
+    if (!(choice[[receiver]] > 0)) {
       return(0)
     }
   }
@@ -487,13 +501,15 @@ sim_relational_weight <- function(state, event, t, handle) {
 # the anchor (the next relational event or the wave end); truncated at the
 # anchor otherwise. The density of the part drawn is added to the attempt's.
 sim_flip_wait <- function(state, pending, t, handle) {
-  option <- pending$option
+  flips <- state$plan$flips
+  fid <- flips$rate_fid[[pending$option]]
   anchor <- state$wave_end
-  if (state$n_relational < nrow(state$relational)) {
+  if (state$n_relational < state$n_relational_total) {
     anchor <- min(anchor, state$relational$time[[state$n_relational + 1L]])
   }
-  rate <- sim_fid_values(state, handle, option$rate_fid, t)[[option$sender]]
-  fid <- option$rate_fid
+  rate <- sim_fid_values(state, handle, fid, t)[[
+    flips$sender[[pending$option]]
+  ]]
   if (!(rate > 0)) {
     state$pending <- list(kind = "stranded")
     return(list(wait = 0, fid = fid, kind = "event"))
@@ -537,12 +553,19 @@ sim_mark <- function(state, evaluation, handle) {
     return(list(layer = evaluation$layer, stranded = TRUE))
   }
   if (!identical(pending$kind, "flip")) {
-    return(sim_event(pending$event))
+    return(sim_event(state$relational, pending$event))
   }
+  flips <- state$plan$flips
   option <- pending$option
-  heads <- sim_chain_heads(state, state$cursor$remaining(state$k))
-  receivers <- sim_pair_receivers(heads, option)
-  choice <- sim_choice_row(state, handle, option, state$time)[receivers]
+  heads <- sim_chain_heads(state)
+  receivers <- sim_pair_receivers(flips, heads, option)
+  choice <- sim_choice_row(
+    state,
+    handle,
+    flips$rate_fid[[option]],
+    flips$sender[[option]],
+    state$time
+  )[receivers]
   total <- sum(choice)
   if (!(total > 0)) {
     state$pending <- list(kind = "stranded")
@@ -551,16 +574,12 @@ sim_mark <- function(state, evaluation, handle) {
   drawn <- sample_index(choice)
   state$log_q <- state$log_q + log(choice[[drawn]] / total)
   head <- heads[
-    heads$layer == option$layer &
-      identical_flavor(heads$flavor, option$flavor) &
-      heads$sender == option$sender &
-      heads$receiver == receivers[[drawn]],
-    ,
-    drop = FALSE
-  ][1L, ]
-  state$pending$event_id <- head$event
-  state$pending$chain <- head$chain
-  sim_event(head)
+    flips$pair[heads] == flips$pair[[option]] &
+      flips$receiver[heads] == receivers[[drawn]]
+  ][[1L]]
+  state$pending$event_id <- flips$event[[head]]
+  state$pending$chain <- flips$chain[[head]]
+  sim_event(flips, head)
 }
 
 # P4. The completion check. A stranded step rejects the whole interval draw:
@@ -662,48 +681,43 @@ sim_clear_cache <- function(state) {
   state$cache <- vector("list", nrow(state$plan$map))
 }
 
-sim_choice_row <- function(state, handle, pair, t) {
-  choice_fid <- paired_choice_fid(state$plan$map, pair$rate_fid)
+sim_choice_row <- function(state, handle, rate_fid, sender, t) {
+  choice_fid <- paired_choice_fid(state$plan$map, rate_fid)
   if (is.na(choice_fid)) {
     cli::cli_abort(
       "A panel process without a choice sub-model cannot be augmented.",
       .internal = TRUE
     )
   }
-  sim_fid_values(state, handle, choice_fid, t, sender = pair$sender)
+  sim_fid_values(state, handle, choice_fid, t, sender = sender)
 }
 
-# The next event of every chain of the interval with a flip left.
-sim_chain_heads <- function(state, remaining) {
-  chains <- state$plan$recipe$chains
-  at <- match(remaining$chain, chains$chain)
-  ids <- chains$first[at] + chains$length[at] - remaining$left
-  flips <- state$plan$flips
-  flips[match(ids, flips$event), , drop = FALSE]
+# The flip row of the next event of every chain of the interval with a flip
+# left.
+sim_chain_heads <- function(state) {
+  state$plan$flip_row[state$cursor$heads(state$k)]
 }
 
-sim_pair_receivers <- function(heads, pair) {
-  unique(heads$receiver[
-    heads$layer == pair$layer &
-      identical_flavor(heads$flavor, pair$flavor) &
-      heads$sender == pair$sender
-  ])
+# The receivers of the heads `heads` that share the pair of flip row `head`.
+sim_pair_receivers <- function(flips, heads, head) {
+  unique(flips$receiver[heads[flips$pair[heads] == flips$pair[[head]]]])
 }
 
 # The fid the driver is told fired: the event's rate fid, or any rate fid for
 # a process without one (the driver only reads it to build the evaluation).
 sim_event_fid <- function(state, event) {
-  fid <- event$rate_fid
+  fid <- state$relational$rate_fid[[event]]
   if (is.na(fid)) state$plan$rate_fids[[1L]] else fid
 }
 
-sim_event <- function(row) {
+# The event at position `i` of the columns `columns`.
+sim_event <- function(columns, i) {
   event <- list(
-    layer = row$layer,
-    sender = row$sender,
-    receiver = row$receiver,
-    flavor = row$flavor
+    layer = columns$layer[[i]],
+    sender = columns$sender[[i]],
+    receiver = columns$receiver[[i]],
+    flavor = columns$flavor[[i]]
   )
-  event[[row$semantics]] <- row$value
+  event[[columns$semantics[[i]]]] <- columns$value[[i]]
   event
 }
