@@ -1,11 +1,11 @@
 # walk_replay_to refuses to move backward
 
     Code
-      walk_replay_to(handle, 4L)
+      walk_replay_to(handle, 1L)
     Condition
       Error:
       ! `walk_replay_to()` cannot move the replay backward.
-      x Rows up to 7 are applied; asked to stop before row 4.
+      x Events up to 2 are applied; asked to stop after event 1.
 
 # a candidate whose info differs is refused naming info
 

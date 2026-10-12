@@ -1,6 +1,7 @@
-# Rate queries over a candidate sequence: replaying the candidate's own
-# schedule through the walk handle by row position, so a query reads the state
-# the batch path would have at the same point, stamp ties included.
+# Rate queries over a candidate sequence: replaying the candidate's events
+# through the walk handle one stamp at a time, up to a position counted in
+# candidate events, so a query reads the state the batch path would have at the
+# same point, stamp ties included.
 
 local_cli_context <- function(env = parent.frame()) {
   withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
@@ -33,23 +34,27 @@ test_that("the tied fixture's schedule has the layout the tests rely on", {
   expect_identical(unique(schedule$time[4:9]), 2)
 })
 
-test_that("walk_replay_to stops at the requested schedule row", {
+test_that("walk_replay_to stops after the requested event", {
   handle <- rq_open()
-  walk_replay_to(handle, 8L)
+  walk_replay_to(handle, 2L)
   networks <- handle$state$networks
 
-  # Events 1 and 2 are realized; event 3's realization is row 8 itself.
+  # Events 1 and 2 are realized; event 3 shares event 2's stamp.
   expect_identical(networks[["calls"]][1, 2], 1)
   expect_identical(networks[["calls"]][2, 3], 1)
   expect_identical(networks[["calls"]][3, 4], 0)
-  expect_identical(networks[["friendship"]][3, 4], 1)
-  # Row 9 shares the stamp of row 7 but follows the requested row.
+  # Rows 2 (friendship, t = 1) lies at an earlier stamp; rows 6 and 9 share
+  # event 2's stamp, before and after its realization.
+  expect_identical(networks[["friendship"]][1, 2], 1)
+  expect_identical(networks[["friendship"]][3, 4], 0)
   expect_identical(networks[["emails"]][2, 1], 0)
 })
 
 test_that("a dependent row is read before the exogenous rows at its stamp", {
   handle <- rq_open()
-  walk_replay_to(handle, 4L)
+  walk_replay_to(handle, 1L)
+  # Event 2's dependent row (row 4): strictly before its stamp.
+  walk_advance(handle, 2, inclusive = FALSE)
 
   expect_identical(handle$state$networks[["friendship"]][1, 2], 1)
   expect_identical(handle$state$networks[["friendship"]][3, 4], 0)
@@ -69,14 +74,14 @@ test_that("walk_replay_to resumes forward and matches a fresh replay", {
   )
 
   resumed <- rq_open()
-  walk_replay_to(resumed, 4L)
+  walk_replay_to(resumed, 1L)
   applied <- 0L
-  walk_replay_to(resumed, 12L)
-  # Only event 2 and 3's realizations lie between rows 4 and 12.
+  walk_replay_to(resumed, 3L)
+  # Only event 2 and 3's realizations lie between the two positions.
   expect_identical(applied, 2L)
 
   fresh <- rq_open()
-  walk_replay_to(fresh, 12L)
+  walk_replay_to(fresh, 3L)
 
   expect_identical(resumed$state$networks, fresh$state$networks)
   expect_identical(
@@ -92,9 +97,9 @@ test_that("walk_replay_to resumes forward and matches a fresh replay", {
 test_that("walk_replay_to refuses to move backward", {
   local_cli_context()
   handle <- rq_open()
-  walk_replay_to(handle, 8L)
-  expect_error(walk_replay_to(handle, 4L), class = "goldfish_walk_out_of_order")
-  expect_snapshot(walk_replay_to(handle, 4L), error = TRUE)
+  walk_replay_to(handle, 2L)
+  expect_error(walk_replay_to(handle, 1L), class = "goldfish_walk_out_of_order")
+  expect_snapshot(walk_replay_to(handle, 1L), error = TRUE)
 })
 
 # A joint specification over the tied fixture, with `data` swapped in when a
@@ -264,7 +269,10 @@ test_that("each mapped vector has the length the walk evaluates with", {
   spec <- rq_layout_spec()
   by_fid <- flat_to_fid_theta(spec, c(0.1, 0.2, 0.3, -0.4, -1, 0.7))
   handle <- suppressWarnings(walk_open(spec))
-  walk_replay_to(handle, 12L)
+  # Event 4 is the emails 2 -> 1 at t = 2; the friendship 3 -> 4 sharing its
+  # stamp comes in with the inclusive advance.
+  walk_replay_to(handle, 4L)
+  walk_advance(handle, 2)
 
   for (fid in 1:3) {
     expect_no_error(walk_evaluate(handle, fid, by_fid[[as.character(fid)]]))
@@ -301,8 +309,7 @@ test_that("sub-model positions off the free layout abort naming the mismatch", {
 
 # A pair query at the end of the replayed schedule of `spec`, labels and all.
 rq_pair <- function(spec, theta, layer, sender, receiver, flavor = NA) {
-  handle <- suppressWarnings(walk_open(spec))
-  walk_replay_to(handle, handle$schedule$n + 1L)
+  handle <- rq_replayed(spec)
   pair_intensity(
     handle,
     simulation_routing(spec, handle),
@@ -314,9 +321,11 @@ rq_pair <- function(spec, theta, layer, sender, receiver, flavor = NA) {
   )
 }
 
+# Every event realized, then every row through the last stamp applied.
 rq_replayed <- function(spec) {
   handle <- suppressWarnings(walk_open(spec))
-  walk_replay_to(handle, handle$schedule$n + 1L)
+  walk_replay_to(handle, length(walk_realizations(handle)$time))
+  walk_advance(handle, max(handle$schedule$time))
   handle
 }
 
@@ -541,10 +550,22 @@ rq_query <- function(after, layer, sender, receiver) {
   list(after = after, layer = layer, sender = sender, receiver = receiver)
 }
 
-# The pair intensity read by hand: replay to `row`, then read the pair.
-rq_manual <- function(spec, theta, row, layer, sender, receiver) {
+# The pair intensity read by hand: replay to `after`, optionally advance the
+# clock through `advance_to`, then read the pair.
+rq_manual <- function(
+  spec,
+  theta,
+  after,
+  layer,
+  sender,
+  receiver,
+  advance_to = NULL
+) {
   handle <- suppressWarnings(walk_open(spec))
-  walk_replay_to(handle, row)
+  walk_replay_to(handle, after)
+  if (!is.null(advance_to)) {
+    walk_advance(handle, advance_to)
+  }
   pair_intensity(
     handle,
     simulation_routing(spec, handle),
@@ -573,11 +594,11 @@ test_that("a single query equals a pair read after a manual replay", {
 
   expect_equal(
     query_rate_at_position(spec, theta, list(rq_query(2, "calls", "N2", "N3"))),
-    rq_manual(spec, theta, 6L, "calls", "N2", "N3")
+    rq_manual(spec, theta, 2L, "calls", "N2", "N3")
   )
   expect_equal(
     query_rate_at_position(spec, theta, list(rq_query(0, "texts", "N1", "N6"))),
-    rq_manual(spec, theta, 1L, "texts", "N1", "N6")
+    rq_manual(spec, theta, 0L, "texts", "N1", "N6")
   )
 })
 
@@ -598,9 +619,9 @@ test_that("a batch of queries opens one handle and applies each row once", {
       injected <<- injected + 1L
       real_inject(...)
     },
-    walk_replay_to = function(handle, row, ...) {
-      stops <<- c(stops, row)
-      real_replay(handle, row, ...)
+    walk_replay_to = function(handle, after, ...) {
+      stops <<- c(stops, after)
+      real_replay(handle, after, ...)
     }
   )
 
@@ -618,7 +639,7 @@ test_that("a batch of queries opens one handle and applies each row once", {
   expect_identical(opened, 1L)
   # Replayed forward once per distinct position; the five realizations up to
   # event 5 are each injected exactly once.
-  expect_identical(stops, c(4L, 10L, 14L))
+  expect_identical(stops, c(1L, 3L, 5L))
   expect_identical(injected, 5L)
 })
 
@@ -634,9 +655,9 @@ test_that("results return in the caller's order, not position order", {
   expect_equal(
     query_rate_at_position(spec, theta, queries),
     c(
-      rq_manual(spec, theta, 17L, "calls", "N1", "N2"),
-      rq_manual(spec, theta, 1L, "texts", "N6", "N1"),
-      rq_manual(spec, theta, 11L, "calls", "N3", "N4")
+      rq_manual(spec, theta, 6L, "calls", "N1", "N2"),
+      rq_manual(spec, theta, 0L, "texts", "N6", "N1"),
+      rq_manual(spec, theta, 4L, "calls", "N3", "N4")
     )
   )
 })
@@ -651,10 +672,10 @@ test_that("a position excludes a later row sharing the event's stamp", {
     list(rq_query(4, "calls", "N2", "N1"))
   )
 
-  expect_equal(at_event_4, rq_manual(spec, theta, 11L, "calls", "N2", "N1"))
+  expect_equal(at_event_4, rq_manual(spec, theta, 4L, "calls", "N2", "N1"))
   expect_false(isTRUE(all.equal(
     at_event_4,
-    rq_manual(spec, theta, 12L, "calls", "N2", "N1")
+    rq_manual(spec, theta, 4L, "calls", "N2", "N1", advance_to = 2)
   )))
 })
 
@@ -668,32 +689,21 @@ test_that("tied candidate events are addressable one at a time", {
     list(rq_query(3, "calls", "N3", "N4"), rq_query(4, "calls", "N3", "N4"))
   )
 
-  expect_equal(both[1], rq_manual(spec, theta, 10L, "calls", "N3", "N4"))
-  expect_equal(both[2], rq_manual(spec, theta, 11L, "calls", "N3", "N4"))
+  expect_equal(both[1], rq_manual(spec, theta, 3L, "calls", "N3", "N4"))
+  expect_equal(both[2], rq_manual(spec, theta, 4L, "calls", "N3", "N4"))
   expect_false(isTRUE(all.equal(both[1], both[2])))
 })
-
-# Replay `handle` to the state right after candidate event `after`'s
-# realization, the position query_rate_at_position() reads at.
-rq_replay_after <- function(handle, after) {
-  schedule <- handle$schedule
-  realized <- which(
-    !schedule$dependent & schedule$layer %in% handle$focal_layers
-  )
-  walk_replay_to(handle, c(1L, realized + 1L)[after + 1L])
-  handle
-}
 
 test_that("each of two tied events is its own position", {
   # Events 3 and 4 are calls 2 -> 3 and 3 -> 4, both realized at t = 2; the
   # emails row 2 -> 1 shares the stamp and sorts after them.
-  first <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 3L)
+  first <- walk_replay_to(suppressWarnings(walk_open(rq_exo_spec())), 3L)
   networks <- first$state$networks
   expect_identical(networks[["calls"]][2, 3], 1)
   expect_identical(networks[["calls"]][3, 4], 0)
   expect_identical(networks[["emails"]][2, 1], 0)
 
-  both <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 4L)
+  both <- walk_replay_to(suppressWarnings(walk_open(rq_exo_spec())), 4L)
   networks <- both$state$networks
   expect_identical(networks[["calls"]][2, 3], 1)
   expect_identical(networks[["calls"]][3, 4], 1)
@@ -756,7 +766,7 @@ test_that("an unmodeled flavor's row is a realization at every position", {
       cell <- cbind(schedule$sender[row], schedule$receiver[row])
       expected[cell] <- expected[cell] + schedule$value[[row]]
     }
-    handle <- rq_replay_after(suppressWarnings(walk_open(spec)), k)
+    handle <- walk_replay_to(suppressWarnings(walk_open(spec)), k)
     expect_identical(
       handle$state$networks[["calls"]],
       expected,
@@ -790,11 +800,11 @@ test_that("the rate-query replay steps the handle only through its own API", {
 test_that("an exogenous row sorting before the focal stream is not applied", {
   # friendship sorts before calls at both of its stamps that hold a calls
   # realization: 1 -> 2 at t = 1 (event 1) and 3 -> 4 at t = 2 (events 3, 4).
-  after_first <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 1L)
+  after_first <- walk_replay_to(suppressWarnings(walk_open(rq_exo_spec())), 1L)
   expect_identical(after_first$state$networks[["calls"]][1, 2], 1)
   expect_identical(after_first$state$networks[["friendship"]][1, 2], 0)
 
-  after_tie <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 4L)
+  after_tie <- walk_replay_to(suppressWarnings(walk_open(rq_exo_spec())), 4L)
   networks <- after_tie$state$networks
   expect_identical(networks[["calls"]][3, 4], 1)
   # The earlier stamp's row is in; the one at the event's own stamp is not.

@@ -4,103 +4,79 @@
 # A proposal density for an augmented event needs the model's frozen intensity
 # for a named pair at a position inside a candidate (not yet accepted)
 # sequence. The candidate is bound to a completed specification, a walk handle
-# is opened over it, and the handle's own schedule -- the candidate's
-# dependent rows and their realizations, interleaved with the exogenous rows --
-# is replayed by row position up to the queried point.
+# is opened over it, and the candidate's events are replayed through the
+# handle up to the queried point.
 #
-# Replay is driven by schedule position, not by time: the batch walk scores a
-# dependent event before the covariate rows its schedule orders after it at
-# the same stamp, and a query can address "after the first of two tied
-# events", which no time cutoff can.
+# Replay is addressed by candidate event, not by time: a query can address
+# "after the first of two tied events", which no time cutoff can.
 # =========================================================================== #
 
-# Apply the handle's schedule rows in order up to, not including, `row`:
-# `walk_replay_to(handle, k)` leaves the state row k is read at. It resumes
+# Replay the candidate up to position `after`: the state right after candidate
+# event `after`'s realization, `after = 0` being the state at open. It resumes
 # from where the previous call stopped, so the handle only moves forward.
 #
-# * An exogenous row (not dependent, not on a focal layer) is applied alone.
-# * A focal-layer covariate row is a dependent event's realization, injected
-#   through walk_inject().
-# * A dependent row writes nothing; the node composition in force at its stamp
-#   is brought in, since a composition change at an event's own stamp applies
-#   to that event.
-walk_replay_to <- function(handle, row, call = rlang::caller_env()) {
+# Every earlier stamp is applied as the batch walk reads it (replay_stamps()):
+# advance strictly before the stamp, then inject its realizations; the stamp's
+# exogenous rows come in with the next advance. At the stamp of event `after`
+# the node composition is brought in and the realizations are injected through
+# `after`, but no exogenous row of that stamp is applied, wherever its stream
+# sorts: what is stamped at an actor's event lies inside the window the next
+# waiting time is drawn over.
+walk_replay_to <- function(handle, after, call = rlang::caller_env()) {
   walk_assert_open(handle, call)
-  schedule <- handle$schedule
+  realizations <- walk_realizations(handle)
   done <- handle$replay_cursor %||% 0L
-  last <- schedule$n + 1L
-  if (length(row) != 1L || is.na(row) || row < 1L || row > last) {
+  last <- length(realizations$time)
+  if (length(after) != 1L || is.na(after) || after < 0L || after > last) {
     cli::cli_abort(
       c(
-        "{.arg row} must be one schedule row in {.val {1L}}:{.val {last}}.",
-        "x" = "Got {.val {row}}."
+        "{.arg after} must be one candidate event in
+         {.val {0L}}:{.val {last}}.",
+        "x" = "Got {.val {after}}."
       ),
       call = call,
-      class = "goldfish_walk_bad_row"
+      class = "goldfish_walk_bad_position"
     )
   }
-  if (row - 1L < done) {
+  if (after < done) {
     cli::cli_abort(
       c(
         "{.fn walk_replay_to} cannot move the replay backward.",
-        "x" = "Rows up to {.val {done}} are applied; asked to stop before row
-               {.val {row}}."
+        "x" = "Events up to {.val {done}} are applied; asked to stop after
+               event {.val {after}}."
       ),
       call = call,
       class = "goldfish_walk_out_of_order"
     )
   }
-
-  for (k in seq_len(row - 1L - done) + done) {
-    if (schedule$dependent[k]) {
-      walk_advance_presence(handle, schedule$time[k])
-    } else if (schedule$layer[k] %in% handle$focal_layers) {
-      event <- list(
-        layer = schedule$layer[k],
-        sender = schedule$sender[k],
-        receiver = schedule$receiver[k],
-        time = schedule$time[k]
-      )
-      event[[schedule$semantics[k]]] <- schedule$value[[k]]
-      walk_inject(handle, event, call = call)
-    } else {
-      walk_replay_exogenous_row(handle, k, call)
-    }
-    handle$replay_cursor <- k
+  if (after > done) {
+    replay_stamps(handle, realizations, from = done + 1L, to = after)
+    handle$replay_cursor <- after
   }
   invisible(handle)
 }
 
-# Apply exogenous schedule row `k` and nothing else. walk_advance() applies
-# every exogenous row stamped at or before a time, which at a shared stamp
-# includes rows the schedule orders after `k`; these are the steps it runs
-# for one row. A row an earlier walk_advance() already applied is skipped.
-walk_replay_exogenous_row <- function(handle, k, call) {
-  cursor <- handle$exo_cursor
-  if (k %in% handle$exo_rows[seq_len(cursor)]) {
-    return(invisible(NULL))
-  }
-  if (!identical(handle$exo_rows[cursor + 1L], k)) {
-    cli::cli_abort(
-      "Exogenous row {.val {k}} is not the handle's next exogenous row.",
-      .internal = TRUE,
-      call = call
-    )
+# The candidate's realizations as the columns replay_stamps() reads, built
+# once per handle. A realization is any non-dependent row of a focal layer, a
+# flavor no process models included: it writes the focal network, so two tied
+# events are two positions.
+walk_realizations <- function(handle) {
+  if (!is.null(handle$realizations)) {
+    return(handle$realizations)
   }
   schedule <- handle$schedule
-  t <- schedule$time[k]
-  oid <- schedule$target[k]
-  walk_advance_presence(handle, t)
-  event_args <- merged_build_event_args(
-    schedule,
-    k,
-    oid,
-    handle$props,
-    handle$state
+  rows <- which(!schedule$dependent & schedule$layer %in% handle$focal_layers)
+  time <- schedule$time[rows]
+  handle$realizations <- list(
+    time = time,
+    layer = schedule$layer[rows],
+    sender = schedule$sender[rows],
+    receiver = schedule$receiver[rows],
+    field = schedule$semantics[rows],
+    value = schedule$value[rows],
+    stamp_end = stamp_ends(time)
   )
-  walk_apply_object_event(handle, oid, schedule$shape[k], event_args, t)
-  handle$exo_cursor <- cursor + 1L
-  invisible(NULL)
+  handle$realizations
 }
 
 # Rebind a completed joint specification to a candidate sequence: the candidate
@@ -356,12 +332,13 @@ pair_intensity <- function(
 # `list(after, layer, flavor, sender, receiver)`. Returns one intensity per
 # query, in the caller's order.
 #
-# `after = k` is the state immediately after candidate event k's realization:
-# every schedule row before it is applied and none after it, not even an
-# exogenous row sharing its stamp. That is the state a proposal's waiting time
-# is drawn at, frozen at the preceding event; later rows lie inside the
-# proposal window. Candidate events are counted in realization order, so two
-# tied events are two positions. `after = 0` is the state at open.
+# `after = k` is the state immediately after candidate event k's realization
+# (walk_replay_to()): every row stamped before it, the node composition at its
+# stamp, and the realizations at its stamp through its own, but no exogenous
+# row sharing its stamp. That is the state a proposal's waiting time is drawn
+# at, frozen at the preceding event; later rows lie inside the proposal
+# window. Candidate events are counted in realization order, so two tied
+# events are two positions. `after = 0` is the state at open.
 #
 # The handle only moves forward, so one handle answers the whole batch:
 # positions are visited in increasing order and every query at a position is
@@ -375,13 +352,7 @@ query_rate_at_position <- function(
 ) {
   handle <- walk_open(spec, control_prep, call = call)
   routing <- simulation_routing(spec, handle)
-  schedule <- handle$schedule
-  realized <- which(
-    !schedule$dependent & schedule$layer %in% handle$focal_layers
-  )
-  # The row a replay stops before, so that event k's realization is the last
-  # row applied.
-  stop_row <- c(1L, realized + 1L)
+  n_events <- length(walk_realizations(handle)$time)
 
   after <- vapply(
     queries,
@@ -392,7 +363,7 @@ query_rate_at_position <- function(
           is.na(k) ||
           k != round(k) ||
           k < 0L ||
-          k > length(realized)
+          k > n_events
       ) {
         abort_unresolved_rate_query(
           rate_query_label(
@@ -402,7 +373,7 @@ query_rate_at_position <- function(
             query$receiver
           ),
           "Its position {.code after = {k}} is not one of the candidate's
-           {.val {0L}}:{.val {length(realized)}} events.",
+           {.val {0L}}:{.val {n_events}} events.",
           call
         )
       }
@@ -413,7 +384,7 @@ query_rate_at_position <- function(
 
   intensity <- numeric(length(queries))
   for (k in sort(unique(after))) {
-    walk_replay_to(handle, stop_row[k + 1L], call = call)
+    walk_replay_to(handle, k, call = call)
     for (q in which(after == k)) {
       query <- queries[[q]]
       intensity[q] <- pair_intensity(

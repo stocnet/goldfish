@@ -260,7 +260,6 @@ replay_columns <- function(ties, rows, labels, update) {
   time <- ties$time[rows]
   layer <- ties$layer[rows]
   n <- length(rows)
-  runs <- rle(time)$lengths
   list(
     time = time,
     layer = layer,
@@ -277,11 +276,19 @@ replay_columns <- function(ties, rows, labels, update) {
       "increment"
     ),
     value = if (is.null(ties[["weight"]])) rep(1, n) else ties$weight[rows],
-    stamp_end = rep(cumsum(runs), runs)
+    stamp_end = stamp_ends(time)
   )
 }
 
-# Replay rows `from` through `to` of `events` (from replay_columns()) onto
+# For times in schedule order, the index of the last entry sharing each
+# entry's stamp.
+stamp_ends <- function(time) {
+  runs <- rle(time)$lengths
+  rep(cumsum(runs), runs)
+}
+
+# Replay rows `from` through `to` of `events` (from replay_columns() or
+# walk_realizations()) onto
 # `handle` one stamp at a time: advance strictly before the stamp (its node
 # composition included), run `check(i)` on every event of the stamp, and only
 # then inject the stamp's events in row order. Nothing stamped at a time
