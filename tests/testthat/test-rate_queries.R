@@ -765,6 +765,28 @@ test_that("an unmodeled flavor's row is a realization at every position", {
   }
 })
 
+test_that("the rate-query replay steps the handle only through its own API", {
+  callers <- character(0)
+  real_apply <- walk_apply_object_event
+  local_mocked_bindings(
+    walk_apply_object_event = function(...) {
+      callers <<- c(callers, rlang::call_name(sys.call(-1L)))
+      real_apply(...)
+    }
+  )
+
+  query_rate_at_position(
+    rq_exo_spec(),
+    rq_exo_theta(),
+    list(rq_query(3, "calls", "N2", "N1"), rq_query(6, "calls", "N1", "N2"))
+  )
+
+  # Only the handle's own steps write an object: walk_advance() for an
+  # exogenous row, walk_apply_resolved() for an injected realization.
+  expect_gt(length(callers), 0L)
+  expect_in(callers, c("walk_advance", "walk_apply_resolved"))
+})
+
 test_that("completed rates do not move with the candidate", {
   spec <- rq_pinned_spec()
   theta <- list(
