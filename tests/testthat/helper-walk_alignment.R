@@ -91,6 +91,46 @@ wa_sim_fixture <- function(name, reference = wa_reference()) {
   )
 }
 
+# The MCMC augmenter on one reference fixture, scored by the real proposal
+# evaluator at the fixture's theta, and started (its initial draw made) so that
+# the next draw is `thinning` sweeps of steps only.
+wa_mcmc_fixture <- function(name, thinning = 1L, reference = wa_reference()) {
+  fixture <- reference[[name]]
+  waves <- attr(reference, "waves")
+  spec <- wa_spec(wa_data(fixture$ties), coupled = name == "coupled")
+  completed <- suppressWarnings(complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = waves
+  ))
+  recipe <- compile_augmentation_recipe(completed, waves)
+  control <- set_algorithm_em(
+    augmenter = set_augmenter_options(
+      routine = "mcmc",
+      burn_in = 0L,
+      thinning = thinning
+    ),
+    seed = 11L
+  )
+  augmenter <- augment_seq_mcmc(completed, recipe, control)
+  evaluator <- make_proposal_evaluator(
+    decompose_joint_spec(completed),
+    fixture$theta,
+    spec = completed
+  )
+  suppressWarnings({
+    augmenter$init(evaluator, fixture$theta)
+    withr::with_seed(1L, augmenter$draw(1L, 1L, fixture$theta))
+  })
+  list(
+    spec = completed,
+    recipe = recipe,
+    waves = waves,
+    theta = fixture$theta,
+    augmenter = augmenter
+  )
+}
+
 # A draw reduced to what the references record.
 wa_draw_record <- function(draw) {
   ties <- as.data.frame(draw$data$ties)
