@@ -123,35 +123,41 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 
 ## 3. Rate-query replay on the stamp helper (D2, D8)
 
-- [ ] 3.1 Characterization test (passes on the unfixed code) of the `after =
+- [x] 3.1 Characterization test (passes on the unfixed code) of the `after =
       k` contract: for two tied candidate events at `s`, `after = k1` reads the
       state with only the first realization at `s` applied and `after = k2`
       with both, and neither has an exogenous row at `s` whose stream sorts
       after the focal stream. Commit it alone.
-- [ ] 3.2a Characterization test (passes on the unfixed code, not a red/green
+- [x] 3.2a Characterization test (passes on the unfixed code, not a red/green
       pair): on a fixture where a row of a flavor no process models, on a
       focal layer, shares a stamp with a modeled event, `walk_replay_to()`
       leaves the same state at every `after = k`. It keeps the rewrite
       injecting those rows as realizations. (The replay-skip drift the
       original 3.2a targeted is unreachable here: no rate-query walk
       registers replay rows.) Commit it alone.
-- [ ] 3.2b Failing guard: `walk_replay_to()` reaches no handle internal that
+- [x] 3.2b Failing guard: `walk_replay_to()` reaches no handle internal that
       `walk_advance()` owns (assert through a mocked
       `walk_apply_object_event()` call count of zero from `rate_queries.R`).
       The existing `query_rate_at_position()` tie tests, 3.1 and 3.2a are the
       behavioral oracle. Confirm RED and commit the test alone.
-- [ ] 3.2c If a fixture can put a covariate stream before the focal stream:
+- [x] 3.2c If a fixture can put a covariate stream before the focal stream:
       failing test that an exogenous row at `s` sorting before the focal
       stream is not applied at `after = k`. Confirm RED and commit the test
       alone. Otherwise record in `progress.md` why no fixture can.
-- [ ] 3.2d Rewrite `walk_replay_to()` for `after = k` (realization `k` at
+- [x] 3.2d Rewrite `walk_replay_to()` for `after = k` (realization `k` at
       stamp `s`) as the D8 helper (no check hook) over the candidate's stamps
       before `s`, then `walk_advance(handle, s, inclusive = FALSE)`, then the
       realizations at `s` through `k` in schedule order. Retire
       `walk_replay_exogenous_row()`, and correct the
       `query_rate_at_position()` comment if needed. Confirm GREEN (3.1, 3.2a,
       3.2b, 3.2c and every existing rate-query test) and commit.
-- [ ] 3.3 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+- [x] 3.3 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+      *Result (WA5):* 3.2c had a fixture: on the rate-query fixtures the
+      friendship stream sorts before calls, so its rows at t = 1 and t = 2
+      were applied at `after = k` before the rewrite. `walk_replay_to()` now
+      takes a position (`after`), not a schedule row; the row-addressed
+      tests were translated. Suite after 3.2d: PASS 16508 / FAIL 0 / SKIP 5,
+      baselines not skipped; no seeded augmenter expectation moved.
 
 ## 4. Sim augmenter: no prefix evaluation, one evaluation per fid, one walk when uncoupled (D3, D4)
 
