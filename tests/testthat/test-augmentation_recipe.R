@@ -259,7 +259,7 @@ test_that("estimate_dynes compiles the recipe once and hands it over", {
       compiled <<- compiled + 1L
       compile(...)
     },
-    resolve_dynes_augmenter = function(spec, recipe, control, call) {
+    resolve_dynes_augmenter = function(spec, recipe, control, ...) {
       received <<- recipe
       new_keyed_stub_augmenter()
     }
@@ -281,7 +281,7 @@ test_that("estimate_dynes compiles the recipe once and hands it over", {
 test_that("estimate_dynes compiles on the start time and explicit waves", {
   received <- NULL
   local_mocked_bindings(
-    resolve_dynes_augmenter = function(spec, recipe, control, call) {
+    resolve_dynes_augmenter = function(spec, recipe, control, ...) {
       received <<- recipe
       rlang::abort("stop", class = "recipe_seen")
     }

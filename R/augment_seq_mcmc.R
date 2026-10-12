@@ -52,9 +52,10 @@ augment_seq_mcmc <- function(
   spec,
   recipe,
   control,
+  control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
-  context <- new_augmenter_context(spec, recipe, call = call)
+  context <- new_augmenter_context(spec, recipe, control_prep, call = call)
   chain <- new_mcmc_chain(context, control, call = call)
 
   new_dynes_augmenter(
@@ -198,6 +199,7 @@ mcmc_initial_times <- function(chain, theta) {
     context$spec,
     context$recipe,
     chain$control,
+    control_prep = context$control_prep,
     call = chain$call
   )
   draw <- initializer$draw(0L, 1L, theta)[[1L]]

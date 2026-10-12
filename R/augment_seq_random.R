@@ -41,9 +41,10 @@ augment_seq_random <- function(
   spec,
   recipe,
   control,
+  control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
-  context <- new_augmenter_context(spec, recipe, call = call)
+  context <- new_augmenter_context(spec, recipe, control_prep, call = call)
   plan <- random_interval_plan(recipe)
   checker <- new_legality_checker(context)
   legal <- random_legal_pilot(plan, checker, control$seed %||% 1L, call)

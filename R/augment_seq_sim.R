@@ -51,8 +51,14 @@
 # =========================================================================== #
 
 # The sim augmenter over a completed specification and its recipe.
-augment_seq_sim <- function(spec, recipe, control, call = rlang::caller_env()) {
-  context <- new_augmenter_context(spec, recipe, call = call)
+augment_seq_sim <- function(
+  spec,
+  recipe,
+  control,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  context <- new_augmenter_context(spec, recipe, control_prep, call = call)
   coupling <- support_constraint_labels(spec)
   plan <- sim_plan(context, coupled = length(coupling) > 0L)
   n_intervals <- length(recipe$wave_times) - 1L

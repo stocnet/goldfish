@@ -209,6 +209,7 @@ estimate_dynes <- function(
     completed,
     recipe,
     control_algo,
+    control_prep = control_prep,
     call = call
   )
 

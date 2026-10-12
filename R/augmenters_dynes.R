@@ -3,9 +3,12 @@
 # the ABMCEM loop (run_abem_loop()) calls.
 #
 # An augmenter is built once, at estimate_dynes() entry, by a constructor
-# `function(spec, recipe, control, call)` over the completed joint
-# specification and the compiled augmentation_recipe, so the data window is
-# bound at construction rather than passed per call. It provides
+# `function(spec, recipe, control, control_prep, call)` over the completed
+# joint specification and the compiled augmentation_recipe, so the data window
+# is bound at construction rather than passed per call. `control_prep` is the
+# preprocessing control every candidate's log-likelihood is scored with; a
+# walk an augmenter opens to judge a candidate reads it too, so the
+# augmenter's view of a sequence is the target's. It provides
 #
 # * `draw(iteration, draw_index, theta)`: one endpoint-hitting sequence per
 #   entry of `draw_index`, each `list(data, log_proposal, restarted)` -- `data`
@@ -48,6 +51,7 @@ resolve_dynes_augmenter <- function(
   spec,
   recipe,
   control,
+  control_prep = set_preprocessing(),
   call = rlang::caller_env()
 ) {
   routine <- control$augmenter$routine
@@ -64,7 +68,13 @@ resolve_dynes_augmenter <- function(
       call = call
     )
   }
-  augmenter <- constructor(spec, recipe, control, call = call)
+  augmenter <- constructor(
+    spec,
+    recipe,
+    control,
+    control_prep = control_prep,
+    call = call
+  )
   if (!inherits(augmenter, "goldfishAugmenter")) {
     cli::cli_abort(
       "The {.val {routine}} constructor must return a
@@ -128,8 +138,14 @@ check_augmenter_function <- function(
 # every drawn sequence completes. Rows at or before the observation start are
 # the initial condition and stay; rows after the last wave lie outside the
 # estimation window and stay too, since every sequence reaches the last wave in
-# its observed state.
-new_augmenter_context <- function(spec, recipe, call = rlang::caller_env()) {
+# its observed state. `control_prep` is the likelihood's preprocessing
+# control, which every walk opened on a candidate reads.
+new_augmenter_context <- function(
+  spec,
+  recipe,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
   if (!inherits(recipe, "goldfishAugRecipe")) {
     cli::cli_abort(
       "{.arg recipe} must be a {.cls goldfishAugRecipe}.",
@@ -147,7 +163,12 @@ new_augmenter_context <- function(spec, recipe, call = rlang::caller_env()) {
   data$ties <- ties[!latent, , drop = FALSE]
   rownames(data$ties) <- NULL
   structure(
-    list(spec = spec, recipe = recipe, base = data),
+    list(
+      spec = spec,
+      recipe = recipe,
+      base = data,
+      control_prep = control_prep
+    ),
     class = "goldfishAugContext"
   )
 }
@@ -210,7 +231,7 @@ emit_augmented_data <- function(context, times) {
 open_augmenter_walk <- function(
   context,
   data = context$spec$data,
-  control_preprocessing = set_preprocessing(),
+  control_preprocessing = context$control_prep,
   call = rlang::caller_env()
 ) {
   walk_open(

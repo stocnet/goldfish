@@ -104,7 +104,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `control_prep` the candidate's log-likelihood is scored with (assert
       through a mocked `walk_open()` capturing its control). Confirm RED and
       commit the test alone.
-- [ ] 2.3d Open every legality walk with the `control_prep` the likelihood
+- [x] 2.3d Open every legality walk with the `control_prep` the likelihood
       uses, not `set_preprocessing()`. Confirm GREEN and commit.
 - [ ] 2.4 Rerun every seeded `augment_seq_random()` / `augment_seq_mcmc()`
       test. Any expectation that moved must trace to a stamp tie in its

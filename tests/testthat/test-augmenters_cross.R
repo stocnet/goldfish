@@ -272,7 +272,7 @@ test_that("the pool entry routes every drawn event to its own flavor", {
 cross_entry <- function() {
   entry <- NULL
   local_mocked_bindings(
-    resolve_dynes_augmenter = function(spec, recipe, control, call) {
+    resolve_dynes_augmenter = function(spec, recipe, control, ...) {
       entry <<- list(spec = spec, recipe = recipe)
       rlang::abort("entry reached", class = "cross_entry_seen")
     }
