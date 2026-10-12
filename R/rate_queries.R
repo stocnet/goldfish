@@ -352,9 +352,32 @@ query_rate_at_position <- function(
 ) {
   handle <- walk_open(spec, control_prep, call = call)
   routing <- simulation_routing(spec, handle)
-  n_events <- length(walk_realizations(handle)$time)
+  after <- rate_query_positions(
+    queries,
+    length(walk_realizations(handle)$time),
+    call
+  )
+  intensity <- numeric(length(queries))
+  for (k in sort(unique(after))) {
+    walk_replay_to(handle, k, call = call)
+    intensity <- read_rate_queries(
+      handle,
+      routing,
+      theta,
+      queries,
+      which(after == k),
+      intensity,
+      spec$completed_rates,
+      call
+    )
+  }
+  intensity
+}
 
-  after <- vapply(
+# The position of each query, checked against the candidate's `n_events`
+# realizations.
+rate_query_positions <- function(queries, n_events, call) {
+  vapply(
     queries,
     function(query) {
       k <- query$after
@@ -381,25 +404,134 @@ query_rate_at_position <- function(
     },
     integer(1)
   )
+}
 
-  intensity <- numeric(length(queries))
-  for (k in sort(unique(after))) {
-    walk_replay_to(handle, k, call = call)
-    for (q in which(after == k)) {
-      query <- queries[[q]]
-      intensity[q] <- pair_intensity(
-        handle,
-        routing,
-        theta,
-        process = list(layer = query$layer, flavor = query$flavor),
-        sender = query$sender,
-        receiver = query$receiver,
-        pinned = spec$completed_rates,
-        call = call
-      )
-    }
+# `intensity` with the queries at indices `at` read at the handle's state.
+read_rate_queries <- function(
+  handle,
+  routing,
+  theta,
+  queries,
+  at,
+  intensity,
+  pinned,
+  call
+) {
+  for (q in at) {
+    query <- queries[[q]]
+    intensity[q] <- pair_intensity(
+      handle,
+      routing,
+      theta,
+      process = list(layer = query$layer, flavor = query$flavor),
+      sender = query$sender,
+      receiver = query$receiver,
+      pinned = pinned,
+      call = call
+    )
   }
   intensity
+}
+
+# One pass over a candidate that both decides its support legality over
+# interval `legality$interval` of the waves `legality$waves` and answers its
+# rate queries, on one walk: what new_legality_checker() and
+# query_rate_at_position() answer on a walk each. `spec`, `theta`, `queries`
+# and `control_prep` are query_rate_at_position()'s.
+#
+# The candidate's realizations are replayed one stamp at a time
+# (replay_stamps()), stopping at every query position to read it. Every
+# in-interval event of a stamp is checked against the live support strictly
+# before the stamp, before any event of it is injected. The checks come from
+# the candidate's ties, not from the realizations, which carry no flavor: each
+# stamp's checks are taken off a cursor the first time the replay reaches the
+# stamp. At the first unsupported event the pass returns `legal = FALSE` with
+# no rates; queries read before it are discarded. Returns `list(legal,
+# rates)`.
+candidate_pass <- function(
+  spec,
+  theta,
+  queries,
+  legality,
+  control_prep = set_preprocessing(),
+  call = rlang::caller_env()
+) {
+  handle <- walk_open(spec, control_prep, call = call)
+  routing <- simulation_routing(spec, handle)
+  realizations <- walk_realizations(handle)
+  after <- rate_query_positions(queries, length(realizations$time), call)
+
+  waves <- legality$waves
+  lower <- waves[[legality$interval]]
+  upper <- waves[[legality$interval + 1L]]
+  data <- spec$data
+  ties <- as.data.frame(data$ties)
+  rows <- which(
+    ties$layer %in%
+      handle$focal_layers &
+      !is.na(ties$time) &
+      ties$time > lower &
+      ties$time <= upper
+  )
+  checks <- replay_columns(
+    ties,
+    rows,
+    as.data.frame(data$nodes)$label,
+    data$info$update
+  )
+  n_checks <- length(checks$time)
+  cursor <- 1L
+  supported <- function(i) {
+    t <- realizations$time[[i]]
+    while (cursor <= n_checks && checks$time[[cursor]] == t) {
+      if (
+        !walk_event_supported(
+          handle,
+          checks$layer[[cursor]],
+          checks$flavor[[cursor]],
+          checks$sender[[cursor]],
+          checks$receiver[[cursor]]
+        )
+      ) {
+        return(FALSE)
+      }
+      cursor <<- cursor + 1L
+    }
+    TRUE
+  }
+
+  intensity <- numeric(length(queries))
+  done <- 0L
+  last_checked <- sum(realizations$time <= upper)
+  for (stop in sort(unique(c(after, last_checked)))) {
+    if (stop > done) {
+      if (!replay_stamps(handle, realizations, done + 1L, stop, supported)) {
+        return(list(legal = FALSE, rates = NULL))
+      }
+      done <- stop
+    }
+    intensity <- read_rate_queries(
+      handle,
+      routing,
+      theta,
+      queries,
+      which(after == stop),
+      intensity,
+      spec$completed_rates,
+      call
+    )
+  }
+  # Every in-interval tie is a realization at its own stamp, so the cursor
+  # ends past the last check; a check left over was never read.
+  if (cursor <= n_checks) {
+    cli::cli_abort(
+      "The legality pass reached no realization at time
+       {.val {checks$time[[cursor]]}}.",
+      .internal = TRUE,
+      call = call
+    )
+  }
+  list(legal = TRUE, rates = intensity)
 }
 
 rate_query_process <- function(layer, flavor) {

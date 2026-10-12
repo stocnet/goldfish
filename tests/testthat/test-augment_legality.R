@@ -399,7 +399,7 @@ dissolution_first <- function(context) {
   ifelse(events$flavor[ids] == "dissolution", 1, 3)
 }
 
-test_that("the fused pass agrees with the separate walks on an untied candidate", {
+test_that("the fused pass agrees with the separate walks off any tie", {
   context <- stamp_tie_context(
     calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
     emails = data.frame(from = 3L, to = 1L, time = 6)

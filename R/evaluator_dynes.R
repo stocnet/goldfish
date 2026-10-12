@@ -1036,6 +1036,13 @@ evaluate_sequence_pool <- function(
 # stay separate, one walk each. `loglik = FALSE` answers the rate queries
 # alone: an MCMC move reads its forward rates on the current sequence, whose
 # log-likelihood it already holds, before it can draw the candidate.
+#
+# `legality = list(interval, waves)` also decides the candidate's support
+# legality over that interval, in the same walk that answers its rate queries
+# (candidate_pass()), opened with this evaluator's `control_prep`, the one its
+# log-likelihood is scored with. The answer then carries `legal`; an illegal
+# candidate gets no rates and no log-likelihood (`NA`). A call without
+# `legality` is answered as described above.
 make_proposal_evaluator <- function(
   decomposition,
   theta,
@@ -1058,18 +1065,53 @@ make_proposal_evaluator <- function(
     theta_by_fid <- flat_to_fid_theta(spec, theta, call = call)
   }
 
-  function(candidate_seq, rate_queries = NULL, loglik = TRUE) {
+  score_candidate <- function(candidate_seq) {
+    evaluate_candidate(
+      decomposition,
+      candidate_seq,
+      theta,
+      what = "loglik",
+      control_prep = control_prep,
+      call = call
+    )$loglik
+  }
+  need_spec <- function() {
+    if (is.null(spec)) {
+      cli::cli_abort(
+        c(
+          "Rate queries need the completed joint specification.",
+          "i" = "Supply {.arg spec} to {.fn make_proposal_evaluator}."
+        ),
+        call = call
+      )
+    }
+  }
+
+  function(candidate_seq, rate_queries = NULL, loglik = TRUE, legality = NULL) {
+    if (!is.null(legality)) {
+      need_spec()
+      pass <- candidate_pass(
+        bind_candidate_data(spec, candidate_seq, call = call),
+        theta_by_fid,
+        rate_queries %||% list(),
+        legality,
+        control_prep = control_prep,
+        call = call
+      )
+      if (!pass$legal) {
+        return(list(legal = FALSE, rates = NULL, loglik = NA_real_))
+      }
+      rates <- if (!is.null(rate_queries)) pass$rates
+      scored <- if (isTRUE(loglik)) {
+        score_candidate(candidate_seq)
+      } else {
+        NA_real_
+      }
+      return(list(legal = TRUE, rates = rates, loglik = scored))
+    }
     rates <- NULL
     if (!is.null(rate_queries)) {
-      if (is.null(spec)) {
-        cli::cli_abort(
-          c(
-            "Rate queries need the completed joint specification.",
-            "i" = "Supply {.arg spec} to {.fn make_proposal_evaluator}."
-          ),
-          call = call
-        )
-      }
+      need_spec()
       rates <- query_rate_at_position(
         bind_candidate_data(spec, candidate_seq, call = call),
         theta_by_fid,
@@ -1081,15 +1123,7 @@ make_proposal_evaluator <- function(
     if (!isTRUE(loglik)) {
       return(list(loglik = NA_real_, rates = rates))
     }
-    harvest <- evaluate_candidate(
-      decomposition,
-      candidate_seq,
-      theta,
-      what = "loglik",
-      control_prep = control_prep,
-      call = call
-    )
-    list(loglik = harvest$loglik, rates = rates)
+    list(loglik = score_candidate(candidate_seq), rates = rates)
   }
 }
 
