@@ -26,21 +26,21 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `progress.md` "Cost record". Note for later groups: the coupled sim
       draw restarts on every seed (8 to 498 walk opens), and an uncoupled
       MCMC step already opens 2 walks.
-- [ ] 1.2a Failing test (D7, standalone `fix:`): a sim draw over an interval
+- [x] 1.2a Failing test (D7, standalone `fix:`): a sim draw over an interval
       with two tied observed relational events and at least one flip left
       completes. Guard the run with an iteration cap on `sim_flip_wait()`'s
       truncated draw (or a `callr` timeout) so the RED run fails rather than
       hangs. Confirm RED and commit the test alone.
-- [ ] 1.2b While a tied sibling of a placed relational event is pending, offer
+- [x] 1.2b While a tied sibling of a placed relational event is pending, offer
       no flip candidate: the sibling is the next step with `wait = 0`. This
       removes the `width = 0` path. Confirm GREEN, confirm 1.1's untied
       references are unmoved, and commit as a `fix:`.
-- [ ] 1.2c Failing test (D7, standalone `fix:`): a sim draw over an interval
+- [x] 1.2c Failing test (D7, standalone `fix:`): a sim draw over an interval
       `(w_{k-1}, w_k]` with an observed relational event at `w_k` and at least
       one flip completes, with every flip strictly before `w_k` and the event
       last. Use the same iteration-cap or `callr` guard as 1.2a. Confirm RED
       (a seed that selects the event first hangs) and commit the test alone.
-- [ ] 1.2d An observed relational event at its interval's closing wave is not
+- [x] 1.2d An observed relational event at its interval's closing wave is not
       weighted: it is selected only once no flip of the interval is left, with
       probability 1 and no `log_q` term. Confirm GREEN, confirm 1.1's
       references are unmoved, and commit as a `fix:`. Regression check: the
