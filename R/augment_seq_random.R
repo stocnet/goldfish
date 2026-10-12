@@ -217,7 +217,7 @@ new_legality_checker <- function(context) {
       layer <- ties$layer[[r]]
       sender <- node_index(ties$from[[r]], labels)
       receiver <- node_index(ties$to[[r]], labels)
-      walk_advance(handle, t)
+      walk_advance(handle, t, inclusive = FALSE)
       if (t > waves[[k]]) {
         flavor <- ties[["flavor"]][r] %||% NA_character_
         if (!walk_event_supported(handle, layer, flavor, sender, receiver)) {

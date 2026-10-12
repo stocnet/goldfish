@@ -88,7 +88,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 - [x] 2.2a Failing test: a candidate whose in-interval event shares its stamp
       with an exogenous row that would exclude the event's dyad is judged
       legal. Confirm RED and commit the test alone.
-- [ ] 2.2b Advance the replay with `walk_advance(handle, t, inclusive = FALSE)`
+- [x] 2.2b Advance the replay with `walk_advance(handle, t, inclusive = FALSE)`
       before checking. Confirm GREEN and commit.
 - [ ] 2.3a Failing test: two tied in-interval observed events, where injecting
       the first would exclude the second, are both judged legal. Confirm RED

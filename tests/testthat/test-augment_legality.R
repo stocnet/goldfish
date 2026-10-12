@@ -227,7 +227,7 @@ test_that("the legality replay allocates nothing per event that grows with n", {
   expect_lt(slope(240L) - slope(60L), 8 * (240 - 60) / 4)
 })
 
-# --- Stamp semantics -----------------------------------------------------------
+# --- Stamp semantics ----------------------------------------------------------
 
 test_that("an exogenous row sharing an event's stamp is not applied first", {
   # The email 2 -> 3 at t = 2 would exclude the call 2 -> 3 stamped with it.
