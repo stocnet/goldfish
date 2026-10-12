@@ -11,19 +11,20 @@
 #   the whole draw.
 
 # Count walk opens, attempts and every evaluate_fid() call of the draws made
-# in `env`, each call with the attempt and interval it ran in, the walk time,
-# a version that changes whenever the walk moves or takes an event, and
-# whether the driver's rate round made it.
+# in `env`, each call with the attempt and the interval it ran in, the walk
+# time, a version that changes whenever the walk moves or takes an event, and
+# whether the driver's rate round made it. The interval is read from the
+# attempt's state when the call is made, since one walk may carry several.
 local_sim_counts <- function(env = parent.frame()) {
   log <- new.env(parent = emptyenv())
   log$opens <- 0L
   log$attempt <- 0L
-  log$k <- NA_integer_
+  log$state <- NULL
   log$version <- 0L
   log$in_round <- FALSE
   log$rows <- list()
   open <- walk_open
-  attempt <- sim_interval_attempt
+  attempt <- new_sim_attempt
   advance <- walk_advance
   inject <- walk_inject
   round <- rate_values
@@ -33,10 +34,10 @@ local_sim_counts <- function(env = parent.frame()) {
       log$opens <- log$opens + 1L
       open(...)
     },
-    sim_interval_attempt = function(plan, k, ...) {
+    new_sim_attempt = function(...) {
       log$attempt <- log$attempt + 1L
-      log$k <- k
-      attempt(plan, k, ...)
+      log$state <- attempt(...)
+      log$state
     },
     walk_advance = function(handle, ...) {
       log$version <- log$version + 1L
@@ -55,7 +56,7 @@ local_sim_counts <- function(env = parent.frame()) {
       map <- handle$process_map
       log$rows[[length(log$rows) + 1L]] <- data.frame(
         attempt = log$attempt,
-        k = log$k,
+        k = log$state$k %||% NA_integer_,
         fid = fid,
         family = map$family[match(fid, map$fid)],
         time = handle$current_time,
@@ -266,6 +267,8 @@ test_that("an uncoupled sim draw opens one walk", {
   # Every interval carries flips, so a per-interval draw opens three walks.
   expect_true(all(tabulate(fixture$recipe$events$interval, 3L) > 0L))
   log <- local_sim_counts()
-  wa_seeded_draw(fixture, 1L)
+  draw <- wa_seeded_draw(fixture, 1L)
   expect_identical(log$opens, 1L)
+  # Carried on one walk, the draw is still the one the intervals drew apart.
+  expect_identical(wa_draw_record(draw), fixture$draws[["1"]])
 })
