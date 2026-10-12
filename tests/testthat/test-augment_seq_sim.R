@@ -554,6 +554,20 @@ test_that("a draw over tied relational events with a flip left completes", {
   }
 })
 
+test_that("a draw with a relational event at the wave end completes", {
+  local_runif_cap()
+  # The email at w_1 = 5 belongs to interval (0, 5]; selected before the
+  # call, it would leave the call no room before the wave.
+  built <- sim_augmenter(breakpoint_spec(breakpoint_data(7, email_time = 5)))
+  draws <- draw_sim(built, 20L, c(0, 1, 0, 0, 0))
+  for (draw in draws) {
+    expect_true(is.finite(draw$log_proposal))
+    expect_equal(layer_rows(draw, "emails")$time, 5)
+    call <- layer_rows(draw, "calls")$time
+    expect_true(call > 0 && call < 5)
+  }
+})
+
 test_that("an interval no draw can complete aborts at the ceiling", {
   local_cli_context()
   local_mocked_bindings(restart_ceiling = function() 5L)
