@@ -100,7 +100,7 @@ first_interval_candidate <- function(context) {
 # 0) in which N1 swaps 1 -> 2 for 1 -> 3 by wave 5 and 3 -> 4 appears by wave
 # 10, modeled beside an observed calls stream and an emails stream. The calls
 # constraint is `constraint`; by default no call goes along an email tie.
-stamp_tie_context <- function(calls, emails, constraint = ~ !tie(emails)) {
+stamp_tie_spec <- function(calls, emails, constraint = ~ !tie(emails)) {
   friendship <- data.frame(
     from = c(1L, 2L, 1L, 1L, 3L),
     to = c(2L, 4L, 2L, 3L, 4L),
@@ -137,7 +137,7 @@ stamp_tie_context <- function(calls, emails, constraint = ~ !tie(emails)) {
     values_equivalence = c(creation = 1, dissolution = -1),
     flavor_style = "mutually_exclusive"
   )
-  spec <- make_joint_specification(
+  make_joint_specification(
     make_specification(
       choice = list(creation ~ indeg, dissolution ~ indeg),
       layer = "friendship",
@@ -154,6 +154,12 @@ stamp_tie_context <- function(calls, emails, constraint = ~ !tie(emails)) {
     ),
     data = data
   )
+}
+
+# The augmenter context over stamp_tie_spec(), completed as estimate_dynes()
+# completes it.
+stamp_tie_context <- function(...) {
+  spec <- stamp_tie_spec(...)
   waves <- panel_wave_grid(spec, start_time = 0)
   completed <- suppressWarnings(complete_generative_spec(
     spec,
@@ -278,4 +284,52 @@ test_that("an event after another's stamp still reads it", {
   )
   checker <- new_legality_checker(context)
   expect_false(legal_first_interval(checker, context))
+})
+
+# --- Configuration ------------------------------------------------------------
+
+test_that("every legality walk opens with the likelihood's control_prep", {
+  local_mocked_bindings(legal_pilot_attempts = function() 2L)
+  opened <- list()
+  open <- walk_open
+  scored <- NULL
+  local_mocked_bindings(
+    walk_open = function(spec, control_preprocessing, ...) {
+      opened[[length(opened) + 1L]] <<- control_preprocessing
+      open(spec, control_preprocessing, ...)
+    },
+    # The control every candidate's log-likelihood is scored with, which
+    # estimate_dynes() hands the warm start and the estimation loop alike.
+    dynes_initial_theta = function(
+      control,
+      spec,
+      labels,
+      decomposition,
+      augmenter,
+      control_prep,
+      call
+    ) {
+      scored <<- control_prep
+      rlang::abort("scored", class = "legality_control_seen")
+    }
+  )
+  spec <- stamp_tie_spec(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 3L, to = 1L, time = 6)
+  )
+  expect_error(
+    suppressWarnings(estimate_dynes(
+      spec,
+      set_algorithm_em(
+        seed = 1L,
+        augmenter = set_augmenter_options(routine = "random")
+      ),
+      control_prep = set_preprocessing(start_time = 0)
+    )),
+    class = "legality_control_seen"
+  )
+  expect_identical(scored$start_time, 0)
+  expect_identical(scored$end_time, 10)
+  expect_gt(length(opened), 0L)
+  expect_identical(unique(opened), list(scored))
 })

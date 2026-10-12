@@ -99,7 +99,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       run an optional check hook on every event of the stamp, then inject the
       stamp's realizations), and run the legality replay through it with
       `walk_event_supported()` as the hook. Confirm GREEN and commit.
-- [ ] 2.3c Failing test (D5): with a non-default `control_prep` (a
+- [x] 2.3c Failing test (D5): with a non-default `control_prep` (a
       `start_time`), the legality checker's walk is opened with the same
       `control_prep` the candidate's log-likelihood is scored with (assert
       through a mocked `walk_open()` capturing its control). Confirm RED and
