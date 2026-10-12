@@ -333,3 +333,156 @@ test_that("every legality walk opens with the likelihood's control_prep", {
   expect_gt(length(opened), 0L)
   expect_identical(unique(opened), list(scored))
 })
+
+# --- The fused candidate pass -------------------------------------------------
+
+# The proposal evaluator's one pass over a candidate (`legality =`) against
+# the separate legality checker and rate-query walk it replaces: interval 1 of
+# `context`'s recipe at `candidate`, later intervals at the checker's
+# placeholders, with `queries` as `list(after, layer, flavor, sender,
+# receiver)`. Returns the fused answer, the separate ones, and how many
+# log-likelihoods the fused call scored.
+fused_against_separate <- function(context, candidate, queries) {
+  recipe <- context$recipe
+  spec <- context$spec
+  ids <- recipe$events$event[recipe$events$interval == 1L]
+  times <- legality_placeholder_times(recipe)
+  times[ids] <- candidate
+  data <- emit_augmented_data(context, times)
+  layout <- coef_layout(spec)
+  theta <- 0.1 * seq_len(sum(!layout$fixed))
+  evaluator <- make_proposal_evaluator(
+    decompose_joint_spec(spec),
+    theta,
+    spec = spec
+  )
+  scored <- 0L
+  score <- evaluate_candidate
+  local_mocked_bindings(
+    evaluate_candidate = function(...) {
+      scored <<- scored + 1L
+      score(...)
+    }
+  )
+  fused <- suppressWarnings(evaluator(
+    data,
+    rate_queries = queries,
+    legality = list(interval = 1L, waves = recipe$wave_times)
+  ))
+  list(
+    fused = fused,
+    scored = scored,
+    legal = new_legality_checker(context)$legal(times, 1L, candidate),
+    rates = query_rate_at_position(
+      bind_candidate_data(spec, data),
+      flat_to_fid_theta(spec, theta),
+      queries
+    )
+  )
+}
+
+calls_query <- function(after, sender, receiver) {
+  list(
+    after = after,
+    layer = "calls",
+    flavor = NA_character_,
+    sender = sender,
+    receiver = receiver
+  )
+}
+
+# The first interval's dissolution (at 1) before its creation (at 3), as
+# legal_first_interval() places them.
+dissolution_first <- function(context) {
+  events <- context$recipe$events
+  ids <- events$event[events$interval == 1L]
+  ifelse(events$flavor[ids] == "dissolution", 1, 3)
+}
+
+test_that("the fused pass agrees with the separate walks on an untied candidate", {
+  context <- stamp_tie_context(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 3L, to = 1L, time = 6)
+  )
+  queries <- list(
+    calls_query(0L, "N2", "N3"),
+    calls_query(1L, "N1", "N3"),
+    list(
+      after = 2L,
+      layer = "friendship",
+      flavor = "creation",
+      sender = "N1",
+      receiver = "N3"
+    ),
+    calls_query(3L, "N4", "N1")
+  )
+  answer <- fused_against_separate(context, dissolution_first(context), queries)
+  expect_true(answer$legal)
+  expect_true(answer$fused$legal)
+  expect_identical(answer$fused$rates, answer$rates)
+  expect_type(answer$fused$loglik, "double")
+  expect_identical(answer$scored, 1L)
+})
+
+test_that("the fused pass agrees with the separate walks at a stamp tie", {
+  # The email 2 -> 3 shares the call's stamp: legal, read strictly before it.
+  context <- stamp_tie_context(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 2L, to = 3L, time = 2)
+  )
+  queries <- list(calls_query(1L, "N2", "N3"), calls_query(2L, "N2", "N3"))
+  answer <- fused_against_separate(context, dissolution_first(context), queries)
+  expect_true(answer$legal)
+  expect_true(answer$fused$legal)
+  expect_identical(answer$fused$rates, answer$rates)
+})
+
+test_that("the fused pass reads tied events as two positions", {
+  context <- stamp_tie_context(
+    calls = data.frame(
+      from = c(2L, 2L, 4L),
+      to = c(3L, 4L, 1L),
+      time = c(2, 2, 7)
+    ),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego") < 1
+  )
+  queries <- list(
+    calls_query(3L, "N1", "N3"),
+    calls_query(2L, "N1", "N3"),
+    calls_query(4L, "N1", "N3")
+  )
+  answer <- fused_against_separate(context, dissolution_first(context), queries)
+  expect_true(answer$legal)
+  expect_true(answer$fused$legal)
+  expect_identical(answer$fused$rates, answer$rates)
+})
+
+test_that("the fused pass stops at the first illegal stamp with no rates", {
+  untied <- stamp_tie_context(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 2L, to = 3L, time = 1.5)
+  )
+  tied <- stamp_tie_context(
+    calls = data.frame(
+      from = c(2L, 2L, 4L),
+      to = c(3L, 4L, 1L),
+      time = c(2, 2.5, 7)
+    ),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego") < 1
+  )
+  for (context in list(untied, tied)) {
+    queries <- list(calls_query(0L, "N2", "N3"), calls_query(3L, "N4", "N1"))
+    answer <- fused_against_separate(
+      context,
+      dissolution_first(context),
+      queries
+    )
+    expect_false(answer$legal)
+    expect_false(answer$fused$legal)
+    expect_null(answer$fused$rates)
+    expect_identical(answer$fused$loglik, NA_real_)
+    expect_identical(answer$scored, 0L)
+  }
+})
