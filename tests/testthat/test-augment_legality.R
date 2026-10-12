@@ -96,6 +96,86 @@ first_interval_candidate <- function(context) {
   )
 }
 
+# Four actors: a flavored friendship panel (waves 5 and 10, observation start
+# 0) in which N1 swaps 1 -> 2 for 1 -> 3 by wave 5 and 3 -> 4 appears by wave
+# 10, modeled beside an observed calls stream and an emails stream. The calls
+# constraint is `constraint`; by default no call goes along an email tie.
+stamp_tie_context <- function(calls, emails, constraint = ~ !tie(emails)) {
+  friendship <- data.frame(
+    from = c(1L, 2L, 1L, 1L, 3L),
+    to = c(2L, 4L, 2L, 3L, 4L),
+    time = c(NA, NA, 5, 5, 10),
+    weight = c(1, 1, -1, 1, 1),
+    layer = "friendship"
+  )
+  calls$weight <- 1
+  calls$layer <- "calls"
+  emails$weight <- 1
+  emails$layer <- "emails"
+  data <- list(
+    info = list(
+      name = "stamp_tie",
+      focal = "calls",
+      update = c(
+        friendship = "increment",
+        calls = "increment",
+        emails = "increment"
+      ),
+      directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+      observation = c(friendship = "panel", calls = "event", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(friendship, calls, emails)
+  )
+  data <- add_flavor(
+    data,
+    layer = "friendship",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  spec <- make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg, dissolution ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~ 1 + indeg(friendship),
+      choice = ~ tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data,
+      support_constraint = constraint
+    ),
+    data = data
+  )
+  waves <- panel_wave_grid(spec, start_time = 0)
+  completed <- suppressWarnings(complete_generative_spec(
+    spec,
+    consumer = "estimate_dynes",
+    wave_times = waves
+  ))
+  new_augmenter_context(
+    completed,
+    compile_augmentation_recipe(completed, waves)
+  )
+}
+
+# The first interval's dissolution before its creation, both off every
+# observed stamp: legal on its own.
+legal_first_interval <- function(checker, context) {
+  events <- context$recipe$events
+  ids <- events$event[events$interval == 1L]
+  times <- rep(NA_real_, nrow(events))
+  candidate <- ifelse(events$flavor[ids] == "dissolution", 1, 3)
+  checker$legal(times, 1L, candidate)
+}
+
 # --- Cost ---------------------------------------------------------------------
 
 test_that("a legality check opens one walk", {
@@ -145,4 +225,27 @@ test_that("the legality replay allocates nothing per event that grows with n", {
     (check_bytes(n_actors, 160L) - check_bytes(n_actors, 40L)) / 120
   }
   expect_lt(slope(240L) - slope(60L), 8 * (240 - 60) / 4)
+})
+
+# --- Stamp semantics -----------------------------------------------------------
+
+test_that("an exogenous row sharing an event's stamp is not applied first", {
+  # The email 2 -> 3 at t = 2 would exclude the call 2 -> 3 stamped with it.
+  # The likelihood reads the call strictly before t = 2, where it is
+  # supported.
+  context <- stamp_tie_context(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 2L, to = 3L, time = 2)
+  )
+  checker <- new_legality_checker(context)
+  expect_true(legal_first_interval(checker, context))
+})
+
+test_that("an exogenous row before an event's stamp still excludes it", {
+  context <- stamp_tie_context(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 2L, to = 3L, time = 1.5)
+  )
+  checker <- new_legality_checker(context)
+  expect_false(legal_first_interval(checker, context))
 })

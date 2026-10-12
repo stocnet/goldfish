@@ -85,7 +85,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       per-event `runif(n)` fails it (+1428 B against a 360 B limit). The
       first support read of a walk allocates a grid once per check (the
       availability catching up), which the slope cancels.
-- [ ] 2.2a Failing test: a candidate whose in-interval event shares its stamp
+- [x] 2.2a Failing test: a candidate whose in-interval event shares its stamp
       with an exogenous row that would exclude the event's dyad is judged
       legal. Confirm RED and commit the test alone.
 - [ ] 2.2b Advance the replay with `walk_advance(handle, t, inclusive = FALSE)`
