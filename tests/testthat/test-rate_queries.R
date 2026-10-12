@@ -673,6 +673,33 @@ test_that("tied candidate events are addressable one at a time", {
   expect_false(isTRUE(all.equal(both[1], both[2])))
 })
 
+# Replay `handle` to the state right after candidate event `after`'s
+# realization, the position query_rate_at_position() reads at.
+rq_replay_after <- function(handle, after) {
+  schedule <- handle$schedule
+  realized <- which(
+    !schedule$dependent & schedule$layer %in% handle$focal_layers
+  )
+  walk_replay_to(handle, c(1L, realized + 1L)[after + 1L])
+  handle
+}
+
+test_that("each of two tied events is its own position", {
+  # Events 3 and 4 are calls 2 -> 3 and 3 -> 4, both realized at t = 2; the
+  # emails row 2 -> 1 shares the stamp and sorts after them.
+  first <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 3L)
+  networks <- first$state$networks
+  expect_identical(networks[["calls"]][2, 3], 1)
+  expect_identical(networks[["calls"]][3, 4], 0)
+  expect_identical(networks[["emails"]][2, 1], 0)
+
+  both <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 4L)
+  networks <- both$state$networks
+  expect_identical(networks[["calls"]][2, 3], 1)
+  expect_identical(networks[["calls"]][3, 4], 1)
+  expect_identical(networks[["emails"]][2, 1], 0)
+})
+
 test_that("completed rates do not move with the candidate", {
   spec <- rq_pinned_spec()
   theta <- list(
