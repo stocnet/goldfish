@@ -53,7 +53,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       the interval-1 `calls` event 2 -> 3, which reads N6 as present (D7,
       composition at the stamp). Assert the fit
       completes, not only that it terminates.
-- [ ] 1.3 Pin the stamp order D2 relies on: a test over a fixture that ties a
+- [x] 1.3 Pin the stamp order D2 relies on: a test over a fixture that ties a
       dependent event with a covariate change and a composition change
       asserts that the merged schedule puts the dependent row first at the
       stamp. Put the tie at a wave time, where snapped composition rows now
@@ -62,7 +62,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       to the ordering comment in `R/preprocess_joint.R` (the actor's decision
       precedes the stamp, so nothing at the stamp informs it), with no
       reference to this change. Commit.
-- [ ] 1.4 Correct the record of the removed refusal (D6). Rewrite the two
+- [x] 1.4 Correct the record of the removed refusal (D6). Rewrite the two
       `openspec/changes/dynes-augmentation/design.md` passages that say a
       `goldfish_walk_unsupported` refusal remains, and replace the vacuous
       test in `tests/testthat/test-augmenters_dynes.R` with one asserting that
@@ -70,7 +70,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `walk_event_supported()` when that network changes mid-interval. This is
       a characterization of behavior that already landed, so it is not a
       red/green pair.
-- [ ] 1.5 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+- [x] 1.5 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
 
 ## 2. Legality replay at the batch stamp semantics (D1, D8)
 
