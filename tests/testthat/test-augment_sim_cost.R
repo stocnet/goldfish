@@ -126,6 +126,49 @@ for (name in c("uncoupled", "coupled")) {
   )
 }
 
+# --- The forced prefix --------------------------------------------------------
+
+test_that("a later interval's prefix costs one round whatever its length", {
+  skip_on_cran()
+  # Coupled, so every interval has attempts of its own, each over a prefix.
+  fixture <- wa_sim_fixture("coupled")
+  log <- local_sim_counts()
+  wa_seeded_draw(fixture, 1L)
+  counts <- pre_interval_counts(sim_evaluations(log), fixture$waves)
+  rate_fids <- with(fixture$spec$process_map, fid[family == "rate"])
+  # Interval 3 replays more events than interval 2 (every observed call and
+  # flip before it), yet each attempt at either pays one evaluation of each
+  # rate fid, the driver's round at the walk's opening state.
+  calls <- as.data.frame(fixture$spec$data$ties)
+  calls <- calls$time[calls$layer == "calls" & !is.na(calls$time)]
+  expect_gt(sum(calls < fixture$waves[[3L]]), sum(calls < fixture$waves[[2L]]))
+  for (k in 2:3) {
+    at_k <- counts[counts$k == k, ]
+    expect_setequal(at_k$fid, rate_fids)
+    expect_true(all(at_k$n == 1L))
+  }
+})
+
+test_that("seeded sim draws equal the pre-change references", {
+  skip_on_cran()
+  # The prefix draws no random number however it is applied, so on data with
+  # no stamp tie the draws are the ones recorded before the change. The
+  # coupled draws restart, and the restart tail of seeds 2 to 5 is slow.
+  for (name in c("uncoupled", "coupled")) {
+    fixture <- wa_sim_fixture(name)
+    seeds <- if (name == "uncoupled") 1:5 else 1L
+    for (seed in seeds) {
+      expect_identical(
+        wa_draw_record(wa_seeded_draw(fixture, seed)),
+        fixture$draws[[as.character(seed)]],
+        label = paste(name, "seed", seed)
+      )
+    }
+  }
+})
+
+# --- One walk -----------------------------------------------------------------
+
 test_that("an uncoupled sim draw opens one walk", {
   skip_on_cran()
   fixture <- wa_sim_fixture("uncoupled")
