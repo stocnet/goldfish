@@ -700,6 +700,71 @@ test_that("each of two tied events is its own position", {
   expect_identical(networks[["emails"]][2, 1], 0)
 })
 
+# calls models creation and dissolution; the t = 3 renewal 2 -> 3 belongs to
+# no process and shares its stamp with the dissolution 3 -> 4. The calls
+# realizations are, in schedule order: creation 3 -> 4 (t = 1), dissolution
+# 1 -> 2 (t = 2), renewal 2 -> 3 and dissolution 3 -> 4 (t = 3).
+rq_flavor_tie_spec <- function() {
+  data <- add_flavor(
+    list(
+      info = list(
+        name = "toy4",
+        focal = "calls",
+        update = c(calls = "increment"),
+        directed = c(calls = TRUE),
+        observation = c(calls = "event")
+      ),
+      nodes = data.frame(
+        label = c("A", "B", "C", "D"),
+        mode = "p",
+        stringsAsFactors = FALSE
+      ),
+      ties = data.frame(
+        from = c(1L, 3L, 1L, 2L, 3L),
+        to = c(2L, 4L, 2L, 3L, 4L),
+        time = c(NA, 1, 2, 3, 3),
+        layer = "calls",
+        weight = c(1, 1, -1, 1, -1),
+        stringsAsFactors = FALSE
+      )
+    ),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1)
+  )
+  data$ties$flavor[data$ties$from == 2L] <- "renewal"
+  make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    data = data
+  )
+}
+
+test_that("an unmodeled flavor's row is a realization at every position", {
+  spec <- rq_flavor_tie_spec()
+  opened <- suppressWarnings(walk_open(spec))
+  schedule <- opened$schedule
+  realized <- which(
+    !schedule$dependent & schedule$layer %in% opened$focal_layers
+  )
+  expect_identical(schedule$time[realized], c(1, 2, 3, 3))
+
+  expected <- opened$state$networks[["calls"]]
+  for (k in seq(0L, length(realized))) {
+    if (k > 0L) {
+      row <- realized[k]
+      cell <- cbind(schedule$sender[row], schedule$receiver[row])
+      expected[cell] <- expected[cell] + schedule$value[[row]]
+    }
+    handle <- rq_replay_after(suppressWarnings(walk_open(spec)), k)
+    expect_identical(
+      handle$state$networks[["calls"]],
+      expected,
+      label = paste("after =", k)
+    )
+  }
+})
+
 test_that("completed rates do not move with the candidate", {
   spec <- rq_pinned_spec()
   theta <- list(
