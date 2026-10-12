@@ -503,6 +503,57 @@ test_that("a draw emits no warning of its own; the loop owns it", {
   expect_no_warning(draw_sim(built, 10L, c(0.2, 0.2, -1, 0.5)))
 })
 
+# --- Stamp ties and wave-time events ----------------------------------------
+
+# A zero-width truncated draw never leaves its redraw loop. The cap on
+# `runif()` calls makes such a draw fail instead of hanging; a completing draw
+# makes a few dozen calls.
+local_runif_cap <- function(cap = 1e4L, env = parent.frame()) {
+  runif <- stats::runif
+  calls <- 0L
+  local_mocked_bindings(
+    runif = function(...) {
+      calls <<- calls + 1L
+      if (calls > cap) {
+        stop("runif() called more than ", cap, " times")
+      }
+      runif(...)
+    },
+    .package = "stats",
+    .env = env
+  )
+}
+
+# breakpoint_data() with a second email at `time`, N3 -> N1.
+tied_email_data <- function(email_time, visit_time = 7) {
+  data <- breakpoint_data(visit_time = visit_time, email_time = email_time)
+  data$ties <- rbind(
+    data$ties,
+    data.frame(
+      from = 3L,
+      to = 1L,
+      time = email_time,
+      weight = 1,
+      layer = "emails"
+    )
+  )
+  data
+}
+
+test_that("a draw over tied relational events with a flip left completes", {
+  local_runif_cap()
+  # Both emails at 3 compete with N1's call; once the first email is placed,
+  # the call has no room before its tied sibling.
+  built <- sim_augmenter(breakpoint_spec(tied_email_data(email_time = 3)))
+  draws <- draw_sim(built, 20L, c(0, 1, 0, 0, 0))
+  for (draw in draws) {
+    expect_true(is.finite(draw$log_proposal))
+    expect_equal(layer_rows(draw, "emails")$time, c(3, 3))
+    call <- layer_rows(draw, "calls")$time
+    expect_true(call > 0 && call < 5 && call != 3)
+  }
+})
+
 test_that("an interval no draw can complete aborts at the ceiling", {
   local_cli_context()
   local_mocked_bindings(restart_ceiling = function() 5L)
