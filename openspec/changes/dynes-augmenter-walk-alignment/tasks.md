@@ -18,6 +18,14 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       draw and per MCMC sweep on the 6.2 recovery fixture. These are the
       "before" values every later group is measured against. No package code
       changes.
+      *Recorded (WA1, `b0c14308`):* the fixture is the study's toy shape with
+      three intervals, and its coupled variant carries
+      `support_constraint = ~tie(friendship)` on calls (without a constraint
+      no legality walk runs). The generator and references are in
+      `tests/testthat/_references/walk_alignment_v1/`; the values are in
+      `progress.md` "Cost record". Note for later groups: the coupled sim
+      draw restarts on every seed (8 to 498 walk opens), and an uncoupled
+      MCMC step already opens 2 walks.
 - [ ] 1.2a Failing test (D7, standalone `fix:`): a sim draw over an interval
       with two tied observed relational events and at least one flip left
       completes. Guard the run with an iteration cap on `sim_flip_wait()`'s
@@ -96,7 +104,9 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       test. Any expectation that moved must trace to a stamp tie in its
       fixture; record each in `progress.md`.
 - [ ] 2.5 Close the group: measure legality replay time and allocation on the
-      6.2 recovery fixture against 1.1's values (expected unchanged), run the
+      6.2 recovery fixture against 1.1's values (expected unchanged; the
+      legality walks are inside the coupled sim draw and MCMC step values 1.1
+      recorded, so measure the replay on its own), run the
       NOT_CRAN=true full suite (baselines PASS), commit.
 
 ## 3. Rate-query replay on the stamp helper (D2, D8)
@@ -195,14 +205,20 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       then commit.
 - [ ] 4.6 Close the group: measure sim draw seconds, allocated MB, walk opens
       and evaluations on the 6.2 recovery fixture against 1.1's values and
-      design.md's prediction, and record them in `progress.md`. Confirm
+      design.md's prediction, and record them in `progress.md`. Compare the
+      coupled fixture per seed and on the median (1.1's coupled draws
+      restart 8 to 498 times, so a mean is the tail), and report evaluations
+      per walk open as well as per draw. An unchanged coupled restart count
+      is expected: D3 changes only the uncoupled path. Confirm
       `walk_cost.csv` / `estimation_cost.csv` are unmoved. Run the
       NOT_CRAN=true full suite (baselines PASS) and commit.
 
 ## 5. MCMC: one pass over the proposed sequence (D5)
 
 - [ ] 5.1 Cost guard: count walk opens per MCMC move (mocked `walk_open()`
-      counter) on a constrained fixture: at most two for a legal proposal,
+      counter) on a constrained fixture (the coupled one from 1.1: an
+      unconstrained fixture has no legality walk and already opens two, so
+      it cannot fail this guard): at most two for a legal proposal,
       and no reverse rate read or log-likelihood score for an illegal one.
       Record it FAILING (three opens) on the unfixed code and commit it alone.
 - [ ] 5.2a Failing test: a fused candidate pass over a proposed sequence
@@ -227,7 +243,9 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       commit.
 - [ ] 5.4 Close the group: measure MCMC sweep seconds, allocated MB and walk
       opens on the 6.2 recovery fixture against 1.1's values and the
-      prediction, and record them in `progress.md`. Run the NOT_CRAN=true full
+      prediction, and record them in `progress.md`. Report the coupled
+      fixture for the 3 to 2 claim (1.1: 2.67 opens per step, 3 on a legal
+      step) and the uncoupled one as an unchanged control (2.0). Run the NOT_CRAN=true full
       suite (baselines PASS) and commit.
 
 ## 6. Sim augmenter: tied observed relational events at the pre-stamp state (D7)

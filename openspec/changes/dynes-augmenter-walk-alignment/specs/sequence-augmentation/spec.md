@@ -218,6 +218,13 @@ returned and no log-likelihood scored.
 - **THEN** two walks are opened for the move, and the candidate's
   log-likelihood is scored once
 
+#### Scenario: A specification without a support constraint
+
+- **WHEN** an MCMC move proposes a candidate on a specification with no user
+  support constraint
+- **THEN** at most two walks are opened for the move (the forward and the
+  reverse rate queries), as before this change
+
 #### Scenario: An illegal proposal
 
 - **WHEN** an MCMC move proposes a candidate whose support check fails

@@ -61,7 +61,9 @@ informs it.
   vector per fid per step instead of re-evaluating it per candidate pair; the
   per-step data-frame row reads in the same path become reads of
   precomputed columns.
-- **Two walks per MCMC step, not three.** The legality check and the reverse
+- **Two walks per MCMC step, not three** (for a specification with a user
+  support constraint; an unconstrained one has no legality walk and already
+  opens two, measured in task 1.1). The legality check and the reverse
   rate queries both walk the proposed sequence over the same interval; they
   run in one pass, inside the proposal evaluator. The evaluator holds theta and
   the `control_prep` the likelihood uses. Today the legality walk always opens
