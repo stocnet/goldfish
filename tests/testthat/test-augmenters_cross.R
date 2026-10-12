@@ -367,3 +367,64 @@ test_that("an interval without changes draws no event and hits every wave", {
     }
   }
 })
+
+# --- Node labels --------------------------------------------------------------
+
+# cross_data() with its ties naming nodes by label, as data built from a
+# labeled edge list does. `constrained` adds a calls support constraint, so
+# the random and mcmc routines run their legality replay.
+cross_labeled_spec <- function(constrained = FALSE) {
+  data <- cross_data()
+  data$ties$from <- data$nodes$label[data$ties$from]
+  data$ties$to <- data$nodes$label[data$ties$to]
+  spec <- cross_spec(data)
+  if (constrained) {
+    spec <- make_joint_specification(
+      spec$specifications[[1L]],
+      make_specification(
+        rate = ~ 1 + outdeg,
+        layer = "calls",
+        model = "DyNAM",
+        data = data,
+        support_constraint = ~ outdeg(friendship, type = "ego") < 3
+      ),
+      data = data
+    )
+  }
+  spec
+}
+
+test_that("a drawn sequence names its events as the data names nodes", {
+  built <- cross_build(cross_labeled_spec())
+  labels <- built$spec$data$nodes$label
+  for (routine in cross_routines) {
+    run <- cross_run(built, routine, cross_stream(1L))
+    for (draw in cross_draws(run)) {
+      ties <- as.data.frame(draw$data$ties)
+      expect_true(all(c(ties$from, ties$to) %in% labels))
+    }
+  }
+})
+
+test_that("every routine fits data whose ties name nodes by label", {
+  local_mocked_bindings(legal_pilot_attempts = function() 5L)
+  for (constrained in c(FALSE, TRUE)) {
+    for (routine in cross_routines) {
+      fit <- suppressWarnings(estimate_dynes(
+        cross_labeled_spec(constrained),
+        set_algorithm_em(
+          n_sequences = 4L,
+          max_iterations = 1L,
+          seed = 1L,
+          augmenter = set_augmenter_options(
+            routine = routine,
+            burn_in = if (routine == "mcmc") 1L,
+            thinning = if (routine == "mcmc") 1L
+          )
+        ),
+        control_prep = set_preprocessing(start_time = 0)
+      ))
+      expect_true(all(is.finite(coef(fit))), label = routine)
+    }
+  }
+})
