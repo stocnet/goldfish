@@ -249,3 +249,33 @@ test_that("an exogenous row before an event's stamp still excludes it", {
   checker <- new_legality_checker(context)
   expect_false(legal_first_interval(checker, context))
 })
+
+test_that("tied events are checked against the same state", {
+  # Each call by N2 ends its turn to call: injecting 2 -> 3 would exclude
+  # 2 -> 4 stamped with it, which the likelihood reads strictly before t = 2.
+  context <- stamp_tie_context(
+    calls = data.frame(
+      from = c(2L, 2L, 4L),
+      to = c(3L, 4L, 1L),
+      time = c(2, 2, 7)
+    ),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego") < 1
+  )
+  checker <- new_legality_checker(context)
+  expect_true(legal_first_interval(checker, context))
+})
+
+test_that("an event after another's stamp still reads it", {
+  context <- stamp_tie_context(
+    calls = data.frame(
+      from = c(2L, 2L, 4L),
+      to = c(3L, 4L, 1L),
+      time = c(2, 2.5, 7)
+    ),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego") < 1
+  )
+  checker <- new_legality_checker(context)
+  expect_false(legal_first_interval(checker, context))
+})
