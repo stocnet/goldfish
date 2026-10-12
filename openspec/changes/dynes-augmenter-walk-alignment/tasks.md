@@ -74,11 +74,17 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 
 ## 2. Legality replay at the batch stamp semantics (D1, D8)
 
-- [ ] 2.1 Cost guard: assert the legality replay opens one walk per check and
+- [x] 2.1 Cost guard: assert the legality replay opens one walk per check and
       allocates no per-event buffer of size `n1`, `n2` or `n1 x n2` beyond the
       stamp buffer built once per replay. D1 adds no cost, so this guard pins
       the current cost rather than failing on it. Record that it passes on the
       unfixed code, and commit it alone.
+      *Passes on the unfixed code (WA4):* the guard is the per-event slope of
+      a check's allocation (40 vs 160 replayed calls), walk steps mocked out,
+      compared at 60 and 240 actors: 17279 vs 17262 B per event. A mocked
+      per-event `runif(n)` fails it (+1428 B against a 360 B limit). The
+      first support read of a walk allocates a grid once per check (the
+      availability catching up), which the slope cancels.
 - [ ] 2.2a Failing test: a candidate whose in-interval event shares its stamp
       with an exogenous row that would exclude the event's dyad is judged
       legal. Confirm RED and commit the test alone.
