@@ -369,11 +369,22 @@ sim_next_step <- function(state, t, handle) {
     state$n_forced <- state$n_forced + 1L
     return(list(kind = "forced", event = state$forced[state$n_forced, ]))
   }
-  options <- sim_flip_options(state, t, handle)
-  weights <- options$weight
   relational <- NULL
   if (state$n_relational < nrow(state$relational)) {
     relational <- state$relational[state$n_relational + 1L, ]
+  }
+  # A flip lands strictly inside the gap to the next relational event, so
+  # none fits between two events at one stamp: the sibling of a placed event
+  # comes next, at no wait.
+  if (sim_sibling_pending(state)) {
+    if (!(sim_relational_weight(state, relational, t, handle) > 0)) {
+      return(list(kind = "stranded"))
+    }
+    return(list(kind = "relational", event = relational))
+  }
+  options <- sim_flip_options(state, t, handle)
+  weights <- options$weight
+  if (!is.null(relational)) {
     weights <- c(weights, sim_relational_weight(state, relational, t, handle))
   }
   total <- sum(weights)
@@ -386,6 +397,14 @@ sim_next_step <- function(state, t, handle) {
     return(list(kind = "relational", event = relational))
   }
   list(kind = "flip", option = options[chosen, ])
+}
+
+# Whether the next relational event shares the stamp of the one placed last.
+sim_sibling_pending <- function(state) {
+  n <- state$n_relational
+  n > 0L &&
+    n < nrow(state$relational) &&
+    state$relational$time[[n + 1L]] == state$relational$time[[n]]
 }
 
 # The (layer, flavor, sender) candidates at `t`: the heads of the interval's
