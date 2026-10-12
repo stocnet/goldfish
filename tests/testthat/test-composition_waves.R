@@ -672,15 +672,15 @@ test_that("a sim draw strands on the real composition", {
   # Neither specification carries a support constraint, so the draw runs on
   # one walk that cannot restart: the unsnapped composition the snap would
   # have moved aborts it at its first strand.
+  attempt <- sim_interval_attempt
+  local_mocked_bindings(
+    sim_interval_attempt = function(...) {
+      attempts <<- attempts + 1L
+      attempt(...)
+    }
+  )
   for (spec in list(join_at_event_spec(), leave_before_flip_spec())) {
     attempts <- 0L
-    attempt <- sim_interval_attempt
-    local_mocked_bindings(
-      sim_interval_attempt = function(...) {
-        attempts <<- attempts + 1L
-        attempt(...)
-      }
-    )
     expect_error(
       sim_draw(spec, snap = FALSE),
       class = "goldfish_dynes_uncoupled_strand"

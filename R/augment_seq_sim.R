@@ -46,11 +46,19 @@
 # plug-in normalizer depends on theta and does not cancel, so the estimation
 # loop warns once per run when a restart fires (warn_restart_coupling_once()).
 #
-# An interval is redrawn alone: each attempt replays the intervals before it,
-# as drawn, and the observed events up to its start. The replay is not drawn,
-# so it evaluates nothing: the attempt's first clock step applies it to the
-# walk one stamp at a time, as the time-anchored simulation applies observed
-# stamps, and moves the walk on to the interval's opening wave.
+# Under coupling an interval is redrawn alone: each attempt replays the
+# intervals before it, as drawn, and the observed events up to its start. The
+# replay is not drawn, so it evaluates nothing: the attempt's first clock step
+# applies it to the walk one stamp at a time, as the time-anchored simulation
+# applies observed stamps, and moves the walk on to the interval's opening
+# wave.
+#
+# Without a user support constraint no step can strand, provided no actor
+# taking part in an interval joins or leaves inside it (estimate_dynes()
+# snaps such changes to the waves before completion). Nothing is redrawn, so
+# one walk carries every interval of the draw, and a strand means the
+# precondition was bypassed: it aborts rather than restarts, so no silent
+# completion normalizer enters the density.
 # =========================================================================== #
 
 # The sim augmenter over a completed specification and its recipe.
@@ -65,34 +73,46 @@ augment_seq_sim <- function(
   coupling <- support_constraint_labels(spec)
   plan <- sim_plan(context, coupled = length(coupling) > 0L)
   n_intervals <- length(recipe$wave_times) - 1L
+  drawn <- which(tabulate(recipe$events$interval, n_intervals) > 0L)
 
   draw_one <- function(theta) {
     parameters <- flat_to_fid_theta(spec, theta, call = call)
     times <- rep(NA_real_, nrow(recipe$events))
     attempts <- rep(1L, n_intervals)
-    log_q <- 0
-    for (k in seq_len(n_intervals)) {
-      ids <- recipe$events$event[recipe$events$interval == k]
-      if (length(ids) == 0L) {
-        next
+    log_q <- rep(0, n_intervals)
+    if (plan$coupled) {
+      for (k in drawn) {
+        ids <- recipe$events$event[recipe$events$interval == k]
+        accepted <- redraw_until_accepted(
+          function() sim_interval_attempt(plan, k, times, parameters, call),
+          function(attempt) attempt$completed,
+          coupling,
+          call = call
+        )
+        times[ids] <- accepted$value$times[ids]
+        log_q[[k]] <- accepted$value$log_q[[k]]
+        attempts[[k]] <- accepted$attempts
       }
-      accepted <- redraw_until_accepted(
-        function() sim_interval_attempt(plan, k, times, parameters, call),
-        function(attempt) attempt$completed,
-        coupling,
-        call = call
-      )
-      times[ids] <- accepted$value$times[ids]
-      log_q <- log_q + accepted$value$log_q
-      attempts[[k]] <- accepted$attempts
+    } else if (length(drawn) > 0L) {
+      run <- sim_interval_attempt(plan, drawn, times, parameters, call)
+      if (!run$completed) {
+        sim_abort_uncoupled_strand(call)
+      }
+      times <- run$times
+      log_q <- run$log_q
+    }
+    # Summed interval by interval, in order, as the per-interval draws were.
+    total <- 0
+    for (k in drawn) {
+      total <- total + log_q[[k]]
     }
     completion <- acceptance_rate(rep(1L, n_intervals), attempts, theta)
     completion$interval <- seq_len(n_intervals)
     list(
       data = emit_augmented_data(context, times),
-      log_proposal = log_q - sum(log(completion$rate)),
+      log_proposal = total - sum(log(completion$rate)),
       restarted = any(attempts > 1L),
-      log_proposal_raw = log_q,
+      log_proposal_raw = total,
       completion = completion
     )
   }
@@ -212,12 +232,14 @@ sim_rate_fid <- function(map, layer, flavor) {
   )
 }
 
-# One attempt at interval `k` over the intervals before it drawn at `times`.
-# Returns `list(completed, times, log_q)`: whether every flip of the interval
-# was placed, the times with the interval's filled in, and the log density
-# the attempt accumulated over the interval's steps.
-sim_interval_attempt <- function(plan, k, times, parameters, call) {
-  state <- new_sim_attempt(plan, k, times, parameters)
+# One attempt at the intervals `intervals`, in order, over the intervals
+# before the first drawn at `times`: one interval under coupling, every
+# interval with flips without. Returns `list(completed, times, log_q)`:
+# whether every event of the intervals was placed, the times with theirs
+# filled in, and the log density each interval accumulated over its steps
+# (one entry per interval of the recipe).
+sim_interval_attempt <- function(plan, intervals, times, parameters, call) {
+  state <- new_sim_attempt(plan, intervals, times, parameters)
   plan$runner$state <- state
   on.exit(plan$runner$state <- NULL)
   completed <- tryCatch(
@@ -244,7 +266,7 @@ sim_interval_attempt <- function(plan, k, times, parameters, call) {
       )
       if (!identical(run$diagnostics$stop_reason, "n_events")) {
         cli::cli_abort(
-          "The sim draw of interval {k} stopped at
+          "The sim draw of interval {state$k} stopped at
            {.val {run$diagnostics$stop_reason}} before placing every event.",
           .internal = TRUE,
           call = call
@@ -254,23 +276,68 @@ sim_interval_attempt <- function(plan, k, times, parameters, call) {
     },
     goldfish_dynes_sim_stranded = function(condition) FALSE
   )
-  list(completed = completed, times = state$times, log_q = state$log_q)
+  list(completed = completed, times = state$times, log_q = state$interval_log_q)
 }
 
-# The mutable state one attempt's steps share: the forced events (the
-# observed events and earlier intervals' flips up to the interval start, as
+# The internal error of a strand on the single walk of an uncoupled draw.
+sim_abort_uncoupled_strand <- function(call) {
+  cli::cli_abort(
+    c(
+      "A sim draw without a support constraint stranded.",
+      "i" = "It cannot strand once every composition change of an actor
+             taking part in an interval sits on the interval's waves, as
+             {.fn estimate_dynes} arranges before drawing."
+    ),
+    class = "goldfish_dynes_uncoupled_strand",
+    .internal = TRUE,
+    call = call
+  )
+}
+
+# The mutable state one attempt's steps share: the intervals it draws and the
+# one in progress, the forced events applied before that interval opens (as
 # the columns replay_stamps() reads), the interval's relational events (as
-# columns, a step addressing one by its position), the recipe cursor over its
+# columns, a step addressing one by its position), the recipe cursor over the
 # flips, the step in progress, the values read at the walk's current state,
-# and the density so far. The driver draws only the interval's own events.
-new_sim_attempt <- function(plan, k, times, parameters) {
+# and the density of each interval. The driver draws only the intervals' own
+# events.
+new_sim_attempt <- function(plan, intervals, times, parameters) {
+  observed <- plan$observed
+  state <- new.env(parent = emptyenv())
+  state$plan <- plan
+  state$intervals <- intervals
+  state$parameters <- parameters
+  state$cursor <- new_recipe_cursor(plan$recipe)
+  state$n_events <- sum(observed$interval %in% intervals) +
+    sum(plan$flips$interval %in% intervals)
+  state$times <- times
+  state$pending <- NULL
+  state$time <- NA_real_
+  state$stranded <- FALSE
+  state$log_q <- 0
+  state$interval_log_q <- rep(0, length(plan$waves) - 1L)
+  state$routing <- NULL
+  # The first interval is entered past everything before it.
+  state$k <- -1L
+  sim_enter_interval(state, intervals[[1L]])
+  sim_clear_cache(state)
+  state
+}
+
+# Make interval `k` the one in progress. The events after the interval left
+# and before `k` -- for the first interval, everything before it: the
+# observed events and earlier intervals' flips, as drawn at `state$times` --
+# are forced, and the next clock call applies them. Built once per interval.
+sim_enter_interval <- function(state, k) {
+  plan <- state$plan
   observed <- plan$observed
   flips <- plan$flips
-  before <- which(observed$interval < k)
-  earlier <- which(flips$interval < k)
+  left <- state$k
+  before <- which(observed$interval > left & observed$interval < k)
+  earlier <- which(flips$interval > left & flips$interval < k)
   # Stable, so observed events sharing a stamp keep the stream's order; a
   # drawn flip never shares one.
-  time <- c(observed$time[before], times[flips$event[earlier]])
+  time <- c(observed$time[before], state$times[flips$event[earlier]])
   sorted <- order(time, method = "radix")
   forced <- function(column) {
     c(observed[[column]][before], flips[[column]][earlier])[sorted]
@@ -282,35 +349,39 @@ new_sim_attempt <- function(plan, k, times, parameters) {
   )
   relational$value <- observed$value[current]
   relational$rate_fid <- observed$rate_fid[current]
-  state <- new.env(parent = emptyenv())
-  state$plan <- plan
   state$k <- k
   state$wave_start <- plan$waves[[k]]
   state$wave_end <- plan$waves[[k + 1L]]
-  state$parameters <- parameters
-  state$forced <- list(
-    time = time[sorted],
-    layer = forced("layer"),
-    sender = forced("sender"),
-    receiver = forced("receiver"),
-    field = forced("semantics"),
-    value = forced("value"),
-    stamp_end = stamp_ends(time[sorted])
-  )
-  state$forced_applied <- FALSE
+  state$forced <- if (length(time) > 0L) {
+    list(
+      time = time[sorted],
+      layer = forced("layer"),
+      sender = forced("sender"),
+      receiver = forced("receiver"),
+      field = forced("semantics"),
+      value = forced("value"),
+      stamp_end = stamp_ends(time[sorted])
+    )
+  }
+  state$entered <- FALSE
   state$relational <- relational
   state$n_relational <- 0L
-  state$cursor <- new_recipe_cursor(plan$recipe)
   state$n_relational_total <- length(current)
-  state$n_events <- length(current) + sum(flips$interval == k)
-  state$times <- times
-  state$pending <- NULL
-  state$time <- NA_real_
-  state$stranded <- FALSE
+  state$flips_left <- sum(flips$interval == k)
+}
+
+# Whether the interval in progress has placed every event; if so, its density
+# is set aside and the next interval of the attempt, if any, is entered.
+sim_close_interval <- function(state) {
+  if (state$flips_left > 0L || state$n_relational < state$n_relational_total) {
+    return(invisible())
+  }
+  state$interval_log_q[[state$k]] <- state$log_q
   state$log_q <- 0
-  state$routing <- NULL
-  sim_clear_cache(state)
-  state
+  at <- match(state$k, state$intervals)
+  if (at < length(state$intervals)) {
+    sim_enter_interval(state, state$intervals[[at + 1L]])
+  }
 }
 
 # --------------------------------------------------------------------------- #
@@ -355,9 +426,10 @@ sim_clock <- function(state, t, handle) {
   if (is.null(state$routing)) {
     state$routing <- simulation_routing(state$plan$spec, handle)
   }
-  if (!state$forced_applied) {
+  if (!state$entered) {
     sim_move(state, handle, state$wave_start, state$forced)
-    state$forced_applied <- TRUE
+    state$forced <- NULL
+    state$entered <- TRUE
   }
   # The walk already stands strictly before the wave that opens the interval;
   # the driver's clock follows it there, and the draw begins.
@@ -410,7 +482,7 @@ sim_next_step <- function(state, t, handle) {
     !is.null(relational) &&
       state$relational$time[[relational]] == state$wave_end
   ) {
-    if (state$cursor$done(state$k)) {
+    if (state$flips_left == 0L) {
       return(list(kind = "relational", event = relational))
     }
     relational <- NULL
@@ -602,10 +674,12 @@ sim_accept <- function(state, event) {
     },
     flip = {
       state$cursor$take(pending$chain)
+      state$flips_left <- state$flips_left - 1L
       state$times[[pending$event_id]] <- state$time
     }
   )
   state$pending <- NULL
+  sim_close_interval(state)
   TRUE
 }
 
