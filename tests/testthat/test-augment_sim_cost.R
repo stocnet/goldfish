@@ -167,6 +167,34 @@ test_that("seeded sim draws equal the pre-change references", {
   }
 })
 
+# --- One rate vector per fid per step -----------------------------------------
+
+test_that("a step evaluates a rate fid once over several of its pairs", {
+  skip_on_cran()
+  fixture <- wa_sim_fixture("uncoupled")
+  log <- local_sim_counts()
+  flip_options <- sim_flip_options
+  steps <- list()
+  local_mocked_bindings(
+    sim_flip_options = function(state, t, handle) {
+      before <- length(log$rows)
+      options <- flip_options(state, t, handle)
+      reads <- do.call(rbind, log$rows[-seq_len(before)])
+      reads <- reads[reads$family == "rate", , drop = FALSE]
+      steps[[length(steps) + 1L]] <<- list(
+        pairs = table(options$rate_fid),
+        reads = table(reads$fid)
+      )
+      options
+    }
+  )
+  wa_seeded_draw(fixture, 1L)
+  crowded <- Filter(function(step) any(step$pairs > 1L), steps)
+  expect_gt(length(crowded), 0L)
+  most <- vapply(crowded, function(step) max(c(0L, step$reads)), integer(1))
+  expect_lte(max(most), 1L)
+})
+
 # --- One walk -----------------------------------------------------------------
 
 test_that("an uncoupled sim draw opens one walk", {
