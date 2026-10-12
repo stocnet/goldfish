@@ -197,9 +197,9 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       seeds 1–5 and coupled seeds 1 and 4. `evaluate_fid()` per draw went
       from 1152 to 843 (uncoupled seed 1) and from 5529 to 4440 (coupled
       seed 1), and coupled walk opens are unchanged.
-- [ ] 4.3a Failing test: a step with several candidate pairs on one rate fid
+- [x] 4.3a Failing test: a step with several candidate pairs on one rate fid
       evaluates that fid once. Confirm RED and commit the test alone.
-- [ ] 4.3b Add the per-step cache on the attempt state, cleared at each
+- [x] 4.3b Add the per-step cache on the attempt state, cleared at each
       `sim_clock()` entry and by the move wrapper, and read by
       `sim_flip_options()`, `sim_relational_weight()`, `sim_flip_wait()` and
       `sim_mark()`. Confirm GREEN and seeded identity, then commit.

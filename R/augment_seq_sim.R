@@ -254,7 +254,8 @@ sim_interval_attempt <- function(plan, k, times, parameters, call) {
 # The mutable state one attempt's steps share: the forced events (the
 # observed events and earlier intervals' flips up to the interval start, as
 # the columns replay_stamps() reads), the interval's relational events, the
-# recipe cursor over its flips, the step in progress, and the density so far.
+# recipe cursor over its flips, the step in progress, the values read at the
+# walk's current state, and the density so far.
 # The driver draws only the interval's own events.
 new_sim_attempt <- function(plan, k, times, parameters) {
   observed <- plan$observed
@@ -305,6 +306,7 @@ new_sim_attempt <- function(plan, k, times, parameters) {
   state$stranded <- FALSE
   state$log_q <- 0
   state$routing <- NULL
+  sim_clear_cache(state)
   state
 }
 
@@ -328,7 +330,7 @@ sim_steps <- function(runner) {
       if (is.null(runner$state)) {
         return(list(layer = evaluation$layer %||% "toy"))
       }
-      sim_mark(runner$state, evaluation)
+      sim_mark(runner$state, evaluation, handle)
     },
     accept = function(event, handle) {
       if (is.null(runner$state)) {
@@ -345,11 +347,13 @@ sim_steps <- function(runner) {
 # or a flip whose draw was censored at one -- continues; otherwise a new
 # candidate is selected.
 sim_clock <- function(state, t, handle) {
+  # The driver has moved the walk since the last step.
+  sim_clear_cache(state)
   if (is.null(state$routing)) {
     state$routing <- simulation_routing(state$plan$spec, handle)
   }
   if (!state$forced_applied) {
-    sim_move(handle, state$wave_start, state$forced)
+    sim_move(state, handle, state$wave_start, state$forced)
     state$forced_applied <- TRUE
   }
   # The walk already stands strictly before the wave that opens the interval;
@@ -523,9 +527,11 @@ sim_flip_wait <- function(state, pending, t, handle) {
 }
 
 # P3. The event to inject. A flip's receiver is drawn among its pair's
-# remaining observed receivers by the choice probabilities the driver
-# evaluated; a stranded step hands accept() a marker instead.
-sim_mark <- function(state, evaluation) {
+# remaining observed receivers by the choice probabilities at the walk's
+# state; a stranded step hands accept() a marker instead. The driver does not
+# move the walk between the clock and the mark, so the sender's choice row is
+# the one the clock read when it weighted the pair.
+sim_mark <- function(state, evaluation, handle) {
   pending <- state$pending
   if (identical(pending$kind, "stranded")) {
     return(list(layer = evaluation$layer, stranded = TRUE))
@@ -536,7 +542,7 @@ sim_mark <- function(state, evaluation) {
   option <- pending$option
   heads <- sim_chain_heads(state, state$cursor$remaining(state$k))
   receivers <- sim_pair_receivers(heads, option)
-  choice <- evaluation$choice(option$sender)[receivers]
+  choice <- sim_choice_row(state, handle, option, state$time)[receivers]
   total <- sum(choice)
   if (!(total > 0)) {
     state$pending <- list(kind = "stranded")
@@ -593,12 +599,14 @@ sim_accept <- function(state, event) {
 # a time, then advance strictly before `to`, the node composition at `to`
 # included. Nothing is evaluated on the way. The walk then stands ahead of the
 # driver's clock, which is safe because both only move forward and the
-# driver's next advance is never earlier than `to`.
-sim_move <- function(handle, to, events = NULL) {
+# driver's next advance is never earlier than `to`. The values read before the
+# move describe a state the walk has left, so they are dropped.
+sim_move <- function(state, handle, to, events = NULL) {
   if (!is.null(events)) {
     replay_stamps(handle, events)
   }
   walk_advance(handle, to, inclusive = FALSE)
+  sim_clear_cache(state)
 }
 
 # --------------------------------------------------------------------------- #
@@ -608,7 +616,21 @@ sim_move <- function(handle, to, events = NULL) {
 # A fid's values at the live state through the package evaluator, routed as
 # the driver routes it: a modeled fid at its theta, a completed rate at the
 # pinned plateau of the period holding `t`, a completed choice uniform.
+#
+# Each is evaluated once per walk state -- a rate fid's vector once, a choice
+# fid's row once per sender -- and every later read at that state reuses it.
+# Whatever moves the walk clears the cache: the driver between steps (so each
+# clock call starts empty) and sim_move() within one.
 sim_fid_values <- function(state, handle, fid, t, sender = NULL) {
+  at <- match(fid, state$plan$map$fid)
+  cached <- state$cache[[at]]
+  if (is.null(sender)) {
+    if (!is.null(cached)) {
+      return(cached)
+    }
+  } else if (length(cached) >= sender && !is.null(cached[[sender]])) {
+    return(cached[[sender]])
+  }
   inputs <- fid_evaluation_inputs(
     state$routing,
     fid,
@@ -617,7 +639,27 @@ sim_fid_values <- function(state, handle, fid, t, sender = NULL) {
     state$plan$spec$completed_rates %||% list(),
     t
   )
-  evaluate_fid(handle, fid, inputs$theta, inputs$step, sender = sender)
+  values <- evaluate_fid(
+    handle,
+    fid,
+    inputs$theta,
+    inputs$step,
+    sender = sender
+  )
+  if (is.null(sender)) {
+    state$cache[[at]] <- values
+  } else {
+    # One slot per sender, so a row is stored as it is read.
+    rows <- cached %||% list()
+    rows[[sender]] <- values
+    state$cache[[at]] <- rows
+  }
+  values
+}
+
+# One slot per fid of the process map, empty.
+sim_clear_cache <- function(state) {
+  state$cache <- vector("list", nrow(state$plan$map))
 }
 
 sim_choice_row <- function(state, handle, pair, t) {
