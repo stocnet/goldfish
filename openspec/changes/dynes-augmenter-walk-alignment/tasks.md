@@ -309,12 +309,21 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       one calls it exactly as before. The test stub evaluator answers
       `legality` through the real replay (`replay_legality()`). Suite:
       PASS 16580 / FAIL 0 / SKIP 6, baselines not skipped.
-- [ ] 5.4 Close the group: measure MCMC sweep seconds, allocated MB and walk
+- [x] 5.4 Close the group: measure MCMC sweep seconds, allocated MB and walk
       opens on the 6.2 recovery fixture against 1.1's values and the
       prediction, and record them in `progress.md`. Report the coupled
       fixture for the 3 to 2 claim (1.1: 2.67 opens per step, 3 on a legal
       step) and the uncoupled one as an unchanged control (2.0). Run the NOT_CRAN=true full
       suite (baselines PASS) and commit.
+      *Result (WA9):* same-session before (`d848a252`) / after, two runs
+      each. Coupled: 2.67 → 2.0 opens per step (2 on every legal step),
+      3.00–3.10 → 2.44–2.45 s per sweep (−20%, −56 ms per step),
+      132.4 → 108.4 MB (−18%); `evaluate_fid()` per step 5.27 → 6.18,
+      because an illegal step reads its pre-stamp reverse queries before
+      stopping. The "about a third" prediction is not met: the illegal third
+      of the steps already opened 2 walks. Uncoupled control: 2.0 opens,
+      time and MB unchanged. Budgets unmoved. Suite after 5.3b: PASS 16580 /
+      FAIL 0 / SKIP 6, baselines not skipped.
 
 ## 6. Sim augmenter: tied observed relational events at the pre-stamp state (D7)
 
