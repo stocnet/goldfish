@@ -47,7 +47,10 @@
 # loop warns once per run when a restart fires (warn_restart_coupling_once()).
 #
 # An interval is redrawn alone: each attempt replays the intervals before it,
-# as drawn, and the observed events up to its start.
+# as drawn, and the observed events up to its start. The replay is not drawn,
+# so it evaluates nothing: the attempt's first clock step applies it to the
+# walk one stamp at a time, as the time-anchored simulation applies observed
+# stamps, and moves the walk on to the interval's opening wave.
 # =========================================================================== #
 
 # The sim augmenter over a completed specification and its recipe.
@@ -249,9 +252,10 @@ sim_interval_attempt <- function(plan, k, times, parameters, call) {
 }
 
 # The mutable state one attempt's steps share: the forced events (the
-# observed events and earlier intervals' flips up to the interval start), the
-# interval's relational events, the recipe cursor over its flips, the step
-# in progress, and the density so far.
+# observed events and earlier intervals' flips up to the interval start, as
+# the columns replay_stamps() reads), the interval's relational events, the
+# recipe cursor over its flips, the step in progress, and the density so far.
+# The driver draws only the interval's own events.
 new_sim_attempt <- function(plan, k, times, parameters) {
   observed <- plan$observed
   flips <- plan$flips
@@ -281,14 +285,20 @@ new_sim_attempt <- function(plan, k, times, parameters) {
   state$wave_start <- plan$waves[[k]]
   state$wave_end <- plan$waves[[k + 1L]]
   state$parameters <- parameters
-  state$forced <- forced
+  state$forced <- list(
+    time = forced$time,
+    layer = forced$layer,
+    sender = forced$sender,
+    receiver = forced$receiver,
+    field = forced$semantics,
+    value = forced$value,
+    stamp_end = stamp_ends(forced$time)
+  )
+  state$forced_applied <- FALSE
   state$relational <- relational
-  state$n_forced <- 0L
   state$n_relational <- 0L
   state$cursor <- new_recipe_cursor(plan$recipe)
-  state$n_events <- nrow(forced) +
-    nrow(relational) +
-    sum(flips$interval == k)
+  state$n_events <- nrow(relational) + sum(flips$interval == k)
   state$times <- times
   state$pending <- NULL
   state$time <- NA_real_
@@ -329,21 +339,22 @@ sim_steps <- function(runner) {
   )
 }
 
-# P2. The next event and its waiting time. A step in progress -- a relational
-# event the driver clipped at a breakpoint, or a flip whose draw was censored
-# at one -- continues; otherwise the next forced event comes, else a new
+# P2. The next event and its waiting time. The attempt's first call applies
+# the forced events and moves the walk up to the interval's opening wave. A
+# step in progress -- a relational event the driver clipped at a breakpoint,
+# or a flip whose draw was censored at one -- continues; otherwise a new
 # candidate is selected.
 sim_clock <- function(state, t, handle) {
   if (is.null(state$routing)) {
     state$routing <- simulation_routing(state$plan$spec, handle)
   }
-  # The replayed events end before the interval starts: the walk moves on to
-  # the wave that opens it, at which the draw begins.
-  if (
-    is.null(state$pending) &&
-      state$n_forced == nrow(state$forced) &&
-      t < state$wave_start
-  ) {
+  if (!state$forced_applied) {
+    sim_move(handle, state$wave_start, state$forced)
+    state$forced_applied <- TRUE
+  }
+  # The walk already stands strictly before the wave that opens the interval;
+  # the driver's clock follows it there, and the draw begins.
+  if (is.null(state$pending) && t < state$wave_start) {
     return(list(
       wait = state$wave_start - t,
       fid = state$plan$rate_fids[[1L]],
@@ -368,13 +379,9 @@ sim_clock <- function(state, t, handle) {
   sim_flip_wait(state, pending, t, handle)
 }
 
-# The step that follows the last placed event: the next forced event, else a
-# candidate selected in proportion to its rate, else a strand.
+# The step that follows the last placed event: a candidate selected in
+# proportion to its rate, else a strand.
 sim_next_step <- function(state, t, handle) {
-  if (state$n_forced < nrow(state$forced)) {
-    state$n_forced <- state$n_forced + 1L
-    return(list(kind = "forced", event = state$forced[state$n_forced, ]))
-  }
   relational <- NULL
   if (state$n_relational < nrow(state$relational)) {
     relational <- state$relational[state$n_relational + 1L, ]
@@ -575,6 +582,23 @@ sim_accept <- function(state, event) {
   )
   state$pending <- NULL
   TRUE
+}
+
+# --------------------------------------------------------------------------- #
+# Moving the walk
+# --------------------------------------------------------------------------- #
+
+# The one place the augmenter moves the walk itself rather than leaving it to
+# the driver: replay `events` (the columns replay_stamps() reads) one stamp at
+# a time, then advance strictly before `to`, the node composition at `to`
+# included. Nothing is evaluated on the way. The walk then stands ahead of the
+# driver's clock, which is safe because both only move forward and the
+# driver's next advance is never earlier than `to`.
+sim_move <- function(handle, to, events = NULL) {
+  if (!is.null(events)) {
+    replay_stamps(handle, events)
+  }
+  walk_advance(handle, to, inclusive = FALSE)
 }
 
 # --------------------------------------------------------------------------- #

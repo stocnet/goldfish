@@ -161,19 +161,26 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 
 ## 4. Sim augmenter: no prefix evaluation, one evaluation per fid, one walk when uncoupled (D3, D4)
 
-- [ ] 4.1 Cost guard: count `evaluate_fid()` calls per sim draw (mocked
+- [x] 4.1 Cost guard: count `evaluate_fid()` calls per sim draw (mocked
       counter) and walk opens per draw on the uncoupled and coupled fixtures
       from 1.1. Assert the targets: at most one evaluation per rate fid per
       attempt at a state before the drawn interval's start (none for a choice
       fid), at most one evaluation per rate fid per step, and one walk per
       uncoupled draw. Record it FAILING on the unfixed code and commit it
       alone.
-- [ ] 4.2a Failing test: interval `k > 1` evaluates each rate fid at most once
+      *FAILING on the unfixed code (WA6):* `test-augment_sim_cost.R`, seed 1
+      of both fixtures: 67 (uncoupled) and 143 (coupled) evaluations of one
+      fid before an interval, duplicate augmenter reads at one walk state,
+      3 walk opens. "Per step" counts the augmenter's reads (not the
+      driver's `rate_values()` round, which D4 keeps until driver-v2) per
+      walk state, keyed by fid and sender. The pre-interval part is GREEN
+      after 4.2b; the per-step part waits on 4.3b, the one-walk part on 4.5b.
+- [x] 4.2a Failing test: interval `k > 1` evaluates each rate fid at most once
       per attempt at a walk state before `wave_start`, independent of the
       prefix length, and the seeded draws equal 1.1's reference. Confirm RED
       (the evaluation assertion fails; the identity holds) and commit the
       test alone.
-- [ ] 4.2b Add the augmenter's move wrapper (the D8 helper plus single
+- [x] 4.2b Add the augmenter's move wrapper (the D8 helper plus single
       advances; the only code in the augmenter that moves the handle). Apply
       the forced prefix in the first `sim_clock()` call of an attempt through
       it (no check hook): for each forced stamp, `walk_advance(inclusive =
@@ -183,6 +190,13 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       identity, and commit. If the step-contract route proves fragile, switch
       to D3's fallback (an internal `prefix` argument on
       `simulate_replicate()`) and record why in `design.md`.
+      *Result (WA6):* the step-contract route held, so no fallback.
+      `sim_move()` is the move wrapper (`replay_stamps()` with no hook, then
+      `walk_advance(inclusive = FALSE)`). The prefix is `replay_stamps()`
+      columns built once per attempt. Seeded identity holds for uncoupled
+      seeds 1–5 and coupled seeds 1 and 4. `evaluate_fid()` per draw went
+      from 1152 to 843 (uncoupled seed 1) and from 5529 to 4440 (coupled
+      seed 1), and coupled walk opens are unchanged.
 - [ ] 4.3a Failing test: a step with several candidate pairs on one rate fid
       evaluates that fid once. Confirm RED and commit the test alone.
 - [ ] 4.3b Add the per-step cache on the attempt state, cleared at each
