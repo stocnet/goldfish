@@ -166,8 +166,10 @@ time read at that state SHALL use those values.
 #### Scenario: A value read before the walk moves is not reused after
 
 - **WHEN** within one clock call a relational event is selected, the walk is
-  advanced to the state strictly before its stamp, and an exogenous row lies
-  between the two states
+  advanced to the state strictly before its stamp, and the node composition
+  changes at the stamp (the only change an advance within one clock call can
+  bring in, since an exogenous row before the stamp ends the call at its
+  breakpoint)
 - **THEN** the support check after the advance reads values evaluated at the
   advanced state
 

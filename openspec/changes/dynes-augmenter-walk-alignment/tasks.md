@@ -205,17 +205,18 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `sim_mark()`. Confirm GREEN and seeded identity, then commit.
 - [x] 4.3c Test (pins D4's invalidation rule; RED only once 6.2's last-call
       advance exists, so it lands with 6.2 if written earlier as `skip()`):
-      on a fixture with an exogenous row between a relational event's
-      selection and its stamp, the last-call support check reads the value at
-      the advanced state, and fails against a cache cleared only at entry.
+      on a coupled fixture where a relational event's receiver leaves at
+      the event's stamp (the only change one clock call's advance can bring
+      in), the last-call support check reads the value at the advanced
+      state, and fails against a cache cleared only at entry.
       *Written as `skip()` (WA7):* "the last-call support check reads the
       walk after its advance" in `test-augment_seq_sim.R`; 6.2 drops the
       `skip()`. Within one clock call the only thing between the selection
       state and the state strictly before the stamp is the composition at
       the stamp: any exogenous row strictly before it is a breakpoint, so
       the driver clips there and the next call starts with a cleared cache.
-      The fixture is therefore a receiver leaving at the call's stamp, not
-      an exogenous row (see `progress.md`).
+      The fixture is therefore a receiver leaving at the call's stamp; D4
+      and the spec scenario were reworded to match.
 - [x] 4.4a Failing guard: no `data.frame` row extraction or `unique()` over
       data-frame columns in the sim step path (count `[.data.frame` calls per
       step through a trace, as the walk-cost helpers do). Confirm RED and

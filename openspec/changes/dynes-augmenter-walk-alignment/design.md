@@ -269,13 +269,27 @@ only at entry would answer that check from `S(t)`: the evaluation count would
 be the same, so no count guard would notice, but the legality answer would be
 wrong.
 
+What can lie between `S(t)` and the state strictly before the stamp within
+that one call is narrow: **only the node composition at the stamp.** An
+exogenous row strictly before the stamp is a breakpoint, so the driver clips
+the step there, and the next clock call enters with a cleared cache and reads
+nothing before its own advance (a pending relational event needs no read).
+An exogenous row at the stamp is not applied, since the advance stops
+strictly before it. A selection call is the last call only when
+`walk_next_breakpoint(handle) >= stamp`. The composition at the stamp is such
+a breakpoint, and the exclusive advance brings it in. So the stale read the
+move wrapper's clear prevents is a support or rate that a join or leave at
+the stamp changes.
+
 The driver runs `mark_evaluation()` before its next `walk_advance()`
 (`R/simulate_driver.R`), so `sim_mark()` reads the same state as the clock's
 last move, and may read the cache.
 
-A test pins the invalidation. On a fixture with an exogenous row between a
-relational event's selection and its stamp, the last-call check reads the
-post-advance value. It fails against a cache that is cleared only at entry.
+A test pins the invalidation. On a coupled fixture where the receiver of a
+relational event leaves at the event's stamp, with no other breakpoint
+between the selection and the stamp, the last-call check reads the
+post-advance value and strands the attempt. With a cache that is cleared
+only at entry, the draw completes instead.
 
 *Alternative considered:* hand the driver's rate vectors to the clock, so the
 cache seeds from them and the driver's round is not repeated. Deferred to
