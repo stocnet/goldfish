@@ -820,9 +820,12 @@ test_that("compute_lik_seq() scores consistent pairings and refuses mixed", {
 
 test_that("every augmenter's candidate binds to the snapped specification", {
   authored <- composition_fit_spec()
-  for (routine in c("random", "mcmc")) {
+  # The sim fit also places the calls at the waves 2 and 5 last in their
+  # intervals; N6's snapped join shares the stamp of the call 2 -> 3 at 2.
+  for (routine in c("random", "mcmc", "sim")) {
     run <- composition_fit(authored, routine = routine)
     expect_s3_class(run$fit, "goldfishDynesFit")
+    expect_true(all(is.finite(coef(run$fit))), label = routine)
     expect_identical(
       sum(run$warnings == "goldfish_composition_snapped_warning"),
       1L,

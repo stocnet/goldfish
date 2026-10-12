@@ -565,6 +565,9 @@ test_that("a draw with a relational event at the wave end completes", {
     expect_equal(layer_rows(draw, "emails")$time, 5)
     call <- layer_rows(draw, "calls")$time
     expect_true(call > 0 && call < 5)
+    # The email is placed last with certainty: no selection term, only the
+    # call's truncated exponential at rate e^0 on (0, 5).
+    expect_equal(draw$log_proposal, log_trunc_exp(call, 1, 5))
   }
 })
 

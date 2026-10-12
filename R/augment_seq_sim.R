@@ -382,6 +382,15 @@ sim_next_step <- function(state, t, handle) {
     }
     return(list(kind = "relational", event = relational))
   }
+  # An event at the closing wave leaves no room after it for a flip of the
+  # interval: it is not weighted, and comes, with certainty, once no flip of
+  # the interval is left.
+  if (!is.null(relational) && relational$time == state$wave_end) {
+    if (state$cursor$done(state$k)) {
+      return(list(kind = "relational", event = relational))
+    }
+    relational <- NULL
+  }
   options <- sim_flip_options(state, t, handle)
   weights <- options$weight
   if (!is.null(relational)) {
