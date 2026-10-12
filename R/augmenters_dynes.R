@@ -219,3 +219,84 @@ open_augmenter_walk <- function(
     call = call
   )
 }
+
+# --- Replaying a sequence one stamp at a time ---------------------------------
+
+# The `rows` of a drawn sequence's `ties` (see emit_augmented_data()), in
+# schedule order, as the columns replay_stamps() reads by integer index:
+# resolved once per sequence, so no row is looked up per event. `stamp_end[i]`
+# is the last row sharing row i's stamp. `update` names each layer's update
+# semantics and `labels` the node labels.
+replay_columns <- function(ties, rows, labels, update) {
+  time <- ties$time[rows]
+  layer <- ties$layer[rows]
+  n <- length(rows)
+  runs <- rle(time)$lengths
+  list(
+    time = time,
+    layer = layer,
+    flavor = if (is.null(ties[["flavor"]])) {
+      rep(NA_character_, n)
+    } else {
+      ties$flavor[rows]
+    },
+    sender = node_index(ties$from[rows], labels),
+    receiver = node_index(ties$to[rows], labels),
+    field = ifelse(
+      unname(update[layer]) %in% "replace",
+      "replace",
+      "increment"
+    ),
+    value = if (is.null(ties[["weight"]])) rep(1, n) else ties$weight[rows],
+    stamp_end = rep(cumsum(runs), runs)
+  )
+}
+
+# Replay rows `from` through `to` of `events` (from replay_columns()) onto
+# `handle` one stamp at a time: advance strictly before the stamp (its node
+# composition included), run `check(i)` on every event of the stamp, and only
+# then inject the stamp's events in row order. Nothing stamped at a time
+# informs a check at that time: an actor's event is a decision taken before
+# the moment it is acted on, which is how the batch walk reads a dependent
+# event. The exogenous rows of a stamp are applied by the advance to the next
+# one.
+#
+# Returns FALSE at the first event `check` rejects, before any event of its
+# stamp is injected, and TRUE otherwise. `to` may stop partway through a
+# stamp, which is then checked whole but injected only through `to`; a later
+# call from `to + 1` injects the rest without checking it again.
+replay_stamps <- function(
+  handle,
+  events,
+  from = 1L,
+  to = length(events$time),
+  check = NULL
+) {
+  time <- events$time
+  i <- from
+  while (i <= to) {
+    t <- time[[i]]
+    last <- events$stamp_end[[i]]
+    walk_advance(handle, t, inclusive = FALSE)
+    resumed <- i > 1L && time[[i - 1L]] == t
+    if (!is.null(check) && !resumed) {
+      for (j in i:last) {
+        if (!check(j)) {
+          return(FALSE)
+        }
+      }
+    }
+    for (j in i:min(last, to)) {
+      event <- list(
+        layer = events$layer[[j]],
+        sender = events$sender[[j]],
+        receiver = events$receiver[[j]],
+        time = t
+      )
+      event[[events$field[[j]]]] <- events$value[[j]]
+      walk_inject(handle, event)
+    }
+    i <- last + 1L
+  }
+  TRUE
+}

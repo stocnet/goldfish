@@ -183,11 +183,13 @@ random_legal_pilot <- function(plan, checker, seed, call) {
 #
 # `legal(times, k, candidate)` rebuilds the sequence with interval `k` at
 # `candidate` over the intervals before it at `times`, opens a walk on it, and
-# replays every modeled event up to the end of interval `k` in time order,
-# checking each event inside the interval against the live support before
-# injecting it. Later intervals' events sit at fixed placeholder times: they
-# are never reached. The walk is opened on the candidate itself because its
-# clock starts at the first scheduled time, which a drawn event may precede.
+# replays every modeled event up to the end of interval `k` one stamp at a
+# time (replay_stamps()), checking each event inside the interval against the
+# live support strictly before its stamp, as the likelihood reads it, before
+# any event of the stamp is injected. Later intervals' events sit at fixed
+# placeholder times: they are never reached. The walk is opened on the
+# candidate itself because its clock starts at the first scheduled time,
+# which a drawn event may precede.
 new_legality_checker <- function(context) {
   constraint <- support_constraint_labels(context$spec)
   if (length(constraint) == 0L) {
@@ -212,28 +214,18 @@ new_legality_checker <- function(context) {
         !is.na(ties$time) &
         ties$time <= waves[[k + 1L]]
     )
-    for (r in rows) {
-      t <- ties$time[[r]]
-      layer <- ties$layer[[r]]
-      sender <- node_index(ties$from[[r]], labels)
-      receiver <- node_index(ties$to[[r]], labels)
-      walk_advance(handle, t, inclusive = FALSE)
-      if (t > waves[[k]]) {
-        flavor <- ties[["flavor"]][r] %||% NA_character_
-        if (!walk_event_supported(handle, layer, flavor, sender, receiver)) {
-          return(FALSE)
-        }
-      }
-      value <- ties[["weight"]][r] %||% 1
-      event <- list(layer = layer, sender = sender, receiver = receiver)
-      event[[
-        if (identical(update[[layer]], "replace")) "replace" else "increment"
-      ]] <-
-        value
-      event$time <- t
-      walk_inject(handle, event)
-    }
-    TRUE
+    events <- replay_columns(ties, rows, labels, update)
+    lower <- waves[[k]]
+    replay_stamps(handle, events, check = function(i) {
+      events$time[[i]] <= lower ||
+        walk_event_supported(
+          handle,
+          events$layer[[i]],
+          events$flavor[[i]],
+          events$sender[[i]],
+          events$receiver[[i]]
+        )
+    })
   }
   list(legal = legal, constraint = constraint)
 }

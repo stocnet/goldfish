@@ -93,7 +93,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 - [x] 2.3a Failing test: two tied in-interval observed events, where injecting
       the first would exclude the second, are both judged legal. Confirm RED
       and commit the test alone.
-- [ ] 2.3b Group the replay by stamp: check every event of the stamp, then
+- [x] 2.3b Group the replay by stamp: check every event of the stamp, then
       inject them in row order (the time-anchored driver's discipline). Write
       the discipline as the D8 stamp helper (advance strictly before a stamp,
       run an optional check hook on every event of the stamp, then inject the
