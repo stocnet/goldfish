@@ -585,3 +585,35 @@ test_that("an interval no draw can complete aborts at the ceiling", {
     class = "goldfish_dynes_restart_ceiling"
   )
 })
+
+test_that("the last-call support check reads the walk after its advance", {
+  skip("Needs the last-call advance to the stamp, which no clock makes yet.")
+  local_cli_context()
+  local_mocked_bindings(restart_ceiling = function() 5L)
+  # N4 leaves at 2, the stamp of the call 3 -> 4, and is back at 2.5. Only
+  # that leave lies between the state the call is selected at and the one
+  # strictly before its stamp, so a single clock call selects the call,
+  # advances to the stamp and checks it. Read after the advance, the call's
+  # support is gone, and every attempt at the interval strands.
+  data <- coupled_data()
+  data$nodes$active <- TRUE
+  data$changes <- data.frame(time = c(2, 2.5), node = "N4", var = "active")
+  data$changes$value <- list(list(FALSE), list(TRUE))
+  built <- sim_augmenter(coupled_spec(data))
+  theta <- c(0.2, 0.2, -1, 0.5)
+  expect_error(
+    draw_sim(built, 1L, theta),
+    class = "goldfish_dynes_restart_ceiling"
+  )
+  # A cache cleared only on entering the clock answers the check from the
+  # selection's state, where N4 is present, and the draw completes.
+  local_mocked_bindings(
+    sim_move = function(state, handle, to, events = NULL) {
+      if (!is.null(events)) {
+        replay_stamps(handle, events)
+      }
+      walk_advance(handle, to, inclusive = FALSE)
+    }
+  )
+  expect_true(is.finite(draw_sim(built, 1L, theta)[[1L]]$log_proposal))
+})
