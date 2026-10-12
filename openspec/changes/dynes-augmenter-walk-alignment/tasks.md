@@ -225,7 +225,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `sim_plan()` / `new_sim_attempt()`, and read them by integer index. The
       chain heads become event ids. Confirm GREEN and seeded identity, then
       commit.
-- [ ] 4.5a Failing tests: (i) an uncoupled three-interval draw opens one
+- [x] 4.5a Failing tests: (i) an uncoupled three-interval draw opens one
       walk, and its seeded output equals 1.1's reference; (ii) retarget
       `test-composition_waves.R`'s "a sim draw strands on the real
       composition". Its fixtures (`join_at_event_spec()`,
@@ -236,7 +236,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       coupled ceiling test in `test-augment_seq_sim.R` ("an interval no draw
       can complete aborts at the ceiling") is the control and must stay
       unchanged. Confirm RED and commit the tests alone.
-- [ ] 4.5b Run an uncoupled draw as one driver run over all intervals, with
+- [x] 4.5b Run an uncoupled draw as one driver run over all intervals, with
       the attempt state advancing `k` when interval `k` has placed everything
       (returning a breakpoint wait to the next `wave_start` before drawing the
       next interval). A strand on the single walk aborts with class
@@ -244,7 +244,7 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       per-interval attempt for a coupled spec. Confirm GREEN (4.5a (i) and
       (ii), the coupled control), the 4.1 guard GREEN, and seeded identity,
       then commit.
-- [ ] 4.6 Close the group: measure sim draw seconds, allocated MB, walk opens
+- [x] 4.6 Close the group: measure sim draw seconds, allocated MB, walk opens
       and evaluations on the 6.2 recovery fixture against 1.1's values and
       design.md's prediction, and record them in `progress.md`. Compare the
       coupled fixture per seed and on the median (1.1's coupled draws
@@ -253,6 +253,15 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       is expected: D3 changes only the uncoupled path. Confirm
       `walk_cost.csv` / `estimation_cost.csv` are unmoved. Run the
       NOT_CRAN=true full suite (baselines PASS) and commit.
+      *Result (WA8):* same-session before/after on seeds 1–5, every draw
+      identical to 1.1. Uncoupled: 1 walk open (was 3), 0.300 → 0.124 s
+      (−59%), 6.0 → 2.6 MB, evaluations 1107 → 718 per draw. Coupled:
+      opens unchanged; median 14.6 → 10.5 s (−28%; per seed −6 to −42%,
+      least on the restart-heavy seeds), median 557 → 458 MB, evaluations
+      per walk open 328–691 → 260–472. The "halved" prediction holds
+      uncoupled and fails coupled, where `walk_open()` per restart is the
+      remainder, as the prediction said. Budgets unmoved. Suite after
+      4.5b: PASS 16541 / FAIL 0 / SKIP 6, baselines not skipped.
 
 ## 5. MCMC: one pass over the proposed sequence (D5)
 
