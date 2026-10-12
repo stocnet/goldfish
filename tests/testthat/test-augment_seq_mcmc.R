@@ -41,12 +41,30 @@ mcmc_control <- function(burn_in = 0L, thinning = 1L, ...) {
   )
 }
 
-# A stub proposal evaluator: `score(data)` is the candidate's log-likelihood
-# and `rate(query)` a query's intensity. Every call is logged.
-stub_evaluator <- function(score = function(data) 0, rate = stub_rate) {
+# A stub proposal evaluator: `score(data)` is the candidate's log-likelihood,
+# `rate(query)` a query's intensity and `legal(data, legality)` its legality
+# when the chain asks. Every call is logged; an illegal one as unscored.
+stub_evaluator <- function(
+  score = function(data) 0,
+  rate = stub_rate,
+  legal = function(data, legality) TRUE
+) {
   log <- new.env(parent = emptyenv())
   log$calls <- list()
-  evaluator <- function(candidate_seq, rate_queries = NULL, loglik = TRUE) {
+  evaluator <- function(
+    candidate_seq,
+    rate_queries = NULL,
+    loglik = TRUE,
+    legality = NULL
+  ) {
+    if (!is.null(legality) && !legal(candidate_seq, legality)) {
+      log$calls[[length(log$calls) + 1L]] <- list(
+        data = candidate_seq,
+        queries = rate_queries,
+        loglik = FALSE
+      )
+      return(list(legal = FALSE, rates = NULL, loglik = NA_real_))
+    }
     log$calls[[length(log$calls) + 1L]] <- list(
       data = candidate_seq,
       queries = rate_queries,
@@ -60,6 +78,18 @@ stub_evaluator <- function(score = function(data) 0, rate = stub_rate) {
     )
   }
   list(evaluator = evaluator, log = log)
+}
+
+# A stub's legality answered by the support-legality replay over the
+# candidate's interval, as the real evaluator decides it.
+replay_legality <- function(context) {
+  checker <- new_legality_checker(context)
+  events <- context$recipe$events
+  function(data, legality) {
+    times <- mcmc_times_from_data(context, data)
+    k <- legality$interval
+    checker$legal(times, k, times[events$event[events$interval == k]])
+  }
 }
 
 # A rate that encodes both the pair's sender and the queried position, so a
@@ -748,7 +778,10 @@ test_that("a support-illegal permute is proposed and rejected with no redraw", {
       move_probs = c(permute = 1, shift = 0)
     )
   )
-  stub <- stub_evaluator(function(data) -2)
+  stub <- stub_evaluator(
+    function(data) -2,
+    legal = replay_legality(built$context)
+  )
   augmenter$init(stub$evaluator, 0)
   draws <- withr::with_seed(1L, augmenter$draw(1L, 1:2, 0))
 

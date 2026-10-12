@@ -97,7 +97,9 @@ new_mcmc_chain <- function(context, control, call = rlang::caller_env()) {
   chain$initialize <- options$initialize %||% "random"
   chain$catalog <- mcmc_move_catalog(recipe)
   chain$intervals <- mcmc_interval_plan(recipe)
-  chain$checker <- new_legality_checker(context)
+  # Without a user support constraint every ordering is legal, so a move
+  # asks the evaluator for no legality (new_legality_checker()).
+  chain$constrained <- length(support_constraint_labels(context$spec)) > 0L
   # Each event's pair as a rate query names it.
   chain$pair <- data.frame(
     layer = events$layer,
@@ -296,24 +298,27 @@ mcmc_step <- function(chain, move = NULL) {
     log_alpha = -Inf
   )
 
-  interval <- placements$interval
-  checker <- chain$checker
-  if (
-    !is.null(checker) &&
-      !checker$legal(
-        current,
-        interval,
-        proposed[chain$intervals[[interval]]$events]
+  # The candidate's legality and its reverse rates are read on one walk, and
+  # an illegal candidate is rejected unscored.
+  data <- emit_augmented_data(chain$context, proposed)
+  reverse_queries <- mcmc_queries(chain, proposed, placements$reverse)
+  scored <- if (chain$constrained) {
+    chain$evaluator(
+      data,
+      rate_queries = reverse_queries,
+      legality = list(
+        interval = placements$interval,
+        waves = chain$context$recipe$wave_times
       )
-  ) {
+    )
+  } else {
+    chain$evaluator(data, rate_queries = reverse_queries)
+  }
+  if (isFALSE(scored$legal)) {
     chain$counts$rejected_illegal <- chain$counts$rejected_illegal + 1L
     record$legal <- FALSE
     return(invisible(record))
   }
-
-  data <- emit_augmented_data(chain$context, proposed)
-  reverse_queries <- mcmc_queries(chain, proposed, placements$reverse)
-  scored <- chain$evaluator(data, rate_queries = reverse_queries)
   reverse <- list(
     queries = reverse_queries,
     rates = scored$rates,

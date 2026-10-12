@@ -265,18 +265,22 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 
 ## 5. MCMC: one pass over the proposed sequence (D5)
 
-- [ ] 5.1 Cost guard: count walk opens per MCMC move (mocked `walk_open()`
+- [x] 5.1 Cost guard: count walk opens per MCMC move (mocked `walk_open()`
       counter) on a constrained fixture (the coupled one from 1.1: an
       unconstrained fixture has no legality walk and already opens two, so
       it cannot fail this guard): at most two for a legal proposal,
       and no reverse rate read or log-likelihood score for an illegal one.
       Record it FAILING (three opens) on the unfixed code and commit it alone.
-- [ ] 5.2a Failing test: a fused candidate pass over a proposed sequence
+      *FAILING on the unfixed code (WA9, `ba6928d3`):*
+      `test-augment_mcmc_cost.R`, one seeded sweep of the coupled fixture: a
+      legal move opens 3 walks. An illegal move already scores nothing and
+      returns no reverse rates.
+- [x] 5.2a Failing test: a fused candidate pass over a proposed sequence
       returns the same `legal` decision as the group 2 replay, and the same
       reverse rates as `query_rate_at_position()`, on fixtures with and without
       a stamp tie. It stops at the first illegal stamp with no rates. Confirm
       RED and commit the test alone.
-- [ ] 5.2b Implement the fused pass inside `make_proposal_evaluator()`'s
+- [x] 5.2b Implement the fused pass inside `make_proposal_evaluator()`'s
       closure, behind an optional `legality = list(interval, waves)`
       argument: one walk on the proposed sequence opened with the evaluator's
       `control_prep`, the D8 helper with `walk_event_supported()` as the hook,
@@ -284,13 +288,27 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       computed once per candidate. It returns `list(legal, rates, loglik)`;
       an illegal candidate gets no rates and no log-likelihood. Calls without
       `legality` are unchanged. Confirm GREEN and commit.
-- [ ] 5.3a Failing test: `mcmc_step()` on a seeded chain makes the same
+      *Result (WA9, `aaad8bc6` RED, `f86aec68` GREEN):* `candidate_pass()`
+      (`R/rate_queries.R`) replays the handle's realizations, so query
+      positions and rates are `identical()` to `query_rate_at_position()`.
+      The realizations carry no flavor (it rides the dependent row), so each
+      stamp's checks come from the candidate's in-interval ties, taken off a
+      cursor the first time the replay reaches the stamp.
+- [x] 5.3a Failing test: `mcmc_step()` on a seeded chain makes the same
       accept/reject sequence as before over a sweep with no stamp ties, and
       meets the 5.1 guard. Confirm RED and commit the test alone.
-- [ ] 5.3b Route `mcmc_step()` through the evaluator's `legality` call in
+      *RED (WA9, `fd2b55e0`):* two seeded sweeps per reference fixture
+      (flags, log alphas, retained log-likelihood, recorded on the unfixed
+      step) match; only the coupled walk count fails.
+- [x] 5.3b Route `mcmc_step()` through the evaluator's `legality` call in
       place of the separate checker and reverse-query walk. Keep
       `make_proposal_evaluator()`'s existing contract. Confirm GREEN and
       commit.
+      *Result (WA9):* a constrained chain (`chain$constrained`, replacing
+      `chain$checker`) calls the evaluator with `legality`; an unconstrained
+      one calls it exactly as before. The test stub evaluator answers
+      `legality` through the real replay (`replay_legality()`). Suite:
+      PASS 16580 / FAIL 0 / SKIP 6, baselines not skipped.
 - [ ] 5.4 Close the group: measure MCMC sweep seconds, allocated MB and walk
       opens on the 6.2 recovery fixture against 1.1's values and the
       prediction, and record them in `progress.md`. Report the coupled
