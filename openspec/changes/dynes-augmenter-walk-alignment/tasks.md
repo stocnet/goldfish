@@ -106,14 +106,20 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       commit the test alone.
 - [x] 2.3d Open every legality walk with the `control_prep` the likelihood
       uses, not `set_preprocessing()`. Confirm GREEN and commit.
-- [ ] 2.4 Rerun every seeded `augment_seq_random()` / `augment_seq_mcmc()`
+- [x] 2.4 Rerun every seeded `augment_seq_random()` / `augment_seq_mcmc()`
       test. Any expectation that moved must trace to a stamp tie in its
       fixture; record each in `progress.md`.
-- [ ] 2.5 Close the group: measure legality replay time and allocation on the
+      *Result (WA4):* none moved; both files pass unchanged after 2.2b,
+      2.3b and 2.3d.
+- [x] 2.5 Close the group: measure legality replay time and allocation on the
       6.2 recovery fixture against 1.1's values (expected unchanged; the
       legality walks are inside the coupled sim draw and MCMC step values 1.1
       recorded, so measure the replay on its own), run the
       NOT_CRAN=true full suite (baselines PASS), commit.
+      *Result (WA4):* replay alone on the 1.1 coupled fixture, pre-2.2b
+      checker vs now, same session: 0.075 → 0.077 s and 3.32 → 3.36 MB per
+      check, same decisions. Suite after 2.3d: PASS 16476 / FAIL 0 /
+      SKIP 5, baselines not skipped.
 
 ## 3. Rate-query replay on the stamp helper (D2, D8)
 
