@@ -787,6 +787,21 @@ test_that("the rate-query replay steps the handle only through its own API", {
   expect_in(callers, c("walk_advance", "walk_apply_resolved"))
 })
 
+test_that("an exogenous row sorting before the focal stream is not applied", {
+  # friendship sorts before calls at both of its stamps that hold a calls
+  # realization: 1 -> 2 at t = 1 (event 1) and 3 -> 4 at t = 2 (events 3, 4).
+  after_first <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 1L)
+  expect_identical(after_first$state$networks[["calls"]][1, 2], 1)
+  expect_identical(after_first$state$networks[["friendship"]][1, 2], 0)
+
+  after_tie <- rq_replay_after(suppressWarnings(walk_open(rq_exo_spec())), 4L)
+  networks <- after_tie$state$networks
+  expect_identical(networks[["calls"]][3, 4], 1)
+  # The earlier stamp's row is in; the one at the event's own stamp is not.
+  expect_identical(networks[["friendship"]][1, 2], 1)
+  expect_identical(networks[["friendship"]][3, 4], 0)
+})
+
 test_that("completed rates do not move with the candidate", {
   spec <- rq_pinned_spec()
   theta <- list(
