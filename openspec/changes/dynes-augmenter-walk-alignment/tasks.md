@@ -412,5 +412,56 @@ time column read by integer index).
       observed events and on an observed event at a wave time. Do not touch the DESCRIPTION Version
       or `NEWS.md`. Commit.
       *Result (WA11):* `NEWS.d/dynes-augmenter-walk-alignment--stamp-agreement.md`.
-- [ ] 7.2 Run `conformance-inspector` on the change. Triage its report and
+- [x] 7.2 Run `conformance-inspector` on the change. Triage its report and
       re-check the scoped findings before the change is trusted.
+      Report: `.plan/develop/dynes-augmenter-walk-alignment-conformance.md`,
+      CONFORMANT, no blocking gap. Suite at `8bff8840`: PASS 16621 / FAIL 0 /
+      SKIP 5, baselines PASS. Its seven should-fix gaps are group 8 below,
+      and the scoped re-check is 8.8. Its notes are owned elsewhere: per-step
+      overhead that grows with the chain heads goes to
+      `dynes-augmenter-driver-v2`; the doubled focal stream is
+      `focal-stream-dedup`; the three labeled-node commits in this range are
+      `dynes-augmentation`'s, for the branch fold.
+
+## 8. Conformance follow-ups (report of 7.2)
+
+Group 8 must close before the trunk fold. None of its tasks changes a drawn
+sequence, a density or a fitted coefficient on the 1.1 references.
+
+- [ ] 8.1 Spec wording (S1). In "The sim augmenter evaluates no rate over a
+      replayed prefix", exempt the simulation driver's rate round at every
+      step, including a tied sibling's and a breakpoint's, which this change
+      keeps and `dynes-augmenter-driver-v2` reuses but does not remove. The
+      requirement then constrains the augmenter's own reads, as task 4.1's
+      guard does. Run `openspec validate` and the placement check. Commit.
+- [ ] 8.2 Failing-detector test (S2): under coupling, a tied sibling whose
+      dyad has no support strictly before the stamp strands the attempt.
+      Confirm it goes red when `sim_reach_stamp()` checks only the first
+      event of the stamp, then restore. Commit.
+- [ ] 8.3 Call-site detector for the float landing (S3): a sim draw that
+      reaches a stamp from a clock where `t + (s - t)` falls short completes
+      with its event at the stamp (1.1 coupled seed 2 under `skip_on_cran()`,
+      or a cheaper fixture built from the pinned values). Confirm it goes red
+      with the relational wait reverted to `state$time - t`. Record whether
+      the wave-start wait and the opening move's `max(wave_start, t)` can be
+      reached by any fixture. Commit.
+- [ ] 8.4 The sim driver's walk and the likelihood's control (S4): either
+      pass the augmenter context's `control_prep` to `simulate_replicate()`
+      in `sim_interval_attempt()`, with a test through a mocked `walk_open()`
+      as in 2.3c, or record in D5 that the sim walk keeps the default and
+      why. Either way, make the NEWS.d bullet "the same holds under a
+      non-default preprocessing control" say which walks it covers. Commit.
+- [ ] 8.5 Coupled per-attempt walks (S5): in `test-augment_sim_cost.R`,
+      assert that a coupled draw opens one walk per interval attempt. Commit.
+- [ ] 8.6 Tracked record of progress-only deviations (S6): a tick note on
+      3.2b (the guard asserts the caller names, since `walk_advance()`
+      legitimately calls `walk_apply_object_event()`), a sentence in D8 (the
+      stamp buffer is the `stamp_end` column, since the events are known up
+      front), and the proposal's Impact list gains `R/augmentation_recipe.R`
+      and `R/estimate_dynes.R`. Optional (N1): add `local_runif_cap()` to the
+      tied-event tests that lack it, so a regression fails rather than hangs.
+      Commit.
+- [ ] 8.7 `_references/walk_alignment_v1/README.md` describes the state it
+      was recorded at without naming another change (S7). Commit.
+- [ ] 8.8 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
+      scoped `conformance-inspector` re-check of group 8.
