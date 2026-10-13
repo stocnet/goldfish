@@ -707,3 +707,37 @@ test_that("a tied sibling's support is read strictly before the stamp", {
     expect_equal(calls$time[calls$from == 3L], c(2, 2))
   }
 })
+
+test_that("a tied sibling is placed with no selection", {
+  # Between the first email's placement and its sibling's, no weight is read
+  # and nothing is sampled: the sibling adds no term to the density.
+  weight <- sim_relational_weight
+  sample <- sample_index
+  accept <- sim_accept
+  log <- character()
+  local_mocked_bindings(
+    sim_relational_weight = function(...) {
+      log <<- c(log, "weight")
+      weight(...)
+    },
+    sample_index = function(...) {
+      log <<- c(log, "sample")
+      sample(...)
+    },
+    sim_accept = function(state, event) {
+      if (identical(state$pending$kind, "relational")) {
+        log <<- c(log, "placed")
+      }
+      accept(state, event)
+    }
+  )
+  built <- sim_augmenter(breakpoint_spec(tied_email_data(email_time = 3)))
+  draw_sim(built, 10L, c(0, 1, 0, 0, 0))
+  # Both emails sit at 3, so the placements come in tied pairs.
+  placed <- which(log == "placed")
+  expect_length(placed, 20L)
+  for (pair in seq(1L, length(placed), by = 2L)) {
+    between <- log[seq.int(placed[[pair]], placed[[pair + 1L]])]
+    expect_false(any(between %in% c("weight", "sample")))
+  }
+})
