@@ -587,7 +587,6 @@ test_that("an interval no draw can complete aborts at the ceiling", {
 })
 
 test_that("the last-call support check reads the walk after its advance", {
-  skip("Needs the last-call advance to the stamp, which no clock makes yet.")
   local_cli_context()
   local_mocked_bindings(restart_ceiling = function() 5L)
   # N4 leaves at 2, the stamp of the call 3 -> 4, and is back at 2.5. Only
@@ -802,4 +801,23 @@ test_that("a selected call whose support goes before its stamp strands", {
     draw_sim(built, 1L, c(0.2, 0.2, -1, 0.5)),
     class = "goldfish_dynes_restart_ceiling"
   )
+})
+
+test_that("the clock reaches a stamp without falling short of it", {
+  # The walk already stands at the stamp when the driver injects the event
+  # there, so a clock one unit short would inject behind it. From these
+  # values (a 1.1 coupled reference draw) `t + (s - t)` falls short.
+  t <- 0.13212533219080139
+  s <- 0.43566131209412967
+  expect_lt(t + (s - t), s)
+  expect_gte(t + sim_wait_until(t, s), s)
+  withr::with_seed(1L, {
+    from <- stats::runif(1000L, 0, 0.4)
+    to <- stats::runif(1000L, 0.4, 5)
+  })
+  wait <- mapply(sim_wait_until, from, to)
+  expect_true(all(from + wait >= to))
+  expect_true(all(from + wait - to <= to * .Machine$double.eps))
+  # A sibling whose clock already stands past the stamp waits 0.
+  expect_identical(sim_wait_until(s + s * .Machine$double.eps, s), 0)
 })

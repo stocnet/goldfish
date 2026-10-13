@@ -349,21 +349,31 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
 Builds on 1.2b (no flip while a sibling is pending) and 4.4b (the relational
 time column read by integer index).
 
-- [ ] 6.1a Failing test: on a coupled fixture where two observed relational
+- [x] 6.1a Failing test: on a coupled fixture where two observed relational
       events tie at `t` and injecting the first would remove the second's
       dyad from the support, a seeded sim draw does not strand at the stamp:
       the second is supported at the state strictly before `t`. Confirm RED
       and commit the test alone.
-- [ ] 6.1b Failing test: a tied sibling is not selected, so it adds no term to
+      *RED (WA10, `728116c0`):* N3 calls N4 and N1 at 2 under
+      `outdeg(calls, type = "ego") < 1`; every attempt read the sibling after
+      the first call's injection and hit the restart ceiling.
+- [x] 6.1b Failing test: a tied sibling is not selected, so it adds no term to
       `log_proposal`. Assert through a mocked `sim_relational_weight()` /
       `sample_index()` call count of zero between the first event's placement
       and the sibling's. Confirm RED and commit the test alone.
-- [ ] 6.1c Failing tests (the last-call check): under coupling, (i) a pending
+      *RED (WA10, `688cbb0b`):* on 1.2a's tied emails the sibling's weight
+      was read after the first email's placement.
+- [x] 6.1c Failing tests (the last-call check): under coupling, (i) a pending
       relational event whose support an exogenous row removes and a later row
       before the stamp restores is placed; (ii) a selected first event whose
       support an exogenous row between selection and stamp removes strands
       the attempt. Confirm RED and commit the tests alone.
-- [ ] 6.2 Make each later event of a tied stamp a forced step (`wait = 0`, no
+      *WA10, `e02e2321`:* (ii) RED (a call selected before a visit at 1.5
+      that rules it out was placed). (i) passes on the unfixed code, which
+      reads no support after a selection, so it cannot be RED; it guards the
+      last-call rule against a check on every clock call (every attempt that
+      selected the call before the removal at 1.2 placed it).
+- [x] 6.2 Make each later event of a tied stamp a forced step (`wait = 0`, no
       selection, no `log_q` term). On the clock call where
       `walk_next_breakpoint(handle) >= stamp` (the last before the stamp),
       advance through the move wrapper with `walk_advance(handle, stamp,
@@ -371,6 +381,16 @@ time column read by integer index).
       relational event at the stamp, the first included; strand if any lacks
       it. Earlier calls only carry the step forward. Confirm GREEN (6.1a,
       6.1b, 6.1c, 1.2a, 4.3c) and commit.
+      *Result (WA10):* `sim_reach_stamp()` in `R/augment_seq_sim.R`; 4.3c
+      unskipped and GREEN (strand and control). Found on 1.1's coupled
+      seed 2: the driver's clock `t + (s - t)` can round one unit short of
+      `s`, behind a walk now moved to `s`, and abort the injection. Exact
+      landing is not always reachable (ties to even), so
+      `sim_wait_until()` returns the smallest wait that lands at or past
+      `s` (0 for a sibling already past), used for the relational wait and
+      for D3's wave-start breakpoint wait; the opening move of an interval
+      on the single walk goes to `max(wave_start, t)`. Unit test pins it.
+      Suite: PASS 16621 / FAIL 0 / SKIP 5, baselines not skipped.
 - [ ] 6.3 Rerun every seeded `augment_seq_sim()` test. Any expectation that
       moved must trace to a stamp tie in its fixture; record each in
       `progress.md`. 1.1's untied references must not move.

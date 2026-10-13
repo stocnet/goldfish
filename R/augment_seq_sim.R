@@ -313,6 +313,8 @@ new_sim_attempt <- function(plan, intervals, times, parameters) {
   state$times <- times
   state$pending <- NULL
   state$time <- NA_real_
+  # The stamp the walk was last moved strictly before by sim_reach_stamp().
+  state$stamp_reached <- -Inf
   state$stranded <- FALSE
   state$log_q <- 0
   state$interval_log_q <- rep(0, length(plan$waves) - 1L)
@@ -427,7 +429,9 @@ sim_clock <- function(state, t, handle) {
     state$routing <- simulation_routing(state$plan$spec, handle)
   }
   if (!state$entered) {
-    sim_move(state, handle, state$wave_start, state$forced)
+    # An event at the previous interval's closing wave may have left the
+    # driver's clock one unit past that wave (sim_wait_until()).
+    sim_move(state, handle, max(state$wave_start, t), state$forced)
     state$forced <- NULL
     state$entered <- TRUE
   }
@@ -435,7 +439,7 @@ sim_clock <- function(state, t, handle) {
   # the driver's clock follows it there, and the draw begins.
   if (is.null(state$pending) && t < state$wave_start) {
     return(list(
-      wait = state$wave_start - t,
+      wait = sim_wait_until(t, state$wave_start),
       fid = state$plan$rate_fids[[1L]],
       kind = "breakpoint"
     ))
@@ -449,8 +453,12 @@ sim_clock <- function(state, t, handle) {
   }
   if (!identical(pending$kind, "flip")) {
     state$time <- state$relational$time[[pending$event]]
+    if (!sim_reach_stamp(state, pending$event, t, handle)) {
+      state$pending <- list(kind = "stranded")
+      return(list(wait = 0, fid = state$plan$rate_fids[[1L]], kind = "event"))
+    }
     return(list(
-      wait = state$time - t,
+      wait = sim_wait_until(t, state$time),
       fid = sim_event_fid(state, pending$event),
       kind = "event"
     ))
@@ -468,11 +476,10 @@ sim_next_step <- function(state, t, handle) {
   }
   # A flip lands strictly inside the gap to the next relational event, so
   # none fits between two events at one stamp: the sibling of a placed event
-  # comes next, at no wait.
+  # comes next, at no wait, with no selection. Its support was read with the
+  # first event's, strictly before the stamp, which nothing at the stamp may
+  # inform -- the first event's injection included.
   if (sim_sibling_pending(state)) {
-    if (!(sim_relational_weight(state, relational, t, handle) > 0)) {
-      return(list(kind = "stranded"))
-    }
     return(list(kind = "relational", event = relational))
   }
   # An event at the closing wave leaves no room after it for a flip of the
@@ -502,6 +509,56 @@ sim_next_step <- function(state, t, handle) {
     return(list(kind = "relational", event = relational))
   }
   list(kind = "flip", option = options$head[[chosen]])
+}
+
+# Carry the relational event `event`, the next to place, toward its stamp.
+# While a breakpoint lies before the stamp the driver clips there and calls
+# the clock again, so only the last call -- the one with no breakpoint left
+# before the stamp -- sees the state the event is evaluated at by the
+# likelihood: strictly before the stamp, the node composition at the stamp
+# included. That call moves the walk there and, under a user support
+# constraint, reads the support of every event at the stamp, `event` and its
+# tied siblings. A support lost earlier and restored before the stamp does not
+# count; one missing at the stamp strands the attempt (FALSE). The siblings'
+# own calls find the stamp reached and only pass.
+sim_reach_stamp <- function(state, event, t, handle) {
+  relational <- state$relational
+  stamp <- relational$time[[event]]
+  if (state$stamp_reached == stamp || walk_next_breakpoint(handle) < stamp) {
+    return(TRUE)
+  }
+  sim_move(state, handle, stamp)
+  state$stamp_reached <- stamp
+  if (!state$plan$coupled) {
+    return(TRUE)
+  }
+  last <- event
+  while (
+    last < state$n_relational_total && relational$time[[last + 1L]] == stamp
+  ) {
+    last <- last + 1L
+  }
+  for (i in seq.int(event, last)) {
+    if (!(sim_relational_weight(state, i, t, handle) > 0)) {
+      return(FALSE)
+    }
+  }
+  TRUE
+}
+
+# The wait that brings the driver's clock from `t` to `to`, never short of it.
+# The driver adds the wait to its clock, and `t + (to - t)` can round one unit
+# below `to`; the event would then be injected behind a walk already moved to
+# its stamp. Nor can every `to` be hit exactly: when `t` carries a bit below
+# `to`'s last place, every sum is a tie and rounding to even may step over
+# `to`, so the clock lands one unit past it instead. A tied sibling, whose
+# clock may already stand there, waits 0.
+sim_wait_until <- function(t, to) {
+  wait <- to - t
+  while (t + wait < to) {
+    wait <- wait + (to - (t + wait))
+  }
+  max(wait, 0)
 }
 
 # Whether the next relational event shares the stamp of the one placed last.
