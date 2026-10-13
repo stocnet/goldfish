@@ -492,8 +492,12 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       draws (rate queries already used the evaluator's control at
       `b0c14308`). Sim, sim-cost and composition-waves files green (846 /
       28 / 101); 1.1 identity in the closing check below.
-- [ ] 8.5 Coupled per-attempt walks (S5): in `test-augment_sim_cost.R`,
+- [x] 8.5 Coupled per-attempt walks (S5): in `test-augment_sim_cost.R`,
       assert that a coupled draw opens one walk per interval attempt. Commit.
+      *Result (WA13):* "a coupled sim draw opens one walk per interval
+      attempt": 1.1 coupled seed 1 restarts (`restarted`, more than 3
+      attempts) and its walk opens equal its attempts (`local_sim_counts()`).
+      Passes on the landed code (a characterization of the scenario).
 - [ ] 8.6 Tracked record of progress-only deviations (S6): a tick note on
       3.2b (the guard asserts the caller names, since `walk_advance()`
       legitimately calls `walk_apply_object_event()`), a sentence in D8 (the

@@ -272,3 +272,15 @@ test_that("an uncoupled sim draw opens one walk", {
   # Carried on one walk, the draw is still the one the intervals drew apart.
   expect_identical(wa_draw_record(draw), fixture$draws[["1"]])
 })
+
+test_that("a coupled sim draw opens one walk per interval attempt", {
+  skip_on_cran()
+  fixture <- wa_sim_fixture("coupled")
+  log <- local_sim_counts()
+  draw <- wa_seeded_draw(fixture, 1L)
+  # A stranded interval is redrawn from its starting state, which the walk,
+  # moving only forward, cannot return to: every attempt opens its own.
+  expect_true(draw$restarted)
+  expect_gt(log$attempt, 3L)
+  expect_identical(log$opens, log$attempt)
+})
