@@ -391,10 +391,17 @@ time column read by integer index).
       for D3's wave-start breakpoint wait; the opening move of an interval
       on the single walk goes to `max(wave_start, t)`. Unit test pins it.
       Suite: PASS 16621 / FAIL 0 / SKIP 5, baselines not skipped.
-- [ ] 6.3 Rerun every seeded `augment_seq_sim()` test. Any expectation that
+- [x] 6.3 Rerun every seeded `augment_seq_sim()` test. Any expectation that
       moved must trace to a stamp tie in its fixture; record each in
       `progress.md`. 1.1's untied references must not move.
-- [ ] 6.4 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+      *Result (WA10):* none moved. Every seeded sim test passes unedited
+      (`test-augment_seq_sim.R`, `test-augment_sim_cost.R`,
+      `test-composition_waves.R`, the full suite), and all ten 1.1 draws
+      (uncoupled and coupled, seeds 1–5) are `identical()` to the
+      references, coupled seeds 2–5 included (off-suite script).
+- [x] 6.4 Close the group: NOT_CRAN=true full suite (baselines PASS), commit.
+      *Result (WA10):* PASS 16621 / FAIL 0 / SKIP 5 (the usual five, named;
+      4.3c's skip is gone), every baseline file ran.
 
 ## 7. Milestone
 
