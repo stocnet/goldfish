@@ -533,5 +533,13 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       composition snap in place, the stamp and cost changes not yet); no
       change name is left in it. The `.rds` and its generator are
       untouched.
-- [ ] 8.8 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
+- [x] 8.8 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
       scoped `conformance-inspector` re-check of group 8.
+      *Result (WA14):* report
+      `.plan/develop/dynes-augmenter-walk-alignment-g8-conformance.md`,
+      CONFORMANT, no blocking or should-fix gap; S1–S7 and N1 closed. Suite
+      at `55c46ae0`: PASS 16654 / FAIL 0 / SKIP 5, baselines PASS (0
+      skipped). Ablations A14, A18, A19, A20 (green in 7.2's report) and
+      A21 (the 8.4 site) each turn their own detector red. All ten 1.1
+      draws `identical()`. One optional note: the sim walk's control is
+      pinned by a test and D5 but by no spec scenario.
