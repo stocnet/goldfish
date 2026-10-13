@@ -1,8 +1,10 @@
 # walk_alignment_v1
 
-Pre-change references for the DyNES augmenters, recorded at `b0c14308`
-(after `dynes-composition-to-waves` landed, before any stamp-semantics or
-cost change).
+Pre-change references for the DyNES augmenters, recorded at `b0c14308`:
+after `estimate_dynes()` began snapping the composition changes of actors
+taking part in an interval to the interval's waves, and before the
+augmenters read stamps strictly before them or shed their unused walks and
+rate evaluations.
 
 - `walk_alignment_pre_change.rds`: per fixture (`uncoupled`, `coupled`), the
   panel ties, theta, seeded `augment_seq_sim()` draws (timed friendship rows,

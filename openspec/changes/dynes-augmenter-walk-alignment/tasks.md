@@ -527,7 +527,11 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       binds to the snapped specification") is left uncapped: it runs the
       random, MCMC and sim fits in one test, so a cap would count every
       routine's draws.
-- [ ] 8.7 `_references/walk_alignment_v1/README.md` describes the state it
+- [x] 8.7 `_references/walk_alignment_v1/README.md` describes the state it
       was recorded at without naming another change (S7). Commit.
+      *Result (WA13):* the README describes `b0c14308` by behavior (the
+      composition snap in place, the stamp and cost changes not yet); no
+      change name is left in it. The `.rds` and its generator are
+      untouched.
 - [ ] 8.8 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
       scoped `conformance-inspector` re-check of group 8.
