@@ -353,6 +353,21 @@ The pass's replay is the D8 helper with `walk_event_supported()` as the check
 hook, stopping at each query position as D2's `walk_replay_to()` does. Its row
 positions are computed once per candidate, not per query.
 
+**What the pass replays, and what it checks.** The pass replays the handle's
+realizations (`walk_realizations()`), so its query positions and its rates
+are those of `query_rate_at_position()`. The checks do not come from those
+rows. A realization is a write into the focal network, and the merged
+schedule gives it no flavor: the flavor rides on the dependent row, which
+routes the event to its process. `walk_event_supported()` called on a
+realization of a flavored layer would therefore find no process for flavor
+`NA` and answer "supported", whatever the constraint. The pass takes each
+stamp's checks from the candidate's in-interval ties instead
+(`replay_columns()`, the flavor included). A cursor hands them to the hook
+the first time the replay reaches their stamp, and an internal abort fires
+if a check is left over. On `legal_spec()` a creation placed before the
+dissolution it depends on is rejected. Checked against the realizations,
+it would be accepted.
+
 ### D6. The removed refusal's record and test
 
 - The two `dynes-augmentation/design.md` passages ("One refusal remains",

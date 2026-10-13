@@ -324,6 +324,25 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       of the steps already opened 2 walks. Uncoupled control: 2.0 opens,
       time and MB unchanged. Budgets unmoved. Suite after 5.3b: PASS 16580 /
       FAIL 0 / SKIP 6, baselines not skipped.
+- [x] 5.5 Characterization test (D5, "What the pass replays, and what it
+      checks"; passes on the landed code, not a red/green pair). The test uses
+      the real `make_proposal_evaluator(legality =)` on
+      `test-augment_seq_mcmc.R`'s `legal_spec()`, a max-outdegree-1
+      constraint on the flavored friendship layer. With the creation 1 -> 3
+      placed before the dissolution 1 -> 2 in interval 1, the pass returns
+      `legal = FALSE` with no rates and no log-likelihood; the dissolution-first
+      ordering is the control (`legal = TRUE`). Mutation check, not
+      committed: when the hook reads the realizations (flavor `NA`), the
+      creation-first case turns legal and the test fails. Record that
+      result. Measured while writing the task (2026-10-13, scratch): the
+      checker and the pass both reject creation-first, and no friendship
+      process exists under flavor `NA`. Commit.
+      *Result (WA10):* "the evaluator's one pass checks a flavored event
+      under its flavor" (`test-augment_seq_mcmc.R`) passes on the landed
+      code. Mutation (the hook given flavor `NA`, reverted): the
+      creation-first case turns legal, returns rates and scores a
+      log-likelihood of `-Inf`, and three expectations fail. Suite:
+      PASS 16586 / FAIL 0 / SKIP 6, baselines not skipped.
 
 ## 6. Sim augmenter: tied observed relational events at the pre-stamp state (D7)
 

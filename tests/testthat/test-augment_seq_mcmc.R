@@ -802,6 +802,47 @@ test_that("a support-illegal permute is proposed and rejected with no redraw", {
   expect_identical(stub_loglik_calls(stub)[[1L]]$data, start)
 })
 
+test_that("the evaluator's one pass checks a flavored event under its flavor", {
+  # A realization of the friendship layer carries no flavor, so a check read
+  # off it would find no process to constrain and accept the creation first.
+  built <- mcmc_build(legal_spec())
+  dissolve <- flavor_event(built$recipe, 1L, 2L, 1L)
+  create <- flavor_event(built$recipe, 1L, 3L, 1L)
+  later <- flavor_event(built$recipe, 3L, 4L, 2L)
+  evaluator <- make_proposal_evaluator(
+    decompose_joint_spec(built$spec),
+    c(0.2, 0.3, -1, 0.1),
+    spec = built$spec,
+    control_prep = set_preprocessing(start_time = 0, end_time = 10)
+  )
+  query <- list(
+    after = 1L,
+    layer = "friendship",
+    flavor = "creation",
+    sender = "N1",
+    receiver = "N3"
+  )
+  pass <- function(dissolve_at, create_at) {
+    times <- numeric(3)
+    times[c(dissolve, create, later)] <- c(dissolve_at, create_at, 8)
+    suppressWarnings(evaluator(
+      emit_augmented_data(built$context, times),
+      list(query),
+      legality = list(interval = 1L, waves = built$waves)
+    ))
+  }
+
+  creation_first <- pass(dissolve_at = 3, create_at = 1)
+  expect_false(creation_first$legal)
+  expect_null(creation_first$rates)
+  expect_identical(creation_first$loglik, NA_real_)
+
+  dissolution_first <- pass(dissolve_at = 1, create_at = 3)
+  expect_true(dissolution_first$legal)
+  expect_length(dissolution_first$rates, 1L)
+  expect_true(is.finite(dissolution_first$loglik))
+})
+
 # --- Real proposal evaluator --------------------------------------------------
 
 test_that("the rates-only evaluator call skips the likelihood", {

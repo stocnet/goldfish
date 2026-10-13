@@ -232,3 +232,11 @@ returned and no log-likelihood scored.
 - **WHEN** an MCMC move proposes a candidate whose support check fails
 - **THEN** the move is rejected, no reverse rate is returned, and no
   log-likelihood is scored for the candidate
+
+#### Scenario: A flavored event is checked under its own flavor's support
+
+- **WHEN** a candidate places a flavored event of a layer whose support
+  constraint excludes it at that point, such as a creation before the
+  dissolution that frees its sender under a max-outdegree-1 constraint
+- **THEN** the one pass over the candidate reads that event's support
+  through its flavor's processes and rejects the candidate
