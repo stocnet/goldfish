@@ -123,7 +123,13 @@ and only towards the batch walk's answer.
   `R/preprocess_joint.R` (the ordering comment gains its rationale),
   `R/evaluator_dynes.R` (`make_proposal_evaluator()`'s closure gains an
   optional `legality` argument that runs the fused pass; calls without it
-  behave as today).
+  behave as today), `R/augmenters_dynes.R` (the shared stamp helper
+  `replay_stamps()` and its columns, and `open_augmenter_walk()` opening
+  with the likelihood's `control_prep`), `R/augmentation_recipe.R` (the
+  recipe cursor's `heads()`, the next event id of each chain with events
+  left, so the sim step reads its chain heads by integer index) and
+  `R/estimate_dynes.R` (hands the augmenter the `control_prep` the
+  likelihood is scored with).
 - **C++:** none.
 - **Tests:** count-based cost guards (walk opens, rate evaluations), seeded
   draw-identity regressions for the sim augmenter, stamp-tie legality

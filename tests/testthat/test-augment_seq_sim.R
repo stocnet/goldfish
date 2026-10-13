@@ -714,6 +714,7 @@ stamp_spec <- function(data, constraint) {
 }
 
 test_that("a tied sibling's support is read strictly before the stamp", {
+  local_runif_cap()
   local_mocked_bindings(restart_ceiling = function() 20L)
   # N3 calls N4 and N1 at 2 under a one-call-per-sender constraint: once the
   # first call is injected, N3 has used its call, but the second is read at
@@ -737,6 +738,7 @@ test_that("a tied sibling's support is read strictly before the stamp", {
 })
 
 test_that("a tied sibling is placed with no selection", {
+  local_runif_cap()
   # Between the first email's placement and its sibling's, no weight is read
   # and nothing is sampled: the sibling adds no term to the density.
   weight <- sim_relational_weight

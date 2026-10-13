@@ -490,7 +490,11 @@ walk step.
 The helper holds the stamp's events in one buffer of stamp size, built once
 per replay (as the anchored driver's `pending_*` buffers), and reads the
 candidate's rows through integer indices into columns computed once per
-candidate.
+candidate. As built, no buffer is needed: unlike the anchored driver's draws,
+a replay's events are known before it starts, so the stamp a row belongs to
+is one more column, `stamp_end` (the last row of the row's stamp, computed
+once per replay), and the helper checks and then injects rows `i` through
+`stamp_end[i]` in place.
 
 The realizations the helper injects are every non-dependent focal-layer row
 of the candidate, including the rows of a flavor no process models, in
@@ -553,7 +557,8 @@ per step.
   rejects).
 - Legality replay: no change in walk count. The deferral of injections to the
   stamp end costs one buffer of stamp size, built once per replay (as the
-  anchored driver's `pending_*` buffers).
+  anchored driver's `pending_*` buffers). As built, it costs one integer
+  column per replay instead, `stamp_end` (D8).
 - Preprocessing walk time, preprocessed object size, and estimation fit time
   are unchanged (`tests/testthat/_budgets/walk_cost.csv` and
   `estimation_cost.csv` must not move).

@@ -140,6 +140,14 @@ milestone writes a `NEWS.d/` fragment and bumps no Version.
       `walk_apply_object_event()` call count of zero from `rate_queries.R`).
       The existing `query_rate_at_position()` tie tests, 3.1 and 3.2a are the
       behavioral oracle. Confirm RED and commit the test alone.
+      *As written (WA5):* the guard asserts the caller of each
+      `walk_apply_object_event()` call, not a count of zero:
+      `walk_advance()` itself calls it for an exogenous row, so a replay
+      that steps the handle only through its API still reaches it. The
+      guard ("the rate-query replay steps the handle only through its own
+      API", `test-rate_queries.R`) expects every caller to be
+      `walk_advance()` or `walk_apply_resolved()`, so a direct call from
+      `rate_queries.R` fails it.
 - [x] 3.2c If a fixture can put a covariate stream before the focal stream:
       failing test that an exogenous row at `s` sorting before the focal
       stream is not applied at `after = k`. Confirm RED and commit the test
@@ -498,7 +506,7 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       attempt": 1.1 coupled seed 1 restarts (`restarted`, more than 3
       attempts) and its walk opens equal its attempts (`local_sim_counts()`).
       Passes on the landed code (a characterization of the scenario).
-- [ ] 8.6 Tracked record of progress-only deviations (S6): a tick note on
+- [x] 8.6 Tracked record of progress-only deviations (S6): a tick note on
       3.2b (the guard asserts the caller names, since `walk_advance()`
       legitimately calls `walk_apply_object_event()`), a sentence in D8 (the
       stamp buffer is the `stamp_end` column, since the events are known up
@@ -506,6 +514,19 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       and `R/estimate_dynes.R`. Optional (N1): add `local_runif_cap()` to the
       tied-event tests that lack it, so a regression fails rather than hangs.
       Commit.
+      *Result (WA13):* 3.2b tick note added; D8 (and the cost section's
+      legality-replay bullet) say the stamp buffer is the `stamp_end`
+      column. The Impact list gains `R/augmentation_recipe.R`,
+      `R/estimate_dynes.R` and also `R/augmenters_dynes.R` (the stamp
+      helper `replay_stamps()` and `open_augmenter_walk()`; most of its
+      diff since `b0c14308` is this change's, the rest is the
+      labeled-node fix, N7), which the report did not list. N1: 6.1a and
+      6.1b now carry `local_runif_cap()`; with the sibling branch removed
+      (the report's A12) each errors in about 1.2 s instead of hanging. The
+      1.2d fit (`test-composition_waves.R`, "every augmenter's candidate
+      binds to the snapped specification") is left uncapped: it runs the
+      random, MCMC and sim fits in one test, so a cap would count every
+      routine's draws.
 - [ ] 8.7 `_references/walk_alignment_v1/README.md` describes the state it
       was recorded at without naming another change (S7). Commit.
 - [ ] 8.8 Close the group: NOT_CRAN=true full suite (baselines PASS), then a
