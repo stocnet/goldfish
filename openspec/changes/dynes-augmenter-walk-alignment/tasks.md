@@ -405,11 +405,12 @@ time column read by integer index).
 
 ## 7. Milestone
 
-- [ ] 7.1 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`):
+- [x] 7.1 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`):
       faster DyNES augmentation draws, legality checks and sim draws that
       agree with the likelihood at stamp ties and under a non-default
       preprocessing control, and the fixes for sim draws that hung on tied
       observed events and on an observed event at a wave time. Do not touch the DESCRIPTION Version
       or `NEWS.md`. Commit.
+      *Result (WA11):* `NEWS.d/dynes-augmenter-walk-alignment--stamp-agreement.md`.
 - [ ] 7.2 Run `conformance-inspector` on the change. Triage its report and
       re-check the scoped findings before the change is trusted.
