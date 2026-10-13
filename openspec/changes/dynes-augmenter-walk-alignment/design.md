@@ -424,6 +424,12 @@ on a stamp. Every tied event after the first is therefore forced:
   selection, so it could be placed without support. The single last-call check
   makes the sim augmenter and the legality gate agree.
 
+Because the last call moves the walk to the stamp before the driver's clock
+gets there, the clock's wait must never land short of the stamp: the driver
+adds it as `t + (s - t)`, which can round one unit below `s` (and ties to even
+can make `s` itself unreachable), so the wait is the smallest that lands at or
+just past `s`, and a sibling whose clock already stands there waits 0.
+
 No driver change is needed. The tied siblings come from the plan's relational
 columns (built once, D4), so finding them is an integer comparison on the
 next entries of the time column.
