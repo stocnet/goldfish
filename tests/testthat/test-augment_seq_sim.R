@@ -803,6 +803,28 @@ test_that("a selected call whose support goes before its stamp strands", {
   )
 })
 
+test_that("a tied sibling without support before its stamp strands", {
+  local_runif_cap()
+  local_mocked_bindings(restart_ceiling = function() 20L)
+  # N3 calls N4 and N1 at 2, and the visit 3 -> 1 at 1.5 rules the second
+  # call out. The first call has support and is the one selected; its sibling
+  # is placed without a selection, so only the last-call check, which reads
+  # every event of the stamp, can refuse it.
+  data <- stamp_data(
+    calls = data.frame(
+      from = c(3L, 3L, 4L),
+      to = c(4L, 1L, 1L),
+      time = c(2, 2, 7)
+    ),
+    visits = data.frame(from = 3L, to = 1L, time = 1.5, weight = 1)
+  )
+  built <- sim_augmenter(stamp_spec(data, ~ !tie(visits)))
+  expect_error(
+    draw_sim(built, 1L, c(0.2, 0.2, -1, 0.5)),
+    class = "goldfish_dynes_restart_ceiling"
+  )
+})
+
 test_that("the clock reaches a stamp without falling short of it", {
   # The walk already stands at the stamp when the driver injects the event
   # there, so a clock one unit short would inject behind it. From these

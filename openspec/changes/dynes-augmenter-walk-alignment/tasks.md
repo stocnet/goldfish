@@ -440,10 +440,16 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       occur only for steps whose result enters ..." clause on the
       augmenter's own reads. `validate --strict` valid; placement check OK
       (8 placements).
-- [ ] 8.2 Failing-detector test (S2): under coupling, a tied sibling whose
+- [x] 8.2 Failing-detector test (S2): under coupling, a tied sibling whose
       dyad has no support strictly before the stamp strands the attempt.
       Confirm it goes red when `sim_reach_stamp()` checks only the first
       event of the stamp, then restore. Commit.
+      *Result (WA13):* "a tied sibling without support before its stamp
+      strands" (`test-augment_seq_sim.R`): N3 calls N4 and N1 at 2 under
+      `~ !tie(visits)`, a visit 3 -> 1 at 1.5. GREEN on the landed code;
+      with the check loop cut to the first event (the report's A14) the
+      draw completes and the test fails; source restored, no diff. File:
+      PASS 817 / FAIL 0.
 - [ ] 8.3 Call-site detector for the float landing (S3): a sim draw that
       reaches a stamp from a clock where `t + (s - t)` falls short completes
       with its event at the stamp (1.1 coupled seed 2 under `skip_on_cran()`,
