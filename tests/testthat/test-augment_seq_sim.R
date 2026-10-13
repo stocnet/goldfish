@@ -498,6 +498,35 @@ test_that("a stranded draw restarts and its density is restart-normalized", {
   expect_true(any(vapply(draws, `[[`, logical(1), "restarted")))
 })
 
+test_that("a draw's walk opens with the likelihood's control_prep", {
+  # Under coupling the draw's walk reads support, so it must walk the
+  # configuration every candidate's log-likelihood is scored with.
+  built <- sim_augmenter(coupled_spec())
+  control_prep <- set_preprocessing(start_time = 0)
+  augmenter <- augment_seq_sim(
+    built$spec,
+    built$recipe,
+    set_algorithm_em(
+      augmenter = set_augmenter_options(routine = "sim"),
+      seed = 11L
+    ),
+    control_prep = control_prep
+  )
+  opened <- list()
+  open <- walk_open
+  local_mocked_bindings(
+    walk_open = function(spec, control_preprocessing, ...) {
+      opened[[length(opened) + 1L]] <<- control_preprocessing
+      open(spec, control_preprocessing, ...)
+    }
+  )
+  withr::with_seed(1L, augmenter$draw(1L, 1L, c(0.2, 0.2, -1, 0.5)))
+  expect_gt(length(opened), 0L)
+  for (control in opened) {
+    expect_identical(control, control_prep)
+  }
+})
+
 test_that("a draw emits no warning of its own; the loop owns it", {
   built <- sim_augmenter(coupled_spec())
   expect_no_warning(draw_sim(built, 10L, c(0.2, 0.2, -1, 0.5)))
