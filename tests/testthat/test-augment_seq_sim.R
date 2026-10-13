@@ -741,3 +741,65 @@ test_that("a tied sibling is placed with no selection", {
     expect_false(any(between %in% c("weight", "sample")))
   }
 })
+
+# The calls 3 -> 4 at 2 and 4 -> 1 at 7 under `~ !tie(visits)`, beside the
+# visits `visits`.
+visit_spec <- function(visits) {
+  data <- stamp_data(
+    calls = data.frame(from = c(3L, 4L), to = c(4L, 1L), time = c(2, 7)),
+    visits = visits
+  )
+  sim_augmenter(stamp_spec(data, ~ !tie(visits)))
+}
+
+test_that("a call whose support returns before its stamp is placed", {
+  # The visit 3 -> 4 at 1.2 rules the call out, and its removal at 1.6 rules
+  # it back in. A call selected before 1.2 is clipped at both rows; only the
+  # last clock call, past 1.6, reads its support, so it is placed. (A
+  # selection inside (1.2, 1.6) weighs the call 0, as any selection does.)
+  built <- visit_spec(
+    data.frame(from = 3L, to = 4L, time = c(1.2, 1.6), weight = c(1, -1))
+  )
+  next_step <- sim_next_step
+  accept <- sim_accept
+  log <- character()
+  local_mocked_bindings(
+    sim_next_step = function(state, t, handle) {
+      step <- next_step(state, t, handle)
+      if (
+        identical(step$kind, "relational") &&
+          state$relational$time[[step$event]] == 2 &&
+          t < 1.2
+      ) {
+        log <<- c(log, "selected early")
+      }
+      step
+    },
+    sim_accept = function(state, event) {
+      if (isTRUE(event$stranded)) {
+        log <<- c(log, "stranded")
+      } else if (identical(state$pending$kind, "relational")) {
+        log <<- c(log, "placed")
+      }
+      accept(state, event)
+    }
+  )
+  draw_sim(built, 10L, c(0.2, 0.2, -1, 0.5))
+  early <- which(log == "selected early")
+  expect_gt(length(early), 0L)
+  for (at in early) {
+    expect_identical(log[[at + 1L]], "placed")
+  }
+})
+
+test_that("a selected call whose support goes before its stamp strands", {
+  local_mocked_bindings(restart_ceiling = function() 20L)
+  # The visit 3 -> 4 at 1.5 rules the call out. A call selected before 1.5
+  # was supported then, but not on the last clock call before 2, so no
+  # attempt places it.
+  built <- visit_spec(data.frame(from = 3L, to = 4L, time = 1.5, weight = 1))
+  expect_error(
+    draw_sim(built, 1L, c(0.2, 0.2, -1, 0.5)),
+    class = "goldfish_dynes_restart_ceiling"
+  )
+})
