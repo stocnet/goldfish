@@ -182,7 +182,10 @@ sim_plan <- function(context, coupled) {
     flips = flips,
     flip_row = flip_row,
     rate_fids = map$fid[map$family == "rate"],
-    coupled = coupled
+    coupled = coupled,
+    # Under coupling the driver's walk reads support, so it walks the
+    # configuration the likelihood scores the drawn sequence with.
+    control_prep = context$control_prep
   )
 }
 
@@ -261,7 +264,7 @@ sim_interval_attempt <- function(plan, intervals, times, parameters, call) {
           max_events = state$n_events + 1L,
           clock_resolution = NULL
         ),
-        control_prep = set_preprocessing(),
+        control_prep = plan$control_prep,
         call = call
       )
       if (!identical(run$diagnostics$stop_reason, "n_events")) {

@@ -338,7 +338,12 @@ So today, with a non-default `control_prep` (a `start_time`), the legality
 gate walks a different configuration from the likelihood it gates, which is
 D1's "a gate that disagrees with the target biases the chain" again. The
 standalone checker of `augment_seq_random()` therefore also opens its walk
-with the evaluator's `control_prep`.
+with the evaluator's `control_prep`. So does the sim augmenter's driver walk:
+under coupling, D7 has it read support on the last call before a stamp, the
+same gate in another form, so `sim_interval_attempt()` hands
+`simulate_replicate()` the augmenter context's `control_prep`, not
+`set_preprocessing()` (`walk_open()` reads its imputation policy from it, for
+one).
 
 *Alternative considered:* give the checker theta and `control_prep` at
 `mcmc_attach()` and let it answer the queries. Rejected: it duplicates

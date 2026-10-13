@@ -476,12 +476,22 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       wave 1.3 reached from a visit breakpoint, landing one unit past).
       Each revert (the report's A18, A19, A20) errors in its own detector
       and in no other test; source restored. File: PASS 841 / FAIL 0.
-- [ ] 8.4 The sim driver's walk and the likelihood's control (S4): either
+- [x] 8.4 The sim driver's walk and the likelihood's control (S4): either
       pass the augmenter context's `control_prep` to `simulate_replicate()`
       in `sim_interval_attempt()`, with a test through a mocked `walk_open()`
       as in 2.3c, or record in D5 that the sim walk keeps the default and
       why. Either way, make the NEWS.d bullet "the same holds under a
       non-default preprocessing control" say which walks it covers. Commit.
+      *Result (WA13):* passed. Reason: under coupling D7 makes the sim walk
+      a support gate, so D5's argument applies to it. RED: "a draw's walk
+      opens with the likelihood's control_prep" (`test-augment_seq_sim.R`,
+      coupled fixture, `start_time = 0`, mocked `walk_open()`): 4 opens, all
+      with the default. GREEN: `sim_plan()` carries
+      `context$control_prep`, `sim_interval_attempt()` passes it. D5 gains
+      a sentence; the NEWS.d bullet now names legality checks and simulated
+      draws (rate queries already used the evaluator's control at
+      `b0c14308`). Sim, sim-cost and composition-waves files green (846 /
+      28 / 101); 1.1 identity in the closing check below.
 - [ ] 8.5 Coupled per-attempt walks (S5): in `test-augment_sim_cost.R`,
       assert that a coupled draw opens one walk per interval attempt. Commit.
 - [ ] 8.6 Tracked record of progress-only deviations (S6): a tick note on
