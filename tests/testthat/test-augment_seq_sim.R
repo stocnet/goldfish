@@ -843,3 +843,74 @@ test_that("the clock reaches a stamp without falling short of it", {
   # A sibling whose clock already stands past the stamp waits 0.
   expect_identical(sim_wait_until(s + s * .Machine$double.eps, s), 0)
 })
+
+test_that("a draw reaches a stamp from a clock that would fall short of it", {
+  local_runif_cap()
+  t <- 0.13212533219080139
+  s <- 0.43566131209412967
+  # The visit at `t` is a breakpoint, so a draw that selects the email at `s`
+  # first (all but certain at these rates) is clipped there, and its last
+  # clock call waits from `t` to `s`, a sum that rounds short of `s`.
+  built <- sim_augmenter(
+    breakpoint_spec(breakpoint_data(visit_time = t, email_time = s))
+  )
+  draws <- draw_sim(built, 5L, c(-5, 0, 0, 5, 0))
+  for (draw in draws) {
+    expect_identical(layer_rows(draw, "emails")$time, s)
+    expect_true(is.finite(draw$log_proposal))
+  }
+})
+
+# breakpoint_data() on the waves 0, 1.3 and 2.6: the calls 1 -> 2 rise by 1.3
+# and 2 -> 3 by 2.6, one flip per interval, beside the email at `email_time`
+# and the visit at `visit_time`. An integer wave is always landed on exactly
+# (`w - t` rounds by less than half a unit of `w`); 1.3 is not.
+decimal_wave_data <- function(email_time, visit_time) {
+  data <- breakpoint_data(visit_time = visit_time, email_time = email_time)
+  data$ties <- rbind(
+    data.frame(
+      from = c(1L, 2L),
+      to = c(2L, 3L),
+      time = c(1.3, 2.6),
+      weight = 1,
+      layer = "calls"
+    ),
+    data$ties[data$ties$layer != "calls", ]
+  )
+  data
+}
+
+test_that("a draw opens an interval from a clock that would fall short of it", {
+  local_runif_cap()
+  # The email is the last event of interval 1 (the call, all but certain to
+  # come first at these rates, is truncated before it), so interval 2 opens
+  # from the email's clock, and the wait from there to 1.3 rounds short.
+  email <- 0.26109638237394395
+  expect_lt(email + (1.3 - email), 1.3)
+  built <- sim_augmenter(
+    breakpoint_spec(decimal_wave_data(email_time = email, visit_time = 5))
+  )
+  draws <- draw_sim(built, 3L, c(5, 0, 0, -5, 0))
+  for (draw in draws) {
+    calls <- layer_rows(draw, "calls")$time
+    expect_true(calls[[1L]] < email && calls[[2L]] > 1.3)
+    expect_true(is.finite(draw$log_proposal))
+  }
+})
+
+test_that("a draw opens an interval from a clock past its opening wave", {
+  local_runif_cap()
+  # The email at the closing wave 1.3 is placed once the call is, from the
+  # visit's breakpoint, where the smallest wait that reaches 1.3 lands one
+  # unit past it. Interval 2 then opens from a clock beyond its wave.
+  visit <- 0.28847171291895213
+  expect_gt(visit + sim_wait_until(visit, 1.3), 1.3)
+  built <- sim_augmenter(
+    breakpoint_spec(decimal_wave_data(email_time = 1.3, visit_time = visit))
+  )
+  draws <- draw_sim(built, 3L, c(5, 0, 0, -5, 0))
+  for (draw in draws) {
+    expect_identical(layer_rows(draw, "emails")$time, 1.3)
+    expect_true(is.finite(draw$log_proposal))
+  }
+})

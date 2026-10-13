@@ -450,13 +450,32 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       with the check loop cut to the first event (the report's A14) the
       draw completes and the test fails; source restored, no diff. File:
       PASS 817 / FAIL 0.
-- [ ] 8.3 Call-site detector for the float landing (S3): a sim draw that
+- [x] 8.3 Call-site detector for the float landing (S3): a sim draw that
       reaches a stamp from a clock where `t + (s - t)` falls short completes
       with its event at the stamp (1.1 coupled seed 2 under `skip_on_cran()`,
       or a cheaper fixture built from the pinned values). Confirm it goes red
       with the relational wait reverted to `state$time - t`. Record whether
       the wave-start wait and the opening move's `max(wave_start, t)` can be
       reached by any fixture. Commit.
+      *Result (WA13):* a cheap fixture from the pinned values: "a draw
+      reaches a stamp from a clock that would fall short of it"
+      (`breakpoint_data()` with the visit at the pinned `t`, the email at the
+      pinned `s`; the driver clips at the visit and the last call waits from
+      `t` to `s`). Reverted relational wait: `walk_inject()` aborts.
+      **Both other sites are reachable, but not on integer waves**: an
+      integer wave `w` is landed on exactly from any `t`, because `w - t`
+      rounds by less than half a unit of `w` (none of 1.1's uncoupled seeds
+      1–200 or coupled seed 1 reaches either site). On the decimal waves 0,
+      1.3, 2.6 (`decimal_wave_data()`) both are reached on every draw, and
+      both reverts abort with "`walk_advance()` cannot move the clock
+      backward". So the task's record became two more detectors (scope
+      beyond the task's "record", taken because each is a small fixture):
+      "a draw opens an interval from a clock that would fall short of it"
+      (wave-start wait, email last in interval 1 at a short-landing time)
+      and "... from a clock past its opening wave" (email at the closing
+      wave 1.3 reached from a visit breakpoint, landing one unit past).
+      Each revert (the report's A18, A19, A20) errors in its own detector
+      and in no other test; source restored. File: PASS 841 / FAIL 0.
 - [ ] 8.4 The sim driver's walk and the likelihood's control (S4): either
       pass the augmenter context's `control_prep` to `simulate_replicate()`
       in `sim_interval_attempt()`, with a test through a mocked `walk_open()`
