@@ -128,13 +128,17 @@ with probability 1 and no term added to the log proposal density.
 `augment_seq_sim()` SHALL apply the observed events and earlier intervals'
 flips that precede the interval being drawn without evaluating any rate or
 choice for them. Each is applied over the state strictly before its stamp and
-injected, as the time-anchored simulation applies observed stamps. Apart from
-at most one rate round per attempt at the walk's opening state, which the
-simulation driver evaluates before the augmenter's first step, rate and choice
-evaluations SHALL occur only for steps whose result enters the proposal
-density, a selection or a support check. For a fixed seed, the drawn times and
-the log proposal density SHALL be identical to those drawn when the prefix was
-replayed through full driver steps.
+injected, as the time-anchored simulation applies observed stamps. Before the
+interval being drawn opens, an attempt SHALL evaluate at most one rate round:
+the one the simulation driver evaluates at the walk's opening state, before
+the augmenter's first step. Once the interval is open, the driver evaluates
+every rate fid at each of its steps, a breakpoint step and a tied sibling's
+forced step included, and hands the augmenter only their totals; that
+per-step round is not constrained by this requirement. The augmenter's own
+rate and choice evaluations SHALL occur only for steps whose result enters
+the proposal density, a selection or a support check. For a fixed seed, the
+drawn times and the log proposal density SHALL be identical to those drawn
+when the prefix was replayed through full driver steps.
 
 #### Scenario: At most one round before the interval opens
 

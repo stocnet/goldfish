@@ -428,12 +428,18 @@ time column read by integer index).
 Group 8 must close before the trunk fold. None of its tasks changes a drawn
 sequence, a density or a fitted coefficient on the 1.1 references.
 
-- [ ] 8.1 Spec wording (S1). In "The sim augmenter evaluates no rate over a
+- [x] 8.1 Spec wording (S1). In "The sim augmenter evaluates no rate over a
       replayed prefix", exempt the simulation driver's rate round at every
       step, including a tied sibling's and a breakpoint's, which this change
       keeps and `dynes-augmenter-driver-v2` reuses but does not remove. The
       requirement then constrains the augmenter's own reads, as task 4.1's
       guard does. Run `openspec validate` and the placement check. Commit.
+      *Result (WA13):* the requirement now bounds the attempt to one round
+      before the interval opens (the driver's, as the 4.1 guard counts it),
+      exempts the driver's round at each later step, and puts the "SHALL
+      occur only for steps whose result enters ..." clause on the
+      augmenter's own reads. `validate --strict` valid; placement check OK
+      (8 placements).
 - [ ] 8.2 Failing-detector test (S2): under coupling, a tied sibling whose
       dyad has no support strictly before the stamp strands the attempt.
       Confirm it goes red when `sim_reach_stamp()` checks only the first
