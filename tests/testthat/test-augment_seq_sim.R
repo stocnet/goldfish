@@ -617,3 +617,93 @@ test_that("the last-call support check reads the walk after its advance", {
   )
   expect_true(is.finite(draw_sim(built, 1L, theta)[[1L]]$log_proposal))
 })
+
+# coupled_data()'s friendship panel (unconstrained here) beside the calls
+# `calls` and an unmodeled `visits` stream `visits`, whose rows are exogenous
+# breakpoints of the walk.
+stamp_data <- function(calls, visits = NULL) {
+  friendship <- data.frame(
+    from = c(2L, 2L, 1L, 1L),
+    to = c(1L, 1L, 2L, 2L),
+    time = c(NA, 5, 5, 10),
+    weight = c(1, -1, 1, -1),
+    layer = "friendship"
+  )
+  calls$weight <- 1
+  calls$layer <- "calls"
+  ties <- rbind(friendship, calls)
+  if (!is.null(visits)) {
+    visits$layer <- "visits"
+    ties <- rbind(ties, visits)
+  }
+  data <- list(
+    info = list(
+      name = "stamp",
+      focal = "calls",
+      update = c(
+        friendship = "increment",
+        calls = "increment",
+        visits = "increment"
+      ),
+      directed = c(friendship = TRUE, calls = TRUE, visits = TRUE),
+      observation = c(friendship = "panel", calls = "event", visits = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = ties
+  )
+  add_flavor(
+    data,
+    layer = "friendship",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+}
+
+# theta: creation indeg, dissolution indeg, calls intercept, calls inertia.
+# Only the calls carry a support constraint, so every strand is theirs.
+stamp_spec <- function(data, constraint) {
+  make_joint_specification(
+    make_specification(
+      choice = list(creation ~ indeg, dissolution ~ indeg),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data,
+      support_constraint = constraint
+    ),
+    data = data
+  )
+}
+
+test_that("a tied sibling's support is read strictly before the stamp", {
+  local_mocked_bindings(restart_ceiling = function() 20L)
+  # N3 calls N4 and N1 at 2 under a one-call-per-sender constraint: once the
+  # first call is injected, N3 has used its call, but the second is read at
+  # the state strictly before 2, where N3 has made none.
+  data <- stamp_data(
+    calls = data.frame(
+      from = c(3L, 3L, 4L),
+      to = c(4L, 1L, 1L),
+      time = c(2, 2, 7)
+    )
+  )
+  built <- sim_augmenter(
+    stamp_spec(data, ~ outdeg(calls, type = "ego") < 1)
+  )
+  draws <- draw_sim(built, 5L, c(0.2, 0.2, -1, 0.5))
+  for (draw in draws) {
+    expect_false(draw$restarted)
+    calls <- layer_rows(draw, "calls")
+    expect_equal(calls$time[calls$from == 3L], c(2, 2))
+  }
+})
