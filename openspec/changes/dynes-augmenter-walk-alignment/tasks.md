@@ -542,4 +542,7 @@ sequence, a density or a fitted coefficient on the 1.1 references.
       skipped). Ablations A14, A18, A19, A20 (green in 7.2's report) and
       A21 (the 8.4 site) each turn their own detector red. All ten 1.1
       draws `identical()`. One optional note: the sim walk's control is
-      pinned by a test and D5 but by no spec scenario.
+      pinned by a test and D5 but by no spec scenario. Closed: "Tied
+      observed relational events in a sim draw are forced" gains the SHALL
+      and the scenario "The draw's walk is the likelihood's configuration";
+      `validate --strict` valid, placement check OK (8).

@@ -78,6 +78,8 @@ exactly once, at the walk state strictly before the stamp with the node
 composition at the stamp included. That is the state on the last clock call
 before the stamp. A failed support read on an earlier call SHALL NOT strand
 the attempt. An event without support at the last call strands the attempt.
+The walk that reads this support SHALL be opened with the preprocessing
+control the log-likelihood of the drawn sequence is scored with.
 
 #### Scenario: A draw over tied events completes
 
@@ -108,6 +110,14 @@ the attempt. An event without support at the last call strands the attempt.
   is selected, and an exogenous row between its selection and its stamp
   removes its dyad from the support
 - **THEN** the attempt strands
+
+#### Scenario: The draw's walk is the likelihood's configuration
+
+- **WHEN** the sim augmenter is built with a non-default preprocessing control
+  (for example a `start_time`) on a specification with a user support
+  constraint
+- **THEN** every walk a draw opens is opened with the same preprocessing
+  control the log-likelihood of the drawn sequence is scored with
 
 ### Requirement: An observed event at a wave time is placed last in its interval
 
