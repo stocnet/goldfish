@@ -125,8 +125,20 @@ Version.
       term reads that layer, saw each event counted twice. Do not touch the
       DESCRIPTION Version or `NEWS.md`. Flip `proposal.md` to `status: landed
       (feature/dynes, awaiting fold)`. Commit.
-- [ ] 3.2 Run `conformance-inspector` on the change. Triage its report and
+- [x] 3.2 Run `conformance-inspector` on the change. Triage its report and
       re-check the scoped findings before the change is trusted.
+      *Result (FD5):* report `.plan/develop/focal-stream-dedup-conformance.md`,
+      CONFORMANT, no blocking gap. Suite at `c4c95aae`: PASS 16698 / FAIL 0
+      / SKIP 5, baselines PASS (0 skipped); `_baselines` and `_budgets`
+      byte-identical. Ablations A1, A2, A3, A5 and the whole-fix A6 are red;
+      A4 (loop 3's `!duplicated(keys)`) is green because the branch is
+      unreachable. Cost reproduced tip-to-tip: rows 15000 -> 10000,
+      allocation 353.6 -> 202.8 MB, and the no-op `+ inertia` spec is
+      `identical()`. Its four should-fix gaps are group 4 below, and the
+      scoped re-check is 4.5. Its notes: long `test_that()` titles are
+      cosmetic; the multi-file `test_file()` seeded-cost leak predates
+      this change and goes to a `.scratch/` issue; the `make_data()`
+      multi-link loss is owned by `.scratch/make-data-multi-link-loss/`.
 - [ ] 3.3 Offer the fix upstream (`feature_simulation`, the home of
       `constraint-objects-on-shared-walk`) as a cherry-pick of the 1.2,
       2.1a and 2.1b commits (D5), with a short note naming the two causing
@@ -134,3 +146,41 @@ Version.
       cleanly to `upstream/feature_simulation` and that its suite passes
       with them. Record where it went in `progress.md`. This does not block
       the fold.
+
+## 4. Conformance follow-ups (from 3.2)
+
+Gaps S1–S4 of `.plan/develop/focal-stream-dedup-conformance.md`. 4.1, 4.2
+and 4.4 touch only `test-preprocess_joint.R`, so they can travel with 3.3's
+cherry-pick.
+
+- [ ] 4.1 (S1) The guard's unit test asserts what the spec scenario says:
+      the abort is internal and its message names the key and the object.
+      Add these assertions beside the class in "a repeated stream key aborts
+      the schedule build", for example with a cli-pinned
+      `expect_snapshot(error = TRUE)` or a message match on both names. See
+      it fail with `.internal = TRUE` removed, or with either name dropped
+      from the message, then restore. Commit.
+- [ ] 4.2 (S2) Make the two-object test check D1's re-index note, as 1.2
+      says it does. In "a constraint-only object after the unread focal
+      layer keeps one stream each", assert the state-update stream indices
+      in schedule order: `friendship`, then `calls`, then `emails`, with
+      `emails` directly after `calls` and no index left where the duplicate
+      used to be. See it fail against the pre-fix builder (`a0e68036`'s
+      `R/preprocess_joint.R` in a scratch worktree). Commit.
+- [ ] 4.3 (S3) Write the deviations that progress.md alone records into
+      the tracked artifacts:
+      (a) loop 3's `!duplicated(keys)` (`build_joint_schedule()`): add one
+      sentence to D1 (it is defensive; a constraint link has one row per
+      object, so no test reaches it, and without it a repeat would hit the
+      guard rather than duplicate silently), or remove it and say so in the
+      2.1b note;
+      (b) 2.4's permanent test uses `dedup_data()`, not 2.1a's fixture;
+      (c) 2.1a aborts at events 3 and 4, not the design's "event 2",
+      because the fixture adds N1's call;
+      (d) allocation fell by 43 percent, against the predicted third.
+      Put (b)–(d) in the tick notes of 2.4, 2.1a and 2.5. Commit.
+- [ ] 4.4 (S4) Shorten the section banner at the head of the
+      stream-dedup block in `test-preprocess_joint.R` to 80 characters.
+      Commit (it can go with 4.1 or 4.2).
+- [ ] 4.5 Close the group: run the NOT_CRAN=true full suite (baselines
+      PASS), then a scoped `conformance-inspector` re-check of group 4.
