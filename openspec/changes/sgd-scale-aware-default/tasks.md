@@ -18,7 +18,7 @@ group 2 begins.
 
 ## 1. Bake-off: choose the default on evidence (D1, D2)
 
-- [ ] 1.1 Record the "before" values with no package code changed, at the
+- [x] 1.1 Record the "before" values with no package code changed, at the
       HEAD where group 2 will start. On the abmcem toy
       (`.plan/dynes/toy/toy_lib.R`) and the count-panel oracle
       (`.plan/dynes/recovery/lib.R`, seed 3), under today's defaults: fit
