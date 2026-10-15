@@ -201,5 +201,14 @@ cherry-pick.
       stream-dedup block in `test-preprocess_joint.R` to 80 characters.
       Commit (it can go with 4.1 or 4.2).
       *Done (FD6):* `4b4d326f`, with 4.1; the banner is 74 characters.
-- [ ] 4.5 Close the group: run the NOT_CRAN=true full suite (baselines
+- [x] 4.5 Close the group: run the NOT_CRAN=true full suite (baselines
       PASS), then a scoped `conformance-inspector` re-check of group 4.
+      *Result (FD7):* report
+      `.plan/develop/focal-stream-dedup-g4-conformance.md`, CONFORMANT.
+      Suite at `637f5d91`: PASS 16704 / FAIL 0 / SKIP 5, baselines PASS (0
+      skipped); `_baselines` and `_budgets` byte-identical. S1–S4 closed.
+      Each new assertion is red under its own ablation: 4.1's under
+      `.internal` removed, key dropped, object dropped; 4.2's under an index
+      gap left where the duplicate was, and under the constraint-only
+      object indexed before the unread focal layer. In both 4.2 ablations
+      the old count assertions stay green.
