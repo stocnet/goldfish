@@ -152,13 +152,17 @@ Version.
       cosmetic; the multi-file `test_file()` seeded-cost leak predates
       this change and goes to a `.scratch/` issue; the `make_data()`
       multi-link loss is owned by `.scratch/make-data-multi-link-loss/`.
-- [ ] 3.3 Offer the fix upstream (`feature_simulation`, the home of
+- [x] 3.3 Offer the fix upstream (`feature_simulation`, the home of
       `constraint-objects-on-shared-walk`) as a cherry-pick of the 1.2,
       2.1a and 2.1b commits (D5), with a short note naming the two causing
       commits (`2822625b`, `b1b21033`). First confirm that the three apply
       cleanly to `upstream/feature_simulation` and that its suite passes
       with them. Record where it went in `progress.md`. This does not block
       the fold.
+      *Done (FD8):* applies cleanly onto `283c7252` (5 picks incl.
+      `4b4d326f`, `a4c0eccc`); suite PASS 13374 / FAIL 0. Handed to the
+      user as a note + local branch for hand-off to the `feature_simulation`
+      owner; not pushed.
 
 ## 4. Conformance follow-ups (from 3.2)
 
