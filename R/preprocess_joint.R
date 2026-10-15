@@ -460,6 +460,25 @@ schedule_stream_part <- function(
   )
 }
 
+# Append a state-update stream's key to the keys already on the schedule. A key
+# is the identity of a source stream (a layer's name, or a view-qualified
+# attribute key), so a repeat would apply every event of that stream twice;
+# an object may still carry several distinct keys.
+record_schedule_stream <- function(seen, key, object) {
+  if (key %in% seen) {
+    cli::cli_abort(
+      c(
+        "Stream {.val {key}} of object {.val {object}} is already on the joint
+         schedule.",
+        "i" = "Each of its events would be applied to the shared state twice."
+      ),
+      class = "goldfish_duplicate_schedule_stream",
+      .internal = TRUE
+    )
+  }
+  c(seen, key)
+}
+
 # Merge the processes' event streams into one time-ordered schedule over the
 # shared object registry. Each process's dependent stream contributes evaluation
 # rows (`target = NA`, keyed by its focal layer, carrying the flavor a competing
@@ -482,10 +501,14 @@ build_joint_schedule <- function(
   next_index <- 0L
   dep_seen <- character(0)
   stream_seen <- character(0)
-  targets_seen <- integer(0)
   focal_sources <- list()
 
-  add_part <- function(events, target, layer, dependent) {
+  # A dependent part shares its key with the focal layer's state-update
+  # stream, so only state-update parts carry a key to record.
+  add_part <- function(events, target, layer, dependent, key = NULL) {
+    if (!dependent) {
+      stream_seen <<- record_schedule_stream(stream_seen, key, layer)
+    }
     next_index <<- next_index + 1L
     part <- schedule_stream_part(events, target, layer, dependent, next_index)
     if (!is.null(part)) {
@@ -517,23 +540,28 @@ build_joint_schedule <- function(
       if (stream_key %in% stream_seen) {
         next
       }
-      stream_seen <- c(stream_seen, stream_key)
       oid <- match(eol$name[r], shared_objects$registry$name)
-      targets_seen <- c(targets_seen, oid)
-      add_part(events[[stream_key]], oid, eol$name[r], FALSE)
+      add_part(events[[stream_key]], oid, eol$name[r], FALSE, stream_key)
     }
   }
 
+  # Skipping by key, not by object, keeps every stream of an object that is
+  # only partly on the schedule instead of dropping the rest unnoticed.
   for (focal in names(focal_sources)) {
-    oid <- match(focal, shared_objects$registry$name)
-    if (oid %in% targets_seen) {
-      next
-    }
     src <- focal_sources[[focal]]
     fetch_plan <- focal_stream_fetch_plan(src, focal)
-    events <- fetch_events(fetch_plan, src = src)
+    fresh <- vapply(
+      fetch_plan,
+      function(entry) !(entry$stream %in% stream_seen),
+      logical(1)
+    )
+    if (!any(fresh)) {
+      next
+    }
+    oid <- match(focal, shared_objects$registry$name)
+    events <- fetch_events(fetch_plan[fresh], src = src)
     for (stream_key in names(events)) {
-      add_part(events[[stream_key]], oid, focal, FALSE)
+      add_part(events[[stream_key]], oid, focal, FALSE, stream_key)
     }
   }
 
@@ -543,7 +571,8 @@ build_joint_schedule <- function(
     eol <- sub_plan$events_objects_link
     rows <- seq_len(nrow(eol))[-1]
     oids <- match(eol$name[rows], shared_objects$registry$name)
-    fresh <- !(eol$events[rows] %in% stream_seen) & !(oids %in% targets_seen)
+    keys <- eol$events[rows]
+    fresh <- !(keys %in% stream_seen) & !duplicated(keys)
     if (!any(fresh)) {
       next
     }
@@ -557,9 +586,13 @@ build_joint_schedule <- function(
     events <- fetch_events(sub_plan$fetch_plan[wanted], src = constraint_src)
     for (i in seq_along(rows)) {
       stream_key <- eol$events[rows[i]]
-      stream_seen <- c(stream_seen, stream_key)
-      targets_seen <- c(targets_seen, oids[i])
-      add_part(events[[stream_key]], oids[i], eol$name[rows[i]], FALSE)
+      add_part(
+        events[[stream_key]],
+        oids[i],
+        eol$name[rows[i]],
+        FALSE,
+        stream_key
+      )
     }
   }
 

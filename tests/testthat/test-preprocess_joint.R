@@ -1319,3 +1319,18 @@ test_that("the frozen constraint-atom families carry one stream per object", {
     expect_one_stream_per_object(captures)
   }
 })
+
+test_that("a repeated stream key aborts the schedule build", {
+  seen <- record_schedule_stream(character(0), "calls", "calls")
+  expect_error(
+    record_schedule_stream(seen, "calls", "calls"),
+    class = "goldfish_duplicate_schedule_stream"
+  )
+})
+
+test_that("distinct stream keys pass, two on one object included", {
+  seen <- record_schedule_stream(character(0), "calls", "calls")
+  seen <- record_schedule_stream(seen, "calls_late", "calls")
+  seen <- record_schedule_stream(seen, "emails", "emails")
+  expect_identical(seen, c("calls", "calls_late", "emails"))
+})
