@@ -49,8 +49,9 @@ row stamped before `s` applied, the node composition at `s` included, and the
 realizations stamped at `s` applied in schedule order up to and including
 event `k`'s. No exogenous row stamped at `s` SHALL be applied, whatever its
 position among the stamp's rows. A realization is any non-dependent row of a
-focal layer, including a row of a flavor no process models. Two tied events
-are two positions.
+focal layer, including a row of a flavor no process models, and each observed
+or drawn event is one realization however many parts of the schedule builder
+read its layer. Two tied events are two positions.
 
 #### Scenario: Tied events are two positions
 

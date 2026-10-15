@@ -112,7 +112,9 @@ from it. `build_shared_state()` builds the container over the extended
 registry; constraint atoms are realized on `shared_src` (windowed atoms
 already register their derivations there). `build_joint_schedule()` appends
 the constraint sub-plans' streams after all unit streams, deduped by stream
-key, so `stream_index` ordering and every existing tie are preserved; in
+key against every stream already on the schedule (a focal layer's fallback
+stream included, not only the units' planned ones; see `focal-stream-dedup`),
+so `stream_index` ordering and every existing tie are preserved; in
 `run_merged_walk()`'s covariate branch an engine with a `NA` local id skips
 the row, emitting no right-censoring row and not advancing `i_total`. The
 coverage predicate then holds for every constraint by construction.
