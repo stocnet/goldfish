@@ -486,3 +486,74 @@ test_that("the fused pass stops at the first illegal stamp with no rates", {
     expect_identical(answer$scored, 0L)
   }
 })
+
+# --- A weighted constraint on the focal layer ---------------------------------
+
+# N2 calls at 2 and again at 3, under a weighted outdegree below 2 that no
+# term reads: each call must be counted once for the second to be supported.
+weighted_focal_context <- function() {
+  stamp_tie_context(
+    calls = data.frame(
+      from = c(2L, 2L, 4L),
+      to = c(3L, 4L, 1L),
+      time = c(2, 3, 7)
+    ),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2
+  )
+}
+
+test_that("every reader applies each call of an unread focal layer once", {
+  context <- weighted_focal_context()
+  candidate <- dissolution_first(context)
+  queries <- list(calls_query(1L, "N2", "N4"), calls_query(2L, "N4", "N1"))
+  answer <- fused_against_separate(context, candidate, queries)
+  expect_true(answer$legal)
+  expect_true(answer$fused$legal)
+  expect_identical(answer$scored, 1L)
+  expect_true(is.finite(answer$fused$loglik))
+  expect_identical(answer$fused$rates, answer$rates)
+
+  recipe <- context$recipe
+  ids <- recipe$events$event[recipe$events$interval == 1L]
+  times <- legality_placeholder_times(recipe)
+  times[ids] <- candidate
+  data <- emit_augmented_data(context, times)
+  handle <- suppressWarnings(
+    walk_open(bind_candidate_data(context$spec, data))
+  )
+  ties <- as.data.frame(data$ties)
+  timed_focal <- !is.na(ties$time) & ties$layer %in% handle$focal_layers
+  expect_length(walk_realizations(handle)$time, sum(timed_focal))
+})
+
+test_that("an unread focal layer under its own constraint has one stream", {
+  schedules <- list()
+  build <- build_joint_schedule
+  local_mocked_bindings(
+    build_joint_schedule = function(
+      units,
+      shared_objects,
+      support_constraints = NULL
+    ) {
+      schedule <- build(units, shared_objects, support_constraints)
+      schedules[[length(schedules) + 1L]] <<- schedule
+      schedule
+    }
+  )
+  suppressWarnings(build_merged_blocks(stamp_tie_spec(
+    calls = data.frame(from = c(2L, 4L), to = c(3L, 1L), time = c(2, 7)),
+    emails = data.frame(from = 3L, to = 1L, time = 6),
+    constraint = ~ outdeg(calls, type = "ego") < 1
+  )))
+  expect_gt(length(schedules), 0L)
+  for (schedule in schedules) {
+    state_update <- !schedule$dependent
+    streams <- tapply(
+      schedule$stream_index[state_update],
+      schedule$target[state_update],
+      function(index) length(unique(index))
+    )
+    expect_all_equal(as.vector(streams), 1L)
+  }
+})
