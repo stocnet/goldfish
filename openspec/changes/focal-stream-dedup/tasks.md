@@ -93,13 +93,13 @@ Version.
       entry per focal timed tie of the candidate. Write it after 2.1b, so it
       is a characterization of the fix rather than a RED. Record in
       `progress.md` that it was GREEN when written and why, and commit it.
-- [ ] 2.3 Rerun every seeded augmenter test (`test-augment_seq_random.R`,
+- [x] 2.3 Rerun every seeded augmenter test (`test-augment_seq_random.R`,
       `test-augment_seq_mcmc.R`, `test-augment_mcmc_cost.R`,
       `test-augment_seq_sim.R`, `test-augment_sim_cost.R`) and
       `test-rate_queries.R`. Any expectation that moved must trace to a
       fixture whose constraint reads its own focal layer with no term
       reading it. Record each in `progress.md`.
-- [ ] 2.4 Compare the timed-rate fixture's preprocessed output with 1.1's
+- [x] 2.4 Compare the timed-rate fixture's preprocessed output with 1.1's
       saved one. Expected: identical, or differing only by zero-width
       right-censoring rows at a dependent stamp (design, Risks). Any other
       difference stops the group for a design review. Also rebuild the
@@ -110,7 +110,7 @@ Version.
       scenario "A term on the focal layer keeps the planned streams": on
       the same fixture, the state-update streams are those the formula
       planned, in order, with nothing appended. Record both results.
-- [ ] 2.5 Close the group. Measure the walk seconds, allocated MB and object
+- [x] 2.5 Close the group. Measure the walk seconds, allocated MB and object
       size on 1.1's fixtures against the recorded values and design's
       prediction (one state-update row fewer per focal event), and record
       them in `progress.md`. Confirm that `walk_cost.csv` and
