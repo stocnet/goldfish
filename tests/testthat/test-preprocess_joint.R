@@ -1309,6 +1309,40 @@ test_that("a constraint on another process's unread focal layer adds no second s
   )
 })
 
+test_that("a term on the focal layer keeps the planned streams", {
+  data <- dedup_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ tie(friendship) + inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2
+  )
+  captures <- capture_joint_schedule(
+    build_merged_blocks(single_process_joint(spec))
+  )
+
+  captured <- captures[[1L]]
+  constraint_link <- captured$support_constraints[[1L]]$events_objects_link
+  expect_true("calls" %in% constraint_link$name[-1L])
+  planned <- do.call(
+    rbind,
+    lapply(captured$units, function(unit) {
+      unit$spec_map$events_objects_link[-1L, ]
+    })
+  )
+  planned <- planned$name[!duplicated(planned$events)]
+  expect_true("calls" %in% planned)
+  schedule <- captured$schedule
+  state_update <- !schedule$dependent
+  streams <- sort(unique(schedule$stream_index[state_update]))
+  scheduled <- schedule$layer[state_update][
+    match(streams, schedule$stream_index[state_update])
+  ]
+  expect_identical(scheduled, planned)
+})
+
 test_that("the frozen constraint-atom families carry one stream per object", {
   for (family in constraint_atoms_families()) {
     captures <- capture_joint_schedule(constraint_atoms_prep(family))
