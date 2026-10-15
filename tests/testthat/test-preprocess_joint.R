@@ -1127,7 +1127,7 @@ test_that("the engine's routing table resolves the plan once per object", {
   }
 })
 
-# ---- Each source stream is on the schedule once -------------------------------
+# ---- Each source stream is on the schedule once ------------------------
 
 # The units, the constraints' links and the schedule of every
 # `build_joint_schedule()` call that `run` makes.
@@ -1355,11 +1355,14 @@ test_that("the frozen constraint-atom families carry one stream per object", {
 })
 
 test_that("a repeated stream key aborts the schedule build", {
-  seen <- record_schedule_stream(character(0), "calls", "calls")
-  expect_error(
-    record_schedule_stream(seen, "calls", "calls"),
+  seen <- record_schedule_stream(character(0), "calls_key", "calls_object")
+  err <- expect_error(
+    record_schedule_stream(seen, "calls_key", "calls_object"),
     class = "goldfish_duplicate_schedule_stream"
   )
+  expect_match(conditionMessage(err), "calls_key", fixed = TRUE)
+  expect_match(conditionMessage(err), "calls_object", fixed = TRUE)
+  expect_match(conditionMessage(err), "internal error", fixed = TRUE)
 })
 
 test_that("distinct stream keys pass, two on one object included", {
