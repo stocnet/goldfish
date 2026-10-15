@@ -119,7 +119,7 @@ Version.
 
 ## 3. Milestone
 
-- [ ] 3.1 Write the `NEWS.d/focal-stream-dedup--focal-constraint-stream.md`
+- [x] 3.1 Write the `NEWS.d/focal-stream-dedup--focal-constraint-stream.md`
       fragment (protocol in `NEWS.d/README.md`). The fix: a support
       constraint that reads its own layer with weights, where no formula
       term reads that layer, saw each event counted twice. Do not touch the
