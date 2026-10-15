@@ -1274,6 +1274,30 @@ test_that("a constraint-only object after the unread focal layer keeps one strea
   counts <- schedule_stream_counts(captures[[1L]])
   expect_identical(counts$object, c("friendship", "calls", "emails"))
   expect_all_equal(counts$scheduled, 1L)
+
+  schedule <- captures[[1L]]$schedule
+  registry <- captures[[1L]]$registry
+  state_update <- !schedule$dependent
+  stream_of <- vapply(
+    c("friendship", "calls", "emails"),
+    function(name) {
+      oid <- registry$oid[registry$name == name]
+      unique(schedule$stream_index[state_update & schedule$target == oid])
+    },
+    numeric(1)
+  )
+  expect_true(
+    stream_of[["friendship"]] < stream_of[["calls"]] &&
+      stream_of[["calls"]] < stream_of[["emails"]]
+  )
+  expect_equal(
+    sort(unique(schedule$stream_index[state_update])),
+    sort(unname(stream_of))
+  )
+  expect_equal(
+    unname(stream_of),
+    seq(stream_of[["friendship"]], by = 1, length.out = 3L)
+  )
 })
 
 test_that("a constraint on another process's unread focal layer adds no second stream", {
