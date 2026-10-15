@@ -301,6 +301,107 @@ test_that("a constrained object without a verdict is not estimated", {
   )
 })
 
+# Four actors, a panel friendship layer, and calls that only the constraint
+# reads: N1 calls at t = 1, N2 at t = 2 and t = 3, and with `n2_calls = 3` once
+# more at t = 4. Before each call its sender's weighted outdegree on `calls` is
+# the number of its earlier calls.
+weighted_focal_data <- function(n2_calls = 2L) {
+  n2_to <- c(3L, 4L, 1L)[seq_len(n2_calls)]
+  list(
+    info = list(
+      name = "weighted_focal",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = "panel", calls = "event")
+    ),
+    nodes = data.frame(label = paste0("N", 1:4), mode = "p"),
+    ties = rbind(
+      data.frame(
+        from = 1:3,
+        to = 2:4,
+        time = NA_real_,
+        weight = 1,
+        layer = "friendship"
+      ),
+      data.frame(
+        from = c(1L, rep(2L, n2_calls)),
+        to = c(3L, n2_to),
+        time = seq_len(n2_calls + 1L),
+        weight = 1,
+        layer = "calls"
+      )
+    )
+  )
+}
+
+# The schedules of every `build_joint_schedule()` call that `run` makes.
+capture_schedules <- function(run) {
+  captured <- list()
+  orig_schedule <- build_joint_schedule
+  local_mocked_bindings(
+    build_joint_schedule = function(
+      units,
+      shared_objects,
+      support_constraints = NULL
+    ) {
+      schedule <- orig_schedule(units, shared_objects, support_constraints)
+      captured[[length(captured) + 1L]] <<- schedule
+      schedule
+    }
+  )
+  force(run)
+  captured
+}
+
+test_that("a weighted constraint on its unread focal layer reads calls once", {
+  data <- weighted_focal_data()
+  fit <- NULL
+  schedules <- capture_schedules(
+    fit <- estimate_dynam(
+      calls ~ tie(friendship),
+      sub_model = "choice",
+      data = data,
+      support_constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2
+    )
+  )
+
+  expect_s3_class(fit, "goldfishFit")
+  n_calls <- sum(data$ties$layer == "calls")
+  expect_gt(length(schedules), 0L)
+  for (schedule in schedules) {
+    expect_identical(
+      sum(!schedule$dependent & schedule$layer == "calls"),
+      n_calls
+    )
+  }
+})
+
+test_that("an unweighted constraint on its unread focal layer still bites", {
+  expect_error(
+    estimate_dynam(
+      calls ~ tie(friendship),
+      sub_model = "choice",
+      data = weighted_focal_data(),
+      support_constraint = ~ outdeg(calls, type = "ego") < 1
+    ),
+    "empty risk set at event 3"
+  )
+})
+
+test_that("a weighted focal constraint excludes at the observed count", {
+  # N2's third call is event 4, made with weighted outdegree 2.
+  expect_error(
+    estimate_dynam(
+      calls ~ tie(friendship),
+      sub_model = "choice",
+      data = weighted_focal_data(n2_calls = 3L),
+      support_constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2
+    ),
+    "empty risk set at event 4"
+  )
+})
+
 test_that("a no-intercept REM rate constraint adds the intercept and runs", {
   fx <- make_estimate_fixture(n_events = 60L)
   # Dropping auto-ordinal: `sub_model = "rate"` without a time intercept is a
