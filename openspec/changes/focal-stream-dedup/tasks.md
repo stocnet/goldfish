@@ -64,6 +64,8 @@ Version.
       `test-support_constraint_estimate.R` (present upstream) with inline
       data and no DyNES helper (D5). Confirm RED (the weighted fit aborts)
       and commit the tests alone as `test(focal-stream-dedup): … (RED)`.
+      *Deviation (FD6):* the fixture adds N1's call, so the abort events
+      are 3 (pre-fix) and 4 (exact threshold), not the design's "event 2".
 - [x] 2.1b In `build_joint_schedule()` (D1, D2): `add_part()` takes the
       stream key of each state-update stream, checks it with the stream-key
       assertion helper and appends it to `stream_seen`. Dependent parts pass
@@ -83,6 +85,10 @@ Version.
       `test-augment_legality.R` pass unchanged. Touch only
       `R/preprocess_joint.R` and `test-preprocess_joint.R`. Commit as
       `fix(focal-stream-dedup): … (GREEN)`.
+      *Deviation (FD6):* loop 3 also keeps `!duplicated(keys)`. It is
+      defensive: a constraint link has one row per object, so no test
+      reaches it (ablation A4 is green), and without it a repeat would hit
+      the guard rather than duplicate silently. Stated in D1.
 - [x] 2.2a Failing test (D4): on `stamp_tie_spec()` with calls 2 -> 3 at 2 and
       2 -> 4 at 3 under the weighted `< 2` constraint, a candidate with the
       first interval legal has a finite batch log-likelihood
@@ -110,12 +116,19 @@ Version.
       scenario "A term on the focal layer keeps the planned streams": on
       the same fixture, the state-update streams are those the formula
       planned, in order, with nothing appended. Record both results.
+      *Deviation (FD6):* the permanent test uses `dedup_data()`, not the
+      timed-rate fixture; that fixture is a 200-actor cost fixture, too
+      large for a permanent unit test.
 - [x] 2.5 Close the group. Measure the walk seconds, allocated MB and object
       size on 1.1's fixtures against the recorded values and design's
       prediction (one state-update row fewer per focal event), and record
       them in `progress.md`. Confirm that `walk_cost.csv` and
       `estimation_cost.csv` are unmoved. Run the NOT_CRAN=true full suite
       (baselines PASS), and commit.
+      *Deviation (FD6):* allocation fell 43 percent, against the predicted
+      third (walk time and rows did fall by a third): each duplicate row
+      also cost a state write and an atom advance, which the prediction did
+      not count. Direction met, magnitude understated; not profiled.
 
 ## 3. Milestone
 
@@ -153,21 +166,25 @@ Gaps S1–S4 of `.plan/develop/focal-stream-dedup-conformance.md`. 4.1, 4.2
 and 4.4 touch only `test-preprocess_joint.R`, so they can travel with 3.3's
 cherry-pick.
 
-- [ ] 4.1 (S1) The guard's unit test asserts what the spec scenario says:
+- [x] 4.1 (S1) The guard's unit test asserts what the spec scenario says:
       the abort is internal and its message names the key and the object.
       Add these assertions beside the class in "a repeated stream key aborts
       the schedule build", for example with a cli-pinned
       `expect_snapshot(error = TRUE)` or a message match on both names. See
       it fail with `.internal = TRUE` removed, or with either name dropped
       from the message, then restore. Commit.
-- [ ] 4.2 (S2) Make the two-object test check D1's re-index note, as 1.2
+      *Done (FD6):* `4b4d326f`. Seen red with `.internal = TRUE` removed and with
+      the key or the object dropped from the message.
+- [x] 4.2 (S2) Make the two-object test check D1's re-index note, as 1.2
       says it does. In "a constraint-only object after the unread focal
       layer keeps one stream each", assert the state-update stream indices
       in schedule order: `friendship`, then `calls`, then `emails`, with
       `emails` directly after `calls` and no index left where the duplicate
       used to be. See it fail against the pre-fix builder (`a0e68036`'s
       `R/preprocess_joint.R` in a scratch worktree). Commit.
-- [ ] 4.3 (S3) Write the deviations that progress.md alone records into
+      *Done (FD6):* `a4c0eccc`. Seen red against `a0e68036`'s builder (the duplicate
+      gives `calls` two streams).
+- [x] 4.3 (S3) Write the deviations that progress.md alone records into
       the tracked artifacts:
       (a) loop 3's `!duplicated(keys)` (`build_joint_schedule()`): add one
       sentence to D1 (it is defensive; a constraint link has one row per
@@ -179,8 +196,10 @@ cherry-pick.
       because the fixture adds N1's call;
       (d) allocation fell by 43 percent, against the predicted third.
       Put (b)–(d) in the tick notes of 2.4, 2.1a and 2.5. Commit.
-- [ ] 4.4 (S4) Shorten the section banner at the head of the
+      *Done (FD6):* (a)–(d) written into the 2.1a, 2.1b, 2.4 and 2.5 notes and D1.
+- [x] 4.4 (S4) Shorten the section banner at the head of the
       stream-dedup block in `test-preprocess_joint.R` to 80 characters.
       Commit (it can go with 4.1 or 4.2).
+      *Done (FD6):* `4b4d326f`, with 4.1; the banner is 74 characters.
 - [ ] 4.5 Close the group: run the NOT_CRAN=true full suite (baselines
       PASS), then a scoped `conformance-inspector` re-check of group 4.

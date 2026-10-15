@@ -90,6 +90,10 @@ stream without any error. The key skip and the per-object count check of
 specification without the pattern, the two rules skip the same streams,
 because on the stocnet path a layer has one stream, keyed by its name (D2).
 
+Loop 3 also keeps `!duplicated(keys)` beside the key test. It is defensive:
+a constraint link has one row per object, so no case reaches it, and without
+it a repeated key would hit D2's guard rather than duplicate silently.
+
 The duplicate was always loop 3's, so dropping it changes no row
 or stream index from loops 1 and 2. Loop 3 can add other streams after the
 duplicate: a second constraint, or a constraint-only object that comes
