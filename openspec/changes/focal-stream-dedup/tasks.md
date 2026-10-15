@@ -49,7 +49,7 @@ Version.
 
 ## 2. Every added stream is recorded and skipped by key (D1, D2, D3, D4)
 
-- [ ] 2.1a Failing test (D3, standalone `fix:`): the 4-actor plain
+- [x] 2.1a Failing test (D3, standalone `fix:`): the 4-actor plain
       `estimate_dynam()` fixture. N2 calls at t = 2 and again at t = 3, with
       `choice = ~ tie(friendship)` and `support_constraint = ~ outdeg(calls,
       type = "ego", weighted = TRUE) < 2`. The fit completes, and the schedule
@@ -64,7 +64,7 @@ Version.
       `test-support_constraint_estimate.R` (present upstream) with inline
       data and no DyNES helper (D5). Confirm RED (the weighted fit aborts)
       and commit the tests alone as `test(focal-stream-dedup): … (RED)`.
-- [ ] 2.1b In `build_joint_schedule()` (D1, D2): `add_part()` takes the
+- [x] 2.1b In `build_joint_schedule()` (D1, D2): `add_part()` takes the
       stream key of each state-update stream, checks it with the stream-key
       assertion helper and appends it to `stream_seen`. Dependent parts pass
       no key and are never recorded. Loop 2 skips a focal stream whose key
@@ -83,7 +83,7 @@ Version.
       `test-augment_legality.R` pass unchanged. Touch only
       `R/preprocess_joint.R` and `test-preprocess_joint.R`. Commit as
       `fix(focal-stream-dedup): … (GREEN)`.
-- [ ] 2.2a Failing test (D4): on `stamp_tie_spec()` with calls 2 -> 3 at 2 and
+- [x] 2.2a Failing test (D4): on `stamp_tie_spec()` with calls 2 -> 3 at 2 and
       2 -> 4 at 3 under the weighted `< 2` constraint, a candidate with the
       first interval legal has a finite batch log-likelihood
       (`evaluate_candidate()`). Also assert 1.2's stream-count check on
