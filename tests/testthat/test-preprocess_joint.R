@@ -1126,3 +1126,196 @@ test_that("the engine's routing table resolves the plan once per object", {
     }
   }
 })
+
+# ---- Each source stream is on the schedule once -------------------------------
+
+# The units, the constraints' links and the schedule of every
+# `build_joint_schedule()` call that `run` makes.
+capture_joint_schedule <- function(run) {
+  captured <- list()
+  orig_schedule <- build_joint_schedule
+  local_mocked_bindings(
+    build_joint_schedule = function(
+      units,
+      shared_objects,
+      support_constraints = NULL
+    ) {
+      schedule <- orig_schedule(units, shared_objects, support_constraints)
+      captured[[length(captured) + 1L]] <<- list(
+        units = units,
+        registry = shared_objects$registry,
+        support_constraints = support_constraints,
+        schedule = schedule
+      )
+      schedule
+    }
+  )
+  force(run)
+  captured
+}
+
+# Per registered object, the distinct state-update streams the schedule
+# carries against the distinct event streams that the units' formulas and the
+# constraints read for it (at least one: a focal layer no term reads is still
+# fed by its own events).
+schedule_stream_counts <- function(captured) {
+  links <- c(
+    lapply(captured$units, function(unit) unit$spec_map$events_objects_link),
+    lapply(captured$support_constraints, `[[`, "events_objects_link")
+  )
+  links <- do.call(rbind, lapply(links, function(link) link[-1L, ]))
+  registry <- captured$registry
+  schedule <- captured$schedule
+  state_update <- !schedule$dependent
+  data.frame(
+    object = registry$name,
+    expected = vapply(
+      registry$name,
+      function(name) {
+        max(1L, length(unique(links$events[links$name %in% name])))
+      },
+      integer(1)
+    ),
+    scheduled = vapply(
+      registry$oid,
+      function(oid) {
+        length(unique(schedule$stream_index[
+          state_update & schedule$target == oid
+        ]))
+      },
+      integer(1)
+    ),
+    row.names = NULL
+  )
+}
+
+expect_one_stream_per_object <- function(captures) {
+  expect_gt(length(captures), 0L)
+  for (captured in captures) {
+    counts <- schedule_stream_counts(captured)
+    expect_equal(counts$scheduled, counts$expected, ignore_attr = TRUE)
+  }
+}
+
+# calls and emails over six actors, beside a panel-observed friendship layer.
+# No emailed dyad is ever called, so `~ !tie(emails)` holds on the data, and
+# every sender calls at most once, so a weighted outdegree below 2 does too.
+dedup_data <- function() {
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  list(
+    info = info,
+    nodes = data.frame(label = paste0("N", 1:6), mode = "p"),
+    ties = rbind(
+      data.frame(
+        from = 1:4,
+        to = 2:5,
+        time = 1:4,
+        layer = "friendship"
+      ),
+      data.frame(
+        from = 1:5,
+        to = c(2:5, 1L),
+        time = 1:5,
+        layer = "calls"
+      ),
+      data.frame(
+        from = 2:4,
+        to = 1:3,
+        time = c(1.5, 2.5, 3.5),
+        layer = "emails"
+      )
+    )
+  )
+}
+
+test_that("a constraint on its own unread focal layer adds no second stream", {
+  data <- dedup_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2
+  )
+  captures <- capture_joint_schedule(
+    build_merged_blocks(single_process_joint(spec))
+  )
+
+  expect_one_stream_per_object(captures)
+})
+
+test_that("a constraint-only object after the unread focal layer keeps one stream each", {
+  data <- dedup_data()
+  spec <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ outdeg(calls, type = "ego", weighted = TRUE) < 2 &
+      !tie(emails)
+  )
+  captures <- capture_joint_schedule(
+    build_merged_blocks(single_process_joint(spec))
+  )
+
+  expect_one_stream_per_object(captures)
+  counts <- schedule_stream_counts(captures[[1L]])
+  expect_identical(counts$object, c("friendship", "calls", "emails"))
+  expect_all_equal(counts$scheduled, 1L)
+})
+
+test_that("a constraint on another process's unread focal layer adds no second stream", {
+  data <- dedup_data()
+  calls_spec <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data,
+    support_constraint = ~ !tie(emails)
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    choice = ~ tie(friendship),
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  captures <- capture_joint_schedule(
+    build_merged_blocks(
+      make_joint_specification(calls_spec, emails_spec, data = data)
+    )
+  )
+
+  expect_one_stream_per_object(captures)
+  schedule <- captures[[1L]]$schedule
+  on_emails <- schedule$layer == "emails"
+  expect_gt(sum(on_emails & schedule$dependent), 0L)
+  expect_length(
+    unique(schedule$stream_index[on_emails & !schedule$dependent]),
+    1L
+  )
+})
+
+test_that("the frozen constraint-atom families carry one stream per object", {
+  for (family in constraint_atoms_families()) {
+    captures <- capture_joint_schedule(constraint_atoms_prep(family))
+    expect_one_stream_per_object(captures)
+  }
+  for (family in constraint_atoms_joint_families()) {
+    captures <- capture_joint_schedule(constraint_atoms_joint_capture(family))
+    expect_one_stream_per_object(captures)
+  }
+})
