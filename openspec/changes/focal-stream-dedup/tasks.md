@@ -7,7 +7,7 @@ Version.
 
 ## 1. Record the "before" and guard the schedule
 
-- [ ] 1.1 Record the pre-change values, with no package code changed. Build
+- [x] 1.1 Record the pre-change values, with no package code changed. Build
       the synthetic affected fixture from design "Storage and per-event cost"
       (200 actors, 5000 calls, `choice = ~ tie(friendship)`, a weighted
       `calls` outdegree constraint loose enough to hold on the data), plus
@@ -22,7 +22,7 @@ Version.
       generator script, under the local-only `.plan/focal-stream-dedup/`.
       Record the values, the path, and the R and goldfish versions in
       `progress.md`.
-- [ ] 1.2 Schedule stream-count check (D2, D5): for each object on the
+- [x] 1.2 Schedule stream-count check (D2, D5): for each object on the
       joint schedule, the number of distinct non-dependent `stream_index`
       values equals the object's number of source streams. Put it in
       `test-preprocess_joint.R` (present upstream) and use only shared
