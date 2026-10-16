@@ -29,7 +29,7 @@ group 2 begins.
       the NOT_CRAN=true suite counts at that HEAD. Put the values in
       `progress.md`, and keep the script beside them
       (`.plan/sgd-scale-aware/before.R`).
-- [ ] 1.2 Run the bake-off (`.plan/sgd-scale-aware/bakeoff.R`, no package
+- [x] 1.2 Run the bake-off (`.plan/sgd-scale-aware/bakeoff.R`, no package
       code): candidates A (adagrad 0.01), B-mini, B-full, and the references
       (constant 0.001, adam 0.01), on the toy, the oracle, the B3 cells (f33
       coupled and uncoupled, `random` and `mcmc`, first passes) and the B4
