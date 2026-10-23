@@ -362,3 +362,147 @@ test_that("the information request is served from the held harvest", {
     }
   }
 })
+
+# The evaluation at the proposal. A full-variant M-step that converges returns
+# the theta of its last whole-pool evaluation, or theta_k when it passes at
+# its start, and the pass takes its evaluation at the proposal from that
+# harvest. The audit reads the harvest the pass used from the loop's frame as
+# the E-step object is built, and evaluates the pool there afresh.
+local_proposal_audit <- function(env = parent.frame()) {
+  log <- new.env(parent = emptyenv())
+  log$passes <- list()
+  real_evaluate <- evaluate_sequence_pool
+  real_estep <- new_dynes_estep
+  local_mocked_bindings(
+    new_dynes_estep = function(lambda, ...) {
+      loop <- parent.frame()
+      log$passes[[length(log$passes) + 1L]] <- list(
+        used = loop$at_proposal,
+        fresh = real_evaluate(loop$pool, loop$proposal)
+      )
+      real_estep(lambda, ...)
+    },
+    .env = env
+  )
+  log
+}
+
+# The stub runs of stub_mstep_logs(), audited at the proposal.
+audited_stub_runs <- function() {
+  run <- function(optimizer, ...) {
+    local_analytic_evaluator()
+    audit <- local_proposal_audit()
+    counter <- local_mstep_counter()
+    withr::with_seed(
+      7L,
+      suppressWarnings(run_abem_loop(
+        decomposition = analytic_decomposition(),
+        control = analytic_em_control(
+          max_iterations = 3L,
+          weights = list(...)$weights %||% set_weights_options(),
+          optimizer = optimizer
+        ),
+        theta0 = list(...)$theta0 %||% 0,
+        augmenter = new_stub_augmenter(list(...)$candidates %||% list(1, 2, 4))
+      ))
+    )
+    list(audit = audit, counter = counter)
+  }
+  list(
+    full = run(stub_full_sgd()),
+    resampling = run(
+      stub_full_sgd(),
+      weights = set_weights_options(use = "resampling")
+    ),
+    at_start = run(stub_full_sgd(), candidates = list(1), theta0 = 1),
+    capped = run(set_sgd_options(
+      variant = "full",
+      step_schedule = "constant",
+      step_size = 1e-3,
+      sgd_tolerance = 1e-12,
+      max_iterations = 3L
+    ))
+  )
+}
+
+expect_proposal_reuse <- function(run, label) {
+  passes <- run$counter$passes
+  expect_identical(length(run$audit$passes), length(passes))
+  for (pass in seq_along(passes)) {
+    info <- paste(label, "pass", pass)
+    record <- passes[[pass]]
+    audit <- run$audit$passes[[pass]]
+    # Whether reused or evaluated, the pass's evaluation at the proposal is
+    # the evaluator's whole return there, bit for bit.
+    expect_identical(audit$used, audit$fresh, info = info)
+    expected <- if (isTRUE(record$result$converged)) 0L else record$pool_size
+    expect_identical(
+      pass_evaluated(run$counter, pass, "proposal"),
+      expected,
+      info = info
+    )
+    # The full variant asks for each pool member once per iteration, never
+    # once per duplicate of the resampled multiset.
+    for (indices in record$score_indices) {
+      expect_identical(indices, seq_len(record$pool_size), info = info)
+    }
+  }
+}
+
+test_that("a converged full-variant M-step serves the proposal's evaluation", {
+  runs <- audited_stub_runs()
+  expect_true(any(vapply(
+    runs$full$counter$passes,
+    function(p) p$result$converged && p$result$iterations > 1L,
+    logical(1)
+  )))
+  expect_identical(runs$at_start$counter$passes[[1L]]$result$iterations, 1L)
+  expect_false(runs$capped$counter$passes[[1L]]$result$converged)
+  for (label in names(runs)) {
+    expect_proposal_reuse(runs[[label]], label)
+  }
+})
+
+test_that("the proposal reuse leaves an estimate_dynes() fit unchanged", {
+  skip_on_cran()
+  fit <- function(use, reuse) {
+    local_dynes_augmenter(new_wave_grid_augmenter())
+    if (!reuse) {
+      local_mocked_bindings(held_harvest_at = function(...) NULL)
+    }
+    audit <- local_proposal_audit()
+    counter <- local_mstep_counter()
+    fit <- suppressWarnings(estimate_dynes(
+      dynes_varying_raw_spec(),
+      set_algorithm_em(
+        n_sequences = 6L,
+        max_iterations = 3L,
+        seed = 42L,
+        augmenter = set_augmenter_options(routine = "random"),
+        weights = set_weights_options(use = use),
+        optimizer = set_sgd_options(
+          variant = "full",
+          step_schedule = "adam",
+          step_size = 0.1,
+          sgd_tolerance = 0.05,
+          max_iterations = 30L
+        )
+      )
+    ))
+    list(fit = fit, audit = audit, counter = counter)
+  }
+
+  for (use in c("importance", "resampling")) {
+    reused <- fit(use, reuse = TRUE)
+    expect_proposal_reuse(reused, use)
+    expect_true(
+      any(vapply(
+        reused$counter$passes,
+        function(p) p$result$converged,
+        logical(1)
+      )),
+      info = use
+    )
+    expect_identical(reused$fit, fit(use, reuse = FALSE)$fit, info = use)
+  }
+})

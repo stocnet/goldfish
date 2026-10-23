@@ -262,7 +262,8 @@ pool_lost_counts <- function(walk = 0L, fixed_term = 0L, evaluation = 0L) {
 # "entry" inside draw_into_pool(), "information" inside the injected
 # information closure, "score" inside the injected score closure, "proposal"
 # elsewhere in run_abem_loop(), and "outside" beyond the loop (the fit's
-# covariance pass). `n` is the number of sequences the call evaluated.
+# covariance pass). `n` is the number of sequences the call evaluated. Each
+# pass also keeps the indices of every score request.
 local_mstep_counter <- function(env = parent.frame()) {
   log <- new.env(parent = emptyenv())
   log$passes <- list()
@@ -317,8 +318,18 @@ local_mstep_counter <- function(env = parent.frame()) {
       information_fn = NULL
     ) {
       pass <- length(log$passes) + 1L
-      log$passes[[pass]] <- list(start = theta, information_thetas = list())
-      args <- list(theta, in_phase("score", score_fn), weights, ...)
+      log$passes[[pass]] <- list(
+        start = theta,
+        information_thetas = list(),
+        score_indices = list()
+      )
+      scored <- function(theta, indices) {
+        log$passes[[pass]]$score_indices[[
+          length(log$passes[[pass]]$score_indices) + 1L
+        ]] <- indices
+        score_fn(theta, indices)
+      }
+      args <- list(theta, in_phase("score", scored), weights, ...)
       if (!is.null(information_fn)) {
         args$information_fn <- in_phase("information", function(theta) {
           log$passes[[pass]]$information_thetas[[

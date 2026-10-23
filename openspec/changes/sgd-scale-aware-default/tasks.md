@@ -137,7 +137,7 @@ variants stay selectable under every schedule.
       untested but recording the statistic; `sgd_tolerance` is ignored in
       that mode and supplying it does not warn (D2). Confirm GREEN, and
       commit.
-- [ ] 2.3c Failing test (D3, the proposal reuse): under `variant = "full"`,
+- [x] 2.3c Failing test (D3, the proposal reuse): under `variant = "full"`,
       a pass whose M-step converges after stepping, and one whose M-step
       passes at its start, make no pool evaluation at the proposal, and the
       pass's whole evaluation at the proposal (log-likelihoods, scores,
