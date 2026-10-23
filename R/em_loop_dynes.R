@@ -79,10 +79,16 @@ run_abem_loop <- function(
   run$trace <- list()
   run$pool <- NULL
   run$loglik <- numeric(0)
+  # The evaluator's whole return for the pool at theta_k (log-likelihood,
+  # score, information and degenerate flags), aligned with the pool and kept
+  # where `run$loglik` is: an evaluation computes all three whatever it is
+  # asked for, so holding them costs memory, not evaluations, and serves the
+  # M-step's information request.
+  run$harvest <- NULL
 
   # Draw `n` sequences at `theta`, continuing the iteration's draw_index, and
-  # append them to the pool (or let them replace it) with their log-likelihood
-  # at `theta` cached. Either way the store receives the new sequences once.
+  # append them to the pool (or let them replace it) with their evaluation at
+  # `theta` held. Either way the store receives the new sequences once.
   draw_into_pool <- function(n, iteration, theta, replace = FALSE) {
     n <- as.integer(n)
     if (n <= 0L) {
@@ -113,15 +119,13 @@ run_abem_loop <- function(
       added <- length(run$pool$sequences) + seq_along(entries)
       run$pool <- append_sequence_pool(run$pool, entries, call = call)
     }
-    loglik <- evaluate_sequence_pool(
-      pool_subset(run$pool, added),
-      theta,
-      what = "loglik"
-    )$loglik
+    harvest <- evaluate_sequence_pool(pool_subset(run$pool, added), theta)
+    loglik <- harvest$loglik
     for (j in seq_along(added)) {
       run$pool$sequences[[added[[j]]]]$reference$loglik_ref <- loglik[[j]]
     }
     run$loglik <- if (fresh) loglik else c(run$loglik, loglik)
+    run$harvest <- if (fresh) harvest else append_harvest(run$harvest, harvest)
     n
   }
 
@@ -238,12 +242,14 @@ run_abem_loop <- function(
         scores[!is.finite(scores)] <- 0
         scores
       }
+      # Asked at theta_k, the request is answered from the held harvest.
       information_fn <- function(theta) {
-        abem_information(
-          evaluate_sequence_pool(pool, theta, what = c("score", "fisher")),
-          weights,
-          resample_indices
-        )
+        harvest <- if (identical(theta, theta_k)) {
+          run$harvest
+        } else {
+          evaluate_sequence_pool(pool, theta)
+        }
+        abem_information(harvest, weights, resample_indices)
       }
       proposal <- optimize_abem_sgd(
         theta_k,
@@ -364,6 +370,7 @@ run_abem_loop <- function(
       if (accepted) {
         theta_k <- proposal
         run$loglik <- loglik_proposal
+        run$harvest <- at_proposal
         accepted_iterations <- accepted_iterations + 1L
         break
       }
@@ -487,6 +494,17 @@ abem_trace_tibble <- function(rows) {
     autocorrelation = scalar("autocorrelation", numeric(1)),
     chain_diagnostics = listed("chain_diagnostics"),
     se = listed("se")
+  )
+}
+
+# Two pool harvests at one theta as one, the second's sequences after the
+# first's.
+append_harvest <- function(harvest, more) {
+  list(
+    loglik = c(harvest$loglik, more$loglik),
+    score = rbind(harvest$score, more$score),
+    fisher = c(harvest$fisher, more$fisher),
+    degenerate = c(harvest$degenerate, more$degenerate)
   )
 }
 

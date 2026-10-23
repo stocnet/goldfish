@@ -815,20 +815,13 @@ test_that("each pass builds its E-step from per-sequence score and Fisher", {
 
 test_that("per-pass standard errors reuse the pass's E-step quantities", {
   local_analytic_evaluator()
-  real_evaluate <- evaluate_sequence_pool
-  requests <- list()
-  local_mocked_bindings(
-    evaluate_sequence_pool = function(pool, theta, what, ...) {
-      requests[[length(requests) + 1L]] <<- what
-      real_evaluate(pool, theta, what, ...)
-    }
-  )
   proposals <- c(0.5, 0.5 + 1e-5)
   pass <- 0L
   local_scripted_optimizer(function(theta) {
     pass <<- pass + 1L
     proposals[[pass]]
   })
+  log <- local_mstep_counter()
 
   res <- run_abem_loop(
     theta0 = 0,
@@ -837,9 +830,15 @@ test_that("per-pass standard errors reuse the pass's E-step quantities", {
     control = analytic_em_control(em_trace_se = TRUE)
   )
 
-  # Draw-time log-likelihoods, then one full evaluation per pass.
-  full <- vapply(requests, function(w) "fisher" %in% w, logical(1))
-  expect_identical(sum(full), nrow(res$em_trace))
+  # Beyond pool entry, one full evaluation per pass, at its proposal.
+  at_proposal <- Filter(
+    function(e) identical(e$phase, "proposal"),
+    log$evaluations
+  )
+  expect_length(at_proposal, nrow(res$em_trace))
+  for (e in at_proposal) {
+    expect_identical(e$what, c("loglik", "score", "fisher"))
+  }
   # The SE is Louis's over the pass's pool at the proposal theta = 0.5: with
   # score mu - theta and unit information, I_obs is sum w less the weighted
   # variance of the scores, w the weights at the proposal.

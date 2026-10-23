@@ -116,7 +116,7 @@ variants stay selectable under every schedule.
       theta, under importance and under resampling; the held harvest is
       compared whole, `degenerate` flags included. Confirm RED, and commit
       alone.
-- [ ] 2.2d In `run_abem_loop()`, hold the per-sequence score and Fisher at
+- [x] 2.2d In `run_abem_loop()`, hold the per-sequence score and Fisher at
       `theta_k` beside `run$loglik`, maintained at the same places:
       `draw_into_pool()` keeps the whole harvest of its entry evaluation
       (appended on top-up and growth, replaced on a fresh build or redraw),
