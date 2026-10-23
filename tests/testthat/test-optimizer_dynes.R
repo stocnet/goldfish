@@ -579,7 +579,7 @@ test_that("the stop rule reads the same distance whatever the score's scale", {
   }
 })
 
-test_that("a minibatch M-step started at the optimum stops (B5)", {
+test_that("a minibatch M-step started at the optimum stops under its noise", {
   withr::local_seed(11L)
   scale <- 1000
   p <- 4L

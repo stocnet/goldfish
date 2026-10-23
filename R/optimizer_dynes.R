@@ -111,7 +111,8 @@ make_newton_se <- function(information) {
 #
 # * `score_fn(theta, indices)`: the injected evaluator, returning a
 #   length(indices) x length(theta) matrix of per-sequence score vectors (the
-#   loop bakes in the current pool and the `what = "score"` request).
+#   loop bakes in the current pool and the `what = "score"` request). The
+#   full variant asks for the whole pool, `seq_len(length(weights))`.
 # * `information_fn(theta)`: the injected information request, called once, at
 #   the starting `theta`. It returns `information`, the p x p complete-data
 #   information of the pool objective (weighted as `score_fn`'s gradient is),
@@ -227,13 +228,15 @@ optimize_abem_sgd <- function(
   for (step_index in seq_len(control$max_iterations)) {
     iteration <- step_index
     if (full_variant) {
-      # The first gradient is the request's: the same rows, weighted the same
-      # way, as a score evaluation at the starting theta would return.
+      # One evaluation of the whole pool per iteration, each member once (the
+      # first iteration's is the request's), and the multiset's gradient a
+      # row lookup: duplicates repeat their row.
       scores <- if (step_index == 1L) {
-        requested$scores[draw_pool, , drop = FALSE]
+        requested$scores
       } else {
-        score_fn(theta, draw_pool)
+        score_fn(theta, seq_len(pool_size))
       }
+      scores <- scores[draw_pool, , drop = FALSE]
       gradient <- if (resampling) {
         colMeans(scores)
       } else {

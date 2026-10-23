@@ -231,12 +231,21 @@ run_abem_loop <- function(
       }
 
       pool <- run$pool
+      # The M-step's last evaluation of the whole pool, kept with its theta.
+      # It belongs to this pass's pool, so it starts empty with every pass.
+      run$last <- NULL
       score_fn <- function(theta, indices) {
-        scores <- evaluate_sequence_pool(
-          pool_subset(pool, indices),
-          theta,
-          what = "score"
-        )$score
+        if (identical(as.integer(indices), seq_len(pool_size))) {
+          harvest <- evaluate_sequence_pool(pool, theta)
+          run$last <- list(theta = theta, harvest = harvest)
+        } else {
+          harvest <- evaluate_sequence_pool(
+            pool_subset(pool, indices),
+            theta,
+            what = "score"
+          )
+        }
+        scores <- harvest$score
         # A degenerate sequence carries zero weight; a zero score keeps its
         # NA out of a cyclic batch's weighted sum.
         scores[!is.finite(scores)] <- 0
@@ -268,12 +277,14 @@ run_abem_loop <- function(
 
       # One pass yields all three quantities: the log-likelihood for Lambda,
       # the score and information for the E-step object and the Louis
-      # standard errors.
-      at_proposal <- evaluate_sequence_pool(
-        pool,
-        proposal,
-        what = c("loglik", "score", "fisher")
-      )
+      # standard errors. A proposal the pass has already evaluated the whole
+      # pool at is not evaluated again.
+      at_proposal <- held_harvest_at(proposal, run, theta_k) %||%
+        evaluate_sequence_pool(
+          pool,
+          proposal,
+          what = c("loglik", "score", "fisher")
+        )
       loglik_proposal <- at_proposal$loglik
       lambda <- loglik_proposal - run$loglik
       # A zero-weight (degenerate) sequence contributes nothing; its
@@ -495,6 +506,20 @@ abem_trace_tibble <- function(rows) {
     chain_diagnostics = listed("chain_diagnostics"),
     se = listed("se")
   )
+}
+
+# The pass's evaluation of the whole pool at `theta` when it already holds
+# one: the M-step's last whole-pool evaluation, or the harvest at theta_k.
+# Matched by identity, never by tolerance, so the reuse is exactly the
+# evaluation it replaces. NULL when neither was taken there.
+held_harvest_at <- function(theta, run, theta_k) {
+  if (!is.null(run$last) && identical(theta, run$last$theta)) {
+    return(run$last$harvest)
+  }
+  if (identical(theta, theta_k)) {
+    return(run$harvest)
+  }
+  NULL
 }
 
 # Two pool harvests at one theta as one, the second's sequences after the

@@ -147,7 +147,7 @@ variants stay selectable under every schedule.
       M-step evaluates the pool at the proposal once. The `em_trace` and the
       returned fit are identical to a run with the reuse disabled. Confirm
       RED, and commit alone.
-- [ ] 2.3d Evaluate the whole pool once per full-variant iteration after the
+- [x] 2.3d Evaluate the whole pool once per full-variant iteration after the
       first (the multiset gradient a row lookup), keep the last whole-pool
       harvest with its theta in the loop's evaluator, and take `at_proposal`
       from it, or from the held harvest at `theta_k`, when the returned
