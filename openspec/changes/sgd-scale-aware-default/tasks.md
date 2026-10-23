@@ -57,9 +57,11 @@ variants stay selectable under every schedule.
       `degenerate`; a resampling fit's `at_optimum` alert names the
       importance-weighted pool; D2 states the `stop_count > 1` stop-hit.
       Validated, and the artifacts committed (`docs:`; not `.gitignore`).
-- [ ] 1.4 Close the group: NOT_CRAN=true full suite at the group-2 starting
+- [x] 1.4 Close the group: NOT_CRAN=true full suite at the group-2 starting
       HEAD (baselines PASS, counts as in 1.1). No package code changed, so
-      there is nothing to document. Commit only if the artifacts moved.
+      there is nothing to document. Commit only if the artifacts moved. *Closed
+      2026-10-23 at `b7d12441`:* PASS 16704 / FAIL 0 / SKIP 5, baselines
+      PASS, as in 1.1.
 
 ## 2. The stop rule in standard-error units (D2, D3)
 
