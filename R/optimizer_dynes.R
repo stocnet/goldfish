@@ -88,11 +88,36 @@ make_sgd_stepper <- function(schedule, step_size, p) {
   )
 }
 
+# The Newton step in standard-error units, max_j |(P^-1 g)_j| / sqrt((P^-1)_jj),
+# as a closure over the Cholesky factor of the information `P`, factored once
+# per M-step. NULL when `P` is not positive definite. An empty free block has
+# no step to take, so its statistic is 0.
+make_newton_se <- function(information) {
+  if (ncol(information) == 0L) {
+    return(function(gradient) 0)
+  }
+  factor <- tryCatch(chol(information), error = function(e) NULL)
+  if (is.null(factor)) {
+    return(NULL)
+  }
+  sd_inverse <- sqrt(diag(chol2inv(factor)))
+  function(gradient) {
+    step <- backsolve(factor, forwardsolve(t(factor), gradient))
+    max(abs(step) / sd_inverse)
+  }
+}
+
 # Run the SGD M-step from `theta` over the pool weighted by `weights`.
 #
 # * `score_fn(theta, indices)`: the injected evaluator, returning a
 #   length(indices) x length(theta) matrix of per-sequence score vectors (the
 #   loop bakes in the current pool and the `what = "score"` request).
+# * `information_fn(theta)`: the injected information request, called once, at
+#   the starting `theta`. It returns `information`, the p x p complete-data
+#   information of the pool objective (weighted as `score_fn`'s gradient is),
+#   and `scores`, the K x p per-sequence scores of the whole pool there, with
+#   non-finite entries zeroed. The full variant builds its first gradient from
+#   those scores instead of evaluating the pool again.
 # * `weights`: the normalized E-step selection weights over the K-sequence pool.
 # * `control`: a `set_sgd_options()` bundle (variant, batch scheme/size, step
 #   schedule/size, convergence mode, sgd_tolerance, max_iterations).
@@ -106,18 +131,23 @@ make_sgd_stepper <- function(schedule, step_size, p) {
 #   the optimizer's own general capability.
 #
 # Returns a list: the updated `parameters`, the `iterations` run, a `converged`
-# flag (TRUE only when the gradient criterion was met), and the final tested
-# `gradient_norm`.
+# flag (TRUE only when the gradient criterion was met), the final tested
+# `gradient_norm`, the Newton step in standard-error units at the starting
+# theta (`start_newton_se`) and at the last iterate a gradient was taken at
+# (`newton_se`), and whether the information was not positive definite
+# (`rank_deficient`, the statistics then NA).
 optimize_abem_sgd <- function(
   theta,
   score_fn,
   weights,
+  information_fn,
   control = set_sgd_options(),
   use = c("importance", "resampling"),
   resample_indices = NULL,
   fixed = NULL,
   call = rlang::caller_env()
 ) {
+  rlang::check_required(information_fn, call = call)
   use <- rlang::arg_match(use)
   p <- length(theta)
   pool_size <- length(weights)
@@ -181,6 +211,16 @@ optimize_abem_sgd <- function(
   ema_beta <- 0.9
   cyclic_start <- 1L
 
+  # The information and the pool's scores at the starting theta: requested
+  # once, and held for every iteration of this M-step.
+  requested <- information_fn(theta)
+  newton_se_of <- make_newton_se(
+    requested$information[free, free, drop = FALSE]
+  )
+  rank_deficient <- is.null(newton_se_of)
+  start_newton_se <- NA_real_
+  newton_se <- NA_real_
+
   converged <- FALSE
   iteration <- 0L
   gradient_norm <- NA_real_
@@ -188,7 +228,13 @@ optimize_abem_sgd <- function(
   for (step_index in seq_len(control$max_iterations)) {
     iteration <- step_index
     if (full_variant) {
-      scores <- score_fn(theta, draw_pool)
+      # The first gradient is the request's: the same rows, weighted the same
+      # way, as a score evaluation at the starting theta would return.
+      scores <- if (step_index == 1L) {
+        requested$scores[draw_pool, , drop = FALSE]
+      } else {
+        score_fn(theta, draw_pool)
+      }
       gradient <- if (resampling) {
         colMeans(scores)
       } else {
@@ -224,6 +270,13 @@ optimize_abem_sgd <- function(
     gradient[!free] <- 0
     test_grad[!free] <- 0
 
+    if (!rank_deficient) {
+      newton_se <- newton_se_of(test_grad[free])
+      if (step_index == 1L) {
+        start_newton_se <- newton_se
+      }
+    }
+
     step <- stepper(gradient, iteration)
     step[!free] <- 0
     theta <- theta + step
@@ -254,6 +307,9 @@ optimize_abem_sgd <- function(
     parameters = theta,
     iterations = iteration,
     converged = converged,
-    gradient_norm = gradient_norm
+    gradient_norm = gradient_norm,
+    start_newton_se = start_newton_se,
+    newton_se = newton_se,
+    rank_deficient = rank_deficient
   )
 }

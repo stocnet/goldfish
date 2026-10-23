@@ -17,6 +17,18 @@ make_quadratic_score_fn <- function(targets) {
   }
 }
 
+# The stub's information request: every sequence's information is the
+# identity, which normalized weights leave at the identity, and the scores of
+# the whole pool.
+make_quadratic_information_fn <- function(targets) {
+  function(theta) {
+    list(
+      information = diag(ncol(targets)),
+      scores = sweep(targets, 2, theta, "-")
+    )
+  }
+}
+
 test_that("full-variant SGD ascends the stub to the weighted optimum", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
@@ -26,6 +38,7 @@ test_that("full-variant SGD ascends the stub to the weighted optimum", {
   res <- optimize_abem_sgd(
     theta = c(0, 0),
     score_fn = score_fn,
+    information_fn = make_quadratic_information_fn(targets),
     weights = weights,
     control = set_sgd_options(
       variant = "full",
@@ -55,6 +68,7 @@ test_that("minibatch weighted SGD converges to the weighted optimum", {
   res <- optimize_abem_sgd(
     theta = c(3, -3),
     score_fn = score_fn,
+    information_fn = make_quadratic_information_fn(targets),
     weights = weights,
     control = set_sgd_options(
       variant = "minibatch",
@@ -122,6 +136,7 @@ test_that("a cyclic-scheme run reaches the same weighted optimum", {
   res <- optimize_abem_sgd(
     theta = c(0, 0),
     score_fn = score_fn,
+    information_fn = make_quadratic_information_fn(targets),
     weights = weights,
     control = set_sgd_options(
       variant = "minibatch",
@@ -148,6 +163,7 @@ test_that("fixed parameters stay immobile through the M-step", {
   res <- optimize_abem_sgd(
     theta = c(5, 0),
     score_fn = score_fn,
+    information_fn = make_quadratic_information_fn(targets),
     weights = weights,
     control = set_sgd_options(
       variant = "full",
@@ -173,6 +189,7 @@ test_that("optimizer accumulators reset every M-step", {
     optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
+      information_fn = make_quadratic_information_fn(targets),
       weights = weights,
       control = set_sgd_options(
         variant = "full",
@@ -212,6 +229,7 @@ test_that("every step schedule ascends the analytic stub", {
     res <- optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
+      information_fn = make_quadratic_information_fn(targets),
       weights = weights,
       control = set_sgd_options(
         variant = "full",
@@ -234,6 +252,7 @@ test_that("hitting the iteration cap with the gradient criterion unmet warns", {
     optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
+      information_fn = make_quadratic_information_fn(targets),
       weights = weights,
       control = set_sgd_options(
         variant = "full",
@@ -257,6 +276,7 @@ test_that("the iterations mode runs the budget without a convergence warning", {
     optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
+      information_fn = make_quadratic_information_fn(targets),
       weights = weights,
       control = set_sgd_options(
         variant = "full",
@@ -282,6 +302,7 @@ test_that("resampling draws over the multiset with unweighted gradients", {
   res <- optimize_abem_sgd(
     theta = c(0, 0),
     score_fn = score_fn,
+    information_fn = make_quadratic_information_fn(targets),
     weights = weights,
     control = set_sgd_options(
       variant = "full",

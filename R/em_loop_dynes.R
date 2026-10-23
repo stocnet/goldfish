@@ -238,10 +238,18 @@ run_abem_loop <- function(
         scores[!is.finite(scores)] <- 0
         scores
       }
+      information_fn <- function(theta) {
+        abem_information(
+          evaluate_sequence_pool(pool, theta, what = c("score", "fisher")),
+          weights,
+          resample_indices
+        )
+      }
       proposal <- optimize_abem_sgd(
         theta_k,
         score_fn,
         weights,
+        information_fn = information_fn,
         control = control$optimizer,
         use = if (identical(scheme, "resampling")) {
           "resampling"
@@ -480,6 +488,31 @@ abem_trace_tibble <- function(rows) {
     chain_diagnostics = listed("chain_diagnostics"),
     se = listed("se")
   )
+}
+
+# The M-step's information request answered from a harvest of the whole pool
+# at one theta: the complete-data information weighted as the M-step's
+# gradient is (the importance-weighted sum, or the mean over the resampled
+# multiset), degenerate sequences left out, and the per-sequence scores with
+# non-finite entries zeroed, as `score_fn` returns them.
+abem_information <- function(harvest, weights, resample_indices = NULL) {
+  scores <- harvest$score
+  scores[!is.finite(scores)] <- 0
+  if (is.null(resample_indices)) {
+    members <- seq_along(weights)
+    member_weights <- weights
+  } else {
+    members <- resample_indices
+    member_weights <- rep(1 / length(members), length(members))
+  }
+  information <- matrix(0, ncol(scores), ncol(scores))
+  for (j in seq_along(members)) {
+    i <- members[[j]]
+    if (!harvest$degenerate[[i]] && member_weights[[j]] > 0) {
+      information <- information + member_weights[[j]] * harvest$fisher[[i]]
+    }
+  }
+  list(information = information, scores = scores)
 }
 
 # Per-iteration standard errors at the pass's proposal: the square roots of

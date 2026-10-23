@@ -93,7 +93,7 @@ variants stay selectable under every schedule.
       importance weights and under a resampled multiset with repeated
       indices; `variant = "minibatch"` ignores the cached scores. Confirm RED
       and commit the test alone.
-- [ ] 2.2b Add the required `information_fn` argument, the once-per-M-step
+- [x] 2.2b Add the required `information_fn` argument, the once-per-M-step
       call and Cholesky factorization, and the statistic. Build
       `information_fn` in `run_abem_loop()` from
       `evaluate_sequence_pool(what = c("score", "fisher"))`, returning
