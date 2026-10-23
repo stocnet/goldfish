@@ -22,9 +22,10 @@ mix), `set_weights_options()` (`weighting` importance/uniform, `use`
 importance/resampling, `resampling_scheme` stratified/residual/random,
 `transformation`, `refresh`, `ess_threshold`), and `set_sgd_options()` (`variant`,
 `batch_size`, `batch_scheme` weighted/cyclic, `step_size` — unset by default and
-resolved per schedule, `step_schedule`
-preconditioned/constant/decay/adagrad/adam/momentum with `"preconditioned"` the
-default, `max_iterations`, `sgd_tolerance` — in standard-error units, named
+resolved per schedule; `variant` — `"full"` by default under every schedule,
+`"minibatch"` selectable under every schedule, `step_schedule`
+fisher_scoring/constant/decay/adagrad/adam/momentum with `"fisher_scoring"` the
+default, `max_iterations` — unset by default and resolved per schedule, `sgd_tolerance` — in standard-error units, default 0.05, named
 distinctly from `set_algorithm_em()`'s EM-stop `tolerance`, a different scale,
 `convergence` gradient/iterations). The `set_weights_options()` `transformation`
 SHALL be a named enum (`identity`/`clipping`/`smoothing`), not a user-supplied
@@ -71,9 +72,11 @@ without modifying `estimate_dynes()`.
 
 #### Scenario: the SGD defaults are scale-aware
 - **WHEN** `set_sgd_options()` is called with no arguments
-- **THEN** the control carries `step_schedule = "preconditioned"`,
-  `step_size = 1` and `sgd_tolerance = 0.1`, and its documentation states that
-  `sgd_tolerance` is in standard-error units.
+- **THEN** the control carries `step_schedule = "fisher_scoring"`,
+  `step_size = 1`, `variant = "full"`, `max_iterations = 20` and
+  `sgd_tolerance = 0.05`, and its
+  documentation states that `sgd_tolerance` is in standard-error units and the
+  trade of `variant = "minibatch"`.
 
 ## ADDED Requirements
 
@@ -88,8 +91,8 @@ weighted mean score and `I_obs⁻¹` the covariance of the fit's final
 covariance pass and `SE_j = sqrt((I_obs⁻¹)_jj)`. It SHALL be computed from
 that covariance pass and SHALL NOT trigger an additional evaluation of the
 pool. The fit SHALL carry `at_optimum`, `TRUE` exactly when `newton_se` is
-below the optimizer's `sgd_tolerance`, whatever the M-step's `convergence`
-mode. The gate is against the importance-weighted objective of the final
+below 0.1, a fixed threshold independent of `sgd_tolerance`, whatever the
+M-step's `convergence` mode. The gate is against the importance-weighted objective of the final
 pool, also when the M-step optimized a resampled multiset
 (`use = "resampling"`). Both SHALL be `NA` when
 `covariance_status` is not `"ok"`. `converged` SHALL keep its meaning, that
@@ -98,13 +101,16 @@ the EM stop rule was met, and SHALL NOT be set from `at_optimum`.
 `glance()` SHALL return `newton_se` and `at_optimum` as columns. `print()` and
 `summary()` SHALL state, via cli semantic elements and beside the `converged`
 status, whether the estimate is at the final pool's optimum, as a warning
-alert naming `newton_se` and `sgd_tolerance` when `at_optimum` is `FALSE`.
+alert naming `newton_se` and the 0.1 threshold when `at_optimum` is `FALSE`.
+Under `use = "resampling"` that alert SHALL add an informational bullet stating
+that the gate reads the importance-weighted pool, not the resampled multiset
+the M-step optimized.
 
 #### Scenario: the gate is the exact Newton step at the estimate
 - **WHEN** a fit's final covariance pass has weighted mean score `S` and
   covariance `V` with an `"ok"` status
 - **THEN** `newton_se` equals `max(abs(V %*% S) / sqrt(diag(V)))` within
-  1e-10, and `at_optimum` is `newton_se < sgd_tolerance`.
+  1e-10, and `at_optimum` is `newton_se < 0.1`, whatever `sgd_tolerance`.
 
 #### Scenario: no extra pool evaluation
 - **WHEN** a fit is returned
@@ -112,10 +118,15 @@ alert naming `newton_se` and `sgd_tolerance` when `at_optimum` is `FALSE`.
   before the fit carried `newton_se`.
 
 #### Scenario: a fit away from its optimum says so
-- **WHEN** a fit's `newton_se` is at least `sgd_tolerance`
+- **WHEN** a fit's `newton_se` is at least 0.1
 - **THEN** `glance()` reports `at_optimum = FALSE`, and `print()` shows a
-  warning alert naming the Newton step and the tolerance, while `converged`
+  warning alert naming the Newton step and the 0.1 threshold, while `converged`
   still reports the EM stop rule.
+
+#### Scenario: a resampling fit's alert names the objective it gates
+- **WHEN** a fit with `use = "resampling"` reads `at_optimum = FALSE`
+- **THEN** its warning alert carries an informational bullet stating that the
+  gate reads the importance-weighted pool.
 
 #### Scenario: no gate without a covariance
 - **WHEN** a fit's `covariance_status` is `"singular"`, `"not_pd"` or
