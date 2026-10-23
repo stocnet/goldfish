@@ -123,7 +123,7 @@ variants stay selectable under every schedule.
       and acceptance takes `at_proposal`'s. Serve `information_fn` from it
       with the current weights. Confirm GREEN for 2.2c and 2.1's
       no-evaluation part, and commit.
-- [ ] 2.3a Failing tests: the stop rule tests the statistic against
+- [x] 2.3a Failing tests: the stop rule tests the statistic against
       `sgd_tolerance` in SE units, for every schedule. Include the
       scale-invariance scenario (score and information times 1000: same
       flag, `newton_se` within stub noise), the B5 scenario (minibatch

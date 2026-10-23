@@ -519,3 +519,127 @@ test_that("the minibatch variant ignores the request's scores", {
 
   expect_identical(run(scrambled)$parameters, run(honest)$parameters)
 })
+
+# The stop rule tests the Newton step in standard-error units against
+# `sgd_tolerance`, at the iterate the gradient was taken at, before stepping.
+# The scaled stub below is the per-sequence objective of `scale` times the
+# events: L_i(theta) = -scale/2 (theta - mu_i)^2 with mu_i = center +
+# offsets_i / sqrt(scale), so the score is scale (mu_i - theta), the
+# information scale, and a standard error 1 / sqrt(scale).
+scaled_stub <- function(scale, offsets, center = 0) {
+  mu <- center + offsets / sqrt(scale)
+  list(
+    mu = mu,
+    score_fn = function(theta, indices) {
+      matrix(scale * (mu[indices] - theta), ncol = 1L)
+    },
+    information_fn = function(theta) {
+      list(
+        information = matrix(scale),
+        scores = matrix(scale * (mu - theta), ncol = 1L)
+      )
+    }
+  )
+}
+
+test_that("the stop rule reads the same distance whatever the score's scale", {
+  offsets <- c(-1.2, 0.3, 0.9, 1.6)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  run <- function(scale, variant) {
+    stub <- scaled_stub(scale, offsets)
+    optimum <- sum(weights * stub$mu)
+    withr::with_seed(3L, {
+      optimize_abem_sgd(
+        # Three standard errors from the optimum, and a step that contracts
+        # the distance in standard-error units by the same factor at either
+        # scale.
+        theta = optimum + 3 / sqrt(scale),
+        score_fn = stub$score_fn,
+        information_fn = stub$information_fn,
+        weights = weights,
+        control = set_sgd_options(
+          variant = variant,
+          batch_size = 2L,
+          step_schedule = "constant",
+          step_size = 0.3 / scale,
+          sgd_tolerance = 0.05,
+          max_iterations = 200L
+        )
+      )
+    })
+  }
+
+  for (variant in c("full", "minibatch")) {
+    small <- run(1, variant)
+    large <- run(1000, variant)
+    expect_true(small$converged, info = variant)
+    expect_identical(large$converged, small$converged, info = variant)
+    expect_identical(large$iterations, small$iterations, info = variant)
+    expect_equal(large$newton_se, small$newton_se, tolerance = 1e-6)
+  }
+})
+
+test_that("a minibatch M-step started at the optimum stops (B5)", {
+  withr::local_seed(11L)
+  scale <- 1000
+  p <- 4L
+  mu <- matrix(stats::rnorm(40 * p, sd = 0.5), ncol = p) / sqrt(scale)
+  weights <- rep(1 / 40, 40)
+  optimum <- colSums(weights * mu)
+  score_fn <- function(theta, indices) {
+    scale * sweep(mu[indices, , drop = FALSE], 2, theta, "-")
+  }
+
+  res <- optimize_abem_sgd(
+    theta = optimum,
+    score_fn = score_fn,
+    information_fn = function(theta) {
+      list(information = scale * diag(p), scores = score_fn(theta, 1:40))
+    },
+    weights = weights,
+    control = set_sgd_options(
+      variant = "minibatch",
+      batch_size = 10L,
+      step_schedule = "constant",
+      step_size = 0.05 / scale,
+      sgd_tolerance = 0.1,
+      max_iterations = 100L
+    )
+  )
+
+  # The smoothed batch-gradient noise is a few hundredths of a standard error
+  # per coordinate here, but its raw norm is sqrt(scale) times that, never
+  # under a raw tolerance of 0.1.
+  expect_true(res$converged)
+  expect_lt(res$iterations, 100L)
+})
+
+test_that("a start already within tolerance is returned unchanged", {
+  targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
+  weights <- c(0.2, 0.3, 0.5)
+  start <- colSums(weights * targets) + c(0.01, -0.01)
+  score_fn <- make_quadratic_score_fn(targets)
+
+  for (schedule in c("constant", "decay", "adagrad", "adam", "momentum")) {
+    for (variant in c("full", "minibatch")) {
+      res <- optimize_abem_sgd(
+        theta = start,
+        score_fn = score_fn,
+        information_fn = make_quadratic_information_fn(targets),
+        weights = weights,
+        control = set_sgd_options(
+          variant = variant,
+          batch_size = 3L,
+          batch_scheme = "cyclic",
+          step_schedule = schedule,
+          step_size = 0.1,
+          sgd_tolerance = 0.05
+        )
+      )
+      info <- paste(schedule, variant)
+      expect_identical(res$parameters, start, info = info)
+      expect_true(res$converged, info = info)
+      expect_identical(res$iterations, 1L, info = info)
+    }
+  }
+})
