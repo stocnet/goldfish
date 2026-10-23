@@ -222,3 +222,143 @@ test_that("an estimate_dynes() run keeps to the same costs", {
   expect_information_evaluates_nothing(log, "dynes")
   expect_pass_costs(log, "dynes")
 })
+
+# The information request is answered from the harvest the loop holds at
+# theta_k, beside its log-likelihoods: each sequence's pool-entry evaluation,
+# and on an accepted pass the evaluation of the whole pool at the proposal.
+# The audit below reads the pass's pool, weights, multiset and held harvest
+# from the frame the loop builds its closures in, evaluates the whole pool
+# afresh at the M-step's start, and compares every answer bit for bit. The
+# first M-step's proposal is pushed 2 away, so that pass is rejected and its
+# retry grows the pool.
+local_information_audit <- function(env = parent.frame()) {
+  log <- new.env(parent = emptyenv())
+  log$requests <- list()
+  log$redraws <- logical()
+  log$answering <- FALSE
+  log$evaluated <- 0L
+  log$pass <- 0L
+  real_evaluate <- evaluate_sequence_pool
+  real_optimize <- optimize_abem_sgd
+  real_guard <- ess_guard
+  local_mocked_bindings(
+    evaluate_sequence_pool = function(
+      pool,
+      theta,
+      what = c("loglik", "score", "fisher"),
+      ...
+    ) {
+      res <- real_evaluate(pool, theta, what, ...)
+      if (log$answering) {
+        log$evaluated <- log$evaluated + length(res$degenerate)
+      }
+      res
+    },
+    ess_guard = function(...) {
+      guard <- real_guard(...)
+      log$redraws <- c(log$redraws, isTRUE(guard$redraw))
+      guard
+    },
+    optimize_abem_sgd = function(
+      theta,
+      score_fn,
+      weights,
+      ...,
+      information_fn
+    ) {
+      loop <- environment(information_fn)
+      fresh <- real_evaluate(loop$pool, theta)
+      log$pass <- log$pass + 1L
+      pass <- log$pass
+      audited <- function(at) {
+        before <- log$evaluated
+        log$answering <- TRUE
+        answer <- information_fn(at)
+        log$answering <- FALSE
+        log$requests[[length(log$requests) + 1L]] <- list(
+          pass = pass,
+          evaluated = log$evaluated - before,
+          answer = answer,
+          expected = abem_information(
+            fresh,
+            loop$weights,
+            loop$resample_indices
+          ),
+          held = loop$run$harvest,
+          fresh = fresh
+        )
+        answer
+      }
+      res <- real_optimize(
+        theta,
+        score_fn,
+        weights,
+        ...,
+        information_fn = audited
+      )
+      if (pass == 1L) {
+        res$parameters <- res$parameters + 2
+      }
+      res
+    },
+    .env = env
+  )
+  log
+}
+
+# The wave-grid augmenter with its log proposal densities spread 20-fold, so
+# the importance weights collapse and the ESS guard redraws the pool.
+new_spread_wave_grid_augmenter <- function() {
+  base <- new_wave_grid_augmenter()
+  list(
+    draw = function(iteration, draw_index, theta) {
+      lapply(base$draw(iteration, draw_index, theta), function(d) {
+        d$log_proposal <- 20 * d$log_proposal
+        d
+      })
+    }
+  )
+}
+
+audited_dynes_run <- function(use) {
+  local_dynes_augmenter(new_spread_wave_grid_augmenter())
+  log <- local_information_audit()
+  log$fit <- suppressWarnings(estimate_dynes(
+    dynes_varying_raw_spec(),
+    set_algorithm_em(
+      n_sequences = 6L,
+      max_iterations = 3L,
+      seed = 42L,
+      augmenter = set_augmenter_options(routine = "random"),
+      weights = set_weights_options(use = use),
+      optimizer = set_sgd_options(
+        variant = "full",
+        step_schedule = "adam",
+        step_size = 0.1,
+        sgd_tolerance = 0.05,
+        max_iterations = 30L
+      )
+    )
+  ))
+  log
+}
+
+test_that("the information request is served from the held harvest", {
+  skip_on_cran()
+  for (use in c("importance", "resampling")) {
+    log <- audited_dynes_run(use)
+    trace <- log$fit$em_trace
+    # The run went through a rejected pass whose retry grew the pool, an
+    # accepted pass and an ESS-guard redraw.
+    expect_true(any(trace$decision == "grow"), info = use)
+    expect_true(any(trace$accepted), info = use)
+    expect_true(any(log$redraws), info = use)
+    expect_length(log$requests, nrow(trace))
+    for (request in log$requests) {
+      info <- paste(use, "pass", request$pass)
+      expect_identical(request$evaluated, 0L, info = info)
+      expect_identical(request$answer, request$expected, info = info)
+      expect_identical(request$held, request$fresh, info = info)
+    }
+  }
+})

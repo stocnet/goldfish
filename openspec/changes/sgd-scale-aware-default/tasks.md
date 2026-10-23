@@ -107,7 +107,7 @@ variants stay selectable under every schedule.
       This pair builds the closure from a fresh evaluation; 2.2d serves it
       from the held harvest. Confirm GREEN for 2.2a and 2.1's
       information-call count, and commit.
-- [ ] 2.2c Failing test (D3, the information reuse): on a two-wave
+- [x] 2.2c Failing test (D3, the information reuse): on a two-wave
       `estimate_dynes()` run forced through a rejected pass whose retry grows
       the pool, an accepted pass, and an ESS-guard redraw, every information
       request evaluates no sequence, and its `information` and `scores` are
