@@ -126,13 +126,13 @@ make_newton_se <- function(information) {
 #   unweighted gradients (the E-step resampling device, design D6/D8).
 # * `fixed`: optional positions of theta held immobile through the M-step --
 #   their gradient and step are zeroed and they are excluded from the
-#   convergence norm. The DyNES path leaves this empty (fixed effects are the
+#   convergence statistic. The DyNES path leaves this empty (fixed effects are the
 #   specification's formula offsets, excluded from theta upstream); the mask is
 #   the optimizer's own general capability.
 #
 # Returns a list: the updated `parameters`, the `iterations` run, a `converged`
-# flag (TRUE only when the gradient criterion was met), the final tested
-# `gradient_norm`, the Newton step in standard-error units at the starting
+# flag (TRUE only when the Newton step fell under `sgd_tolerance`), the Newton
+# step in standard-error units at the starting
 # theta (`start_newton_se`) and at the last iterate a gradient was taken at
 # (`newton_se`), and whether the information was not positive definite
 # (`rank_deficient`, the statistics then NA).
@@ -223,7 +223,6 @@ optimize_abem_sgd <- function(
 
   converged <- FALSE
   iteration <- 0L
-  gradient_norm <- NA_real_
 
   for (step_index in seq_len(control$max_iterations)) {
     iteration <- step_index
@@ -266,38 +265,39 @@ optimize_abem_sgd <- function(
     }
 
     # Hold the fixed coordinates immobile: no gradient into the adaptive
-    # accumulators, no step, no contribution to the convergence norm.
+    # accumulators, no step, no contribution to the convergence statistic.
     gradient[!free] <- 0
     test_grad[!free] <- 0
 
+    # The test comes before the step, at the iterate the gradient was taken
+    # at: a converged M-step returns a theta its last gradient was evaluated
+    # at, and one that passes at its start does not move.
     if (!rank_deficient) {
       newton_se <- newton_se_of(test_grad[free])
       if (step_index == 1L) {
         start_newton_se <- newton_se
+      }
+      if (gradient_mode && newton_se < control$sgd_tolerance) {
+        converged <- TRUE
+        break
       }
     }
 
     step <- stepper(gradient, iteration)
     step[!free] <- 0
     theta <- theta + step
-
-    gradient_norm <- sqrt(sum(test_grad^2))
-    if (gradient_mode && gradient_norm < control$sgd_tolerance) {
-      converged <- TRUE
-      break
-    }
   }
 
-  # Exiting the iteration cap with the gradient criterion still unmet is a
+  # Exiting the iteration cap with the Newton-step criterion still unmet is a
   # diagnostic, not an error -- the EM accept test (design D7) governs
   # correctness -- so warn and return. The iterations mode is the opt-out budget
   # and never warns.
   if (gradient_mode && !converged) {
     cli::cli_warn(c(
       "!" = "The SGD M-step reached its iteration cap ({.val
-             {control$max_iterations}}) with the gradient norm ({.val
-             {signif(gradient_norm, 3)}}) still above {.arg sgd_tolerance}
-             ({.val {control$sgd_tolerance}}).",
+             {control$max_iterations}}) with its Newton step ({.val
+             {signif(newton_se, 3)}} standard errors) still above
+             {.arg sgd_tolerance} ({.val {control$sgd_tolerance}}).",
       "i" = "Estimation continues; the EM acceptance test certifies the ascent
              step."
     ))
@@ -307,7 +307,6 @@ optimize_abem_sgd <- function(
     parameters = theta,
     iterations = iteration,
     converged = converged,
-    gradient_norm = gradient_norm,
     start_newton_se = start_newton_se,
     newton_se = newton_se,
     rank_deficient = rank_deficient

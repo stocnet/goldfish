@@ -132,7 +132,7 @@ variants stay selectable under every schedule.
       `sgd_tolerance` returns that theta unchanged, converged, after one
       iteration). Confirm RED (today's raw-norm test, which steps before it
       tests, fails all three), and commit alone.
-- [ ] 2.3b Replace the gradient-norm test with the statistic, tested at the
+- [x] 2.3b Replace the gradient-norm test with the statistic, tested at the
       iterate before the step (D2). Keep `convergence = "iterations"`
       untested but recording the statistic; `sgd_tolerance` is ignored in
       that mode and supplying it does not warn (D2). Confirm GREEN, and

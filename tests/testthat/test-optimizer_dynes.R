@@ -51,7 +51,7 @@ test_that("full-variant SGD ascends the stub to the weighted optimum", {
 
   expect_equal(res$parameters, optimum, tolerance = 1e-5)
   expect_true(res$converged)
-  expect_true(res$gradient_norm < 1e-8)
+  expect_lt(res$newton_se, 1e-8)
 })
 
 test_that("minibatch weighted SGD converges to the weighted optimum", {
@@ -243,7 +243,7 @@ test_that("every step schedule ascends the analytic stub", {
   }
 })
 
-test_that("hitting the iteration cap with the gradient criterion unmet warns", {
+test_that("hitting the iteration cap with the stop criterion unmet warns", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   score_fn <- make_quadratic_score_fn(targets)
@@ -263,7 +263,7 @@ test_that("hitting the iteration cap with the gradient criterion unmet warns", {
         convergence = "gradient"
       )
     ),
-    "gradient"
+    "sgd_tolerance"
   )
 })
 
