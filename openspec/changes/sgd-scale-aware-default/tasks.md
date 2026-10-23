@@ -80,7 +80,7 @@ variants stay selectable under every schedule.
       code (no information closure exists), and commit it alone. It turns
       GREEN in stages: the information-call count at 2.2b, the
       no-evaluation information at 2.2d, the proposal reuse at 2.3d.
-- [ ] 2.2a Failing test: `optimize_abem_sgd(information_fn = )` on the
+- [x] 2.2a Failing test: `optimize_abem_sgd(information_fn = )` on the
       analytic stub with known `P`. The returned `newton_se` equals
       `max |P^-1 g| / sqrt(diag(P^-1))` at the final iterate under
       `variant = "full"`, and the returned `start_newton_se` equals it at the
