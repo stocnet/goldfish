@@ -65,7 +65,7 @@ variants stay selectable under every schedule.
 
 ## 2. The stop rule in standard-error units (D2, D3)
 
-- [ ] 2.1 Cost guard (D3): wrap the injected closures of
+- [x] 2.1 Cost guard (D3): wrap the injected closures of
       `optimize_abem_sgd()` and `evaluate_sequence_pool()` in counters on the
       analytic stub (`helper-abem_loop.R`) and on one `estimate_dynes()` run
       of the two-wave fixture (`abem_two_wave_data()`), counting sequence

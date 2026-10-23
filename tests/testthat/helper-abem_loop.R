@@ -255,6 +255,101 @@ pool_lost_counts <- function(walk = 0L, fixed_term = 0L, evaluation = 0L) {
   c(walk = walk, fixed_term = fixed_term, evaluation = evaluation)
 }
 
+# Counts the pool evaluations of every ABEM pass by where they are made,
+# wrapping whatever evaluate_sequence_pool() and optimize_abem_sgd() are bound
+# when it is called (so it stacks on local_analytic_evaluator()). Each M-step
+# opens a pass; every evaluation is then tagged with that pass and a phase:
+# "entry" inside draw_into_pool(), "information" inside the injected
+# information closure, "score" inside the injected score closure, "proposal"
+# elsewhere in run_abem_loop(), and "outside" beyond the loop (the fit's
+# covariance pass). `n` is the number of sequences the call evaluated.
+local_mstep_counter <- function(env = parent.frame()) {
+  log <- new.env(parent = emptyenv())
+  log$passes <- list()
+  log$evaluations <- list()
+  log$phase <- NULL
+  real_evaluate <- evaluate_sequence_pool
+  real_optimize <- optimize_abem_sgd
+  on_stack <- function(name) {
+    any(vapply(
+      sys.calls(),
+      function(cl) identical(cl[[1L]], as.name(name)),
+      logical(1)
+    ))
+  }
+  in_phase <- function(phase, fn) {
+    force(fn)
+    function(...) {
+      log$phase <- phase
+      on.exit(log$phase <- NULL)
+      fn(...)
+    }
+  }
+  local_mocked_bindings(
+    evaluate_sequence_pool = function(
+      pool,
+      theta,
+      what = c("loglik", "score", "fisher"),
+      ...
+    ) {
+      res <- real_evaluate(pool, theta, what, ...)
+      phase <- if (!on_stack("run_abem_loop")) {
+        "outside"
+      } else if (on_stack("draw_into_pool")) {
+        "entry"
+      } else {
+        log$phase %||% "proposal"
+      }
+      log$evaluations[[length(log$evaluations) + 1L]] <- list(
+        pass = length(log$passes),
+        phase = phase,
+        n = length(res$degenerate),
+        what = what,
+        theta = theta
+      )
+      res
+    },
+    optimize_abem_sgd = function(
+      theta,
+      score_fn,
+      weights,
+      ...,
+      information_fn = NULL
+    ) {
+      pass <- length(log$passes) + 1L
+      log$passes[[pass]] <- list(start = theta, information_thetas = list())
+      args <- list(theta, in_phase("score", score_fn), weights, ...)
+      if (!is.null(information_fn)) {
+        args$information_fn <- in_phase("information", function(theta) {
+          log$passes[[pass]]$information_thetas[[
+            length(log$passes[[pass]]$information_thetas) + 1L
+          ]] <- theta
+          information_fn(theta)
+        })
+      }
+      res <- do.call(real_optimize, args)
+      dots <- list(...)
+      log$passes[[pass]]$pool_size <- length(weights)
+      log$passes[[pass]]$control <- dots$control
+      log$passes[[pass]]$result <- res
+      res
+    },
+    .env = env
+  )
+  log
+}
+
+# The sequences one pass evaluated in `phases`, from a local_mstep_counter()
+# log.
+pass_evaluated <- function(log, pass, phases) {
+  n <- vapply(
+    log$evaluations,
+    function(e) if (e$pass == pass && e$phase %in% phases) e$n else 0L,
+    integer(1)
+  )
+  sum(n)
+}
+
 # A full-batch SGD M-step with room to converge on the two-wave
 # paths, so no iteration-cap warning muddies a test.
 abem_full_sgd <- function() {
