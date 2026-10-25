@@ -370,7 +370,15 @@ variants stay selectable under every schedule.
       `"preconditioned"` to `"fisher_scoring"` in its "Carried in" section,
       and add the first-pass cost (S5) and the minibatch `start_newton_se`
       note (the first batch's EMA, not the exact `d_0`) to it.
-- [ ] 5.3 Compare the study's tuned setting (adagrad 0.01, 500 M-step
+- [x] 5.3 Compare the study's tuned setting (adagrad 0.01, 500 M-step
       iterations, `dynes-augmentation` D25) with the new default on 1.2's
       cells, and record the comparison in `dynes-augmentation/progress.md`
       for that change's 6.2.6 onward. No code. It does not block the fold.
+      *Done 2026-10-25 (SA8) from existing results (bake-off `A_cap500`
+      against the 4.5/4.6 `after_*` runs; no new fits): neither aborts;
+      converged estimates agree within 0.07 SE; the default meets the 0.1
+      gate on the oracle and b3_f33_unc_mcmc where the tuned setting misses
+      it (0.064 SE oracle gap, 0.14); toy_inter is the default's costly cell
+      (pool 2,986, 10.3x against the tuned setting's 0.86x, both under the
+      gate). The oracle and recovery tests of 6.2.6/6.2.7 can use the
+      default.*
