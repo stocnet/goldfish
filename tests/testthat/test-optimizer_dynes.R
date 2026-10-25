@@ -895,3 +895,139 @@ test_that("every schedule and variant pair is selectable and ascends the stub", 
     }
   }
 })
+
+# The damping of the full Fisher-scoring step. A rate-like stub whose
+# information grows like exp(theta): L_i(theta) = n (y_i theta - exp(theta)),
+# score n (y_i - exp(theta)), information n exp(theta), with the weighted
+# target mean 1 so the optimum is theta = 0. From 1.5 below it, P held at the
+# start is exp(1.5) times too small at the optimum, so a step of size 1
+# overshoots and the statistic rises.
+exp_stub <- function(n = 100, seen = NULL) {
+  targets <- c(0.4, 0.8, 1.2, 1.6)
+  score_fn <- function(theta, indices) {
+    if (!is.null(seen)) {
+      seen$thetas[[length(seen$thetas) + 1L]] <- theta
+    }
+    matrix(n * (targets[indices] - exp(theta)), ncol = 1L)
+  }
+  list(
+    weights = rep(0.25, 4),
+    score_fn = score_fn,
+    information_fn = function(theta) {
+      list(
+        information = matrix(n * exp(theta)),
+        scores = score_fn(theta, seq_along(targets))
+      )
+    },
+    targets = targets,
+    n = n
+  )
+}
+
+# The expected damped trajectory, replayed by hand: the statistic at each
+# iterate, a halving whenever it rises over the previous one, and the step
+# taken from the current iterate.
+exp_stub_trajectory <- function(stub, start, tolerance, cap) {
+  information <- stub$n * exp(start)
+  theta <- start
+  thetas <- numeric(0)
+  step_size <- 1
+  previous <- Inf
+  halvings <- 0L
+  for (iteration in seq_len(cap)) {
+    thetas <- c(thetas, theta)
+    gradient <- sum(stub$weights * stub$n * (stub$targets - exp(theta)))
+    statistic <- abs(gradient) / sqrt(information)
+    if (statistic < tolerance) {
+      break
+    }
+    if (statistic > previous) {
+      step_size <- step_size / 2
+      halvings <- halvings + 1L
+    }
+    previous <- statistic
+    theta <- theta + step_size * gradient / information
+  }
+  list(thetas = thetas, halvings = halvings)
+}
+
+test_that("a rising Fisher-scoring statistic halves the full variant's step", {
+  seen <- new_metric_seen()
+  stub <- exp_stub(seen = seen)
+  expect_equal(sum(stub$weights * stub$targets), 1)
+  start <- -1.5
+
+  res <- optimize_abem_sgd(
+    theta = start,
+    score_fn = stub$score_fn,
+    information_fn = stub$information_fn,
+    weights = stub$weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_schedule = "fisher_scoring"
+    )
+  )
+
+  expected <- exp_stub_trajectory(stub, start, tolerance = 0.05, cap = 20L)
+  expect_true(res$converged)
+  expect_lte(res$iterations, 20L)
+  expect_identical(res$damped, expected$halvings)
+  expect_gte(res$damped, 2L)
+  # The first iterate is the start, served by the information request; every
+  # later one continues from the iterate before it, never backtracking.
+  expect_equal(c(start, unlist(seen$thetas)), expected$thetas)
+  expect_equal(res$parameters, 0, tolerance = 0.01)
+})
+
+test_that("an undamped Fisher-scoring step diverges from the same start", {
+  stub <- exp_stub()
+  local_mocked_bindings(mstep_damps = function(control) FALSE)
+
+  res <- suppressWarnings(optimize_abem_sgd(
+    theta = -1.5,
+    score_fn = stub$score_fn,
+    information_fn = stub$information_fn,
+    weights = stub$weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_schedule = "fisher_scoring"
+    )
+  ))
+
+  expect_false(res$converged)
+  expect_identical(res$iterations, 20L)
+  expect_identical(res$damped, 0L)
+})
+
+test_that("only the full Fisher-scoring step is damped", {
+  withr::local_seed(23L)
+  stub <- exp_stub()
+  schedules <- c(
+    "fisher_scoring",
+    "constant",
+    "decay",
+    "adagrad",
+    "adam",
+    "momentum"
+  )
+
+  for (schedule in schedules) {
+    for (variant in c("full", "minibatch")) {
+      if (schedule == "fisher_scoring" && variant == "full") {
+        next
+      }
+      res <- suppressWarnings(optimize_abem_sgd(
+        theta = -1.5,
+        score_fn = stub$score_fn,
+        information_fn = stub$information_fn,
+        weights = stub$weights,
+        control = set_sgd_options(
+          variant = variant,
+          batch_size = 2L,
+          step_schedule = schedule
+        )
+      ))
+      expect_identical(res$damped, 0L, info = paste(schedule, variant))
+    }
+  }
+})

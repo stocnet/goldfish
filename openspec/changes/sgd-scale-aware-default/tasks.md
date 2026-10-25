@@ -197,7 +197,7 @@ variants stay selectable under every schedule.
       Fisher-scoring step with the information held at the M-step's start,
       not `set_algorithm_newton()`), and run `devtools::document()`. Confirm
       GREEN, and commit.
-- [ ] 3.1c Failing tests for the damping (D1 2026-10-23 amendment): on a
+- [x] 3.1c Failing tests for the damping (D1 2026-10-23 amendment): on a
       stub whose information grows like `exp(theta)`, from a start where the
       undamped full-variant `"fisher_scoring"` step overshoots so that `d_t`
       rises, `step_size` halves at each rise, the iteration continues from
