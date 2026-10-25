@@ -308,7 +308,7 @@ variants stay selectable under every schedule.
       disagreement against D2's bound. On the oracle, check |theta_hat - MLE| < 0.01 SE, and on toy_inter that
       `newton_se` is under 0.1 (the D1 amendment's re-reading).
       Record in `progress.md`. A miss stops the group for review.
-- [ ] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS),
+- [x] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS),
       `devtools::document()` if needed, and commit.
 
 ## 5. Milestone
