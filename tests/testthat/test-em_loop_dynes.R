@@ -176,6 +176,64 @@ test_that("the em_trace records one row per pass with its diagnostics", {
   expect_true(all(vapply(trace$se, is.null, logical(1))))
 })
 
+mstep_verdict_columns <- c(
+  mstep_iterations = "integer",
+  mstep_converged = "logical",
+  mstep_start_newton_se = "double",
+  mstep_newton_se = "double",
+  mstep_rank_deficient = "logical",
+  mstep_damped = "integer"
+)
+
+test_that("the em_trace carries the M-step's verdict, one value per pass", {
+  skip_on_cran()
+  res <- run_abem_loop(
+    theta0 = c(2, -2),
+    decomposition = abem_pinned_choice_decomposition(),
+    augmenter = new_stub_augmenter(abem_two_wave_paths()),
+    control = analytic_em_control(max_iterations = 2L)
+  ) |>
+    suppressWarnings()
+  trace <- res$em_trace
+
+  expect_gte(nrow(trace), 1L)
+  expect_contains(names(trace), names(mstep_verdict_columns))
+  for (column in names(mstep_verdict_columns)) {
+    expect_type(trace[[column]], mstep_verdict_columns[[column]])
+    expect_length(trace[[column]], nrow(trace))
+  }
+  # One row per pass and nothing per M-step iteration: no other M-step column,
+  # and no list column beyond the ones the trace already carried.
+  expect_setequal(
+    grep("^mstep_", names(trace), value = TRUE),
+    names(mstep_verdict_columns)
+  )
+  expect_setequal(
+    names(trace)[vapply(trace, is.list, logical(1))],
+    c("theta", "chain_diagnostics", "se")
+  )
+  expect_true(all(trace$mstep_iterations >= 1L))
+  expect_true(all(trace$mstep_damped >= 0L))
+})
+
+test_that("an M-step that passes at its start reports one statistic twice", {
+  local_analytic_evaluator()
+  # Every sequence sits at theta0, so the gradient is zero there.
+  res <- run_abem_loop(
+    theta0 = 1,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1)),
+    control = analytic_em_control(max_iterations = 1L)
+  ) |>
+    suppressWarnings()
+  trace <- res$em_trace
+
+  expect_identical(trace$mstep_iterations, rep(1L, nrow(trace)))
+  expect_true(all(trace$mstep_converged))
+  expect_identical(trace$mstep_newton_se, trace$mstep_start_newton_se)
+  expect_identical(trace$mstep_damped, rep(0L, nrow(trace)))
+})
+
 test_that("em_trace_se adds standard errors on accepted passes", {
   local_analytic_evaluator()
   proposals <- c(0.5, 0.5 + 1e-5)
