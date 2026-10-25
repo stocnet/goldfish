@@ -133,12 +133,12 @@ test_that("set_sgd_options works correctly", {
   expect_s3_class(default_opts, c("goldfishSgdCtrl", "list"), exact = TRUE)
   expect_true(all(expected_names %in% names(default_opts)))
 
-  expect_equal(default_opts$variant, "minibatch")
+  expect_equal(default_opts$variant, "full")
   expect_null(default_opts$batch_size)
   expect_equal(default_opts$batch_scheme, "weighted")
-  expect_equal(default_opts$step_size, 0.001)
-  expect_equal(default_opts$step_schedule, "constant")
-  expect_equal(default_opts$max_iterations, 100L)
+  expect_equal(default_opts$step_size, 1)
+  expect_equal(default_opts$step_schedule, "fisher_scoring")
+  expect_equal(default_opts$max_iterations, 20L)
   expect_equal(default_opts$sgd_tolerance, 0.05)
   expect_equal(default_opts$convergence, "gradient")
 

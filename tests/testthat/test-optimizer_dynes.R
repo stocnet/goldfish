@@ -1032,3 +1032,75 @@ test_that("only the full Fisher-scoring step is damped", {
     }
   }
 })
+
+# The default M-step on a pool carrying the information of 10,000 events, its
+# standard error 0.01.
+test_that("the default does not overshoot a large summed score", {
+  scale <- 10000
+  offsets <- c(-1.2, 0.3, 0.9, 1.6)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  stub <- scaled_stub(scale, offsets)
+  optimum <- sum(weights * stub$mu)
+  se <- 1 / sqrt(scale)
+  visited <- numeric(0)
+  score_fn <- function(theta, indices) {
+    visited <<- c(visited, theta)
+    stub$score_fn(theta, indices)
+  }
+
+  withr::local_seed(29L)
+  res <- optimize_abem_sgd(
+    theta = optimum - se,
+    score_fn = score_fn,
+    information_fn = stub$information_fn,
+    weights = weights
+  )
+
+  expect_true(res$converged)
+  expect_lt(abs(res$parameters - optimum) / se, set_sgd_options()$sgd_tolerance)
+  expect_true(all(c(visited, res$parameters) - optimum <= se))
+})
+
+test_that("a default M-step started at the optimum stays there", {
+  scale <- 10000
+  offsets <- c(-1.2, 0.3, 0.9, 1.6)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  stub <- scaled_stub(scale, offsets)
+  optimum <- sum(weights * stub$mu)
+
+  withr::local_seed(31L)
+  res <- optimize_abem_sgd(
+    theta = optimum,
+    score_fn = stub$score_fn,
+    information_fn = stub$information_fn,
+    weights = weights
+  )
+
+  expect_true(res$converged)
+  expect_lt(
+    abs(res$parameters - optimum) * sqrt(scale),
+    set_sgd_options()$sgd_tolerance
+  )
+})
+
+test_that("the default stop rule reads the same distance whatever the score's scale", {
+  offsets <- c(-1.2, 0.3, 0.9, 1.6)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  run <- function(scale) {
+    stub <- scaled_stub(scale, offsets)
+    withr::with_seed(37L, {
+      optimize_abem_sgd(
+        theta = sum(weights * stub$mu) + 3 / sqrt(scale),
+        score_fn = stub$score_fn,
+        information_fn = stub$information_fn,
+        weights = weights
+      )
+    })
+  }
+
+  small <- run(1)
+  large <- run(1000)
+  expect_true(small$converged)
+  expect_identical(large$converged, small$converged)
+  expect_equal(large$newton_se, small$newton_se, tolerance = 1e-6)
+})

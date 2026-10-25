@@ -210,7 +210,7 @@ variants stay selectable under every schedule.
 - [x] 3.1d Implement the shrink-only halving in `optimize_abem_sgd()` for
       `"fisher_scoring"` under `"full"`, reading `d_t` against the previous
       iteration's, and return `damped`. Confirm GREEN, and commit.
-- [ ] 3.2a Failing tests for the default: `set_sgd_options()` carries the
+- [x] 3.2a Failing tests for the default: `set_sgd_options()` carries the
       1.3 winner (`fisher_scoring`, `step_size` 1, `variant = "full"`,
       `max_iterations` 20). On the
       stub, the default does not overshoot a large summed
