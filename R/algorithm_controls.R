@@ -422,8 +422,8 @@ set_sgd_options <- function(
 #'   within `tolerance`. Defaults `0.2`, `0.2`, `0.1`.
 #' @param tolerance A single positive numeric value, the EM-stop threshold on
 #'   the Q-scale. Named distinctly from `[set_sgd_options]`'s `sgd_tolerance`
-#'   (the M-step gradient-norm scale) so the two are never set by the same
-#'   argument. Default `1e-3`.
+#'   (the M-step's stop threshold, in standard-error units) so the two are
+#'   never set by the same argument. Default `1e-3`.
 #' @param stop_count A single positive integer, the number of **consecutive**
 #'   stop-rule satisfactions required to terminate (checked once per decision
 #'   pass; any miss resets the streak). Default `1L`.

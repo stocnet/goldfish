@@ -42,8 +42,8 @@ within \code{tolerance}. Defaults \code{0.2}, \code{0.2}, \code{0.1}.}
 
 \item{tolerance}{A single positive numeric value, the EM-stop threshold on
 the Q-scale. Named distinctly from \verb{[set_sgd_options]}'s \code{sgd_tolerance}
-(the M-step gradient-norm scale) so the two are never set by the same
-argument. Default \code{1e-3}.}
+(the M-step's stop threshold, in standard-error units) so the two are
+never set by the same argument. Default \code{1e-3}.}
 
 \item{stop_count}{A single positive integer, the number of \strong{consecutive}
 stop-rule satisfactions required to terminate (checked once per decision

@@ -348,7 +348,7 @@ variants stay selectable under every schedule.
       `at_proposal`'s harvest and compared bit for bit with a fresh
       evaluation. It must turn red when acceptance does not hand over the
       harvest (A5).
-- [ ] 5.2d Documentation (S1): `set_algorithm_em()`'s `@param tolerance`
+- [x] 5.2d Documentation (S1): `set_algorithm_em()`'s `@param tolerance`
       describes `sgd_tolerance` in standard-error units, not "the M-step
       gradient-norm scale"; run `devtools::document()`. Rewrite the two
       `louis_covariances()` comments that bound S S' by "the M-step's

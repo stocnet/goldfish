@@ -146,18 +146,20 @@ dynes_covariances <- function(pool, theta, weights) {
 # the observed information subtracts from the complete one. It is not sampling
 # variability. As the middle of a sandwich between two I_c^-1 it would measure
 # the Monte-Carlo variability within an iteration, and with nothing missing it
-# would collapse to S S', bounded by the M-step's gradient tolerance. The
-# identity needs J_i to be the negative Hessian of the path's log-likelihood,
-# not only its expectation, which holds for a log-linear rate and a
-# canonical-link choice. It is exact for untransformed self-normalized
-# weights; the derivative of a clipped or smoothed weight differs, and the
-# estimate is then an approximation.
+# would collapse to S S', which the M-step's stop rule keeps small: it holds
+# I_c^-1 S within `sgd_tolerance` standard errors. The identity needs J_i to
+# be the negative Hessian of the path's log-likelihood, not only its
+# expectation, which holds for a log-linear rate and a canonical-link
+# choice. It is exact for untransformed self-normalized weights; the
+# derivative of a clipped or smoothed weight differs, and the estimate is
+# then an approximation.
 #
 # The Monte-Carlo middle term is the self-normalized importance-sampling
 # variance of the weighted score; aggregating the scores before the outer
-# product (S S') would give a rank-1 matrix bounded by the M-step's gradient
-# tolerance, not a variance. The bread is the delta method's: the estimate
-# solves sum_i w_i(theta) s_i(theta) = 0, whose derivative in theta is -I_obs
+# product (S S') would give a rank-1 matrix that the M-step's stop rule keeps
+# small (I_c^-1 S within `sgd_tolerance` standard errors), not a variance.
+# The bread is the delta method's: the estimate solves
+# sum_i w_i(theta) s_i(theta) = 0, whose derivative in theta is -I_obs
 # once the weights' dependence on theta is differentiated too. Uniform weights
 # do not depend on theta, and that derivative alone would give I_c, but the
 # bread is I_obs^-1 there as well: the estimate is a fixed point of the

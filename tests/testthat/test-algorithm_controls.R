@@ -226,9 +226,10 @@ test_that("set_sgd_options rejects invalid own arguments", {
 })
 
 test_that("sgd_tolerance is named distinctly from the EM-stop tolerance", {
-  # set_sgd_options() carries the M-step gradient-norm tolerance under
-  # `sgd_tolerance`, never `tolerance` -- design D2/D6: the two scales
-  # (gradient-norm vs Q-scale) must never be set by the same argument name.
+  # set_sgd_options() carries the M-step's stop threshold, in standard-error
+  # units, under `sgd_tolerance`, never `tolerance`: the two scales
+  # (standard-error units vs Q-scale) must never be set by the same argument
+  # name.
   expect_false("tolerance" %in% names(set_sgd_options()))
   expect_true("sgd_tolerance" %in% names(set_sgd_options()))
 })

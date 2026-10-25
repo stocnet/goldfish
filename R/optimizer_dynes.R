@@ -193,9 +193,9 @@ mstep_damps <- function(control) {
 #   unweighted gradients (the E-step resampling device, design D6/D8).
 # * `fixed`: optional positions of theta held immobile through the M-step --
 #   their gradient and step are zeroed and they are excluded from the
-#   convergence statistic. The DyNES path leaves this empty (fixed effects are the
-#   specification's formula offsets, excluded from theta upstream); the mask is
-#   the optimizer's own general capability.
+#   convergence statistic. The DyNES path leaves this empty (fixed effects are
+#   the specification's formula offsets, excluded from theta upstream); the
+#   mask is the optimizer's own general capability.
 #
 # Returns a list: the updated `parameters`, the `iterations` run, a `converged`
 # flag (TRUE only when the Newton step fell under `sgd_tolerance`), the Newton
