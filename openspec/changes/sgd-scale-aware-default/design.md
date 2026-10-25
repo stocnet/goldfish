@@ -444,6 +444,18 @@ tolerance `sqrt(.Machine$double.eps)`. Null-space directions then take no
 Fisher-scoring step and are excluded from `d_t`, and the M-step result says
 so (`rank_deficient = TRUE`, recorded in the trace).
 
+*Amendment (2026-10-25, conformance triage of task 2.5b).* The projection
+onto the range of `P` applies to the step of **every** schedule, not only
+Fisher scoring: on a rank-deficient `P` a first-order step is projected too,
+so no schedule moves the null-space combination. The adaptive schedules'
+per-coordinate accumulators still see the raw gradient; only the step is
+projected. `d_t` skips a coordinate lying wholly in the null space. A `P`
+with no information at all has no statistic (`d_t` is `NA`, so the M-step
+never converges) and leaves the step unprojected. Where the Cholesky
+succeeds there is no projection, so every schedule's step is unchanged
+whenever `P` is positive definite (D5's reproduction claim is read with that
+condition).
+
 `optimize_abem_sgd()` still accepts a `fixed` mask (the DyNES path leaves it
 empty). With a mask, `P`, its factorization, the step and `d_t` use the free
 block `P[free, free]`, never the full inverse with zeroed gradient entries,
@@ -500,6 +512,12 @@ workers, but no extra evaluation.
   the alert adds an `i` bullet saying that the gate reads the
   importance-weighted pool, not the multiset the M-step optimized, so that
   the user does not read resampling noise as an M-step failure.
+- **Fit fields beside the gate** (recorded 2026-10-25, conformance triage of
+  task 4.4b). The status line needs to know the run's weighting `use`, so
+  the fit stores it as `use` (`set_weights_options(use = )`, documented in
+  `estimate_dynes()`'s `@return`), and `summary()` carries `newton_se`,
+  `at_optimum` and `use` beside `converged`, so the summary's print states
+  the gate as `print()` does. No other field is added.
 
 `converged` keeps its meaning (the EM stop rule). The proposal's success
 criterion, "reports converged exactly when the Newton step is under the
@@ -538,7 +556,9 @@ variants remain selectable under every schedule, so no resolution per
 schedule is needed for `variant`. Selecting `step_schedule = "constant"`
 alone therefore reproduces today's step size exactly; adding
 `variant = "minibatch"` restores today's step rule too (the stop rule is the
-SE-unit one, D2). An explicit
+SE-unit one, D2), **as long as `P` is positive definite**. On a
+rank-deficient `P` every schedule's step is projected onto `P`'s range (D3,
+2026-10-25 amendment), which today's rule did not do. An explicit
 `step_size` or `max_iterations` is used verbatim under any schedule. The
 roxygen states the resolution table, that the first-order schedules usually
 reach their cap (raise `max_iterations` for them), that `"fisher_scoring"` is
@@ -664,6 +684,15 @@ neither has a DyNES row, and no walk or likelihood code changes.
   both variants, and the study harness records it on the cells. If the
   grown-pool ratio is unacceptable, the lever is `variant = "minibatch"`
   (already selectable).
+- [The full variant's first pass on a pool already at K (added 2026-10-25,
+  measured in task 4.5)] → From theta_0 on a pool of K, the first M-step ran
+  13 iterations, so its pass cost 12 x K: 6x today's pass at K = 1,000 and
+  10x at K = 5,000 (7.6 s and 29.6 s). The cost table's n = 2-3 does not
+  cover it. A fit with the default `n_sequences` starts on a small pool and
+  grows it over passes, so its first pass is cheap (toy_inter: K = 30); the
+  case arises when the pool is built large at theta_0 (a large
+  `n_sequences`). Recorded, not gated; carried to
+  `dynes-augmenter-driver-v2` with the B-mini revisit.
 - [Every default DyNES fit moves] → Intended (BREAKING numerical, unreleased).
   Task 3.3 attributes every moved seeded expectation to this change alone,
   which is why the code waits for `focal-stream-dedup` 3.2.

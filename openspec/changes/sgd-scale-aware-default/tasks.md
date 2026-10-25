@@ -80,6 +80,11 @@ variants stay selectable under every schedule.
       code (no information closure exists), and commit it alone. It turns
       GREEN in stages: the information-call count at 2.2b, the
       no-evaluation information at 2.2d, the proposal reuse at 2.3d.
+      *Note (2026-10-25, conformance triage):* the `estimate_dynes()` run
+      is `dynes_varying_raw_spec()` with the wave-grid augmenter
+      (`new_wave_grid_augmenter()`, two wave periods), not
+      `abem_two_wave_data()`, which has no modeled panel process and which
+      `estimate_dynes()` therefore refuses.
 - [x] 2.2a Failing test: `optimize_abem_sgd(information_fn = )` on the
       analytic stub with known `P`. The returned `newton_se` equals
       `max |P^-1 g| / sqrt(diag(P^-1))` at the final iterate under
@@ -178,6 +183,10 @@ variants stay selectable under every schedule.
 - [x] 2.5b Pseudo-inverse fallback on a failed Cholesky (eigendecomposition,
       relative tolerance `sqrt(.Machine$double.eps)`), with the null space
       excluded from the step and the statistic. Confirm GREEN, and commit.
+      *Note (2026-10-25, conformance triage):* the step of **every**
+      schedule is projected onto the range of `P`, not only the
+      Fisher-scoring step (design D3 amendment of 2026-10-25; D5's
+      reproduction claim holds for a positive definite `P`).
 - [x] 2.6 Close the group: NOT_CRAN=true full suite (baselines PASS),
       `devtools::document()` if roxygen moved since 2.4b, and commit.
 
@@ -280,7 +289,10 @@ variants stay selectable under every schedule.
       alert adds an `i` bullet saying the gate reads the importance-weighted
       pool. Pin a reproducible cli context. Confirm RED, and commit alone.
 - [x] 4.4b Extend `dynes_fit_status()` with cli semantic elements. Confirm
-      GREEN, and commit.
+      GREEN, and commit. *Note (2026-10-25, conformance triage):* the
+      status line reads the run's weighting, so the fit gained a `use`
+      field and `summary()` gained `newton_se`, `at_optimum` and `use`
+      (design D4, "Fit fields beside the gate").
 - [x] 4.5 Measure, as the design's cost section requires: on 1.1's toy and
       oracle, fit seconds, peak allocated MB, EM iterations, and M-step
       iterations per pass, against the 1.1 values and the prediction
@@ -355,7 +367,7 @@ variants stay selectable under every schedule.
       gradient tolerance", and the comment in `test-algorithm_controls.R`
       (`set_algorithm_em()` vs `set_sgd_options()` scales). Rewrap the 82-column
       comment line in `optimize_abem_sgd()`'s header (S6).
-- [ ] 5.2e Artifacts (S2-S5): record in design D4 the fit's `use` field and
+- [x] 5.2e Artifacts (S2-S5): record in design D4 the fit's `use` field and
       `summary()`'s `newton_se`/`at_optimum`/`use`; in D3/D5 that the
       null-space projection applies to every schedule, so D5's "restores
       today's step rule" holds only for a positive definite information; in
