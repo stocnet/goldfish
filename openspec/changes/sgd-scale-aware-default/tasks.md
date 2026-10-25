@@ -313,7 +313,7 @@ variants stay selectable under every schedule.
 
 ## 5. Milestone
 
-- [ ] 5.1 Write the `NEWS.d/sgd-scale-aware-default--mstep-default.md`
+- [x] 5.1 Write the `NEWS.d/sgd-scale-aware-default--mstep-default.md`
       fragment (`NEWS.d/README.md`): the new default schedule
       `"fisher_scoring"` with its step halving, `variant = "full"`, the
       `step_size` and `max_iterations` resolution (both variants selectable
