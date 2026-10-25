@@ -327,7 +327,49 @@ variants stay selectable under every schedule.
       Commit.
 - [ ] 5.2 Run `conformance-inspector` on the change from a fresh session,
       never the applier. Triage its report, and re-check the scoped findings
-      before the change is trusted.
+      before the change is trusted. *Inspected 2026-10-25 (SA8) at
+      `2b48c7d9`: NOT CONFORMANT, two missing detectors (B1, B2); suite PASS
+      17759 / FAIL 0 / SKIP 5, baselines PASS, 29 of 33 ablations red. Triaged
+      into 5.2a-5.2f below; 5.2 ticks after they land and a fresh agent
+      re-checks them by ablation (A19, A29, A5).*
+- [ ] 5.2a Failing-then-green test (B1): `abem_information()` on the
+      analytic stub under resampling, with repeated multiset indices and one
+      degenerate member, against an information computed by hand (the
+      multiset mean of the members' Fisher, the degenerate one left out),
+      not through `abem_information()`. It must turn red when the multiset
+      weights are replaced by the importance weights (ablation A19).
+- [ ] 5.2b Test (B2): on a pass whose M-step steps at least once, the
+      `em_trace`'s `mstep_start_newton_se` equals the optimizer's
+      `start_newton_se` for that pass and differs from `mstep_newton_se`. It
+      must turn red when the column is fed the final statistic (A29).
+- [ ] 5.2c Test (B3): extend the held-harvest audit (`test-mstep_cost_dynes.R`)
+      with a run in which a pass after an acceptance tops up without an ESS
+      redraw, so the information request after acceptance is served from
+      `at_proposal`'s harvest and compared bit for bit with a fresh
+      evaluation. It must turn red when acceptance does not hand over the
+      harvest (A5).
+- [ ] 5.2d Documentation (S1): `set_algorithm_em()`'s `@param tolerance`
+      describes `sgd_tolerance` in standard-error units, not "the M-step
+      gradient-norm scale"; run `devtools::document()`. Rewrite the two
+      `louis_covariances()` comments that bound S S' by "the M-step's
+      gradient tolerance", and the comment in `test-algorithm_controls.R`
+      (`set_algorithm_em()` vs `set_sgd_options()` scales). Rewrap the 82-column
+      comment line in `optimize_abem_sgd()`'s header (S6).
+- [ ] 5.2e Artifacts (S2-S5): record in design D4 the fit's `use` field and
+      `summary()`'s `newton_se`/`at_optimum`/`use`; in D3/D5 that the
+      null-space projection applies to every schedule, so D5's "restores
+      today's step rule" holds only for a positive definite information; in
+      the cost section's Risks the full variant's first pass on a pool
+      already at K (12 x K, progress.md 4.5), carried to
+      `dynes-augmenter-driver-v2`. Add tick notes: 2.1 ran
+      `dynes_varying_raw_spec()` with the wave-grid augmenter, since
+      `estimate_dynes()` refuses `abem_two_wave_data()`; 2.5b projects every
+      schedule's step; 4.4b added `use`. `openspec validate --strict`.
+- [ ] 5.2f Coordinator (N1, N7): commit `openspec/changes/dynes-augmenter-driver-v2/`
+      so the deferrals carried there travel with the branch, rename
+      `"preconditioned"` to `"fisher_scoring"` in its "Carried in" section,
+      and add the first-pass cost (S5) and the minibatch `start_newton_se`
+      note (the first batch's EMA, not the exact `d_0`) to it.
 - [ ] 5.3 Compare the study's tuned setting (adagrad 0.01, 500 M-step
       iterations, `dynes-augmentation` D25) with the new default on 1.2's
       cells, and record the comparison in `dynes-augmentation/progress.md`
