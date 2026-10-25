@@ -788,11 +788,15 @@ test_that("a singular fit keeps its information but inverts neither type", {
 
 test_that("singular sequences in an invertible pooled information do not warn", {
   skip_on_cran()
+  # The premise holds on the trajectory of a small constant step. The default
+  # Fisher-scoring M-step moves calls-choice far enough that no final-pool
+  # path is left without its information.
   control <- fit_dynes_control(
     n_sequences = 6L,
     max_iterations = 3L,
     seed = 7L,
-    augmenter = set_augmenter_options(routine = "sim")
+    augmenter = set_augmenter_options(routine = "sim"),
+    optimizer = set_sgd_options(step_schedule = "constant")
   )
 
   run <- singular_information_run(early_calls_spec(), control)

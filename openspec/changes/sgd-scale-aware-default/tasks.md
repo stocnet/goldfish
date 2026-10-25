@@ -222,7 +222,7 @@ variants stay selectable under every schedule.
       The roxygen for `variant` states the trade of `"minibatch"` (cheap steps,
       iterate noise that can cost EM retries until the augmentation accounts for
       the unobserved flips). Run `devtools::document()`, and confirm GREEN.
-- [ ] 3.3 Rerun every DyNES suite (`test-estimate_dynes.R`,
+- [x] 3.3 Rerun every DyNES suite (`test-estimate_dynes.R`,
       `test-em_loop_dynes.R`, `test-optimizer_dynes.R`, `test-fit_dynes.R`,
       the augmenter suites, and the cli snapshots under `_snaps/`). Every
       expectation or snapshot that moved must trace to one of four causes:

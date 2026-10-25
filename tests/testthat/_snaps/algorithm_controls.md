@@ -52,7 +52,7 @@
       set_sgd_options(variant = "exact")
     Condition
       Error in `set_sgd_options()`:
-      ! `variant` must be one of "minibatch" or "full", not "exact".
+      ! `variant` must be one of "full" or "minibatch", not "exact".
 
 ---
 
@@ -68,7 +68,7 @@
       set_sgd_options(step_schedule = "exact")
     Condition
       Error in `set_sgd_options()`:
-      ! `step_schedule` must be one of "constant", "fisher_scoring", "decay", "adagrad", "adam", or "momentum", not "exact".
+      ! `step_schedule` must be one of "fisher_scoring", "constant", "decay", "adagrad", "adam", or "momentum", not "exact".
 
 ---
 
