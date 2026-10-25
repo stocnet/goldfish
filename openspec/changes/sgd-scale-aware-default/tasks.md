@@ -183,7 +183,7 @@ variants stay selectable under every schedule.
 
 ## 3. The default step rule (D1, as amended by 1.3)
 
-- [ ] 3.1a Failing tests for the `"fisher_scoring"` schedule:
+- [x] 3.1a Failing tests for the `"fisher_scoring"` schedule:
       `step = step_size * P^-1 g` with the held `P`. On the stub under
       `"full"` with `step_size = 1`, it reaches the optimum in one step on a
       quadratic. Its trajectory in SE units is the same for the score and

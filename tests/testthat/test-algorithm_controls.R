@@ -177,8 +177,28 @@ test_that("set_sgd_options resolves an unset step_size and max_iterations by sch
   }
 })
 
+test_that("set_sgd_options resolves fisher_scoring to step_size 1 and a cap of 20", {
+  opts <- set_sgd_options(step_schedule = "fisher_scoring")
+  expect_equal(opts$step_size, 1)
+  expect_identical(opts$max_iterations, 20L)
+
+  capped <- set_sgd_options(
+    step_schedule = "fisher_scoring",
+    max_iterations = 50L
+  )
+  expect_identical(capped$max_iterations, 50L)
+})
+
 test_that("set_sgd_options keeps an explicit step_size and max_iterations", {
-  for (schedule in c("constant", "decay", "adagrad", "adam", "momentum")) {
+  schedules <- c(
+    "fisher_scoring",
+    "constant",
+    "decay",
+    "adagrad",
+    "adam",
+    "momentum"
+  )
+  for (schedule in schedules) {
     opts <- set_sgd_options(
       step_schedule = schedule,
       step_size = 0.3,

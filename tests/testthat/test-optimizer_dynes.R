@@ -710,3 +710,188 @@ test_that("a start already within tolerance is returned unchanged", {
     }
   }
 })
+
+# The Fisher-scoring schedule steps by step_size * P^-1 g, with P the
+# information held from the M-step's single request at its start.
+test_that("a Fisher-scoring step is step_size times the held P^-1 g", {
+  weights <- c(0.2, 0.3, 0.5)
+  start <- c(0.4, -0.3)
+
+  res <- optimize_abem_sgd(
+    theta = start,
+    score_fn = make_metric_score_fn(metric_targets, metric_a),
+    information_fn = make_metric_information_fn(metric_targets, metric_a),
+    weights = weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_schedule = "fisher_scoring",
+      step_size = 0.5,
+      convergence = "iterations",
+      max_iterations = 1L
+    )
+  )
+
+  expect_equal(
+    res$parameters,
+    start + 0.5 * drop(solve(metric_a, metric_gradient(start, weights)))
+  )
+})
+
+test_that("a full Fisher-scoring step of size 1 reaches a quadratic's optimum at once", {
+  weights <- c(0.2, 0.3, 0.5)
+  optimum <- colSums(weights * metric_targets)
+
+  res <- optimize_abem_sgd(
+    theta = c(0, 0),
+    score_fn = make_metric_score_fn(metric_targets, metric_a),
+    information_fn = make_metric_information_fn(metric_targets, metric_a),
+    weights = weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_schedule = "fisher_scoring",
+      step_size = 1
+    )
+  )
+
+  expect_equal(res$parameters, optimum, tolerance = 1e-10)
+  expect_true(res$converged)
+  # One step, then the test at the optimum.
+  expect_identical(res$iterations, 2L)
+})
+
+test_that("a Fisher-scoring step on a fixed mask solves the free block alone", {
+  weights <- c(0.2, 0.3, 0.5)
+  start <- c(0.5, -0.5)
+
+  res <- optimize_abem_sgd(
+    theta = start,
+    score_fn = make_metric_score_fn(metric_targets, metric_a),
+    information_fn = make_metric_information_fn(metric_targets, metric_a),
+    weights = weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_schedule = "fisher_scoring",
+      step_size = 1,
+      convergence = "iterations",
+      max_iterations = 1L
+    ),
+    fixed = 1L
+  )
+
+  gradient <- metric_gradient(start, weights)
+  expect_identical(res$parameters[1], start[1])
+  # Not the full inverse's second row, which leaks the cross term.
+  expect_equal(res$parameters[2], start[2] + gradient[2] / metric_a[2, 2])
+})
+
+test_that("a Fisher-scoring trajectory in standard errors ignores the score's scale", {
+  offsets <- c(-1.2, 0.3, 0.9, 1.6)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  trajectory <- function(scale) {
+    stub <- scaled_stub(scale, offsets)
+    optimum <- sum(weights * stub$mu)
+    seen <- list()
+    score_fn <- function(theta, indices) {
+      seen[[length(seen) + 1L]] <<- theta
+      stub$score_fn(theta, indices)
+    }
+    res <- optimize_abem_sgd(
+      theta = optimum + 3 / sqrt(scale),
+      score_fn = score_fn,
+      information_fn = stub$information_fn,
+      weights = weights,
+      control = set_sgd_options(
+        variant = "full",
+        step_schedule = "fisher_scoring",
+        step_size = 0.5
+      )
+    )
+    list(
+      res = res,
+      se_units = (c(unlist(seen), res$parameters) - optimum) * sqrt(scale)
+    )
+  }
+
+  small <- trajectory(1)
+  large <- trajectory(1000)
+  expect_gt(length(small$se_units), 2L)
+  expect_equal(large$se_units, small$se_units, tolerance = 1e-8)
+  expect_identical(large$res$iterations, small$res$iterations)
+  expect_identical(large$res$converged, small$res$converged)
+})
+
+test_that("a minibatch Fisher-scoring step reads the bias-corrected EMA", {
+  targets <- matrix(c(1, -2, 3, 0, -1, 4, 2, 1), ncol = 2, byrow = TRUE)
+  weights <- rep(0.25, 4)
+  start <- c(0, 0)
+  step_size <- 0.5
+
+  res <- optimize_abem_sgd(
+    theta = start,
+    score_fn = make_metric_score_fn(targets, metric_a),
+    information_fn = make_metric_information_fn(targets, metric_a),
+    weights = weights,
+    control = set_sgd_options(
+      variant = "minibatch",
+      batch_size = 2L,
+      batch_scheme = "cyclic",
+      step_schedule = "fisher_scoring",
+      step_size = step_size,
+      convergence = "iterations",
+      max_iterations = 2L
+    )
+  )
+
+  # Cyclic batches {1, 2} then {3, 4}; uniform weights make each batch
+  # gradient the batch mean.
+  batch_gradient <- function(theta, rows) {
+    colMeans(sweep(targets[rows, , drop = FALSE], 2, theta, "-") %*% metric_a)
+  }
+  g1 <- batch_gradient(start, 1:2)
+  theta1 <- start + step_size * drop(solve(metric_a, g1))
+  g2 <- batch_gradient(theta1, 3:4)
+  ema <- 0.9 * (0.1 * g1) + 0.1 * g2
+  theta2 <- theta1 + step_size * drop(solve(metric_a, ema / (1 - 0.9^2)))
+  expect_equal(res$parameters, theta2)
+})
+
+test_that("every schedule and variant pair is selectable and ascends the stub", {
+  withr::local_seed(17L)
+  weights <- c(0.2, 0.3, 0.5)
+  optimum <- colSums(weights * metric_targets)
+  start <- c(0, 0)
+  schedules <- c(
+    "fisher_scoring",
+    "constant",
+    "decay",
+    "adagrad",
+    "adam",
+    "momentum"
+  )
+
+  for (schedule in schedules) {
+    for (variant in c("full", "minibatch")) {
+      control <- set_sgd_options(
+        variant = variant,
+        batch_size = 3L,
+        step_schedule = schedule,
+        convergence = "iterations",
+        max_iterations = 50L
+      )
+      expect_identical(control$step_schedule, schedule)
+      expect_identical(control$variant, variant)
+      res <- optimize_abem_sgd(
+        theta = start,
+        score_fn = make_metric_score_fn(metric_targets, metric_a),
+        information_fn = make_metric_information_fn(metric_targets, metric_a),
+        weights = weights,
+        control = control
+      )
+      expect_lt(
+        sqrt(sum((res$parameters - optimum)^2)),
+        sqrt(sum((start - optimum)^2)),
+        label = paste(schedule, variant)
+      )
+    }
+  }
+})
