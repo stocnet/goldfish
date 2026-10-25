@@ -153,7 +153,7 @@ variants stay selectable under every schedule.
       from it, or from the held harvest at `theta_k`, when the returned
       theta is `identical()` to it; otherwise evaluate as today. Confirm
       GREEN for 2.3c and the rest of 2.1, and commit.
-- [ ] 2.4a Failing tests for `set_sgd_options()` (D5): `step_size = NULL`
+- [x] 2.4a Failing tests for `set_sgd_options()` (D5): `step_size = NULL`
       resolves per schedule (`constant`/`decay`/`momentum` 0.001,
       `adagrad`/`adam` 0.01), and `max_iterations = NULL` resolves to 100
       under each of them (`fisher_scoring`'s 20 joins at 3.1). An explicit
@@ -161,7 +161,7 @@ variants stay selectable under every schedule.
       defaults to 0.05. Selecting `"constant"`, `"adagrad"` or `"adam"` works
       with `step_size` and `max_iterations` unset, and each ascends the stub.
       Confirm RED, and commit alone.
-- [ ] 2.4b Implement the resolution in `set_sgd_options()` itself (the
+- [x] 2.4b Implement the resolution in `set_sgd_options()` itself (the
       schedule is known there, and the spec scenario reads the resolved
       `step_size` and `max_iterations` off its control; `batch_size` resolves
       in `set_algorithm_em()` only because `n_sequences` lives there), and
@@ -171,11 +171,11 @@ variants stay selectable under every schedule.
       distinct-scale note against `tolerance`. Run
       `devtools::document()`. Re-check `_snaps/algorithm_controls.md` and
       update only what this pair moved. Confirm GREEN, and commit.
-- [ ] 2.5a Failing test (D3): a stub whose information is singular along one
+- [x] 2.5a Failing test (D3): a stub whose information is singular along one
       direction. The M-step does not move that direction's combination, it
       tests convergence on the rest, and it returns `rank_deficient = TRUE`.
       Confirm RED, and commit alone.
-- [ ] 2.5b Pseudo-inverse fallback on a failed Cholesky (eigendecomposition,
+- [x] 2.5b Pseudo-inverse fallback on a failed Cholesky (eigendecomposition,
       relative tolerance `sqrt(.Machine$double.eps)`), with the null space
       excluded from the step and the statistic. Confirm GREEN, and commit.
 - [ ] 2.6 Close the group: NOT_CRAN=true full suite (baselines PASS),

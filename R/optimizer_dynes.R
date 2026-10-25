@@ -89,22 +89,57 @@ make_sgd_stepper <- function(schedule, step_size, p) {
 }
 
 # The Newton step in standard-error units, max_j |(P^-1 g)_j| / sqrt((P^-1)_jj),
-# as a closure over the Cholesky factor of the information `P`, factored once
-# per M-step. NULL when `P` is not positive definite. An empty free block has
-# no step to take, so its statistic is 0.
+# built once per M-step from the information `P`. Returns a list: `newton_se`,
+# the closure of a gradient, `project`, which maps a step onto the range of `P`
+# (NULL when `P` is positive definite, where no direction is excluded), and
+# `rank_deficient`. A Cholesky factor serves a positive definite `P`; otherwise
+# `P^-1` is the Moore-Penrose pseudo-inverse from an eigendecomposition, with
+# eigenvalues under `sqrt(.Machine$double.eps)` of the largest counted as the
+# null space. The null space takes no step and is left out of the statistic,
+# since a direction without information has no standard error to scale by.
+# `newton_se` is NULL when `P` carries no information at all. An empty free
+# block has no step to take, so its statistic is 0.
 make_newton_se <- function(information) {
   if (ncol(information) == 0L) {
-    return(function(gradient) 0)
+    return(list(
+      newton_se = function(gradient) 0,
+      project = NULL,
+      rank_deficient = FALSE
+    ))
   }
   factor <- tryCatch(chol(information), error = function(e) NULL)
-  if (is.null(factor)) {
-    return(NULL)
+  if (!is.null(factor)) {
+    sd_inverse <- sqrt(diag(chol2inv(factor)))
+    return(list(
+      newton_se = function(gradient) {
+        step <- backsolve(factor, forwardsolve(t(factor), gradient))
+        max(abs(step) / sd_inverse)
+      },
+      project = NULL,
+      rank_deficient = FALSE
+    ))
   }
-  sd_inverse <- sqrt(diag(chol2inv(factor)))
-  function(gradient) {
-    step <- backsolve(factor, forwardsolve(t(factor), gradient))
-    max(abs(step) / sd_inverse)
+
+  eigen_information <- eigen(information, symmetric = TRUE)
+  values <- eigen_information$values
+  in_range <- values > sqrt(.Machine$double.eps) * max(values)
+  if (!any(in_range)) {
+    return(list(newton_se = NULL, project = NULL, rank_deficient = TRUE))
   }
+  range_basis <- eigen_information$vectors[, in_range, drop = FALSE]
+  pseudo_inverse <- range_basis %*%
+    (t(range_basis) / values[in_range])
+  sd_inverse <- sqrt(diag(pseudo_inverse))
+  # A coordinate lying wholly in the null space has no scale to test against.
+  tested <- sd_inverse > sqrt(.Machine$double.eps) * max(sd_inverse)
+  list(
+    newton_se = function(gradient) {
+      step <- drop(pseudo_inverse %*% gradient)
+      max(abs(step[tested]) / sd_inverse[tested])
+    },
+    project = function(step) drop(range_basis %*% crossprod(range_basis, step)),
+    rank_deficient = TRUE
+  )
 }
 
 # Run the SGD M-step from `theta` over the pool weighted by `weights`.
@@ -136,7 +171,8 @@ make_newton_se <- function(information) {
 # step in standard-error units at the starting
 # theta (`start_newton_se`) and at the last iterate a gradient was taken at
 # (`newton_se`), and whether the information was not positive definite
-# (`rank_deficient`, the statistics then NA).
+# (`rank_deficient`: the step and the statistic then leave out its null space,
+# and both statistics are NA only when it carries no information at all).
 optimize_abem_sgd <- function(
   theta,
   score_fn,
@@ -215,10 +251,11 @@ optimize_abem_sgd <- function(
   # The information and the pool's scores at the starting theta: requested
   # once, and held for every iteration of this M-step.
   requested <- information_fn(theta)
-  newton_se_of <- make_newton_se(
+  statistic <- make_newton_se(
     requested$information[free, free, drop = FALSE]
   )
-  rank_deficient <- is.null(newton_se_of)
+  newton_se_of <- statistic$newton_se
+  rank_deficient <- statistic$rank_deficient
   start_newton_se <- NA_real_
   newton_se <- NA_real_
 
@@ -275,7 +312,7 @@ optimize_abem_sgd <- function(
     # The test comes before the step, at the iterate the gradient was taken
     # at: a converged M-step returns a theta its last gradient was evaluated
     # at, and one that passes at its start does not move.
-    if (!rank_deficient) {
+    if (!is.null(newton_se_of)) {
       newton_se <- newton_se_of(test_grad[free])
       if (step_index == 1L) {
         start_newton_se <- newton_se
@@ -288,6 +325,9 @@ optimize_abem_sgd <- function(
 
     step <- stepper(gradient, iteration)
     step[!free] <- 0
+    if (!is.null(statistic$project)) {
+      step[free] <- statistic$project(step[free])
+    }
     theta <- theta + step
   }
 
