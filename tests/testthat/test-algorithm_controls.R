@@ -139,7 +139,7 @@ test_that("set_sgd_options works correctly", {
   expect_equal(default_opts$step_size, 0.001)
   expect_equal(default_opts$step_schedule, "constant")
   expect_equal(default_opts$max_iterations, 100L)
-  expect_equal(default_opts$sgd_tolerance, 1e-3)
+  expect_equal(default_opts$sgd_tolerance, 0.05)
   expect_equal(default_opts$convergence, "gradient")
 
   custom_opts <- set_sgd_options(
@@ -160,6 +160,33 @@ test_that("set_sgd_options works correctly", {
   expect_equal(custom_opts$max_iterations, 200L)
   expect_equal(custom_opts$sgd_tolerance, 1e-4)
   expect_equal(custom_opts$convergence, "iterations")
+})
+
+test_that("set_sgd_options resolves an unset step_size and max_iterations by schedule", {
+  step_sizes <- c(
+    constant = 0.001,
+    decay = 0.001,
+    momentum = 0.001,
+    adagrad = 0.01,
+    adam = 0.01
+  )
+  for (schedule in names(step_sizes)) {
+    opts <- set_sgd_options(step_schedule = schedule)
+    expect_equal(opts$step_size, step_sizes[[schedule]], info = schedule)
+    expect_identical(opts$max_iterations, 100L, info = schedule)
+  }
+})
+
+test_that("set_sgd_options keeps an explicit step_size and max_iterations", {
+  for (schedule in c("constant", "decay", "adagrad", "adam", "momentum")) {
+    opts <- set_sgd_options(
+      step_schedule = schedule,
+      step_size = 0.3,
+      max_iterations = 7L
+    )
+    expect_equal(opts$step_size, 0.3, info = schedule)
+    expect_identical(opts$max_iterations, 7L, info = schedule)
+  }
 })
 
 test_that("set_sgd_options rejects invalid own arguments", {

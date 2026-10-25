@@ -54,6 +54,30 @@ test_that("full-variant SGD ascends the stub to the weighted optimum", {
   expect_lt(res$newton_se, 1e-8)
 })
 
+test_that("constant, adagrad and adam ascend the stub with step_size and max_iterations unset", {
+  targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
+  weights <- c(0.2, 0.3, 0.5)
+  optimum <- colSums(weights * targets)
+  start <- c(0, 0)
+
+  for (schedule in c("constant", "adagrad", "adam")) {
+    # The first-order schedules reach their cap here; the cap warning is the
+    # expected diagnostic, not what this test checks.
+    res <- suppressWarnings(optimize_abem_sgd(
+      theta = start,
+      score_fn = make_quadratic_score_fn(targets),
+      information_fn = make_quadratic_information_fn(targets),
+      weights = weights,
+      control = set_sgd_options(variant = "full", step_schedule = schedule)
+    ))
+    expect_lt(
+      sqrt(sum((res$parameters - optimum)^2)),
+      sqrt(sum((start - optimum)^2)),
+      label = schedule
+    )
+  }
+})
+
 test_that("minibatch weighted SGD converges to the weighted optimum", {
   withr::local_seed(20240918L)
   targets <- matrix(rnorm(60), ncol = 2)
