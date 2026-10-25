@@ -5,20 +5,23 @@
 \title{Control Parameters for the SGD M-step Optimizer}
 \usage{
 set_sgd_options(
-  variant = c("minibatch", "full"),
+  variant = c("full", "minibatch"),
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
   step_size = NULL,
-  step_schedule = c("constant", "fisher_scoring", "decay", "adagrad", "adam", "momentum"),
+  step_schedule = c("fisher_scoring", "constant", "decay", "adagrad", "adam", "momentum"),
   max_iterations = NULL,
   sgd_tolerance = 0.05,
   convergence = c("gradient", "iterations")
 )
 }
 \arguments{
-\item{variant}{A character string: \code{"minibatch"} (default) draws a batch
-per update; \code{"full"} uses the whole pool (or resampled multiset) every
-update.}
+\item{variant}{A character string: \code{"full"} (default, under every
+\code{step_schedule}) evaluates the whole pool (or resampled multiset) every
+update; \code{"minibatch"} draws a batch per update. Both are selectable under
+every schedule. \code{"minibatch"} makes each step cheap, independent of the
+pool size, but leaves noise in the iterate, which can cost EM retries
+until the augmentation accounts for the unobserved flips.}
 
 \item{batch_size}{A single positive integer, or \code{NULL} (default). The
 batch size is a fixed absolute count held constant across EM iterations
@@ -37,7 +40,7 @@ resolved by \code{step_schedule} (see the table under \code{max_iterations}). An
 explicit value is used as given under any schedule.}
 
 \item{step_schedule}{A character string naming the step-size schedule:
-\code{"constant"} (default), \code{"fisher_scoring"}, \code{"decay"} (the Bottou
+\code{"fisher_scoring"} (default), \code{"constant"}, \code{"decay"} (the Bottou
 schedule \eqn{\eta_0 / (1 + \eta_0 t)}), \code{"adagrad"}, \code{"adam"}, or
 \code{"momentum"} (the last three at fixed literature-default
 hyperparameters). \code{"fisher_scoring"} steps by \code{step_size} times
@@ -45,7 +48,10 @@ hyperparameters). \code{"fisher_scoring"} steps by \code{step_size} times
 pool's weighted complete-data information, computed once at the M-step's
 start and held for its iterations. It is a step inside the M-step, not
 the observed-data Newton-Raphson estimator of \verb{[set_algorithm_newton]}.
-Being in standard-error units, its step of size 1 suits any event count.}
+Being in standard-error units, its step of size 1 suits any event count.
+Under \code{variant = "full"} it halves its step for the rest of the M-step
+whenever the Newton step grows from one iteration to the next, so an
+overshooting step cannot diverge.}
 
 \item{max_iterations}{A single positive integer, the M-step's own
 iteration budget (distinct from \verb{[set_algorithm_em]}'s outer

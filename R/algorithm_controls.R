@@ -238,9 +238,12 @@ set_weights_options <- function(
 #' parameter vector. Nested under `[set_algorithm_em]`'s `optimizer`
 #' argument; validated here against its own arguments only.
 #'
-#' @param variant A character string: `"minibatch"` (default) draws a batch
-#'   per update; `"full"` uses the whole pool (or resampled multiset) every
-#'   update.
+#' @param variant A character string: `"full"` (default, under every
+#'   `step_schedule`) evaluates the whole pool (or resampled multiset) every
+#'   update; `"minibatch"` draws a batch per update. Both are selectable under
+#'   every schedule. `"minibatch"` makes each step cheap, independent of the
+#'   pool size, but leaves noise in the iterate, which can cost EM retries
+#'   until the augmentation accounts for the unobserved flips.
 #' @param batch_size A single positive integer, or `NULL` (default). The
 #'   batch size is a fixed absolute count held constant across EM iterations
 #'   even as the pool grows. An unset `NULL` is resolved once by
@@ -255,7 +258,7 @@ set_weights_options <- function(
 #'   resolved by `step_schedule` (see the table under `max_iterations`). An
 #'   explicit value is used as given under any schedule.
 #' @param step_schedule A character string naming the step-size schedule:
-#'   `"constant"` (default), `"fisher_scoring"`, `"decay"` (the Bottou
+#'   `"fisher_scoring"` (default), `"constant"`, `"decay"` (the Bottou
 #'   schedule \eqn{\eta_0 / (1 + \eta_0 t)}), `"adagrad"`, `"adam"`, or
 #'   `"momentum"` (the last three at fixed literature-default
 #'   hyperparameters). `"fisher_scoring"` steps by `step_size` times
@@ -264,6 +267,9 @@ set_weights_options <- function(
 #'   start and held for its iterations. It is a step inside the M-step, not
 #'   the observed-data Newton-Raphson estimator of `[set_algorithm_newton]`.
 #'   Being in standard-error units, its step of size 1 suits any event count.
+#'   Under `variant = "full"` it halves its step for the rest of the M-step
+#'   whenever the Newton step grows from one iteration to the next, so an
+#'   overshooting step cannot diverge.
 #' @param max_iterations A single positive integer, the M-step's own
 #'   iteration budget (distinct from `[set_algorithm_em]`'s outer
 #'   `max_iterations`), or `NULL` (default), resolved by `step_schedule`. An
@@ -297,13 +303,13 @@ set_weights_options <- function(
 #' @examples
 #' sgd_ctrl <- set_sgd_options(step_size = 0.01, step_schedule = "decay")
 set_sgd_options <- function(
-  variant = c("minibatch", "full"),
+  variant = c("full", "minibatch"),
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
   step_size = NULL,
   step_schedule = c(
-    "constant",
     "fisher_scoring",
+    "constant",
     "decay",
     "adagrad",
     "adam",

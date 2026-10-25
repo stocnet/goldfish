@@ -218,7 +218,7 @@ variants stay selectable under every schedule.
       more than 1 SE past the optimum), and a start at the optimum stays
       within `sgd_tolerance` SE of it. Confirm RED (today's constant 0.001
       fails the first), and commit alone.
-- [ ] 3.2b Flip the `step_schedule` and `variant` defaults to the winner.
+- [x] 3.2b Flip the `step_schedule` and `variant` defaults to the winner.
       The roxygen for `variant` states the trade of `"minibatch"` (cheap steps,
       iterate noise that can cost EM retries until the augmentation accounts for
       the unobserved flips). Run `devtools::document()`, and confirm GREEN.
