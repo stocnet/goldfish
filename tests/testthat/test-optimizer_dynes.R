@@ -310,7 +310,7 @@ test_that("every step schedule ascends the analytic stub", {
   }
 })
 
-test_that("hitting the iteration cap with the stop criterion unmet reports it without warning", {
+test_that("a capped M-step reports its unmet criterion without warning", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   score_fn <- make_quadratic_score_fn(targets)
