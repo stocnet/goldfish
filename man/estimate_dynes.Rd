@@ -94,6 +94,9 @@ the M-step's \code{convergence} mode. Under \code{use = "resampling"} (see
 the resampled multiset the M-step optimized. Both are \code{NA} unless
 \code{covariance_status} is \code{"ok"}. \code{converged} reports the EM stop rule alone;
 the two fail for different reasons, so neither is read from the other.
+\code{print()} and \code{summary()} state both, and \code{use} records the run's
+\code{use} so that a resampling fit's status says which objective the gate
+reads.
 
 \code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
 groups them by process, with both errors, and lists every fixed

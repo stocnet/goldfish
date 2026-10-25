@@ -82,6 +82,9 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
     NA_real_
   }
   res$at_optimum <- res$newton_se < dynes_optimum_threshold
+  # The status line names the objective the gate reads when it differs from
+  # the one the M-step optimized.
+  res$use <- control$weights$use
   # Kept on a singular or not-PD fit too, where only the inverses failed and
   # the matrices are what a user inspects; a dropped pool evaluated nothing.
   res$information <- if (!pool_dropped) covariances$information
@@ -486,7 +489,10 @@ summary.goldfishDynesFit <- function(object, ...) {
       n_sequences = length(object$pool$sequences),
       covariance_status = object$covariance_status,
       fraction_missing = object$fraction_missing,
-      covariance_ess = object$covariance_ess
+      covariance_ess = object$covariance_ess,
+      newton_se = object$newton_se,
+      at_optimum = object$at_optimum,
+      use = object$use
     ),
     class = "goldfishSummDynesFit"
   )
@@ -576,8 +582,11 @@ dynes_covariance_diagnostics <- function(x) {
   }
 }
 
-# The run's status line, shared by the fit and its summary: a fit that
-# stopped on max_iterations is flagged before any number is read.
+# The run's status lines, shared by the fit and its summary: a fit that
+# stopped on max_iterations is flagged before any number is read, and so is an
+# estimate away from its final pool's optimum. The two are stated apart since
+# they fail for different reasons (a capped EM at the optimum, a stopped EM
+# off it).
 dynes_fit_status <- function(x) {
   if (isTRUE(x$converged)) {
     cli::cli_alert_success(
@@ -591,6 +600,35 @@ dynes_fit_status <- function(x) {
       "{.arg max_iterations} ended the run after {x$iterations} accepted EM
        iteration{?s}; the estimates are the last accepted ones."
     )
+  }
+  dynes_optimum_status(x)
+}
+
+# Nothing when the gate is NA: without a covariance there is no Newton step,
+# and the covariance diagnostics already say why.
+dynes_optimum_status <- function(x) {
+  if (is.na(x$at_optimum %||% NA)) {
+    return(invisible())
+  }
+  newton_se <- signif(x$newton_se, 3)
+  if (x$at_optimum) {
+    cli::cli_alert_success(
+      "At the final pool's optimum: Newton step {newton_se} standard errors."
+    )
+    return(invisible())
+  }
+  cli::cli_alert_warning("Not at the final pool's optimum.")
+  cli::cli_text(
+    "The Newton step to it is {.val {newton_se}} standard errors, above the
+     {.val {dynes_optimum_threshold}} threshold of {.field at_optimum}."
+  )
+  if (identical(x$use, "resampling")) {
+    # Resampling noise moves the M-step's target away from this one, so the
+    # gap is not by itself an M-step failure.
+    cli::cli_bullets(c(
+      "i" = "The gate reads the importance-weighted pool, not the resampled
+             multiset the M-step optimized."
+    ))
   }
 }
 

@@ -114,6 +114,9 @@
 #'   the resampled multiset the M-step optimized. Both are `NA` unless
 #'   `covariance_status` is `"ok"`. `converged` reports the EM stop rule alone;
 #'   the two fail for different reasons, so neither is read from the other.
+#'   `print()` and `summary()` state both, and `use` records the run's
+#'   `use` so that a resampling fit's status says which objective the gate
+#'   reads.
 #'
 #'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
 #'   groups them by process, with both errors, and lists every fixed

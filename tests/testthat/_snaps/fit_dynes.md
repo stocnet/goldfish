@@ -24,6 +24,7 @@
     Message
       -- <goldfishSummDynesFit> ------------------------------------------------------
       v Converged after 1 accepted EM iteration.
+      v At the final pool's optimum: Newton step 0.0123 standard errors.
       
       friendship › rate
     Output
@@ -248,6 +249,7 @@
       ! Not converged.
       `max_iterations` ended the run after 2 accepted EM iterations; the estimates
       are the last accepted ones.
+      v At the final pool's optimum: Newton step 0.0123 standard errors.
       
       friendship › rate
     Output
@@ -278,6 +280,7 @@
       ! Not converged.
       `max_iterations` ended the run after 2 accepted EM iterations; the estimates
       are the last accepted ones.
+      v At the final pool's optimum: Newton step 0.0123 standard errors.
       
       friendship › rate
     Output
@@ -309,4 +312,182 @@
       augmented sequences.
       Largest fraction of missing information: 0.25.
       Covariance effective sample size: 3.5.
+
+# print and summary state the optimum gate beside converged
+
+    Code
+      print(at)
+    Message
+      -- <goldfishDynesFit> ----------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      v At the final pool's optimum: Newton step 0.0123 standard errors.
+      
+      friendship › rate
+    Output
+            1  
+      -1.7918  
+    Message
+      
+      friendship › choice
+    Output
+         inertia/friendship  recip/friendship [Fx]  
+                        0.6                   -0.5  
+    Message
+      
+      calls › rate
+    Output
+             Intercept  indeg/friendship  
+                 -1.25              0.30  
+    Message
+      
+      calls › choice
+    Output
+       1  
+      NA  
+    Code
+      summary(at)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      v At the final pool's optimum: Newton step 0.0123 standard errors.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      Largest fraction of missing information: 0.25.
+      Covariance effective sample size: 3.5.
+
+---
+
+    Code
+      print(off)
+    Message
+      -- <goldfishDynesFit> ----------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      ! Not at the final pool's optimum.
+      The Newton step to it is 0.457 standard errors, above the 0.1 threshold of
+      at_optimum.
+      
+      friendship › rate
+    Output
+            1  
+      -1.7918  
+    Message
+      
+      friendship › choice
+    Output
+         inertia/friendship  recip/friendship [Fx]  
+                        0.6                   -0.5  
+    Message
+      
+      calls › rate
+    Output
+             Intercept  indeg/friendship  
+                 -1.25              0.30  
+    Message
+      
+      calls › choice
+    Output
+       1  
+      NA  
+    Code
+      summary(off)
+    Message
+      -- <goldfishSummDynesFit> ------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      ! Not at the final pool's optimum.
+      The Newton step to it is 0.457 standard errors, above the 0.1 threshold of
+      at_optimum.
+      
+      friendship › rate
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1  -1.7918                                     
+    Message
+      
+      friendship › choice
+    Output
+                            Estimate Std. Error MC Error z-value Pr(>|z|)
+      inertia/friendship        0.60       0.20     0.02       3   0.0027
+      recip/friendship [Fx]    -0.50                                     
+    Message
+      
+      calls › rate
+    Output
+                       Estimate Std. Error MC Error z-value  Pr(>|z|)
+      Intercept           -1.25       0.30     0.03 -4.1667 3.091e-05
+      indeg/friendship     0.30       0.10     0.01  3.0000    0.0027
+    Message
+      
+      calls › choice
+    Output
+        Estimate Std. Error MC Error z-value Pr(>|z|)
+      1                                              
+    Message
+      
+      MC Error is the Monte-Carlo error of the estimate from the final pool of 4
+      augmented sequences.
+      Largest fraction of missing information: 0.25.
+      Covariance effective sample size: 3.5.
+
+# a resampling fit's alert names the objective it gates
+
+    Code
+      print(off)
+    Message
+      -- <goldfishDynesFit> ----------------------------------------------------------
+      v Converged after 1 accepted EM iteration.
+      ! Not at the final pool's optimum.
+      The Newton step to it is 0.457 standard errors, above the 0.1 threshold of
+      at_optimum.
+      i The gate reads the importance-weighted pool, not the resampled multiset the
+        M-step optimized.
+      
+      friendship › rate
+    Output
+            1  
+      -1.7918  
+    Message
+      
+      friendship › choice
+    Output
+         inertia/friendship  recip/friendship [Fx]  
+                        0.6                   -0.5  
+    Message
+      
+      calls › rate
+    Output
+             Intercept  indeg/friendship  
+                 -1.25              0.30  
+    Message
+      
+      calls › choice
+    Output
+       1  
+      NA  
 

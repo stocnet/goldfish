@@ -581,6 +581,9 @@ summary_with_status <- function(status, fraction, ess) {
   fit$covariance_status <- status
   fit$fraction_missing <- fraction
   fit$covariance_ess <- ess
+  # The gate exists only beside a covariance, as the fit sets it.
+  fit$newton_se <- if (status == "ok") 0.0123 else NA_real_
+  fit$at_optimum <- fit$newton_se < 0.1
   summary(fit)
 }
 

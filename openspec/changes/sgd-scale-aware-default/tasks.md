@@ -273,13 +273,13 @@ variants stay selectable under every schedule.
       `test-fit_dynes.R` pass through the real function, so the extra field is
       safe. `at_optimum` compares with the fixed 0.1 constant in either
       `convergence` mode. Add both to `glance()`. Confirm GREEN, and commit.
-- [ ] 4.4a Failing snapshot tests: `print()`/`summary()` state the optimum
+- [x] 4.4a Failing snapshot tests: `print()`/`summary()` state the optimum
       gate beside `converged`. That is a success line when `at_optimum` is
       TRUE, a warning alert naming `newton_se` and the 0.1 threshold when it is
       FALSE, and nothing when it is `NA`. Under `use = "resampling"` the
       alert adds an `i` bullet saying the gate reads the importance-weighted
       pool. Pin a reproducible cli context. Confirm RED, and commit alone.
-- [ ] 4.4b Extend `dynes_fit_status()` with cli semantic elements. Confirm
+- [x] 4.4b Extend `dynes_fit_status()` with cli semantic elements. Confirm
       GREEN, and commit.
 - [ ] 4.5 Measure, as the design's cost section requires: on 1.1's toy and
       oracle, fit seconds, peak allocated MB, EM iterations, and M-step
