@@ -240,6 +240,46 @@ test_that("an M-step that passes at its start reports one statistic twice", {
   expect_identical(trace$mstep_damped, rep(0L, nrow(trace)))
 })
 
+test_that("a stepping M-step's trace keeps its start and final statistics", {
+  local_analytic_evaluator()
+  counter <- local_mstep_counter()
+  # From theta0 = 0 the sequences at 1, 2 and 4 pull the first M-step away,
+  # so it steps before its statistic falls below the tolerance.
+  res <- run_abem_loop(
+    theta0 = 0,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1, 2, 4)),
+    control = analytic_em_control(
+      max_iterations = 2L,
+      optimizer = set_sgd_options(
+        variant = "full",
+        step_schedule = "constant",
+        step_size = 0.5,
+        sgd_tolerance = 1e-3,
+        max_iterations = 100L
+      )
+    )
+  ) |>
+    suppressWarnings()
+  trace <- res$em_trace
+
+  expect_identical(length(counter$passes), nrow(trace))
+  results <- lapply(counter$passes, `[[`, "result")
+  expect_identical(
+    trace$mstep_start_newton_se,
+    vapply(results, function(r) as.numeric(r$start_newton_se), numeric(1))
+  )
+  expect_identical(
+    trace$mstep_newton_se,
+    vapply(results, function(r) as.numeric(r$newton_se), numeric(1))
+  )
+  stepped <- trace$mstep_iterations > 1L
+  expect_true(stepped[[1L]])
+  expect_true(all(
+    trace$mstep_start_newton_se[stepped] != trace$mstep_newton_se[stepped]
+  ))
+})
+
 # The classes of every warning `expr` raises, muffled, beside its value.
 collect_warning_classes <- function(expr) {
   classes <- character()

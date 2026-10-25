@@ -338,7 +338,7 @@ variants stay selectable under every schedule.
       multiset mean of the members' Fisher, the degenerate one left out),
       not through `abem_information()`. It must turn red when the multiset
       weights are replaced by the importance weights (ablation A19).
-- [ ] 5.2b Test (B2): on a pass whose M-step steps at least once, the
+- [x] 5.2b Test (B2): on a pass whose M-step steps at least once, the
       `em_trace`'s `mstep_start_newton_se` equals the optimizer's
       `start_newton_se` for that pass and differs from `mstep_newton_se`. It
       must turn red when the column is fed the final statistic (A29).
