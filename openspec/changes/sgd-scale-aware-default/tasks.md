@@ -365,11 +365,13 @@ variants stay selectable under every schedule.
       `dynes_varying_raw_spec()` with the wave-grid augmenter, since
       `estimate_dynes()` refuses `abem_two_wave_data()`; 2.5b projects every
       schedule's step; 4.4b added `use`. `openspec validate --strict`.
-- [ ] 5.2f Coordinator (N1, N7): commit `openspec/changes/dynes-augmenter-driver-v2/`
-      so the deferrals carried there travel with the branch, rename
-      `"preconditioned"` to `"fisher_scoring"` in its "Carried in" section,
-      and add the first-pass cost (S5) and the minibatch `start_newton_se`
-      note (the first batch's EMA, not the exact `d_0`) to it.
+- [ ] 5.2f Coordinator (N1, N7): in `openspec/changes/dynes-augmenter-driver-v2/proposal.md`,
+      rename `"preconditioned"` to `"fisher_scoring"` in its "Carried in"
+      section, and add the first-pass cost (S5) and the minibatch
+      `start_newton_se` note (the first batch's EMA, not the exact `d_0`).
+      The directory stays uncommitted (user decision, 2026-10-23, confirmed
+      2026-10-25): the deferrals carried there are local to this working copy
+      until that change is committed.
 - [x] 5.3 Compare the study's tuned setting (adagrad 0.01, 500 M-step
       iterations, `dynes-augmentation` D25) with the new default on 1.2's
       cells, and record the comparison in `dynes-augmentation/progress.md`
