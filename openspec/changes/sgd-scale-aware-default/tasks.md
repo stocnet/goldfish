@@ -295,7 +295,7 @@ variants stay selectable under every schedule.
       harvest); it is recorded, not gated. Confirm `walk_cost.csv`
       and `estimation_cost.csv` are unmoved. Record the results in
       `progress.md`.
-- [ ] 4.6 Check the success criterion on the default `estimate_dynes()`. On
+- [x] 4.6 Check the success criterion on the default `estimate_dynes()`. On
       the toy, the oracle and the B3/B4 cells (1.2's harness, now without the
       wrapper), check that no run aborts (`goldfish_abem_retry_exhausted`:
       criterion 1 at the shipped 0.05, which the bake-off measured at 0.1
