@@ -255,9 +255,15 @@ set_weights_options <- function(
 #'   resolved by `step_schedule` (see the table under `max_iterations`). An
 #'   explicit value is used as given under any schedule.
 #' @param step_schedule A character string naming the step-size schedule:
-#'   `"constant"` (default), `"decay"` (the Bottou schedule
-#'   \eqn{\eta_0 / (1 + \eta_0 t)}), `"adagrad"`, `"adam"`, or `"momentum"`
-#'   (the last three at fixed literature-default hyperparameters).
+#'   `"constant"` (default), `"fisher_scoring"`, `"decay"` (the Bottou
+#'   schedule \eqn{\eta_0 / (1 + \eta_0 t)}), `"adagrad"`, `"adam"`, or
+#'   `"momentum"` (the last three at fixed literature-default
+#'   hyperparameters). `"fisher_scoring"` steps by `step_size` times
+#'   \eqn{P^{-1} g}, where \eqn{g} is the tested gradient and \eqn{P} the
+#'   pool's weighted complete-data information, computed once at the M-step's
+#'   start and held for its iterations. It is a step inside the M-step, not
+#'   the observed-data Newton-Raphson estimator of `[set_algorithm_newton]`.
+#'   Being in standard-error units, its step of size 1 suits any event count.
 #' @param max_iterations A single positive integer, the M-step's own
 #'   iteration budget (distinct from `[set_algorithm_em]`'s outer
 #'   `max_iterations`), or `NULL` (default), resolved by `step_schedule`. An
@@ -265,6 +271,7 @@ set_weights_options <- function(
 #'
 #'   | `step_schedule`          | `step_size` | `max_iterations` |
 #'   |:-------------------------|------------:|-----------------:|
+#'   | `"fisher_scoring"`       |           1 |               20 |
 #'   | `"adagrad"`, `"adam"`    |        0.01 |              100 |
 #'   | `"constant"`, `"decay"`, `"momentum"` | 0.001 | 100 |
 #'
@@ -294,7 +301,14 @@ set_sgd_options <- function(
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
   step_size = NULL,
-  step_schedule = c("constant", "decay", "adagrad", "adam", "momentum"),
+  step_schedule = c(
+    "constant",
+    "fisher_scoring",
+    "decay",
+    "adagrad",
+    "adam",
+    "momentum"
+  ),
   max_iterations = NULL,
   sgd_tolerance = 0.05,
   convergence = c("gradient", "iterations")
@@ -318,6 +332,7 @@ set_sgd_options <- function(
   if (is.null(step_size)) {
     step_size <- switch(
       step_schedule,
+      fisher_scoring = 1,
       adagrad = ,
       adam = 0.01,
       0.001
@@ -331,7 +346,11 @@ set_sgd_options <- function(
     )
   }
   if (is.null(max_iterations)) {
-    max_iterations <- 100L
+    max_iterations <- if (identical(step_schedule, "fisher_scoring")) {
+      20L
+    } else {
+      100L
+    }
   } else if (
     !rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
       max_iterations < 1

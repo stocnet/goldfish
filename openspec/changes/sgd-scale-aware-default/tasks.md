@@ -191,7 +191,7 @@ variants stay selectable under every schedule.
       bias-corrected EMA gradient and ascends the stub. Every schedule x
       variant pair is selectable and ascends the stub. Confirm RED, and
       commit alone.
-- [ ] 3.1b Add `"fisher_scoring"` to `make_sgd_stepper()` and to
+- [x] 3.1b Add `"fisher_scoring"` to `make_sgd_stepper()` and to
       `set_sgd_options()`'s `step_schedule` choices, with `step_size` 1 and
       `max_iterations` 20 in the resolution table. Update the roxygen (a
       Fisher-scoring step with the information held at the M-step's start,

@@ -46,10 +46,16 @@ cyclic_batch_positions <- function(start, size, m) {
 # Adaptive accumulators live in this closure's environment and are therefore
 # fresh for every M-step (each optimize_abem_sgd() call builds a new stepper).
 # The three adaptive schedules use fixed literature-default hyperparameters,
-# not exposed on set_sgd_options() (design D6).
-make_sgd_stepper <- function(schedule, step_size, p) {
+# not exposed on set_sgd_options() (design D6). `newton_direction` maps a
+# gradient to P^-1 g with the information P held at the M-step's start:
+# Fisher scoring on the pool objective, whose Hessian is -P while the weights
+# stay fixed, so a step of size 1 lands on a quadratic's optimum.
+make_sgd_stepper <- function(schedule, step_size, p, newton_direction = NULL) {
   switch(
     schedule,
+    fisher_scoring = function(gradient, iteration) {
+      step_size * newton_direction(gradient)
+    },
     constant = function(gradient, iteration) step_size * gradient,
     # Bottou decay eta_0 / (1 + eta_0 * t), with eta_0 = step_size.
     decay = function(gradient, iteration) {
@@ -90,7 +96,9 @@ make_sgd_stepper <- function(schedule, step_size, p) {
 
 # The Newton step in standard-error units, max_j |(P^-1 g)_j| / sqrt((P^-1)_jj),
 # built once per M-step from the information `P`. Returns a list: `newton_se`,
-# the closure of a gradient, `project`, which maps a step onto the range of `P`
+# the closure of a gradient, `solve`, the closure returning P^-1 g itself (the
+# pseudo-inverse's, so null-space free, when `P` is singular), `project`,
+# which maps a step onto the range of `P`
 # (NULL when `P` is positive definite, where no direction is excluded), and
 # `rank_deficient`. A Cholesky factor serves a positive definite `P`; otherwise
 # `P^-1` is the Moore-Penrose pseudo-inverse from an eigendecomposition, with
@@ -103,6 +111,7 @@ make_newton_se <- function(information) {
   if (ncol(information) == 0L) {
     return(list(
       newton_se = function(gradient) 0,
+      solve = function(gradient) numeric(0),
       project = NULL,
       rank_deficient = FALSE
     ))
@@ -110,11 +119,14 @@ make_newton_se <- function(information) {
   factor <- tryCatch(chol(information), error = function(e) NULL)
   if (!is.null(factor)) {
     sd_inverse <- sqrt(diag(chol2inv(factor)))
+    solve_factor <- function(gradient) {
+      drop(backsolve(factor, forwardsolve(t(factor), gradient)))
+    }
     return(list(
       newton_se = function(gradient) {
-        step <- backsolve(factor, forwardsolve(t(factor), gradient))
-        max(abs(step) / sd_inverse)
+        max(abs(solve_factor(gradient)) / sd_inverse)
       },
+      solve = solve_factor,
       project = NULL,
       rank_deficient = FALSE
     ))
@@ -124,7 +136,12 @@ make_newton_se <- function(information) {
   values <- eigen_information$values
   in_range <- values > sqrt(.Machine$double.eps) * max(values)
   if (!any(in_range)) {
-    return(list(newton_se = NULL, project = NULL, rank_deficient = TRUE))
+    return(list(
+      newton_se = NULL,
+      solve = function(gradient) numeric(length(gradient)),
+      project = NULL,
+      rank_deficient = TRUE
+    ))
   }
   range_basis <- eigen_information$vectors[, in_range, drop = FALSE]
   pseudo_inverse <- range_basis %*%
@@ -132,11 +149,13 @@ make_newton_se <- function(information) {
   sd_inverse <- sqrt(diag(pseudo_inverse))
   # A coordinate lying wholly in the null space has no scale to test against.
   tested <- sd_inverse > sqrt(.Machine$double.eps) * max(sd_inverse)
+  solve_pseudo <- function(gradient) drop(pseudo_inverse %*% gradient)
   list(
     newton_se = function(gradient) {
-      step <- drop(pseudo_inverse %*% gradient)
+      step <- solve_pseudo(gradient)
       max(abs(step[tested]) / sd_inverse[tested])
     },
+    solve = solve_pseudo,
     project = function(step) drop(range_basis %*% crossprod(range_basis, step)),
     rank_deficient = TRUE
   )
@@ -238,8 +257,7 @@ optimize_abem_sgd <- function(
   # resampled multiset, so it collapses to the unweighted mean there.
   weighted_cyclic <- identical(control$batch_scheme, "cyclic") && !resampling
   gradient_mode <- identical(control$convergence, "gradient")
-
-  stepper <- make_sgd_stepper(control$step_schedule, control$step_size, p)
+  fisher_scoring <- identical(control$step_schedule, "fisher_scoring")
 
   # Bias-corrected EMA of batch gradients: the minibatch convergence statistic
   # (a single batch gradient is too noisy to test, design D6). The full variant
@@ -256,6 +274,19 @@ optimize_abem_sgd <- function(
   )
   newton_se_of <- statistic$newton_se
   rank_deficient <- statistic$rank_deficient
+  # On the free block alone, so the fixed coordinates' cross terms in P never
+  # leak into the free steps.
+  newton_direction <- function(gradient) {
+    direction <- numeric(p)
+    direction[free] <- statistic$solve(gradient[free])
+    direction
+  }
+  stepper <- make_sgd_stepper(
+    control$step_schedule,
+    control$step_size,
+    p,
+    newton_direction
+  )
   start_newton_se <- NA_real_
   newton_se <- NA_real_
 
@@ -323,7 +354,10 @@ optimize_abem_sgd <- function(
       }
     }
 
-    step <- stepper(gradient, iteration)
+    # Fisher scoring steps along the tested gradient, which under minibatch is
+    # the bias-corrected EMA: a raw batch gradient scaled by P^-1 would carry
+    # the batch noise at full size into theta.
+    step <- stepper(if (fisher_scoring) test_grad else gradient, iteration)
     step[!free] <- 0
     if (!is.null(statistic$project)) {
       step[free] <- statistic$project(step[free])

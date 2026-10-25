@@ -9,7 +9,7 @@ set_sgd_options(
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
   step_size = NULL,
-  step_schedule = c("constant", "decay", "adagrad", "adam", "momentum"),
+  step_schedule = c("constant", "fisher_scoring", "decay", "adagrad", "adam", "momentum"),
   max_iterations = NULL,
   sgd_tolerance = 0.05,
   convergence = c("gradient", "iterations")
@@ -37,15 +37,22 @@ resolved by \code{step_schedule} (see the table under \code{max_iterations}). An
 explicit value is used as given under any schedule.}
 
 \item{step_schedule}{A character string naming the step-size schedule:
-\code{"constant"} (default), \code{"decay"} (the Bottou schedule
-\eqn{\eta_0 / (1 + \eta_0 t)}), \code{"adagrad"}, \code{"adam"}, or \code{"momentum"}
-(the last three at fixed literature-default hyperparameters).}
+\code{"constant"} (default), \code{"fisher_scoring"}, \code{"decay"} (the Bottou
+schedule \eqn{\eta_0 / (1 + \eta_0 t)}), \code{"adagrad"}, \code{"adam"}, or
+\code{"momentum"} (the last three at fixed literature-default
+hyperparameters). \code{"fisher_scoring"} steps by \code{step_size} times
+\eqn{P^{-1} g}, where \eqn{g} is the tested gradient and \eqn{P} the
+pool's weighted complete-data information, computed once at the M-step's
+start and held for its iterations. It is a step inside the M-step, not
+the observed-data Newton-Raphson estimator of \verb{[set_algorithm_newton]}.
+Being in standard-error units, its step of size 1 suits any event count.}
 
 \item{max_iterations}{A single positive integer, the M-step's own
 iteration budget (distinct from \verb{[set_algorithm_em]}'s outer
 \code{max_iterations}), or \code{NULL} (default), resolved by \code{step_schedule}. An
 explicit value is used as given under any schedule.\tabular{lrr}{
    \code{step_schedule} \tab \code{step_size} \tab \code{max_iterations} \cr
+   \code{"fisher_scoring"} \tab 1 \tab 20 \cr
    \code{"adagrad"}, \code{"adam"} \tab 0.01 \tab 100 \cr
    \code{"constant"}, \code{"decay"}, \code{"momentum"} \tab 0.001 \tab 100 \cr
 }

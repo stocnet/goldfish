@@ -68,7 +68,7 @@
       set_sgd_options(step_schedule = "exact")
     Condition
       Error in `set_sgd_options()`:
-      ! `step_schedule` must be one of "constant", "decay", "adagrad", "adam", or "momentum", not "exact".
+      ! `step_schedule` must be one of "constant", "fisher_scoring", "decay", "adagrad", "adam", or "momentum", not "exact".
 
 ---
 
