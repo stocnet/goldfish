@@ -332,7 +332,7 @@ variants stay selectable under every schedule.
       17759 / FAIL 0 / SKIP 5, baselines PASS, 29 of 33 ablations red. Triaged
       into 5.2a-5.2f below; 5.2 ticks after they land and a fresh agent
       re-checks them by ablation (A19, A29, A5).*
-- [ ] 5.2a Failing-then-green test (B1): `abem_information()` on the
+- [x] 5.2a Failing-then-green test (B1): `abem_information()` on the
       analytic stub under resampling, with repeated multiset indices and one
       degenerate member, against an information computed by hand (the
       multiset mean of the members' Fisher, the degenerate one left out),

@@ -363,6 +363,43 @@ test_that("the information request is served from the held harvest", {
   }
 })
 
+# The audit above compares the answer with abem_information() itself, so it
+# cannot see how that function weights its members. Here the expectation is
+# computed by hand: under resampling each draw of the multiset carries 1/m,
+# so a member drawn twice counts twice whatever its importance weight, and a
+# degenerate member drawn into the multiset is left out without renormalizing.
+test_that("the information under resampling is the multiset mean", {
+  local_analytic_evaluator()
+  mu <- list(c(1, 0), c(2, 1), c(4, -1), c(0, 3))
+  pool <- list(sequences = lapply(mu, function(m) list(data = m)))
+  theta <- c(0.5, 0.5)
+  harvest <- evaluate_sequence_pool(pool, theta)
+  # The analytic Fisher is the identity for every member; distinct ones make
+  # the repeat counts visible in the sum.
+  harvest$fisher <- lapply(seq_along(mu), function(i) i * diag(2))
+  # The degenerate member's statistics are not finite, as the evaluator
+  # returns them; leaving it out keeps them out of the sum.
+  harvest$degenerate[[3L]] <- TRUE
+  harvest$score[3L, ] <- NA_real_
+  harvest$fisher[[3L]] <- matrix(NA_real_, 2L, 2L)
+  weights <- c(0.1, 0.2, 0.3, 0.4)
+  resample_indices <- c(2L, 2L, 3L, 4L, 1L)
+
+  # Draws 2, 2, 4, 1 carry 1/5 each (Fisher 2, 2, 4, 1); the draw of the
+  # degenerate member 3 adds nothing.
+  expected_information <- (2 + 2 + 4 + 1) / 5 * diag(2)
+  expected_scores <- rbind(
+    mu[[1L]] - theta,
+    mu[[2L]] - theta,
+    c(0, 0),
+    mu[[4L]] - theta
+  )
+
+  answer <- abem_information(harvest, weights, resample_indices)
+  expect_equal(answer$information, expected_information, tolerance = 1e-12)
+  expect_equal(answer$scores, expected_scores, tolerance = 1e-12)
+})
+
 # The evaluation at the proposal. A full-variant M-step that converges returns
 # the theta of its last whole-pool evaluation, or theta_k when it passes at
 # its start, and the pass takes its evaluation at the proposal from that
