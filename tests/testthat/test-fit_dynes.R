@@ -1138,10 +1138,93 @@ test_that("print and summary group per process and show both errors", {
   fit$mc_covariance[] <- diag(c(0.0004, 0.0009, 0.0001))
   fit$fraction_missing <- 0.25
   fit$covariance_ess <- 3.5
+  fit$newton_se <- 0.0123
+  fit$at_optimum <- TRUE
 
   expect_s3_class(summary(fit), "goldfishSummDynesFit")
   expect_snapshot({
     print(fit)
     summary(fit)
   })
+})
+
+# A real fit with its numbers and its optimum gate pinned by hand, as the print
+# test pins its numbers: the snapshots record the wording.
+fit_with_gate <- function(newton_se, use = "importance") {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(new_keyed_stub_augmenter())
+  fit <- fit_dynes_toy()
+  fit$parameters[] <- c(0.6, -1.25, 0.3)
+  fit$covariance[] <- diag(c(0.04, 0.09, 0.01))
+  fit$mc_covariance[] <- diag(c(0.0004, 0.0009, 0.0001))
+  fit$fraction_missing <- 0.25
+  fit$covariance_ess <- 3.5
+  fit$newton_se <- newton_se
+  fit$at_optimum <- newton_se < 0.1
+  fit$use <- use
+  fit
+}
+
+# The status block print() and summary() open with, as plain lines.
+status_lines <- function(x) {
+  messages <- character()
+  testthat::capture_output(messages <- testthat::capture_messages(print(x)))
+  paste(messages, collapse = "")
+}
+
+test_that("print and summary state the optimum gate beside converged", {
+  local_abem_cli_context()
+
+  at <- fit_with_gate(0.0123)
+  for (shown in list(at, summary(at))) {
+    status <- status_lines(shown)
+    expect_match(status, "Converged")
+    expect_match(status, "optimum")
+    expect_no_match(status, "Not at")
+  }
+  expect_snapshot({
+    print(at)
+    summary(at)
+  })
+
+  off <- fit_with_gate(0.4567)
+  for (shown in list(off, summary(off))) {
+    status <- status_lines(shown)
+    # converged still reports the EM stop rule.
+    expect_match(status, "Converged")
+    expect_match(status, "Not at the final pool's optimum")
+    expect_match(status, "0.457")
+    expect_match(status, "0.1")
+    expect_no_match(status, "importance-weighted")
+  }
+  expect_snapshot({
+    print(off)
+    summary(off)
+  })
+})
+
+test_that("a fit without a gate states nothing about it", {
+  local_abem_cli_context()
+
+  none <- fit_with_gate(NA_real_)
+
+  expect_identical(none$at_optimum, NA)
+  for (shown in list(none, summary(none))) {
+    expect_no_match(status_lines(shown), "optimum")
+  }
+})
+
+test_that("a resampling fit's alert names the objective it gates", {
+  local_abem_cli_context()
+
+  off <- fit_with_gate(0.4567, use = "resampling")
+  for (shown in list(off, summary(off))) {
+    expect_match(status_lines(shown), "importance-weighted pool")
+  }
+  expect_snapshot(print(off))
+
+  # The bullet explains an alert; an estimate at the optimum raises none.
+  at <- fit_with_gate(0.0123, use = "resampling")
+  expect_no_match(status_lines(at), "importance-weighted")
 })
