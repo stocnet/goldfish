@@ -337,13 +337,18 @@ variants stay selectable under every schedule.
       the loop already holds (no numeric effect). Do not touch the DESCRIPTION Version or `NEWS.md`.
       Flip `proposal.md` to `status: landed (feature/dynes, awaiting fold)`.
       Commit.
-- [ ] 5.2 Run `conformance-inspector` on the change from a fresh session,
+- [x] 5.2 Run `conformance-inspector` on the change from a fresh session,
       never the applier. Triage its report, and re-check the scoped findings
       before the change is trusted. *Inspected 2026-10-25 (SA8) at
       `2b48c7d9`: NOT CONFORMANT, two missing detectors (B1, B2); suite PASS
       17759 / FAIL 0 / SKIP 5, baselines PASS, 29 of 33 ablations red. Triaged
       into 5.2a-5.2f below; 5.2 ticks after they land and a fresh agent
-      re-checks them by ablation (A19, A29, A5).*
+      re-checks them by ablation (A19, A29, A5).* *Re-checked 2026-10-25
+      (SA10) at `9c0ad267`, scope 5.2a-5.2e: CONFORMANT. A19, A29 and A5
+      each turn their new test red (also A20, A21 on 5.2a's); S1-S6 fixed
+      and agree with the code; suite PASS 17780 / FAIL 0 / SKIP 5,
+      baselines PASS, `_baselines/` byte-identical. 5.2f (coordinator)
+      stays open.*
 - [x] 5.2a Failing-then-green test (B1): `abem_information()` on the
       analytic stub under resampling, with repeated multiset indices and one
       degenerate member, against an information computed by hand (the
@@ -377,13 +382,17 @@ variants stay selectable under every schedule.
       `dynes_varying_raw_spec()` with the wave-grid augmenter, since
       `estimate_dynes()` refuses `abem_two_wave_data()`; 2.5b projects every
       schedule's step; 4.4b added `use`. `openspec validate --strict`.
-- [ ] 5.2f Coordinator (N1, N7): in `openspec/changes/dynes-augmenter-driver-v2/proposal.md`,
+- [x] 5.2f Coordinator (N1, N7): in `openspec/changes/dynes-augmenter-driver-v2/proposal.md`,
       rename `"preconditioned"` to `"fisher_scoring"` in its "Carried in"
       section, and add the first-pass cost (S5) and the minibatch
       `start_newton_se` note (the first batch's EMA, not the exact `d_0`).
       The directory stays uncommitted (user decision, 2026-10-23, confirmed
       2026-10-25): the deferrals carried there are local to this working copy
-      until that change is committed.
+      until that change is committed. *Done 2026-10-25: the "Carried in"
+      intro names `"fisher_scoring"` (the backtracking bullet keeps its
+      "renamed from" history), and two bullets were added, the first pass
+      at K (12 x K, 4.5) and the minibatch start statistic (the first
+      batch's EMA).*
 - [x] 5.3 Compare the study's tuned setting (adagrad 0.01, 500 M-step
       iterations, `dynes-augmentation` D25) with the new default on 1.2's
       cells, and record the comparison in `dynes-augmentation/progress.md`
