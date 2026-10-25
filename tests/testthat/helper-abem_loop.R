@@ -118,7 +118,10 @@ local_scripted_optimizer <- function(step_fn, env = parent.frame()) {
         parameters = step_fn(theta),
         iterations = 1L,
         converged = TRUE,
-        gradient_norm = 0
+        start_newton_se = 0,
+        newton_se = 0,
+        rank_deficient = FALSE,
+        damped = 0L
       )
     },
     .env = env

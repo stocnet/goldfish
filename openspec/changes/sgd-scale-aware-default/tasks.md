@@ -239,13 +239,13 @@ variants stay selectable under every schedule.
 
 ## 4. Reporting the M-step's verdict (D4)
 
-- [ ] 4.1a Failing test: the `em_trace` of a two-wave fit carries
+- [x] 4.1a Failing test: the `em_trace` of a two-wave fit carries
       `mstep_iterations`, `mstep_converged`, `mstep_start_newton_se`,
       `mstep_newton_se`, `mstep_rank_deficient` and `mstep_damped` with one
       value per pass, and no per-iteration M-step history; on a pass whose
       M-step passes at its start, the two statistics are equal. Confirm RED,
       and commit alone.
-- [ ] 4.1b Keep the optimizer's whole result in `run_abem_loop()`, and add
+- [x] 4.1b Keep the optimizer's whole result in `run_abem_loop()`, and add
       the six columns to the trace row and to `abem_trace_tibble()`.
       Confirm GREEN, and commit.
 - [ ] 4.2a Failing test: with `max_iterations = 1L` over a multi-pass run,

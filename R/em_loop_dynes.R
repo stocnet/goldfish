@@ -260,7 +260,7 @@ run_abem_loop <- function(
         }
         abem_information(harvest, weights, resample_indices)
       }
-      proposal <- optimize_abem_sgd(
+      mstep <- optimize_abem_sgd(
         theta_k,
         score_fn,
         weights,
@@ -273,7 +273,8 @@ run_abem_loop <- function(
         },
         resample_indices = resample_indices,
         call = call
-      )$parameters
+      )
+      proposal <- mstep$parameters
 
       # One pass yields all three quantities: the log-likelihood for Lambda,
       # the score and information for the E-step object and the Louis
@@ -363,6 +364,12 @@ run_abem_loop <- function(
         ess = effective_sample_size(weights),
         weighting = scheme,
         autocorrelation = estep$autocorrelation %||% NA_real_,
+        mstep_iterations = as.integer(mstep$iterations),
+        mstep_converged = isTRUE(mstep$converged),
+        mstep_start_newton_se = as.numeric(mstep$start_newton_se),
+        mstep_newton_se = as.numeric(mstep$newton_se),
+        mstep_rank_deficient = isTRUE(mstep$rank_deficient),
+        mstep_damped = as.integer(mstep$damped),
         chain_diagnostics = if (is.function(augmenter$diagnostics)) {
           augmenter$diagnostics()
         },
@@ -503,6 +510,12 @@ abem_trace_tibble <- function(rows) {
     ess = scalar("ess", numeric(1)),
     weighting = scalar("weighting", character(1)),
     autocorrelation = scalar("autocorrelation", numeric(1)),
+    mstep_iterations = scalar("mstep_iterations", integer(1)),
+    mstep_converged = scalar("mstep_converged", logical(1)),
+    mstep_start_newton_se = scalar("mstep_start_newton_se", numeric(1)),
+    mstep_newton_se = scalar("mstep_newton_se", numeric(1)),
+    mstep_rank_deficient = scalar("mstep_rank_deficient", logical(1)),
+    mstep_damped = scalar("mstep_damped", integer(1)),
     chain_diagnostics = listed("chain_diagnostics"),
     se = listed("se")
   )

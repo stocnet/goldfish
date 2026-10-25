@@ -160,6 +160,12 @@ test_that("the em_trace records one row per pass with its diagnostics", {
       "ess",
       "weighting",
       "autocorrelation",
+      "mstep_iterations",
+      "mstep_converged",
+      "mstep_start_newton_se",
+      "mstep_newton_se",
+      "mstep_rank_deficient",
+      "mstep_damped",
       "chain_diagnostics",
       "se"
     )
