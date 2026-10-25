@@ -103,6 +103,18 @@
 #'   is `NULL` on a dropped pool. `vcov(information = "complete_data")`
 #'   returns \eqn{I_c^{-1}}.
 #'
+#'   `newton_se` is the largest coordinate of the exact Newton step from the
+#'   returned estimate to the optimum of the final pool's importance-weighted
+#'   objective, in standard errors,
+#'   \eqn{\max_j |(I_{obs}^{-1} \bar s)_j| / SE_j}, read off the same
+#'   covariance pass. `at_optimum` is `TRUE` when it is below 0.1, a fixed
+#'   threshold independent of `sgd_tolerance` (see [set_sgd_options()]) and of
+#'   the M-step's `convergence` mode. Under `use = "resampling"` (see
+#'   [set_weights_options()]) it still reads the importance-weighted pool, not
+#'   the resampled multiset the M-step optimized. Both are `NA` unless
+#'   `covariance_status` is `"ok"`. `converged` reports the EM stop rule alone;
+#'   the two fail for different reasons, so neither is read from the other.
+#'
 #'   `coef()` and `vcov()` are flat over the free coefficients. [coef_layout()]
 #'   groups them by process, with both errors, and lists every fixed
 #'   coefficient: an `offset()` term, or a completed default such as a pinned

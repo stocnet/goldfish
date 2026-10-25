@@ -260,13 +260,13 @@ variants stay selectable under every schedule.
       `max_iterations` and `step_schedule`),
       following `warn_pool_capped()`'s shape and `run_state`'s once-flag.
       Pin a cli context in its snapshot. Confirm GREEN, and commit.
-- [ ] 4.3a Failing tests (`dynes-estimation`, ADDED requirement): `newton_se`
+- [x] 4.3a Failing tests (`dynes-estimation`, ADDED requirement): `newton_se`
       equals `max(abs(V %*% S) / sqrt(diag(V)))` within 1e-10 on a fit with a
       closed-form final pool. `at_optimum` is `newton_se < 0.1` whatever `sgd_tolerance` (a fixed
       internal constant). Both are `NA` on `"singular"`/`"not_pd"`/`"pool_dropped"`. `glance()`
       carries both. The pool is evaluated at the estimate no more often than
       before (reuse 2.1's counter). Confirm RED, and commit alone.
-- [ ] 4.3b Compute both in `new_dynes_fit()` from `dynes_covariances()`'s
+- [x] 4.3b Compute both in `new_dynes_fit()` from `dynes_covariances()`'s
       pass. Add the weighted mean score `S` to `louis_covariances()`'s return
       (it already computes it; `dynes_covariances()` forwards it), rather than
       re-evaluating the pool. Existing callers and the mock in

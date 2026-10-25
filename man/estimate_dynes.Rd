@@ -83,6 +83,18 @@ coefficients: \code{complete} (\eqn{I_c = \sum_i w_i J_i}), \code{missing}
 is \code{NULL} on a dropped pool. \code{vcov(information = "complete_data")}
 returns \eqn{I_c^{-1}}.
 
+\code{newton_se} is the largest coordinate of the exact Newton step from the
+returned estimate to the optimum of the final pool's importance-weighted
+objective, in standard errors,
+\eqn{\max_j |(I_{obs}^{-1} \bar s)_j| / SE_j}, read off the same
+covariance pass. \code{at_optimum} is \code{TRUE} when it is below 0.1, a fixed
+threshold independent of \code{sgd_tolerance} (see \code{\link[=set_sgd_options]{set_sgd_options()}}) and of
+the M-step's \code{convergence} mode. Under \code{use = "resampling"} (see
+\code{\link[=set_weights_options]{set_weights_options()}}) it still reads the importance-weighted pool, not
+the resampled multiset the M-step optimized. Both are \code{NA} unless
+\code{covariance_status} is \code{"ok"}. \code{converged} reports the EM stop rule alone;
+the two fail for different reasons, so neither is read from the other.
+
 \code{coef()} and \code{vcov()} are flat over the free coefficients. \code{\link[=coef_layout]{coef_layout()}}
 groups them by process, with both errors, and lists every fixed
 coefficient: an \code{offset()} term, or a completed default such as a pinned

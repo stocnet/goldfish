@@ -76,6 +76,12 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   res$covariance <- covariances$covariance
   res$mc_covariance <- covariances$mc_covariance
   res$covariance_status <- covariance_status
+  res$newton_se <- if (covariance_status == "ok") {
+    dynes_newton_se(covariances$covariance, covariances$mean_score)
+  } else {
+    NA_real_
+  }
+  res$at_optimum <- res$newton_se < dynes_optimum_threshold
   # Kept on a singular or not-PD fit too, where only the inverses failed and
   # the matrices are what a user inspects; a dropped pool evaluated nothing.
   res$information <- if (!pool_dropped) covariances$information
@@ -99,6 +105,23 @@ new_dynes_fit <- function(res, authored_spec, control, fit_call, call, start) {
   class(res) <- c("goldfishDynesFit", "goldfishBaseFit")
   res
 }
+
+# The fit's optimum gate: the largest coordinate of the exact Newton step from
+# the estimate to the optimum of the final pool's importance-weighted
+# observed-data log-likelihood, max_j |(I_obs^-1 S)_j| / SE_j. Its Hessian
+# there is -I_obs (see louis_covariances()), so the step is the covariance
+# times the weighted mean score S. Under resampling it still reads the
+# importance-weighted pool, which is the estimand, not the multiset the M-step
+# optimized.
+dynes_newton_se <- function(covariance, mean_score) {
+  max(abs(drop(covariance %*% mean_score)) / sqrt(diag(covariance)))
+}
+
+# Below this many standard errors the estimate is at the final pool's optimum.
+# Fixed, and independent of `sgd_tolerance`: the M-step's per-pass test is an
+# approximation of this one (its information is held at the M-step's start),
+# so it is no measure of where the returned estimate sits.
+dynes_optimum_threshold <- 0.1
 
 # The two covariance estimators at `theta` over the whole pool, with the
 # run's own importance weights (see louis_covariances()).
@@ -159,6 +182,9 @@ dynes_covariances <- function(pool, theta, weights) {
 # L^-1 Var_w(s) L^-T, L the Cholesky factor of I_c, which has the same
 # eigenvalues and keeps eigen() on a symmetric matrix. It is below one exactly
 # when I_obs is positive definite, and NA when I_c has no inverse.
+#
+# `mean_score` is S itself, returned so that a caller reads the Newton step at
+# theta (see dynes_newton_se()) without evaluating the pool again.
 louis_covariances <- function(score, fisher, degenerate, weights) {
   p <- ncol(score)
   keep <- weights > 0 & !degenerate
@@ -177,7 +203,8 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     covariance = matrix(NA_real_, p, p),
     mc_covariance = matrix(NA_real_, p, p),
     information = information,
-    fraction_missing = NA_real_
+    fraction_missing = NA_real_,
+    mean_score = mean_score
   )
   if (is.null(tryCatch(solve(complete), error = function(e) NULL))) {
     return(c(unavailable, singular = TRUE, not_pd = FALSE))
@@ -196,6 +223,7 @@ louis_covariances <- function(score, fisher, degenerate, weights) {
     mc_covariance = bread %*% mc_meat %*% bread,
     information = information,
     fraction_missing = unavailable$fraction_missing,
+    mean_score = mean_score,
     singular = FALSE,
     not_pd = FALSE
   )
@@ -597,7 +625,9 @@ glance.goldfishDynesFit <- function(x, ...) {
     df = length(x$parameters),
     covariance_status = x$covariance_status,
     fraction_missing = x$fraction_missing,
-    covariance_ess = x$covariance_ess
+    covariance_ess = x$covariance_ess,
+    newton_se = x$newton_se,
+    at_optimum = x$at_optimum
   )
 }
 

@@ -200,13 +200,13 @@ test_that("newton_se is the exact Newton step at the estimate", {
   expect_identical(fit$at_optimum, fit$newton_se < 0.1)
 })
 
-test_that("at_optimum reads a fixed 0.1 threshold, whatever the M-step's", {
+# The analytic fit with the covariance pass's weighted mean score multiplied
+# by `scale`: the gate reads that pass, so scaling S scales newton_se. Each
+# call builds its own fixtures, so every fit lands on the same estimate.
+fit_with_scaled_score <- function(scale, ...) {
   local_analytic_evaluator()
   local_accept_then_stop()
   local_dynes_augmenter(louis_stub_augmenter())
-  # The analytic estimate's Newton step, rescaled across the threshold: the
-  # gate reads the covariance pass, so scaling S scales newton_se.
-  scale <- 1
   real_louis <- louis_covariances
   local_mocked_bindings(
     louis_covariances = function(...) {
@@ -215,20 +215,22 @@ test_that("at_optimum reads a fixed 0.1 threshold, whatever the M-step's", {
       res
     }
   )
-  base <- fit_dynes_toy()$newton_se
+  fit_dynes_toy(...)
+}
+
+test_that("at_optimum reads a fixed 0.1 threshold, whatever the M-step's", {
+  base <- fit_with_scaled_score(1)$newton_se
 
   for (optimizer in list(
     set_sgd_options(sgd_tolerance = 1e-6),
     set_sgd_options(sgd_tolerance = 0.5),
     set_sgd_options(convergence = "iterations")
   )) {
-    scale <- 0.09 / base
-    below <- fit_dynes_toy(optimizer = optimizer)
+    below <- fit_with_scaled_score(0.09 / base, optimizer = optimizer)
     expect_equal(below$newton_se, 0.09, tolerance = 1e-10)
     expect_true(below$at_optimum)
 
-    scale <- 0.11 / base
-    above <- fit_dynes_toy(optimizer = optimizer)
+    above <- fit_with_scaled_score(0.11 / base, optimizer = optimizer)
     expect_equal(above$newton_se, 0.11, tolerance = 1e-10)
     expect_false(above$at_optimum)
   }
