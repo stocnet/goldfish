@@ -391,21 +391,9 @@ optimize_abem_sgd <- function(
     theta <- theta + step
   }
 
-  # Exiting the iteration cap with the Newton-step criterion still unmet is a
-  # diagnostic, not an error -- the EM accept test (design D7) governs
-  # correctness -- so warn and return. The iterations mode is the opt-out budget
-  # and never warns.
-  if (gradient_mode && !converged) {
-    cli::cli_warn(c(
-      "!" = "The SGD M-step reached its iteration cap ({.val
-             {control$max_iterations}}) with its Newton step ({.val
-             {signif(newton_se, 3)}} standard errors) still above
-             {.arg sgd_tolerance} ({.val {control$sgd_tolerance}}).",
-      "i" = "Estimation continues; the EM acceptance test certifies the ascent
-             step."
-    ))
-  }
-
+  # Exiting the iteration cap with the Newton-step criterion still unmet is
+  # reported, not warned: the EM loop warns once per run from this verdict,
+  # where a per-pass warning would repeat on every pass of a slow pool.
   list(
     parameters = theta,
     iterations = iteration,

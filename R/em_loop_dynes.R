@@ -75,6 +75,7 @@ run_abem_loop <- function(
 
   run_state <- new_run_warning_state()
   run_state$pool_cap_warned <- FALSE
+  run_state$mstep_unconverged_warned <- FALSE
   run <- new.env(parent = emptyenv())
   run$trace <- list()
   run$pool <- NULL
@@ -275,6 +276,18 @@ run_abem_loop <- function(
         call = call
       )
       proposal <- mstep$parameters
+      # A capped M-step is a diagnostic, not an error: the EM accept test
+      # certifies the ascent. Warned once per run, since a slow pool caps every
+      # pass alike; the trace flags the rest. The iterations mode is the
+      # opt-out budget and never warns.
+      if (
+        identical(control$optimizer$convergence, "gradient") &&
+          !isTRUE(mstep$converged) &&
+          !run_state$mstep_unconverged_warned
+      ) {
+        run_state$mstep_unconverged_warned <- TRUE
+        warn_mstep_unconverged(mstep, iteration, retry, control$optimizer)
+      }
 
       # One pass yields all three quantities: the log-likelihood for Lambda,
       # the score and information for the E-step object and the Louis
@@ -598,6 +611,32 @@ warn_pool_capped <- function(requested, max_pool) {
              {.arg stop_count}."
     ),
     class = "goldfish_abem_pool_capped"
+  )
+}
+
+warn_mstep_unconverged <- function(mstep, iteration, retry, optimizer) {
+  newton_se <- signif(mstep$newton_se, 3)
+  halvings <- if (mstep$damped > 0L) {
+    c(
+      "i" = "Its step was halved {.val {mstep$damped}} time{?s} after the Newton
+             step rose."
+    )
+  }
+  cli::cli_warn(
+    c(
+      "!" = "The M-step of EM iteration {.val {iteration}} (retry
+             {.val {retry}}) reached its iteration cap
+             ({.val {optimizer$max_iterations}}) with its Newton step
+             ({.val {newton_se}} standard errors) still above
+             {.arg sgd_tolerance} ({.val {optimizer$sgd_tolerance}}).",
+      halvings,
+      "i" = "Estimation continues; the EM acceptance test certifies the ascent.
+             Later unconverged passes are flagged in the {.field em_trace}
+             column {.field mstep_converged} without a further warning.",
+      "i" = "Consider a larger {.arg max_iterations} or another
+             {.arg step_schedule} in {.fn set_sgd_options}."
+    ),
+    class = "goldfish_abem_mstep_unconverged"
   )
 }
 

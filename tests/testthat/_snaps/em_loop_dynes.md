@@ -10,6 +10,17 @@
       i The accumulated trace is attached to this error as em_trace: `rlang::last_error()$em_trace`.
       i Consider a larger `n_sequences`, a smaller `step_size`, or a larger `max_retries`.
 
+# the unconverged M-step warning names the pass and its halvings
+
+    Code
+      res <- run_two_passes()
+    Condition
+      Warning:
+      ! The M-step of EM iteration 1 (retry 0) reached its iteration cap (20) with its Newton step (0.312 standard errors) still above `sgd_tolerance` (0.05).
+      i Its step was halved 2 times after the Newton step rose.
+      i Estimation continues; the EM acceptance test certifies the ascent. Later unconverged passes are flagged in the em_trace column mstep_converged without a further warning.
+      i Consider a larger `max_iterations` or another `step_schedule` in `set_sgd_options()`.
+
 # the max_pool warning names the near-optimum condition
 
     Code

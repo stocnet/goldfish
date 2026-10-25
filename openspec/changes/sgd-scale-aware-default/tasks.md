@@ -248,13 +248,13 @@ variants stay selectable under every schedule.
 - [x] 4.1b Keep the optimizer's whole result in `run_abem_loop()`, and add
       the six columns to the trace row and to `abem_trace_tibble()`.
       Confirm GREEN, and commit.
-- [ ] 4.2a Failing test: with `max_iterations = 1L` over a multi-pass run,
+- [x] 4.2a Failing test: with `max_iterations = 1L` over a multi-pass run,
       exactly one `goldfish_abem_mstep_unconverged` warning is raised, every
       capped pass reads `mstep_converged = FALSE`, and the optimizer itself
       warns nothing. Rewrite the existing "hitting the iteration cap ...
       warns" test (`test-optimizer_dynes.R`) to the new contract. Confirm
       RED, and commit alone.
-- [ ] 4.2b Remove the optimizer's per-pass warning. Add the loop's
+- [x] 4.2b Remove the optimizer's per-pass warning. Add the loop's
       once-per-run classed cli warning (the pass, the statistic against
       `sgd_tolerance`, the pass's step halvings when non-zero, the levers
       `max_iterations` and `step_schedule`),
