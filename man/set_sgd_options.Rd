@@ -8,10 +8,10 @@ set_sgd_options(
   variant = c("minibatch", "full"),
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
-  step_size = 0.001,
+  step_size = NULL,
   step_schedule = c("constant", "decay", "adagrad", "adam", "momentum"),
-  max_iterations = 100L,
-  sgd_tolerance = 0.001,
+  max_iterations = NULL,
+  sgd_tolerance = 0.05,
   convergence = c("gradient", "iterations")
 )
 }
@@ -32,7 +32,9 @@ and applies the unweighted batch mean; \code{"cyclic"} rotates fixed batches
 deterministically and importance-weights the within-batch gradient.}
 
 \item{step_size}{A single positive numeric value, the base SGD step size
-(\eqn{\eta_0} under \code{step_schedule = "decay"}). Default \code{0.001}.}
+(\eqn{\eta_0} under \code{step_schedule = "decay"}), or \code{NULL} (default),
+resolved by \code{step_schedule} (see the table under \code{max_iterations}). An
+explicit value is used as given under any schedule.}
 
 \item{step_schedule}{A character string naming the step-size schedule:
 \code{"constant"} (default), \code{"decay"} (the Bottou schedule
@@ -41,18 +43,31 @@ deterministically and importance-weights the within-batch gradient.}
 
 \item{max_iterations}{A single positive integer, the M-step's own
 iteration budget (distinct from \verb{[set_algorithm_em]}'s outer
-\code{max_iterations}). Default \code{100L}.}
+\code{max_iterations}), or \code{NULL} (default), resolved by \code{step_schedule}. An
+explicit value is used as given under any schedule.\tabular{lrr}{
+   \code{step_schedule} \tab \code{step_size} \tab \code{max_iterations} \cr
+   \code{"adagrad"}, \code{"adam"} \tab 0.01 \tab 100 \cr
+   \code{"constant"}, \code{"decay"}, \code{"momentum"} \tab 0.001 \tab 100 \cr
+}
+
+
+The first-order schedules step in parameter units, not in standard-error
+units, so they usually reach their cap; raise \code{max_iterations} for them.}
 
 \item{sgd_tolerance}{A single positive numeric value, the M-step's
-gradient-norm convergence tolerance. Named distinctly from
-\code{set_algorithm_em()}'s EM-stop \code{tolerance} — a different scale
-(gradient-norm vs Q-scale), so a user setting one never silently sets
-the other. Default \code{1e-3}.}
+convergence tolerance in standard-error units: the M-step has converged
+when its Newton step, the largest coordinate of the information-scaled
+gradient divided by that coordinate's standard error, falls below it. The
+same value therefore means the same distance on every pool, whatever the
+event count. Named distinctly from \code{set_algorithm_em()}'s EM-stop
+\code{tolerance}, which is on the Q scale, so a user setting one never silently
+sets the other. Ignored (without a warning) under
+\code{convergence = "iterations"}. Default \code{0.05}.}
 
 \item{convergence}{A character string selecting the M-step stopping mode:
-\code{"gradient"} (default) tests the gradient norm against \code{sgd_tolerance};
+\code{"gradient"} (default) tests the Newton step against \code{sgd_tolerance};
 \code{"iterations"} runs to \code{max_iterations} unconditionally, with
-\code{sgd_tolerance} unused.}
+\code{sgd_tolerance} ignored.}
 }
 \value{
 An object of class \code{c("goldfishSgdCtrl", "list")} with one

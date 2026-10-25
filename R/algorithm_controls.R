@@ -251,23 +251,38 @@ set_weights_options <- function(
 #'   and applies the unweighted batch mean; `"cyclic"` rotates fixed batches
 #'   deterministically and importance-weights the within-batch gradient.
 #' @param step_size A single positive numeric value, the base SGD step size
-#'   (\eqn{\eta_0} under `step_schedule = "decay"`). Default `0.001`.
+#'   (\eqn{\eta_0} under `step_schedule = "decay"`), or `NULL` (default),
+#'   resolved by `step_schedule` (see the table under `max_iterations`). An
+#'   explicit value is used as given under any schedule.
 #' @param step_schedule A character string naming the step-size schedule:
 #'   `"constant"` (default), `"decay"` (the Bottou schedule
 #'   \eqn{\eta_0 / (1 + \eta_0 t)}), `"adagrad"`, `"adam"`, or `"momentum"`
 #'   (the last three at fixed literature-default hyperparameters).
 #' @param max_iterations A single positive integer, the M-step's own
 #'   iteration budget (distinct from `[set_algorithm_em]`'s outer
-#'   `max_iterations`). Default `100L`.
+#'   `max_iterations`), or `NULL` (default), resolved by `step_schedule`. An
+#'   explicit value is used as given under any schedule.
+#'
+#'   | `step_schedule`          | `step_size` | `max_iterations` |
+#'   |:-------------------------|------------:|-----------------:|
+#'   | `"adagrad"`, `"adam"`    |        0.01 |              100 |
+#'   | `"constant"`, `"decay"`, `"momentum"` | 0.001 | 100 |
+#'
+#'   The first-order schedules step in parameter units, not in standard-error
+#'   units, so they usually reach their cap; raise `max_iterations` for them.
 #' @param sgd_tolerance A single positive numeric value, the M-step's
-#'   gradient-norm convergence tolerance. Named distinctly from
-#'   `set_algorithm_em()`'s EM-stop `tolerance` — a different scale
-#'   (gradient-norm vs Q-scale), so a user setting one never silently sets
-#'   the other. Default `1e-3`.
+#'   convergence tolerance in standard-error units: the M-step has converged
+#'   when its Newton step, the largest coordinate of the information-scaled
+#'   gradient divided by that coordinate's standard error, falls below it. The
+#'   same value therefore means the same distance on every pool, whatever the
+#'   event count. Named distinctly from `set_algorithm_em()`'s EM-stop
+#'   `tolerance`, which is on the Q scale, so a user setting one never silently
+#'   sets the other. Ignored (without a warning) under
+#'   `convergence = "iterations"`. Default `0.05`.
 #' @param convergence A character string selecting the M-step stopping mode:
-#'   `"gradient"` (default) tests the gradient norm against `sgd_tolerance`;
+#'   `"gradient"` (default) tests the Newton step against `sgd_tolerance`;
 #'   `"iterations"` runs to `max_iterations` unconditionally, with
-#'   `sgd_tolerance` unused.
+#'   `sgd_tolerance` ignored.
 #'
 #' @return An object of class `c("goldfishSgdCtrl", "list")` with one
 #'   component per argument above.
@@ -278,10 +293,10 @@ set_sgd_options <- function(
   variant = c("minibatch", "full"),
   batch_size = NULL,
   batch_scheme = c("weighted", "cyclic"),
-  step_size = 0.001,
+  step_size = NULL,
   step_schedule = c("constant", "decay", "adagrad", "adam", "momentum"),
-  max_iterations = 100L,
-  sgd_tolerance = 1e-3,
+  max_iterations = NULL,
+  sgd_tolerance = 0.05,
   convergence = c("gradient", "iterations")
 ) {
   variant <- rlang::arg_match(variant)
@@ -300,17 +315,30 @@ set_sgd_options <- function(
     }
     batch_size <- as.integer(batch_size)
   }
-  if (
+  if (is.null(step_size)) {
+    step_size <- switch(
+      step_schedule,
+      adagrad = ,
+      adam = 0.01,
+      0.001
+    )
+  } else if (
     !rlang::is_scalar_double(step_size) || is.na(step_size) || step_size <= 0
   ) {
-    cli::cli_abort("{.arg step_size} must be a single positive numeric value.")
+    cli::cli_abort(
+      "{.arg step_size} must be {.code NULL} or a single positive numeric
+       value."
+    )
   }
-  if (
+  if (is.null(max_iterations)) {
+    max_iterations <- 100L
+  } else if (
     !rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
       max_iterations < 1
   ) {
     cli::cli_abort(
-      "{.arg max_iterations} must be a single positive integer."
+      "{.arg max_iterations} must be {.code NULL} or a single positive
+       integer."
     )
   }
   max_iterations <- as.integer(max_iterations)
