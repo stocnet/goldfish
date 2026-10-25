@@ -240,6 +240,117 @@ test_that("an M-step that passes at its start reports one statistic twice", {
   expect_identical(trace$mstep_damped, rep(0L, nrow(trace)))
 })
 
+# The classes of every warning `expr` raises, muffled, beside its value.
+collect_warning_classes <- function(expr) {
+  classes <- character()
+  value <- withCallingHandlers(
+    expr,
+    warning = function(w) {
+      classes <<- c(classes, class(w)[[1]])
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(value = value, classes = classes)
+}
+
+test_that("an M-step capped on every pass warns once for the run", {
+  local_analytic_evaluator()
+
+  run <- collect_warning_classes(run_abem_loop(
+    theta0 = 0,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1, 2, 4)),
+    control = analytic_em_control(
+      max_iterations = 4L,
+      optimizer = set_sgd_options(max_iterations = 1L)
+    )
+  ))
+  trace <- run$value$em_trace
+
+  expect_gt(nrow(trace), 1L)
+  expect_false(any(trace$mstep_converged))
+  expect_identical(sum(run$classes == "goldfish_abem_mstep_unconverged"), 1L)
+  # The optimizer warns nothing of its own: the run's only other warning is
+  # the EM loop's own iteration cap.
+  expect_setequal(
+    run$classes,
+    c("goldfish_abem_mstep_unconverged", "goldfish_abem_max_iterations")
+  )
+})
+
+test_that("the iterations mode never warns that the M-step is unconverged", {
+  local_analytic_evaluator()
+
+  run <- collect_warning_classes(run_abem_loop(
+    theta0 = 0,
+    decomposition = analytic_decomposition(),
+    augmenter = new_stub_augmenter(list(1, 2, 4)),
+    control = analytic_em_control(
+      max_iterations = 2L,
+      optimizer = set_sgd_options(
+        max_iterations = 1L,
+        convergence = "iterations"
+      )
+    )
+  ))
+
+  expect_false(any(run$value$em_trace$mstep_converged))
+  expect_false("goldfish_abem_mstep_unconverged" %in% run$classes)
+})
+
+test_that("the unconverged M-step warning names the pass and its halvings", {
+  local_abem_cli_context()
+  local_analytic_evaluator()
+  local_scripted_optimizer(
+    function(theta) theta + 1e-4,
+    verdict = list(
+      iterations = 20L,
+      converged = FALSE,
+      start_newton_se = 1.5,
+      newton_se = 0.3125,
+      damped = 2L
+    )
+  )
+  run_two_passes <- function() {
+    run_abem_loop(
+      theta0 = 0,
+      decomposition = analytic_decomposition(),
+      augmenter = new_stub_augmenter(list(1)),
+      control = analytic_em_control(stop_count = 2L)
+    )
+  }
+
+  # Two unconverged passes, one warning.
+  run <- collect_warning_classes(run_two_passes())
+  expect_identical(nrow(run$value$em_trace), 2L)
+  expect_identical(run$classes, "goldfish_abem_mstep_unconverged")
+  expect_identical(run$value$em_trace$mstep_damped, c(2L, 2L))
+
+  expect_snapshot(res <- run_two_passes())
+})
+
+test_that("an undamped unconverged M-step's warning names no halvings", {
+  local_abem_cli_context()
+  local_analytic_evaluator()
+  local_scripted_optimizer(
+    function(theta) theta + 1e-4,
+    verdict = list(iterations = 20L, converged = FALSE, newton_se = 0.3125)
+  )
+
+  cnd <- rlang::catch_cnd(
+    run_abem_loop(
+      theta0 = 0,
+      decomposition = analytic_decomposition(),
+      augmenter = new_stub_augmenter(list(1)),
+      control = analytic_em_control(stop_count = 2L)
+    ),
+    classes = "goldfish_abem_mstep_unconverged"
+  )
+
+  expect_s3_class(cnd, "goldfish_abem_mstep_unconverged")
+  expect_no_match(conditionMessage(cnd), "halv")
+})
+
 test_that("em_trace_se adds standard errors on accepted passes", {
   local_analytic_evaluator()
   proposals <- c(0.5, 0.5 + 1e-5)

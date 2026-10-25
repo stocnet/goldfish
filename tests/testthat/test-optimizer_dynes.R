@@ -310,12 +310,14 @@ test_that("every step schedule ascends the analytic stub", {
   }
 })
 
-test_that("hitting the iteration cap with the stop criterion unmet warns", {
+test_that("hitting the iteration cap with the stop criterion unmet reports it without warning", {
   targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
   weights <- c(0.2, 0.3, 0.5)
   score_fn <- make_quadratic_score_fn(targets)
 
-  expect_warning(
+  # The EM loop warns once per run from the returned verdict; the optimizer
+  # itself stays silent on every pass.
+  res <- expect_no_warning(
     optimize_abem_sgd(
       theta = c(0, 0),
       score_fn = score_fn,
@@ -329,9 +331,11 @@ test_that("hitting the iteration cap with the stop criterion unmet warns", {
         max_iterations = 3L,
         convergence = "gradient"
       )
-    ),
-    "sgd_tolerance"
+    )
   )
+  expect_identical(res$iterations, 3L)
+  expect_false(res$converged)
+  expect_gt(res$newton_se, 1e-8)
 })
 
 test_that("the iterations mode runs the budget without a convergence warning", {

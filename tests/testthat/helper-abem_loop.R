@@ -110,18 +110,26 @@ local_analytic_evaluator <- function(env = parent.frame()) {
 }
 
 # Replace the M-step with a scripted proposal: `step_fn(theta)` is the theta'
-# the optimizer returns from the last accepted theta.
-local_scripted_optimizer <- function(step_fn, env = parent.frame()) {
+# the optimizer returns from the last accepted theta. `verdict` overrides the
+# rest of its result (a converged one-iteration M-step by default).
+local_scripted_optimizer <- function(
+  step_fn,
+  verdict = list(),
+  env = parent.frame()
+) {
   local_mocked_bindings(
     optimize_abem_sgd = function(theta, score_fn, weights, ...) {
-      list(
-        parameters = step_fn(theta),
-        iterations = 1L,
-        converged = TRUE,
-        start_newton_se = 0,
-        newton_se = 0,
-        rank_deficient = FALSE,
-        damped = 0L
+      utils::modifyList(
+        list(
+          parameters = step_fn(theta),
+          iterations = 1L,
+          converged = TRUE,
+          start_newton_se = 0,
+          newton_se = 0,
+          rank_deficient = FALSE,
+          damped = 0L
+        ),
+        verdict
       )
     },
     .env = env
