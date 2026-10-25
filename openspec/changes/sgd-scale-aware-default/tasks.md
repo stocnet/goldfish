@@ -207,7 +207,7 @@ variants stay selectable under every schedule.
       same start does not converge within the cap. The same objective under
       `variant = "minibatch"` and under every other schedule never halves
       (`damped = 0`). Confirm RED, and commit alone.
-- [ ] 3.1d Implement the shrink-only halving in `optimize_abem_sgd()` for
+- [x] 3.1d Implement the shrink-only halving in `optimize_abem_sgd()` for
       `"fisher_scoring"` under `"full"`, reading `d_t` against the previous
       iteration's, and return `damped`. Confirm GREEN, and commit.
 - [ ] 3.2a Failing tests for the default: `set_sgd_options()` carries the

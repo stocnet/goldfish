@@ -973,9 +973,10 @@ test_that("a rising Fisher-scoring statistic halves the full variant's step", {
   expect_lte(res$iterations, 20L)
   expect_identical(res$damped, expected$halvings)
   expect_gte(res$damped, 2L)
-  # The first iterate is the start, served by the information request; every
-  # later one continues from the iterate before it, never backtracking.
-  expect_equal(c(start, unlist(seen$thetas)), expected$thetas)
+  # The first iterate is the start, where the information request evaluates
+  # the scores; every later one continues from the iterate before it, never
+  # backtracking.
+  expect_equal(unlist(seen$thetas), expected$thetas)
   expect_equal(res$parameters, 0, tolerance = 0.01)
 })
 

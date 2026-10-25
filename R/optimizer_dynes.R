@@ -161,6 +161,18 @@ make_newton_se <- function(information) {
   )
 }
 
+# Whether the M-step halves its step whenever its Newton-step statistic rises.
+# Only the full Fisher-scoring step: with P frozen at the M-step's start, a
+# step of size 1 contracts only while the curvature at the iterate stays under
+# 2 P, and a rate sub-model's information grows like exp(theta), so a pass
+# that moves a few standard errors can overshoot and diverge. Under minibatch
+# the statistic reads the EMA and rises on batch noise alone, and the
+# first-order schedules' statistic can rise while their accumulators settle.
+mstep_damps <- function(control) {
+  identical(control$step_schedule, "fisher_scoring") &&
+    identical(control$variant, "full")
+}
+
 # Run the SGD M-step from `theta` over the pool weighted by `weights`.
 #
 # * `score_fn(theta, indices)`: the injected evaluator, returning a
@@ -189,9 +201,10 @@ make_newton_se <- function(information) {
 # flag (TRUE only when the Newton step fell under `sgd_tolerance`), the Newton
 # step in standard-error units at the starting
 # theta (`start_newton_se`) and at the last iterate a gradient was taken at
-# (`newton_se`), and whether the information was not positive definite
+# (`newton_se`), whether the information was not positive definite
 # (`rank_deficient`: the step and the statistic then leave out its null space,
-# and both statistics are NA only when it carries no information at all).
+# and both statistics are NA only when it carries no information at all), and
+# the count of step halvings (`damped`, see mstep_damps()).
 optimize_abem_sgd <- function(
   theta,
   score_fn,
@@ -290,6 +303,13 @@ optimize_abem_sgd <- function(
   start_newton_se <- NA_real_
   newton_se <- NA_real_
 
+  # Shrink-only: a halving holds for the rest of the M-step, and the iteration
+  # continues from its current iterate rather than backtracking.
+  damps <- mstep_damps(control)
+  damping <- 1
+  damped <- 0L
+  previous_newton_se <- Inf
+
   converged <- FALSE
   iteration <- 0L
 
@@ -352,12 +372,18 @@ optimize_abem_sgd <- function(
         converged <- TRUE
         break
       }
+      if (damps && newton_se > previous_newton_se) {
+        damping <- damping / 2
+        damped <- damped + 1L
+      }
+      previous_newton_se <- newton_se
     }
 
     # Fisher scoring steps along the tested gradient, which under minibatch is
     # the bias-corrected EMA: a raw batch gradient scaled by P^-1 would carry
     # the batch noise at full size into theta.
-    step <- stepper(if (fisher_scoring) test_grad else gradient, iteration)
+    step <- damping *
+      stepper(if (fisher_scoring) test_grad else gradient, iteration)
     step[!free] <- 0
     if (!is.null(statistic$project)) {
       step[free] <- statistic$project(step[free])
@@ -386,6 +412,7 @@ optimize_abem_sgd <- function(
     converged = converged,
     start_newton_se = start_newton_se,
     newton_se = newton_se,
-    rank_deficient = rank_deficient
+    rank_deficient = rank_deficient,
+    damped = damped
   )
 }
