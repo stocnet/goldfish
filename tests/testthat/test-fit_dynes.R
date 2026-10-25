@@ -173,6 +173,83 @@ test_that("missing information widens every standard error", {
   expect_true(all(sqrt(diag(vcov(fit))) >= complete_se))
 })
 
+# --- The optimum gate -------------------------------------------------------
+
+# The exact Newton step from `theta` to the final pool's optimum, in standard
+# errors, over the analytic evaluator: S is the weighted mean score and V the
+# Louis covariance.
+analytic_newton_se <- function(mu, theta, w) {
+  scores <- t(vapply(mu, function(m) m - theta, numeric(length(theta))))
+  mean_score <- colSums(scores * w)
+  covariance <- analytic_louis(mu, theta, w)$covariance
+  max(abs(covariance %*% mean_score) / sqrt(diag(covariance)))
+}
+
+test_that("newton_se is the exact Newton step at the estimate", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+
+  fit <- fit_dynes_toy()
+
+  expect_identical(fit$covariance_status, "ok")
+  expected <- analytic_newton_se(pool_data(fit), unname(coef(fit)), fit$weights)
+  # The fixture's premise: the estimate is not the final pool's optimum.
+  expect_gt(expected, 0.01)
+  expect_equal(fit$newton_se, expected, tolerance = 1e-10)
+  expect_identical(fit$at_optimum, fit$newton_se < 0.1)
+})
+
+test_that("at_optimum reads a fixed 0.1 threshold, whatever the M-step's", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+  # The analytic estimate's Newton step, rescaled across the threshold: the
+  # gate reads the covariance pass, so scaling S scales newton_se.
+  scale <- 1
+  real_louis <- louis_covariances
+  local_mocked_bindings(
+    louis_covariances = function(...) {
+      res <- real_louis(...)
+      res$mean_score <- res$mean_score * scale
+      res
+    }
+  )
+  base <- fit_dynes_toy()$newton_se
+
+  for (optimizer in list(
+    set_sgd_options(sgd_tolerance = 1e-6),
+    set_sgd_options(sgd_tolerance = 0.5),
+    set_sgd_options(convergence = "iterations")
+  )) {
+    scale <- 0.09 / base
+    below <- fit_dynes_toy(optimizer = optimizer)
+    expect_equal(below$newton_se, 0.09, tolerance = 1e-10)
+    expect_true(below$at_optimum)
+
+    scale <- 0.11 / base
+    above <- fit_dynes_toy(optimizer = optimizer)
+    expect_equal(above$newton_se, 0.11, tolerance = 1e-10)
+    expect_false(above$at_optimum)
+  }
+})
+
+test_that("the gate evaluates the pool no more often than before", {
+  local_analytic_evaluator()
+  local_accept_then_stop()
+  local_dynes_augmenter(louis_stub_augmenter())
+  log <- local_mstep_counter()
+
+  fit <- fit_dynes_toy()
+
+  outside <- Filter(function(e) e$phase == "outside", log$evaluations)
+  # The covariance pass alone, once over the whole final pool.
+  expect_length(outside, 1L)
+  expect_identical(outside[[1]]$n, length(fit$pool$sequences))
+  expect_identical(outside[[1]]$theta, unname(fit$parameters))
+  expect_false(is.na(fit$newton_se))
+})
+
 # One accepted pass from 0 to 0.3, after which max_iterations ends the run:
 # it returns directly after that pass, so the fit's weights are those the
 # pass's standard errors were formed with.
@@ -364,6 +441,8 @@ expect_not_pd_fit <- function(run) {
   expect_true(all(is.na(vcov(fit))))
   expect_true(all(is.na(fit$mc_covariance)))
   expect_identical(fit$covariance_status, "not_pd")
+  expect_identical(fit$newton_se, NA_real_)
+  expect_identical(fit$at_optimum, NA)
 }
 
 test_that("an observed information that is not positive definite warns once", {
@@ -475,12 +554,16 @@ test_that("glance() carries the covariance diagnostics", {
       "df",
       "covariance_status",
       "fraction_missing",
-      "covariance_ess"
+      "covariance_ess",
+      "newton_se",
+      "at_optimum"
     )
   )
   expect_identical(glanced$covariance_status, "ok")
   expect_identical(glanced$fraction_missing, fit$fraction_missing)
   expect_identical(glanced$covariance_ess, fit$covariance_ess)
+  expect_identical(glanced$newton_se, fit$newton_se)
+  expect_identical(glanced$at_optimum, fit$at_optimum)
 })
 
 # A real fit with its diagnostics pinned by hand, as the print test pins its
@@ -760,6 +843,8 @@ test_that("a singular fit has no fraction but keeps its covariance ESS", {
 
   expect_identical(fit$covariance_status, "singular")
   expect_identical(fit$fraction_missing, NA_real_)
+  expect_identical(fit$newton_se, NA_real_)
+  expect_identical(fit$at_optimum, NA)
   expect_equal(
     fit$covariance_ess,
     1 / sum(fit$weights^2),
@@ -1027,7 +1112,9 @@ test_that("glance() reports the run and no information criterion", {
       "df",
       "covariance_status",
       "fraction_missing",
-      "covariance_ess"
+      "covariance_ess",
+      "newton_se",
+      "at_optimum"
     )
   )
   expect_true(glanced$converged)

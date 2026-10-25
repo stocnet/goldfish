@@ -672,6 +672,8 @@ expect_stopped_fit <- function(run) {
   expect_identical(nrow(fit$em_trace), 0L)
   expect_true(all(is.na(fit$covariance)))
   expect_identical(fit$covariance_status, "pool_dropped")
+  expect_identical(fit$newton_se, NA_real_)
+  expect_identical(fit$at_optimum, NA)
   expect_null(fit$information)
   expect_true(all(is.na(vcov(fit))))
   expect_true(all(is.na(vcov(fit, information = "complete_data"))))
