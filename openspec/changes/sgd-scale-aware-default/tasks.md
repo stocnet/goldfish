@@ -281,7 +281,7 @@ variants stay selectable under every schedule.
       pool. Pin a reproducible cli context. Confirm RED, and commit alone.
 - [x] 4.4b Extend `dynes_fit_status()` with cli semantic elements. Confirm
       GREEN, and commit.
-- [ ] 4.5 Measure, as the design's cost section requires: on 1.1's toy and
+- [x] 4.5 Measure, as the design's cost section requires: on 1.1's toy and
       oracle, fit seconds, peak allocated MB, EM iterations, and M-step
       iterations per pass, against the 1.1 values and the prediction
       (0.7x-1.5x fit time on the oracle, where the reference converges;
