@@ -320,14 +320,18 @@ new_spread_wave_grid_augmenter <- function() {
   )
 }
 
-audited_dynes_run <- function(use) {
-  local_dynes_augmenter(new_spread_wave_grid_augmenter())
+audited_dynes_run <- function(
+  use,
+  augmenter = new_spread_wave_grid_augmenter(),
+  max_iterations = 3L
+) {
+  local_dynes_augmenter(augmenter)
   log <- local_information_audit()
   log$fit <- suppressWarnings(estimate_dynes(
     dynes_varying_raw_spec(),
     set_algorithm_em(
       n_sequences = 6L,
-      max_iterations = 3L,
+      max_iterations = max_iterations,
       seed = 42L,
       augmenter = set_augmenter_options(routine = "random"),
       weights = set_weights_options(use = use),
@@ -360,6 +364,36 @@ test_that("the information request is served from the held harvest", {
       expect_identical(request$answer, request$expected, info = info)
       expect_identical(request$held, request$fresh, info = info)
     }
+  }
+})
+
+# In the run above every pass after an acceptance opens with an ESS-guard
+# redraw, which replaces the held harvest anyway, so it cannot tell whether
+# acceptance hands the proposal's harvest over. With the unspread wave grid
+# the guard keeps the pool after every acceptance, and at least one such pass
+# also tops it up: the old members' held harvest is the one taken at the
+# accepted proposal, and the new members join at their entry evaluation.
+test_that("an accepted proposal's harvest serves the next pass's request", {
+  skip_on_cran()
+  log <- audited_dynes_run(
+    "importance",
+    augmenter = new_wave_grid_augmenter(),
+    max_iterations = 4L
+  )
+  trace <- log$fit$em_trace
+  expect_length(log$requests, nrow(trace))
+  # The ESS guard runs once per iteration from the second on.
+  redrawn <- c(FALSE, log$redraws)[trace$iteration]
+  after_acceptance <- c(FALSE, utils::head(trace$accepted, -1L))
+  kept <- which(after_acceptance & !redrawn)
+  expect_true(any(trace$new_draws[kept] > 0L))
+  for (pass in kept) {
+    request <- log$requests[[pass]]
+    info <- paste("pass", pass)
+    expect_identical(request$pass, pass, info = info)
+    expect_identical(request$evaluated, 0L, info = info)
+    expect_identical(request$held, request$fresh, info = info)
+    expect_identical(request$answer, request$expected, info = info)
   }
 })
 

@@ -342,7 +342,7 @@ variants stay selectable under every schedule.
       `em_trace`'s `mstep_start_newton_se` equals the optimizer's
       `start_newton_se` for that pass and differs from `mstep_newton_se`. It
       must turn red when the column is fed the final statistic (A29).
-- [ ] 5.2c Test (B3): extend the held-harvest audit (`test-mstep_cost_dynes.R`)
+- [x] 5.2c Test (B3): extend the held-harvest audit (`test-mstep_cost_dynes.R`)
       with a run in which a pass after an acceptance tops up without an ESS
       redraw, so the information request after acceptance is served from
       `at_proposal`'s harvest and compared bit for bit with a fresh
