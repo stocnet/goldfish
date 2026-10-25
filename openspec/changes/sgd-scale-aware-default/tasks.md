@@ -178,7 +178,7 @@ variants stay selectable under every schedule.
 - [x] 2.5b Pseudo-inverse fallback on a failed Cholesky (eigendecomposition,
       relative tolerance `sqrt(.Machine$double.eps)`), with the null space
       excluded from the step and the statistic. Confirm GREEN, and commit.
-- [ ] 2.6 Close the group: NOT_CRAN=true full suite (baselines PASS),
+- [x] 2.6 Close the group: NOT_CRAN=true full suite (baselines PASS),
       `devtools::document()` if roxygen moved since 2.4b, and commit.
 
 ## 3. The default step rule (D1, as amended by 1.3)
