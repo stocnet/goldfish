@@ -78,6 +78,49 @@ test_that("constant, adagrad and adam ascend the stub with step_size and max_ite
   }
 })
 
+test_that("a direction without information is not stepped along", {
+  targets <- matrix(c(1, -2, 3, 0, -1, 4), ncol = 2, byrow = TRUE)
+  weights <- c(0.2, 0.3, 0.5)
+  optimum <- colSums(weights * targets)
+  start <- c(1, -1)
+  # Information of rank one: the combination theta1 - theta2 has none, while
+  # the scores still carry a gradient along it.
+  range_direction <- c(1, 1) / sqrt(2)
+  null_direction <- c(1, -1) / sqrt(2)
+  information_fn <- function(theta) {
+    list(
+      information = 2 * tcrossprod(range_direction),
+      scores = sweep(targets, 2, theta, "-")
+    )
+  }
+
+  res <- optimize_abem_sgd(
+    theta = start,
+    score_fn = make_quadratic_score_fn(targets),
+    information_fn = information_fn,
+    weights = weights,
+    control = set_sgd_options(
+      variant = "full",
+      step_size = 0.5,
+      step_schedule = "constant",
+      sgd_tolerance = 1e-6,
+      max_iterations = 500L
+    )
+  )
+
+  expected <- range_direction *
+    sum(range_direction * optimum) +
+    null_direction * sum(null_direction * start)
+  expect_equal(res$parameters, expected, tolerance = 1e-5)
+  expect_equal(
+    sum(null_direction * res$parameters),
+    sum(null_direction * start)
+  )
+  expect_true(res$converged)
+  expect_true(res$rank_deficient)
+  expect_lt(res$newton_se, 1e-6)
+})
+
 test_that("minibatch weighted SGD converges to the weighted optimum", {
   withr::local_seed(20240918L)
   targets <- matrix(rnorm(60), ncol = 2)
