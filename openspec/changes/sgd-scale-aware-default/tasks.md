@@ -234,7 +234,7 @@ variants stay selectable under every schedule.
       defect, not an attribution. Record each in `progress.md` with its cause, then
       update them in one `test:` commit, separate from 3.2b's `feat:`
       commit, so the default flip and its consequences review apart.
-- [ ] 3.4 Close the group: NOT_CRAN=true full suite (baselines PASS),
+- [x] 3.4 Close the group: NOT_CRAN=true full suite (baselines PASS),
       `devtools::document()` if needed, and commit.
 
 ## 4. Reporting the M-step's verdict (D4)
