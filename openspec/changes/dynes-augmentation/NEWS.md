@@ -62,3 +62,11 @@ touched on this branch (see `progress.md`, "Version / NEWS / archival").
   complete sequence under a joint specification, with its score and Fisher
   information over the free coefficients: the per-sequence quantities
   `estimate_dynes()` weights, computed through the same evaluation.
+
+## Weight transformation (Group 6)
+
+* `set_weights_options(transformation = "smoothing")` now tempers the
+  importance weights to their square root, normalized, which raises the
+  effective sample size of an uneven pool. It previously squared them, which
+  sharpened the weights and lowered the effective sample size, the opposite of
+  what the option is for. The documentation now states the exponent.

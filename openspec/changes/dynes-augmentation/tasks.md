@@ -794,6 +794,10 @@
       covariance statuses and exclude them from the error ratio and the
       calibration. The default itself is fixed separately
       (`sgd-scale-aware-default`), not in this change.
+      *Resolved 2026-10-25:* `sgd-scale-aware-default` landed (46/46). The
+      default is the Fisher-scoring step with an SE-unit stop rule, and the fit
+      carries `newton_se`/`at_optimum`, the D25 gate exactly. The study is not
+      re-run (user decision, design D25 amendment); new tests use the default.
       **Budget (added 2026-10-05).** 100 replicates per cell for `random` and
       `sim` (Wald coverage at 95% then has an SE of about 2.2 points). `mcmc`
       ran 250 s per fit at K = 20 on the pilot oracle, so it gets fewer
@@ -810,7 +814,11 @@
       silences the collapse trigger. Runs after 6.2e/6.2f.
       **Study settings (2026-10-05, from the pilots, user decision).** Every
       replicate runs `set_sgd_options(step_schedule = "adagrad", step_size =
-      0.1, max_iterations = 500L)` with the warm start: the defaults abort at
+      0.01, max_iterations = 500L)` with the warm start (*corrected
+      2026-10-25:* this line read `step_size = 0.1`, the first pilot value; sweep
+      round 1 found that 0.1 overshoots from a warm start already at the optimum
+      (FINDINGS B4), and the user moved the study to 0.01 on 2026-10-05, which is
+      what `study_config.R` and the cluster ran): the defaults abort at
       the top flips levels under all three routines (M-step overshoot). The pool
       is capped at `max_pool = 500`: at the cliff ESS stayed near 10 whether the
       pool held 224 or 5000 sequences, at ten times the cost per iteration. Cap
@@ -866,13 +874,31 @@
 - [ ] 6.2.5 transformed-weights arm (16 cells): random 25 replicates (paired
       with the identity cells' panels), sim 50 (user, 2026-10-06). On the
       cluster.
-- [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (+2 h for the
-      optional CTMC sibling).
+      *Added 2026-10-26 (user decision), for 6.2.1–6.2.5:* the 6 of 2040 fits
+      missing from `results_20261009_0911.tar.gz` are rerun, not reported as
+      missing. Update the cluster bundle to the current `feature/dynes` HEAD
+      and run every necessary fit there, none locally. The reruns pass the
+      study's own setting explicitly (adagrad, `step_size = 0.01`,
+      `max_iterations = 500L`, warm start), never the new default, and record
+      the commit they ran at. The earlier checks found that walk-alignment,
+      `focal-stream-dedup` and `sgd-scale-aware-default` move no fit under an
+      explicit setting, so the reruns compare with the 2034 fits already in.
+- [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (the CTMC sibling
+      is skipped, 2026-10-26; see 6.2b). Under the default `set_sgd_options()` (added
+      2026-10-25, design D25 amendment): no explicit SGD setting; assert
+      `at_optimum` beside the oracle tolerance.
 - [ ] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
+      Under the default `set_sgd_options()`, asserting `at_optimum` (added
+      2026-10-25): the study's adagrad setting is not used here.
 - [ ] 6.2.8 analysis and write-up (6.2 / 6.2c envelope, the floor, coupling).
-      Session ~3 h; needs 6.2.1–6.2.3.
+      Session ~3 h; needs 6.2.1–6.2.3. No cell is re-run under the new default
+      (user, 2026-10-25): state the study's SGD setting (adagrad 0.01, 500
+      M-step iterations) and cite `sgd-scale-aware-default` 5.3 (converged
+      estimates agree within 0.07 SE).
 - [ ] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
 - [ ] 6.2.10 = 6.3 vignette. Session 4–6 h; dataset decision first.
+      *Decided 2026-10-26:* a private dataset, supplied by the user at the
+      session, in a local-only location; see 6.3.
 - [ ] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
 - [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
       tempers the importance weights to w^(1/2), normalized. Test that it equals
@@ -900,11 +926,18 @@
       to Monte-Carlo error. Unlike 6.2 this target is analytic rather than another draw
       from the same machinery, so it tests the augmenter, the weights and the M-step
       together against something none of them produced. Record the achieved MC error
-      alongside the tolerance. (Sibling check, optional: the state-panel analogue against
+      alongside the tolerance. *Added 2026-10-25:* fit under the default
+      `set_sgd_options()`, and assert `at_optimum` as well as the MLE tolerance
+      (`sgd-scale-aware-default` 4.6 measured |θ̂ − MLE| at 0.0009 SE on this
+      fixture). (Sibling check, optional: the state-panel analogue against
       the two-state CTMC's closed-form transition probabilities — **a bias measurement,
       not a pass/fail oracle** (task 1.3 finding, design D6): the CTMC's transition
       probabilities include excursions, which v1's minimal-flip estimand excludes, so the
       gap measures the downward minimal-flip bias rather than passing to MC error.)
+      *Skipped 2026-10-26 (user decision):* the sibling is not run in v1 and is
+      left for the v2 discussion. The cluster study already measures the same
+      minimal-flip bias empirically (FINDINGS D11: about −0.17 at f15 and −0.5
+      at f33, matching log(11/13) and log(33/54)).
 - [ ] 6.2c Extend the 6.2 degeneracy sweep with a **coupling axis**: repeat the
       flips-per-interval sweep with the panel layer coupled to a densely observed
       event-stream layer (the calls/emails fixture) and with it uncoupled, so the
@@ -928,6 +961,14 @@
       the same way), and with adagrad the same cell certified every step. The
       abort's own "smaller `step_size`" advice was the right one, and the mid-run
       recommendation is reached once the step is stable.
+      *Added 2026-10-25:* under the new default no B3/B4 cell aborts, so the RED
+      tests reach the mid-run check with no explicit SGD setting (design D26
+      amendment).
+      *Added 2026-10-26 (user decision):* the abort's "smaller `step_size`"
+      advice is not edited up front. The RED tests first confirm, at the
+      defaults, that the cliff cells reach the mid-run check without
+      `goldfish_abem_retry_exhausted`. Only an abort that still fires there
+      reopens the message wording.
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime
@@ -937,15 +978,27 @@
       posterior is sharp) and the error ratio is the **verdict**; and it MUST say that
       IS-ESS is uninformative once the user has switched to MCMC, where acceptance rate
       and autocorrelation are the diagnostics. Dataset example; `devtools::document()`
+      *Added 2026-10-25:* the example runs the default `set_sgd_options()`, and
+      the vignette keeps four checks apart: `converged` (the EM stop rule),
+      `at_optimum`/`newton_se` (the estimate at its final pool's optimum), the
+      IS-ESS trigger and the error-ratio verdict.
       **Open (2026-10-05):** which dataset the example uses is not chosen yet. No
       packaged dataset is known to carry both a state panel and a count panel. Decide
       before the session, or use a `simulate()`-drawn panel from the 6.2 study.
+      *Decided 2026-10-26 (user):* the example uses a private dataset that cannot
+      be committed. The session asks the user for it, the vignette lives in a
+      local-only location (chosen at the session) and is not committed until the
+      dataset can be released, and so it must not be knitted by the 6.4
+      `NOT_CRAN`/check run.
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and no
       `/opsx:archive` on this branch.** Record the DyNES milestone as a `NEWS.d/`
       fragment (protocol in `NEWS.d/README.md`), as the sibling changes on this branch
       do; the change-local `NEWS.md` stays as the staged Group 2–5 text for the merge
-      to fold (revised 2026-10-05). Before the final run, remove the stale untracked
+      to fold (revised 2026-10-05). The fragment does not repeat the M-step
+      default, `sgd_tolerance` or `newton_se`/`at_optimum`: those are in
+      `NEWS.d/sgd-scale-aware-default--mstep-default.md` (added 2026-10-25).
+      Before the final run, remove the stale untracked
       `tests/testthat/_problems/` and `tests/testthat/testthat-problems.rds` (left by
       the 2026-10-01 `complete_generative_spec` failures, since fixed) so they are not
       committed. The version

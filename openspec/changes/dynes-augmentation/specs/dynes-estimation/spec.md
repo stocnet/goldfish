@@ -143,12 +143,25 @@ study-local simulator — so that a divergence between the data-generating proce
 and the estimand is a test failure rather than an artifact of two implementations
 of one model. Replicates SHALL be drawn as one `nsim > 1` pool, and any replicate
 the explosion guard capped SHALL be excluded by an explicit
-`filter_simulation()` rather than left to bias the recovery summary. A reduced
+`filter_simulation()` rather than left to bias the recovery summary. The simulated
+replicates SHALL cover the same window the estimation reads, from the resolved
+observation start to the last wave. `simulate()` opens its clock at the earliest
+data time, whatever its preprocessing controls say, so the study SHALL give the
+generating data a row at the observation start and SHALL check that the drawn
+events begin there before any replicate is fitted. A panel on which a modeled
+flavor's rate is not identified from the waves (no flip of that flavor in an interval)
+SHALL be counted per cell and excluded before fitting, and that cell's calibration
+SHALL be stated as conditional on both flavors being observed.
+*Amended 2026-10-09:* the first study draw covered `(1, 10]` against an estimation
+window of `(0, 10]`, which biased every rate intercept by −0.11 to −0.14, and its fits
+were voided. A reduced
 deterministic-seed variant SHALL run in the test suite (skip_on_cran), and the full
 study — including the identifiability assessment of separate creation/dissolution
 parameters from waves — SHALL be recorded with the change. The full study SHALL also
-include a **flips-per-interval stress sweep** (e.g. ~2 → 5 → 15 → 40 changes per
-between-wave interval), crossed with a **coupling axis** (the panel layer coupled to a
+include a **flips-per-interval stress sweep** (~2 → 5 → 15 → 33 net changes per
+between-wave interval; *amended 2026-10-09:* the nominal top level of ~40 is not
+reachable, because net flips saturate near 33 per interval at 12 actors), crossed
+with a **coupling axis** (the panel layer coupled to a
 densely observed event-stream layer, and uncoupled), that locates where
 importance-weighted augmentation degenerates. The study SHALL state the **operating
 envelope** in terms of **Monte-Carlo standard error relative to the asymptotic standard
@@ -164,11 +177,27 @@ middle term is the missing information. Each cell SHALL record every replicate's
 status counts; a replicate whose status is not `"ok"` has no standard errors and SHALL
 be counted rather than dropped from the ratio silently, a rising `"not_pd"` share being
 itself a pool-size symptom of the envelope. Every replicate SHALL be fitted under one
-fixed, reported M-step optimizer setting, and each cell SHALL record every replicate's
-final M-step gradient norm and convergence flag. A non-converged replicate SHALL be
+fixed, reported M-step optimizer setting. A replicate SHALL count as **converged** when
+the exact Newton step from θ̂ to the optimum of its final pool is under 0.1 standard
+error in every coordinate, `max |I⁻¹ s̄ / SE| < 0.1`, with `s̄` the weighted mean score
+at θ̂ in the fit's final covariance pass and `I⁻¹` the `vcov()` matrix. Each cell SHALL
+record every replicate's Newton step and, for information, the M-step's own convergence
+flag, which SHALL NOT gate. A non-converged replicate SHALL be
 counted beside the covariance statuses and excluded from the error ratio and the
 calibration, never averaged in: a fit that stops short of its optimum sits between the
-starting values and θ̂, shrinking the replicate spread the calibration reads.
+starting values and θ̂, shrinking the replicate spread the calibration reads. A
+replicate whose fit aborts (for example, an EM step not certified within its retries)
+SHALL likewise be counted per cell, by condition class, and never silently dropped. An
+abort share that rises with the flips level is a finding of the envelope. Each cell
+SHALL also record every replicate's final pool size and wall time, and the study SHALL
+state its cost envelope from those recorded values rather than from a configured pool
+cap.
+*Amended 2026-10-09 (design D25):* the gate was the final M-step gradient norm and
+convergence flag. On the cluster sweep the flag's 1e-3 tolerance on the raw summed
+score sat below the minibatch noise and was FALSE in nearly every coupled cell, while
+the median Newton step there was 0.01–0.05 SE. `max_pool` bounds only the
+between-iteration pool size, not the retry growth within an iteration, and pools
+reached 1,000–11,000 sequences.
 
 The full study SHALL also **calibrate the standard errors**: over the replicates of each
 cell it SHALL compare every coefficient's empirical standard deviation of θ̂ with its
@@ -192,7 +221,12 @@ documented envelope agree by construction rather than being independently guesse
 threshold SHALL be documented as applying to the `random`/`sim` routines only: under MCMC's
 uniform weighting the same statistic is trivially the pool size and SHALL NOT be read as
 evidence that the chain mixes, the MCMC diagnostics being acceptance rate and
-autocorrelation.
+autocorrelation. If the study locates different floors for coupled and uncoupled
+specifications, the threshold SHALL take the coupling as an argument and return the
+floor for each, rather than one scalar that gives the wrong trigger to one case.
+*Amended 2026-10-09:* the cluster sweep's first reading shows `random`'s median minimum
+ESS fraction at 0.96 uncoupled and 0.14 coupled at the second flips level, and 0.49 and
+0.00 at the third. The write-up decides.
 
 #### Scenario: known parameters recovered
 - **WHEN** the seeded recovery test runs on a small two-wave panel drawn by
@@ -209,12 +243,19 @@ autocorrelation.
   from a truncated sequence.
 
 #### Scenario: degeneracy envelope characterized
-- **WHEN** the full study sweeps flips-per-interval upward at a fixed pool size, coupled
-  and uncoupled
+- **WHEN** the full study sweeps flips-per-interval upward under fixed, reported pool
+  settings (starting size and `max_pool`), coupled and uncoupled
 - **THEN** it records where effective sample size collapses (weights degenerate faster
   than pool growth recovers) and supplies that boundary as the numeric IS-ESS threshold
   the runtime switch-to-`augment_seq_mcmc()` recommendation fires at, while the reported
   operating envelope is the Monte-Carlo-to-asymptotic standard-error ratio at each cell.
+
+#### Scenario: a coupling-dependent floor gives each case its own trigger
+- **WHEN** the study locates the IS-ESS collapse floor at different values for the
+  coupled and the uncoupled cells
+- **THEN** the threshold accessor takes the coupling as an argument and returns each
+  floor, and the runtime recommendation for a coupled specification fires at the
+  coupled floor.
 
 #### Scenario: a coupled specification is not condemned by its ESS
 - **WHEN** a cell of the sweep couples the panel layer to a densely observed
@@ -238,8 +279,30 @@ autocorrelation.
   beside them.
 
 #### Scenario: a non-converged replicate is counted, not calibrated
-- **WHEN** a replicate's final M-step ends at its iteration cap with a gradient norm
-  above the study's convergence tolerance
+- **WHEN** a replicate's exact Newton step from θ̂ to its final pool's optimum is
+  0.1 standard error or more in some coordinate
 - **THEN** the cell counts it as non-converged beside its covariance statuses, and
   its MC-to-asymptotic error ratio and standard-error calibration are computed without
-  it, with the count stated beside them.
+  it, with the count stated beside them. The replicate's M-step convergence flag is
+  recorded but decides nothing: a replicate with the flag FALSE and a Newton step under
+  0.1 SE is converged.
+
+#### Scenario: an aborted fit is counted, not dropped
+- **WHEN** some replicates of a cell abort before returning a fit (for example,
+  `goldfish_abem_retry_exhausted`)
+- **THEN** the cell reports the number of aborts by condition class beside its
+  covariance statuses and non-converged count, and the cost envelope reads the recorded
+  pool sizes and wall times of the replicates that ran.
+
+#### Scenario: the generating window is the estimation window
+- **WHEN** the study draws its panels with `simulate()` for an estimation whose
+  observation start is `t0`
+- **THEN** the generating data carries a row at `t0`, the drawn events are checked to
+  begin at `t0` rather than at a later first data time, and only then are the replicates
+  fitted.
+
+#### Scenario: a panel with an unidentified flavor is excluded and counted
+- **WHEN** a drawn panel has an interval with no creation or no dissolution flip, so
+  that flavor's rate has no finite maximum-likelihood estimate
+- **THEN** the panel is excluded before fitting, the cell reports how many panels were
+  excluded, and its calibration is stated as conditional on both flavors being observed.

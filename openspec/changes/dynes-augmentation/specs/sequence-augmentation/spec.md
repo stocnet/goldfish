@@ -25,7 +25,9 @@ open the grid and its snapshot SHALL be the initial condition, so M waves yield 
 modeled intervals.
 All
 panel-semantics layers SHALL share one wave grid, the node set SHALL be constant
-over the period, each wave snapshot SHALL be complete (no `NA` tie values — an
+over the period (the node space: which nodes exist and their indices; node
+presence may still change over the period, and the wave diff does not read
+it), each wave snapshot SHALL be complete (no `NA` tie values — an
 incomplete snapshot SHALL abort before diffing rather than be coerced to
 tie-absence; missing-data waves are a recorded future goal), and an observed
 relational event falling exactly on a wave time
@@ -146,7 +148,18 @@ external driver of the `multi-process-walk` handle — running as **supplied ste
 `process-simulation` drawing core** rather than a loop of its own: it SHALL supply that
 core's `mark`, `clock` and `accept` steps and SHALL NOT supply its `evaluate` step, so
 every rate and choice it draws from is the package's own evaluator at `theta`, the
-identity the proposal/target density pin below requires. Wave-endpoint conditioning:
+identity the proposal/target density pin below requires. It SHALL route each fid as
+the drawing core routes it: a modeled fid at `theta`, a completed rate at the pinned
+plateau of the wave period holding the current time, and a completed choice uniform.
+Every support constraint, user-supplied or derived, SHALL be read live from the walk
+handle, including a constraint on a changing object that no formula term reads, so the
+risk set the augmenter draws from is the one the likelihood's walk masks. A
+constraint on the focal layer itself, with no term reading it, applies each of
+its events to the shared state once, so a weighted constraint reads the observed
+count.
+*Amended 2026-10-09 (`upstream/feature_simulation` merge, `f663b266`):* the handle
+used to refuse that last constraint (`goldfish_walk_unsupported`). The merge maintains
+every constraint live on the handle and removed the refusal. Wave-endpoint conditioning:
 sender–flavor risk sets
 restricted in R to support-applicable remaining events plus the single globally-next
 unplaced modeled relational event; receivers among remaining observed receivers;
@@ -220,10 +233,17 @@ regardless of which order the input carries.
 
 #### Scenario: simulation augmenter drives the walk handle
 - **WHEN** `augment_seq_sim()` draws a sequence at parameters `theta`
-- **THEN** each next event is drawn from the model's rates/choices obtained by
-  `walk_evaluate()` at the process state after the previously injected event, and the
+- **THEN** each next event is drawn from the model's rates/choices read through the
+  drawing core's evaluator at the process state after the previously injected event
+  (a modeled fid at `theta`, a completed rate at its period's pinned plateau), and the
   recorded log proposal density includes every selection step — relational-event
   selections included.
+
+#### Scenario: a constraint on an object no formula reads moves the live risk set
+- **WHEN** a support constraint reads a network that no formula term reads, and that
+  network changes inside an interval
+- **THEN** the walk handle opens without refusal, and the augmenter's live support
+  mask for the constrained fid changes at that row, as the likelihood's walk does.
 
 #### Scenario: a rate change inside the interval truncates the draw
 - **WHEN** `augment_seq_sim()` draws a waiting time in an interval whose next

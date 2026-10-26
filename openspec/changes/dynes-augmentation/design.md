@@ -128,9 +128,19 @@ concern, nested under the EM constructor** so every cross-object rule has one ho
   E-step expectations are weighted (D13, D14). A user-supplied custom weight
   function is dropped: the ABMCEM accept/stop machinery requires a variance
   estimator per scheme (D15), which an arbitrary function cannot supply.
-- `set_sgd_options(variant = c("minibatch", "full"), batch_size, batch_scheme =
-  c("weighted", "cyclic"), step_size, step_schedule = c("constant", "adagrad",
-  "adam", "momentum"), max_iterations, tolerance)` — the M-step (D17).
+- `set_sgd_options(variant = c("full", "minibatch"), batch_size, batch_scheme =
+  c("weighted", "cyclic"), step_size, step_schedule = c("fisher_scoring",
+  "constant", "decay", "adagrad", "adam", "momentum"), max_iterations,
+  sgd_tolerance, convergence = c("gradient", "iterations"))` — the M-step (D17).
+  (Amended 2026-10-15: this line first read `step_schedule = c("constant",
+  "adagrad", "adam", "momentum")` and `tolerance`; the shipped names are `decay`,
+  `sgd_tolerance` and `convergence`.) (Amended 2026-10-25, `sgd-scale-aware-default`
+  landed: `"fisher_scoring"` is the default schedule and `"full"` the default
+  variant, both variants selectable under every schedule; an unset `step_size` and
+  `max_iterations` resolve per schedule (1 and 20 under `"fisher_scoring"`); and
+  `sgd_tolerance` is in standard-error units, default 0.05. The amendment of
+  2026-10-15 announced the schedule as `"preconditioned"`, its working name. D25's
+  study fixes its own setting and is unaffected.)
 
 Argument names are **descriptive, never Greek**: `accept_quantile` /
 `growth_quantile` / `stop_quantile` for the ascent-based MCEM paper's α/β/γ, with
@@ -744,8 +754,14 @@ subset/nested coupling (a mode ⊂ a union containing it) is out of v1 and rejec
 composition.
 v1 data restrictions: all panel-flagged layers share **one wave grid** (nested/
 misaligned grids — e.g. yearly surveys plus weekly ones — are a recorded future
-development, see the V2 note below); the **node set is fixed** over the whole period
-(composition changes / presence windows are a future development); an observed RE
+development, see the V2 note below); the **node space is fixed** over the whole
+period (which nodes exist and their indices). Node presence may change: no v1 step
+rejects a composition change, and the walk follows it. For actors involved in an
+interval, `dynes-composition-to-waves` snaps their presence to the interval's waves
+(the v1 approximation), and true presence windows are `dynes-augmenter-driver-v2`.
+(Amended 2026-10-08: this line first read "the node set is fixed (composition
+changes / presence windows are a future development)", a restriction that was never
+enforced); an observed RE
 falling exactly on a wave time belongs to the **earlier** interval (it precedes the
 snapshot). A *modeled panel* layer is modeled for **all its flavors or not at all** —
 partially specified panel layers abort (D19). **By contrast, an RE layer MAY be
@@ -1168,12 +1184,23 @@ decision stays joint either way). Semantics:
   adaptive schedules from the literature — AdaGrad, Adam, momentum — with their
   hyperparameters fixed at literature defaults, not exposed (exposing them is a
   future decision).
+  *Amended 2026-10-25:* constant is no longer the default. A fixed raw step on a
+  summed score under-steps small pools and overshoots large ones (FINDINGS B3–B5),
+  so `sgd-scale-aware-default` made the Fisher-scoring step the default
+  (`"fisher_scoring"`, step 1 on `I⁻¹ s̄`, halved when the Newton step in SE units
+  rises), with the full variant. The M-step now stops when that Newton step is
+  under `sgd_tolerance` SE. The schedule and stop rule belong to that change and
+  to `abmcem`; this change consumes them.
 - **State.** Optimizer accumulators (moment estimates, squared-gradient sums)
   reset at every M-step: each M-step is a fresh optimization.
 - **Cost.** The SGD loop requests score-only evaluation (D2 `what` flag); Fisher
   is computed only where consumed (final SEs; opt-in `em_trace` SEs). Resampling
   inside SGD remains disallowed, and `batch_scheme` reserves no value for it
   until its weighting theory is settled.
+  *Amended 2026-10-25:* the M-step now uses the pooled information too, once per
+  M-step, for the Fisher-scoring step and the SE-unit stop rule. It is served
+  from the score and Fisher the EM loop already holds at the current θ, so the
+  information request evaluates no sequence (`sgd-scale-aware-default` D3).
 
 ### D18 — EM control flow: θ₀, bounded pool growth, hard failure, `em_trace` **[→ abmcem]**
 - **θ₀**: user-supplied through the existing `initial_parameters` mechanism in
@@ -1196,6 +1223,12 @@ decision stays joint either way). Semantics:
   rest of the EM loop; pinned here so the recovery study's pre-registered bounds and the
   `em_trace` columns reference a defined criterion rather than each assuming the other set
   it.)
+  *Amended 2026-10-25:* the inner tolerance shipped as `sgd_tolerance` and, since
+  `sgd-scale-aware-default`, it bounds the M-step's Newton step in standard-error
+  units (default 0.05), not a raw score norm. The two tolerances still sit at
+  different loop levels and are not interchangeable. Whether the returned estimate
+  is at its final pool's optimum is a third, separate check, the fit's
+  `newton_se`/`at_optimum` (see D25), which `converged` does not read.
 - **Failure semantics**: exhausting `max_retries` or `max_iterations` without
   convergence **aborts with an error** explaining the non-convergence (a
   `cli_abort()` carrying the trace-derived diagnosis) — not a flagged result.
@@ -2092,6 +2125,29 @@ step scaled by the information) changes every DyNES fit and is its own change
 the defaults and reading the bias as MC error. That is how the pilot's 0.02-SE gap was
 first read, and SE calibration would inherit the same confusion.
 
+**The package's own gate (amended 2026-10-25, user decision).** The first of the
+possible improvements above landed as `sgd-scale-aware-default`. A DyNES fit now
+carries `newton_se`, the same statistic as the v1 gate,
+`max |I_obs⁻¹ S| / SE` from the final covariance pass, and `at_optimum =
+newton_se < 0.1`, both in `glance()`. So the study's gate and the package's agree
+by construction. The M-step's stop rule is in SE units as well (`sgd_tolerance`,
+default 0.05), and its default step (`"fisher_scoring"`, full variant) no longer
+aborts or under-steps on the cells that motivated this decision. That change's
+task 5.3 compared the two settings on the toy, the oracle and the B3/B4 cells
+(`progress.md`, 2026-10-25). Neither aborts. Where both converge, the estimates
+agree within 0.07 SE. The default meets the 0.1 gate on the oracle and on
+`b3_f33_unc_mcmc`, where the tuned setting misses it.
+- **The study is not re-run.** The cluster fits keep the tuned setting (adagrad
+  0.01, 500 M-step iterations) and the Newton-step gate computed from their own
+  records. The write-up states that setting and cites the 5.3 comparison. A
+  re-run would move converged estimates by less than the study's precision, and
+  the capped f33 cells fall short of their optimum under either setting.
+- **New tests use the default.** The oracle and recovery tests (6.2.6, 6.2.7) run
+  under the default `set_sgd_options()` and assert `at_optimum`, with no explicit
+  SGD setting, since that is what a user runs.
+The *Rejected* note above stays as the reasoning of its date: the study did not
+wait for the default, and the default does not reopen it.
+
 ### D26 — The IS-ESS collapse floor is set by a tested code change
 `importance_ess_collapse_threshold()` (`R/diagnostics_dynes.R`, abmcem's message
 surface) returns `NA_real_`, so the runtime switch-to-`augment_seq_mcmc()`
@@ -2118,6 +2174,10 @@ not importance-sampling collapse. With a stable step, the collapsed run survives
 mid-run check (ESS ≈ 10 of 50–5000 on every pass), which is where the recommendation
 fires. The abort keeps its "smaller `step_size`" advice. The step-size default itself
 belongs to `sgd-scale-aware-default`.
+*Amended 2026-10-25:* that change has landed. Under the new default no B3 or B4 cell
+aborts (its tasks 4.6 and 5.3), so the mid-run check, and with it the recommendation,
+is reached at the default settings. Task 6.2d's tests need no explicit SGD setting to
+get there.
 
 ## Risks / Trade-offs
 
@@ -2144,6 +2204,10 @@ belongs to `sgd-scale-aware-default`.
   (`goldfish_dynes_fixed_term_degenerate`) and records `fixed_degenerate` in
   `em_trace`, and a fully dropped pool stops with `converged = FALSE`. The SGD
   step-size follow-up remains open.
+  *Amended 2026-10-25:* the SGD step-size follow-up is closed by
+  `sgd-scale-aware-default`, landed on `feature/dynes` (46/46, re-check
+  CONFORMANT at `9c0ad267`). The default is the Fisher-scoring step, the M-step's
+  stop rule is in SE units, and the fit reports `newton_se`/`at_optimum` (D25).
   *Amended 2026-10-02:* a real `estimate_dynes()` on `recipe_state_spec()` still
   crashed (SGD `sample.int(..., prob)`, or the MCMC single-finite-`log_proposal`
   abort) when every pooled sequence was singular, because the pool evaluator dropped

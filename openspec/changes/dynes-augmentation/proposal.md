@@ -75,6 +75,10 @@ package's estimation core.
     prototypes' IS-vs-resampling distinction lives in the weighting scheme,
     orthogonal to the optimizer. *Implemented by the `abmcem` change* — here
     the contract is only consumed (the batched evaluator swaps in behind it).
+    *Amended 2026-10-25:* its default step is now the Fisher-scoring step with
+    the full variant, and its stop rule is in standard-error units
+    (`sgd-scale-aware-default`); the study's tuned adagrad setting is not
+    needed by the new tests (design D25).
 - **Augmenters drive the walk handle**: the model-driven augmenter steps the
   `multi-process-walk` handle (`make-multivariate-spec`:
   `walk_open`/`advance`/`evaluate`/`inject`, plus the `walk_replay`/
@@ -91,7 +95,9 @@ package's estimation core.
 - **Result contract**: ABEM delivers estimates and a Fisher-information approximation
   usable for `vcov()`, plus Monte-Carlo standard errors, the `em_trace`
   per-iteration diagnostics, and convergence diagnostics
-  surfaced by `summary()`.
+  surfaced by `summary()`, among them `newton_se`/`at_optimum`, whether the
+  estimate sits at its final pool's optimum (added by
+  `sgd-scale-aware-default`; the recovery study's convergence gate, design D25).
 - **Process simulation moved out**: the general `simulate()` surface is no longer
   this change's — it is lifted into the standalone `process-simulation` change (a
   family-agnostic S3 generic over the same walk handle). This change retains
@@ -157,6 +163,12 @@ package's estimation core.
   consumes `constraint-objects-on-shared-walk` for the one walk-handle refusal
   still open (a constraint on a changing object no formula reads). Precedes
   `gof-dynes`.
+  *Amended 2026-10-25:* four prerequisite changes were inserted before the
+  remaining code tasks (6.2.6, 6.2.7, 6.2.9–6.2.11) and have all landed on
+  `feature/dynes`: `dynes-composition-to-waves`,
+  `dynes-augmenter-walk-alignment`, `focal-stream-dedup` and
+  `sgd-scale-aware-default`. The cluster study results hold across all four;
+  the study is not re-run under the new SGD default (design D25).
 - **Dependencies**: **mirai enters Suggests** (optional sequence-level parallelism
   through a serial-default map seam; parallelization is sequence-level only, under a
   non-nested workers × BLAS-threads ≤ cores budget — design D10); pool spill-to-disk

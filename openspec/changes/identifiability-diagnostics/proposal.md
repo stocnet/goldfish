@@ -69,6 +69,15 @@ move. That is the central scoping constraint, not an afterthought.
   `R/diagnostics_identifiability.R`; `summary.goldfishFit()` (the method
   name after `class-naming-scheme`'s camelCase rename, ADR-0031) gains the
   conditioning report.
+- **Third caller (DyNES pooled information)**: `singular-sequence-information`
+  added `singular_attribution(information)` in its warning for a singular
+  pooled information at a DyNES estimate (`new_dynes_fit()`, `R/fit_dynes.R`).
+  Today it names only zero-diagonal coefficients and returns no groups. This
+  change's null-space analysis should replace its inside so DyNES names
+  collinear groups too. DyNES warns and does not abort, through its own
+  renderer, and calls the helper before the pool store is closed, so the
+  statistics-based explanation can be given the store. Re-ground the helper's
+  name and location before apply.
 - **Frozen baselines**: untouched by construction — every addition is on a path
   that currently ends in an error or runs after estimation completes. A
   successful fit's numbers are unchanged.
