@@ -166,6 +166,7 @@ test_that("no component re-derives behavior from model or sub_model", {
     # Pre-spec: the arguments have not been resolved into a spec yet.
     "model_estimate.R" = "estimator entry, before new_model_spec()",
     "make_specification.R" = "builds a specification from user arguments",
+    "specify_dynam.R" = "builds a specification from user arguments",
     "make_joint_specification.R" = "builds a joint specification",
     "formula_parser.R" = "parses a formula against the requested pair",
     "preprocess_joint.R" = "plans the merged walk from requested pairs",
