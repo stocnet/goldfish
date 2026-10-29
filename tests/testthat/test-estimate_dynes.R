@@ -1312,3 +1312,51 @@ test_that("the default fit reproduces the closed-form count-panel MLE", {
   mc_se <- sqrt(diag(fit$mc_covariance))[labels]
   expect_lt(max(mc_se / oracle$mle$se), 1e-6)
 })
+
+# --- Seeded parameter recovery ----------------------------------------------
+# Unlike the oracle above, the target is the generating parameters, so the
+# bounds are statistical: three panels drawn by simulate() at known values,
+# each fitted under the default SGD with the warm start. Bounds are fixed in
+# advance at 3 SE for the two friendship rate intercepts and both calls
+# coefficients. The recip choices are not bounded: two to four creation or
+# dissolution flips per interval carry almost no reciprocity information, and
+# their estimates wander over several units with SEs in the hundreds.
+
+test_that("the default fit recovers known parameters from simulated waves", {
+  skip_on_cran()
+  drawn <- suppressWarnings(suppressMessages(
+    recovery_panels(nsim = 3L, seed = 1L)
+  ))
+  expect_identical(drawn$capped, 0L)
+  expect_identical(drawn$unidentified, 0L)
+  # Calls arrive about seven per unit time from t0 = 0, so every run's first
+  # event falls inside (0, 1). A clock opened at a later first data time
+  # would show as a first event past it.
+  expect_true(all(drawn$first_event > 0 & drawn$first_event < 1))
+
+  bounded <- c(
+    "friendship › creation › rate: Intercept",
+    "friendship › dissolution › rate: Intercept",
+    "calls › rate: Intercept",
+    "calls › choice: inertia/calls"
+  )
+  # The fits warn only of `support_constraint` structure (forced choices,
+  # senders gated out) and of `routine = "random"`'s distance from the target;
+  # a singular or non-PD information would fail the status check below.
+  for (i in seq_along(drawn$specs)) {
+    fit <- suppressWarnings(suppressMessages(estimate_dynes(
+      drawn$specs[[i]],
+      set_algorithm_em(
+        n_sequences = 50L,
+        seed = 1000L + i,
+        augmenter = set_augmenter_options(routine = "random", warm_start = TRUE)
+      ),
+      wave_times = c(0, recovery_waves)
+    )))
+    expect_identical(fit$covariance_status, "ok")
+    expect_true(fit$at_optimum)
+    se <- sqrt(diag(fit$covariance))[bounded]
+    z <- (coef(fit)[bounded] - drawn$truth[bounded]) / se
+    expect_lt(max(abs(z)), 3)
+  }
+})

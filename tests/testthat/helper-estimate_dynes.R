@@ -661,3 +661,167 @@ oracle_count_panel <- function(seed = 3L) {
     mle = oracle_mle(projected$panel, nodes, max(waves))
   )
 }
+
+# --- Seeded recovery fixture -------------------------------------------------
+# The parameter-recovery study's state-panel shape at its second flips level:
+# 12 actors, a modeled flavored `friendship` panel (rate `~ 1` and choice
+# `~ recip` per flavor) observed at waves 5 and 10 from t0 = 0, beside an
+# observed `calls` stream that does not read it. Both friendship rate
+# intercepts at -3.2 give about four net, and as many latent, flips per
+# interval, so the minimal-flip estimand carries no visible bias there.
+
+recovery_waves <- c(5, 10)
+
+recovery_nodes <- function(n = 12L) {
+  data.frame(
+    label = paste0("N", seq_len(n)),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+}
+
+# Starting friendship network of density 0.2, fixed across replicates.
+recovery_start_ties <- function(n = 12L, density = 0.2, seed = 11L) {
+  withr::with_seed(seed, {
+    d <- expand.grid(from = seq_len(n), to = seq_len(n))
+    d <- d[d$from != d$to, ]
+    d <- d[stats::runif(nrow(d)) < density, ]
+  })
+  data.frame(
+    from = d$from,
+    to = d$to,
+    time = NA_real_,
+    weight = 1,
+    layer = "friendship"
+  )
+}
+
+recovery_data <- function(ties, observation = "panel") {
+  add_flavor(
+    list(
+      info = list(
+        name = "recovery",
+        focal = "calls",
+        update = c(friendship = "increment", calls = "increment"),
+        directed = c(friendship = TRUE, calls = TRUE),
+        observation = c(friendship = observation, calls = "event")
+      ),
+      nodes = recovery_nodes(),
+      ties = ties
+    ),
+    layer = "friendship",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+}
+
+recovery_spec <- function(data) {
+  make_joint_specification(
+    make_specification(
+      rate = list(creation ~ 1, dissolution ~ 1),
+      choice = list(creation ~ recip, dissolution ~ recip),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# Generating data: the starting network; one creation on an absent dyad and
+# one dissolution on a present one at the horizon, because
+# make_specification() derives the flavor support constraint only from a
+# layer with a timed flavored row; and calls rows at t0 and at the horizon.
+# simulate() opens its clock at the earliest data time whatever its
+# `control_prep` says, so the row at t0 is what makes the generating window
+# the estimation window.
+recovery_generating_data <- function() {
+  start <- recovery_start_ties()
+  n <- nrow(recovery_nodes())
+  present <- paste(start$from, start$to)
+  absent <- expand.grid(from = seq_len(n), to = seq_len(n))
+  absent <- absent[
+    absent$from != absent$to & !paste(absent$from, absent$to) %in% present,
+  ][1, ]
+  horizon <- max(recovery_waves)
+  recovery_data(
+    rbind(
+      start,
+      data.frame(
+        from = c(absent$from, start$from[1]),
+        to = c(absent$to, start$to[1]),
+        time = horizon,
+        weight = c(1, -1),
+        layer = "friendship"
+      ),
+      data.frame(
+        from = 1L,
+        to = 2L,
+        time = c(0, horizon),
+        weight = 1,
+        layer = "calls"
+      )
+    ),
+    observation = "event"
+  )
+}
+
+# One seeded simulate() pool at the known parameters, projected onto the
+# waves. Capped runs are dropped through filter_simulation(), and panels with
+# no creation or no dissolution flip (that flavor's rate then has no finite
+# MLE) are dropped after projection; both are counted. `first_event` is each
+# kept run's earliest event time, `specs` the joint specifications to fit.
+recovery_panels <- function(nsim, seed) {
+  generative <- recovery_spec(recovery_generating_data())
+  truth <- set_parameters(
+    generative,
+    `friendship › creation › rate` = -3.2,
+    `friendship › dissolution › rate` = -3.2,
+    `friendship › creation › choice` = 1,
+    `friendship › dissolution › choice` = -1,
+    `calls › rate` = -0.5,
+    `calls › choice` = 0.5
+  )
+  pool <- simulate(
+    generative,
+    nsim = nsim,
+    seed = seed,
+    coef = truth,
+    horizon = max(recovery_waves),
+    control_sim = set_simulation_guard(max_events = 5e4)
+  )
+  kept <- unclass(filter_simulation(pool, !capped))
+  panels <- lapply(kept, function(run) {
+    projected <- project_to_waves(run$events, "friendship", recovery_waves)
+    rbind(recovery_start_ties(), projected$panel, projected$events)
+  })
+  identified <- vapply(
+    panels,
+    function(ties) {
+      w <- ties$weight[ties$layer == "friendship" & !is.na(ties$time)]
+      any(w > 0) && any(w < 0)
+    },
+    logical(1)
+  )
+  layout <- coef_layout(truth)
+  layout <- layout[!is.na(layout$index), ]
+  list(
+    truth = stats::setNames(
+      layout$value,
+      paste0(layout$process, ": ", layout$name)
+    ),
+    specs = lapply(panels[identified], function(ties) {
+      recovery_spec(recovery_data(ties))
+    }),
+    first_event = vapply(kept, function(run) min(run$events$time), numeric(1)),
+    capped = nsim - length(kept),
+    unidentified = sum(!identified)
+  )
+}

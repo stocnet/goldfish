@@ -719,7 +719,7 @@
       control constructors are already exported by `abmcem`; only the driver's
       `@export` is this change's to add. Re-run the 6.1a tests to confirm GREEN;
       commit.
-- [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture; full
+- [x] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture; full
       simulation study incl. creation/dissolution identifiability from waves,
       recorded with the change (progress.md + `.plan/`). This validates the
       already-implemented pipeline end to end rather than driving new production
@@ -903,9 +903,20 @@
       (`newton_se` 0.0014), |θ̂ − MLE| ≤ 0.00094 SE against a 0.01 SE bound,
       MC SE ≈ 1e-17 SE (asserted < 1e-6): every path has one likelihood, so
       the bound is the optimizer's, not Monte-Carlo's.
-- [ ] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
+- [x] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
       Under the default `set_sgd_options()`, asserting `at_optimum` (added
       2026-10-25): the study's adagrad setting is not used here.
+      *Done 2026-10-29:* `test-estimate_dynes.R`, "the default fit recovers
+      known parameters from simulated waves" (59 s), on the
+      `recovery_panels()` fixture in `helper-estimate_dynes.R` (the study's
+      f05 uncoupled shape). One `simulate()` pool (`nsim = 3`, seed 1), with
+      the calls placeholder row at t0 = 0. Asserted: 0 capped (via
+      `filter_simulation()`), 0 unidentified panels, and every first event
+      in (0, 1). Then `random` with the warm start at the default SGD.
+      Per replicate: `covariance_status = "ok"`, `at_optimum`, and
+      |θ̂ − θ| < 3 SE for both friendship rate intercepts and both calls
+      coefficients. Achieved max |z| 1.94 / 1.39 / 0.85, `newton_se`
+      0.040 / 0.002 / 0.041. The recip choices are not bounded (FINDINGS D7).
 - [ ] 6.2.8 analysis and write-up (6.2 / 6.2c envelope, the floor, coupling).
       Session ~3 h; needs 6.2.1–6.2.3. No cell is re-run under the new default
       (user, 2026-10-25): state the study's SGD setting (adagrad 0.01, 500
