@@ -505,10 +505,13 @@ oracle_nodes <- function(n = 12L, seed = 7L) {
 oracle_data <- function(nodes, ties = NULL, observation = "panel") {
   if (is.null(ties)) {
     # Placeholder rows so both layers exist before anything is simulated.
+    # simulate() opens its clock at the earliest data time whatever its
+    # `control_prep` says, so the emails row sits at t0 = 0, where the
+    # estimation window opens.
     ties <- data.frame(
       from = c(1L, 2L),
       to = c(2L, 1L),
-      time = c(5, 1),
+      time = c(5, 0),
       weight = 1,
       layer = c("calls", "emails")
     )
@@ -628,8 +631,8 @@ oracle_mle <- function(panel, nodes, horizon) {
 }
 
 # The oracle panel from a seeded simulate() of the joint specification:
-# the specification to estimate on the projected data, its wave grid, and the
-# closed-form calls MLE.
+# the specification to estimate on the projected data, its wave grid, the
+# closed-form calls MLE, and the run's earliest event time.
 oracle_count_panel <- function(seed = 3L) {
   waves <- c(5, 10)
   nodes <- oracle_nodes()
@@ -658,7 +661,8 @@ oracle_count_panel <- function(seed = 3L) {
       oracle_data(nodes, rbind(projected$panel, projected$events))
     ),
     wave_times = c(0, waves),
-    mle = oracle_mle(projected$panel, nodes, max(waves))
+    mle = oracle_mle(projected$panel, nodes, max(waves)),
+    first_event = min(sim$events$time)
   )
 }
 

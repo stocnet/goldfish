@@ -903,6 +903,12 @@
       (`newton_se` 0.0014), |θ̂ − MLE| ≤ 0.00094 SE against a 0.01 SE bound,
       MC SE ≈ 1e-17 SE (asserted < 1e-6): every path has one likelihood, so
       the bound is the optimizer's, not Monte-Carlo's.
+      *Amended 2026-10-29 (FINDINGS B6):* the fixture's `emails` placeholder
+      row sat at t = 1, so the draw opened at t = 1, not t0 = 0. It is now
+      at t = 0, and the test asserts the first event in (0, 1) (0.16). On
+      the redrawn panel: `newton_se` 0.0025, |θ̂ − MLE| ≤ 0.00049 SE, and MC
+      SE ≈ 1e-16 SE. The closed-form SE test in `test-fit_dynes.R` is within
+      0.005% (bound 10%).
 - [x] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
       Under the default `set_sgd_options()`, asserting `at_optimum` (added
       2026-10-25): the study's adagrad setting is not used here.

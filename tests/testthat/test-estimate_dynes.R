@@ -1293,6 +1293,11 @@ test_that("a statistic with no variation on any path runs under every routine", 
 test_that("the default fit reproduces the closed-form count-panel MLE", {
   skip_on_cran()
   oracle <- suppressMessages(oracle_count_panel())
+  # Calls and emails together arrive several per unit time from t0 = 0, so
+  # the run's first event falls inside (0, 1); a clock opened at a later
+  # first data time would show as a first event past it.
+  expect_gt(oracle$first_event, 0)
+  expect_lt(oracle$first_event, 1)
 
   fit <- suppressMessages(estimate_dynes(
     oracle$spec,
