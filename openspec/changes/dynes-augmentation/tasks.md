@@ -839,8 +839,9 @@
       `simulate()` opens its clock at the earliest data time whatever
       `control_prep` says (a `process-simulation` finding); the datasets were
       redrawn on the right window and the bundle rebuilt.
-      **Cluster results in (2026-10-09).** `results_20261009_0911.tar.gz` in
-      the bundle folder: 2034 of 2040 fits, every record stamped with bundle
+      **Cluster results in (2026-10-09).** `results_20261009_0911.tar.gz`
+      (at `.plan/dynes/results_20261009_0911.tar.gz` since 2026-10-26):
+      2034 of 2040 fits, every record stamped with bundle
       `20261007_0834_15fa5438_ec2203ae`. They are valid for the code at
       `f663b266` (after the `upstream/feature_simulation` merge), and the
       pending `dynes-composition-to-waves` and `dynes-augmenter-walk-alignment`
@@ -864,25 +865,35 @@
       `.plan/dynes/recovery/FINDINGS.md` (D11–D17, C4).
 - [x] 6.2.0 Finish 6.2h (format, full NOT_CRAN, GREEN commit) and delete the
       stale round-1 cells. Session ~1 h.
-- [ ] 6.2.1 random cells (8, 100 replicates): on the cluster; merge and
+- [x] 6.2.1 random cells (8, 100 replicates): on the cluster; merge and
       analyze.
-- [ ] 6.2.2 sim cells (8): 30 replicates at f05–f33, 100 at f02 (user,
+- [x] 6.2.2 sim cells (8): 30 replicates at f05–f33, 100 at f02 (user,
       2026-10-06: 30 locates sim's ESS collapse; 100 would cost about 3
       weeks locally). Run on the SLURM cluster (remote bundle).
-- [ ] 6.2.3 mcmc cells (8, 20 replicates): on the cluster.
-- [ ] 6.2.4 pinned-rate cell (f05, coupled, random, 100): on the cluster.
-- [ ] 6.2.5 transformed-weights arm (16 cells): random 25 replicates (paired
+- [x] 6.2.3 mcmc cells (8, 20 replicates): on the cluster.
+- [x] 6.2.4 pinned-rate cell (f05, coupled, random, 100): on the cluster.
+- [x] 6.2.5 transformed-weights arm (16 cells): random 25 replicates (paired
       with the identity cells' panels), sim 50 (user, 2026-10-06). On the
       cluster.
       *Added 2026-10-26 (user decision), for 6.2.1–6.2.5:* the 6 of 2040 fits
-      missing from `results_20261009_0911.tar.gz` are rerun, not reported as
+      missing from `.plan/dynes/results_20261009_0911.tar.gz` are rerun, not reported as
       missing. Update the cluster bundle to the current `feature/dynes` HEAD
       and run every necessary fit there, none locally. The reruns pass the
       study's own setting explicitly (adagrad, `step_size = 0.01`,
       `max_iterations = 500L`, warm start), never the new default, and record
-      the commit they ran at. The earlier checks found that walk-alignment,
+      the commit they ran at. Study inputs are read only from `.plan/dynes/`.
+      The earlier checks found that walk-alignment,
       `focal-stream-dedup` and `sgd-scale-aware-default` move no fit under an
       explicit setting, so the reruns compare with the 2034 fits already in.
+      *Done 2026-10-29.* The first tarball held 1,989 fits, not 2,034, so 51
+      were missing, not 6. All 51 were rerun on the cluster at `bd73cc7c`
+      (bundle `20261026_1224_bd73cc7c_ec2203ae`, 20 jobs x 5 cores) under the
+      explicit adagrad / 0.01 / 500 / warm-start setting and merged: 2040 of
+      2040 fits, every cell at its planned count. The reruns include 6 error
+      records (EM ascent not certified within 20 retries: f02_coup_sim 1,
+      f05_coup_sim 2, f33_unc_random 3), the failure class of D14/D15. Two
+      README quick-test fits (f02_unc_sim 1, 2) in the tarball matched the
+      2026-10-09 fits at `15fa5438` (estimates to 1e-15, SEs to 1e-13).
 - [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (the CTMC sibling
       is skipped, 2026-10-26; see 6.2b). Under the default `set_sgd_options()` (added
       2026-10-25, design D25 amendment): no explicit SGD setting; assert
@@ -896,9 +907,9 @@
       M-step iterations) and cite `sgd-scale-aware-default` 5.3 (converged
       estimates agree within 0.07 SE).
 - [ ] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
-- [ ] 6.2.10 = 6.3 vignette. Session 4–6 h; dataset decision first.
-      *Decided 2026-10-26:* a private dataset, supplied by the user at the
-      session, in a local-only location; see 6.3.
+- [ ] 6.2.10 = 6.3 vignette. Session 4–6 h, plus the precompile run.
+      *Decided 2026-10-26 (user):* the packaged `social_evolution`, precompiled;
+      timing pilot first (see 6.3).
 - [ ] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
 - [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
       tempers the importance weights to w^(1/2), normalized. Test that it equals
@@ -985,11 +996,26 @@
       **Open (2026-10-05):** which dataset the example uses is not chosen yet. No
       packaged dataset is known to carry both a state panel and a count panel. Decide
       before the session, or use a `simulate()`-drawn panel from the 6.2 study.
-      *Decided 2026-10-26 (user):* the example uses a private dataset that cannot
-      be committed. The session asks the user for it, the vignette lives in a
-      local-only location (chosen at the session) and is not committed until the
-      dataset can be released, and so it must not be knitted by the 6.4
-      `NOT_CRAN`/check run.
+      *Decided 2026-10-26 (user):* the example uses the packaged
+      `social_evolution`. The vignette is precompiled like the others
+      (`.Rmd.orig` knitted by `vignettes/rebuild-all.R`), so the 6.4 check run
+      knits only the precomputed `.Rmd`.
+      - Modeled state panel: `friendship`, one interval (2008-09-09 to
+        2008-10-19), coupled to the observed `calls` layer.
+      - Node set: the 51 actors who answered both surveys. No restriction by
+        attribute.
+      - Wave 2 lists nominations only (every row `replace = 1`), and a
+        snapshot is the replayed change-list. So the vignette adds a
+        `replace = 0` row at wave 2 for each tie wave 2 drops: 70 formed and
+        70 dissolved among the 51.
+      - No aggregation of `calls`. No packaged dataset carries a count panel,
+        so the count panel is explained in prose (its diff and why it is
+        exact) without a worked fit.
+      - Timing pilot first. 140 flips over 51 actors is past the study's top
+        level (f33: 33 flips over 12 actors, `mcmc` up to 16 h per fit).
+        Time one EM pass of `random` and of `mcmc` on the vignette's
+        specification and bring the estimate to the user before writing the
+        vignette's fits.
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and no
       `/opsx:archive` on this branch.** Record the DyNES milestone as a `NEWS.d/`
