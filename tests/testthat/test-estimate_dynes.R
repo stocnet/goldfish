@@ -1282,3 +1282,33 @@ test_that("a statistic with no variation on any path runs under every routine", 
     )
   }
 })
+
+# A count panel with exogenous effects only has an analytic observed-data
+# likelihood: dyad counts Poisson in lambda_ij * dt, times uniform order
+# statistics given the counts. The augmenter, the weights and the M-step must
+# together reproduce the Poisson-regression MLE, a target none of them
+# produced. Every path has the same likelihood, so the Monte-Carlo error is
+# zero up to rounding and the bound is the optimizer's: 0.01 standard errors,
+# a tenth of the at_optimum threshold.
+test_that("the default fit reproduces the closed-form count-panel MLE", {
+  skip_on_cran()
+  oracle <- suppressMessages(oracle_count_panel())
+
+  fit <- suppressMessages(estimate_dynes(
+    oracle$spec,
+    set_algorithm_em(
+      n_sequences = 20L,
+      max_iterations = 30L,
+      seed = 1L,
+      augmenter = set_augmenter_options(routine = "random")
+    ),
+    wave_times = oracle$wave_times
+  ))
+
+  expect_true(fit$at_optimum)
+  labels <- names(oracle$mle$estimate)
+  gap <- (coef(fit)[labels] - oracle$mle$estimate) / oracle$mle$se
+  expect_lt(max(abs(gap)), 0.01)
+  mc_se <- sqrt(diag(fit$mc_covariance))[labels]
+  expect_lt(max(mc_se / oracle$mle$se), 1e-6)
+})

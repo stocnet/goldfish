@@ -894,10 +894,15 @@
       f05_coup_sim 2, f33_unc_random 3), the failure class of D14/D15. Two
       README quick-test fits (f02_unc_sim 1, 2) in the tarball matched the
       2026-10-09 fits at `15fa5438` (estimates to 1e-15, SEs to 1e-13).
-- [ ] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (the CTMC sibling
+- [x] 6.2.6 = 6.2b closed-form oracle test. Session 2–3 h (the CTMC sibling
       is skipped, 2026-10-26; see 6.2b). Under the default `set_sgd_options()` (added
       2026-10-25, design D25 amendment): no explicit SGD setting; assert
       `at_optimum` beside the oracle tolerance.
+      *Done 2026-10-29:* `test-estimate_dynes.R`, "the default fit reproduces
+      the closed-form count-panel MLE" (1.4 s). At the default: `at_optimum`
+      (`newton_se` 0.0014), |θ̂ − MLE| ≤ 0.00094 SE against a 0.01 SE bound,
+      MC SE ≈ 1e-17 SE (asserted < 1e-6): every path has one likelihood, so
+      the bound is the optimizer's, not Monte-Carlo's.
 - [ ] 6.2.7 seeded recovery test (skip_on_cran, about a minute). Session ~2 h.
       Under the default `set_sgd_options()`, asserting `at_optimum` (added
       2026-10-25): the study's adagrad setting is not used here.
@@ -930,7 +935,7 @@
       wave and places no event in the quiet interval. Commit the test alone.
 - [x] 6.2h GREEN: an interval with no events draws no times in both
       augmenters; full `NOT_CRAN=true`; commit.
-- [ ] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
+- [x] 6.2b Closed-form oracle test (skip_on_cran, design D24): a **count panel** with
       exogenous-only effects and covariates constant between waves has an analytic
       likelihood — dyad counts Poisson in `λ_ij · Δt`, times uniform order statistics
       given the counts — so `estimate_dynes()` must reproduce the Poisson-regression MLE
