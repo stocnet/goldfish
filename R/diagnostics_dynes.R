@@ -49,17 +49,22 @@ cold_start_ess_diagnostic <- function(weights, ess_threshold = 0.5) {
 }
 
 # The single seam for the mid-run IS-ESS collapse threshold, as a fraction of the
-# pool size. This change owns only the message surface that consumes it; the
-# numeric floor -- where importance-weighted augmentation degenerates faster than
-# pool growth can recover, the flips-per-interval cliff -- is owned by
-# dynes-augmentation's 6.2/6.3 degeneracy study. Reading it through this one
-# accessor (rather than a literal at the call site) is what keeps the runtime
-# recommendation and the documented operating envelope from drifting: when the
-# study lands, dynes-augmentation calibrates the value here, in one place. Until
-# then the threshold is NA and the recommendation stays dormant -- the surface
-# ships without a guessed number baked in.
+# pool size. The numeric floor -- where importance-weighted augmentation
+# degenerates faster than pool growth can recover, the flips-per-interval cliff
+# -- comes from the DyNES degeneracy study. Reading it through this one accessor
+# (rather than a literal at the call site) is what keeps the runtime
+# recommendation and the documented operating envelope from drifting.
+#
+# Over the study's simulated panels (12 actors, 2 to 33 flips per interval,
+# with and without a coupled event-stream layer), 0.02 under `random` stayed
+# silent in 0-4% of fits wherever the routine converged and fired in 75-100%
+# of fits wherever it failed. Coupling lowers the ESS by moving the cliff to
+# fewer flips, not by making a fit fail at a different ESS, so one value serves
+# coupled and uncoupled specifications alike. At a starting pool of 50 the floor
+# cannot fire (ESS >= 1 = 0.02 * 50); it acts once growth retries have enlarged
+# the pool.
 importance_ess_collapse_threshold <- function() {
-  NA_real_
+  0.02
 }
 
 # Run-level diagnostic state, owned by the estimation loop and threaded through

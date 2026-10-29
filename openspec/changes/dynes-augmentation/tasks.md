@@ -928,7 +928,8 @@
       (user, 2026-10-25): state the study's SGD setting (adagrad 0.01, 500
       M-step iterations) and cite `sgd-scale-aware-default` 5.3 (converged
       estimates agree within 0.07 SE).
-- [ ] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
+- [x] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
+      *Done 2026-10-29:* see 6.2d.
 - [ ] 6.2.10 = 6.3 vignette. Session 4–6 h, plus the precompile run.
       *Decided 2026-10-26 (user):* the packaged `social_evolution`, precompiled;
       timing pilot first (see 6.3).
@@ -979,7 +980,7 @@
       placement it is making, which is where the information about latent timing sits, so
       the coupled cell is expected to degrade `sim` specifically — record whether the
       ESS floor the runtime recommendation fires at must differ by coupling.
-- [ ] 6.2d Set the IS-ESS collapse floor (design D26), after 6.2/6.2c locate it.
+- [x] 6.2d Set the IS-ESS collapse floor (design D26), after 6.2/6.2c locate it.
       (a) RED: below the floor, the switch-to-`augment_seq_mcmc()` recommendation
       fires under `random`/`sim`, never under `mcmc`, and at most once per run (cli
       snapshot). Commit the tests alone. (b) GREEN: return the located value from
@@ -1002,6 +1003,15 @@
       defaults, that the cliff cells reach the mid-run check without
       `goldfish_abem_retry_exhausted`. Only an abort that still fires there
       reopens the message wording.
+      *Done 2026-10-29:* the f33 cliff cells (replicate 1, K = 50, warm
+      start, every other control at its default, EM capped at 4–6) all reach
+      the mid-run check with no abort: `random` unc 3 checks (converged at
+      iteration 4), `random` coup 5 checks, `sim` unc and coup 3 each. The
+      step-size advice is not reopened. RED `41511885`: unmocked tests on
+      pools of 100–300 (fires under `random`/`sim`, never `mcmc`, once per
+      run, scales with the pool, silent at K = 50). GREEN returns `0.02`;
+      one new snapshot (pool 100), no other snapshot changed. No coupling
+      argument (D26 amendment).
 - [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime

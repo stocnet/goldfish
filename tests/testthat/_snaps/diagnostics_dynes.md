@@ -18,6 +18,16 @@
       i With many changes per interval the importance-weight variance grows with the sequence-space dimension, a cost no redraw at any parameters removes.
       i Switch to `augment_seq_mcmc()`, which does not pay the importance-sampling dimension tax.
 
+# the floor recommends augment_seq_mcmc() once per run
+
+    Code
+      fired <- recommend_mcmc_on_ess_collapse(state, w, routine = "random")
+    Condition
+      Warning:
+      ! Effective sample size 1.06 has collapsed mid-run under the importance-weighted `routine` = "random" (pool size 100); redrawing cannot recover it.
+      i With many changes per interval the importance-weight variance grows with the sequence-space dimension, a cost no redraw at any parameters removes.
+      i Switch to `augment_seq_mcmc()`, which does not pay the importance-sampling dimension tax.
+
 # restart-coupling warning fires exactly once per run
 
     Code

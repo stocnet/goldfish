@@ -98,8 +98,9 @@ test_that("mid-run ESS collapse recommends augment_seq_mcmc() once per run", {
 # --- The calibrated floor: 0.02 of the pool ---------------------------------
 # The degeneracy study located one floor for coupled and uncoupled
 # specifications alike, so these tests read the real threshold, unmocked. A
-# fraction of 0.02 cannot fire on the starting pool of 50 (ESS >= 1 = 0.02 * 50),
-# so the pools below are grown past 50, as the loop's growth retries grow them.
+# fraction of 0.02 cannot fire on the starting pool of 50
+# (ESS >= 1 = 0.02 * 50), so the pools below are grown past 50, as the loop's
+# growth retries grow them.
 
 # A pool of `k` with `m` equally weighted sequences and the rest at zero weight:
 # ESS is exactly m.
@@ -111,7 +112,7 @@ test_that("the IS-ESS collapse floor is 0.02 of the pool", {
   expect_identical(importance_ess_collapse_threshold(), 0.02)
 })
 
-test_that("the floor recommends augment_seq_mcmc() once per run on a grown pool", {
+test_that("the floor recommends augment_seq_mcmc() once per run", {
   local_reproducible_output()
   state <- new_run_warning_state()
   w <- degenerate_weights(100) # ESS ~ 1.06 < 0.02 * 100 = 2 -> collapse.
