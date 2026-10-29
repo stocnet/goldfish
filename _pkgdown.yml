@@ -39,6 +39,7 @@ reference:
       - goldfish-package
       - goldfish_data
       - starts_with("make")
+      - specify_dynam
       - starts_with("link")
       - as_goldfish
       - add_flavor
