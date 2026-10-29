@@ -95,15 +95,99 @@ test_that("mid-run ESS collapse recommends augment_seq_mcmc() once per run", {
   expect_false(again)
 })
 
-test_that("ESS-collapse recommendation is dormant until the study calibrates it", {
-  # With no calibrated threshold (dynes 6.2/6.3 not landed) the seam returns NA
-  # and the recommendation never fires -- the surface ships without a guessed
-  # number baked in.
-  expect_true(is.na(importance_ess_collapse_threshold()))
+# --- The calibrated floor: 0.02 of the pool ---------------------------------
+# The degeneracy study located one floor for coupled and uncoupled
+# specifications alike, so these tests read the real threshold, unmocked. A
+# fraction of 0.02 cannot fire on the starting pool of 50 (ESS >= 1 = 0.02 * 50),
+# so the pools below are grown past 50, as the loop's growth retries grow them.
+
+# A pool of `k` with `m` equally weighted sequences and the rest at zero weight:
+# ESS is exactly m.
+flat_weights <- function(k, m) {
+  c(rep(1 / m, m), rep(0, k - m))
+}
+
+test_that("the IS-ESS collapse floor is 0.02 of the pool", {
+  expect_identical(importance_ess_collapse_threshold(), 0.02)
+})
+
+test_that("the floor recommends augment_seq_mcmc() once per run on a grown pool", {
+  local_reproducible_output()
   state <- new_run_warning_state()
-  w <- degenerate_weights(20)
-  expect_no_warning(
+  w <- degenerate_weights(100) # ESS ~ 1.06 < 0.02 * 100 = 2 -> collapse.
+
+  expect_snapshot(
     fired <- recommend_mcmc_on_ess_collapse(state, w, routine = "random")
+  )
+  expect_true(fired)
+  # Run-level dedup: a later collapse in the same run, under either importance
+  # routine, stays silent.
+  expect_no_warning(
+    again <- recommend_mcmc_on_ess_collapse(state, w, routine = "random")
+  )
+  expect_false(again)
+  expect_no_warning(
+    again_sim <- recommend_mcmc_on_ess_collapse(state, w, routine = "sim")
+  )
+  expect_false(again_sim)
+})
+
+test_that("the floor fires under sim as under random", {
+  expect_warning(
+    fired <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      degenerate_weights(100),
+      routine = "sim"
+    ),
+    "augment_seq_mcmc"
+  )
+  expect_true(fired)
+})
+
+test_that("the floor never fires under mcmc", {
+  # MCMC weights are uniform, so its ESS is the pool size; even a degenerate
+  # vector handed to the check must not trigger the IS-dimension advice.
+  expect_no_warning(
+    fired <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      degenerate_weights(100),
+      routine = "mcmc"
+    )
+  )
+  expect_false(fired)
+})
+
+test_that("the floor scales with the pool size", {
+  # The same ESS of 5 is above the floor of a pool of 200 (4) and below the
+  # floor of a pool of 300 (6).
+  expect_no_warning(
+    healthy <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      flat_weights(200, 5),
+      routine = "random"
+    )
+  )
+  expect_false(healthy)
+  expect_warning(
+    collapsed <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      flat_weights(300, 5),
+      routine = "random"
+    ),
+    "augment_seq_mcmc"
+  )
+  expect_true(collapsed)
+})
+
+test_that("the floor cannot fire on the starting pool of 50", {
+  # A single sequence carrying all the weight is the lowest ESS a pool can
+  # have (1), and it sits exactly on the floor 0.02 * 50 = 1, not below it.
+  expect_no_warning(
+    fired <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      flat_weights(50, 1),
+      routine = "random"
+    )
   )
   expect_false(fired)
 })
