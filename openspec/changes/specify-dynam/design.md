@@ -66,7 +66,7 @@ goldfish has no effect registry yet (`effect-term-registry` is open), so the
 table reads the `update_<model>_<sub_model>_<effect>` functions. The first
 formal says what an effect reads: `network`, `attribute`, or both, as
 `tertius()`. Each is written out for the network: a network effect on its own
-and with each other layer, and with `type = "ego"` where it has a `type`; an
+and with each other layer, and with `type = 'ego'` where it has a `type`; an
 attribute effect for each node attribute, `diff()` and `sim()` for each
 numeric one; `tertius()` for each layer and numeric attribute; `global()` for
 each global variable. A label, a name, `active`, or a categorical attribute
@@ -74,21 +74,28 @@ with a different value for every node gets no effect. The closures through two
 layers (`mixed_*()`) and `ego_alter_interaction()` are not listed, since they
 need a pair of objects.
 
-Each row's status is `make_specification()` of that effect alone, so the table
-and a written formula cannot disagree. Unlike infernet's table, a row that
-goldfish drops is kept with its reason, since every row here is a goldfish
-effect and the reason, such as an unidentified main effect, is what a user
-needs to see.
+A row is kept where `make_specification()` of that effect alone fits it, so
+the table and a written formula cannot disagree. An effect that the sub-model
+cannot identify, such as `ego()` in a choice model, has no row. The table has
+only the columns `term`, `effect`, `layer`, and `attribute`, as infernet's
+does: it says which effects a user can choose, and a written formula gives the
+reason for one that goldfish drops. A string argument is in single quotes, so
+that the printed term has no escaped quotes.
+
+`diff(x)` and `sim(x)` measure the same thing, since `sim()` is a negative
+difference, so `formula()` of rows that hold both keeps the first and names the
+other in a message. A formula without `.data` prints as a formula, with a line
+only for each term that goldfish adapts, interprets, or drops.
 
 ### D5. The classes stay goldfish's own until the shared ones are decided
 
 Every class goldfish attaches is `goldfish<Thing>` (`test-class_naming.R`),
 so the table is a `goldfishTerms`, and without `.data` `specify_dynam()`
 returns a formula of class `c("goldfishFormula", "formula")`, with `input` and
-`record` attributes. infernet's formula of the same role is a
-`"dynam_formula"`, so neither package masks the other's methods, and neither
-reads the other's class yet: a formula moves between them by its names, which
-both read. One shared class, and where it lives, is the roadmap's D17.
+`record` attributes. infernet removes its own `specify_dynam()` and
+`"dynam_formula"` once this lands, so no package masks the other's methods. A
+formula moves between them by its names, which both read, and infernet's
+reader also takes the class `"goldfishFormula"`. One shared class, and where it lives, is the roadmap's D17.
 
 ## Risks / Trade-offs
 

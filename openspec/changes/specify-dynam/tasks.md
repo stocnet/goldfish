@@ -16,11 +16,13 @@
 - [x] 2.1 Write out each effect of `model` and `sub_model` for the network's
       layers and node attributes, from the first formal of its `update_*`
       function.
-- [x] 2.2 Give each row the status of `make_specification()` of that effect
-      alone.
+- [x] 2.2 Keep a row only where `make_specification()` of that effect alone
+      fits it, with the columns `term`, `effect`, `layer`, and `attribute`.
 - [x] 2.3 Add `print()`, `tidy()`, and `formula()` for `"goldfishTerms"`.
 - [x] 2.4 Verification: tests pass; `NOT_CRAN=true` suite with the frozen
       baselines reporting PASS.
+- [x] 2.5 Keep one of `diff(x)` and `sim(x)` in `formula()`, and print a
+      `"goldfishFormula"` with a line only for each term that is not `"fits"`.
 
 ## 3. Documentation
 

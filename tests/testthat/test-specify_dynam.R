@@ -20,7 +20,6 @@ status_of <- function(x, term) {
   r$status[r$term == term]
 }
 
-status_of_table <- function(tab, term) tab$status[tab$term == term]
 
 as_of <- function(x, term) {
   r <- record_of(x)
@@ -183,30 +182,28 @@ test_that("an ergm left-hand side naming the network reads the focal", {
   expect_identical(spec$layer, "calls")
 })
 
-test_that("the table lists every effect for the network, with its status", {
+test_that("the table lists every effect that fits the network", {
   x <- se_fixture()
   tab <- specify_dynam(calls ~ ., x)
   expect_s3_class(tab, c("goldfishTerms", "tbl_df", "tbl", "data.frame"),
                   exact = TRUE)
-  expect_named(tab, c("term", "effect", "layer", "attribute", "status",
-                      "reason"))
+  expect_named(tab, c("term", "effect", "layer", "attribute"))
   expect_true(all(c("inertia", "recip", "trans", "recip(friendship)",
                     "same(gradeType)", "alter(floor)", "diff(floor)",
                     "tertius(friendship, floor)",
-                    "indeg(friendship, type = \"ego\")") %in% tab$term))
+                    "node_trans(friendship, type = 'ego')") %in% tab$term))
   # A label and `active` describe no node.
   expect_false(any(c("label", "active") %in% tab$attribute))
-  # A choice model cannot identify an ego-perspective main effect.
-  expect_identical(status_of_table(tab, "ego(floor)"), "drops")
-  expect_match(tab$reason[tab$term == "ego(floor)"], "ego-perspective")
-  expect_identical(status_of_table(tab, "inertia"), "fits")
+  # A choice model cannot identify an ego-perspective main effect, so it has
+  # no row.
+  expect_false(any(c("ego(floor)", "indeg(friendship, type = 'ego')") %in%
+                     tab$term))
   expect_identical(tab$layer[tab$term == "inertia"], "calls")
   # A rate model has its own effects, and the same default without a formula.
   rate <- specify_dynam(.data = x, sub_model = "rate")
   expect_true(all(c("indeg", "outdeg", "ego(floor)", "triangle") %in%
                     rate$term))
   expect_false("recip" %in% rate$term)
-  expect_identical(status_of_table(rate, "ego(floor)"), "fits")
   expect_error(specify_dynam(calls ~ .), "needs `.data`")
   expect_error(specify_dynam(), "must be supplied")
 })
@@ -224,12 +221,29 @@ test_that("formula() of chosen rows gives their specification", {
   spec <- formula(rate[rate$term %in% c("indeg", "outdeg"), ])
   expect_true(spec$submodels$rate$has_intercept)
   expect_error(formula(tab[0, ]), "no rows")
+  # Of diff() and sim() of one attribute, the first row is kept.
+  both <- tab[tab$term %in% c("inertia", "diff(floor)", "sim(floor)"), ]
+  expect_message(spec <- formula(both), "Leaving out `sim\\(floor\\)`")
+  expect_setequal(tidy(spec)$term, c("inertia", "diff(floor)"))
+  expect_identical(tidy(quietly(formula(tab[tab$term == "sim(floor)", ])))$term,
+                   "sim(floor)")
 })
 
-test_that("the table prints its statuses, and tidy() gives a plain tibble", {
+test_that("a goldfish formula prints only the terms it changes", {
+  f <- quietly(specify_dynam(calls ~ inertia + nodematch("x")))
+  out <- capture.output(print(f))
+  expect_identical(out[1], "calls ~ inertia + same(x)")
+  expect_true(any(grepl("adapted nodematch", out, fixed = TRUE)))
+  expect_false(any(grepl("fits|attr\\(", out)))
+  out <- capture.output(print(specify_dynam(calls ~ inertia + recip)))
+  expect_identical(out, "calls ~ inertia + recip")
+})
+
+test_that("the table prints its effects, and tidy() gives a plain tibble", {
   x <- se_fixture()
   tab <- specify_dynam(calls ~ ., x)
-  expect_message(expect_output(print(tab), "inertia"), "DyNAM")
+  expect_message(expect_output(print(tab), "type = 'ego'", fixed = TRUE),
+                 "[0-9]+ effects of a DyNAM choice model")
   tidied <- tidy(tab)
   expect_s3_class(tidied, c("tbl_df", "tbl", "data.frame"), exact = TRUE)
   expect_null(attr(tidied, "data"))

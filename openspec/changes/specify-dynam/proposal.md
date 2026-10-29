@@ -38,7 +38,7 @@ rather than from the help pages.
 - **New** table of every effect: `specify_dynam(.data = net)`, or
   `specify_dynam(calls ~ ., net)`, gives a tibble of class `"goldfishTerms"`,
   with one row for each effect written out for the network's layers and node
-  attributes, and its status from `make_specification()` of that effect alone.
+  attributes that `make_specification()` of that effect alone fits.
   `formula()` of chosen rows gives their specification; `tidy()` gives a plain
   tibble; `print()` uses cli.
 - **New** `tidy()` for a `goldfishSpec`: one row for each term and its status,
@@ -66,8 +66,9 @@ rather than from the help pages.
   of `specify_dynam()` estimates to the same coefficients as the one of
   `make_specification()`, and the frozen 1e-6 baselines do not move.
 - Tests: `tests/testthat/test-specify_dynam.R` (new).
-- Related: infernet's `specify_dynam()` and its table of every term
-  (`specify_mrqap(.data = net)`), whose conventions this change follows; the
+- Related: infernet's table of every term (`specify_mrqap(.data = net)`),
+  whose conventions this change follows; infernet removes its own
+  `specify_dynam()` in favour of this one; the
   roadmap's decisions D16 (a shared specification object) and D17 (where the
   shared formula classes live). `effect-term-registry` would give the table its
   effects and kinds from the registry, rather than from the `update_*`

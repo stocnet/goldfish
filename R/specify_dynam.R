@@ -43,7 +43,7 @@
 #'
 #'   - an effect of a network, such as `inertia` or `indeg()`, on its own,
 #'     where it reads the dependent layer, and with each other layer, and
-#'     with `type = "ego"` where it has a `type`;
+#'     with `type = 'ego'` where it has a `type`;
 #'   - an effect of an attribute, `ego()`, `alter()`, and `same()`, for each
 #'     node attribute, and `diff()` and `sim()` for each numeric one;
 #'   - `tertius()` and `tertius_diff()` for each layer and numeric attribute;
@@ -52,13 +52,16 @@
 #'   A label, a name, `active`, or an attribute with a different category for
 #'   every node gets no effect. The closures through two layers, such as
 #'   `mixed_trans()`, are not listed.
-#'   Each row's status is [make_specification()] of that effect alone:
-#'   `"fits"`, or `"drops"` with goldfish's reason.
+#'   An effect is listed where [make_specification()] of that effect alone
+#'   fits it, so an effect that the sub-model cannot identify, such as `ego()`
+#'   in a choice model, is not listed.
 #'
 #'   The table is a tibble of class `"goldfishTerms"`, with the columns `term`,
-#'   `effect`, `layer`, `attribute`, `status`, and `reason`. Choose rows with
-#'   `[` or `dplyr::filter()`, and `formula()` of the rows gives the
-#'   specification of those effects.
+#'   `effect`, `layer`, and `attribute`. Choose rows with `[` or
+#'   `dplyr::filter()`, and `formula()` of the rows gives the specification of
+#'   those effects. `diff(x)` and `sim(x)` measure the same thing in different
+#'   ways, so of the two, `formula()` keeps the first row, and a message names
+#'   the other.
 #'
 #' @param formula A two-sided formula, or a list of them named by sub-model,
 #'   such as `list(rate = calls ~ 1 + indeg, choice = calls ~ inertia)`.
@@ -233,11 +236,11 @@ formula.goldfishTerms <- function(x, lhs = NULL, ...) {
   if (nrow(x) == 0) {
     cli::cli_abort(c(
       "The table has no rows, so there is no effect for the formula.",
-      "i" = "Choose at least one row, e.g. {.code x[x$status == \"fits\", ]}."
+      "i" = "Choose at least one row, e.g. {.code x[x$effect == \"recip\", ]}."
     ))
   }
   sub_model <- attr(x, "sub_model")
-  terms <- c(if (sub_model == "rate") "1", x$term)
+  terms <- c(if (sub_model == "rate") "1", sd_one_of_each(x))
   f <- stats::as.formula(call("~", lhs, str2lang(paste(terms,
                                                        collapse = " + "))),
                          env = globalenv())
@@ -257,25 +260,66 @@ tidy.goldfishTerms <- function(x, ...) {
 
 #' @export
 print.goldfishTerms <- function(x, ...) {
-  status <- x[["status"]]
-  counts <- table(factor(status, levels = c("fits", "drops")))
-  counts <- counts[counts > 0]
-  summary <- if (length(counts)) {
-    paste(counts, names(counts), collapse = ", ")
-  } else {
-    "none"
-  }
   cli::cli_text(
-    "Effects of a {.val {attr(x, 'model')}} {.val {attr(x, 'sub_model')}} ",
-    "model of {.field {deparse(attr(x, 'layer'))}}: {summary}"
+    "{nrow(x)} effects of a {attr(x, 'model')} {attr(x, 'sub_model')} ",
+    "model of {.field {deparse(attr(x, 'layer'))}}"
   )
-  out <- tidy(x)
-  shown <- intersect(c("term", "status", "reason"), names(out))
-  print(if (length(shown)) out[shown] else out, n = Inf, ...)
+  print(tidy(x), n = Inf, ...)
   cli::cli_text(
     "Choose rows, and {.fn formula} of them gives their specification."
   )
   invisible(x)
+}
+
+# A term that fits as written needs no note, so the print lists only the terms
+# that goldfish changes or drops. The record holds them all.
+#' @export
+print.goldfishFormula <- function(x, ...) {
+  record <- attr(x, "record")
+  f <- x
+  attributes(f) <- list(class = "formula",
+                        .Environment = environment(x))
+  print(f, showEnv = FALSE)
+  if (!is.null(record)) {
+    record <- record[record$status != "fits", , drop = FALSE]
+  }
+  if (!is.null(record) && nrow(record) > 0) {
+    cat("Read from a formula for", attr(x, "input"), "\n")
+    for (k in seq_len(nrow(record))) {
+      as <- if (nzchar(record$as[k]) && record$as[k] != record$term[k]) {
+        paste0(" -> ", record$as[k])
+      } else {
+        ""
+      }
+      why <- if (nzchar(record$reason[k])) {
+        paste0(": ", record$reason[k])
+      } else {
+        ""
+      }
+      cat("  ", record$status[k], " ", record$term[k], as, why, "\n", sep = "")
+    }
+  }
+  invisible(x)
+}
+
+# The terms of the rows, with one of `diff(x)` and `sim(x)` for each
+# attribute: `sim()` is a negative difference, so a specification of both is
+# collinear. The first row is kept, and a message names the other.
+#' @keywords internal
+#' @noRd
+sd_one_of_each <- function(x) {
+  set <- ifelse(x$effect %in% c("diff", "sim"),
+                paste("number", x$attribute),
+                paste("term", seq_len(nrow(x))))
+  left <- duplicated(set)
+  if (any(left)) {
+    kept <- x$term[!left][match(set[left], set[!left])]
+    cli::cli_inform(paste(
+      "Leaving out {.code {x$term[left]}}, which measure{?s/} the same as",
+      "{.code {unique(kept)}}. Choose the rows of the effects to keep."
+    ))
+  }
+  x$term[!left]
 }
 
 # ---- reading a formula -------------------------------------------------------
@@ -819,7 +863,7 @@ sd_term_table <- function(.data, lhs, model, sub_model) {
   layer <- sd_layer_name(lhs, .data)
   rows <- sd_candidates(.data, layer, model, sub_model)
   slot <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
-  status <- lapply(rows$term, function(term) {
+  fits <- vapply(rows$term, function(term) {
     rhs <- c(if (sub_model == "rate") "1", term)
     args <- list(
       stats::as.formula(paste("~", paste(rhs, collapse = " + ")),
@@ -837,31 +881,17 @@ sd_term_table <- function(.data, lhs, model, sub_model) {
     tryCatch(
       suppressWarnings(suppressMessages({
         do.call(make_specification, args)
-        list(status = "fits", reason = NA_character_)
+        TRUE
       })),
-      error = function(e) {
-        list(status = "drops", reason = sd_condition_reason(e))
-      }
+      error = function(e) FALSE
     )
-  })
-  rows$status <- vapply(status, `[[`, "", "status")
-  rows$reason <- vapply(status, `[[`, "", "reason")
+  }, logical(1))
+  rows <- rows[fits, , drop = FALSE]
+  rownames(rows) <- NULL
   out <- tibble::as_tibble(rows)
   structure(out, class = c("goldfishTerms", class(out)),
             layer = as.name(layer), model = model, sub_model = sub_model,
             data = .data)
-}
-
-# The line of a condition that says why: its first bullet, or else its first
-# line, without cli's markup.
-#' @keywords internal
-#' @noRd
-sd_condition_reason <- function(e) {
-  msg <- cli::ansi_strip(conditionMessage(e))
-  lines <- strsplit(msg, "\n", fixed = TRUE)[[1]]
-  bullet <- grep("^\\s*(✖|x) ", lines, value = TRUE)
-  out <- if (length(bullet)) bullet[1] else lines[1]
-  trimws(sub("^\\s*(✖|x) ", "", out))
 }
 
 # Every goldfish effect of `model` and `sub_model`, written out for the
@@ -918,7 +948,7 @@ sd_candidates <- function(.data, layer, model, sub_model) {
       }
       if ("type" %in% args) {
         for (l in layers) {
-          add(call_of(fn, l, "type = \"ego\""), fn, l)
+          add(call_of(fn, l, "type = 'ego'"), fn, l)
         }
       }
     } else if (fn == "global") {

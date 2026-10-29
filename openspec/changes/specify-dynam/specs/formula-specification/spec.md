@@ -61,17 +61,21 @@ layer from the left-hand side, and SHALL add the record of each term.
 Without a formula, or with `.` as its right-hand side, `specify_dynam()` SHALL
 return a tibble of class `"goldfishTerms"` with one row for each goldfish effect
 of `model` and `sub_model`, written out for the network's layers and node
-attributes, with the columns `term`, `effect`, `layer`, `attribute`,
-`status`, and `reason`. Each status SHALL be that of `make_specification()`
-for that effect alone. `formula()` of chosen rows SHALL give their
-specification.
+attributes, with the columns `term`, `effect`, `layer`, and `attribute`. A
+row SHALL be kept only where `make_specification()` of that effect alone fits
+it. `formula()` of chosen rows SHALL give their specification, with one of
+`diff(x)` and `sim(x)` for each attribute.
 
 #### Scenario: The effects of a choice model
 - **WHEN** `specify_dynam(calls ~ ., social_evolution)` is called
 - **THEN** the table holds `inertia`, `recip(friendship)`, `same(gradeType)`,
-  and `tertius(friendship, floor)` as `"fits"`, and `ego(floor)` as
-  `"drops"` with its reason
+  and `tertius(friendship, floor)`, and has no row for `ego(floor)`
 
 #### Scenario: A specification of chosen rows
 - **WHEN** rows of the table are chosen and passed to `formula()`
 - **THEN** the result is the `goldfishSpec` of those effects
+
+#### Scenario: Two effects that measure the same thing
+- **WHEN** the chosen rows hold `diff(floor)` and `sim(floor)`
+- **THEN** the specification has the first of them, and a message names the
+  other

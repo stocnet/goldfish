@@ -92,7 +92,7 @@ written out for the network's layers and node attributes:
 \itemize{
 \item an effect of a network, such as \code{inertia} or \code{indeg()}, on its own,
 where it reads the dependent layer, and with each other layer, and
-with \code{type = "ego"} where it has a \code{type};
+with \code{type = 'ego'} where it has a \code{type};
 \item an effect of an attribute, \code{ego()}, \code{alter()}, and \code{same()}, for each
 node attribute, and \code{diff()} and \code{sim()} for each numeric one;
 \item \code{tertius()} and \code{tertius_diff()} for each layer and numeric attribute;
@@ -102,13 +102,16 @@ node attribute, and \code{diff()} and \code{sim()} for each numeric one;
 A label, a name, \code{active}, or an attribute with a different category for
 every node gets no effect. The closures through two layers, such as
 \code{mixed_trans()}, are not listed.
-Each row's status is \code{\link[=make_specification]{make_specification()}} of that effect alone:
-\code{"fits"}, or \code{"drops"} with goldfish's reason.
+An effect is listed where \code{\link[=make_specification]{make_specification()}} of that effect alone
+fits it, so an effect that the sub-model cannot identify, such as \code{ego()}
+in a choice model, is not listed.
 
 The table is a tibble of class \code{"goldfishTerms"}, with the columns \code{term},
-\code{effect}, \code{layer}, \code{attribute}, \code{status}, and \code{reason}. Choose rows with
-\code{[} or \code{dplyr::filter()}, and \code{formula()} of the rows gives the
-specification of those effects.
+\code{effect}, \code{layer}, and \code{attribute}. Choose rows with \code{[} or
+\code{dplyr::filter()}, and \code{formula()} of the rows gives the specification of
+those effects. \code{diff(x)} and \code{sim(x)} measure the same thing in different
+ways, so of the two, \code{formula()} keeps the first row, and a message names
+the other.
 }
 
 \examples{
