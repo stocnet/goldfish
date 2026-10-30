@@ -129,8 +129,12 @@ its own would; a message names such processes.
 
 Estimation runs from the observation start, the first value of
 \code{wave_times}, to the last wave, whatever the \code{start_time} and \code{end_time} of
-\code{control_prep}: modeled events before the first wave are scored, and those
-after the last wave are dropped.
+\code{control_prep}. Events before the first wave are history: they set the
+starting state and the statistics but are not scored. A modeled panel
+layer's rows stamped at the first wave are history too: they record the
+state the first interval starts from, reached before the survey. An
+observed relational event at the first wave is scored. Events after the last
+wave are dropped.
 
 The specification is completed once, on entry: a modeled process missing
 its rate or its choice receives a default with no free parameter (a pinned

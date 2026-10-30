@@ -54,6 +54,10 @@ of \code{control_prep}, so a pinned rate has one plateau per wave period. A
 specification that is already completed, such as the one a DyNES fit
 holds, keeps its pinned rates and the plateaus they were pinned on; each
 pinned rate is announced again with a warning.
+On a specification with a modeled panel layer, or with \code{wave_times}, the
+sequence is scored from the first wave, whatever the \code{start_time} of
+\code{control_prep}: earlier events are history, which sets the starting state
+and the statistics but is not scored, as in \code{\link[=estimate_dynes]{estimate_dynes()}}.
 Completed defaults (a pinned intercept-only rate, a uniform choice) and
 \code{offset()} effects have no free coefficient: they add their log-likelihood
 but no score or Fisher information.

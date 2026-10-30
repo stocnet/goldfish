@@ -21,8 +21,12 @@
 #'
 #' Estimation runs from the observation start, the first value of
 #' `wave_times`, to the last wave, whatever the `start_time` and `end_time` of
-#' `control_prep`: modeled events before the first wave are scored, and those
-#' after the last wave are dropped.
+#' `control_prep`. Events before the first wave are history: they set the
+#' starting state and the statistics but are not scored. A modeled panel
+#' layer's rows stamped at the first wave are history too: they record the
+#' state the first interval starts from, reached before the survey. An
+#' observed relational event at the first wave is scored. Events after the last
+#' wave are dropped.
 #'
 #' The specification is completed once, on entry: a modeled process missing
 #' its rate or its choice receives a default with no free parameter (a pinned
@@ -179,7 +183,8 @@ estimate_dynes <- function(
   )
   # Every path that scores a sequence -- pool entry, the proposal evaluator,
   # the warm start -- runs from the observation start to the last wave:
-  # modeled events before the first wave are scored, later ones are dropped,
+  # events before the first wave are history (applied, never scored), later
+  # ones are dropped,
   # and each timed rate's trailing compensator ends at the last wave.
   control_prep$start_time <- wave_times[[1L]]
   control_prep$end_time <- wave_times[[length(wave_times)]]

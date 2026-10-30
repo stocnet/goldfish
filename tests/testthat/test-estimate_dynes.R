@@ -359,10 +359,12 @@ test_that("a failed warm-start fit falls back to zero for that fid only", {
   # The two rates keep their fitted starts: a default Newton fit over the
   # drawn sequence's joint statistics, here from the raw spec's own walk (it
   # holds both rates, and the completed uniform emails choice adds no
-  # censoring row). Each rate is censored at the other layer's events.
+  # censoring row). Each rate is censored at the other layer's events. The
+  # walk reads calls as the panel layer the fit models, from the fit's
+  # observation start (the first wave, 1), so its rows there are history too.
   walk <- suppressWarnings(preprocess_joint(
-    rq_layout_raw_spec(),
-    control_preprocessing = set_preprocessing()
+    rq_layout_raw_spec("panel"),
+    control_preprocessing = set_preprocessing(start_time = 1)
   ))
   direct <- function(formula, stats) {
     suppressWarnings(estimate_wrapper(

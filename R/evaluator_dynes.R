@@ -1187,6 +1187,10 @@ evaluate_candidate <- function(
 #' specification that is already completed, such as the one a DyNES fit
 #' holds, keeps its pinned rates and the plateaus they were pinned on; each
 #' pinned rate is announced again with a warning.
+#' On a specification with a modeled panel layer, or with `wave_times`, the
+#' sequence is scored from the first wave, whatever the `start_time` of
+#' `control_prep`: earlier events are history, which sets the starting state
+#' and the statistics but is not scored, as in [estimate_dynes()].
 #' Completed defaults (a pinned intercept-only rate, a uniform choice) and
 #' `offset()` effects have no free coefficient: they add their log-likelihood
 #' but no score or Fisher information.
@@ -1242,6 +1246,9 @@ compute_lik_seq <- function(
       wave_times = wave_times,
       call = call
     )
+    # As in estimate_dynes(), the observation starts at the first wave: earlier
+    # events are history, folded into the starting state but never scored.
+    control_prep$start_time <- wave_times[[1L]]
   }
   completed <- complete_generative_spec(
     spec,

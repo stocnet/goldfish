@@ -2156,6 +2156,25 @@ test_that("compute_lik_seq() names itself in the completion warning", {
   expect_snapshot(res <- compute_lik_seq(spec, sequence, theta))
 })
 
+# The calls process has a uniform choice and a rate read from friendship, so a
+# call before the first wave changes no statistic: as history it leaves the
+# sequence's density untouched, and only scoring it as an event could move it.
+test_that("compute_lik_seq() reads events before the first wave as history", {
+  spec <- dynes_pinned_raw_spec(indeg_friendship_choice)
+  sequence <- weights_wired_paths()[[2]]
+  theta <- c(0.3, -1.2, 0.4)
+  early_call <- data.frame(from = 5L, to = 6L, time = 0.5, layer = "calls")
+  with_early_call <- sequence
+  with_early_call$ties <- rbind(early_call, sequence$ties)
+
+  without <- suppressWarnings(compute_lik_seq(spec, sequence, theta))
+  with <- suppressWarnings(compute_lik_seq(spec, with_early_call, theta))
+
+  expect_false(with$degenerate)
+  expect_equal(with$loglik, without$loglik, tolerance = 1e-10)
+  expect_equal(with$score, without$score, tolerance = 1e-10)
+})
+
 test_that("the proposal evaluator and compute_lik_seq() keep a singular candidate", {
   spec <- dynes_multiwave_spec(indeg_friendship_choice)
   theta <- c(0.3, -1.2, 0.4)

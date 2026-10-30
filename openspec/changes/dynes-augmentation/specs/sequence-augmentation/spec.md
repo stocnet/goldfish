@@ -93,6 +93,15 @@ same-dyad chain order respected.
 - **THEN** the wave grid is (5, 10): the wave-5 snapshot is the initial condition and
   one interval is augmented.
 
+#### Scenario: panel rows at the observation start are history, not scored
+- **WHEN** a modeled panel layer has rows stamped exactly at the observation start
+  (for example the first wave's snapshot when the grid opens there, or a later
+  wave's rows when `start_time` is that wave)
+- **THEN** they set the state the first interval opens with, applied at their own
+  time and in order with the burn-in, and no likelihood term is written for them;
+  their times are kept, not rewritten to `NA`. An observed relational event stamped
+  at the observation start is scored as before.
+
 #### Scenario: multi-step change decomposes into an ordered chain
 - **WHEN** a dyad's value changes 0→2 between waves under ±1-step transitions
 - **THEN** the flip set holds two events on that dyad (0→1 then 1→2) with a forced

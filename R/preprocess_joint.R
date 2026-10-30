@@ -679,6 +679,11 @@ build_joint_schedule <- function(
 #'   schedule); `support_constraints` (each `(layer, flavor)` constraint compiled
 #'   once, keyed by `constraint_id`); and the `process_map`.
 #' @noRd
+panel_observed_layers <- function(info) {
+  observation <- info$observation
+  names(observation)[!is.na(observation) & observation == "panel"]
+}
+
 build_merged_blocks <- function(
   joint_spec,
   control_preprocessing = set_preprocessing_opt(),
@@ -812,6 +817,11 @@ build_merged_blocks <- function(
       # whether they may also extend the observation window is not settled,
       # so for now they leave it where the other rows put it.
       constraint_only = shared_objects$constraint_only,
+      # A panel row records a state reached before its stamp, so a modeled
+      # panel layer's rows up to the observation start are history (see
+      # run_merged_walk()). Only estimate_dynes() models a panel layer: the
+      # event-stream estimators reject one as focal.
+      panel_layers = panel_observed_layers(joint_spec$data$info),
       process_map = joint_spec$process_map
     ),
     class = "goldfishBlock"
@@ -2442,6 +2452,18 @@ run_merged_walk <- function(
   # and statistics but writes nothing; `final_step` is the one clipped row that
   # closes a window an event overshoots.
   is_valid_event <- !(window$has_start && window$schedule_min < start_time)
+  # A dependent row of a modeled panel layer stamped at or before the start is
+  # the state the first interval opens with, reached by changes before the
+  # survey: it is applied at its own time, in order with the burn-in, and never
+  # scored. Rows exactly at the start are the case the window alone misses, as
+  # it opens at `t >= start_time`. An event-observed row at the start is
+  # scored as usual. Only a start the caller set is an observation start:
+  # without one the window opens at the first row, which may be a drawn flip
+  # that belongs to the first interval.
+  panel_history <- schedule$dependent &
+    schedule$layer %in% merged$panel_layers &
+    schedule$time <= start_time &
+    !is.null(control_preprocessing$start_time)
   final_step <- FALSE
   for (engine in engines) {
     engine$last_time <- start_time
@@ -2511,7 +2533,7 @@ run_merged_walk <- function(
           # open, so the first written interval is measured from the window
           # rather than from the last burn-in event.
           engine$i_dep <- engine$i_dep + 1L
-          if (is_valid_event) {
+          if (is_valid_event && !panel_history[k]) {
             engine$last_time <- t
             merged_route_dependent(
               engine,
