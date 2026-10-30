@@ -368,6 +368,39 @@ recipe_state_spec <- function(data = recipe_state_data()) {
   )
 }
 
+# One augmented sequence of recipe_state_data() on the grid (5, 10): the
+# wave-5 changes stamped at `wave_rows_time`, the two interval-2 flips drawn
+# at 7 and 9, and the calls at `call_times`. With `wave_rows_time = 5` the
+# wave-5 rows sit exactly at the observation start.
+recipe_state_sequence <- function(
+  wave_rows_time = 5,
+  call_times = c(1, 3, 6, 8)
+) {
+  friendship <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 1L, 5L, 2L),
+    to = c(2L, 3L, 4L, 5L, 2L, 6L, 3L),
+    time = c(NA, NA, rep(wave_rows_time, 3), 7, 9),
+    weight = c(1, 1, 1, 1, -1, 1, -1),
+    layer = "friendship"
+  )
+  calls <- data.frame(
+    from = c(1L, 2L, 3L, 6L),
+    to = c(3L, 4L, 5L, 1L),
+    time = call_times,
+    weight = 1,
+    layer = "calls"
+  )
+  data <- recipe_state_data()
+  data$ties <- rbind(friendship, calls)
+  data$ties$flavor <- NULL
+  add_flavor(
+    data,
+    layer = "friendship",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+}
+
 # An unflavored friendship panel (empty at 0; ties into N2 and N5 by wave 5,
 # more by wave 10) beside calls observed only before wave 5, six actors. The
 # calls choice reads indeg(friendship), which is zero for every receiver

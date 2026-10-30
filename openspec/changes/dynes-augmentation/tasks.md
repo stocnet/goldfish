@@ -963,6 +963,25 @@
       alongside the tolerance. *Added 2026-10-25:* fit under the default
       `set_sgd_options()`, and assert `at_optimum` as well as the MLE tolerance
       (`sgd-scale-aware-default` 4.6 measured |θ̂ − MLE| at 0.0009 SE on this
+- [ ] 6.2i RED (added 2026-10-30, from the 6.3 cluster fits, user decision): a
+      modeled panel layer's rows stamped at the observation start are scored
+      as dependent events. `new_augmenter_context()` keeps them as the
+      initial condition, timed, and the walk scores every timed row at or
+      after `start_time`; the `social_evolution` fits scored the 276 wave-1
+      ties as creations (creation intercept log(346 / 51T), not
+      log(70 / 51T)). Test through `compute_lik_seq()` (the pool evaluator's
+      walk): wave rows stamped at t0 give the same log-likelihood and score as
+      the same rows stamped before t0, and an event-observed row at t0 is
+      still scored. Commit the tests alone.
+- [ ] 6.2j GREEN: in the merged walk, a dependent row of a modeled panel
+      layer (`observation = "panel"` and modeled in the DyNES joint
+      specification) stamped at or before `start_time` is history: it updates
+      the state at its own time, advances the order counter, and is not
+      scored. Times are never rewritten to `NA` (user decision: a fit started
+      at a later wave keeps its burn-in in order). Fold in the uncommitted
+      `compute_lik_seq()` history fix (pre-wave events are history; docs of
+      `estimate_dynes()`/`compute_lik_seq()`; its test). Add a scenario to the
+      wave-diffing requirement. Full `NOT_CRAN=true`; commit.
       fixture). (Sibling check, optional: the state-panel analogue against
       the two-state CTMC's closed-form transition probabilities — **a bias measurement,
       not a pass/fail oracle** (task 1.3 finding, design D6): the CTMC's transition

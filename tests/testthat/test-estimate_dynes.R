@@ -1365,3 +1365,46 @@ test_that("the default fit recovers known parameters from simulated waves", {
     expect_lt(max(abs(z)), 3)
   }
 })
+
+# A panel row records a state reached before its stamp, so a modeled panel
+# layer's rows at the observation start are the interval's initial condition:
+# they update the state and are never scored, exactly like rows stamped before
+# it. An observed relational event at the start is an event and is scored.
+test_that("modeled panel rows at the observation start are history", {
+  spec <- recipe_state_spec()
+  theta <- c(0.3, -0.4, -1.2, 0.5, 0.7)
+  score_sequence <- function(sequence) {
+    suppressWarnings(
+      compute_lik_seq(spec, sequence, theta, wave_times = c(5, 10))
+    )
+  }
+
+  at_start <- score_sequence(recipe_state_sequence(wave_rows_time = 5))
+  before_start <- score_sequence(recipe_state_sequence(wave_rows_time = 4.9))
+
+  expect_false(at_start$degenerate)
+  expect_equal(at_start$loglik, before_start$loglik, tolerance = 1e-10)
+  expect_equal(at_start$score, before_start$score, tolerance = 1e-10)
+})
+
+test_that("an observed event at the observation start is still scored", {
+  spec <- recipe_state_spec()
+  theta <- c(0.3, -0.4, -1.2, 0.5, 0.7)
+  score_sequence <- function(sequence) {
+    suppressWarnings(
+      compute_lik_seq(spec, sequence, theta, wave_times = c(5, 10))
+    )
+  }
+
+  call_at_start <- score_sequence(
+    recipe_state_sequence(wave_rows_time = 4.9, call_times = c(1, 3, 5, 8))
+  )
+  call_before_start <- score_sequence(
+    recipe_state_sequence(wave_rows_time = 4.9, call_times = c(1, 3, 4.9, 8))
+  )
+
+  expect_false(isTRUE(all.equal(
+    call_at_start$loglik,
+    call_before_start$loglik
+  )))
+})
