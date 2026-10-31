@@ -943,7 +943,7 @@
 - [x] 6.2.10 = 6.3 vignette. Session 4–6 h, plus the precompile run.
       *Decided 2026-10-26 (user):* the packaged `social_evolution`, precompiled;
       timing pilot first (see 6.3).
-- [ ] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
+- [x] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
 - [x] 6.2e RED (added 2026-10-05, user decision): `transformation = "smoothing"`
       tempers the importance weights to w^(1/2), normalized. Test that it equals
       `normalize(w^0.5)` and that it raises the ESS of a non-uniform pool. Today
@@ -1140,7 +1140,7 @@
         tie or a non-tie is not a change of state; the clock stays POSIXct; the
         full fits run on the cluster at the default SGD, and the `.Rmd.orig`
         reads them.
-- [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
+- [x] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and no
       `/opsx:archive` on this branch.** Record the DyNES milestone as a `NEWS.d/`
       fragment (protocol in `NEWS.d/README.md`), as the sibling changes on this branch
