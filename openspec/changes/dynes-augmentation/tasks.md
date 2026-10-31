@@ -923,14 +923,24 @@
       |θ̂ − θ| < 3 SE for both friendship rate intercepts and both calls
       coefficients. Achieved max |z| 1.94 / 1.39 / 0.85, `newton_se`
       0.040 / 0.002 / 0.041. The recip choices are not bounded (FINDINGS D7).
-- [ ] 6.2.8 analysis and write-up (6.2 / 6.2c envelope, the floor, coupling).
+- [x] 6.2.8 analysis and write-up (6.2 / 6.2c envelope, the floor, coupling).
       Session ~3 h; needs 6.2.1–6.2.3. No cell is re-run under the new default
       (user, 2026-10-25): state the study's SGD setting (adagrad 0.01, 500
       M-step iterations) and cite `sgd-scale-aware-default` 5.3 (converged
       estimates agree within 0.07 SE).
+      *Done 2026-10-29:* `.plan/dynes/recovery/FINDINGS.md` section G, from
+      `WRITEUP_tables.md` (`analyze_writeup.R`) over all 2,040 fits, gate
+      D25. Envelope: among converged fits MC SE / SE ≤ 0.18 (median ≤ 0.054),
+      coupling 5–10× higher; the routines fail past the cliff by aborts, the
+      gate and cost, not by the ratio. Louis SDs/SEs 0.62–1.36 (f02 rate SEs
+      ~30% large). **Floor: 0.02 of the pool, one value, no coupling
+      argument**: under `random` it is silent (≤ 4%) in every cell inside
+      the envelope and fires in 75–100% of fits outside it, coupled or not;
+      coupling moves the cliff along the flips axis, not the ESS at which a
+      fit fails. Cost 5,883 core-hours; pools to 155,000 past `max_pool`.
 - [x] 6.2.9 = 6.2d floor red/green. Session ~2 h; needs 6.2.8.
       *Done 2026-10-29:* see 6.2d.
-- [ ] 6.2.10 = 6.3 vignette. Session 4–6 h, plus the precompile run.
+- [x] 6.2.10 = 6.3 vignette. Session 4–6 h, plus the precompile run.
       *Decided 2026-10-26 (user):* the packaged `social_evolution`, precompiled;
       timing pilot first (see 6.3).
 - [ ] 6.2.11 = 6.4 final verification and NEWS.d fragment. Session 1–2 h.
@@ -999,7 +1009,7 @@
       left for the v2 discussion. The cluster study already measures the same
       minimal-flip bias empirically (FINDINGS D11: about −0.17 at f15 and −0.5
       at f33, matching log(11/13) and log(33/54)).
-- [ ] 6.2c Extend the 6.2 degeneracy sweep with a **coupling axis**: repeat the
+- [x] 6.2c Extend the 6.2 degeneracy sweep with a **coupling axis**: repeat the
       flips-per-interval sweep with the panel layer coupled to a densely observed
       event-stream layer (the calls/emails fixture) and with it uncoupled, so the
       envelope separates dimension-driven weight degeneracy from proposal/posterior
@@ -1007,6 +1017,11 @@
       placement it is making, which is where the information about latent timing sits, so
       the coupled cell is expected to degrade `sim` specifically — record whether the
       ESS floor the runtime recommendation fires at must differ by coupling.
+      *Done 2026-10-29 (6.2.8):* every flips level and routine ran coupled to
+      the observed `calls` layer and uncoupled (cluster sweep). Coupling
+      degrades both IS routines: `random`'s cliff moves from f33 to f15 and
+      `sim` fails from f05 (75%) instead of f15. The floor does **not**
+      differ by coupling (FINDINGS G4), so the accessor takes no argument.
 - [x] 6.2d Set the IS-ESS collapse floor (design D26), after 6.2/6.2c locate it.
       (a) RED: below the floor, the switch-to-`augment_seq_mcmc()` recommendation
       fires under `random`/`sim`, never under `mcmc`, and at most once per run (cli
@@ -1039,7 +1054,7 @@
       run, scales with the pool, silent at K = 50). GREEN returns `0.02`;
       one new snapshot (pool 100), no other snapshot changed. No coupling
       argument (D26 amendment).
-- [ ] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
+- [x] 6.3 Vignette on panel-state estimation (wave diffing, both panel kinds — state and
       count — algorithm variants, reading MC vs asymptotic error; the operating envelope
       stated as the MC-to-asymptotic error ratio, and the runtime
       switch-to-`augment_seq_mcmc()` recommendation with the IS-ESS floor it fires at).
@@ -1052,6 +1067,14 @@
       the vignette keeps four checks apart: `converged` (the EM stop rule),
       `at_optimum`/`newton_se` (the estimate at its final pool's optimum), the
       IS-ESS trigger and the error-ratio verdict.
+      *Added 2026-10-29 (user decision, from 6.2d):* the vignette states the
+      floor's limitation at the starting pool. The trigger is 0.02 of the
+      pool, so at K = 50 it equals 1, the lowest ESS a pool can have, and it
+      cannot fire until growth retries enlarge the pool. A run whose passes
+      are all accepted keeps K = 50 and gets no recommendation however far
+      its weights have collapsed: `sim` at f33 sat at ESS ≈ 1.00 of 50 on
+      every pass, silent. Name the reader's check (the `ess` column of
+      `em_trace` near 1) and that an absolute floor is left to v2.
       **Open (2026-10-05):** which dataset the example uses is not chosen yet. No
       packaged dataset is known to carry both a state panel and a count panel. Decide
       before the session, or use a `simulate()`-drawn panel from the 6.2 study.
@@ -1063,6 +1086,41 @@
         2008-10-19), coupled to the observed `calls` layer.
       - Node set: the 51 actors who answered both surveys. No restriction by
         attribute.
+        *Added 2026-10-29 (user decision):* the vignette states the
+        restriction and what it omits. For an actor who answered only one
+        survey, an empty row is non-response, not an absence of ties, so
+        their nominations cannot be diffed. That drops 28 wave-1 and 47
+        wave-2 nominations sent by actors who answered one survey only. It
+        also drops the 51's nominations of actors outside the set (72 at
+        wave 1, 67 at wave 2; 26 formed and 31 dissolved among them). The
+        wave diff is shown as two 51 x 51 adjacency matrices (1 = reported
+        friendship): an event is a cell that differs, at its wave-2 value.
+        *Added 2026-10-29 (user decision):* Actor 61 stays in the node set
+        and the vignette says so. They answered both surveys, but both of
+        their nominations named actors outside the 51, and no one in the 51
+        names them. Within the panel they are an isolate at both waves, so
+        they can never dissolve a tie (the `support_constraint` "never at
+        risk" warning names them) and can only take part in a friendship
+        through a creation.
+      - *Added 2026-10-29 (user decision):* before the fits, the vignette
+        shows augmentation on the vignette's own recipe (70 + 70 flips):
+        one `random` draw (every flip gets a time; a table of the first
+        flips in time order), then single MCMC moves on that draw (a
+        `permute` and a `shift`, each with the moved flips' before/after
+        times, log alpha and accepted). It calls goldfish internals
+        (`goldfish:::`) for this, since nothing exported draws a sequence
+        outside a fit; the text says they are internal. Prototype:
+        `.plan/dynes/vignette/augment_demo.R`. Teaching points the
+        prototype found: (a) at theta = 0 every rate is one event per
+        second on the POSIXct clock, so the demo sets each rate intercept
+        to the observed mean rate per actor and second; (b) with every
+        other effect at 0 all orders are equally likely, log alpha is 0 and
+        every move is accepted (`random` draws the target exactly); (c) with
+        the effects at 1, moves are accepted and rejected (one sweep: 72 of
+        140, 79 s). Show (b) and (c) side by side. The preprocessing
+        emits `support_constraint` warnings on every evaluation (a sender
+        never at risk, a forced choice); explain or silence them in the
+        chunk.
       - Wave 2 lists nominations only (every row `replace = 1`), and a
         snapshot is the replayed change-list. So the vignette adds a
         `replace = 0` row at wave 2 for each tie wave 2 drops: 70 formed and
@@ -1075,6 +1133,13 @@
         Time one EM pass of `random` and of `mcmc` on the vignette's
         specification and bring the estimate to the user before writing the
         vignette's fits.
+        *Pilot done 2026-10-29 (`8e068fca`, one core):* `random` 16 s per pass
+        (ESS 1.38 of 50 at the start, silent at K = 50), `mcmc` 76 min per pass
+        (acceptance 0.81). *User decisions:* wave 2 is the change-list only (70
+        formed at `replace = 1`, 70 dissolved at `replace = 0`), since keeping a
+        tie or a non-tie is not a change of state; the clock stays POSIXct; the
+        full fits run on the cluster at the default SGD, and the `.Rmd.orig`
+        reads them.
 - [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); commit. **No DESCRIPTION version bump, no root `NEWS.md` edit, and no
       `/opsx:archive` on this branch.** Record the DyNES milestone as a `NEWS.d/`
