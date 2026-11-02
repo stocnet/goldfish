@@ -112,6 +112,15 @@ test_that("the IS-ESS collapse floor is 0.02 of the pool", {
   expect_identical(importance_ess_collapse_threshold(), 0.02)
 })
 
+test_that("one floor serves coupled and uncoupled specifications", {
+  # No coupling (or any other) argument: the same scalar applies to every
+  # specification, and the recommendation takes only the weights and routine.
+  expect_length(formals(importance_ess_collapse_threshold), 0L)
+  expect_false(
+    any(grepl("coupl", names(formals(recommend_mcmc_on_ess_collapse))))
+  )
+})
+
 test_that("the floor recommends augment_seq_mcmc() once per run", {
   local_reproducible_output()
   state <- new_run_warning_state()
@@ -180,6 +189,20 @@ test_that("the floor scales with the pool size", {
   expect_true(collapsed)
 })
 
+test_that("the floor fires at pool 139 with an ESS of 1.0", {
+  w <- flat_weights(139, 1)
+  expect_equal(effective_sample_size(w), 1)
+  expect_warning(
+    fired <- recommend_mcmc_on_ess_collapse(
+      new_run_warning_state(),
+      w,
+      routine = "random"
+    ),
+    "augment_seq_mcmc"
+  )
+  expect_true(fired)
+})
+
 test_that("the floor cannot fire on the starting pool of 50", {
   # A single sequence carrying all the weight is the lowest ESS a pool can
   # have (1), and it sits exactly on the floor 0.02 * 50 = 1, not below it.
@@ -191,6 +214,7 @@ test_that("the floor cannot fire on the starting pool of 50", {
     )
   )
   expect_false(fired)
+  expect_equal(effective_sample_size(flat_weights(50, 1)), 1)
 })
 
 test_that("ESS-collapse recommendation is scoped to importance-weighted routines", {

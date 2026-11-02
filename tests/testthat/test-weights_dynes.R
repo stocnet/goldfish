@@ -112,7 +112,11 @@ test_that("smoothing transformation equals normalized w^gamma (gamma = 1/2)", {
     transformation = "smoothing"
   )
   # softmax(log w / 2) == normalize(sqrt(w)).
-  expect_equal(smoothed, sqrt(base_w) / sum(sqrt(base_w)))
+  expect_equal(
+    smoothed,
+    sqrt(base_w) / sum(sqrt(base_w)),
+    tolerance = 1e-12
+  )
 })
 
 test_that("smoothing flattens a non-uniform pool, raising its ESS", {

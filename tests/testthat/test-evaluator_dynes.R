@@ -186,6 +186,9 @@ test_that("what is honored at the harvest level", {
   score_only <- evaluate_sequence_pool(pool, c(0, 0, 0), what = "score")
   expect_named(score_only, c("score", "degenerate"), ignore.order = TRUE)
   expect_null(score_only$loglik)
+
+  fisher_only <- evaluate_sequence_pool(pool, c(0, 0, 0), what = "fisher")
+  expect_named(fisher_only, c("fisher", "degenerate"), ignore.order = TRUE)
 })
 
 test_that("pool evaluation concatenates sub-model scores by theta_index", {

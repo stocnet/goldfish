@@ -1180,7 +1180,7 @@ no baseline moves, no Version/`NEWS.md`/archive.
       "Fisher only where consumed" and the D3 revision. Resolves open question
       OQ-B in design.md. The kernel flag stays open: revisit it only when a
       benchmark with large `p` shows the evaluator dominating the fit.
-- [ ] 6.5.3b Map each scenario added or reworded by 6.5.1 and 6.5.3 to its
+- [x] 6.5.3b Map each scenario added or reworded by 6.5.1 and 6.5.3 to its
       existing test, and check that the test is correct and not too weak:
       - one floor serves coupled and uncoupled: `test-diagnostics_dynes.R:111`
         (value 0.02, no coupling argument in the signature);
