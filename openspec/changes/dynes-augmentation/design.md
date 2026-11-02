@@ -169,6 +169,10 @@ ones abort. One such construction-time warning is the **cold-start guard**:
 from the target at iteration 1 and the E-step weights may collapse, recommending
 `routine = "sim"`/`"mcmc"` or θ₀ = 0 — the settle-at-construction complement to D14's
 runtime cold-start diagnostic (see the cold-start resolution in Open Questions).
+*Amended 2026-10-28:* θ₀ does not come through `set_algorithm_newton()`. The guard
+reads `set_algorithm_em(initial_parameters =)` (a non-zero `goldfishParams`) and
+`set_augmenter_options(warm_start = TRUE)`, both visible to `set_algorithm_em()`'s
+constructor, where it runs (see the D18 amendment).
 
 The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
 layers, per layer × flavor rate and choice formulas, θ the concatenation across all
@@ -208,9 +212,10 @@ Three constructor families, each returning an object with `init(spec, waves, con
   `init()` (D20) — it never touches the evaluator's pool API.
 - **Evaluators** — `evaluate_sequence_pool(pool, theta, what = c("loglik", "score",
   "fisher"))` → the requested per-sequence quantities plus importance weights.
-  Callers request only what they consume: the SGD loop runs score-only; Fisher is
-  computed once at convergence and, opt-in, per accepted iteration for the
-  `em_trace` SEs (D17, D18). Weights belong to the evaluator (the
+  The flag returns only what is requested: the SGD loop runs score-only; Fisher is
+  consumed once at convergence and, opt-in, per accepted iteration for the
+  `em_trace` SEs (D17, D18). The kernel computes all three on every pass, so the
+  flag trims the return value and does not yet save work (OQ-B). Weights belong to the evaluator (the
   augmenter reports its proposal density; the evaluator forms the ratio); prototype
   `computeLl()` + `get_weights()`. `compute_lik_seq(spec, sequence, theta)` is
   per-sequence sugar over the batched path — named to avoid colliding with the
@@ -1193,8 +1198,10 @@ decision stays joint either way). Semantics:
   to `abmcem`; this change consumes them.
 - **State.** Optimizer accumulators (moment estimates, squared-gradient sums)
   reset at every M-step: each M-step is a fresh optimization.
-- **Cost.** The SGD loop requests score-only evaluation (D2 `what` flag); Fisher
-  is computed only where consumed (final SEs; opt-in `em_trace` SEs). Resampling
+- **Cost.** The SGD loop requests score-only evaluation (D2 `what` flag), which
+  trims the returned quantities; the kernel still computes Fisher on every pass, so
+  no work is saved until a kernel flag lands (OQ-B). Fisher is consumed only where
+  needed (final SEs; opt-in `em_trace` SEs). Resampling
   inside SGD remains disallowed, and `batch_scheme` reserves no value for it
   until its weighting theory is settled.
   *Amended 2026-10-25:* the M-step now uses the pooled information too, once per
@@ -1207,6 +1214,14 @@ decision stays joint either way). Semantics:
   `set_algorithm_newton()`, which gains a **warm-start option** (draw one random
   augmentation, estimate on it, use those estimates as θ₀); the default is the
   zero vector.
+  *Amended 2026-10-28:* neither lives on `set_algorithm_newton()`. θ₀ is
+  `set_algorithm_em(initial_parameters =)`, a `goldfishParams` from
+  `set_parameters()` over the joint specification (`NULL` means zero over the
+  free set; a bare numeric vector is rejected). The warm start is
+  `set_augmenter_options(warm_start = TRUE)`: before the first EM iteration the
+  loop draws one augmentation and runs an internal `set_algorithm_newton()` fit
+  per fid on it, concatenating the estimates into θ₀. When both are given, the
+  explicit `initial_parameters` wins and `warm_start` is warned and ignored.
 - **Bounded within-iteration growth**: a rejected update (ascent lower bound < 0)
   appends ⌈pool/`max_retries`⌉ sequences and retries, at most `max_retries` times
   (default 20 — the compounding growth caps the pool at (1+1/20)²⁰ ≈ 2.65× per EM
@@ -1232,6 +1247,14 @@ decision stays joint either way). Semantics:
 - **Failure semantics**: exhausting `max_retries` or `max_iterations` without
   convergence **aborts with an error** explaining the non-convergence (a
   `cli_abort()` carrying the trace-derived diagnosis) — not a flagged result.
+  *Amended 2026-10-28:* only exhausting `max_retries` aborts
+  (`goldfish_abem_retry_exhausted`, carrying the trace): the ascent cannot be
+  certified at that iteration, so there is no accepted update to return.
+  Exhausting `max_iterations` returns the last accepted parameters with
+  `converged = FALSE` and one warning (`goldfish_abem_max_iterations`), since
+  every iteration up to it was certified and the estimate is usable. The same
+  flagged-result shape covers a fully degenerate pool
+  (`goldfish_dynes_pool_degenerate`, see Risks).
 - **`em_trace`** (name chosen over bare "trace" to say what it traces): one row
   per EM iteration — θ, Q, its ASE, decision (accept/grow/stop), pool size, new
   draws, ESS, weighting scheme in force, and the D15/D16 MCMC diagnostics
@@ -2163,6 +2186,17 @@ its own red/green pair (task 6.2d), not as a side effect of the study write-up.
 If 6.2c finds the floor differs with coupling, the accessor gains a coupling argument
 and the vignette states both floors. A single scalar would otherwise give the wrong
 trigger to one of the two cases.
+*Amended 2026-10-29 (task 6.2.8):* the floor is **0.02 of the pool, one value, no
+coupling argument**. Over the 2,040 study fits, a floor of 0.02 under `random` stays
+silent (0–4% of fits) in every cell where the routine converges and fires in 75–100%
+of fits in every cell where it fails, coupled or uncoupled alike. Coupling lowers the
+ESS at a given flips level because it moves the cliff to fewer flips (`random` fails
+from f15 coupled, f33 uncoupled), not because a coupled fit fails at a different ESS.
+The ESS already carries the coupling, so one threshold serves both. Under `sim` the
+same floor fires in 4% of fits in its one healthy cell and in 46–100% elsewhere, where
+`mcmc` is both cheaper and convergent. At the starting pool K = 50 the floor cannot fire
+(ESS ≥ 1), so it acts once the pool has grown; an absolute ESS floor, which would fire
+earlier, is left to v2.
 
 **The cliff does not abort the run (2026-10-05, from the 6.2 pilots).** At the top
 flips level, random, sim and mcmc all aborted with `goldfish_abem_retry_exhausted`
@@ -2259,6 +2293,11 @@ message gaining the DyNES pointer it already promises. The frozen coefficient
 baselines are untouched throughout. Rollback is reverting the change's commits;
 Phase-1 spike artifacts live in `.plan/` (gitignored) and impose nothing on the
 package.
+*Amended 2026-10-28:* no existing control is extended. The warm start shipped as
+`set_augmenter_options(warm_start =)` and θ₀ as `set_algorithm_em(initial_parameters
+=)` (D18 amendment), so `set_algorithm_newton()` is unchanged and the surface is
+purely additive. The warm start only calls `set_algorithm_newton()` internally, at
+its defaults.
 
 ## Open Questions
 
@@ -2535,3 +2574,18 @@ package.
   completion warning's count source changes for them. Revisit once
   `process-simulation`'s spec is final, so the simulation default is settled
   before completion's default changes under it.
+
+- **[resolved 2026-11-02 — OQ-A, conformance gap 1]** Option (a). The
+  `dynes-estimation` delta now replaces the coupling-argument requirement and scenario
+  with one requirement stating the floor as 0.02 of the pool, plus two scenarios
+  (`random` at pool 139 with ESS 1.0 fires; pool 50 cannot, since 0.02 × 50 = 1). The
+  smoothing exponent `w^(1/2)` lives in the weights requirement (the importance-weight
+  paragraph of "Batched pool evaluation" in `sequence-augmentation`), with a scenario,
+  because it is a property of how weights are formed, not of the collapse trigger.
+- **[resolved 2026-11-02 — OQ-B, conformance gap 3]** Option (a). The `what` flag
+  "returns only what is requested". The kernel returns loglik, score and Fisher on every
+  pass (`evaluate_pool_sequence()` trims at the harvest, measured about 82 ms and 10 MB
+  either way), so the spec no longer claims callers pay only for what they consume. The
+  kernel flag that would skip unrequested work is future work behind a benchmark showing
+  the evaluator dominating a fit (large `p`, where Fisher is O(p²) per event); it is a
+  `src/` edit with the `cpp-recompile` gate and byte-identical baselines.

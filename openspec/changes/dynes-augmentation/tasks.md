@@ -477,8 +477,9 @@
       (`make_engine_evaluator(backend = "cpp")`), built at evaluation time by default
       (design D4 revision: a closure held per sequence re-duplicates the start state
       through `stat_mat_init`), harvesting per-sequence logLik/score/Fisher at `theta`
-      behind the `what` request flag (score-only for the SGD loop; Fisher only where
-      consumed; zero optimizer iterations) over flat preprocessed objects. No batching
+      behind the `what` request flag (score-only for the SGD loop; the flag returns only
+      what is requested, the kernel still computing Fisher on every pass;
+      zero optimizer iterations) over flat preprocessed objects. No batching
       wrapper and no new kernel (R glue is ~2% of the kernel call, B1); a
       loglik/score-only kernel flag is optional. If any `src/` edit is made,
       cpp-recompile after every one, before testing. **Reuse boundary (design D3):** the evaluator's inner
@@ -1177,7 +1178,26 @@ no baseline moves, no Version/`NEWS.md`/archive.
       `what` flag "returns only what is requested", and name the kernel flag
       that would skip unrequested work as future work; align task 4.1b's
       "Fisher only where consumed" and the D3 revision. Resolves open question
-      OQ-B in design.md.
+      OQ-B in design.md. The kernel flag stays open: revisit it only when a
+      benchmark with large `p` shows the evaluator dominating the fit.
+- [ ] 6.5.3b Map each scenario added or reworded by 6.5.1 and 6.5.3 to its
+      existing test, and check that the test is correct and not too weak:
+      - one floor serves coupled and uncoupled: `test-diagnostics_dynes.R:111`
+        (value 0.02, no coupling argument in the signature);
+      - fires at pool 139 with ESS 1.0 and cannot at pool 50:
+        `test-diagnostics_dynes.R:118` and `:185` (the asserted pool size and
+        ESS match the scenario's figures, not just "collapse fires");
+      - `what` returns only what is requested: `test-evaluator_dynes.R:186`
+        (names of the result are exactly the requested quantities plus
+        `degenerate`, for `loglik`, `score` and `fisher` requests);
+      - smoothing is `w^(1/2)`: `test-weights_dynes.R:103` and `:118` (equality
+        to the normalized square root within 1e-12, and ESS no lower than
+        identity).
+      For each, read the assertion against the scenario's WHEN/THEN and record
+      one of: matches; too weak (tighten the test, RED first, then GREEN); or
+      scenario overstates (soften the scenario). Run the touched files under
+      `NOT_CRAN=true` and report any that are red. Test edits follow
+      `r-lib:testing-r-packages`; `air format` the touched files.
 - [ ] 6.5.4 (gap 4) Add the "Storage and per-event cost" paragraph to the
       design (D4 or D22) from the report's section 2: walk unchanged to the
       digit across 6.2j, pool 0.30 KB per path event flat from n = 150 to 600,

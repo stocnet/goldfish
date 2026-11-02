@@ -322,14 +322,20 @@ regardless of which order the input carries.
 
 The evaluator SHALL compute, for a pool of augmented sequences at a parameter vector,
 the requested per-sequence quantities — log-likelihood, score, and/or Fisher
-contribution, selected by a `what` request flag so callers pay only for what they
-consume (the SGD loop runs score-only; Fisher is computed at convergence and for
-opt-in trace SEs) — through the compiled engine (the existing C++ backend that
+contribution, selected by a `what` request flag that returns only what is requested
+(the compiled kernel computes all three on every pass, so the flag trims the return
+value and does not yet skip the unrequested work; a kernel-level flag that skips it is
+future work, to be taken up when a benchmark shows the evaluator dominating the fit) —
+through the compiled engine (the existing C++ backend that
 decodes each sequence's flat broadcast statistics without materializing the dense
 statistics stack; zero optimizer iterations), called once per sequence over its flat
 preprocessed objects, with no separate batching kernel. Importance weights are formed
 from model density over proposal density by the estimation loop from these
-per-sequence quantities and the stored reference records.
+per-sequence quantities and the stored reference records. The weight `transformation`
+`"smoothing"` tempers the log-weights by the exponent γ = 1/2, which under softmax
+normalization equals raising the linear-scale weights to the power `w^(1/2)` and
+renormalizing; an exponent above 1 would sharpen the weights and lower the ESS it is
+meant to protect, so γ < 1 is the only smoothing the transformation offers.
 For the result contract's asymptotic uncertainty the evaluator SHALL expose, per
 sequence, **both** the complete-data score and the complete-data information (not Fisher
 alone), since those are the ingredients the estimation loop combines into **Louis's
@@ -379,6 +385,17 @@ interval spanning an interior wave SHALL be scored at each wave period's own pla
   density at `theta`
 - **THEN** each sequence's importance weight is the model-to-proposal density ratio
   computed by the evaluator, and weights normalize over the pool.
+
+#### Scenario: a request flag returns only the requested quantities
+- **WHEN** a pool is evaluated with `what = "score"`
+- **THEN** the result carries the per-sequence score and the degeneracy flag and neither
+  the log-likelihood nor the Fisher contribution.
+
+#### Scenario: smoothing is the square root of the weights
+- **WHEN** a pool's weights are formed under the `"smoothing"` transformation
+- **THEN** they equal the normalized square roots of the identity-transformation linear
+  weights (within 1e-12), and their effective sample size is no lower than the
+  identity-transformation one.
 
 #### Scenario: evaluator output is scheme-agnostic
 - **WHEN** the same pool is evaluated at the same parameters under importance

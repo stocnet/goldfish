@@ -221,12 +221,17 @@ documented envelope agree by construction rather than being independently guesse
 threshold SHALL be documented as applying to the `random`/`sim` routines only: under MCMC's
 uniform weighting the same statistic is trivially the pool size and SHALL NOT be read as
 evidence that the chain mixes, the MCMC diagnostics being acceptance rate and
-autocorrelation. If the study locates different floors for coupled and uncoupled
-specifications, the threshold SHALL take the coupling as an argument and return the
-floor for each, rather than one scalar that gives the wrong trigger to one case.
-*Amended 2026-10-09:* the cluster sweep's first reading shows `random`'s median minimum
-ESS fraction at 0.96 uncoupled and 0.14 coupled at the second flips level, and 0.49 and
-0.00 at the third. The write-up decides.
+autocorrelation. The threshold SHALL be one scalar, **0.02 of the pool** (effective sample size divided by
+pool size), with no coupling argument. The ESS already carries the coupling: coupling moves
+the cliff along the flips axis (`random` fails from 15 flips per interval coupled, 33
+uncoupled) but does not change the ESS at which a fit fails, so one floor serves both. At the
+starting pool of 50 the floor cannot fire (the ESS is at least 1 and 0.02 × 50 = 1), so it
+acts once the pool has grown; an absolute ESS floor that would fire earlier is left to
+`dynes-augmenter-driver-v2`.
+*Amended 2026-10-29 (design D26):* the 2,040-fit study replaced the earlier conditional
+wording, which let the study return a floor per coupling level. A floor of 0.02 under
+`random` stays silent in 0–4% of fits in every cell where the routine converges and fires in
+75–100% of fits in every cell where it fails, coupled or uncoupled alike.
 
 #### Scenario: known parameters recovered
 - **WHEN** the seeded recovery test runs on a small two-wave panel drawn by
@@ -250,12 +255,17 @@ ESS fraction at 0.96 uncoupled and 0.14 coupled at the second flips level, and 0
   the runtime switch-to-`augment_seq_mcmc()` recommendation fires at, while the reported
   operating envelope is the Monte-Carlo-to-asymptotic standard-error ratio at each cell.
 
-#### Scenario: a coupling-dependent floor gives each case its own trigger
-- **WHEN** the study locates the IS-ESS collapse floor at different values for the
-  coupled and the uncoupled cells
-- **THEN** the threshold accessor takes the coupling as an argument and returns each
-  floor, and the runtime recommendation for a coupled specification fires at the
-  coupled floor.
+#### Scenario: one floor serves coupled and uncoupled specifications
+- **WHEN** `importance_ess_collapse_threshold()` is called
+- **THEN** it returns 0.02 as a fraction of the pool, takes no coupling argument, and the
+  runtime recommendation for a coupled and an uncoupled specification fires at that same
+  value.
+
+#### Scenario: the floor fires on a grown pool and not on the starting pool
+- **WHEN** a `random` fit reaches a pool of 139 sequences with an effective sample size
+  of 1.0
+- **THEN** the switch-to-`augment_seq_mcmc()` recommendation fires, whereas at the starting
+  pool of 50 it cannot, since 0.02 × 50 = 1 and the effective sample size is at least 1.
 
 #### Scenario: a coupled specification is not condemned by its ESS
 - **WHEN** a cell of the sweep couples the panel layer to a densely observed
