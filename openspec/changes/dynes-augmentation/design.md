@@ -475,6 +475,25 @@ peak footprint (`.plan/dynes/b3/B3_results.md`):
   sequence serial, 1.2 × 10⁴ sharded (W = 5), and 4 × 10³ replicated (W = 5).
   Past it, the fallback order above applies.
 
+**Storage and per-event cost (measured at HEAD, 2026-11-02).** The change adds
+no per-event storage to the walk and a flat, per-path-event one to the pool:
+
+- **Walk: unchanged to the digit.** Allocation on the 1899-actor walk is
+  43660 MB unconstrained and 44230 MB constrained, and the walk object is
+  84.02 / 111.7 MB, identical before and after the 6.2j change.
+- **Pool: 0.30 KB per path event**, flat from n = 150 to n = 600 (D4 predicted
+  0.44, bound 1 KB). No dyad-shaped object is stored per event.
+- **`sim` draw:** linear in flips (0.14 / 0.25 / 0.56 s at 30 / 60 / 120 flips,
+  n = 30) and near flat in n (0.13 / 0.17 / 0.21 s for n = 30..240 at 30 flips).
+- **`mcmc` sweep:** about F^1.6 in flips (0.022 / 0.069 / 0.26 s at 30 / 60 /
+  120 flips, stub evaluator). The super-linear terms are the cursor scans, the
+  per-move list-field increments and the `unsplit(split())` per move; they are
+  tracked in `dynes-augmenter-driver-v2`, not removed here.
+- **Guards.** The pool-entry guard was written RED first (`d7ea4f3c`). The
+  `sim` and `mcmc` step costs of group 3 are guarded by the sibling change
+  `dynes-augmenter-walk-alignment` (`test-augment_sim_cost.R` and
+  `test-augment_mcmc_cost.R`); this change adds no step guard of its own.
+
 ### D5 — Full re-preprocess per sequence entering the pool (OQ B4)
 Each sequence entering the pool is preprocessed from scratch through the existing
 recipe path. A mutated sequence invalidates statistics from its first perturbed event

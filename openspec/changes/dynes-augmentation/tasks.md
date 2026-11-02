@@ -1198,7 +1198,7 @@ no baseline moves, no Version/`NEWS.md`/archive.
       scenario overstates (soften the scenario). Run the touched files under
       `NOT_CRAN=true` and report any that are red. Test edits follow
       `r-lib:testing-r-packages`; `air format` the touched files.
-- [ ] 6.5.4 (gap 4) Add the "Storage and per-event cost" paragraph to the
+- [x] 6.5.4 (gap 4) Add the "Storage and per-event cost" paragraph to the
       design (D4 or D22) from the report's section 2: walk unchanged to the
       digit across 6.2j, pool 0.30 KB per path event flat from n = 150 to 600,
       sim linear in flips and flat in n, mcmc sweep about F^1.6; name the
