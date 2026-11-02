@@ -1207,7 +1207,7 @@ no baseline moves, no Version/`NEWS.md`/archive.
 - [x] 6.5.5 (gap 5) Reword `NEWS.d/dynes-augmentation--panel-augmentation.md`
       to lead with "Added `estimate_dynes()`" and list the constructors.
       *Done 2026-11-02.*
-- [ ] 6.5.6 (gap 6) `R/preprocess_joint.R` (~679): move `panel_observed_layers()`
+- [x] 6.5.6 (gap 6) `R/preprocess_joint.R` (~679): move `panel_observed_layers()`
       above the `build_merged_blocks()` roxygen block so the docblock sits on
       its function; `air format`, `devtools::document()` shows no `man/` diff.
 - [ ] 6.5.7 (note 7) Optional test: a quiet-interval fixture under `mcmc` with

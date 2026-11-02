@@ -654,6 +654,11 @@ build_joint_schedule <- function(
 # Top-level: compile the blocks and build the shared substrate.
 # --------------------------------------------------------------------------- #
 
+panel_observed_layers <- function(info) {
+  observation <- info$observation
+  names(observation)[!is.na(observation) & observation == "panel"]
+}
+
 #' Assemble the merged-walk substrate for a joint specification
 #'
 #' Compiles every process of a `goldfishJointSpec` into a walk-ready
@@ -679,11 +684,6 @@ build_joint_schedule <- function(
 #'   schedule); `support_constraints` (each `(layer, flavor)` constraint compiled
 #'   once, keyed by `constraint_id`); and the `process_map`.
 #' @noRd
-panel_observed_layers <- function(info) {
-  observation <- info$observation
-  names(observation)[!is.na(observation) & observation == "panel"]
-}
-
 build_merged_blocks <- function(
   joint_spec,
   control_preprocessing = set_preprocessing_opt(),
