@@ -1245,5 +1245,15 @@ no baseline moves, no Version/`NEWS.md`/archive.
       `depends-on` and the `identifiability-diagnostics` wording against the
       freshly folded spec. Also recorded in `progress.md` ("Version / NEWS /
       archival") for the fold.
-- [ ] 6.5.11 Scoped conformance re-check (fresh agent) of gaps 1, 3 and 5
+- [x] 6.5.11 Scoped conformance re-check (fresh agent) of gaps 1, 3 and 5
       after 6.5.1–6.5.6 land, then the NOT_CRAN gate.
+      *Done 2026-11-02: CONFORMANT at `6b4f5eb2`* (report
+      `.plan/develop/dynes-augmentation-6.5-recheck-conformance.md`, local).
+      Gaps 1, 3 and 5 closed; each new or tightened detector red under
+      ablation (floor value, coupling argument, both `what` trim sites,
+      smoothing exponent). NOT_CRAN suite PASS 17825 / FAIL 0 / SKIP 5, every
+      frozen baseline PASS with 0 SKIP, `_baselines/` byte-identical. Notes
+      for the fold: the four `set_*` constructors were exported by `abmcem`
+      (`9cdc3fec`), not this change; seven other fragments say "Improved" or
+      "Fixed" for `estimate_dynes()` / `set_sgd_options()`, which `develop`
+      never shipped, and fold under the "Added `estimate_dynes()`" entry.
