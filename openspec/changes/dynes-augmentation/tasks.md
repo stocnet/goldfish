@@ -1162,19 +1162,19 @@ Verdict was CONFORMANT (0 blocks). Items 6.5.1–6.5.6 are the should-fix gaps
 the change owns before the fold; 6.5.7–6.5.10 are the notes. No `src/` edit,
 no baseline moves, no Version/`NEWS.md`/archive.
 
-- [ ] 6.5.1 (gap 1) Commit the `design.md` amendments (D26 floor 0.02 with no
+- [x] 6.5.1 (gap 1) Commit the `design.md` amendments (D26 floor 0.02 with no
       coupling argument, D3, D18), then amend the `dynes-estimation` delta: add
       a scenario for the shipped 0.02 floor (`random` at pool 139 with ESS 1.0
       fires; K = 50 cannot), replace the conditional coupling-argument
       requirement and scenario the study falsified, and state the smoothing
       exponent `w^(1/2)`. Resolves open question OQ-A in design.md. Run
       `bash .plan/opsx-spec-placement-check.sh dynes-augmentation`.
-- [ ] 6.5.2 (gap 2) Bring `proposal.md` in line with the code: Impact drops
+- [x] 6.5.2 (gap 2) Bring `proposal.md` in line with the code: Impact drops
       "C++ (`src/`): batched pool evaluation" (the evaluator is a per-sequence
       loop over the existing `cpp` backend, no `src/` edit), replaces
       `R/algorithm_steps_*.R` with the real files, and gains `status:` and
       `depends-on:` lines.
-- [ ] 6.5.3 (gap 3) Reword the "Batched pool evaluation" requirement so the
+- [x] 6.5.3 (gap 3) Reword the "Batched pool evaluation" requirement so the
       `what` flag "returns only what is requested", and name the kernel flag
       that would skip unrequested work as future work; align task 4.1b's
       "Fisher only where consumed" and the D3 revision. Resolves open question
