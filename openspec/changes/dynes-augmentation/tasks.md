@@ -1154,3 +1154,55 @@
       committed. The version
       bump, root-NEWS fold, and archival happen once at branch merge (see
       progress.md "Version / NEWS / archival")
+
+## 6.5 Conformance follow-ups (2026-11-02, from `.plan/develop/dynes-augmentation-conformance.md`)
+
+Verdict was CONFORMANT (0 blocks). Items 6.5.1–6.5.6 are the should-fix gaps
+the change owns before the fold; 6.5.7–6.5.10 are the notes. No `src/` edit,
+no baseline moves, no Version/`NEWS.md`/archive.
+
+- [ ] 6.5.1 (gap 1) Commit the `design.md` amendments (D26 floor 0.02 with no
+      coupling argument, D3, D18), then amend the `dynes-estimation` delta: add
+      a scenario for the shipped 0.02 floor (`random` at pool 139 with ESS 1.0
+      fires; K = 50 cannot), replace the conditional coupling-argument
+      requirement and scenario the study falsified, and state the smoothing
+      exponent `w^(1/2)`. Resolves open question OQ-A in design.md. Run
+      `bash .plan/opsx-spec-placement-check.sh dynes-augmentation`.
+- [ ] 6.5.2 (gap 2) Bring `proposal.md` in line with the code: Impact drops
+      "C++ (`src/`): batched pool evaluation" (the evaluator is a per-sequence
+      loop over the existing `cpp` backend, no `src/` edit), replaces
+      `R/algorithm_steps_*.R` with the real files, and gains `status:` and
+      `depends-on:` lines.
+- [ ] 6.5.3 (gap 3) Reword the "Batched pool evaluation" requirement so the
+      `what` flag "returns only what is requested", and name the kernel flag
+      that would skip unrequested work as future work; align task 4.1b's
+      "Fisher only where consumed" and the D3 revision. Resolves open question
+      OQ-B in design.md.
+- [ ] 6.5.4 (gap 4) Add the "Storage and per-event cost" paragraph to the
+      design (D4 or D22) from the report's section 2: walk unchanged to the
+      digit across 6.2j, pool 0.30 KB per path event flat from n = 150 to 600,
+      sim linear in flips and flat in n, mcmc sweep about F^1.6; name the
+      sibling guards from `dynes-augmenter-walk-alignment` that cover the
+      group 3 steps.
+- [x] 6.5.5 (gap 5) Reword `NEWS.d/dynes-augmentation--panel-augmentation.md`
+      to lead with "Added `estimate_dynes()`" and list the constructors.
+      *Done 2026-11-02.*
+- [ ] 6.5.6 (gap 6) `R/preprocess_joint.R` (~679): move `panel_observed_layers()`
+      above the `build_merged_blocks()` roxygen block so the docblock sits on
+      its function; `air format`, `devtools::document()` shows no `man/` diff.
+- [ ] 6.5.7 (note 7) Optional test: a quiet-interval fixture under `mcmc` with
+      `initialize = "sim"` and with `initial_sequence`, so the `ar:113` guard is
+      exercised beyond the default random initializer. May move to
+      `dynes-augmenter-driver-v2`; say which in the tick note.
+- [ ] 6.5.8 (note 8) Carry the super-linear step costs (cursor scans,
+      `sim_pair_receivers()`, per-move `times` copy, mcmc re-preprocessing per
+      candidate) into the `dynes-augmenter-driver-v2` proposal as a tracked
+      item, with the report's figures.
+- [ ] 6.5.9 (note 9) Check `R/complete_generative_spec.R:515` (110-character
+      comment) against `.lintr`; wrap it if the linter flags it.
+- [ ] 6.5.10 (note 10) Hand the folding coordinator the cross-change edits:
+      `bd73cc7c` and two docs commits touch `dynes-augmenter-driver-v2` and
+      `identifiability-diagnostics` proposals; the v2 proposal has 29
+      uncommitted lines. Record in `progress.md` and the fold checklist.
+- [ ] 6.5.11 Scoped conformance re-check (fresh agent) of gaps 1, 3 and 5
+      after 6.5.1–6.5.6 land, then the NOT_CRAN gate.

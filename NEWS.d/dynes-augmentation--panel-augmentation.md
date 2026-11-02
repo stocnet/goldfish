@@ -1,4 +1,6 @@
-* Improved `estimate_dynes()` to estimate a panel layer modeled as a process:
+* Added `estimate_dynes()` to estimate a panel layer modeled as a process:
+  * Its controls are `set_algorithm_em()`, `set_augmenter_options()`,
+    `set_sgd_options()` and `set_weights_options()`.
   * A modeled panel layer is now the augmentation target, with no flag.
   * Event-stream estimators refuse it and point to `estimate_dynes()`.
   * State panels diff into one flip per changed dyad, named by its flavor.
