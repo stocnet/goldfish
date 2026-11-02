@@ -1218,8 +1218,11 @@ no baseline moves, no Version/`NEWS.md`/archive.
       `sim_pair_receivers()`, per-move `times` copy, mcmc re-preprocessing per
       candidate) into the `dynes-augmenter-driver-v2` proposal as a tracked
       item, with the report's figures.
-- [ ] 6.5.9 (note 9) Check `R/complete_generative_spec.R:515` (110-character
+- [x] 6.5.9 (note 9) Check `R/complete_generative_spec.R:515` (110-character
       comment) against `.lintr`; wrap it if the linter flags it.
+      *Done 2026-11-02: the flagged comment now sits at line 670 (the report's
+      :515 had shifted); lintr flagged it, wrapped to 80. The other
+      `line_length_linter` hits in the file are pre-existing and not touched.*
 - [ ] 6.5.10 (note 10) Hand the folding coordinator the cross-change edits:
       `bd73cc7c` and two docs commits touch `dynes-augmenter-driver-v2` and
       `identifiability-diagnostics` proposals; the v2 proposal has 29

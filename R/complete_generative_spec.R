@@ -667,8 +667,9 @@ default_window <- function(data, layer) {
 # a row stamped at a wave belongs to it, so a period and the interval it pins
 # count the same flips) and its post-constraint rate entity counted; `|R_w|` is
 # the endpoint average of the two boundaries of period w, `count_w` the net
-# Hamming diff between them (a net-change floor), and `T_w` the boundary gap. `wave_times` is returned for the
-# pin's half-open period membership (NULL for a single plateau).
+# Hamming diff between them (a net-change floor), and `T_w` the boundary gap.
+# `wave_times` is returned for the pin's half-open period membership (NULL for
+# a single plateau).
 panel_wave_risk_set <- function(
   joint_spec,
   layer,
