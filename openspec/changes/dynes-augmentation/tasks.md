@@ -1214,7 +1214,7 @@ no baseline moves, no Version/`NEWS.md`/archive.
       `initialize = "sim"` and with `initial_sequence`, so the `ar:113` guard is
       exercised beyond the default random initializer. May move to
       `dynes-augmenter-driver-v2`; say which in the tick note.
-- [ ] 6.5.8 (note 8) Carry the super-linear step costs (cursor scans,
+- [x] 6.5.8 (note 8) Carry the super-linear step costs (cursor scans,
       `sim_pair_receivers()`, per-move `times` copy, mcmc re-preprocessing per
       candidate) into the `dynes-augmenter-driver-v2` proposal as a tracked
       item, with the report's figures.

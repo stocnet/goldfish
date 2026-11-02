@@ -132,6 +132,23 @@ admits it; if admitted, the capabilities `abmcem-optimization` and
 
 ## Carried in from `dynes-augmentation` (open; decide at design time)
 
+- **Super-linear step costs of the augmenters** (carried 2026-11-02, from the
+  `dynes-augmentation` conformance report, note 8). Per-draw and per-sweep
+  cost grows faster than the flips F: the recipe cursor's `heads()`/`take()`
+  scan every chain (`recipe_cursor`, O(chains) per step), `sim_pair_receivers()`
+  scans the heads per option (O(heads^2) per option round), the mcmc move
+  increments list fields and re-splits with `unsplit(split())` (O(F) per move),
+  and the sim step copies `times` per move. Measured at HEAD: the `sim` draw is
+  linear in F (0.14 / 0.25 / 0.56 s at 30 / 60 / 120 flips, n = 30) and near
+  flat in n (0.13 / 0.17 / 0.21 s, n = 30..240); the `mcmc` sweep is about
+  F^1.6 (0.022 / 0.069 / 0.26 s at 30 / 60 / 120 flips, stub evaluator).
+  `mcmc` also re-preprocesses every candidate (the full re-preprocess of D5;
+  incremental patching is deferred): 76 min per pass at 140 flips and 51
+  actors in the vignette. Trivial at the vignette's size; matters if larger
+  panels appear. Decide whether to remove the scans and copies here, with the
+  step guards (`test-augment_sim_cost.R`, `test-augment_mcmc_cost.R`) as the
+  floor.
+
 - **The two-state CTMC oracle for a state panel** (carried 2026-10-26,
   skipped in `dynes-augmentation` task 6.2b). The CTMC's closed-form
   transition probabilities count paths with excursions, which v1's
