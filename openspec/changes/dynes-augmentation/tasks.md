@@ -1210,10 +1210,14 @@ no baseline moves, no Version/`NEWS.md`/archive.
 - [x] 6.5.6 (gap 6) `R/preprocess_joint.R` (~679): move `panel_observed_layers()`
       above the `build_merged_blocks()` roxygen block so the docblock sits on
       its function; `air format`, `devtools::document()` shows no `man/` diff.
-- [ ] 6.5.7 (note 7) Optional test: a quiet-interval fixture under `mcmc` with
+- [x] 6.5.7 (note 7) Optional test: a quiet-interval fixture under `mcmc` with
       `initialize = "sim"` and with `initial_sequence`, so the `ar:113` guard is
       exercised beyond the default random initializer. May move to
       `dynes-augmenter-driver-v2`; say which in the tick note.
+      *Moved to `dynes-augmenter-driver-v2` (2026-11-02).* The `ar:113` guard
+      is covered under the default random initializer; the `sim` initializer
+      and `initial_sequence` cases need fixtures that sit with the driver's
+      own rework, so the optional test is not added here.
 - [x] 6.5.8 (note 8) Carry the super-linear step costs (cursor scans,
       `sim_pair_receivers()`, per-move `times` copy, mcmc re-preprocessing per
       candidate) into the `dynes-augmenter-driver-v2` proposal as a tracked
@@ -1223,9 +1227,23 @@ no baseline moves, no Version/`NEWS.md`/archive.
       *Done 2026-11-02: the flagged comment now sits at line 670 (the report's
       :515 had shifted); lintr flagged it, wrapped to 80. The other
       `line_length_linter` hits in the file are pre-existing and not touched.*
-- [ ] 6.5.10 (note 10) Hand the folding coordinator the cross-change edits:
+- [x] 6.5.10 (note 10) Hand the folding coordinator the cross-change edits:
       `bd73cc7c` and two docs commits touch `dynes-augmenter-driver-v2` and
       `identifiability-diagnostics` proposals; the v2 proposal has 29
       uncommitted lines. Record in `progress.md` and the fold checklist.
+      *Done 2026-11-02 (hand-off for the folding coordinator).* Commits on
+      this branch that edit proposals of other changes: `bd73cc7c` (creates
+      `dynes-augmenter-driver-v2/proposal.md`; adds 9 lines to
+      `identifiability-diagnostics/proposal.md`) and `77f3b98d` (6.5.8, one
+      carried item in the driver-v2 proposal). The report counted two docs
+      commits beyond `bd73cc7c`; in `624ff173..HEAD` only `77f3b98d` touches
+      those two proposals. The driver-v2 proposal also has **29 uncommitted
+      lines** in the working tree (two carried items, 2026-10-29: events before
+      the first wave, and a permute within one layer); they are not part of
+      this change's commits and stay uncommitted for their owner. At the merge,
+      archive `dynes-augmentation` first, then resolve those proposals'
+      `depends-on` and the `identifiability-diagnostics` wording against the
+      freshly folded spec. Also recorded in `progress.md` ("Version / NEWS /
+      archival") for the fold.
 - [ ] 6.5.11 Scoped conformance re-check (fresh agent) of gaps 1, 3 and 5
       after 6.5.1–6.5.6 land, then the NOT_CRAN gate.
