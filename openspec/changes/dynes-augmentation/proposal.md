@@ -1,3 +1,8 @@
+---
+depends-on: abmcem, process-simulation
+status: in progress (feature/dynes)
+---
+
 ## Why
 
 Relational states are often observed only as **panel waves** (friendship at t1, t2, …),
@@ -140,15 +145,20 @@ package's estimation core.
 
 ## Impact
 
-- **R**: augmenter constructors (`R/algorithm_steps_*.R`) driving the
-  `multi-process-walk` handle, panel diffing in the conversion module, multi-layer
+- **R**: augmenter constructors (`R/augment_seq_random.R`, `R/augment_seq_sim.R`,
+  `R/augment_seq_mcmc.R`, `R/augmenters_dynes.R`, `R/augment_restart.R`) driving the
+  `multi-process-walk` handle, the pool evaluator and weights (`R/evaluator_dynes.R`,
+  `R/weights_dynes.R`), the pool store (`R/pool_store_dynes.R`), the EM loop and
+  optimizer (`R/em_loop_dynes.R`, `R/optimizer_dynes.R`), diagnostics
+  (`R/diagnostics_dynes.R`), panel diffing in the conversion module, multi-layer
   specification validation consuming the multivariate spec's `coupled` column.
   (Surface + ABEM loop, control constructors, optimizer/weighting machinery, and
   result/summary/vcov methods land via the `abmcem` change; the general
   `simulate()` surface lands via the `process-simulation` change.)
-- **C++ (`src/`)**: batched pool evaluation (logLik/score/Fisher over a list of flat
-  preprocessed objects); rate/probability computation at a given process state reused
-  from the estimation kernels (the prototypes' workarounds replaced by engine calls).
+- **C++ (`src/`)**: no edit. Pool evaluation is a per-sequence loop over the existing
+  `cpp` backend (logLik/score/Fisher per flat preprocessed object); rate/probability
+  computation at a given process state is reused from the estimation kernels (the
+  prototypes' workarounds replaced by engine calls).
 - **Prototypes retired**: `.plan/DyNES/*.R` (sgd / resampling / importance-sampling
   scripts against goldfish 1.6.10) are the reference implementations; their workarounds
   (opportunity-list support constraints, manual state bookkeeping, label sanitization)
