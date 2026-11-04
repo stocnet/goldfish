@@ -12,15 +12,17 @@ make_prepare_fixture <- function() {
     stringsAsFactors = FALSE
   )
   ties <- data.frame(
-    from = c(1L, 2L, 1L, 1L, 3L, 1L, 2L, 4L),
-    to = c(2L, 3L, 2L, 3L, 4L, 2L, 3L, 1L),
-    time = c(10, 10, 20, 20, 20, 10, 20, 15),
-    weight = c(1, 1, 1, 1, 1, 2, 3, 1),
+    from = c(1L, 2L, 1L, 1L, 3L, 1L, 2L, 4L, 2L, 3L),
+    to = c(2L, 3L, 2L, 3L, 4L, 2L, 3L, 1L, 4L, 1L),
+    time = c(10, 10, 20, 20, 20, 10, 20, 15, 10, 20),
+    weight = c(1, 1, 1, 1, 1, 2, 3, 1, 1, 1),
     layer = c(
       rep("friendship", 5L),
       "calls",
       "calls",
-      "messages"
+      "messages",
+      "advice",
+      "advice"
     ),
     stringsAsFactors = FALSE
   )
@@ -51,14 +53,15 @@ make_prepare_fixture <- function() {
 
 test_that("a layer without a form entry is read as states", {
   x <- make_prepare_fixture()
-  out <- suppressMessages(prepare_dynes_data(
+  spec <- resolve_prepare_layers(
     x,
-    layers = c(friendship = "mutually_exclusive")
-  ))
-  expect_equal(
-    unname(out$info$dynes_prepared["friendship"]),
-    "mutually_exclusive"
+    layers = c(friendship = "mutually_exclusive", calls = "count"),
+    form = c(calls = "per_wave"),
+    flavor_names = NULL,
+    call = rlang::current_env()
   )
+  expect_equal(spec$layer, c("friendship", "calls"))
+  expect_equal(spec$form, c("states", "per_wave"))
 })
 
 test_that("a none layer given as changes is returned unchanged", {

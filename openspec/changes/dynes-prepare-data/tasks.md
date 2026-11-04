@@ -44,7 +44,7 @@ fragment.
 
 ## 1. Arguments, input checks, prepared-layers record
 
-- [ ] 1.1(a) Test the `layers` and `form` arguments: a layer without a `form`
+- [x] 1.1(a) Test the `layers` and `form` arguments: a layer without a `form`
       entry is `"states"`; a `"count"` or `"none"` layer given as
       `"changes"` is returned unchanged; an empty `layers`, a name repeated
       within `layers`, `form` or `flavor_names`, an unnamed `layers` entry, a style or
@@ -58,7 +58,7 @@ fragment.
       a `"count"` layer aborts with the count guidance (no flavor needed, one
       `"count"` layer per event type) (snapshot) (spec "A mutually exclusive
       layer leaves the function flavored").
-- [ ] 1.1(b) Implement the argument validation and the pass-through (design
+- [x] 1.1(b) Implement the argument validation and the pass-through (design
       D5, D7).
 - [ ] 1.2(a) Test the shared wave checks on `"states"` and `"per_wave"`
       layers: a dyad repeated at one wave aborts, a 0 row equals absence (no

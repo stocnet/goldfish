@@ -42,6 +42,7 @@ reference:
       - starts_with("link")
       - as_goldfish
       - add_flavor
+      - prepare_dynes_data
       - network_state_at
       - nodes_state_at
   - title: "Estimate"
