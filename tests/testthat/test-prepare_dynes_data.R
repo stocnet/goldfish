@@ -223,3 +223,136 @@ test_that("an invalid call leaves the input object untouched", {
   )
   expect_identical(x, before)
 })
+
+# One panel layer from a data frame of (from, to, time, weight) rows.
+make_wave_fixture <- function(
+  rows,
+  directed = TRUE,
+  update = "replace",
+  two_mode = FALSE
+) {
+  rows$layer <- "survey"
+  nodes <- data.frame(
+    label = c("A", "B", "C", "D", "E", "F", "G", "H"),
+    mode = if (two_mode) rep(c("x", "y"), each = 4L) else "p",
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy",
+    focal = "survey",
+    update = c(survey = update),
+    directed = c(survey = directed),
+    observation = c(survey = "panel")
+  )
+  if (two_mode) {
+    info$sender <- c(survey = "x")
+    info$receiver <- c(survey = "y")
+  }
+  list(info = info, nodes = nodes, ties = rows)
+}
+
+wave_rows <- function(from, to, time, weight = 1) {
+  data.frame(from = from, to = to, time = time, weight = weight)
+}
+
+# The shared checks, called the way prepare_dynes_data() calls them.
+check_rows <- function(x, form = "states") {
+  clean_wave_rows(x, "survey", form, call = rlang::current_env())
+}
+
+test_that("a dyad repeated at one wave aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(3, 3), c(7, 7), c(10, 10), c(1, 1)))
+  expect_snapshot(error = TRUE, check_rows(x))
+  expect_snapshot(error = TRUE, check_rows(x, "per_wave"))
+})
+
+test_that("a zero row is read as absence on both forms", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 4), c(7, 8), c(10, 10), c(1, 0))
+  )
+  for (form in c("states", "per_wave")) {
+    out <- check_rows(x, form)
+    expect_equal(out$from, 3)
+    expect_equal(out$to, 7)
+  }
+})
+
+test_that("an NA tie value aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(3, 7, 10, NA_real_))
+  expect_snapshot(error = TRUE, check_rows(x))
+  expect_snapshot(error = TRUE, check_rows(x, "per_wave"))
+})
+
+test_that("a self-tie on a one-mode layer aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(4, 4, 10))
+  expect_snapshot(error = TRUE, check_rows(x))
+})
+
+test_that("a two-mode layer has no diagonal and is not reordered", {
+  x <- make_wave_fixture(
+    wave_rows(c(4, 2), c(4, 1), c(10, 10)),
+    directed = FALSE,
+    two_mode = TRUE
+  )
+  out <- check_rows(x)
+  expect_equal(out$from, c(4, 2))
+  expect_equal(out$to, c(4, 1))
+})
+
+test_that("an undirected tie reported both ways warns and counts once", {
+  local_cli_context()
+  x <- make_wave_fixture(
+    wave_rows(c(3, 7), c(7, 3), c(10, 10), c(1, 1)),
+    directed = FALSE
+  )
+  expect_snapshot(out <- check_rows(x))
+  expect_equal(nrow(out), 1L)
+  expect_equal(c(out$from, out$to), c(3, 7))
+})
+
+test_that("an undirected count reported both ways is read as one report", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 7), c(7, 3), c(10, 10), c(2, 2)),
+    directed = FALSE,
+    update = "increment"
+  )
+  out <- suppressWarnings(check_rows(x, "per_wave"))
+  expect_equal(nrow(out), 1L)
+  expect_equal(out$value, 2)
+})
+
+test_that("an undirected tie reported both ways with two values aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(
+    wave_rows(c(3, 7), c(7, 3), c(10, 10), c(1, 2)),
+    directed = FALSE
+  )
+  expect_snapshot(error = TRUE, check_rows(x))
+})
+
+test_that("an undirected tie that switches orientation keeps one key", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 7), c(7, 3), c(10, 20)),
+    directed = FALSE
+  )
+  out <- check_rows(x)
+  expect_equal(out$from, c(3, 3))
+  expect_equal(out$to, c(7, 7))
+})
+
+test_that("a directed layer keeps (i, j) and (j, i) as different dyads", {
+  x <- make_wave_fixture(wave_rows(c(3, 7), c(7, 3), c(10, 10)))
+  expect_equal(nrow(check_rows(x)), 2L)
+})
+
+test_that("repeated time = NA rows are not checked row by row", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 4), c(7, 7, 8), c(NA, NA, 10), c(1, 1, 1))
+  )
+  out <- check_rows(x)
+  expect_equal(nrow(out), 1L)
+  expect_equal(out$from, 4)
+})
