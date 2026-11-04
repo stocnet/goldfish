@@ -66,6 +66,10 @@ prepare_dynes_data <- function(
   call <- rlang::current_env()
   spec <- resolve_prepare_layers(x, layers, form, flavor_names, call = call)
 
+  for (i in which(spec$form != "changes")) {
+    clean_wave_rows(x, spec$layer[i], spec$form[i], call = call)
+  }
+
   needs_rewrite <- spec$form != "changes" | spec$style == "mutually_exclusive"
   if (any(needs_rewrite)) {
     cli::cli_abort(
@@ -347,4 +351,115 @@ check_flavor_names <- function(flavor_names, layer_names, style, call) {
     }
   }
   invisible(TRUE)
+}
+
+# The timed rows of one "states" or "per_wave" layer, checked and normalized:
+# one row per dyad per wave, a value of 0 read as absence (no tie, or no
+# events) and dropped, keys in the order the diff compares them. The
+# `time = NA` rows are history and are neither checked nor returned: the walk
+# folds them, so repeated history rows stay legal. Returns a data frame with
+# `from`, `to` (global node ids), `time` and `value`.
+#
+# On an undirected one-mode layer (i, j) and (j, i) are the same dyad, keyed
+# (min, max). Reported both ways at one wave with one value they warn and count
+# once, as two respondents reporting the same tie or the same count; with two
+# values they are a repeated dyad. A two-mode layer indexes different node sides
+# with `from` and `to`, so it is never reordered and has no diagonal.
+clean_wave_rows <- function(x, layer, form, call) {
+  ties <- as.data.frame(x$ties)
+  rows <- ties[ties$layer == layer & !is.na(ties$time), , drop = FALSE]
+  value <- if ("weight" %in% names(rows)) rows$weight else rep(1, nrow(rows))
+  out <- data.frame(
+    from = to_global_id(rows$from, x$nodes),
+    to = to_global_id(rows$to, x$nodes),
+    time = rows$time,
+    value = as.numeric(value)
+  )
+  labels <- x$nodes$label %||% as.character(seq_len(nrow(x$nodes)))
+  describe <- function(i) {
+    list(
+      wave = format(out$time[i]),
+      dyad = paste0(labels[out$from[i]], "-", labels[out$to[i]])
+    )
+  }
+
+  if (anyNA(out$value)) {
+    at <- describe(which(is.na(out$value))[1L])
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} has a missing tie value.",
+        "x" = "Dyad {.val {at$dyad}} at wave {.val {at$wave}} is {.val {NA}}.",
+        "i" = "A wave must report every tie it holds; partially observed \
+               waves are not supported."
+      ),
+      call = call
+    )
+  }
+
+  mode_info <- build_mode_map(x$info %||% list(), x$nodes, layer)$layers[[
+    layer
+  ]]
+  one_mode <- !isTRUE(mode_info$is_two_mode)
+  directed <- !isFALSE(unname((x$info %||% list())$directed[layer]))
+
+  if (one_mode) {
+    self <- which(out$from == out$to)
+    if (length(self) > 0L) {
+      at <- describe(self[1L])
+      cli::cli_abort(
+        c(
+          "Layer {.val {layer}} has a tie from a node to itself.",
+          "x" = "Node {.val {labels[out$from[self[1L]]]}} at wave \
+                 {.val {at$wave}}.",
+          "i" = "A one-mode layer has no diagonal."
+        ),
+        call = call
+      )
+    }
+  }
+
+  swapped <- !directed & one_mode & out$from > out$to
+  lo <- ifelse(swapped, out$to, out$from)
+  hi <- ifelse(swapped, out$from, out$to)
+  key <- paste(coerce_time(out$time), lo, hi)
+  repeated <- duplicated(key) | duplicated(key, fromLast = TRUE)
+  if (any(repeated)) {
+    groups <- split(which(repeated), key[repeated])
+    for (g in groups) {
+      reversed <- length(g) == 2L && !directed && one_mode && any(swapped[g])
+      same_value <- length(unique(out$value[g])) == 1L
+      if (!(reversed && same_value && !all(swapped[g]))) {
+        at <- describe(g[1L])
+        cli::cli_abort(
+          c(
+            "A wave must hold one value per dyad.",
+            "x" = "Layer {.val {layer}} reports dyad {.val {at$dyad}} \
+                   {length(g)} times at wave {.val {at$wave}}.",
+            "i" = if (reversed && !same_value) {
+              "The two reports of this undirected tie disagree: \
+               {.val {out$value[g]}}."
+            }
+          ),
+          call = call
+        )
+      }
+    }
+    doubled <- vapply(groups, `[`, integer(1), 1L)
+    at <- describe(doubled[1L])
+    cli::cli_warn(
+      c(
+        "Layer {.val {layer}} reports {length(doubled)} undirected \
+         dyad{?s} in both orders with the same value.",
+        "i" = "First: {.val {at$dyad}} at wave {.val {at$wave}}.",
+        "i" = "Each is counted once, not twice."
+      ),
+      call = call
+    )
+  }
+
+  out$from <- lo
+  out$to <- hi
+  out <- out[!(duplicated(key) | out$value == 0), , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }

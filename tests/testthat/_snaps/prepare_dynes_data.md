@@ -165,3 +165,71 @@
       i A count records repeated events of one process.
       i If "calls" counts two event types together, such as signings and endings, split it into one "count" layer per type.
 
+# a dyad repeated at one wave aborts
+
+    Code
+      check_rows(x)
+    Condition
+      Error in `check_rows()`:
+      ! A wave must hold one value per dyad.
+      x Layer "survey" reports dyad "C-G" 2 times at wave "10".
+
+---
+
+    Code
+      check_rows(x, "per_wave")
+    Condition
+      Error in `check_rows()`:
+      ! A wave must hold one value per dyad.
+      x Layer "survey" reports dyad "C-G" 2 times at wave "10".
+
+# an NA tie value aborts
+
+    Code
+      check_rows(x)
+    Condition
+      Error in `check_rows()`:
+      ! Layer "survey" has a missing tie value.
+      x Dyad "C-G" at wave "10" is NA.
+      i A wave must report every tie it holds; partially observed waves are not supported.
+
+---
+
+    Code
+      check_rows(x, "per_wave")
+    Condition
+      Error in `check_rows()`:
+      ! Layer "survey" has a missing tie value.
+      x Dyad "C-G" at wave "10" is NA.
+      i A wave must report every tie it holds; partially observed waves are not supported.
+
+# a self-tie on a one-mode layer aborts
+
+    Code
+      check_rows(x)
+    Condition
+      Error in `check_rows()`:
+      ! Layer "survey" has a tie from a node to itself.
+      x Node "D" at wave "10".
+      i A one-mode layer has no diagonal.
+
+# an undirected tie reported both ways warns and counts once
+
+    Code
+      out <- check_rows(x)
+    Condition
+      Warning in `check_rows()`:
+      Layer "survey" reports 1 undirected dyad in both orders with the same value.
+      i First: "C-G" at wave "10".
+      i Each is counted once, not twice.
+
+# an undirected tie reported both ways with two values aborts
+
+    Code
+      check_rows(x)
+    Condition
+      Error in `check_rows()`:
+      ! A wave must hold one value per dyad.
+      x Layer "survey" reports dyad "C-G" 2 times at wave "10".
+      i The two reports of this undirected tie disagree: 1 and 2.
+

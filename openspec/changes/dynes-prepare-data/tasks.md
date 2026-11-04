@@ -60,7 +60,7 @@ fragment.
       layer leaves the function flavored").
 - [x] 1.1(b) Implement the argument validation and the pass-through (design
       D5, D7).
-- [ ] 1.2(a) Test the shared wave checks on `"states"` and `"per_wave"`
+- [x] 1.2(a) Test the shared wave checks on `"states"` and `"per_wave"`
       layers: a dyad repeated at one wave aborts, a 0 row equals absence (no
       events on `"per_wave"`), an `NA` tie value aborts, a diagonal row of a
       one-mode layer aborts, an undirected one-mode tie reported in both
@@ -70,7 +70,7 @@ fragment.
       row by row; a two-mode
       undirected layer is not reordered (spec "A wave defines one value per
       dyad, valid for the layer's style").
-- [ ] 1.2(b) Implement the shared checks (design D9, D13, D14).
+- [x] 1.2(b) Implement the shared checks (design D9, D13, D14).
 - [ ] 1.3(a) Test the style checks: a `"mutually_exclusive"` `"states"` value
       other than 0/1 aborts; a `"mutually_exclusive"` `"changes"` value outside
       the update encoding aborts; a `"mutually_exclusive"` `"changes"`
