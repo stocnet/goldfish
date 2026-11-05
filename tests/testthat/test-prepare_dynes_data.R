@@ -1325,3 +1325,75 @@ test_that("an untouched panel layer keeps its rows when another is prepared", {
     ignore_attr = "row.names"
   )
 })
+
+# The empty-wave warnings a call raises, collected so they can be counted.
+collect_empty_wave_warnings <- function(expr) {
+  caught <- list()
+  value <- withCallingHandlers(
+    expr,
+    goldfish_empty_wave = function(w) {
+      caught[[length(caught) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(value = value, warnings = caught)
+}
+
+test_that("an unchanged middle wave warns, naming the layer and the wave", {
+  local_cli_context()
+  x <- make_wave_fixture(
+    wave_rows(c(1, 3, 1, 3, 1), c(2, 7, 2, 7, 2), c(10, 10, 20, 20, 30))
+  )
+  expect_snapshot(
+    out <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+  )
+  expect_equal(sum(written_rows(out)$time == 20), 0L)
+  expect_warning(
+    prepare_quietly(x, layers = c(survey = "mutually_exclusive")),
+    class = "goldfish_empty_wave"
+  )
+})
+
+test_that("a first wave equal to the time = NA rows warns, naming it", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(1, 1, 3), c(2, 2, 7), c(NA, 10, 20)))
+  expect_snapshot(
+    out <- prepare_quietly(x, layers = c(survey = "none"))
+  )
+  expect_equal(unique(written_rows(out)$time), 20)
+})
+
+test_that("empty waves on several layers raise exactly one warning", {
+  local_cli_context()
+  rows <- rbind(
+    cbind(
+      wave_rows(c(1, 1, 1), c(2, 2, 2), c(10, 20, 30)),
+      layer = "friendship"
+    ),
+    cbind(wave_rows(c(3, 3), c(7, 7), c(10, 20)), layer = "advice")
+  )
+  rows$from[rows$layer == "friendship" & rows$time == 30] <- 4
+  rows$to[rows$layer == "friendship" & rows$time == 30] <- 8
+  x <- make_two_layer_fixture(rows)
+  prepare <- function() {
+    prepare_quietly(
+      x,
+      layers = c(friendship = "none", advice = "count"),
+      form = c(advice = "per_wave"),
+      wave_times = list(advice = c(10, 20, 30))
+    )
+  }
+  caught <- collect_empty_wave_warnings(prepare())
+  expect_length(caught$warnings, 1L)
+  expect_snapshot(out <- prepare())
+  expect_equal(sum(written_rows(out, "advice")$time == 30), 0L)
+  expect_equal(sum(written_rows(out, "friendship")$time == 20), 0L)
+})
+
+test_that("a call whose every wave writes a row raises no empty-wave warning", {
+  x <- make_wave_fixture(gapped_survey_rows())
+  caught <- collect_empty_wave_warnings(
+    prepare_quietly(x, layers = c(survey = "none"), wave_times = c(10, 20, 30))
+  )
+  expect_length(caught$warnings, 0L)
+})
