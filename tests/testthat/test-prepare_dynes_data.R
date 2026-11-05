@@ -939,3 +939,138 @@ test_that("calls given as totals and as amounts round-trip to the totals", {
     expect_round_trip(as_amounts, levels, c(10, 20, 30))
   }
 })
+
+# A binary survey layer: (1, 2) stable, (3, 7) dropped at wave 2, (4, 8) formed
+# at wave 2, with one history row.
+binary_survey_rows <- function() {
+  wave_rows(
+    c(1, 1, 3, 1, 4),
+    c(2, 2, 7, 2, 8),
+    c(NA, 10, 10, 20, 20)
+  )
+}
+
+test_that("a mutually exclusive layer equals the diff, then add_flavor()", {
+  for (update in c("increment", "replace")) {
+    x <- make_wave_fixture(binary_survey_rows(), update = update)
+    flavored <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+    map <- c(creation = 1, dissolution = if (update == "replace") 0 else -1)
+    piped <- add_flavor(
+      prepare_quietly(x, layers = c(survey = "none")),
+      "survey",
+      values_equivalence = map,
+      flavor_style = "mutually_exclusive"
+    )
+    expect_equal(flavored$ties, piped$ties, info = update)
+    expect_equal(
+      flavored$info$values_equivalence,
+      piped$info$values_equivalence,
+      info = update
+    )
+    expect_equal(flavored$info$flavor_style, piped$info$flavor_style)
+    expect_equal(flavored$info$values_equivalence$survey, map)
+  }
+})
+
+test_that("a mutually exclusive change-list gains the map, rows unchanged", {
+  x <- make_wave_fixture(
+    wave_rows(c(1, 3, 1), c(2, 7, 2), c(10, 10, 20), c(1, 1, -1)),
+    update = "increment"
+  )
+  out <- prepare_quietly(
+    x,
+    layers = c(survey = "mutually_exclusive"),
+    form = c(survey = "changes")
+  )
+  expect_equal(out$ties[names(x$ties)], x$ties)
+  expect_equal(
+    out$ties$flavor,
+    c("creation", "creation", "dissolution")
+  )
+  expect_equal(
+    out$info$values_equivalence$survey,
+    c(creation = 1, dissolution = -1)
+  )
+  expect_equal(out$info$flavor_style, c(survey = "mutually_exclusive"))
+})
+
+test_that("a count or none layer gets no map and no flavor value", {
+  x <- make_prepare_fixture()
+  out <- prepare_quietly(
+    x,
+    layers = c(calls = "count", advice = "none", friendship = "none"),
+    form = c(calls = "per_wave")
+  )
+  expect_null(out$info$values_equivalence)
+  expect_null(out$info$flavor_style)
+  expect_false("flavor" %in% names(out$ties))
+})
+
+test_that("a flavor column is created with NA on the other layers' rows", {
+  x <- make_prepare_fixture()
+  out <- prepare_quietly(
+    x,
+    layers = c(friendship = "mutually_exclusive", calls = "count"),
+    form = c(calls = "per_wave")
+  )
+  mine <- out$ties$layer == "friendship" & !is.na(out$ties$time)
+  expect_true(all(is.na(out$ties$flavor[!mine])))
+  expect_false(anyNA(out$ties$flavor[mine]))
+  expect_null(out$info$values_equivalence$calls)
+})
+
+test_that("flavor_names relabels the map and the flavor column", {
+  x <- make_wave_fixture(binary_survey_rows(), update = "replace")
+  default <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+  relabeled <- prepare_quietly(
+    x,
+    layers = c(survey = "mutually_exclusive"),
+    flavor_names = list(survey = c(creation = "formed", dissolution = "ended"))
+  )
+  expect_equal(
+    relabeled$info$values_equivalence$survey,
+    c(formed = 1, ended = 0)
+  )
+  rows <- written_rows(relabeled)
+  expect_setequal(rows$flavor, c("formed", "ended"))
+  relabel <- c(creation = "formed", dissolution = "ended")
+  expect_equal(rows$flavor, unname(relabel[written_rows(default)$flavor]))
+  expect_equal(
+    rows[c("from", "to", "time", "weight")],
+    written_rows(default)[c("from", "to", "time", "weight")]
+  )
+})
+
+test_that("a mutually exclusive binary panel round-trips at every wave", {
+  history <- wave_rows(1, 2, NA)
+  waves <- list(
+    wave_rows(c(1, 3, 4), c(2, 7, 8), 10),
+    wave_rows(c(1, 5, 3), c(2, 6, 7), 20),
+    wave_rows(c(5, 4, 2), c(6, 8, 1), 30)
+  )
+  levels <- lapply(waves, survey_level)
+  for (update in c("increment", "replace")) {
+    x <- make_wave_fixture(
+      do.call(rbind, c(list(history), waves)),
+      update = update
+    )
+    out <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+    expect_round_trip(out, levels, c(10, 20, 30))
+  }
+})
+
+test_that("social_evolution as mutually exclusive: 70 formed, 70 ended", {
+  panel <- make_social_evolution_panel()
+  out <- prepare_quietly(
+    panel$data,
+    layers = c(friendship = "mutually_exclusive"),
+    flavor_names = list(
+      friendship = c(creation = "formed", dissolution = "ended")
+    )
+  )
+  rows <- written_rows(out, "friendship")
+  later <- rows$time != panel$waves[1]
+  expect_equal(sum(rows$flavor[!later] == "formed"), 276L)
+  expect_equal(sum(rows$flavor[later] == "formed"), 70L)
+  expect_equal(sum(rows$flavor[later] == "ended"), 70L)
+})
