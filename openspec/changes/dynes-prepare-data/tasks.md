@@ -138,7 +138,7 @@ fragment.
       materialize the same state) (spec "The prepared state at every wave
       equals the survey").
 - [x] 2.3(b) Make it pass, or confirm that 2.1(b) and 2.2(b) already do.
-- [ ] 2.4(a) Test the flavoring: a `"mutually_exclusive"` `"states"` layer's
+- [x] 2.4(a) Test the flavoring: a `"mutually_exclusive"` `"states"` layer's
       rows, `flavor` column, `info$values_equivalence` and `info$flavor_style`
       equal those of the diff followed by `add_flavor()` under both update
       semantics; a `"mutually_exclusive"` `"changes"` layer gains the map with
@@ -146,7 +146,7 @@ fragment.
       `flavor` value; `flavor_names` relabels the map and the `flavor` column
       without changing the map's values (spec "A mutually exclusive layer
       leaves the function flavored").
-- [ ] 2.4(b) Implement the flavoring through `add_flavor()`'s internals
+- [x] 2.4(b) Implement the flavoring through `add_flavor()`'s internals
       (`validate_flavor_mapping()`, the `info` record,
       `warn_style_contradicted()`) (design D5, D16). `add_flavor()` itself is
       unchanged.

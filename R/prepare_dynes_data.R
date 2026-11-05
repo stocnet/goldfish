@@ -5,8 +5,10 @@
 # The caller declares two facts per layer, never detected: the style (the
 # process the layer records) and the form (what a value at a wave means). This
 # file holds the argument validation (resolve_prepare_layers()), the checks on
-# each layer's rows and starting state (check_prepare_layer()), and the
-# pass-through; every check runs before any row is rewritten.
+# each layer's rows and starting state (check_prepare_layer()), the rewrite by
+# form (diff_wave_states(), sum_wave_amounts(), or the pass-through), and the
+# flavoring of a "mutually_exclusive" layer (flavor_prepared_layer()); every
+# check runs before any row is rewritten.
 # =========================================================================== #
 
 prepare_styles <- c("mutually_exclusive", "count", "none")
@@ -80,14 +82,6 @@ prepare_dynes_data <- function(
     )
   })
 
-  not_yet <- spec$style == "mutually_exclusive"
-  if (any(not_yet)) {
-    cli::cli_abort(
-      "Rewriting {.val {spec$layer[not_yet]}} is not implemented yet.",
-      call = call
-    )
-  }
-
   diffed <- which(spec$form != "changes")
   written <- lapply(diffed, function(i) {
     shape <- prepare_layer_shape(x, spec$layer[i])
@@ -107,6 +101,9 @@ prepare_dynes_data <- function(
   names(written) <- spec$layer[diffed]
   if (length(written) > 0L) {
     x$ties <- write_prepared_layers(x, written)
+  }
+  for (layer in spec$layer[spec$style == "mutually_exclusive"]) {
+    x <- flavor_prepared_layer(x, layer, flavor_names[[layer]], call = call)
   }
 
   x$info$dynes_prepared <- c(
@@ -1046,6 +1043,47 @@ write_prepared_layers <- function(x, written) {
   rownames(out) <- NULL
   class(out) <- class(x$ties)
   out
+}
+
+# Flavor one prepared "mutually_exclusive" layer with the map add_flavor()
+# records under flavor_style = "mutually_exclusive": the creation label at 1,
+# the dissolution label at the lower value of the update encoding (-1 under
+# increment, 0 under replace). It goes through add_flavor()'s own validation,
+# record and contradiction check, so the two paths cannot write different maps.
+# The labels only key the map and the flavor column; the support masks and the
+# estimator read the mapped values. Only timed rows are stamped: `time = NA`
+# rows seed the state and stay unflavored, as add_flavor() leaves them.
+flavor_prepared_layer <- function(x, layer, labels, call) {
+  labels <- labels %||% stats::setNames(flavor_roles, flavor_roles)
+  update <- unname((x$info %||% list())$update[layer])
+  encoding <- flavor_update_values(update)
+  mapping <- stats::setNames(
+    c(max(encoding), min(encoding)),
+    unname(labels[flavor_roles])
+  )
+  validate_flavor_mapping(mapping, layer, update, call = call)
+
+  ties <- x$ties
+  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
+  timed <- ties$layer == layer & !is.na(ties$time)
+  flavor <- if ("flavor" %in% names(ties)) {
+    ties$flavor
+  } else {
+    rep(NA_character_, nrow(ties))
+  }
+  flavor[timed] <- names(mapping)[match(weight[timed], unname(mapping))]
+  x$ties$flavor <- flavor
+
+  x$info <- x$info %||% list()
+  style <- x$info$flavor_style %||% character(0)
+  style[[layer]] <- "mutually_exclusive"
+  x$info$flavor_style <- style
+  map <- x$info$values_equivalence %||% list()
+  map[[layer]] <- mapping
+  x$info$values_equivalence <- map
+
+  warn_style_contradicted(x, layer, mapping, call = call)
+  x
 }
 
 # The change-list of one "per_wave" layer, whose value at a wave is the amount
