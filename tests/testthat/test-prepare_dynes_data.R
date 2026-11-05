@@ -1290,3 +1290,38 @@ test_that("a duplicated grid time warns once and is kept once", {
     class = "goldfish_duplicate_wave_time"
   )
 })
+
+test_that("layers not named are unchanged and event rows keep their times", {
+  se <- social_evolution
+  out <- prepare_quietly(se, layers = c(friendship = "mutually_exclusive"))
+  before <- as.data.frame(se$ties)
+  after <- as.data.frame(out$ties)
+  calls_before <- before[before$layer == "calls", ]
+  calls_after <- after[after$layer == "calls", names(before)]
+  expect_equal(calls_after, calls_before, ignore_attr = "row.names")
+  expect_true(all(is.na(after$flavor[after$layer == "calls"])))
+
+  first_wave <- min(before$time[before$layer == "friendship"])
+  early <- calls_after$time < first_wave
+  expect_equal(sum(early), 1L)
+  expect_equal(
+    format(calls_after$time[early], "%Y-%m-%d", tz = "GMT"),
+    "2008-09-06"
+  )
+  expect_false(anyNA(calls_after$time))
+})
+
+test_that("an untouched panel layer keeps its rows when another is prepared", {
+  x <- make_prepare_fixture()
+  out <- prepare_quietly(
+    x,
+    layers = c(friendship = "mutually_exclusive"),
+    wave_times = list(friendship = c(10, 20))
+  )
+  kept <- x$ties$layer != "friendship"
+  expect_equal(
+    out$ties[seq_len(sum(kept)), names(x$ties)],
+    x$ties[kept, ],
+    ignore_attr = "row.names"
+  )
+})
