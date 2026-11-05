@@ -70,7 +70,7 @@ prepare_dynes_data <- function(
   call <- rlang::current_env()
   spec <- resolve_prepare_layers(x, layers, form, flavor_names, call = call)
 
-  for (i in seq_len(nrow(spec))) {
+  checked <- lapply(seq_len(nrow(spec)), function(i) {
     check_prepare_layer(
       x,
       spec$layer[i],
@@ -78,14 +78,30 @@ prepare_dynes_data <- function(
       spec$form[i],
       call = call
     )
-  }
+  })
 
-  needs_rewrite <- spec$form != "changes" | spec$style == "mutually_exclusive"
-  if (any(needs_rewrite)) {
+  not_yet <- spec$form == "per_wave" | spec$style == "mutually_exclusive"
+  if (any(not_yet)) {
     cli::cli_abort(
-      "Rewriting {.val {spec$layer[needs_rewrite]}} is not implemented yet.",
+      "Rewriting {.val {spec$layer[not_yet]}} is not implemented yet.",
       call = call
     )
+  }
+
+  diffed <- which(spec$form == "states")
+  written <- lapply(diffed, function(i) {
+    shape <- prepare_layer_shape(x, spec$layer[i])
+    diff_wave_states(
+      checked[[i]]$rows,
+      checked[[i]]$start,
+      checked[[i]]$waves,
+      update = shape$update %||% "replace",
+      template = x$ties$time
+    )
+  })
+  names(written) <- spec$layer[diffed]
+  if (length(written) > 0L) {
+    x$ties <- write_prepared_layers(x, written)
   }
 
   x$info$dynes_prepared <- c(
@@ -912,4 +928,117 @@ check_change_list <- function(x, layer, style, start, shape, call) {
       "reported at each wave."
     )
   )
+}
+
+# A grid time on the numeric scale of the ties `time` column. coerce_time()
+# counts days for a Date and seconds for a POSIXct, so a Date grid against a
+# POSIXct column is first read as midnight UTC of that day, and a POSIXct grid
+# against a Date column as its day; both sides of a match then count the same
+# unit.
+time_on_column_scale <- function(time, template) {
+  if (inherits(time, "Date") && inherits(template, "POSIXct")) {
+    time <- as.POSIXct(time)
+  } else if (inherits(time, "POSIXct") && inherits(template, "Date")) {
+    time <- as.Date(time, tz = attr(time, "tzone") %||% "")
+  }
+  coerce_time(time)
+}
+
+# The change-list of one "states" layer: each wave compared with the level
+# before it, by dyad key, never through an n1 x n2 matrix. The level before the
+# first wave is `start`, folded from the `time = NA` rows as the walk folds
+# them. A dyad absent from a wave is at 0 there, so a tie present before and
+# missing now is a dissolution. A changed cell (exact `!=`, no tolerance: two
+# doubles that print alike but differ still write a row that sets the second)
+# gets one row in the layer's own semantics: the new level under replace, the
+# difference under increment. `rows` are cleaned wave rows (zeros dropped,
+# canonical keys); the written times are in the class of `template`, the ties
+# `time` column. Returns `from`, `to` (global ids), `time` and `value`, sorted
+# by time, then sender, then receiver.
+diff_wave_states <- function(rows, start, waves, update, template) {
+  wave_axis <- time_on_column_scale(waves, template)
+  wave_of_row <- match(coerce_time(rows$time), wave_axis)
+  is_replace <- identical(update, "replace")
+
+  prev_from <- start$from
+  prev_to <- start$to
+  prev_value <- start$value
+  per_wave <- vector("list", length(wave_axis))
+  for (k in seq_along(wave_axis)) {
+    at <- which(wave_of_row == k)
+    from <- rows$from[at]
+    to <- rows$to[at]
+    level <- rows$value[at]
+    key <- paste(from, to)
+    prev_key <- paste(prev_from, prev_to)
+    before <- prev_value[match(key, prev_key)]
+    before[is.na(before)] <- 0
+    changed <- level != before
+    gone <- !prev_key %in% key
+    new_level <- c(level[changed], rep(0, sum(gone)))
+    old_level <- c(before[changed], prev_value[gone])
+    per_wave[[k]] <- data.frame(
+      from = c(from[changed], prev_from[gone]),
+      to = c(to[changed], prev_to[gone]),
+      k = rep(k, length(new_level)),
+      value = if (is_replace) new_level else new_level - old_level
+    )
+    prev_from <- from
+    prev_to <- to
+    prev_value <- level
+  }
+
+  out <- do.call(
+    rbind,
+    c(
+      list(data.frame(
+        from = integer(),
+        to = integer(),
+        k = integer(),
+        value = numeric()
+      )),
+      per_wave
+    )
+  )
+  out <- out[order(out$k, out$from, out$to), , drop = FALSE]
+  data.frame(
+    from = out$from,
+    to = out$to,
+    time = restore_time_class(wave_axis[out$k], template),
+    value = out$value
+  )
+}
+
+# The ties table with each prepared layer's timed rows replaced by its written
+# rows. Rows of other layers, and a prepared layer's `time = NA` rows, keep
+# their position and every column. The written rows are appended per layer, in
+# the order given, already sorted by time, sender and receiver. Columns the
+# diff does not read (`order` among them) are left missing on them, since a
+# snapshot holds one row per dyad per wave and has nothing to order. A missing
+# value column is created, with the default weight 1 on the other rows. Node
+# references keep the column's form: labels when the input used labels.
+write_prepared_layers <- function(x, written) {
+  ties <- as.data.frame(x$ties)
+  if (!"weight" %in% names(ties)) {
+    ties$weight <- rep(1, nrow(ties))
+  }
+  labels <- x$nodes$label
+  as_refs <- function(id, column) {
+    if (is.character(column)) labels[id] else id
+  }
+  rewritten <- ties$layer %in% names(written) & !is.na(ties$time)
+  appended <- lapply(names(written), function(layer) {
+    w <- written[[layer]]
+    rows <- ties[rep(NA_integer_, nrow(w)), , drop = FALSE]
+    rows$layer[] <- rep(layer, nrow(w))
+    rows$from <- as_refs(w$from, ties$from)
+    rows$to <- as_refs(w$to, ties$to)
+    rows$time <- w$time
+    rows$weight <- w$value
+    rows
+  })
+  out <- do.call(rbind, c(list(ties[!rewritten, , drop = FALSE]), appended))
+  rownames(out) <- NULL
+  class(out) <- class(x$ties)
+  out
 }

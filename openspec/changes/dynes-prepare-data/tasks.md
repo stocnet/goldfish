@@ -106,7 +106,7 @@ fragment.
 
 ## 2. Rewrite by form, flavoring, wave grids
 
-- [ ] 2.1(a) Test the `"states"` diff: the first wave is written at its own
+- [x] 2.1(a) Test the `"states"` diff: the first wave is written at its own
       time against the `time = NA` rows or the empty network; a dropped tie
       gets 0 under `replace` and −1 under `increment`; a stable tie is not
       repeated; no row moves to `time = NA`; an undirected tie that switches
@@ -122,7 +122,7 @@ fragment.
       Include the `social_evolution` 51-actor counts (276 first-wave
       rows, 70 formed, 70 dissolved) (spec "Every wave is written at its own
       time as a change-list").
-- [ ] 2.1(b) Implement the diff (design D3, D4, D9: the starting state from
+- [x] 2.1(b) Implement the diff (design D3, D4, D9: the starting state from
       `materialize_network_state()`, D13: canonical keys on undirected
       one-mode layers; `restore_time_class()` for the written times). No
       dense matrix per wave.
