@@ -166,9 +166,9 @@ fragment.
 - [x] 2.5(b) Implement the wave grids (design D8; `coerce_time()` on both
       sides of the grid match; grid checks, sort and de-duplication before
       any row is rewritten).
-- [ ] 2.6(a) Test that layers not named are unchanged and event rows keep
+- [x] 2.6(a) Test that layers not named are unchanged and event rows keep
       their times (spec "Event rows keep their times").
-- [ ] 2.6(b) Implement, or confirm that the earlier units already pass it.
+- [x] 2.6(b) Implement, or confirm that the earlier units already pass it.
 - [ ] 2.7(a) Test the empty-wave warning: an unchanged middle wave and a first
       wave equal to the `time = NA` rows each warn with class
       `goldfish_empty_wave` (snapshot), naming the layer and the wave; empty
