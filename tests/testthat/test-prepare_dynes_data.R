@@ -1504,3 +1504,64 @@ test_that("the summary is silenced by class and leaves the result unchanged", {
   expect_message(shown <- prepare(), class = "goldfish_prepare_summary")
   expect_identical(silenced, shown)
 })
+
+# --- End to end: prepared data through estimate_dynes() ---------------------
+# These fits exercise the estimator on prepared data and never pipe into
+# add_flavor(): the function flavors. A failure caused by the estimator is
+# fixed in the estimator, not worked around in the preparation.
+
+# The friendship panel modeled with a creation and a dissolution process,
+# beside the observed calls that read it.
+prepared_friendship_spec <- function(data) {
+  make_joint_specification(
+    make_specification(
+      rate = list(creation ~ 1, dissolution ~ 1),
+      choice = list(creation ~ recip, dissolution ~ recip),
+      layer = "friendship",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~ tie(friendship),
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+}
+
+# The warm start fits the model on one augmented path as if it were observed.
+# An intercept-only rate has the same exposure on every path, so its estimate
+# after that fit and one EM pass is the closed-form count / exposure.
+fit_one_pass <- function(spec, control_prep = set_preprocessing()) {
+  suppressWarnings(suppressMessages(estimate_dynes(
+    spec,
+    set_algorithm_em(
+      n_sequences = 2L,
+      max_iterations = 1L,
+      seed = 1L,
+      augmenter = set_augmenter_options(routine = "random", warm_start = TRUE)
+    ),
+    control_prep
+  )))
+}
+
+test_that("social_evolution prepared and fitted scores the 70 changes only", {
+  skip_on_cran()
+  panel <- make_social_evolution_panel()
+  data <- prepare_quietly(
+    panel$data,
+    layers = c(friendship = "mutually_exclusive")
+  )
+
+  fit <- fit_one_pass(prepared_friendship_spec(data))
+
+  # The default start is the first survey: its 276 ties are the entering
+  # state, so the creation rate counts the 70 ties formed between the waves
+  # over the 51 actors' exposure, not 346.
+  span <- as.numeric(panel$waves[2]) - as.numeric(panel$waves[1])
+  intercept <- coef(fit)[["friendship › creation › rate: Intercept"]]
+  expect_equal(intercept, log(70 / (51 * span)), tolerance = 1e-6)
+})
