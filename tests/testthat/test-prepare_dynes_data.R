@@ -638,3 +638,202 @@ test_that("a flavored count layer gets the count guidance", {
     prepare_dynes_data(x, layers = c(calls = "count"))
   )
 })
+
+# The timed rows a call wrote for one layer, in the order they were returned.
+written_rows <- function(out, layer = "survey") {
+  ties <- as.data.frame(out$ties)
+  rows <- ties[ties$layer == layer & !is.na(ties$time), , drop = FALSE]
+  rownames(rows) <- NULL
+  rows
+}
+
+prepare_quietly <- function(...) {
+  suppressMessages(prepare_dynes_data(...))
+}
+
+test_that("the first wave is written at its own time on an empty network", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 4, 1, 3), c(7, 8, 2, 7), c(10, 10, 10, 20))
+  )
+  out <- prepare_quietly(x, layers = c(survey = "none"))
+  rows <- written_rows(out)
+  first <- rows[rows$time == 10, ]
+  expect_equal(nrow(first), 3L)
+  expect_equal(first$weight, c(1, 1, 1))
+  expect_false(anyNA(out$ties$time))
+})
+
+test_that("the first wave is diffed against the time = NA rows", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 4), c(7, 7, 8), c(NA, 10, 10))
+  )
+  out <- prepare_quietly(x, layers = c(survey = "none"))
+  history <- out$ties[is.na(out$ties$time), ]
+  expect_equal(c(history$from, history$to, history$weight), c(3, 7, 1))
+  rows <- written_rows(out)
+  expect_equal(c(rows$from, rows$to, rows$time), c(4, 8, 10))
+})
+
+test_that("a dropped tie gets 0 under replace and -1 under increment", {
+  rows <- wave_rows(c(3, 1, 1), c(7, 2, 2), c(10, 10, 20))
+  replace <- prepare_quietly(
+    make_wave_fixture(rows, update = "replace"),
+    layers = c(survey = "none")
+  )
+  increment <- prepare_quietly(
+    make_wave_fixture(rows, update = "increment"),
+    layers = c(survey = "none")
+  )
+  for (out in list(replace, increment)) {
+    at_two <- written_rows(out)
+    at_two <- at_two[at_two$time == 20, ]
+    expect_equal(c(at_two$from, at_two$to), c(3, 7))
+  }
+  expect_equal(
+    written_rows(replace)$weight[written_rows(replace)$time == 20],
+    0
+  )
+  expect_equal(
+    written_rows(increment)$weight[written_rows(increment)$time == 20],
+    -1
+  )
+})
+
+test_that("a stable tie is not repeated", {
+  x <- make_wave_fixture(wave_rows(c(1, 1, 3), c(2, 2, 7), c(10, 20, 20)))
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "none")))
+  expect_equal(sum(rows$from == 1 & rows$to == 2), 1L)
+  expect_equal(rows$time[rows$from == 1 & rows$to == 2], 10)
+})
+
+test_that("no row is moved to time = NA", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 1, 4), c(7, 7, 2, 8), c(NA, 10, 10, 20))
+  )
+  out <- prepare_quietly(x, layers = c(survey = "none"))
+  expect_equal(sum(is.na(out$ties$time)), 1L)
+})
+
+test_that("an undirected tie that switches orientation writes no row", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 7, 1), c(7, 3, 2), c(10, 20, 20)),
+    directed = FALSE
+  )
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "none")))
+  expect_equal(nrow(rows[rows$time == 20, ]), 1L)
+  expect_equal(c(rows$from[rows$time == 20], rows$to[rows$time == 20]), c(1, 2))
+})
+
+test_that("an increment layer sums history rows and reads waves as levels", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 3, 4), c(7, 7, 7, 8), c(NA, NA, 10, 10), c(1, 1, 2, 1)),
+    update = "increment"
+  )
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "count")))
+  expect_equal(c(rows$from, rows$to, rows$time, rows$weight), c(4, 8, 10, 1))
+})
+
+test_that("count totals are written as rises under increment", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(10, 20), c(6, 9)),
+    update = "increment"
+  )
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "count")))
+  expect_equal(rows$time, c(10, 20))
+  expect_equal(rows$weight, c(6, 3))
+})
+
+test_that("an order column is not carried onto the written rows", {
+  rows <- wave_rows(c(3, 1, 1), c(7, 2, 2), c(10, 10, 20))
+  rows$order <- c(2L, 1L, 1L)
+  out <- prepare_quietly(make_wave_fixture(rows), layers = c(survey = "none"))
+  expect_true(all(is.na(written_rows(out)$order)))
+})
+
+test_that("values are compared exactly, with no tolerance", {
+  x <- make_wave_fixture(wave_rows(
+    c(3, 3),
+    c(7, 7),
+    c(10, 20),
+    c(0.3, 0.1 + 0.2)
+  ))
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "none")))
+  expect_equal(nrow(rows), 2L)
+  expect_identical(rows$weight[rows$time == 20], 0.1 + 0.2)
+})
+
+test_that("other layers keep position; written rows are sorted and appended", {
+  x <- make_prepare_fixture()
+  out <- prepare_quietly(x, layers = c(advice = "none"))
+  others <- x$ties$layer != "advice"
+  n_other <- sum(others)
+  expect_equal(
+    out$ties[seq_len(n_other), ],
+    x$ties[others, ],
+    ignore_attr = "row.names"
+  )
+  appended <- out$ties[-seq_len(n_other), ]
+  expect_equal(appended$layer, rep("advice", 3L))
+  expect_equal(appended$time, c(10, 20, 20))
+  expect_equal(appended$from, c(2L, 2L, 3L))
+  expect_equal(appended$to, c(4L, 4L, 1L))
+  expect_equal(appended$weight, c(1, 0, 1))
+})
+
+test_that("a missing value column is created with 1 on other layers' rows", {
+  x <- make_prepare_fixture()
+  x$ties$weight <- NULL
+  out <- prepare_quietly(x, layers = c(advice = "none"))
+  others <- out$ties$layer != "advice"
+  expect_true(all(out$ties$weight[others] == 1))
+  expect_equal(out$ties$weight[!others], c(1, 0, 1))
+})
+
+test_that("rows written at a Date grid time on a POSIXct column are POSIXct", {
+  t1 <- as.POSIXct("2008-09-09", tz = "GMT")
+  t2 <- as.POSIXct("2008-10-19", tz = "GMT")
+  x <- make_wave_fixture(wave_rows(c(3, 1), c(7, 2), c(t1, t1)))
+  x$ties$time <- .POSIXct(x$ties$time, tz = "GMT")
+  checked <- check_layer(x, "none")
+  written <- diff_wave_states(
+    checked$rows,
+    checked$start,
+    waves = as.Date(c("2008-09-09", "2008-10-19")),
+    update = "replace",
+    template = x$ties$time
+  )
+  expect_s3_class(written$time, "POSIXct")
+  expect_equal(written$time[written$value == 0], c(t2, t2))
+})
+
+# The social_evolution friendship panel among the 51 actors who answered both
+# surveys (the dynes-panel vignette's respondent selection).
+make_social_evolution_panel <- function() {
+  se <- social_evolution
+  ties <- as.data.frame(se$ties)
+  friendship <- ties[ties$layer == "friendship", ]
+  waves <- sort(unique(friendship$time))
+  both <- intersect(
+    friendship$from[friendship$time == waves[1]],
+    friendship$from[friendship$time == waves[2]]
+  )
+  ties <- ties[ties$from %in% both & ties$to %in% both, ]
+  ties$from <- match(ties$from, both)
+  ties$to <- match(ties$to, both)
+  rownames(ties) <- NULL
+  se$nodes <- as.data.frame(se$nodes)[both, ]
+  se$ties <- ties
+  list(data = se, waves = waves)
+}
+
+test_that("social_evolution: 276 first-wave rows, 70 formed, 70 dissolved", {
+  panel <- make_social_evolution_panel()
+  out <- prepare_quietly(panel$data, layers = c(friendship = "none"))
+  rows <- written_rows(out, "friendship")
+  first <- rows$time == panel$waves[1]
+  expect_equal(sum(first), 276L)
+  expect_equal(sum(!first & rows$weight == 1), 70L)
+  expect_equal(sum(!first & rows$weight == 0), 70L)
+  expect_s3_class(rows$time, "POSIXct")
+  expect_equal(sum(out$ties$layer == "calls"), 364L)
+})
