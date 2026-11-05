@@ -71,7 +71,7 @@ fragment.
       undirected layer is not reordered (spec "A wave defines one value per
       dyad, valid for the layer's style").
 - [x] 1.2(b) Implement the shared checks (design D9, D13, D14).
-- [ ] 1.3(a) Test the style checks: a `"mutually_exclusive"` `"states"` value
+- [x] 1.3(a) Test the style checks: a `"mutually_exclusive"` `"states"` value
       other than 0/1 aborts; a `"mutually_exclusive"` `"changes"` value outside
       the update encoding aborts; a `"mutually_exclusive"` `"changes"`
       event that contradicts the style (creation on a present tie,

@@ -356,3 +356,187 @@ test_that("repeated time = NA rows are not checked row by row", {
   expect_equal(nrow(out), 1L)
   expect_equal(out$from, 4)
 })
+
+# The row and starting-state checks of one layer, called the way
+# prepare_dynes_data() calls them.
+check_layer <- function(x, style, form = "states") {
+  check_prepare_layer(x, "survey", style, form, call = rlang::current_env())
+}
+
+test_that("a mutually exclusive state other than 0 or 1 aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(3, 4), c(7, 8), c(10, 10), c(2, 1)))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, layers = c(survey = "mutually_exclusive"))
+  )
+})
+
+test_that("a mutually exclusive change outside the update encoding aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(3, 7, 10, 2))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      layers = c(survey = "mutually_exclusive"),
+      form = c(survey = "changes")
+    )
+  )
+})
+
+test_that("a mutually exclusive change-list contradicting the style aborts", {
+  local_cli_context()
+  twice_created <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(10, 20), c(1, 1)),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      twice_created,
+      layers = c(survey = "mutually_exclusive"),
+      form = c(survey = "changes")
+    )
+  )
+  dissolved_absent <- make_wave_fixture(wave_rows(3, 7, 10, 0))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      dissolved_absent,
+      layers = c(survey = "mutually_exclusive"),
+      form = c(survey = "changes")
+    )
+  )
+})
+
+test_that("a fractional or negative count aborts", {
+  local_cli_context()
+  for (value in c(1.5, -1)) {
+    x <- make_wave_fixture(wave_rows(3, 7, 10, value), update = "increment")
+    expect_snapshot(
+      error = TRUE,
+      prepare_dynes_data(
+        x,
+        layers = c(survey = "count"),
+        form = c(survey = "per_wave")
+      )
+    )
+  }
+})
+
+test_that("a count change-list is returned unchanged when it never falls", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 3, 4), c(7, 7, 7, 8), c(NA, 10, 20, 20), c(2, 1, 3, 1)),
+    update = "increment"
+  )
+  out <- suppressMessages(prepare_dynes_data(
+    x,
+    layers = c(survey = "count"),
+    form = c(survey = "changes")
+  ))
+  expect_equal(out$ties, x$ties)
+})
+
+test_that("a count change-list that falls aborts in its update semantics", {
+  local_cli_context()
+  negative <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(10, 20), c(2, -2)),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      negative,
+      layers = c(survey = "count"),
+      form = c(survey = "changes")
+    )
+  )
+  falling <- make_wave_fixture(wave_rows(c(3, 3), c(7, 7), c(10, 20), c(6, 4)))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      falling,
+      layers = c(survey = "count"),
+      form = c(survey = "changes")
+    )
+  )
+  below_start <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(NA, 10), c(6, 4))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      below_start,
+      layers = c(survey = "count"),
+      form = c(survey = "changes")
+    )
+  )
+})
+
+test_that("a count total that falls aborts, naming the wave and the dyad", {
+  local_cli_context()
+  falling <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(10, 20), c(6, 4)),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(falling, layers = c(survey = "count"))
+  )
+  dropped <- make_wave_fixture(
+    wave_rows(c(3, 4, 4), c(7, 8, 8), c(10, 10, 20), c(6, 1, 1))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(dropped, layers = c(survey = "count"))
+  )
+})
+
+test_that("rising count totals pass the checks", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 4, 4), c(7, 7, 8, 8), c(10, 20, 10, 20), c(6, 9, 1, 1)),
+    update = "increment"
+  )
+  expect_no_error(check_layer(x, "count"))
+})
+
+test_that("a none layer takes any value that is not NA", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 4, 3), c(7, 8, 7), c(10, 10, 20), c(-2.5, 0.3, 7))
+  )
+  expect_no_error(check_layer(x, "none"))
+  expect_no_error(check_layer(x, "none", "per_wave"))
+})
+
+test_that("a mutually exclusive starting level other than 0 or 1 aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 3), c(7, 7, 7), c(NA, NA, 10), c(1, 1, 1)),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, layers = c(survey = "mutually_exclusive"))
+  )
+})
+
+test_that("a count total below its starting level aborts at the first wave", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(3, 3), c(7, 7), c(NA, 10), c(6, 4)))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, layers = c(survey = "count"))
+  )
+})
+
+test_that("a passing starting state adds no wave and no row", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 3), c(7, 7, 7), c(NA, 10, 20), c(6, 6, 9)),
+    update = "increment"
+  )
+  checked <- check_layer(x, "count")
+  expect_equal(checked$rows, check_rows(x))
+  expect_equal(sort(unique(checked$rows$time)), c(10, 20))
+  expect_equal(checked$waves, c(10, 20))
+})
