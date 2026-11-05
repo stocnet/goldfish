@@ -1115,11 +1115,14 @@ test_that("an empty declared states wave dissolves every tie", {
 
 test_that("an empty declared per_wave wave writes nothing", {
   x <- make_wave_fixture(gapped_survey_rows())
-  out <- prepare_quietly(
-    x,
-    layers = c(survey = "count"),
-    form = c(survey = "per_wave"),
-    wave_times = c(10, 20, 30)
+  expect_warning(
+    out <- prepare_quietly(
+      x,
+      layers = c(survey = "count"),
+      form = c(survey = "per_wave"),
+      wave_times = c(10, 20, 30)
+    ),
+    class = "goldfish_empty_wave"
   )
   expect_equal(sum(written_rows(out)$time == 20), 0L)
   expect_equal(
@@ -1139,10 +1142,14 @@ test_that("layers on different schedules get their own grids", {
     cbind(wave_rows(c(1, 1), c(2, 2), c(10, 20)), layer = "friendship"),
     cbind(wave_rows(c(3, 4), c(7, 8), c(10, 30)), layer = "advice")
   )
-  out <- prepare_quietly(
-    make_two_layer_fixture(rows),
-    layers = c(friendship = "none", advice = "none"),
-    wave_times = list(friendship = c(10, 20), advice = c(10, 30))
+  # friendship's tie is stable at 20, so that wave writes nothing and warns.
+  expect_warning(
+    out <- prepare_quietly(
+      make_two_layer_fixture(rows),
+      layers = c(friendship = "none", advice = "none"),
+      wave_times = list(friendship = c(10, 20), advice = c(10, 30))
+    ),
+    class = "goldfish_empty_wave"
   )
   advice <- written_rows(out, "advice")
   expect_equal(sum(advice$time == 20), 0L)

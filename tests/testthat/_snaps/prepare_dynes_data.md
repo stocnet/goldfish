@@ -521,3 +521,37 @@
       * "survey" at "20"
       i Each time is kept once; check that no other wave was meant.
 
+# an unchanged middle wave warns, naming the layer and the wave
+
+    Code
+      out <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+    Condition
+      Warning in `prepare_dynes_data()`:
+      Some waves wrote no rows: nothing changed there.
+      * "survey" at wave "20"
+      i `estimate_dynes()` infers its waves from row times, so these waves would drop out and merge two intervals.
+      i If this layer is modeled, pass `wave_times` to `estimate_dynes()`.
+
+# a first wave equal to the time = NA rows warns, naming it
+
+    Code
+      out <- prepare_quietly(x, layers = c(survey = "none"))
+    Condition
+      Warning in `prepare_dynes_data()`:
+      Some waves wrote no rows: nothing changed there.
+      * "survey" at wave "10"
+      i `estimate_dynes()` infers its waves from row times, so these waves would drop out and merge two intervals.
+      i If this layer is modeled, pass `wave_times` to `estimate_dynes()`.
+
+# empty waves on several layers raise exactly one warning
+
+    Code
+      out <- prepare()
+    Condition
+      Warning in `prepare_dynes_data()`:
+      Some waves wrote no rows: nothing changed there.
+      * "friendship" at wave "20"
+      * "advice" at wave "30"
+      i `estimate_dynes()` infers its waves from row times, so these waves would drop out and merge two intervals.
+      i If any of these layers is modeled, pass `wave_times` to `estimate_dynes()`.
+

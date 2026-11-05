@@ -109,6 +109,12 @@ prepare_dynes_data <- function(
     )
   })
   names(written) <- spec$layer[diffed]
+  warn_empty_waves(
+    written,
+    lapply(checked[diffed], `[[`, "waves"),
+    template = x$ties$time,
+    call = call
+  )
   if (length(written) > 0L) {
     x$ties <- write_prepared_layers(x, written)
   }
@@ -1197,6 +1203,50 @@ diff_wave_states <- function(rows, start, waves, update, template) {
     to = out$to,
     time = restore_time_class(wave_axis[out$k], template),
     value = out$value
+  )
+}
+
+# estimate_dynes() infers its wave grid from the modeled layers' row times when
+# it is given no `wave_times`. A prepared change-list has rows at a wave only
+# where something changed, so a wave that wrote nothing drops out of that grid
+# and two intervals merge without any error; a first wave equal to the
+# `time = NA` rows moves the default start to the second wave. One warning per
+# call lists every (layer, wave) pair, so a long panel cannot flood the console.
+# It warns rather than aborts: a covariate's unchanged wave is harmless, and the
+# function cannot tell a modeled layer from a covariate.
+warn_empty_waves <- function(written, waves, template, call) {
+  empty <- Map(
+    function(rows, grid) {
+      axis <- time_on_column_scale(grid, template)
+      grid[!axis %in% coerce_time(rows$time)]
+    },
+    written,
+    waves
+  )
+  empty <- Filter(length, empty)
+  if (length(empty) == 0L) {
+    return(invisible(FALSE))
+  }
+  pairs <- vapply(
+    names(empty),
+    function(layer) {
+      at <- trimws(format(empty[[layer]]))
+      cli::format_inline("{.val {layer}} at wave{?s} {.val {at}}")
+    },
+    character(1)
+  )
+  layers <- names(empty)
+  cli::cli_warn(
+    c(
+      "Some waves wrote no rows: nothing changed there.",
+      stats::setNames(pairs, rep("*", length(pairs))),
+      "i" = "{.fn estimate_dynes} infers its waves from row times, so these \\
+             waves would drop out and merge two intervals.",
+      "i" = "If {cli::qty(layers)}{?this layer is/any of these layers is} \\
+             modeled, pass {.arg wave_times} to {.fn estimate_dynes}."
+    ),
+    class = "goldfish_empty_wave",
+    call = call
   )
 }
 

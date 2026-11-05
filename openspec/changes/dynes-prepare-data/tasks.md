@@ -169,13 +169,13 @@ fragment.
 - [x] 2.6(a) Test that layers not named are unchanged and event rows keep
       their times (spec "Event rows keep their times").
 - [x] 2.6(b) Implement, or confirm that the earlier units already pass it.
-- [ ] 2.7(a) Test the empty-wave warning: an unchanged middle wave and a first
+- [x] 2.7(a) Test the empty-wave warning: an unchanged middle wave and a first
       wave equal to the `time = NA` rows each warn with class
       `goldfish_empty_wave` (snapshot), naming the layer and the wave; empty
       waves on a `"states"` and a `"per_wave"` layer raise exactly one
       warning naming both; the function still returns (spec "A wave that
       writes no rows warns").
-- [ ] 2.7(b) Implement the warning (design D12).
+- [x] 2.7(b) Implement the warning (design D12).
 - [ ] 2.8(a) Test the summary: one message of class
       `goldfish_prepare_summary` per call, one line of totals per layer
       (snapshot, pinned cli context); a `"mutually_exclusive"` layer reports
