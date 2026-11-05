@@ -90,7 +90,7 @@ fragment.
       and the change-list checks (design D5, D9, D10). The starting state is
       checked only, never written; each change-list check reads the layer's
       rows once, in time order, keyed by dyad.
-- [ ] 1.4(a) Test the record and the flavored-layer abort: the returned object's
+- [x] 1.4(a) Test the record and the flavored-layer abort: the returned object's
       `info$dynes_prepared` is the declared styles named by layer, with no
       form recorded, a `"count"` `"changes"` pass-through included; naming a
       recorded layer again aborts (spec "A

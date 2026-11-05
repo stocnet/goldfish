@@ -540,3 +540,101 @@ test_that("a passing starting state adds no wave and no row", {
   expect_equal(sort(unique(checked$rows$time)), c(10, 20))
   expect_equal(checked$waves, c(10, 20))
 })
+
+test_that("the prepared layers are recorded with their declared styles", {
+  x <- make_prepare_fixture()
+  out <- suppressMessages(prepare_dynes_data(
+    x,
+    layers = c(calls = "count", advice = "none"),
+    form = c(calls = "changes", advice = "changes")
+  ))
+  expect_identical(
+    out$info$dynes_prepared,
+    c(calls = "count", advice = "none")
+  )
+  expect_null(x$info$dynes_prepared)
+})
+
+test_that("a later call adds to the record", {
+  x <- make_prepare_fixture()
+  first <- suppressMessages(prepare_dynes_data(
+    x,
+    layers = c(calls = "count"),
+    form = c(calls = "changes")
+  ))
+  second <- suppressMessages(prepare_dynes_data(
+    first,
+    layers = c(advice = "none"),
+    form = c(advice = "changes")
+  ))
+  expect_identical(
+    second$info$dynes_prepared,
+    c(calls = "count", advice = "none")
+  )
+})
+
+test_that("a prepared layer cannot be prepared again", {
+  local_cli_context()
+  x <- make_prepare_fixture()
+  out <- suppressMessages(prepare_dynes_data(
+    x,
+    layers = c(calls = "count"),
+    form = c(calls = "changes")
+  ))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      out,
+      layers = c(calls = "count"),
+      form = c(calls = "changes")
+    )
+  )
+  x$info$dynes_prepared <- c(friendship = "mutually_exclusive")
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, layers = c(friendship = "mutually_exclusive"))
+  )
+})
+
+test_that("a layer that is already flavored aborts, naming every such layer", {
+  local_cli_context()
+  x <- make_prepare_fixture()
+  x <- suppressWarnings(add_flavor(
+    x,
+    "friendship",
+    c(creation = 1, dissolution = 0)
+  ))
+  x <- suppressWarnings(add_flavor(
+    x,
+    "advice",
+    c(creation = 1, dissolution = 0)
+  ))
+  expect_error(
+    prepare_dynes_data(
+      x,
+      layers = c(friendship = "mutually_exclusive", advice = "none")
+    ),
+    class = "goldfish_layer_already_flavored"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      layers = c(friendship = "mutually_exclusive", advice = "none")
+    )
+  )
+})
+
+test_that("a flavored count layer gets the count guidance", {
+  local_cli_context()
+  x <- make_prepare_fixture()
+  x$info$values_equivalence <- list(calls = c(signed = 1, ended = -1))
+  expect_error(
+    prepare_dynes_data(x, layers = c(calls = "count")),
+    class = "goldfish_layer_already_flavored"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, layers = c(calls = "count"))
+  )
+})
