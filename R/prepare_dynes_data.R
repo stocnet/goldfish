@@ -42,6 +42,21 @@ flavor_roles <- c("creation", "dissolution")
 #' layer needs no flavor: it is estimated as a count panel. A layer that counts
 #' two event types together should be split into one `"count"` layer per type.
 #'
+#' @section Waves and the observation start:
+#' Every wave is written at its own time, the first as its difference from the
+#' layer's `time = NA` rows (or from the empty network when there are none).
+#' No row is moved to `time = NA`, and the observation start is set once, in
+#' `set_preprocessing(start_time = )`. Rows at or before the start are applied
+#' in time order and never scored, so a fit started at a later wave enters with
+#' that wave's survey as its state.
+#'
+#' Under the default start, [estimate_dynes()] starts at the first wave: the
+#' first survey is the initial state, and the rows written for it are history,
+#' never augmented. A `start_time` before the first survey makes the first
+#' survey an interval endpoint instead of the initial state: the `time = NA`
+#' rows are the state that interval enters with, and the first wave's changes
+#' are augmented as latent events within it.
+#'
 #' @param x a `stocnet` object (see [goldfish_data]).
 #' @param layers a named character vector. Each name is a panel layer of `x`
 #'   and each value its style: `"mutually_exclusive"`, `"count"` or `"none"`.

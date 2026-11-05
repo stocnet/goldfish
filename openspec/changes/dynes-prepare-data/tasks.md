@@ -214,7 +214,7 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       equivalent `"changes"` input gives the same (spec "a fit started at a
       later wave enters with that wave's survey").
 - [x] 3.3(b) Make it pass.
-- [ ] 3.4(a) Test the first-wave diff: under the default start the recipe
+- [x] 3.4(a) Test the first-wave diff: under the default start the recipe
       holds no flip for it and the entering state is the first survey; with
       `start_time` before the first wave it is the first interval's flip set
       and the entering state is the `time = NA` rows; on a `"count"`
@@ -222,7 +222,7 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       intervals are only those between waves and no flip comes from the
       history rows (spec "The first-wave diff is augmented only when an
       interval opens before it").
-- [ ] 3.4(b) Make it pass, and document the earlier-start behavior in the
+- [x] 3.4(b) Make it pass, and document the earlier-start behavior in the
       function's roxygen (design D11).
 - [ ] 3.5 Replace the `dynes-panel` vignette's hand-written diff and its
       `add_flavor()` call with the function, if `dynes-augmentation` 6.3 has
