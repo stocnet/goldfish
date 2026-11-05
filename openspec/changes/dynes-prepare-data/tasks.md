@@ -232,5 +232,5 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       a count panel and a valued covariate take, what each form means, that
       `order` is not carried on a diffed or summed layer, and that a layer
       flavored before preparation aborts.
-- [ ] 3.6 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`).
+- [x] 3.6 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`).
       Full `NOT_CRAN=true` suite with baselines PASS. Commit.
