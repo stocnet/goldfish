@@ -203,11 +203,11 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       default start: the creation rate intercept is log(70 / (51 · T)) (spec
       "the scored creation count is the change count").
 - [x] 3.1(b) Make it pass.
-- [ ] 3.2(a) Test a calls panel prepared as `"count"` from amounts: the wave
+- [x] 3.2(a) Test a calls panel prepared as `"count"` from amounts: the wave
       diff reads it as a count panel and each interval's event count equals
       that wave's summed amounts (spec "a prepared count panel is estimated as
       a count panel").
-- [ ] 3.2(b) Make it pass.
+- [x] 3.2(b) Make it pass.
 - [ ] 3.3(a) Test a fit started at the third wave of a panel with at least
       four waves: the augmentation's entering state equals the third wave's
       survey, the earlier changes are applied and not scored, and the
