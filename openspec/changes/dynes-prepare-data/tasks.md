@@ -224,7 +224,7 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       interval opens before it").
 - [x] 3.4(b) Make it pass, and document the earlier-start behavior in the
       function's roxygen (design D11).
-- [ ] 3.5 Replace the `dynes-panel` vignette's hand-written diff and its
+- [x] 3.5 Replace the `dynes-panel` vignette's hand-written diff and its
       `add_flavor()` call with the function, if `dynes-augmentation` 6.3 has
       not been precompiled by then. Otherwise add a short section showing the
       call and stating that it reproduces the vignette's data. State in the

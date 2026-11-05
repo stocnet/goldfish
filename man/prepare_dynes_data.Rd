@@ -41,9 +41,9 @@ listed twice is kept once with a warning.}
 \value{
 \code{x} with the named layers rewritten. Their declared styles are
 recorded in \code{info$dynes_prepared}, a character vector named by layer, and a
-recorded layer cannot be prepared again. A layer whose flavor map is
-already recorded (by \code{\link[=add_flavor]{add_flavor()}}) aborts: the function writes the map
-itself, so pass such a layer in unflavored.
+recorded layer cannot be prepared again. A layer flavored before
+preparation, whose flavor map \code{\link[=add_flavor]{add_flavor()}} has already recorded, aborts:
+the function writes the map itself, so pass such a layer in unflavored.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -68,11 +68,35 @@ previous wave, and \code{"changes"} means the rows already are a change-list
 in the layer's \code{update} semantics.
 }
 
+A binary panel modeled as a process, such as a friendship survey, takes
+\code{"mutually_exclusive"}; a count panel, such as calls tallied at each wave,
+takes \code{"count"}; a valued covariate takes \code{"none"}. A covariate stored as
+raw survey rows needs the same rewrite as a modeled layer, since otherwise
+every dropped tie stays in the network.
+
 A tie that is present or absent has no amount since the previous wave, so
-\code{"mutually_exclusive"} cannot be combined with \code{"per_wave"}. A \code{"count"}
-layer needs no flavor: it is estimated as a count panel. A layer that counts
-two event types together should be split into one \code{"count"} layer per type.
+\code{"mutually_exclusive"} cannot be combined with \code{"per_wave"}. A
+\code{"mutually_exclusive"} layer leaves the function flavored, with the map
+\code{\link[=add_flavor]{add_flavor()}} records under \code{flavor_style = "mutually_exclusive"}, so there
+is no separate flavoring step. A \code{"count"} layer needs no flavor: it is
+estimated as a count panel. A layer that counts two event types together
+should be split into one \code{"count"} layer per type.
 }
+\section{Rows read and written}{
+
+Of a \code{"states"} or \code{"per_wave"} layer's timed rows, only the time, sender,
+receiver and value are read. A wave holds one row per dyad, so an \code{order}
+column has nothing to order and is not carried onto the written rows. Each
+changed dyad gets one row per wave in the layer's own \code{update} semantics:
+the new level under \code{"replace"} (0 for a dissolution), the difference under
+\code{"increment"}. The \code{time = NA} rows and the rows of layers not named are
+kept as they are.
+
+The respondent set is yours to choose before the call. An actor missing
+from a wave loses all their ties there, written as dissolutions like any
+dropped tie.
+}
+
 \section{Waves and the observation start}{
 
 Every wave is written at its own time, the first as its difference from the

@@ -72,6 +72,25 @@ panel <- add_flavor(
 )
 
 
+## ----prepare------------------------------------------------------------------
+surveys <- se
+surveys$nodes <- panel$nodes
+surveys$ties <- rbind(ties[ties$layer == "calls", ], friendship)
+prepared <- prepare_dynes_data(
+  surveys,
+  layers = c(friendship = "mutually_exclusive")
+)
+written <- prepared$ties[prepared$ties$layer == "friendship", ]
+table(wave = format(written$time, "%Y-%m-%d"), flavor = written$flavor)
+
+
+## ----prepare-check------------------------------------------------------------
+key <- function(rows) paste(rows$from, rows$to, rows$weight)
+setequal(key(written[written$time == waves[2], ]), key(changes))
+identical(prepared$info$values_equivalence, panel$info$values_equivalence)
+identical(prepared$info$flavor_style, panel$info$flavor_style)
+
+
 ## ----spec---------------------------------------------------------------------
 spec <- make_joint_specification(
   make_specification(

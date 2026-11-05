@@ -143,8 +143,9 @@ simply keep its wave-1 value.
 The panel layer is then wave 1's nominations followed by the 140 changes,
 beside the 364 calls among the 51. Wave 1 is the starting network, not a set
 of events, so its rows get `time = NA`: a history row sets the state the
-first interval starts from. Stamped at the first wave instead, each of the
-276 ties would be scored as a creation at the opening of the interval.
+first interval starts from. Stamped at the first wave, they would be history
+too: the default observation start is the first wave, and a panel row at or
+before the start is applied, never scored.
 
 
 ``` r
@@ -178,6 +179,67 @@ panel <- add_flavor(
   flavor_style = "mutually_exclusive"
 )
 ```
+
+## The same preparation in one call
+
+`prepare_dynes_data()` writes the diff and the flavor map of this step in one
+call, from the survey rows as they are. Each layer declares two facts. Its
+**style** is the process it records: a binary panel such as friendship is
+`"mutually_exclusive"`, a count panel is `"count"`, and a valued covariate is
+`"none"`. Its **form** is what a value at a wave means: `"states"` (the
+default) is the level at the wave, the tie or the total so far; `"per_wave"`
+is the amount since the previous wave; `"changes"` is a change-list already
+written in the layer's update semantics. Here the input is the 51 actors'
+survey rows, both waves at their own times:
+
+
+``` r
+surveys <- se
+surveys$nodes <- panel$nodes
+surveys$ties <- rbind(ties[ties$layer == "calls", ], friendship)
+prepared <- prepare_dynes_data(
+  surveys,
+  layers = c(friendship = "mutually_exclusive")
+)
+#> Prepared 1 layer; rows at the first wave are the starting state, not events.
+#> • "friendship" ("mutually_exclusive"): 70 creation, 70 dissolution.
+#>   Starting state: 276 rows at the first wave "2008-09-09".
+written <- prepared$ties[prepared$ties$layer == "friendship", ]
+table(wave = format(written$time, "%Y-%m-%d"), flavor = written$flavor)
+#>             flavor
+#> wave         creation dissolution
+#>   2008-09-09      276           0
+#>   2008-10-19       70          70
+```
+
+This reproduces the data built by hand above. The rows at wave 2 are the 140
+changes, and the flavor map and style are the ones `add_flavor()` recorded:
+
+
+``` r
+key <- function(rows) paste(rows$from, rows$to, rows$weight)
+setequal(key(written[written$time == waves[2], ]), key(changes))
+#> [1] TRUE
+identical(prepared$info$values_equivalence, panel$info$values_equivalence)
+#> [1] TRUE
+identical(prepared$info$flavor_style, panel$info$flavor_style)
+#> [1] TRUE
+```
+
+The one difference is the 276 wave-1 ties. They are stamped at the first
+survey, not at `time = NA`, and under the default start they are history all
+the same. Keeping every wave at its own time is what lets a fit started at a
+later wave, through `set_preprocessing(start_time = )`, enter with that
+wave's survey as its state. A start set before the first survey does the
+opposite: the first survey becomes the end of a modeled interval, and its
+276 ties are augmented as creations.
+
+Three rules follow from the call. An `order` column on a diffed or summed
+layer is not carried onto the written rows: a wave holds one row per dyad, so
+there is nothing to order. A layer that `add_flavor()` has already flavored
+aborts, since the function writes the map itself; pass it in unflavored. The
+respondent selection stays your step: an actor missing from a wave loses all
+their ties there, written as dissolutions like any dropped tie.
 
 ## Count panels
 

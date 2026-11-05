@@ -37,10 +37,32 @@ flavor_roles <- c("creation", "dissolution")
 #'   previous wave, and `"changes"` means the rows already are a change-list
 #'   in the layer's `update` semantics.
 #'
+#' A binary panel modeled as a process, such as a friendship survey, takes
+#' `"mutually_exclusive"`; a count panel, such as calls tallied at each wave,
+#' takes `"count"`; a valued covariate takes `"none"`. A covariate stored as
+#' raw survey rows needs the same rewrite as a modeled layer, since otherwise
+#' every dropped tie stays in the network.
+#'
 #' A tie that is present or absent has no amount since the previous wave, so
-#' `"mutually_exclusive"` cannot be combined with `"per_wave"`. A `"count"`
-#' layer needs no flavor: it is estimated as a count panel. A layer that counts
-#' two event types together should be split into one `"count"` layer per type.
+#' `"mutually_exclusive"` cannot be combined with `"per_wave"`. A
+#' `"mutually_exclusive"` layer leaves the function flavored, with the map
+#' [add_flavor()] records under `flavor_style = "mutually_exclusive"`, so there
+#' is no separate flavoring step. A `"count"` layer needs no flavor: it is
+#' estimated as a count panel. A layer that counts two event types together
+#' should be split into one `"count"` layer per type.
+#'
+#' @section Rows read and written:
+#' Of a `"states"` or `"per_wave"` layer's timed rows, only the time, sender,
+#' receiver and value are read. A wave holds one row per dyad, so an `order`
+#' column has nothing to order and is not carried onto the written rows. Each
+#' changed dyad gets one row per wave in the layer's own `update` semantics:
+#' the new level under `"replace"` (0 for a dissolution), the difference under
+#' `"increment"`. The `time = NA` rows and the rows of layers not named are
+#' kept as they are.
+#'
+#' The respondent set is yours to choose before the call. An actor missing
+#' from a wave loses all their ties there, written as dissolutions like any
+#' dropped tie.
 #'
 #' @section Waves and the observation start:
 #' Every wave is written at its own time, the first as its difference from the
@@ -80,9 +102,9 @@ flavor_roles <- c("creation", "dissolution")
 #'
 #' @return `x` with the named layers rewritten. Their declared styles are
 #'   recorded in `info$dynes_prepared`, a character vector named by layer, and a
-#'   recorded layer cannot be prepared again. A layer whose flavor map is
-#'   already recorded (by [add_flavor()]) aborts: the function writes the map
-#'   itself, so pass such a layer in unflavored.
+#'   recorded layer cannot be prepared again. A layer flavored before
+#'   preparation, whose flavor map [add_flavor()] has already recorded, aborts:
+#'   the function writes the map itself, so pass such a layer in unflavored.
 #' @seealso [add_flavor()] for flavoring an event layer.
 #' @export
 prepare_dynes_data <- function(
