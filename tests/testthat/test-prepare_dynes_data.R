@@ -1404,3 +1404,103 @@ test_that("a call whose every wave writes a row raises no empty-wave warning", {
   )
   expect_length(caught$warnings, 0L)
 })
+
+# The summary messages a call raises, collected so they can be counted.
+collect_summaries <- function(expr) {
+  caught <- list()
+  value <- withCallingHandlers(
+    expr,
+    goldfish_prepare_summary = function(m) {
+      caught[[length(caught) + 1L]] <<- m
+      invokeRestart("muffleMessage")
+    }
+  )
+  list(value = value, messages = caught)
+}
+
+test_that("a binary layer reports its flavors and its starting state", {
+  local_cli_context()
+  panel <- make_social_evolution_panel()
+  prepare <- function() {
+    prepare_dynes_data(
+      panel$data,
+      layers = c(friendship = "mutually_exclusive"),
+      flavor_names = list(
+        friendship = c(creation = "formed", dissolution = "ended")
+      )
+    )
+  }
+  caught <- collect_summaries(prepare())
+  expect_length(caught$messages, 1L)
+  expect_snapshot(out <- prepare())
+})
+
+test_that("each style reports its own totals, one line per layer", {
+  local_cli_context()
+  x <- make_prepare_fixture()
+  caught <- collect_summaries(
+    prepare_dynes_data(
+      x,
+      layers = c(
+        friendship = "mutually_exclusive",
+        calls = "count",
+        advice = "none"
+      ),
+      form = c(calls = "per_wave", advice = "changes")
+    )
+  )
+  expect_length(caught$messages, 1L)
+  expect_snapshot(
+    out <- prepare_dynes_data(
+      x,
+      layers = c(
+        friendship = "mutually_exclusive",
+        calls = "count",
+        advice = "none"
+      ),
+      form = c(calls = "per_wave", advice = "changes")
+    )
+  )
+})
+
+test_that("a count reports unit events and changed dyads under either update", {
+  local_cli_context()
+  # (3, 7) rises by 3, then 4: 7 unit events on one dyad after the first wave.
+  totals <- wave_rows(
+    c(3, 4, 3, 4, 3, 4),
+    c(7, 8, 7, 8, 7, 8),
+    c(10, 10, 20, 20, 30, 30),
+    c(2, 1, 5, 1, 9, 1)
+  )
+  for (update in c("replace", "increment")) {
+    x <- make_wave_fixture(totals, update = update)
+    expect_snapshot(out <- prepare_dynes_data(x, layers = c(survey = "count")))
+  }
+  changes <- wave_rows(c(3, 3, 4), c(7, 7, 8), c(10, 20, 20), c(2, 3, 1))
+  expect_snapshot(
+    out <- prepare_dynes_data(
+      make_wave_fixture(changes, update = "increment"),
+      layers = c(survey = "count"),
+      form = c(survey = "changes")
+    )
+  )
+})
+
+test_that("the summary is silenced by class and leaves the result unchanged", {
+  x <- make_prepare_fixture()
+  prepare <- function() {
+    prepare_dynes_data(
+      x,
+      layers = c(friendship = "mutually_exclusive", calls = "count"),
+      form = c(calls = "per_wave")
+    )
+  }
+  expect_silent(
+    silenced <- suppressMessages(
+      prepare(),
+      classes = "goldfish_prepare_summary"
+    )
+  )
+  expect_message(shown <- prepare(), class = "goldfish_prepare_summary")
+  expect_identical(silenced, shown)
+})
