@@ -555,3 +555,54 @@
       i `estimate_dynes()` infers its waves from row times, so these waves would drop out and merge two intervals.
       i If any of these layers is modeled, pass `wave_times` to `estimate_dynes()`.
 
+# a binary layer reports its flavors and its starting state
+
+    Code
+      out <- prepare()
+    Message
+      Prepared 1 layer; rows at the first wave are the starting state, not events.
+      * "friendship" ("mutually_exclusive"): 70 formed, 70 ended.
+        Starting state: 276 rows at the first wave "2008-09-09".
+
+# each style reports its own totals, one line per layer
+
+    Code
+      out <- prepare_dynes_data(x, layers = c(friendship = "mutually_exclusive",
+        calls = "count", advice = "none"), form = c(calls = "per_wave", advice = "changes"))
+    Message
+      Prepared 3 layers; rows at the first wave are the starting state, not events.
+      * "friendship" ("mutually_exclusive"): 2 creation, 1 dissolution.
+        Starting state: 2 rows at the first wave "10".
+      * "calls" ("count"): 3 unit events on 1 dyad.
+        Starting state: 1 row at the first wave "10".
+      * "advice" ("none"): 1 changed cell.
+        Starting state: 1 row at the first wave "10".
+
+# a count reports unit events and changed dyads under either update
+
+    Code
+      out <- prepare_dynes_data(x, layers = c(survey = "count"))
+    Message
+      Prepared 1 layer; rows at the first wave are the starting state, not events.
+      * "survey" ("count"): 7 unit events on 1 dyad.
+        Starting state: 2 rows at the first wave "10".
+
+---
+
+    Code
+      out <- prepare_dynes_data(x, layers = c(survey = "count"))
+    Message
+      Prepared 1 layer; rows at the first wave are the starting state, not events.
+      * "survey" ("count"): 7 unit events on 1 dyad.
+        Starting state: 2 rows at the first wave "10".
+
+---
+
+    Code
+      out <- prepare_dynes_data(make_wave_fixture(changes, update = "increment"),
+      layers = c(survey = "count"), form = c(survey = "changes"))
+    Message
+      Prepared 1 layer; rows at the first wave are the starting state, not events.
+      * "survey" ("count"): 4 unit events on 2 dyads.
+        Starting state: 1 row at the first wave "10".
+

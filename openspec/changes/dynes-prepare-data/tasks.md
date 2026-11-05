@@ -176,7 +176,7 @@ fragment.
       warning naming both; the function still returns (spec "A wave that
       writes no rows warns").
 - [x] 2.7(b) Implement the warning (design D12).
-- [ ] 2.8(a) Test the summary: one message of class
+- [x] 2.8(a) Test the summary: one message of class
       `goldfish_prepare_summary` per call, one line of totals per layer
       (snapshot, pinned cli context); a `"mutually_exclusive"` layer reports
       its events per flavor under relabeled names, with the first-wave rows on
@@ -186,7 +186,7 @@ fragment.
       counts; `suppressMessages(classes = "goldfish_prepare_summary")`
       silences it and leaves the result unchanged (spec "A successful call
       reports what it wrote").
-- [ ] 2.8(b) Implement the summary (design D17), data interpolated per
+- [x] 2.8(b) Implement the summary (design D17), data interpolated per
       r-lib:cli; no `quiet` argument.
 - [ ] 2.9 Close the group: full `NOT_CRAN=true` suite with baselines PASS,
       `devtools::document()`, commit.

@@ -126,7 +126,110 @@ prepare_dynes_data <- function(
     x$info$dynes_prepared,
     stats::setNames(spec$style, spec$layer)
   )
+  report_prepared_layers(x, spec, checked, flavor_names)
   x
+}
+
+# One message per call, one line of totals per layer in its style's terms, so
+# a long, several-layer panel does not flood the console; per-wave counts are
+# easy to compute from the returned rows. The rows at a layer's first wave are
+# reported apart as the starting state: under the default start they are
+# history, not events, and counting them as creations is the confusion this
+# function exists to remove. Silenced by its class; there is no `quiet`
+# argument.
+report_prepared_layers <- function(x, spec, checked, flavor_names) {
+  lines <- lapply(seq_len(nrow(spec)), function(i) {
+    layer <- spec$layer[i]
+    style <- spec$style[i]
+    first_wave <- checked[[i]]$waves[1L]
+    totals <- prepared_layer_totals(x, layer, checked[[i]]$start, first_wave)
+    head <- switch(
+      style,
+      mutually_exclusive = {
+        labels <- flavor_names[[layer]] %||%
+          stats::setNames(flavor_roles, flavor_roles)
+        cli::format_inline(
+          "{.val {layer}} ({.val {style}}): {totals$rises} \\
+           {.field {labels[['creation']]}}, {totals$falls} \\
+           {.field {labels[['dissolution']]}}."
+        )
+      },
+      count = cli::format_inline(
+        "{.val {layer}} ({.val {style}}): {totals$units} unit event{?s} on \\
+         {totals$dyads} dyad{?s}."
+      ),
+      cli::format_inline(
+        "{.val {layer}} ({.val {style}}): {totals$cells} changed cell{?s}."
+      )
+    )
+    start <- if (is.null(totals$first_wave)) {
+      "Starting state: no timed rows."
+    } else {
+      cli::format_inline(
+        "Starting state: {totals$starting} row{?s} at the first wave \\
+         {.val {totals$first_wave}}."
+      )
+    }
+    c("*" = head, " " = start)
+  })
+  n <- nrow(spec)
+  cli::cli_inform(
+    c(
+      "Prepared {n} layer{?s}; rows at the first wave are the starting \\
+       state, not events.",
+      unlist(lines)
+    ),
+    class = "goldfish_prepare_summary"
+  )
+}
+
+# The totals one layer reports, read off its final timed rows, so a written
+# change-list and one passed through are counted alike: each row's change of
+# level from the starting state, dyad by dyad in time order. Rows at the first
+# wave (the layer's first grid time, or its earliest row for a change-list) are
+# the starting state; later rows that change the level are events. `rises` and
+# `falls` count the rows that raise or lower a level (a binary tie's creations
+# and dissolutions), `units` sums the rises (a count's unit events), `dyads`
+# counts the dyads with an event and `cells` the events.
+prepared_layer_totals <- function(x, layer, start, first_wave) {
+  ties <- as.data.frame(x$ties)
+  rows <- ties[ties$layer == layer & !is.na(ties$time), , drop = FALSE]
+  if (nrow(rows) == 0L && is.null(first_wave)) {
+    return(list(rises = 0L, falls = 0L, units = 0, dyads = 0L, cells = 0L))
+  }
+  shape <- prepare_layer_shape(x, layer)
+  from <- to_global_id(rows$from, x$nodes)
+  to <- to_global_id(rows$to, x$nodes)
+  if (shape$one_mode && !shape$directed) {
+    lo <- pmin(from, to)
+    to <- pmax(from, to)
+    from <- lo
+  }
+  value <- if ("weight" %in% names(rows)) rows$weight else rep(1, nrow(rows))
+  first_wave <- first_wave %||% rows$time[which.min(coerce_time(rows$time))]
+  first_axis <- time_on_column_scale(first_wave, x$ties$time)
+
+  levels <- row_levels(
+    from,
+    to,
+    rows$time,
+    as.numeric(value),
+    start,
+    is_replace = identical(shape$update, "replace")
+  )
+  ord <- levels$ord
+  delta <- levels$after - levels$before
+  at_first <- coerce_time(rows$time[ord]) == first_axis
+  event <- !at_first & delta != 0
+  list(
+    first_wave = trimws(format(first_wave)),
+    starting = sum(at_first),
+    rises = sum(event & delta > 0),
+    falls = sum(event & delta < 0),
+    units = sum(delta[event & delta > 0]),
+    dyads = length(unique(paste(from[ord][event], to[ord][event]))),
+    cells = sum(event)
+  )
 }
 
 # A layer recorded in info$dynes_prepared is already a change-list: diffing it
@@ -1073,22 +1176,10 @@ check_change_list <- function(x, layer, style, start, shape, call) {
     }
   }
 
-  # The level before each row, dyad by dyad in time order: the starting level
-  # for a dyad's first row, then the level the previous row left.
-  ord <- order(from, to, coerce_time(time), seq_along(time))
-  n <- length(ord)
-  f <- from[ord]
-  t <- to[ord]
+  levels <- row_levels(from, to, time, value, start, is_replace)
+  ord <- levels$ord
   v <- value[ord]
-  first_of_dyad <- c(TRUE, f[-1L] != f[-n] | t[-1L] != t[-n])
-  start_level <- start$value[match(paste(f, t), paste(start$from, start$to))]
-  start_level[is.na(start_level)] <- 0
-  after <- if (is_replace) {
-    v
-  } else {
-    start_level + stats::ave(v, cumsum(first_of_dyad), FUN = cumsum)
-  }
-  before <- ifelse(first_of_dyad, start_level, c(NA_real_, after[-n]))
+  before <- levels$before
 
   if (identical(style, "mutually_exclusive")) {
     creates <- v == max(encoding)
@@ -1125,6 +1216,28 @@ check_change_list <- function(x, layer, style, start, shape, call) {
       "reported at each wave."
     )
   )
+}
+
+# The level of a dyad before and after each of its rows, dyad by dyad in time
+# order: the starting level for a dyad's first row, then the level the previous
+# row left; a row sets the level under replace and adds to it under increment.
+# `ord` orders the rows that way; `before` and `after` follow `ord`.
+row_levels <- function(from, to, time, value, start, is_replace) {
+  ord <- order(from, to, coerce_time(time), seq_along(time))
+  n <- length(ord)
+  f <- from[ord]
+  t <- to[ord]
+  v <- value[ord]
+  first_of_dyad <- c(TRUE, f[-1L] != f[-n] | t[-1L] != t[-n])
+  start_level <- start$value[match(paste(f, t), paste(start$from, start$to))]
+  start_level[is.na(start_level)] <- 0
+  after <- if (is_replace) {
+    v
+  } else {
+    start_level + stats::ave(v, cumsum(first_of_dyad), FUN = cumsum)
+  }
+  before <- ifelse(first_of_dyad, start_level, c(NA_real_, after[-n]))
+  list(ord = ord, before = before, after = after)
 }
 
 # A grid time on the numeric scale of the ties `time` column. coerce_time()
