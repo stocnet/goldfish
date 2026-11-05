@@ -208,12 +208,12 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       that wave's summed amounts (spec "a prepared count panel is estimated as
       a count panel").
 - [x] 3.2(b) Make it pass.
-- [ ] 3.3(a) Test a fit started at the third wave of a panel with at least
+- [x] 3.3(a) Test a fit started at the third wave of a panel with at least
       four waves: the augmentation's entering state equals the third wave's
       survey, the earlier changes are applied and not scored, and the
       equivalent `"changes"` input gives the same (spec "a fit started at a
       later wave enters with that wave's survey").
-- [ ] 3.3(b) Make it pass.
+- [x] 3.3(b) Make it pass.
 - [ ] 3.4(a) Test the first-wave diff: under the default start the recipe
       holds no flip for it and the entering state is the first survey; with
       `start_time` before the first wave it is the first interval's flip set
