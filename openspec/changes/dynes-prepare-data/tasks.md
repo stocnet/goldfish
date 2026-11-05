@@ -150,7 +150,7 @@ fragment.
       (`validate_flavor_mapping()`, the `info` record,
       `warn_style_contradicted()`) (design D5, D16). `add_flavor()` itself is
       unchanged.
-- [ ] 2.5(a) Test the wave grids: one vector for all layers, a per-layer list,
+- [x] 2.5(a) Test the wave grids: one vector for all layers, a per-layer list,
       inference from row times for a layer without an entry (assumes no empty
       wave: a wave with no rows is not in the grid), full dissolution at an
       empty declared `"states"` wave, no row at an empty declared
@@ -163,7 +163,7 @@ fragment.
       an unsorted grid gives the sorted result silently; a duplicated time
       warns once with class `goldfish_duplicate_wave_time` (snapshot) and is
       kept once (spec "Waves are given per layer, ...").
-- [ ] 2.5(b) Implement the wave grids (design D8; `coerce_time()` on both
+- [x] 2.5(b) Implement the wave grids (design D8; `coerce_time()` on both
       sides of the grid match; grid checks, sort and de-duplication before
       any row is rewritten).
 - [ ] 2.6(a) Test that layers not named are unchanged and event rows keep

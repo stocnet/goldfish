@@ -409,3 +409,115 @@
       i A count layer needs no flavor: "calls" records repeated events of one process.
       i If a count layer counts two event types together, such as signings and endings, split it into one "count" layer per type.
 
+# a row off the grid aborts, naming the layer and the time
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 20))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" has rows off its wave grid.
+      x Row time on no wave: "15".
+      i Its waves are "10" and "20".
+
+---
+
+    Code
+      prepare_dynes_data(x, c(survey = "count"), form = c(survey = "per_wave"),
+      wave_times = list(survey = c(10, 20)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" has rows off its wave grid.
+      x Row time on no wave: "15".
+      i Its waves are "10" and "20".
+
+# a malformed wave_times aborts before any row is rewritten
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none"), wave_times = list(advice = c(10,
+        30)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` names a layer that is not in `layers`.
+      x Layer not in `layers`: "advice".
+
+---
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none", advice = "none"), form = c(advice = "changes"),
+      wave_times = list(advice = c(10, 30)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` has an entry for a "changes" layer.
+      x Layer "advice" is declared with form "changes", which has no waves to diff on.
+      i Drop the entry, or declare the form "states" or "per_wave".
+
+---
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none"), wave_times = list(friendship = c(
+        10, 20), c(10, 30)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Every entry of `wave_times` must be named by its layer.
+      i For example `wave_times = list(friendship = c(t1, t2))`.
+
+---
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none"), wave_times = c(10, NA))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` must hold finite times.
+      x The grid of layer "friendship" holds "10" and "NA".
+
+---
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none"), wave_times = list(friendship = c(
+        10, Inf)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` must hold finite times.
+      x The grid of layer "friendship" holds "10" and "Inf".
+
+---
+
+    Code
+      prepare_dynes_data(x, c(friendship = "none", advice = "none"), form = c(
+        friendship = "changes", advice = "changes"), wave_times = c(10, 20))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` is given, but every layer has form "changes".
+      i A change-list has no waves to diff on; drop `wave_times`.
+
+# a states or per_wave layer with no wave aborts
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" has no wave.
+      x It has no timed rows and no `wave_times` entry.
+      i Declare its waves in `wave_times`, or its form "changes" if its rows are history only.
+
+---
+
+    Code
+      prepare_dynes_data(x, c(survey = "count"), form = c(survey = "per_wave"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" has no wave.
+      x It has no timed rows and no `wave_times` entry.
+      i Declare its waves in `wave_times`, or its form "changes" if its rows are history only.
+
+# a duplicated grid time warns once and is kept once
+
+    Code
+      twice <- prepare_quietly(x, layers = c(survey = "none"), wave_times = list(
+        survey = c(10, 20, 20, 30)))
+    Condition
+      Warning in `prepare_dynes_data()`:
+      `wave_times` lists a time more than once.
+      * "survey" at "20"
+      i Each time is kept once; check that no other wave was meant.
+

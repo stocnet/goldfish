@@ -52,8 +52,16 @@ flavor_roles <- c("creation", "dissolution")
 #'   named by the roles `creation` and `dissolution`, whose values relabel the
 #'   two flavors of a `"mutually_exclusive"` layer, for example
 #'   `list(friendship = c(creation = "formed", dissolution = "ended"))`.
-#' @param wave_times either one vector of times applied to every layer, or a
-#'   named list with a vector per layer.
+#' @param wave_times the survey times of the `"states"` and `"per_wave"`
+#'   layers: either one vector applied to every such layer, or a list naming a
+#'   vector per layer. A layer without an entry takes its waves from the
+#'   distinct times of its own timed rows. A declared wave at which a
+#'   `"states"` layer has no rows is read as the empty network, so every tie
+#'   dissolves there; on a `"per_wave"` layer it means no events. An inferred
+#'   grid cannot see a wave at which nobody reported a tie, so declare
+#'   `wave_times` for any layer that can have an empty wave. Every timed row
+#'   must sit on a wave of its layer's grid. A grid is sorted, and a time
+#'   listed twice is kept once with a warning.
 #'
 #' @return `x` with the named layers rewritten. Their declared styles are
 #'   recorded in `info$dynes_prepared`, a character vector named by layer, and a
@@ -71,6 +79,7 @@ prepare_dynes_data <- function(
 ) {
   call <- rlang::current_env()
   spec <- resolve_prepare_layers(x, layers, form, flavor_names, call = call)
+  grids <- resolve_wave_grids(spec, wave_times, call = call)
 
   checked <- lapply(seq_len(nrow(spec)), function(i) {
     check_prepare_layer(
@@ -78,6 +87,7 @@ prepare_dynes_data <- function(
       spec$layer[i],
       spec$style[i],
       spec$form[i],
+      grid = grids[[spec$layer[i]]],
       call = call
     )
   })
@@ -586,7 +596,7 @@ is_whole_count <- function(value) {
 # style's value checks, and for a count given as totals the rule that a total
 # never falls) or the change-list in its own update semantics. Returns the
 # starting levels, the cleaned wave rows and the layer's waves, for the rewrite.
-check_prepare_layer <- function(x, layer, style, form, call) {
+check_prepare_layer <- function(x, layer, style, form, grid = NULL, call) {
   shape <- prepare_layer_shape(x, layer)
   start <- starting_levels(x, layer, shape)
   check_starting_levels(start, layer, style, shape, call)
@@ -596,15 +606,186 @@ check_prepare_layer <- function(x, layer, style, form, call) {
     return(invisible(list(start = start, rows = NULL, waves = NULL)))
   }
 
+  waves <- layer_wave_grid(x, layer, grid, call)
   rows <- clean_wave_rows(x, layer, form, call = call)
-  ties <- as.data.frame(x$ties)
-  timed <- ties$time[ties$layer == layer & !is.na(ties$time)]
-  waves <- sort(unique(timed))
   check_wave_values(rows, layer, style, shape, call)
   if (identical(style, "count") && identical(form, "states")) {
-    check_totals_never_fall(rows, start, waves, layer, shape, call)
+    check_totals_never_fall(
+      rows,
+      start,
+      waves,
+      layer,
+      shape,
+      template = x$ties$time,
+      call = call
+    )
   }
   invisible(list(start = start, rows = rows, waves = waves))
+}
+
+# The wave grid of every "states" and "per_wave" layer, checked, sorted and
+# de-duplicated before any row is rewritten. `wave_times` is one vector for all
+# such layers or a list naming a vector per layer; a layer without an entry gets
+# NULL here and takes its waves from its own timed rows (check_prepare_layer()),
+# which assumes it has no empty wave. A "changes" layer has no grid to diff on,
+# so an entry for one aborts, as does an entry for an undeclared layer. A time
+# listed twice is harmless for the diff but may hide a typo for a different
+# wave, so it is kept once and reported in one warning per call.
+resolve_wave_grids <- function(spec, wave_times, call) {
+  gridded <- spec$layer[spec$form != "changes"]
+  grids <- stats::setNames(vector("list", length(gridded)), gridded)
+  if (is.null(wave_times)) {
+    return(grids)
+  }
+
+  if (is.list(wave_times)) {
+    nms <- names(wave_times)
+    if (
+      length(wave_times) > 0L && (is.null(nms) || any(is.na(nms) | nms == ""))
+    ) {
+      cli::cli_abort(
+        c(
+          "Every entry of {.arg wave_times} must be named by its layer.",
+          "i" = "For example {.code wave_times = list(friendship = c(t1, t2))}."
+        ),
+        call = call
+      )
+    }
+    repeated <- unique(nms[duplicated(nms)])
+    if (length(repeated) > 0L) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} names a layer more than once.",
+          "x" = "Repeated layer{?s}: {.val {repeated}}."
+        ),
+        call = call
+      )
+    }
+    unknown <- setdiff(nms, spec$layer)
+    if (length(unknown) > 0L) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} names a layer that is not in {.arg layers}.",
+          "x" = "Layer{?s} not in {.arg layers}: {.val {unknown}}."
+        ),
+        call = call
+      )
+    }
+    changes <- setdiff(nms, gridded)
+    if (length(changes) > 0L) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} has an entry for a {.val changes} layer.",
+          "x" = "Layer{?s} {.val {changes}} {?is/are} declared with form \\
+                 {.val changes}, which has no waves to diff on.",
+          "i" = "Drop the {cli::qty(changes)}entr{?y/ies}, or declare the \\
+                 form {.val states} or \\
+                 {.val per_wave}."
+        ),
+        call = call
+      )
+    }
+    grids[nms] <- wave_times
+  } else {
+    if (length(gridded) == 0L) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} is given, but every layer has form \\
+           {.val changes}.",
+          "i" = "A change-list has no waves to diff on; drop \\
+                 {.arg wave_times}."
+        ),
+        call = call
+      )
+    }
+    grids[] <- list(wave_times)
+  }
+
+  duplicated_at <- list()
+  for (layer in names(grids)) {
+    grid <- grids[[layer]]
+    if (is.null(grid)) {
+      next
+    }
+    axis <- suppressWarnings(coerce_time(grid))
+    if (length(grid) == 0L || anyNA(axis) || !all(is.finite(axis))) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} must hold finite times.",
+          "x" = "The grid of layer {.val {layer}} holds \\
+                 {.val {trimws(format(grid))}}."
+        ),
+        call = call
+      )
+    }
+    twice <- duplicated(axis)
+    if (any(twice)) {
+      duplicated_at[[layer]] <- format(unique(grid[twice]))
+    }
+    grid <- grid[!twice]
+    grids[[layer]] <- grid[order(axis[!twice])]
+  }
+  if (length(duplicated_at) > 0L) {
+    affected <- vapply(
+      names(duplicated_at),
+      function(layer) {
+        cli::format_inline(
+          "{.val {layer}} at {.val {duplicated_at[[layer]]}}"
+        )
+      },
+      character(1)
+    )
+    cli::cli_warn(
+      c(
+        "{.arg wave_times} lists a time more than once.",
+        stats::setNames(affected, rep("*", length(affected))),
+        "i" = "Each time is kept once; check that no other wave was meant."
+      ),
+      class = "goldfish_duplicate_wave_time",
+      call = call
+    )
+  }
+  grids
+}
+
+# The waves of one "states" or "per_wave" layer: its declared grid (already
+# checked, sorted and de-duplicated by resolve_wave_grids()), or, without one,
+# the distinct times of its own timed rows. An inferred grid cannot hold a wave
+# at which nobody reported a tie, so its full dissolution is never written;
+# hence the documentation's advice to declare `wave_times` for such a layer.
+# Every timed row, zero-valued ones included, must sit on a wave of the grid;
+# both sides are compared on the ties `time` column's numeric scale, so a Date
+# grid matches POSIXct rows at the same instants.
+layer_wave_grid <- function(x, layer, grid, call) {
+  ties <- as.data.frame(x$ties)
+  timed <- ties$time[ties$layer == layer & !is.na(ties$time)]
+  if (is.null(grid)) {
+    if (length(timed) == 0L) {
+      cli::cli_abort(
+        c(
+          "Layer {.val {layer}} has no wave.",
+          "x" = "It has no timed rows and no {.arg wave_times} entry.",
+          "i" = "Declare its waves in {.arg wave_times}, or its form \\
+                 {.val changes} if its rows are history only."
+        ),
+        call = call
+      )
+    }
+    return(sort(unique(timed)))
+  }
+  axis <- time_on_column_scale(grid, x$ties$time)
+  off <- unique(timed[!coerce_time(timed) %in% axis])
+  if (length(off) > 0L) {
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} has rows off its wave grid.",
+        "x" = "Row time{?s} on no wave: {.val {format(off)}}.",
+        "i" = "Its waves are {.val {format(grid)}}."
+      ),
+      call = call
+    )
+  }
+  grid
 }
 
 # The level of every dyad before the first wave, folded from the layer's
@@ -728,8 +909,16 @@ check_wave_values <- function(rows, layer, style, shape, call) {
 # acts as a wave 0 for this check only: it is not a wave of the grid and writes
 # nothing. Each dyad's waves are read in order once; the earliest fall is
 # reported.
-check_totals_never_fall <- function(rows, start, waves, layer, shape, call) {
-  wave_axis <- coerce_time(waves)
+check_totals_never_fall <- function(
+  rows,
+  start,
+  waves,
+  layer,
+  shape,
+  template,
+  call
+) {
+  wave_axis <- time_on_column_scale(waves, template)
   levels <- rbind(
     data.frame(
       from = start$from,

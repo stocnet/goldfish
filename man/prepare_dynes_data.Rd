@@ -27,8 +27,16 @@ named by the roles \code{creation} and \code{dissolution}, whose values relabel 
 two flavors of a \code{"mutually_exclusive"} layer, for example
 \code{list(friendship = c(creation = "formed", dissolution = "ended"))}.}
 
-\item{wave_times}{either one vector of times applied to every layer, or a
-named list with a vector per layer.}
+\item{wave_times}{the survey times of the \code{"states"} and \code{"per_wave"}
+layers: either one vector applied to every such layer, or a list naming a
+vector per layer. A layer without an entry takes its waves from the
+distinct times of its own timed rows. A declared wave at which a
+\code{"states"} layer has no rows is read as the empty network, so every tie
+dissolves there; on a \code{"per_wave"} layer it means no events. An inferred
+grid cannot see a wave at which nobody reported a tie, so declare
+\code{wave_times} for any layer that can have an empty wave. Every timed row
+must sit on a wave of its layer's grid. A grid is sorted, and a time
+listed twice is kept once with a warning.}
 }
 \value{
 \code{x} with the named layers rewritten. Their declared styles are
