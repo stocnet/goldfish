@@ -80,7 +80,7 @@ prepare_dynes_data <- function(
     )
   })
 
-  not_yet <- spec$form == "per_wave" | spec$style == "mutually_exclusive"
+  not_yet <- spec$style == "mutually_exclusive"
   if (any(not_yet)) {
     cli::cli_abort(
       "Rewriting {.val {spec$layer[not_yet]}} is not implemented yet.",
@@ -88,10 +88,15 @@ prepare_dynes_data <- function(
     )
   }
 
-  diffed <- which(spec$form == "states")
+  diffed <- which(spec$form != "changes")
   written <- lapply(diffed, function(i) {
     shape <- prepare_layer_shape(x, spec$layer[i])
-    diff_wave_states(
+    rewrite <- if (spec$form[i] == "states") {
+      diff_wave_states
+    } else {
+      sum_wave_amounts
+    }
+    rewrite(
       checked[[i]]$rows,
       checked[[i]]$start,
       checked[[i]]$waves,
@@ -1041,4 +1046,33 @@ write_prepared_layers <- function(x, written) {
   rownames(out) <- NULL
   class(out) <- class(x$ties)
   out
+}
+
+# The change-list of one "per_wave" layer, whose value at a wave is the amount
+# since the previous wave. A dyad's level at a wave is its level before the
+# first wave (`start`) plus its amounts up to and including that wave, summed
+# per dyad key in wave order. Each dyad reported at a wave gets one row, never
+# one row per unit: the amount under increment, the running total under
+# replace. A dyad with no row at a wave had no events there and writes nothing.
+# Arguments and result as for diff_wave_states().
+sum_wave_amounts <- function(rows, start, waves, update, template) {
+  wave_axis <- time_on_column_scale(waves, template)
+  k <- match(coerce_time(rows$time), wave_axis)
+  ord <- order(rows$from, rows$to, k)
+  from <- rows$from[ord]
+  to <- rows$to[ord]
+  k <- k[ord]
+  amount <- rows$value[ord]
+  dyad <- paste(from, to)
+  start_level <- start$value[match(dyad, paste(start$from, start$to))]
+  start_level[is.na(start_level)] <- 0
+  level <- start_level + stats::ave(amount, dyad, FUN = cumsum)
+  value <- if (identical(update, "replace")) level else amount
+  out <- order(k, from, to)
+  data.frame(
+    from = from[out],
+    to = to[out],
+    time = restore_time_class(wave_axis[k[out]], template),
+    value = value[out]
+  )
 }
