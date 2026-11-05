@@ -1757,3 +1757,159 @@ test_that("a fit started at the third wave enters with that wave's survey", {
     expect_equal(intercept, log(2 / (6 * 10)), tolerance = 1e-6)
   }
 })
+
+# A friendship panel over six actors with history rows {1 -> 2, 2 -> 3} and
+# surveys at 10 ({1 -> 2, 3 -> 4}) and 20 ({3 -> 4, 4 -> 5}), beside observed
+# calls, one of them before the first survey.
+make_history_panel <- function() {
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "replace", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = "panel", calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = data.frame(
+      from = c(1, 2, 1, 3, 3, 4, 1, 2, 3, 4),
+      to = c(2, 3, 2, 4, 4, 5, 3, 4, 5, 6),
+      time = c(NA, NA, 10, 10, 20, 20, 5, 12, 18, 25),
+      weight = 1,
+      layer = rep(c("friendship", "calls"), c(6, 4))
+    )
+  )
+}
+
+test_that("the default start never augments the first-wave diff", {
+  skip_on_cran()
+  data <- prepare_quietly(
+    make_history_panel(),
+    layers = c(friendship = "mutually_exclusive")
+  )
+
+  recipe <- entry_recipe(prepared_friendship_spec(data))
+
+  # The first survey is the entering state; the only interval ends at the
+  # second, and its flips are the wave-2 diff alone.
+  expect_identical(recipe$wave_times, c(10, 20))
+  expect_equal(
+    recipe$start_states[[1]]$friendship,
+    survey_matrix(c(1, 3), c(2, 4)),
+    ignore_attr = TRUE
+  )
+  expect_equal(
+    recipe$events[c("interval", "from", "to", "flavor")],
+    data.frame(
+      interval = 1L,
+      from = c(1L, 4L),
+      to = c(2L, 5L),
+      flavor = c("dissolution", "creation")
+    ),
+    ignore_attr = TRUE
+  )
+})
+
+test_that("a start before the first survey augments the first-wave diff", {
+  skip_on_cran()
+  data <- prepare_quietly(
+    make_history_panel(),
+    layers = c(friendship = "mutually_exclusive")
+  )
+
+  recipe <- entry_recipe(
+    prepared_friendship_spec(data),
+    set_preprocessing(start_time = 0)
+  )
+
+  # The first survey is now the right endpoint of the first interval, which
+  # enters with the history rows and holds the first wave's diff.
+  expect_identical(recipe$wave_times, c(0, 10, 20))
+  expect_equal(
+    recipe$start_states[[1]]$friendship,
+    survey_matrix(c(1, 2), c(2, 3)),
+    ignore_attr = TRUE
+  )
+  expect_equal(
+    recipe$events[c("interval", "from", "to", "flavor")],
+    data.frame(
+      interval = c(1L, 1L, 2L, 2L),
+      from = c(2L, 3L, 1L, 4L),
+      to = c(3L, 4L, 2L, 5L),
+      flavor = c("dissolution", "creation", "dissolution", "creation")
+    ),
+    ignore_attr = TRUE
+  )
+})
+
+test_that("history rows of a count panel are never augmented", {
+  skip_on_cran()
+  # Totals under increment: (1, 2) holds 2 calls before the panel, then 3, 5
+  # and 6; (2, 3) 1, 1 and 2; (3, 1) 1 at the third wave.
+  totals <- data.frame(
+    from = c(1, 1, 2, 1, 2, 1, 2, 3),
+    to = c(2, 2, 3, 2, 3, 2, 3, 1),
+    time = c(NA, 10, 10, 20, 20, 30, 30, 30),
+    weight = c(2, 3, 1, 5, 1, 6, 2, 1),
+    layer = "panel_calls"
+  )
+  emails <- data.frame(
+    from = c(1, 2, 3, 4),
+    to = c(3, 4, 5, 6),
+    time = c(12, 18, 25, 28),
+    weight = 1,
+    layer = "emails"
+  )
+  x <- list(
+    info = list(
+      name = "toy",
+      focal = "emails",
+      update = c(panel_calls = "increment", emails = "increment"),
+      directed = c(panel_calls = TRUE, emails = TRUE),
+      observation = c(panel_calls = "panel", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(totals, emails)
+  )
+  data <- prepare_quietly(x, layers = c(panel_calls = "count"))
+  spec <- make_joint_specification(
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "panel_calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+
+  recipe <- entry_recipe(spec)
+
+  # The intervals lie between the waves; the history total of 2 and the rise
+  # to the first wave's totals are the entering state, never flips.
+  expect_identical(recipe$wave_times, c(10, 20, 30))
+  expect_equal(
+    recipe$events[c("interval", "from", "to")],
+    data.frame(
+      interval = c(1L, 1L, 2L, 2L, 2L),
+      from = c(1L, 1L, 1L, 2L, 3L),
+      to = c(2L, 2L, 2L, 3L, 1L)
+    ),
+    ignore_attr = TRUE
+  )
+})
