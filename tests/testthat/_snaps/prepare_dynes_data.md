@@ -233,3 +233,137 @@
       x Layer "survey" reports dyad "C-G" 2 times at wave "10".
       i The two reports of this undirected tie disagree: 1 and 2.
 
+# a mutually exclusive state other than 0 or 1 aborts
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "mutually_exclusive"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" reports a value its style "mutually_exclusive" cannot hold.
+      x Dyad "C-G" at wave "10" is 2.
+      i A binary tie is present (1) or absent (0); declare the style "count" or "none" for a valued layer.
+
+# a mutually exclusive change outside the update encoding aborts
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "mutually_exclusive"), form = c(
+        survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "mutually_exclusive".
+      x Dyad "C-G" at wave "10": the value 2 is not an update of a binary tie.
+      i Under "replace" a binary change is 0 and 1.
+
+# a mutually exclusive change-list contradicting the style aborts
+
+    Code
+      prepare_dynes_data(twice_created, layers = c(survey = "mutually_exclusive"),
+      form = c(survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "mutually_exclusive".
+      x Dyad "C-G" at wave "20": a creation where the tie is already present.
+      i Each event of a "mutually_exclusive" layer changes the tie's state; declare `form = "states"` if the rows are the ties reported at each wave.
+
+---
+
+    Code
+      prepare_dynes_data(dissolved_absent, layers = c(survey = "mutually_exclusive"),
+      form = c(survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "mutually_exclusive".
+      x Dyad "C-G" at wave "10": a dissolution where the tie is absent.
+      i Each event of a "mutually_exclusive" layer changes the tie's state; declare `form = "states"` if the rows are the ties reported at each wave.
+
+# a fractional or negative count aborts
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "count"), form = c(survey = "per_wave"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" reports a value its style "count" cannot hold.
+      x Dyad "C-G" at wave "10" is 1.5.
+      i A count is a whole non-negative number.
+
+---
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "count"), form = c(survey = "per_wave"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" reports a value its style "count" cannot hold.
+      x Dyad "C-G" at wave "10" is -1.
+      i A count is a whole non-negative number.
+
+# a count change-list that falls aborts in its update semantics
+
+    Code
+      prepare_dynes_data(negative, layers = c(survey = "count"), form = c(survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "count".
+      x Dyad "C-G" at wave "20": the value -2 is not a whole number of at least 0.
+      i A count rises by whole events and never falls.
+
+---
+
+    Code
+      prepare_dynes_data(falling, layers = c(survey = "count"), form = c(survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "count".
+      x Dyad "C-G" at wave "20": the level falls from 6 to 4.
+      i A count level never falls; the level before the first row is folded from the `time = NA` rows.
+
+---
+
+    Code
+      prepare_dynes_data(below_start, layers = c(survey = "count"), form = c(survey = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" is a change-list that does not suit its style "count".
+      x Dyad "C-G" at wave "10": the level falls from 6 to 4.
+      i A count level never falls; the level before the first row is folded from the `time = NA` rows.
+
+# a count total that falls aborts, naming the wave and the dyad
+
+    Code
+      prepare_dynes_data(falling, layers = c(survey = "count"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! A count total cannot fall.
+      x Layer "survey": dyad "C-G" falls from 6 to 4 at wave "20".
+      i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
+
+---
+
+    Code
+      prepare_dynes_data(dropped, layers = c(survey = "count"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! A count total cannot fall.
+      x Layer "survey": dyad "C-G" falls from 6 to 0 at wave "20".
+      i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
+
+# a mutually exclusive starting level other than 0 or 1 aborts
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "mutually_exclusive"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! The state of layer "survey" before its first wave does not suit its style "mutually_exclusive".
+      x The `time = NA` rows fold dyad "C-G" to a level of 2.
+      i A binary tie is present (1) or absent (0).
+
+# a count total below its starting level aborts at the first wave
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "count"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! A count total cannot fall.
+      x Layer "survey": dyad "C-G" falls from 6 to 4 at wave "10".
+      i The total before the first wave is folded from the `time = NA` rows.
+      i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
+

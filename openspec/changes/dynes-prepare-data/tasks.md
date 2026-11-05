@@ -86,7 +86,7 @@ fragment.
       level of 6 followed by a wave-1 total of 4 on a `"count"` `"states"`
       layer aborts naming wave 1 (snapshot); a passing starting state adds
       no grid time and no row (same spec requirement).
-- [ ] 1.3(b) Implement the style checks, including the starting-state checks
+- [x] 1.3(b) Implement the style checks, including the starting-state checks
       and the change-list checks (design D5, D9, D10). The starting state is
       checked only, never written; each change-list check reads the layer's
       rows once, in time order, keyed by dyad.

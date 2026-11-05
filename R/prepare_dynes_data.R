@@ -4,9 +4,9 @@
 #
 # The caller declares two facts per layer, never detected: the style (the
 # process the layer records) and the form (what a value at a wave means). This
-# file holds the argument validation and the pass-through; the checks on the
-# rows and the rewrite build on the resolved declaration returned by
-# resolve_prepare_layers().
+# file holds the argument validation (resolve_prepare_layers()), the checks on
+# each layer's rows and starting state (check_prepare_layer()), and the
+# pass-through; every check runs before any row is rewritten.
 # =========================================================================== #
 
 prepare_styles <- c("mutually_exclusive", "count", "none")
@@ -66,8 +66,14 @@ prepare_dynes_data <- function(
   call <- rlang::current_env()
   spec <- resolve_prepare_layers(x, layers, form, flavor_names, call = call)
 
-  for (i in which(spec$form != "changes")) {
-    clean_wave_rows(x, spec$layer[i], spec$form[i], call = call)
+  for (i in seq_len(nrow(spec))) {
+    check_prepare_layer(
+      x,
+      spec$layer[i],
+      spec$style[i],
+      spec$form[i],
+      call = call
+    )
   }
 
   needs_rewrite <- spec$form != "changes" | spec$style == "mutually_exclusive"
@@ -396,11 +402,9 @@ clean_wave_rows <- function(x, layer, form, call) {
     )
   }
 
-  mode_info <- build_mode_map(x$info %||% list(), x$nodes, layer)$layers[[
-    layer
-  ]]
-  one_mode <- !isTRUE(mode_info$is_two_mode)
-  directed <- !isFALSE(unname((x$info %||% list())$directed[layer]))
+  shape <- prepare_layer_shape(x, layer)
+  one_mode <- shape$one_mode
+  directed <- shape$directed
 
   if (one_mode) {
     self <- which(out$from == out$to)
@@ -462,4 +466,379 @@ clean_wave_rows <- function(x, layer, form, call) {
   out <- out[!(duplicated(key) | out$value == 0), , drop = FALSE]
   rownames(out) <- NULL
   out
+}
+
+# What the checks need to know about one layer, resolved once: its mode map
+# entry, whether it is one-mode and directed (an undeclared `directed` reads as
+# directed), its update semantics, and the node labels used in messages.
+prepare_layer_shape <- function(x, layer) {
+  info <- x$info %||% list()
+  mode_map <- build_mode_map(info, x$nodes, layer)
+  list(
+    mode_map = mode_map,
+    mode = mode_map$layers[[layer]],
+    one_mode = !isTRUE(mode_map$layers[[layer]]$is_two_mode),
+    directed = !isFALSE(unname(info$directed[layer])),
+    update = unname(info$update[layer]),
+    labels = x$nodes$label %||% as.character(seq_len(nrow(x$nodes)))
+  )
+}
+
+dyad_label <- function(shape, from, to) {
+  paste0(shape$labels[from], "-", shape$labels[to])
+}
+
+is_whole_count <- function(value) {
+  !is.na(value) & is.finite(value) & value >= 0 & value == round(value)
+}
+
+# Check one declared layer before anything is rewritten: the state before the
+# first wave against the style, then either the wave rows (shared checks, the
+# style's value checks, and for a count given as totals the rule that a total
+# never falls) or the change-list in its own update semantics. Returns the
+# starting levels, the cleaned wave rows and the layer's waves, for the rewrite.
+check_prepare_layer <- function(x, layer, style, form, call) {
+  shape <- prepare_layer_shape(x, layer)
+  start <- starting_levels(x, layer, shape)
+  check_starting_levels(start, layer, style, shape, call)
+
+  if (identical(form, "changes")) {
+    check_change_list(x, layer, style, start, shape, call)
+    return(invisible(list(start = start, rows = NULL, waves = NULL)))
+  }
+
+  rows <- clean_wave_rows(x, layer, form, call = call)
+  ties <- as.data.frame(x$ties)
+  timed <- ties$time[ties$layer == layer & !is.na(ties$time)]
+  waves <- sort(unique(timed))
+  check_wave_values(rows, layer, style, shape, call)
+  if (identical(style, "count") && identical(form, "states")) {
+    check_totals_never_fall(rows, start, waves, layer, shape, call)
+  }
+  invisible(list(start = start, rows = rows, waves = waves))
+}
+
+# The level of every dyad before the first wave, folded from the layer's
+# `time = NA` rows exactly as the walk folds them (materialize_network_state():
+# summed under increment, last row winning under replace), so this function
+# and the estimator cannot disagree on the starting state. Repeated history
+# rows stay legal. Returns the non-zero levels as global `from`, `to`, `value`;
+# an undirected one-mode layer is read on its upper triangle, the canonical key.
+starting_levels <- function(x, layer, shape) {
+  ties <- as.data.frame(x$ties)
+  history <- ties[ties$layer == layer & is.na(ties$time), , drop = FALSE]
+  if (nrow(history) == 0L) {
+    return(data.frame(from = integer(), to = integer(), value = numeric()))
+  }
+  local <- remap_layer_refs(
+    shape$mode_map,
+    layer,
+    history$from,
+    history$to,
+    x$nodes
+  )
+  weight <- if ("weight" %in% names(history)) {
+    history$weight
+  } else {
+    rep(1, nrow(history))
+  }
+  stream <- data.frame(
+    time = NA_real_,
+    from = local$from,
+    to = local$to,
+    value = as.numeric(weight),
+    update = shape$update %||% "replace",
+    stringsAsFactors = FALSE
+  )
+  state <- materialize_network_state(
+    stream,
+    n1 = shape$mode$n1,
+    n2 = shape$mode$n2,
+    directed = shape$directed
+  )
+  cells <- which(state != 0, arr.ind = TRUE)
+  if (shape$one_mode && !shape$directed) {
+    cells <- cells[cells[, 1L] <= cells[, 2L], , drop = FALSE]
+  }
+  out <- data.frame(
+    from = shape$mode$side1[cells[, 1L]],
+    to = shape$mode$side2[cells[, 2L]],
+    value = state[cells]
+  )
+  out <- out[order(out$from, out$to), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+# The starting state must suit the style: without this, two increment history
+# rows (3, 7) = 1 fold to a level of 2, the diff to a wave-1 level of 1 writes
+# -1, and the flavor map would label a 2 -> 1 move a dissolution.
+check_starting_levels <- function(start, layer, style, shape, call) {
+  bad <- switch(
+    style,
+    mutually_exclusive = start$value != 1,
+    count = !is_whole_count(start$value),
+    rep(FALSE, nrow(start))
+  )
+  if (!any(bad)) {
+    return(invisible(TRUE))
+  }
+  i <- which(bad)[1L]
+  dyad <- dyad_label(shape, start$from[i], start$to[i])
+  cli::cli_abort(
+    c(
+      "The state of layer {.val {layer}} before its first wave does not suit \\
+       its style {.val {style}}.",
+      "x" = "The {.code time = NA} rows fold dyad {.val {dyad}} to a level \\
+             of {.val {start$value[i]}}.",
+      "i" = if (identical(style, "count")) {
+        "A count level is a whole non-negative number."
+      } else {
+        "A binary tie is present (1) or absent (0)."
+      }
+    ),
+    call = call
+  )
+}
+
+# The style's checks on the cleaned wave rows, from which zeros are already
+# dropped: a binary level is 1, a count a whole non-negative number. A "none"
+# layer takes any value (NA is already refused by clean_wave_rows()).
+check_wave_values <- function(rows, layer, style, shape, call) {
+  bad <- switch(
+    style,
+    mutually_exclusive = rows$value != 1,
+    count = !is_whole_count(rows$value),
+    rep(FALSE, nrow(rows))
+  )
+  if (!any(bad)) {
+    return(invisible(TRUE))
+  }
+  i <- which(bad)[1L]
+  dyad <- dyad_label(shape, rows$from[i], rows$to[i])
+  wave <- format(rows$time[i])
+  cli::cli_abort(
+    c(
+      "Layer {.val {layer}} reports a value its style {.val {style}} cannot \\
+       hold.",
+      "x" = "Dyad {.val {dyad}} at wave {.val {wave}} is \\
+             {.val {rows$value[i]}}.",
+      "i" = if (identical(style, "count")) {
+        "A count is a whole non-negative number."
+      } else {
+        "A binary tie is present (1) or absent (0); declare the style \\
+         {.val count} or {.val none} for a valued layer."
+      }
+    ),
+    call = call
+  )
+}
+
+# On a count given as totals, a dyad's total never falls from one wave to the
+# next. A dyad not reported at a wave has a total of 0 there. The starting state
+# acts as a wave 0 for this check only: it is not a wave of the grid and writes
+# nothing. Each dyad's waves are read in order once; the earliest fall is
+# reported.
+check_totals_never_fall <- function(rows, start, waves, layer, shape, call) {
+  wave_axis <- coerce_time(waves)
+  levels <- rbind(
+    data.frame(
+      from = start$from,
+      to = start$to,
+      k = rep(0L, nrow(start)),
+      value = start$value
+    ),
+    data.frame(
+      from = rows$from,
+      to = rows$to,
+      k = match(coerce_time(rows$time), wave_axis),
+      value = rows$value
+    )
+  )
+  n <- nrow(levels)
+  if (n == 0L) {
+    return(invisible(TRUE))
+  }
+  levels <- levels[order(levels$from, levels$to, levels$k), , drop = FALSE]
+  same <- c(
+    FALSE,
+    levels$from[-1L] == levels$from[-n] & levels$to[-1L] == levels$to[-n]
+  )
+  prev_k <- c(NA_integer_, levels$k[-n])
+  prev_value <- c(NA_real_, levels$value[-n])
+  last <- c(!same[-1L], TRUE)
+
+  # Three ways to fall: a reported total below the previous wave's; a wave
+  # skipped after a positive total (unreported, so 0); a positive total
+  # followed by no report at a later wave.
+  dropped <- same & levels$k == prev_k + 1L & levels$value < prev_value
+  skipped <- same & levels$k > prev_k + 1L
+  ended <- last & levels$k < length(waves)
+  falls <- data.frame(
+    k = c(levels$k[dropped], prev_k[skipped] + 1L, levels$k[ended] + 1L),
+    from = c(levels$from[dropped], levels$from[skipped], levels$from[ended]),
+    to = c(levels$to[dropped], levels$to[skipped], levels$to[ended]),
+    before = c(prev_value[dropped], prev_value[skipped], levels$value[ended]),
+    after = c(
+      levels$value[dropped],
+      rep(0, sum(skipped)),
+      rep(0, sum(ended))
+    )
+  )
+  if (nrow(falls) == 0L) {
+    return(invisible(TRUE))
+  }
+  first <- falls[order(falls$k, falls$from, falls$to)[1L], ]
+  dyad <- dyad_label(shape, first$from, first$to)
+  wave <- format(waves[first$k])
+  cli::cli_abort(
+    c(
+      "A count total cannot fall.",
+      "x" = "Layer {.val {layer}}: dyad {.val {dyad}} falls from \\
+             {.val {first$before}} to {.val {first$after}} at wave \\
+             {.val {wave}}.",
+      "i" = if (first$k == 1L) {
+        "The total before the first wave is folded from the \\
+         {.code time = NA} rows."
+      },
+      "i" = "A dyad missing from a wave has a total of 0 there. If the \\
+             values are amounts since the previous wave, declare \\
+             {.code form = \"per_wave\"}."
+    ),
+    call = call
+  )
+}
+
+# A change-list is checked in its own update semantics, reading the layer's
+# timed rows once, in time order within each dyad, from the starting state.
+#
+# "mutually_exclusive": every value is in the update encoding add_flavor()
+# requires, and no event contradicts the style (a creation where the tie is
+# present, a dissolution where it is absent). add_flavor() only warns on this;
+# here the output is meant to be estimator-ready, and the estimator would fail
+# later on the same event ("observed dyad is excluded").
+# "count": under increment every value is a whole number >= 0; under replace
+# every value is a whole number and no dyad's level falls.
+check_change_list <- function(x, layer, style, start, shape, call) {
+  if (identical(style, "none")) {
+    return(invisible(TRUE))
+  }
+  ties <- as.data.frame(x$ties)
+  rows <- ties[ties$layer == layer & !is.na(ties$time), , drop = FALSE]
+  if (nrow(rows) == 0L) {
+    return(invisible(TRUE))
+  }
+  from <- to_global_id(rows$from, x$nodes)
+  to <- to_global_id(rows$to, x$nodes)
+  if (shape$one_mode && !shape$directed) {
+    lo <- pmin(from, to)
+    to <- pmax(from, to)
+    from <- lo
+  }
+  value <- if ("weight" %in% names(rows)) rows$weight else rep(1, nrow(rows))
+  value <- as.numeric(value)
+  time <- rows$time
+  is_replace <- identical(shape$update, "replace")
+  # `problem` and `hint` arrive formatted (cli::format_inline()), so the
+  # values they name are interpolated where they are known.
+  report <- function(i, problem, hint) {
+    dyad <- dyad_label(shape, from[i], to[i])
+    wave <- format(time[i])
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} is a change-list that does not suit its style \\
+         {.val {style}}.",
+        "x" = "Dyad {.val {dyad}} at wave {.val {wave}}: {problem}",
+        "i" = "{hint}"
+      ),
+      call = call
+    )
+  }
+  earliest <- function(candidates) {
+    candidates[order(coerce_time(time[candidates]))[1L]]
+  }
+
+  if (identical(style, "mutually_exclusive")) {
+    encoding <- flavor_update_values(shape$update)
+    bad <- which(!value %in% encoding)
+    if (length(bad) > 0L) {
+      i <- earliest(bad)
+      report(
+        i,
+        cli::format_inline(
+          "the value {.val {value[i]}} is not an update of a binary tie."
+        ),
+        cli::format_inline(
+          "Under {.val {shape$update}} a binary change is {.val {encoding}}."
+        )
+      )
+    }
+  } else {
+    whole <- !is.na(value) & is.finite(value) & value == round(value)
+    bad <- which(!whole | (!is_replace & value < 0))
+    if (length(bad) > 0L) {
+      i <- earliest(bad)
+      report(
+        i,
+        cli::format_inline(
+          "the value {.val {value[i]}} is not a whole number",
+          if (is_replace) "." else " of at least 0."
+        ),
+        "A count rises by whole events and never falls."
+      )
+    }
+  }
+
+  # The level before each row, dyad by dyad in time order: the starting level
+  # for a dyad's first row, then the level the previous row left.
+  ord <- order(from, to, coerce_time(time), seq_along(time))
+  n <- length(ord)
+  f <- from[ord]
+  t <- to[ord]
+  v <- value[ord]
+  first_of_dyad <- c(TRUE, f[-1L] != f[-n] | t[-1L] != t[-n])
+  start_level <- start$value[match(paste(f, t), paste(start$from, start$to))]
+  start_level[is.na(start_level)] <- 0
+  after <- if (is_replace) {
+    v
+  } else {
+    start_level + stats::ave(v, cumsum(first_of_dyad), FUN = cumsum)
+  }
+  before <- ifelse(first_of_dyad, start_level, c(NA_real_, after[-n]))
+
+  if (identical(style, "mutually_exclusive")) {
+    creates <- v == max(encoding)
+    bad <- which((creates & before != 0) | (!creates & before == 0))
+  } else {
+    bad <- which(is_replace & v < before)
+  }
+  if (length(bad) == 0L) {
+    return(invisible(TRUE))
+  }
+  j <- bad[order(coerce_time(time[ord][bad]))[1L]]
+  if (!identical(style, "mutually_exclusive")) {
+    report(
+      ord[j],
+      cli::format_inline(
+        "the level falls from {.val {before[j]}} to {.val {v[j]}}."
+      ),
+      cli::format_inline(
+        "A count level never falls; the level before the first row is ",
+        "folded from the {.code time = NA} rows."
+      )
+    )
+  }
+  report(
+    ord[j],
+    if (creates[j]) {
+      "a creation where the tie is already present."
+    } else {
+      "a dissolution where the tie is absent."
+    },
+    cli::format_inline(
+      "Each event of a {.val mutually_exclusive} layer changes the tie's ",
+      "state; declare {.code form = \"states\"} if the rows are the ties ",
+      "reported at each wave."
+    )
+  )
 }
