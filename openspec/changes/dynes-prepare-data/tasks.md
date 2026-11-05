@@ -131,7 +131,7 @@ fragment.
       dyad per wave, never one row per unit; a dyad without a row at a wave
       writes nothing there (same spec requirement).
 - [x] 2.2(b) Implement the cumulative sum (design D10, D16), on dyad keys.
-- [ ] 2.3(a) Test the round-trip invariant: for every wave, the state
+- [x] 2.3(a) Test the round-trip invariant: for every wave, the state
       materialized from the returned rows equals the survey's level, on a
       binary state fixture with three waves and on one calls fixture given as
       totals and as amounts, each under `increment` and `replace` (all four

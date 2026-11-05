@@ -879,3 +879,63 @@ test_that("a dyad without a row at a per_wave wave writes nothing there", {
   expect_equal(nrow(rows), 2L)
   expect_equal(c(rows$from[rows$time == 20], rows$to[rows$time == 20]), c(1, 2))
 })
+
+# The survey's level at each wave as an 8 x 8 matrix, every dyad not reported
+# being 0, against the state the walk materializes from the returned rows.
+survey_level <- function(rows) {
+  level <- matrix(0, 8L, 8L)
+  level[cbind(rows$from, rows$to)] <- rows$weight
+  level
+}
+
+expect_round_trip <- function(out, levels, waves) {
+  for (k in seq_along(waves)) {
+    state <- network_state_at(out, "survey", time = waves[k] + 1)
+    expect_equal(unname(state), levels[[k]], info = paste("wave", waves[k]))
+  }
+}
+
+test_that("a binary state panel round-trips at every wave", {
+  history <- wave_rows(1, 2, NA)
+  waves <- list(
+    wave_rows(c(1, 3, 4), c(2, 7, 8), 10),
+    wave_rows(c(1, 5, 3), c(2, 6, 7), 20),
+    wave_rows(c(5, 4, 2), c(6, 8, 1), 30)
+  )
+  levels <- lapply(waves, survey_level)
+  for (update in c("increment", "replace")) {
+    x <- make_wave_fixture(
+      do.call(rbind, c(list(history), waves)),
+      update = update
+    )
+    out <- prepare_quietly(x, layers = c(survey = "none"))
+    expect_round_trip(out, levels, c(10, 20, 30))
+  }
+})
+
+test_that("calls given as totals and as amounts round-trip to the totals", {
+  totals <- list(
+    wave_rows(c(3, 4), c(7, 8), 10, c(2, 3)),
+    wave_rows(c(3, 4, 1), c(7, 8, 2), 20, c(5, 3, 1)),
+    wave_rows(c(3, 4, 1), c(7, 8, 2), 30, c(5, 3, 4))
+  )
+  amounts <- list(
+    wave_rows(c(3, 4), c(7, 8), 10, c(2, 3)),
+    wave_rows(c(3, 1), c(7, 2), 20, c(3, 1)),
+    wave_rows(1, 2, 30, 3)
+  )
+  levels <- lapply(totals, survey_level)
+  for (update in c("increment", "replace")) {
+    as_totals <- prepare_quietly(
+      make_wave_fixture(do.call(rbind, totals), update = update),
+      layers = c(survey = "count")
+    )
+    as_amounts <- prepare_quietly(
+      make_wave_fixture(do.call(rbind, amounts), update = update),
+      layers = c(survey = "count"),
+      form = c(survey = "per_wave")
+    )
+    expect_round_trip(as_totals, levels, c(10, 20, 30))
+    expect_round_trip(as_amounts, levels, c(10, 20, 30))
+  }
+})
