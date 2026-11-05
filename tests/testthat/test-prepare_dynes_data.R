@@ -1565,3 +1565,101 @@ test_that("social_evolution prepared and fitted scores the 70 changes only", {
   intercept <- coef(fit)[["friendship › creation › rate: Intercept"]]
   expect_equal(intercept, log(70 / (51 * span)), tolerance = 1e-6)
 })
+
+# The augmentation recipe estimate_dynes() compiles at entry, captured as it is
+# built: the run stops there, before any draw.
+entry_recipe <- function(spec, control_prep = set_preprocessing()) {
+  real_recipe <- compile_augmentation_recipe
+  seen <- new.env(parent = emptyenv())
+  local_mocked_bindings(
+    compile_augmentation_recipe = function(spec, wave_times, ...) {
+      seen$recipe <- real_recipe(spec, wave_times, ...)
+      rlang::abort("Recipe captured.", class = "recipe_captured")
+    }
+  )
+  expect_error(
+    suppressWarnings(suppressMessages(estimate_dynes(
+      spec,
+      set_algorithm_em(
+        n_sequences = 2L,
+        seed = 1L,
+        augmenter = set_augmenter_options(routine = "random")
+      ),
+      control_prep
+    ))),
+    class = "recipe_captured"
+  )
+  seen$recipe
+}
+
+# A calls panel given as the amounts since the previous survey (waves 10, 20,
+# 30) beside an observed emails stream. (1, 2) gets 2, 3, 1 calls, (2, 3) 1 at
+# wave 20 and (3, 1) 4 at wave 30.
+make_amounts_panel <- function(update) {
+  list(
+    info = list(
+      name = "toy",
+      focal = "emails",
+      update = c(calls = update, emails = "increment"),
+      directed = c(calls = TRUE, emails = TRUE),
+      observation = c(calls = "panel", emails = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:4),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(
+      data.frame(
+        from = c(1L, 1L, 2L, 1L, 3L),
+        to = c(2L, 2L, 3L, 2L, 1L),
+        time = c(10, 20, 20, 30, 30),
+        weight = c(2, 3, 1, 1, 4),
+        layer = "calls"
+      ),
+      data.frame(
+        from = c(1L, 3L, 2L),
+        to = c(3L, 4L, 1L),
+        time = c(12, 22, 27),
+        weight = 1,
+        layer = "emails"
+      )
+    )
+  )
+}
+
+test_that("a count panel prepared from amounts is estimated as a count panel", {
+  skip_on_cran()
+  for (update in c("increment", "replace")) {
+    data <- prepare_quietly(
+      make_amounts_panel(update),
+      layers = c(calls = "count"),
+      form = c(calls = "per_wave")
+    )
+    spec <- make_joint_specification(
+      make_specification(
+        rate = ~1,
+        choice = ~inertia,
+        layer = "calls",
+        model = "DyNAM",
+        data = data
+      ),
+      make_specification(
+        rate = ~1,
+        choice = ~inertia,
+        layer = "emails",
+        model = "DyNAM",
+        data = data
+      ),
+      data = data
+    )
+
+    recipe <- entry_recipe(spec)
+
+    expect_identical(recipe$layers$calls$kind, "count")
+    # Under the default start the first survey is the entering state, so the
+    # intervals end at waves 20 and 30 and hold that wave's summed amounts.
+    expect_identical(recipe$wave_times, c(10, 20, 30))
+    expect_identical(tabulate(recipe$events$interval, 2L), c(3L + 1L, 1L + 4L))
+  }
+})
