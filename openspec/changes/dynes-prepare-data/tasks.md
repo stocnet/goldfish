@@ -198,11 +198,11 @@ estimator, the fix is recorded and made in `dynes-augmentation`, not here: no
 estimator change in this change (user decision 2026-11-04). No fit pipes into
 `add_flavor()`: the function flavors (design D5).
 
-- [ ] 3.1(a) Test the `social_evolution` panel prepared as
+- [x] 3.1(a) Test the `social_evolution` panel prepared as
       `"mutually_exclusive"` and fitted with one EM pass of `random` and the
       default start: the creation rate intercept is log(70 / (51 · T)) (spec
       "the scored creation count is the change count").
-- [ ] 3.1(b) Make it pass.
+- [x] 3.1(b) Make it pass.
 - [ ] 3.2(a) Test a calls panel prepared as `"count"` from amounts: the wave
       diff reads it as a count panel and each interval's event count equals
       that wave's summed amounts (spec "a prepared count panel is estimated as
