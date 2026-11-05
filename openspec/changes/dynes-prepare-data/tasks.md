@@ -188,7 +188,7 @@ fragment.
       reports what it wrote").
 - [x] 2.8(b) Implement the summary (design D17), data interpolated per
       r-lib:cli; no `quiet` argument.
-- [ ] 2.9 Close the group: full `NOT_CRAN=true` suite with baselines PASS,
+- [x] 2.9 Close the group: full `NOT_CRAN=true` suite with baselines PASS,
       `devtools::document()`, commit.
 
 ## 3. End to end
