@@ -53,7 +53,11 @@ flavor_roles <- c("creation", "dissolution")
 #' @param wave_times either one vector of times applied to every layer, or a
 #'   named list with a vector per layer.
 #'
-#' @return `x` with the named layers rewritten.
+#' @return `x` with the named layers rewritten. Their declared styles are
+#'   recorded in `info$dynes_prepared`, a character vector named by layer, and a
+#'   recorded layer cannot be prepared again. A layer whose flavor map is
+#'   already recorded (by [add_flavor()]) aborts: the function writes the map
+#'   itself, so pass such a layer in unflavored.
 #' @seealso [add_flavor()] for flavoring an event layer.
 #' @export
 prepare_dynes_data <- function(
@@ -83,7 +87,71 @@ prepare_dynes_data <- function(
       call = call
     )
   }
+
+  x$info$dynes_prepared <- c(
+    x$info$dynes_prepared,
+    stats::setNames(spec$style, spec$layer)
+  )
   x
+}
+
+# A layer recorded in info$dynes_prepared is already a change-list: diffing it
+# again turns every stable tie missing from a later wave into a dissolution,
+# and summing its amounts again double-counts. The record is a declared fact,
+# so this is the one misuse caught without a heuristic.
+check_not_prepared <- function(x, layer_names, call) {
+  again <- intersect(layer_names, names(x$info$dynes_prepared))
+  if (length(again) == 0L) {
+    return(invisible(TRUE))
+  }
+  cli::cli_abort(
+    c(
+      "Layer{?s} {.val {again}} {?is/are} already prepared.",
+      "x" = "{.fn prepare_dynes_data} records the layers it rewrote in \\
+             {.field info$dynes_prepared}.",
+      "i" = "Preparing a change-list again would read every stable tie \\
+             missing from a later wave as a dissolution."
+    ),
+    call = call
+  )
+}
+
+# prepare_dynes_data() writes the flavor map itself, so a layer whose map is
+# already recorded aborts rather than passing through. The check reads the
+# recorded map (info$values_equivalence), a declared fact, not the flavor
+# column. A flavored count layer most likely came from add_flavor() run on a
+# calls layer, so its error adds the count guidance.
+check_not_flavored <- function(x, layer_names, style, call) {
+  mapped <- names(Filter(
+    Negate(is.null),
+    x$info$values_equivalence %||% list()
+  ))
+  flavored <- intersect(layer_names, mapped)
+  if (length(flavored) == 0L) {
+    return(invisible(TRUE))
+  }
+  counts <- flavored[style[match(flavored, layer_names)] == "count"]
+  message <- c(
+    "Layer{?s} {.val {flavored}} {?is/are} already flavored.",
+    "x" = "{.fn prepare_dynes_data} writes the flavor map itself.",
+    "i" = "Pass the {cli::qty(flavored)}layer{?s} in unflavored: drop the \\
+           {.field info$values_equivalence} entr{?y/ies}."
+  )
+  if (length(counts) > 0L) {
+    message <- c(
+      message,
+      "i" = "A count layer needs no flavor: {.val {counts}} \\
+             record{?s/} repeated events of one process.",
+      "i" = "If a count layer counts two event types together, such as \\
+             signings and endings, split it into one {.val count} layer per \\
+             type."
+    )
+  }
+  cli::cli_abort(
+    message,
+    class = "goldfish_layer_already_flavored",
+    call = call
+  )
 }
 
 # Check the declaration and resolve it to one row per layer: the layer, its
@@ -148,6 +216,9 @@ resolve_prepare_layers <- function(x, layers, form, flavor_names, call) {
       call = call
     )
   }
+
+  check_not_prepared(x, layer_names, call)
+  check_not_flavored(x, layer_names, style, call)
 
   no_amount <- style == "mutually_exclusive" & form_by_layer == "per_wave"
   if (any(no_amount)) {

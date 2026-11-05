@@ -367,3 +367,45 @@
       i The total before the first wave is folded from the `time = NA` rows.
       i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
 
+# a prepared layer cannot be prepared again
+
+    Code
+      prepare_dynes_data(out, layers = c(calls = "count"), form = c(calls = "changes"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "calls" is already prepared.
+      x `prepare_dynes_data()` records the layers it rewrote in info$dynes_prepared.
+      i Preparing a change-list again would read every stable tie missing from a later wave as a dissolution.
+
+---
+
+    Code
+      prepare_dynes_data(x, layers = c(friendship = "mutually_exclusive"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "friendship" is already prepared.
+      x `prepare_dynes_data()` records the layers it rewrote in info$dynes_prepared.
+      i Preparing a change-list again would read every stable tie missing from a later wave as a dissolution.
+
+# a layer that is already flavored aborts, naming every such layer
+
+    Code
+      prepare_dynes_data(x, layers = c(friendship = "mutually_exclusive", advice = "none"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layers "friendship" and "advice" are already flavored.
+      x `prepare_dynes_data()` writes the flavor map itself.
+      i Pass the layers in unflavored: drop the info$values_equivalence entries.
+
+# a flavored count layer gets the count guidance
+
+    Code
+      prepare_dynes_data(x, layers = c(calls = "count"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "calls" is already flavored.
+      x `prepare_dynes_data()` writes the flavor map itself.
+      i Pass the layer in unflavored: drop the info$values_equivalence entry.
+      i A count layer needs no flavor: "calls" records repeated events of one process.
+      i If a count layer counts two event types together, such as signings and endings, split it into one "count" layer per type.
+

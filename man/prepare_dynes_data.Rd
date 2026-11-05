@@ -31,7 +31,11 @@ two flavors of a \code{"mutually_exclusive"} layer, for example
 named list with a vector per layer.}
 }
 \value{
-\code{x} with the named layers rewritten.
+\code{x} with the named layers rewritten. Their declared styles are
+recorded in \code{info$dynes_prepared}, a character vector named by layer, and a
+recorded layer cannot be prepared again. A layer whose flavor map is
+already recorded (by \code{\link[=add_flavor]{add_flavor()}}) aborts: the function writes the map
+itself, so pass such a layer in unflavored.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

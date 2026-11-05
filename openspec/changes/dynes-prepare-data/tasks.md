@@ -99,7 +99,7 @@ fragment.
       (snapshot), naming every such layer, and a flavored layer declared
       `"count"` gets the count guidance in that error (snapshot) (spec "A
       layer that is already flavored aborts").
-- [ ] 1.4(b) Implement the record `info$dynes_prepared` (design D6) and both
+- [x] 1.4(b) Implement the record `info$dynes_prepared` (design D6) and both
       aborts (design D15).
 - [ ] 1.5 Close the group: full `NOT_CRAN=true` suite with the frozen
       baselines PASS, `devtools::document()`, commit.
