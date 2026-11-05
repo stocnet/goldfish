@@ -837,3 +837,45 @@ test_that("social_evolution: 276 first-wave rows, 70 formed, 70 dissolved", {
   expect_s3_class(rows$time, "POSIXct")
   expect_equal(sum(out$ties$layer == "calls"), 364L)
 })
+
+test_that("amounts are kept under increment and summed under replace", {
+  rows <- wave_rows(c(3, 3), c(7, 7), c(10, 20), c(6, 3))
+  increment <- written_rows(prepare_quietly(
+    make_wave_fixture(rows, update = "increment"),
+    layers = c(survey = "count"),
+    form = c(survey = "per_wave")
+  ))
+  replace <- written_rows(prepare_quietly(
+    make_wave_fixture(rows, update = "replace"),
+    layers = c(survey = "count"),
+    form = c(survey = "per_wave")
+  ))
+  expect_equal(increment$time, c(10, 20))
+  expect_equal(increment$weight, c(6, 3))
+  expect_equal(replace$time, c(10, 20))
+  expect_equal(replace$weight, c(6, 9))
+})
+
+test_that("amounts are added to the level folded from the history rows", {
+  x <- make_wave_fixture(wave_rows(c(3, 3), c(7, 7), c(NA, 10), c(2, 6)))
+  rows <- written_rows(prepare_quietly(
+    x,
+    layers = c(survey = "none"),
+    form = c(survey = "per_wave")
+  ))
+  expect_equal(c(rows$time, rows$weight), c(10, 8))
+})
+
+test_that("a dyad without a row at a per_wave wave writes nothing there", {
+  x <- make_wave_fixture(
+    wave_rows(c(3, 1), c(7, 2), c(10, 20), c(6, 1)),
+    update = "replace"
+  )
+  rows <- written_rows(prepare_quietly(
+    x,
+    layers = c(survey = "count"),
+    form = c(survey = "per_wave")
+  ))
+  expect_equal(nrow(rows), 2L)
+  expect_equal(c(rows$from[rows$time == 20], rows$to[rows$time == 20]), c(1, 2))
+})

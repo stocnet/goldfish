@@ -126,7 +126,7 @@ fragment.
       `materialize_network_state()`, D13: canonical keys on undirected
       one-mode layers; `restore_time_class()` for the written times). No
       dense matrix per wave.
-- [ ] 2.2(a) Test the `"per_wave"` sum: amounts 6 then 3 are written as 6
+- [x] 2.2(a) Test the `"per_wave"` sum: amounts 6 then 3 are written as 6
       then 3 under `increment` and as 6 then 9 under `replace`, one row per
       dyad per wave, never one row per unit; a dyad without a row at a wave
       writes nothing there (same spec requirement).
