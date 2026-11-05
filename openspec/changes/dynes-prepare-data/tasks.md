@@ -137,7 +137,7 @@ fragment.
       totals and as amounts, each under `increment` and `replace` (all four
       materialize the same state) (spec "The prepared state at every wave
       equals the survey").
-- [ ] 2.3(b) Make it pass, or confirm that 2.1(b) and 2.2(b) already do.
+- [x] 2.3(b) Make it pass, or confirm that 2.1(b) and 2.2(b) already do.
 - [ ] 2.4(a) Test the flavoring: a `"mutually_exclusive"` `"states"` layer's
       rows, `flavor` column, `info$values_equivalence` and `info$flavor_style`
       equal those of the diff followed by `add_flavor()` under both update
