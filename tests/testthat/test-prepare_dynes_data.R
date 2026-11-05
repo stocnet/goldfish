@@ -1663,3 +1663,97 @@ test_that("a count panel prepared from amounts is estimated as a count panel", {
     expect_identical(tabulate(recipe$events$interval, 2L), c(3L + 1L, 1L + 4L))
   }
 })
+
+# A friendship panel surveyed at 10, 20, 30 and 40 over six actors, beside
+# observed calls, as reported states (`"states"`) or as the equivalent
+# change-list under `replace` (`"changes"`). The wave-3 survey is
+# {1 -> 2, 2 -> 1, 4 -> 5, 5 -> 6}; wave 4 drops 1 -> 2 and forms 3 -> 1 and
+# 6 -> 1.
+make_four_wave_panel <- function(form) {
+  friendship <- if (form == "states") {
+    data.frame(
+      from = c(1, 2, 3, 1, 3, 4, 1, 4, 5, 2, 4, 5, 2, 3, 6),
+      to = c(2, 3, 4, 2, 4, 5, 2, 5, 6, 1, 5, 6, 1, 1, 1),
+      time = rep(c(10, 20, 30, 40), c(3, 3, 4, 5)),
+      weight = 1
+    )
+  } else {
+    data.frame(
+      from = c(1, 2, 3, 2, 4, 3, 5, 2, 1, 3, 6),
+      to = c(2, 3, 4, 3, 5, 4, 6, 1, 2, 1, 1),
+      time = rep(c(10, 20, 30, 40), c(3, 2, 3, 3)),
+      weight = c(1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1)
+    )
+  }
+  friendship$layer <- "friendship"
+  calls <- data.frame(
+    from = c(1, 2, 3, 4, 5, 6, 1),
+    to = c(3, 4, 5, 6, 1, 2, 4),
+    time = c(12, 18, 25, 33, 36, 38, 39),
+    weight = 1,
+    layer = "calls"
+  )
+  list(
+    info = list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "replace", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = "panel", calls = "event")
+    ),
+    nodes = data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    ),
+    ties = rbind(friendship, calls)
+  )
+}
+
+survey_matrix <- function(from, to, n = 6L) {
+  state <- matrix(0, n, n)
+  state[cbind(from, to)] <- 1
+  state
+}
+
+test_that("a fit started at the third wave enters with that wave's survey", {
+  skip_on_cran()
+  start <- set_preprocessing(start_time = 30)
+  for (form in c("states", "changes")) {
+    data <- prepare_quietly(
+      make_four_wave_panel(form),
+      layers = c(friendship = "mutually_exclusive"),
+      form = c(friendship = form)
+    )
+    spec <- prepared_friendship_spec(data)
+
+    recipe <- entry_recipe(spec, start)
+
+    expect_identical(recipe$wave_times, c(30, 40))
+    expect_equal(
+      recipe$start_states[[1]]$friendship,
+      survey_matrix(c(1, 2, 4, 5), c(2, 1, 5, 6)),
+      ignore_attr = TRUE
+    )
+    # Only the wave-4 changes are augmented; the wave-2 and wave-3 changes
+    # were applied on the way to the entering state.
+    flips <- recipe$events
+    expect_identical(unique(flips$interval), 1L)
+    expect_equal(
+      flips[c("from", "to", "flavor")],
+      data.frame(
+        from = c(1L, 3L, 6L),
+        to = c(2L, 1L, 1L),
+        flavor = c("dissolution", "creation", "creation")
+      ),
+      ignore_attr = TRUE
+    )
+
+    # Scored, the earlier changes would add the wave-2 and wave-3 creations
+    # to the count and the earlier span to the exposure: the intercept counts
+    # the two wave-4 creations over six actors and ten time units only.
+    fit <- fit_one_pass(spec, start)
+    intercept <- coef(fit)[["friendship › creation › rate: Intercept"]]
+    expect_equal(intercept, log(2 / (6 * 10)), tolerance = 1e-6)
+  }
+})
