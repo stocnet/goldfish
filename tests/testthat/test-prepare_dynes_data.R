@@ -1074,3 +1074,219 @@ test_that("social_evolution as mutually exclusive: 70 formed, 70 ended", {
   expect_equal(sum(rows$flavor[later] == "formed"), 70L)
   expect_equal(sum(rows$flavor[later] == "ended"), 70L)
 })
+
+# A survey with no row at time 20: (1, 2) and (3, 7) at 10, (1, 2) and (4, 8)
+# at 30.
+gapped_survey_rows <- function() {
+  wave_rows(c(1, 3, 1, 4), c(2, 7, 2, 8), c(10, 10, 30, 30))
+}
+
+# Two panel layers, friendship and advice, from (from, to, time, weight, layer)
+# rows.
+make_two_layer_fixture <- function(rows) {
+  nodes <- data.frame(
+    label = c("A", "B", "C", "D", "E", "F", "G", "H"),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy",
+    focal = "friendship",
+    update = c(friendship = "replace", advice = "replace"),
+    directed = c(friendship = TRUE, advice = TRUE),
+    observation = c(friendship = "panel", advice = "panel")
+  )
+  list(info = info, nodes = nodes, ties = rows)
+}
+
+test_that("an empty declared states wave dissolves every tie", {
+  x <- make_wave_fixture(gapped_survey_rows())
+  for (wave_times in list(c(10, 20, 30), list(survey = c(10, 20, 30)))) {
+    rows <- written_rows(prepare_quietly(
+      x,
+      layers = c(survey = "none"),
+      wave_times = wave_times
+    ))
+    at_20 <- rows[rows$time == 20, ]
+    expect_equal(c(at_20$from, at_20$to, at_20$weight), c(1, 3, 2, 7, 0, 0))
+    expect_equal(sum(rows$time == 30), 2L)
+  }
+})
+
+test_that("an empty declared per_wave wave writes nothing", {
+  x <- make_wave_fixture(gapped_survey_rows())
+  out <- prepare_quietly(
+    x,
+    layers = c(survey = "count"),
+    form = c(survey = "per_wave"),
+    wave_times = c(10, 20, 30)
+  )
+  expect_equal(sum(written_rows(out)$time == 20), 0L)
+  expect_equal(
+    network_state_at(out, "survey", time = 21),
+    network_state_at(out, "survey", time = 11)
+  )
+})
+
+test_that("an inferred grid assumes no empty wave", {
+  x <- make_wave_fixture(gapped_survey_rows())
+  rows <- written_rows(prepare_quietly(x, layers = c(survey = "none")))
+  expect_equal(unique(rows$time), c(10, 30))
+})
+
+test_that("layers on different schedules get their own grids", {
+  rows <- rbind(
+    cbind(wave_rows(c(1, 1), c(2, 2), c(10, 20)), layer = "friendship"),
+    cbind(wave_rows(c(3, 4), c(7, 8), c(10, 30)), layer = "advice")
+  )
+  out <- prepare_quietly(
+    make_two_layer_fixture(rows),
+    layers = c(friendship = "none", advice = "none"),
+    wave_times = list(friendship = c(10, 20), advice = c(10, 30))
+  )
+  advice <- written_rows(out, "advice")
+  expect_equal(sum(advice$time == 20), 0L)
+  expect_equal(advice$time, c(10, 30, 30))
+  expect_equal(written_rows(out, "friendship")$time, 10)
+})
+
+test_that("a row off the grid aborts, naming the layer and the time", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(1, 3, 4), c(2, 7, 8), c(10, 15, 20)))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 20))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(survey = "count"),
+      form = c(survey = "per_wave"),
+      wave_times = list(survey = c(10, 20))
+    )
+  )
+})
+
+test_that("a Date grid matches POSIXct rows at the same instants", {
+  day <- as.Date(c("2008-09-09", "2008-10-19", "2008-11-29"))
+  at <- as.POSIXct(format(day), tz = "GMT")
+  x <- make_wave_fixture(gapped_survey_rows())
+  x$ties$time <- at[match(x$ties$time, c(10, 20, 30))]
+  rows <- written_rows(prepare_quietly(
+    x,
+    layers = c(survey = "none"),
+    wave_times = day
+  ))
+  expect_s3_class(rows$time, "POSIXct")
+  expect_equal(rows$time[rows$weight == 0], c(at[2], at[2]))
+  expect_equal(sum(rows$time == at[3]), 2L)
+})
+
+test_that("a malformed wave_times aborts before any row is rewritten", {
+  local_cli_context()
+  rows <- rbind(
+    cbind(wave_rows(c(1, 1), c(2, 2), c(10, 20)), layer = "friendship"),
+    cbind(wave_rows(c(3, 4), c(7, 8), c(10, 30)), layer = "advice")
+  )
+  x <- make_two_layer_fixture(rows)
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(friendship = "none"),
+      wave_times = list(advice = c(10, 30))
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(friendship = "none", advice = "none"),
+      form = c(advice = "changes"),
+      wave_times = list(advice = c(10, 30))
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(friendship = "none"),
+      wave_times = list(friendship = c(10, 20), c(10, 30))
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(friendship = "none"), wave_times = c(10, NA))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(friendship = "none"),
+      wave_times = list(friendship = c(10, Inf))
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(friendship = "none", advice = "none"),
+      form = c(friendship = "changes", advice = "changes"),
+      wave_times = c(10, 20)
+    )
+  )
+})
+
+test_that("a states or per_wave layer with no wave aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(1, 3), c(2, 7), c(NA, NA)))
+  expect_snapshot(error = TRUE, prepare_dynes_data(x, c(survey = "none")))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "count"), form = c(survey = "per_wave"))
+  )
+})
+
+test_that("an unsorted grid gives the sorted result silently", {
+  x <- make_wave_fixture(gapped_survey_rows())
+  sorted <- prepare_quietly(
+    x,
+    layers = c(survey = "none"),
+    wave_times = c(10, 20, 30)
+  )
+  expect_no_warning(
+    unsorted <- prepare_quietly(
+      x,
+      layers = c(survey = "none"),
+      wave_times = c(20, 10, 30)
+    )
+  )
+  expect_identical(unsorted, sorted)
+})
+
+test_that("a duplicated grid time warns once and is kept once", {
+  local_cli_context()
+  x <- make_wave_fixture(gapped_survey_rows())
+  once <- prepare_quietly(
+    x,
+    layers = c(survey = "none"),
+    wave_times = c(10, 20, 30)
+  )
+  expect_snapshot(
+    twice <- prepare_quietly(
+      x,
+      layers = c(survey = "none"),
+      wave_times = list(survey = c(10, 20, 20, 30))
+    )
+  )
+  expect_identical(twice, once)
+  expect_warning(
+    prepare_quietly(
+      x,
+      layers = c(survey = "none"),
+      wave_times = c(10, 20, 20, 30)
+    ),
+    class = "goldfish_duplicate_wave_time"
+  )
+})
