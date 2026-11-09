@@ -234,3 +234,76 @@ estimator change in this change (user decision 2026-11-04). No fit pipes into
       flavored before preparation aborts.
 - [x] 3.6 Write the `NEWS.d/` fragment (protocol in `NEWS.d/README.md`).
       Full `NOT_CRAN=true` suite with baselines PASS. Commit.
+
+## 4. Conformance follow-up
+
+From the S8 conformance report (`.plan/develop/dynes-prepare-data-conformance.md`,
+HEAD `823757b6`, NOT CONFORMANT). Gaps 1 and 2 block. Gaps 3–6 are should-fix,
+amended here before archive, and 7–9 are archive-time wording. The code under
+gaps 1 and 2 is correct at HEAD. What is missing is a test that fails when that
+code is removed, so the red step of each detector task is an ablation of the
+named line, run in a detached worktree, not a RED commit. The root of gap 3 (the
+walk mirrors a two-mode layer declared `directed = FALSE`) is owned by the new
+change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
+
+- [ ] 4.1 Detect the skipped-wave fall (gap 1). On a `"count"` `"states"`
+      layer, test a dyad at 2 at wave 1, unreported at wave 2 and at 5 at
+      wave 3: it aborts as a total falling from 2 to 0, naming wave 2
+      (snapshot). Also test that a declared empty wave on a `"count"`
+      `"states"` layer aborts the same way (gap 6b). Red: replacing
+      `skipped <- same & levels$k > prev_k + 1L` in
+      `check_totals_never_fall()` with `rep(FALSE, n)` makes both fail. No
+      code change.
+- [ ] 4.2 Detect the history fold under `increment` in `row_levels()`
+      (gap 2). Test that a `"mutually_exclusive"` `"changes"` layer under
+      `increment`, with a history tie (3, 7) = 1 and rows −1 then +1, passes
+      unchanged and gains the map. Snapshot the summary of a `"count"`
+      `increment` layer with history rows. Red: dropping `start_level +` from
+      the increment branch of `row_levels()` makes both fail. No code change.
+- [ ] 4.3 Test two-mode layers faithfully (gap 3, test part). Rebuild
+      `T:294`'s fixture so that receivers are receiver-side nodes and a
+      sender's global id is larger than its receiver's (receiver mode listed
+      first). Assert end to end, through `prepare_dynes_data()`, that a
+      two-mode layer declared undirected, without history rows, keeps every
+      sender and receiver and round-trips at every wave. The case with history
+      rows waits for `two-mode-undirected-fold`.
+- [ ] 4.4 Make the flavor record one body (gap 4). Extract the stamping and
+      `info` record that `add_flavor()` (`R/add_flavor.R:302-318`) and
+      `flavor_prepared_layer()` both write into one internal helper, called by
+      both. This is behavior-preserving: the frozen baselines and `T:953` stay
+      green. Reword the proposal's "`add_flavor()` itself is unchanged" to say
+      its behavior is unchanged. If the extraction turns out not to be
+      behavior-preserving, reword D5 and the proposal instead ("the same rule,
+      guarded by an equality test") and record why.
+- [ ] 4.5 Make `Date` grids explicit (gap 5). Document in `@param
+      wave_times` that a `Date` is read as midnight UTC. Format both sides of
+      the off-grid abort with time and zone, so that a mismatch at local
+      midnight is visible. Test with a non-UTC `POSIXct` column (snapshot).
+- [ ] 4.6 Move the journal-only behavior into the tracked artifacts (gap 6).
+      (a) Add the abort on a `wave_times` list naming a layer twice to D8 and
+      to the spec's grid-abort list and its malformed-grid scenario, and test
+      it (snapshot). (b) State in D8/D10 and in `@param wave_times` that a
+      declared empty wave on a `"count"` `"states"` layer aborts as a fall to
+      0, since a total that drops to nothing is not a count. 4.1 pins it.
+- [ ] 4.7 Wording and cosmetics (gaps 7–9). In the spec, make the `flavor`
+      column conditional ("created when a `"mutually_exclusive"` layer is
+      prepared"). Add to the design's "Storage and per-event cost" section the
+      one dense `n1 x n2` starting fold per layer with history rows (about
+      93 MB at 3000 actors, setup only, D9). Change `clean_wave_rows()`'s bare
+      `\`-newline string continuations to the file's `\\` form.
+- [ ] 4.8 Vignette: when the call is needed (user request 2026-11-09). Add a
+      `dynes-panel` section stating when `prepare_dynes_data()` is needed
+      (binary, count and valued panels given as survey snapshots), when it is
+      not (event layers; a layer already written as a change-list, where
+      `add_flavor()` alone suffices and `form = "changes"` only checks,
+      records and flavors), and why `add_flavor()` is not enough (it labels
+      rows and never rewrites them: on the raw `social_evolution` surveys it
+      gives 552 creations, no dissolution, and warns on the 206 stable ties
+      re-reported at wave 2). Prose only, so the precompiled `.Rmd` takes
+      the same text and `dynes-panel.R` is unchanged.
+- [ ] 4.9 Close the group: `openspec validate --strict` and the placement
+      pre-flight, `devtools::document()`, full `NOT_CRAN=true` suite with the
+      baselines PASS, commit. Then flip `proposal.md` to `status: landed
+      (feature/dynes, awaiting fold)` and request a scoped re-check by a fresh
+      agent. The re-check must see ablations A07b and A21 red and gaps 3–9
+      closed.
