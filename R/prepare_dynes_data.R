@@ -237,7 +237,7 @@ prepared_layer_totals <- function(x, layer, start, first_wave) {
   shape <- prepare_layer_shape(x, layer)
   from <- to_global_id(rows$from, x$nodes)
   to <- to_global_id(rows$to, x$nodes)
-  if (shape$one_mode && !shape$directed) {
+  if (shape$symmetric) {
     lo <- pmin(from, to)
     to <- pmax(from, to)
     from <- lo
@@ -649,7 +649,7 @@ clean_wave_rows <- function(x, layer, form, call) {
 
   shape <- prepare_layer_shape(x, layer)
   one_mode <- shape$one_mode
-  directed <- shape$directed
+  symmetric <- shape$symmetric
 
   if (one_mode) {
     self <- which(out$from == out$to)
@@ -667,7 +667,7 @@ clean_wave_rows <- function(x, layer, form, call) {
     }
   }
 
-  swapped <- !directed & one_mode & out$from > out$to
+  swapped <- symmetric & out$from > out$to
   lo <- ifelse(swapped, out$to, out$from)
   hi <- ifelse(swapped, out$from, out$to)
   key <- paste(coerce_time(out$time), lo, hi)
@@ -675,7 +675,7 @@ clean_wave_rows <- function(x, layer, form, call) {
   if (any(repeated)) {
     groups <- split(which(repeated), key[repeated])
     for (g in groups) {
-      reversed <- length(g) == 2L && !directed && one_mode && any(swapped[g])
+      reversed <- length(g) == 2L && symmetric && any(swapped[g])
       same_value <- length(unique(out$value[g])) == 1L
       if (!(reversed && same_value && !all(swapped[g]))) {
         at <- describe(g[1L])
@@ -714,8 +714,10 @@ clean_wave_rows <- function(x, layer, form, call) {
 }
 
 # What the checks need to know about one layer, resolved once: its mode map
-# entry, whether it is one-mode and directed (an undeclared `directed` reads as
-# directed), its update semantics, and the node labels used in messages.
+# entry, whether it is one-mode and whether it is symmetric (an undeclared
+# `directed` reads as directed, so not symmetric; a two-mode layer is never
+# symmetric, since its matrix has no symmetric counterpart), its update
+# semantics, and the node labels used in messages.
 prepare_layer_shape <- function(x, layer) {
   info <- x$info %||% list()
   mode_map <- build_mode_map(info, x$nodes, layer)
@@ -723,7 +725,7 @@ prepare_layer_shape <- function(x, layer) {
     mode_map = mode_map,
     mode = mode_map$layers[[layer]],
     one_mode = !isTRUE(mode_map$layers[[layer]]$is_two_mode),
-    directed = !isFALSE(unname(info$directed[layer])),
+    symmetric = mode_map$layers[[layer]]$symmetric,
     update = unname(info$update[layer]),
     labels = x$nodes$label %||% as.character(seq_len(nrow(x$nodes)))
   )
@@ -970,10 +972,10 @@ starting_levels <- function(x, layer, shape) {
     stream,
     n1 = shape$mode$n1,
     n2 = shape$mode$n2,
-    directed = shape$directed
+    directed = !shape$symmetric
   )
   cells <- which(state != 0, arr.ind = TRUE)
-  if (shape$one_mode && !shape$directed) {
+  if (shape$symmetric) {
     cells <- cells[cells[, 1L] <= cells[, 2L], , drop = FALSE]
   }
   out <- data.frame(
@@ -1154,7 +1156,7 @@ check_change_list <- function(x, layer, style, start, shape, call) {
   }
   from <- to_global_id(rows$from, x$nodes)
   to <- to_global_id(rows$to, x$nodes)
-  if (shape$one_mode && !shape$directed) {
+  if (shape$symmetric) {
     lo <- pmin(from, to)
     to <- pmax(from, to)
     from <- lo

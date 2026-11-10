@@ -70,7 +70,7 @@ history row C->H and a wave-10 report of C->H; each built with
       `symmetric` from the layer entry; `panel_wave_snapshot()`, the dyad mask
       and the flip enumeration (`R/wave_diff.R:71`, `:390`, `:418`) read it
       instead of `directed` / `one_mode && !directed`. GREEN.
-- [ ] 2.3(a) Test `prepare_dynes_data()` (spec scenarios "A non-square
+- [x] 2.3(a) Test `prepare_dynes_data()` (spec scenarios "A non-square
       two-mode layer declared undirected does not crash" and "The two-mode
       result does not depend on the declaration"): on both two-mode fixtures
       the `FALSE` and `TRUE` objects return identical rows and identical
@@ -78,7 +78,7 @@ history row C->H and a wave-10 report of C->H; each built with
       fixture and no error on the non-square one; the one-mode fixture's
       canonical-key ordering and double-report warning are unchanged.
       Reproduces probe P2. Confirm RED.
-- [ ] 2.3(b) `prepare_layer_shape()` (`R/prepare_dynes_data.R:719`) carries
+- [x] 2.3(b) `prepare_layer_shape()` (`R/prepare_dynes_data.R:719`) carries
       `symmetric` from the layer entry instead of computing `directed` from
       `info$directed`; the starting fold (`:973`), the canonical-key and
       double-report checks (`:240`, `:670`, `:678`, `:976`, `:1157`) read it.
