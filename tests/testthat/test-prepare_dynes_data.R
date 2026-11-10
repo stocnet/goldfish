@@ -1913,3 +1913,71 @@ test_that("history rows of a count panel are never augmented", {
     ignore_attr = TRUE
   )
 })
+
+test_that("prepare_dynes_data never mirrors an undirected two-mode layer", {
+  local_cli_context()
+  layers <- c(survey = "mutually_exclusive")
+  check_shape <- function(shape) {
+    x_false <- two_mode_survey_fixture(shape, directed = FALSE)
+    x_true <- two_mode_survey_fixture(shape, directed = TRUE)
+
+    expect_no_error(got_false <- prepare_collecting_warnings(x_false, layers))
+    got_true <- prepare_collecting_warnings(x_true, layers)
+
+    expect_identical(
+      as.data.frame(got_false$out$ties),
+      as.data.frame(got_true$out$ties)
+    )
+    expect_false("dissolution" %in% got_false$out$ties$flavor)
+    expect_identical(
+      starting_levels(
+        x_false,
+        "survey",
+        prepare_layer_shape(x_false, "survey")
+      ),
+      starting_levels(x_true, "survey", prepare_layer_shape(x_true, "survey"))
+    )
+    expect_identical(
+      lapply(got_false$warnings, class),
+      lapply(got_true$warnings, class)
+    )
+    expect_identical(
+      lapply(got_false$warnings, conditionMessage),
+      lapply(got_true$warnings, conditionMessage)
+    )
+  }
+
+  check_shape("square")
+  check_shape("non_square")
+})
+
+test_that("prepare_dynes_data keys a one-mode undirected dyad as before", {
+  local_cli_context()
+  # History A-B. Wave 10 reports A-B in both orders; wave 20 reports A-B in
+  # both orders again and C->B, the dyad B-C reversed.
+  x <- one_mode_undirected_fixture(
+    data.frame(
+      from = c(2L, 1L, 1L, 2L, 3L),
+      to = c(1L, 2L, 2L, 1L, 2L),
+      time = c(10, 10, 20, 20, 20),
+      weight = 1
+    )
+  )
+  got <- prepare_collecting_warnings(x, c(survey = "mutually_exclusive"))
+
+  ties <- as.data.frame(got$out$ties)
+  expect_equal(ties$from, c(1, 2))
+  expect_equal(ties$to, c(2, 3))
+  expect_identical(ties$time, c(NA, 20))
+  expect_identical(ties$flavor, c(NA, "creation"))
+  expect_equal(
+    starting_levels(x, "survey", prepare_layer_shape(x, "survey")),
+    data.frame(from = 1L, to = 2L, value = 1)
+  )
+  messages <- vapply(got$warnings, conditionMessage, character(1))
+  expect_match(
+    messages,
+    "reports 2 undirected dyads in both orders",
+    all = FALSE
+  )
+})

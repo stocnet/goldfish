@@ -74,3 +74,17 @@ one_mode_undirected_fixture <- function(rows = NULL) {
     ties = ties
   )
 }
+
+# Run prepare_dynes_data() with its summary message silenced, collecting every
+# warning it raises, so two objects can be compared warning for warning.
+prepare_collecting_warnings <- function(x, layers) {
+  warnings <- list()
+  out <- withCallingHandlers(
+    suppressMessages(prepare_dynes_data(x, layers)),
+    warning = function(w) {
+      warnings[[length(warnings) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(out = out, warnings = warnings)
+}
