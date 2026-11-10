@@ -296,14 +296,23 @@ unchanged.
 
 - **Q1. Confirm D1.** Answered 2026-11-10: confirmed, accept and translate.
   The delta modifies `single-data-object`.
-- **Q2. manynet's stocnet constructor.** Answered in part (probe above):
+- **Q2. manynet's stocnet constructor.** Answered (probe above, then 0.1):
   `as_stocnet()` emits `info$directed = FALSE` for every two-mode input, as an
   unnamed scalar, because manynet defines two-mode as undirected.
   `make_stocnet()` passes `info` through as given; `validate_stocnet()` does
-  not check it. **Open (task 0.1):** is there a manynet verb (`add_info()`,
-  `mutate_info()`, a goldfish helper) that names `directed` per layer when a
-  layer is added, and would it carry the `FALSE`? The answer fixes the shape
-  of the manynet test object in 2.4(a), not the rule. Whatever it is, goldfish
+  not check it. **Answered (task 0.1, 2026-11-10, manynet 2.2.3):** no manynet verb
+  names `directed` per layer on its own. `add_info()` / `mutate_info()` store
+  exactly what they are given, and a `directed` argument *replaces* the whole
+  entry (it does not merge), so `FALSE` survives only because the caller
+  passes it. `as_stocnet()` leaves an unnamed scalar `FALSE`, which
+  `validate_goldfish_data()` rejects ("info$directed must be named by layer")
+  along with the other per-layer fields it requires. The manynet test object
+  in 2.4(a) therefore starts from `as_stocnet()` of a two-mode matrix, adds
+  `label`, `layer` and `time` columns, and calls
+  `add_info(directed = c(<layer> = FALSE), sender = ..., receiver = ...,
+  update = ..., observation = "panel")`; the `FALSE` is named for the layer
+  by that call. Verified: it validates and `build_mode_map()` gives
+  `is_two_mode = TRUE`, `n1 = 2`, `n2 = 3`. Whatever it is, goldfish
   documents the interoperability rule ("on a two-mode layer, `FALSE` is read
   as not symmetric; nothing needs changing") in the `?goldfish_data` stocnet
   components section and in `vignettes/two-mode.Rmd` (tasks 3.1, 3.2).

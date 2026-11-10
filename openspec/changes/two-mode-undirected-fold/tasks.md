@@ -13,7 +13,7 @@ two-mode matrix has no symmetric counterpart), never a decision ID.
 
 ## 0. Close the remaining open question (gate, no code)
 
-- [ ] 0.1 Close design Q2's remaining part: check whether `manynet::add_info()`
+- [x] 0.1 Close design Q2's remaining part: check whether `manynet::add_info()`
       / `mutate_info()` name `directed` per layer when a layer is added, and
       whether a `FALSE` from `as_stocnet()` survives that step. Record the
       answer in design Q2. It decides the exact object the manynet scenario in
