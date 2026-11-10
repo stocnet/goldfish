@@ -52,12 +52,12 @@ history row C->H and a wave-10 report of C->H; each built with
 `directed = FALSE` and with `directed = TRUE`; and a one-mode layer declared
 `FALSE` with one tie A->B.
 
-- [ ] 2.1(a) Test `network_state_at()`: on the square fixture declared `FALSE`
+- [x] 2.1(a) Test `network_state_at()`: on the square fixture declared `FALSE`
       the state holds exactly G->A (no E->C); on the non-square fixture it
       returns exactly C->H with no `subscript out of bounds`; the `FALSE` and
       `TRUE` objects give identical matrices; the one-mode fixture holds
       A->B and B->A. Confirm RED (phantom on square, error on non-square).
-- [ ] 2.1(b) `network_state_at()` (`R/state_at.R:65`) passes
+- [x] 2.1(b) `network_state_at()` (`R/state_at.R:65`) passes
       `!lm$symmetric` to `materialize_network_state()` instead of reading
       `info$directed`. GREEN.
 - [ ] 2.2(a) Test the DyNES panel path through `diff_panel_waves()`: on both

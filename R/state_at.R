@@ -62,13 +62,14 @@ network_state_at <- function(data, layer, time, start_time = -Inf) {
   mode_map <- build_mode_map(info, nodes, layers)
   streams <- split_stocnet_streams(data, mode_map)
   lm <- mode_map$layers[[layer]]
-  directed <- isTRUE(unname(info$directed[layer]))
 
+  # Only a symmetric layer is mirrored: a two-mode matrix has no symmetric
+  # counterpart, whatever `info$directed` declares.
   mat <- materialize_network_state(
     streams$network[[layer]],
     n1 = lm$n1,
     n2 = lm$n2,
-    directed = directed,
+    directed = !lm$symmetric,
     start_time = coerce_time(start_time),
     time = coerce_time(time)
   )
