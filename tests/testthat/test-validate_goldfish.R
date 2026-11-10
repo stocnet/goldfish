@@ -187,3 +187,12 @@ test_that("a list of per-layer mode sets aborts with the vector form", {
   x$info$receiver <- list(advice = c("employee", "supervisor"))
   expect_snapshot(validate_goldfish_data(x), error = TRUE)
 })
+
+test_that("a two-mode layer declared undirected validates silently", {
+  # manynet reads every two-mode network as undirected, so the declaration is
+  # accepted as-is: no abort and no note.
+  x <- make_stocnet_fixture_twomode()
+  x$info$directed <- c(membership = FALSE)
+  expect_no_condition(out <- validate_goldfish_data(x))
+  expect_identical(out$info$directed, c(membership = FALSE))
+})
