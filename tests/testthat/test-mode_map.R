@@ -346,3 +346,53 @@ test_that("the vector declaration survives the manynet assembly workflow", {
     label = "the sets goldfish maps survive the round trip"
   )
 })
+
+# Layer symmetry --------------------------------------------------------------
+
+symmetric_of <- function(x, layers) {
+  map <- build_mode_map(x$info, x$nodes, layers)
+  vapply(layers, \(l) map$layers[[l]]$symmetric, logical(1))
+}
+
+test_that("a one-mode layer is symmetric exactly when declared undirected", {
+  x <- make_stocnet_fixture()
+  x$info$directed <- c(calls = FALSE)
+  expect_identical(symmetric_of(x, "calls"), c(calls = TRUE))
+
+  x$info$directed <- c(calls = TRUE)
+  expect_identical(symmetric_of(x, "calls"), c(calls = FALSE))
+})
+
+test_that("an undeclared `directed` resolves to not symmetric", {
+  x <- make_stocnet_fixture()
+  x$info$directed <- NULL
+  expect_identical(symmetric_of(x, "calls"), c(calls = FALSE))
+})
+
+test_that("a two-mode layer is never symmetric, whatever it declares", {
+  x <- make_stocnet_fixture_twomode()
+  for (declared in c(FALSE, TRUE)) {
+    x$info$directed <- c(membership = declared)
+    expect_identical(
+      symmetric_of(x, "membership"),
+      c(membership = FALSE),
+      label = paste("directed =", declared)
+    )
+  }
+})
+
+test_that("one object gets one symmetry value per layer", {
+  x <- make_mixed_layers_stocnet(
+    sender = c(advice = "employee", advice = "supervisor", report = "employee"),
+    receiver = c(
+      advice = "employee",
+      advice = "supervisor",
+      report = "supervisor"
+    )
+  )
+  x$info$directed <- c(advice = FALSE, report = FALSE)
+  expect_identical(
+    symmetric_of(x, c("advice", "report")),
+    c(advice = TRUE, report = FALSE)
+  )
+})
