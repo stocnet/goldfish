@@ -60,13 +60,13 @@ history row C->H and a wave-10 report of C->H; each built with
 - [x] 2.1(b) `network_state_at()` (`R/state_at.R:65`) passes
       `!lm$symmetric` to `materialize_network_state()` instead of reading
       `info$directed`. GREEN.
-- [ ] 2.2(a) Test the DyNES panel path through `diff_panel_waves()`: on both
+- [x] 2.2(a) Test the DyNES panel path through `diff_panel_waves()`: on both
       two-mode fixtures declared `FALSE`, the snapshot at each wave, the
       dyad mask (every cell of a two-mode layer) and the emitted rows equal
       those of the `TRUE` object; no spurious dissolution row on the square
       fixture; no error on the non-square one. The one-mode fixture keeps its
       upper-triangle mask and canonical rows. Confirm RED.
-- [ ] 2.2(b) `panel_layer_context()` (`R/wave_diff.R:44`) carries
+- [x] 2.2(b) `panel_layer_context()` (`R/wave_diff.R:44`) carries
       `symmetric` from the layer entry; `panel_wave_snapshot()`, the dyad mask
       and the flip enumeration (`R/wave_diff.R:71`, `:390`, `:418`) read it
       instead of `directed` / `one_mode && !directed`. GREEN.

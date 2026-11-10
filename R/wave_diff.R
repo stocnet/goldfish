@@ -41,7 +41,9 @@ panel_layer_context <- function(data, layer, call = rlang::caller_env()) {
     layer = layer,
     stream = split_stocnet_streams(data, mode_map)$network[[layer]],
     update = unname(info$update[layer]),
-    directed = isTRUE(unname(info$directed[layer])),
+    # Only a symmetric layer is mirrored: a two-mode matrix has no symmetric
+    # counterpart, whatever `info$directed` declares.
+    symmetric = lm$symmetric,
     one_mode = !isTRUE(lm$is_two_mode),
     side1 = lm$side1,
     side2 = lm$side2,
@@ -59,7 +61,7 @@ panel_wave_snapshot <- function(context, time) {
     stream[keep, , drop = FALSE],
     n1 = context$n1,
     n2 = context$n2,
-    directed = context$directed
+    directed = !context$symmetric
   )
 }
 
@@ -68,10 +70,10 @@ panel_wave_snapshot <- function(context, time) {
 panel_dyad_mask <- function(context) {
   mask <- matrix(TRUE, context$n1, context$n2)
   if (context$one_mode) {
-    mask <- if (context$directed) {
-      row(mask) != col(mask)
-    } else {
+    mask <- if (context$symmetric) {
       row(mask) < col(mask)
+    } else {
+      row(mask) != col(mask)
     }
   }
   mask
@@ -387,7 +389,7 @@ validate_endpoint_hitting <- function(
     for (r in seq_len(nrow(rows))) {
       i <- rows$from[r]
       j <- rows$to[r]
-      if (!context$directed && context$one_mode && i > j) {
+      if (context$symmetric && i > j) {
         swap <- i
         i <- j
         j <- swap
@@ -415,7 +417,7 @@ validate_endpoint_hitting <- function(
       }
       pending <- pending[-at, , drop = FALSE]
       state[i, j] <- to_value
-      if (!context$directed) {
+      if (context$symmetric) {
         state[j, i] <- to_value
       }
     }
