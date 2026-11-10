@@ -21,23 +21,23 @@ two-mode matrix has no symmetric counterpart), never a decision ID.
 
 ## 1. The `symmetric` flag on the mode map
 
-- [ ] 1.1(a) Test `build_mode_map()` layer entries (spec "Layer symmetry
+- [x] 1.1(a) Test `build_mode_map()` layer entries (spec "Layer symmetry
       resolved once on the mode map"): `symmetric` is `TRUE` for a one-mode
       layer declared `FALSE`; `FALSE` for a one-mode layer declared `TRUE`;
       `FALSE` for a one-mode layer with `directed` undeclared; `FALSE` for a
       two-mode layer declared `FALSE` and declared `TRUE`; one object mixing a
       one-mode undirected and a two-mode undirected layer gets one value per
       layer. Confirm RED (the field does not exist).
-- [ ] 1.1(b) Add `symmetric` to each `build_mode_map()` entry
+- [x] 1.1(b) Add `symmetric` to each `build_mode_map()` entry
       (`R/mode_map.R`), resolved from `is_two_mode` and `info$directed`, and
       document it in the function's `@return`. GREEN.
-- [ ] 1.2 Pin the validator's behavior (spec scenario "A two-mode layer
+- [x] 1.2 Pin the validator's behavior (spec scenario "A two-mode layer
       declared undirected validates silently"): `validate_goldfish_data()` on
       a two-mode layer declared `directed = FALSE` returns the object with no
       condition (`expect_no_condition()`). This test is GREEN on the current
       code by design; it guards against a later note or abort. Commit the
       test alone.
-- [ ] 1.3 Close group 1: NOT_CRAN=true full suite, baselines PASS (not SKIP),
+- [x] 1.3 Close group 1: NOT_CRAN=true full suite, baselines PASS (not SKIP),
       `devtools::document()`, commit.
 
 ## 2. Every reader takes `symmetric` from the mode map
