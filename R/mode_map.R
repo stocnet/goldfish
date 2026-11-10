@@ -59,15 +59,20 @@ to_global_id <- function(refs, nodes) {
 #'
 #' `is_two_mode` is resolved here, once, and carried on each layer's entry: it
 #' is the single answer downstream consumes rather than re-deriving it by
-#' comparing node-set names.
+#' comparing node-set names. `symmetric` is resolved beside it from
+#' `is_two_mode` and `info$directed`, and is the single answer to "does a tie
+#' `(i, j)` imply `(j, i)`?": `TRUE` only for a one-mode layer declared
+#' undirected. A two-mode layer is never symmetric (its rows and columns index
+#' different node sets, so it has no mirror image), and an undeclared
+#' `directed` resolves to not symmetric.
 #'
 #' @param info the stocnet `info` list.
 #' @param nodes the stocnet `nodes` data frame.
 #' @param layers character vector of distinct layer names.
 #'
 #' @return a list with `nodes_lookup` (global id, label, mode) and a `layers`
-#'   list, each entry carrying `is_two_mode`, `side1`/`side2` (global ids of the
-#'   row/column node spaces), and `n1`/`n2`.
+#'   list, each entry carrying `is_two_mode`, `symmetric`, `side1`/`side2`
+#'   (global ids of the row/column node spaces), and `n1`/`n2`.
 #' @noRd
 build_mode_map <- function(info, nodes, layers) {
   n_nodes <- nrow(nodes)
@@ -84,12 +89,20 @@ build_mode_map <- function(info, nodes, layers) {
   sender_sets <- normalize_mode_sets(info$sender, layers)
   receiver_sets <- normalize_mode_sets(info$receiver, layers)
 
+  # A layer's `directed` entry is looked up by name; an unnamed or missing
+  # declaration is not read as undirected.
+  layer_symmetric <- function(layer, is_two_mode) {
+    declared <- info$directed[layer]
+    !is_two_mode && length(declared) == 1L && identical(unname(declared), FALSE)
+  }
+
   layer_maps <- lapply(layers, function(layer) {
     sender_set <- sender_sets[[layer]]
     receiver_set <- receiver_sets[[layer]]
     if (is.null(sender_set) || is.null(receiver_set)) {
       return(list(
         is_two_mode = FALSE,
+        symmetric = layer_symmetric(layer, FALSE),
         side1 = all_ids,
         side2 = all_ids,
         n1 = n_nodes,
@@ -101,6 +114,7 @@ build_mode_map <- function(info, nodes, layers) {
     side2 <- if (identical_sets) side1 else all_ids[mode_col %in% receiver_set]
     list(
       is_two_mode = !identical_sets,
+      symmetric = layer_symmetric(layer, !identical_sets),
       side1 = side1,
       side2 = side2,
       n1 = length(side1),
