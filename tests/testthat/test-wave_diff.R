@@ -574,3 +574,91 @@ test_that("a count panel's pinned periods count its events, not its dyads", {
   expect_identical(rs$count, as.numeric(diff$counts))
   expect_identical(rs$count, c(3, 6))
 })
+test_that("the panel path never mirrors an undirected two-mode layer", {
+  # The square layer's history and wave-10 report are G->A, local cell (3, 1);
+  # the non-square layer's are C->H, local cell (3, 5).
+  check_shape <- function(shape, cell) {
+    x_false <- two_mode_survey_fixture(shape, directed = FALSE)
+    x_true <- two_mode_survey_fixture(shape, directed = TRUE)
+
+    expect_no_error(diff_false <- diff_panel_waves(x_false, "survey", c(0, 10)))
+    diff_true <- diff_panel_waves(x_true, "survey", c(0, 10))
+    expect_identical(diff_false, diff_true)
+    for (snapshot in diff_false$snapshots) {
+      expect_identical(which(snapshot != 0, arr.ind = TRUE), cell)
+    }
+    expect_identical(nrow(diff_false$flips), 0L)
+
+    mask_false <- panel_dyad_mask(panel_layer_context(x_false, "survey"))
+    expect_true(all(mask_false))
+    expect_identical(
+      mask_false,
+      panel_dyad_mask(panel_layer_context(x_true, "survey"))
+    )
+  }
+
+  check_shape("square", cbind(row = 3L, col = 1L))
+  check_shape("non_square", cbind(row = 3L, col = 5L))
+})
+
+test_that("an undirected two-mode replay writes only the cell it places", {
+  # Wave 20 adds H->B (local (4, 2)) and F->D (local (2, 4)). A mirrored
+  # replay of H->B would also write F->D and then find F->D already present.
+  sequence_of <- function(directed) {
+    x <- two_mode_survey_fixture("square", directed = directed)
+    x$ties <- rbind(
+      x$ties,
+      data.frame(
+        from = c(8L, 6L),
+        to = c(2L, 4L),
+        time = 20,
+        weight = 1,
+        layer = "survey"
+      )
+    )
+    diff <- diff_panel_waves(x, "survey", c(0, 10, 20))
+    x$ties <- data.frame(
+      from = c(7L, 8L, 6L),
+      to = c(1L, 2L, 4L),
+      time = c(NA, 15, 16),
+      weight = 1,
+      layer = "survey"
+    )
+    list(sequence = x, diff = diff)
+  }
+
+  undirected <- sequence_of(FALSE)
+  directed <- sequence_of(TRUE)
+  expect_identical(undirected$diff, directed$diff)
+  expect_no_error(validate_endpoint_hitting(directed$sequence, directed$diff))
+  expect_no_error(
+    validate_endpoint_hitting(undirected$sequence, undirected$diff)
+  )
+})
+
+test_that("the panel path still folds an undirected one-mode layer", {
+  # History A-B; wave 10 reports C->B, the dyad B-C reversed.
+  x <- one_mode_undirected_fixture(
+    data.frame(from = 3L, to = 2L, time = 10, weight = 1)
+  )
+  diff <- diff_panel_waves(x, "survey", c(0, 10))
+
+  expect_identical(
+    panel_dyad_mask(panel_layer_context(x, "survey")),
+    upper.tri(matrix(TRUE, 3L, 3L))
+  )
+  expect_true(isSymmetric(diff$snapshots[[2L]]))
+  expect_identical(sum(diff$snapshots[[2L]]), 4)
+  expect_identical(diff$flips$from, 2L)
+  expect_identical(diff$flips$to, 3L)
+
+  sequence <- x
+  sequence$ties <- data.frame(
+    from = c(1L, 3L),
+    to = c(2L, 2L),
+    time = c(NA, 5),
+    weight = 1,
+    layer = "survey"
+  )
+  expect_no_error(validate_endpoint_hitting(sequence, diff))
+})
