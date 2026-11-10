@@ -154,3 +154,36 @@ test_that("state-at-t helpers agree with the legacy engine on Fisheries", {
     legacy_net
   )
 })
+
+test_that("network_state_at never mirrors an undirected two-mode layer", {
+  square_false <- two_mode_survey_fixture("square", directed = FALSE)
+  square_true <- two_mode_survey_fixture("square", directed = TRUE)
+
+  state <- network_state_at(square_false, "survey", time = 11)
+  expect_identical(sum(state != 0), 1L)
+  expect_identical(state["G", "A"], 1)
+  expect_identical(state["E", "C"], 0)
+  expect_identical(state, network_state_at(square_true, "survey", time = 11))
+
+  non_square_false <- two_mode_survey_fixture("non_square", directed = FALSE)
+  non_square_true <- two_mode_survey_fixture("non_square", directed = TRUE)
+
+  expect_no_error(
+    state <- network_state_at(non_square_false, "survey", time = 11)
+  )
+  expect_identical(dim(state), c(3L, 5L))
+  expect_identical(sum(state != 0), 1L)
+  expect_identical(state["C", "H"], 1)
+  expect_identical(
+    state,
+    network_state_at(non_square_true, "survey", time = 11)
+  )
+})
+
+test_that("network_state_at still mirrors an undirected one-mode layer", {
+  state <- network_state_at(one_mode_undirected_fixture(), "survey", time = 1)
+
+  expect_identical(state["A", "B"], 1)
+  expect_identical(state["B", "A"], 1)
+  expect_identical(sum(state), 2)
+})
