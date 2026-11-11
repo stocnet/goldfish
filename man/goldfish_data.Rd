@@ -36,6 +36,14 @@ integer indices into \code{nodes};
 \item \code{changes} -- nodal attribute updates (\code{time}, \code{node}, \code{var}, \code{value});
 \item \code{global} -- global attribute updates (\code{time}, \code{var}, \code{value}).
 }
+
+\code{directed} affects \strong{one-mode} layers only: a one-mode layer declared
+\code{FALSE} is symmetric, so a tie \code{i -> j} also holds \code{j -> i}. On a two-mode
+layer (disjoint sender and receiver sets, see below) either value is
+accepted and the layer is never mirrored, because a sender-by-receiver matrix
+has no symmetric counterpart. manynet declares every two-mode network
+undirected, so its \code{directed = FALSE} needs no change: goldfish reads it as
+not symmetric.
 }
 
 \section{The construction verbs}{

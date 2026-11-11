@@ -33,6 +33,14 @@
 #' - `changes` -- nodal attribute updates (`time`, `node`, `var`, `value`);
 #' - `global` -- global attribute updates (`time`, `var`, `value`).
 #'
+#' `directed` affects **one-mode** layers only: a one-mode layer declared
+#' `FALSE` is symmetric, so a tie `i -> j` also holds `j -> i`. On a two-mode
+#' layer (disjoint sender and receiver sets, see below) either value is
+#' accepted and the layer is never mirrored, because a sender-by-receiver matrix
+#' has no symmetric counterpart. manynet declares every two-mode network
+#' undirected, so its `directed = FALSE` needs no change: goldfish reads it as
+#' not symmetric.
+#'
 #' # The construction verbs
 #'
 #' Assemble the object one layer at a time and then merge:
