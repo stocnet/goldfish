@@ -238,18 +238,27 @@ Three loose ends the report raised without rating them (user decision
       source and panel helpers: undirected before, directed now). If one does,
       add it to the `NEWS.d/` fragment; either way, record the answer in
       design D2.
-      *Done (2026-11-11):* no user-facing path sees it, so `NEWS.d/` is
-      unchanged. `validate_goldfish_data()` aborts on a missing, unnamed or
-      non-covering `info$directed` (`check_named_coverage()`,
-      `R/validate_goldfish.R:238-271`). Every exported entry that reaches the
-      changed readers validates first: `make_specification()`
-      (`R/make_specification.R:174`, `:375`), which the DyNAM/REM/DyNES
-      estimators and `simulate()` consume; `network_state_at()`
-      (`R/state_at.R:52`, `:109`); and `diff_panel_waves()`
-      (`R/wave_diff.R:257`). `prepare_dynes_data()` does not validate, but it
-      read an undeclared flag as directed before this change too
-      (`!isFALSE()`), so its behavior is unchanged. Recorded as one sentence
-      after the validator paragraph in design D2. Committed with 4.1.
+      *Reopened (2026-11-11):* the first answer ("no user-facing path sees
+      it") was refuted by the group-4 conformance re-check
+      (`.plan/develop/two-mode-undirected-fold-g4-conformance.md`, gap A).
+      `make_specification()` (`R/make_specification.R:174`, `:375`),
+      `network_state_at()` (`R/state_at.R:52`, `:109`) and the internal
+      `diff_panel_waves()` (`R/wave_diff.R:257`) do validate, but the formula
+      path of `estimate_dynam()`/`estimate_rem()` (formula + `data =`),
+      `compute_statistics()` and the deprecated `gather_model_data()` never
+      call `validate_goldfish_data()`. On them an undeclared one-mode layer
+      moved from undirected to directed: on a 4-actor, 7-event REM fixture,
+      `sum(inertia)`/`sum(indeg)` went from 34/102 at `fb7321a0` to 21/63 at
+      `26feb4d6`, and the `estimate_rem()` coefficients moved with them.
+      `prepare_dynes_data()` already read an undeclared flag as directed
+      (`!isFALSE()`), so it is unchanged.
+      *Done (2026-11-11):* a `NEWS.d/` bullet with sub-bullets names the
+      affected entries and says to declare `directed`; the D2 paragraph after
+      the validator now states the change is user-facing and calls
+      `diff_panel_waves()` internal. The missing validation on those entries
+      predates this change (it breaks the living `single-data-object`
+      requirement "Dual input path with one validate-and-stamp boundary") and
+      is not fixed here; it needs its own owner.
 - [ ] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS, not
       SKIP), then a scoped `conformance-inspector` re-check of gaps 1–3 and
       4.4–4.6 by a fresh agent. On CONFORMANT, do the rest of 3.4: rescope

@@ -251,13 +251,20 @@ fills it from the map.
 The validator is not changed. It keeps checking only that `info$directed` is
 a named logical covering every layer.
 
-No user-facing path sees the undeclared-flag change (checked 2026-11-11,
-task 4.6). The validator aborts on a missing, unnamed or non-covering
-`info$directed`. Every exported entry that reaches the changed readers
-validates first: `make_specification()` (which the estimators and
-`simulate()` consume), `network_state_at()` and `diff_panel_waves()`. The one
-exported entry that skips validation, `prepare_dynes_data()`, already read an
-undeclared flag as directed. So the `NEWS.d/` fragment does not mention it.
+The undeclared-flag change is user-facing (checked 2026-11-11, task 4.6,
+corrected by the group-4 conformance re-check). The validator aborts on a
+missing, unnamed or non-covering `info$directed`, and `make_specification()`
+(which `simulate()` and the specification path of the estimators consume),
+`network_state_at()` and the internal `diff_panel_waves()` all validate
+first. But the formula path of `estimate_dynam()` and `estimate_rem()`
+(a formula with `data =`), `compute_statistics()` and the deprecated
+`gather_model_data()` reach the stocnet source without validating. There an
+undeclared one-mode layer read as undirected (mirrored) before this change and
+reads as directed now: on a 4-actor, 7-event REM fixture the statistics and
+coefficients move from the `FALSE` values to the `TRUE` values. So the
+`NEWS.d/` fragment states it. `prepare_dynes_data()` also skips validation,
+but it already read an undeclared flag as directed. That these entries skip
+the validator at all predates this change and is not fixed here.
 
 Alternative considered: keep `directed` as the field name and give it the
 effective value. Rejected because it repeats the conflation that caused the
