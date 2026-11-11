@@ -120,20 +120,20 @@ history row C->H and a wave-10 report of C->H; each built with
 
 ## 3. Documentation and milestone
 
-- [ ] 3.1 Document the rule in the stocnet components section of
+- [x] 3.1 Document the rule in the stocnet components section of
       `R/goldfish-data.R` (`?goldfish_data`): `directed` affects one-mode
       layers only; on a two-mode layer either value is accepted and the layer
       is never mirrored, so manynet's two-mode `directed = FALSE` needs no
       change (it is read as not symmetric). Do not edit `make_network()`'s
       docs: the legacy path still mirrors (design D3). Run
       `devtools::document()` and confirm the man/ page renders the text.
-- [ ] 3.2 Add a short paragraph to the two-mode vignette
+- [x] 3.2 Add a short paragraph to the two-mode vignette
       (`vignettes/two-mode.Rmd.orig`; install the package, then re-knit with
       `Rscript vignettes/rebuild-all.R` — `precompile.R` only defines the
       helpers — and check the knitted `two-mode.Rmd`): a manynet
       two-mode network's `directed = FALSE` needs no change, and a two-mode
       layer of a goldfish data object is never mirrored.
-- [ ] 3.3 Write the `NEWS.d/` fragment per `NEWS.d/README.md`
+- [x] 3.3 Write the `NEWS.d/` fragment per `NEWS.d/README.md`
       (`two-mode-undirected-fold--symmetric-flag.md`): a two-mode layer
       declared undirected no longer gains phantom ties or crashes in
       `network_state_at()`, `prepare_dynes_data()` and the DyNES panel path,

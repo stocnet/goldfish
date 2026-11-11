@@ -1,5 +1,5 @@
 ---
-status: proposal (rule settled 2026-11-10; from the dynes-prepare-data conformance, 2026-11-05)
+status: landed (feature/dynes, awaiting fold)
 ---
 
 ## Why
