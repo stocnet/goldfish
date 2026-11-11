@@ -141,7 +141,15 @@ it into the broken case.
     environment source;
   - the legacy DyNAMi preprocessing (`R/model_preprocess_group.R:496`), reached
     through `R/dynami_bridge.R`;
-  - the legacy network `update` method (`R/methods_update.R:167`, `:179`).
+  - the legacy network `update` method (`R/methods_update.R:167`, `:179`);
+  - the legacy-to-stocnet assembly (`R/legacy_wrappers.R:178`), whose
+    history fold tests squareness (`nrow == ncol`) rather than two-mode, so
+    it keeps only the upper triangle of a square legacy two-mode network
+    declared `directed = FALSE` (found by the task 2.5 audit);
+  - the legacy display methods: `print.network.goldfish()`
+    (`R/methods_display.R:352`) halves the tie count of an undirected
+    network, and the environment listing (`:864`) echoes the flag; neither
+    decides storage.
 - `print()` on a goldfish data object (`R/as_goldfish.R:124`). It echoes the
   declaration, so manynet's two-mode `FALSE` prints as "undirected", which is
   correct in manynet's terms. It decides no storage.

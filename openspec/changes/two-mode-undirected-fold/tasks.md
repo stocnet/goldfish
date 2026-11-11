@@ -102,7 +102,7 @@ history row C->H and a wave-10 report of C->H; each built with
       (`R/data_source.R:420-421`) to say where the rule lives: the mode map
       resolves `symmetric`, and a two-mode layer is never symmetric (design
       Q6). 2.4(a) stays GREEN.
-- [ ] 2.5 Audit (design D3): grep `R/` broadly for `info$directed`,
+- [x] 2.5 Audit (design D3): grep `R/` broadly for `info$directed`,
       `info[["directed"]]`, `attr(…, "directed")` and `is_undirected`, and
       record every hit in `progress.md` in one of three groups:
       (1) fixed here; (2) already correct (the validator's coverage check,
