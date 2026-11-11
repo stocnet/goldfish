@@ -222,6 +222,14 @@ Each reader stops reading `info$directed` and reads the field instead:
 | `prepare_layer_shape()` (`R/prepare_dynes_data.R:726`), used by the starting fold (`:973`) and the double-report and canonical-key checks | `!isFALSE(info$directed[layer])` | shape carries `symmetric` from the layer entry |
 | `ds_is_directed.goldfishSourceStocnet` (`R/data_source.R:431`), used by the starting state and both builders' `is_undirected` | its own two-mode check, then `info$directed` | returns `!symmetric` from the layer entry |
 
+One raw read stays, as a recorded exception (user decision 2026-11-11):
+`warn_style_contradicted()` (`R/add_flavor.R:352`) keeps reading
+`info$directed` to choose an unordered `pmin/pmax(from, to)` dyad key for its
+style-contradiction warning, which mirrors no state, and on a two-mode layer
+that key is still one-to-one because the sender and receiver sets are disjoint
+(`(j, i)` is never a valid tie), so the warning fires exactly as for
+`directed = TRUE`.
+
 The stocnet method is shared by the DyNES walk and the DyNAM/REM paths, and
 it is already correct. It is a goldfish-owned internal generic, so it is
 refactored here to read the map, which leaves one resolver. Its results do not
@@ -242,6 +250,14 @@ fills it from the map.
 
 The validator is not changed. It keeps checking only that `info$directed` is
 a named logical covering every layer.
+
+No user-facing path sees the undeclared-flag change (checked 2026-11-11,
+task 4.6). The validator aborts on a missing, unnamed or non-covering
+`info$directed`. Every exported entry that reaches the changed readers
+validates first: `make_specification()` (which the estimators and
+`simulate()` consume), `network_state_at()` and `diff_panel_waves()`. The one
+exported entry that skips validation, `prepare_dynes_data()`, already read an
+undeclared flag as directed. So the `NEWS.d/` fragment does not mention it.
 
 Alternative considered: keep `directed` as the field name and give it the
 effective value. Rejected because it repeats the conflation that caused the

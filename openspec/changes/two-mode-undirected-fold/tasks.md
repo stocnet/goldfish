@@ -115,6 +115,10 @@ history row C->H and a wave-10 report of C->H; each built with
       is a missed reader: add an (a)/(b) pair for it before closing. A
       group-3 hit gets no task; check it against the design's Non-Goals list
       and add it there if it is missing.
+      *Judgment call resolved (4.1):* the `R/add_flavor.R:352` raw read in
+      `warn_style_contradicted()` stays, recorded as an exception after the
+      reader table in design D2 and in the ADDED requirement "Layer symmetry
+      resolved once on the mode map".
 - [x] 2.6 Close group 2: NOT_CRAN=true full suite, baselines PASS (not SKIP),
       commit.
 
@@ -145,3 +149,97 @@ history row C->H and a wave-10 report of C->H; each built with
       `dynes-prepare-data` 4.3: it reuses this change's helper fixtures and
       covers only what 2.3 does not (for example, an interval start before
       the first survey on a two-mode layer).
+      *Conformance (2026-11-11):* `.plan/develop/two-mode-undirected-fold-conformance.md`
+      at `dc43a04d`: CONFORMANT, no blocking gap. Suite PASS 18160 / FAIL 0
+      / SKIP 5, 54 baseline rows PASS (0 skipped), `_baselines`
+      byte-identical, all nine site ablations red. Three should-fix gaps,
+      triaged into group 4. Stays unticked until 4.7 closes: the 4.3 rescope
+      waits there, because `dynes-prepare-data/tasks.md` carries uncommitted
+      edits that are not this change's.
+
+## 4. Conformance follow-ups (from 3.4)
+
+Should-fix gaps 1–3 of `.plan/develop/two-mode-undirected-fold-conformance.md`,
+amended in place before the trunk fold; the proposal stays `landed`. None
+changes behavior on any validated object or touches per-event code. Gap 4
+(uncommitted `R/state_at.R` roxygen re-wrap, `man/network_state_at.Rd`, the
+`two-mode.Rmd` re-knit warning) is the user's working copy, not this change's,
+and gets no task. Gaps 5–6 are notes with no action (guarded sites had no
+pre-fix bug; the legacy readers are already owned by the D3 follow-up).
+
+- [x] 4.1 (gap 1) Record `warn_style_contradicted()`'s raw read as a
+      harmless exception, in the tracked artifacts rather than only in
+      progress.md (user decision 2026-11-11: no code change). This resolves
+      the 2.5 judgment call. `R/add_flavor.R:352` keeps reading
+      `info$directed` to choose an unordered `pmin/pmax(from, to)` key for its
+      style-contradiction check. That check keys dyads for a warning and
+      mirrors no state. On a two-mode layer the unordered key is still
+      one-to-one, because sender and receiver sets are disjoint and so
+      `(j, i)` is never a valid tie; the warning therefore fires exactly as
+      for `directed = TRUE`. Add this as one sentence after the reader table
+      in design D2, and as one sentence at the end of the ADDED requirement's
+      second paragraph ("Readers of legacy `network.goldfish` objects are
+      outside this requirement"), naming the function as outside the
+      requirement for that reason. Update the 2.5 tick note to point at it.
+      Run `openspec validate --strict`. Commit. No code or test change.
+- [ ] 4.2 (gap 2) Tighten `prepare_dynes_data never mirrors an undirected
+      two-mode layer` (`test-prepare_dynes_data.R:1917`) to state what the
+      2.3(a) task and the non-square scenario say, not only parity with the
+      `TRUE` object: the starting levels are exactly `7 -> 1` (square, G->A)
+      and `3 -> 8` (non-square, C->H), each with value 1, and no warning of
+      the style-contradiction class is raised on the square fixture. See each
+      new assertion red under ablation (`R/prepare_dynes_data.R:975` reading
+      the raw flag, as ablation A6 did), then restore. Commit.
+- [ ] 4.3 (gap 3) Add a `specs/multimode-networks/spec.md` delta with a
+      `## MODIFIED` block for "Effect validity derived per argument from the
+      mode map" (living `openspec/specs/multimode-networks/spec.md:91`),
+      restating the requirement in full with its line 120 sentence changed
+      from "`directed` SHALL be treated as vacuous on a two-mode layer
+      (noted and ignored)" to the D1 rule (accepted silently, never read as
+      symmetric; see "Layer symmetry resolved once on the mode map"). Keep
+      every scenario. Run `openspec validate --strict` and
+      `bash .plan/opsx-spec-placement-check.sh two-mode-undirected-fold`
+      (expect 3 placements, exit 0); add `multimode-networks` to the
+      proposal's Modified Capabilities. Commit.
+Three loose ends the report raised without rating them (user decision
+2026-11-11: each gets a task and is fixed here).
+
+- [x] 4.4 (report §4, cosmetic) Put one blank line between
+      `test_that()` blocks in `test-wave_diff.R`: "the panel path never
+      mirrors an undirected two-mode layer" (`:577`) follows the previous
+      test's `})` directly. Commit with 4.2 or alone.
+      *Done (2026-11-11):* blank line inserted before `:577`; the file is
+      otherwise unchanged. Uncommitted.
+- [x] 4.5 (report §1, unverified claim) Check the two-mode vignette's claim
+      (`vignettes/two-mode.Rmd.orig:207-214`) that naming manynet's `FALSE`
+      per layer, `directed = c(support = FALSE, contestation = FALSE)`,
+      "gives the same model". Fit the vignette's `rate_fit` and `choice_fit`
+      from the purled `.orig` once with each declaration and compare. If they
+      differ, correct the sentence and re-knit `two-mode.Rmd` (3.2's method).
+      *Done (2026-11-11):* the claim holds and the vignette needs no change.
+      Both fits are identical: 5 rate and 6 choice coefficients,
+      `identical() = TRUE`, max |diff| 0, log-likelihoods −8478.903 and
+      −1765.472 under either declaration. Evidence:
+      `.plan/develop/two-mode-undirected-fold-evidence/vignette_directed_check.{R,log}`.
+- [x] 4.6 (report §1, behavior change of unknown reach) Establish whether any
+      user-facing path sees D2's change for an undeclared `directed` (stocnet
+      source and panel helpers: undirected before, directed now). If one does,
+      add it to the `NEWS.d/` fragment; either way, record the answer in
+      design D2.
+      *Done (2026-11-11):* no user-facing path sees it, so `NEWS.d/` is
+      unchanged. `validate_goldfish_data()` aborts on a missing, unnamed or
+      non-covering `info$directed` (`check_named_coverage()`,
+      `R/validate_goldfish.R:238-271`). Every exported entry that reaches the
+      changed readers validates first: `make_specification()`
+      (`R/make_specification.R:174`, `:375`), which the DyNAM/REM/DyNES
+      estimators and `simulate()` consume; `network_state_at()`
+      (`R/state_at.R:52`, `:109`); and `diff_panel_waves()`
+      (`R/wave_diff.R:257`). `prepare_dynes_data()` does not validate, but it
+      read an undeclared flag as directed before this change too
+      (`!isFALSE()`), so its behavior is unchanged. Recorded as one sentence
+      after the validator paragraph in design D2. Committed with 4.1.
+- [ ] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS, not
+      SKIP), then a scoped `conformance-inspector` re-check of gaps 1–3 and
+      4.4–4.6 by a fresh agent. On CONFORMANT, do the rest of 3.4: rescope
+      `dynes-prepare-data` 4.3 (once the user has committed or set aside the
+      uncommitted edits in that file) and tick 3.4 and 4.7.

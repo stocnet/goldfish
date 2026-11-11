@@ -95,7 +95,10 @@ snapshot, dyad mask and flip enumeration, and `prepare_dynes_data()`'s starting 
 canonical-key ordering and double-report checks. Every such caller of
 `materialize_network_state()` SHALL pass `directed = !symmetric`, so the fold mirrors
 only a symmetric layer. Readers of legacy `network.goldfish` objects are outside this
-requirement.
+requirement. So is `warn_style_contradicted()`, which reads `info$directed` only to key
+dyads for a warning and mirrors no state: on a two-mode layer its unordered key is still
+one-to-one because the sender and receiver sets are disjoint, so the warning is the same
+under either declaration.
 
 #### Scenario: A square two-mode layer declared undirected holds no phantom ties
 - **WHEN** a two-mode layer with four senders (E..H) and four receivers (A..D) is
