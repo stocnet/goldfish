@@ -83,7 +83,7 @@ history row C->H and a wave-10 report of C->H; each built with
       `info$directed`; the starting fold (`:973`), the canonical-key and
       double-report checks (`:240`, `:670`, `:678`, `:976`, `:1157`) read it.
       GREEN.
-- [ ] 2.4(a) Test the stocnet data source: on both two-mode fixtures declared
+- [x] 2.4(a) Test the stocnet data source: on both two-mode fixtures declared
       `FALSE`, the starting state (`ds_network()`), and the builders'
       `is_undirected` property are those of the `TRUE` object; the one-mode
       fixture is still `is_undirected = TRUE`. Add the manynet scenario: an

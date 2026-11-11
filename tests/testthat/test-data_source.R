@@ -395,3 +395,127 @@ test_that("a window on a panel-layer effect aborts before preprocessing", {
   ))
   expect_no_error(ds_realize_derivations(src, event_window))
 })
+
+# A two-mode matrix has no symmetric counterpart: the stocnet source and both
+# registry builders read a two-mode layer declared `directed = FALSE` exactly as
+# the same layer declared `TRUE`, and still mirror a one-mode undirected layer.
+
+# The registry `build_update_plan()` gives a choice model reading the layer. The
+# fixtures' panel observation is switched to event-observed only so an
+# event-stream estimator accepts the layer as its focal; direction is untouched.
+stocnet_registry_is_undirected <- function(x) {
+  x$info$observation[["survey"]] <- "event"
+  captured <- NULL
+  original <- build_shared_objects
+  local_mocked_bindings(
+    build_shared_objects = function(...) {
+      shared <- original(...)
+      captured <<- shared$registry
+      shared
+    }
+  )
+  spec <- suppressMessages(make_specification(
+    choice = ~ inertia + tie(survey),
+    layer = "survey",
+    model = "DyNAM",
+    data = x
+  ))
+  suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "choice",
+    preprocessing_only = TRUE
+  ))
+  stats::setNames(captured$is_undirected, captured$name)
+}
+
+test_that("the stocnet source never mirrors a two-mode undirected layer", {
+  for (shape in c("square", "non_square")) {
+    undirected <- two_mode_survey_fixture(shape, directed = FALSE)
+    directed <- two_mode_survey_fixture(shape, directed = TRUE)
+    src_undirected <- new_data_source(data = undirected)
+    src_directed <- new_data_source(data = directed)
+
+    expect_identical(ds_is_directed(src_undirected, "survey"), TRUE)
+    expect_identical(
+      ds_network(src_undirected, "survey"),
+      ds_network(src_directed, "survey")
+    )
+    expect_identical(
+      stocnet_registry_is_undirected(undirected),
+      stocnet_registry_is_undirected(directed)
+    )
+    expect_identical(
+      stocnet_registry_is_undirected(undirected),
+      c(survey = FALSE)
+    )
+    expect_identical(
+      focal_object_row(list(data = undirected, focal = "survey"))$is_undirected,
+      FALSE
+    )
+  }
+
+  nonzero_ties <- function(shape) {
+    state <- ds_network(
+      new_data_source(data = two_mode_survey_fixture(shape, FALSE)),
+      "survey"
+    )
+    cells <- which(state != 0, arr.ind = TRUE)
+    paste(rownames(state)[cells[, 1]], colnames(state)[cells[, 2]], sep = "->")
+  }
+  expect_identical(nonzero_ties("square"), "G->A")
+  expect_identical(nonzero_ties("non_square"), "C->H")
+})
+
+test_that("the stocnet source still mirrors a one-mode undirected layer", {
+  x <- one_mode_undirected_fixture(
+    data.frame(from = 2L, to = 3L, time = 5, weight = 1)
+  )
+  src <- new_data_source(data = x)
+
+  expect_identical(ds_is_directed(src, "survey"), FALSE)
+  state <- ds_network(src, "survey")
+  expect_identical(unname(state[c(2L, 4L)]), c(1, 1))
+  expect_identical(sum(state), 2)
+  expect_identical(stocnet_registry_is_undirected(x), c(survey = TRUE))
+  expect_identical(
+    focal_object_row(list(data = x, focal = "survey"))$is_undirected,
+    TRUE
+  )
+})
+
+test_that("a manynet two-mode network with directed = FALSE is not symmetric", {
+  skip_if_not_installed("manynet")
+  incidence <- matrix(
+    c(1, 0, 0, 0, 1, 1),
+    nrow = 2,
+    byrow = TRUE,
+    dimnames = list(c("a", "b"), c("X", "Y", "Z"))
+  )
+  x <- manynet::as_stocnet(incidence)
+  x$ties$layer <- "membership"
+  x$ties$time <- NA_real_
+  x$ties$weight <- 1
+  # as_stocnet() leaves an unnamed scalar FALSE; naming it for the layer keeps
+  # the value manynet emits for every two-mode network.
+  x <- manynet::add_info(
+    x,
+    name = "clubs",
+    focal = "membership",
+    directed = c(membership = FALSE),
+    sender = c(membership = "FALSE"),
+    receiver = c(membership = "TRUE"),
+    update = c(membership = "replace"),
+    observation = c(membership = "panel")
+  )
+
+  validated <- expect_no_condition(validate_goldfish_data(x))
+  src <- new_data_source(data = validated)
+  layer <- ds_layer_map(src, "membership")
+  expect_identical(layer$is_two_mode, TRUE)
+  expect_identical(layer$symmetric, FALSE)
+  expect_identical(ds_is_directed(src, "membership"), TRUE)
+  expect_identical(
+    unname(ds_network(src, "membership")),
+    unname(incidence)
+  )
+})
