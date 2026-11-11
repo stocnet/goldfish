@@ -143,7 +143,7 @@ history row C->H and a wave-10 report of C->H; each built with
       `network_state_at()`, `prepare_dynes_data()` and the DyNES panel path,
       and every reader of a goldfish data object reads it the same as a
       directed one. Do not claim the legacy `network.goldfish` path.
-- [ ] 3.4 Close group 3: NOT_CRAN=true full suite, baselines PASS (not SKIP),
+- [x] 3.4 Close group 3: NOT_CRAN=true full suite, baselines PASS (not SKIP),
       commit. Then run the conformance-inspector skill on the change before
       `dynes-prepare-data` group 4 is unblocked. On CONFORMANT, rescope
       `dynes-prepare-data` 4.3: it reuses this change's helper fixtures and
@@ -156,6 +156,12 @@ history row C->H and a wave-10 report of C->H; each built with
       triaged into group 4. Stays unticked until 4.7 closes: the 4.3 rescope
       waits there, because `dynes-prepare-data/tasks.md` carries uncommitted
       edits that are not this change's.
+      *Done (2026-11-11, with 4.7):* `dynes-prepare-data` 4.3 rescoped (user
+      request) on top of those uncommitted edits. It drops the "validator
+      rejects it" branch and what 2.3/4.2 here already assert, and keeps the
+      `T:294` rebuild, no history rows, the multi-wave round-trip and a
+      start before the first survey. Its `progress.md` records group 4
+      unblocked.
 
 ## 4. Conformance follow-ups (from 3.4)
 
@@ -267,8 +273,18 @@ Three loose ends the report raised without rating them (user decision
       artifacts are committed. The re-check also reproduced the
       `estimate_dynam()` move on a 4-actor, 10-event DyNAM choice fixture
       (undeclared reads as `FALSE` at `fb7321a0`, as `TRUE` at head).
-- [ ] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS, not
+- [x] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS, not
       SKIP), then a scoped `conformance-inspector` re-check of gaps 1–3 and
       4.4–4.6 by a fresh agent. On CONFORMANT, do the rest of 3.4: rescope
       `dynes-prepare-data` 4.3 (once the user has committed or set aside the
       uncommitted edits in that file) and tick 3.4 and 4.7.
+      *Done (2026-11-11):* suite at `26feb4d6`: PASS 18164 / FAIL 0 / SKIP 5,
+      54 baseline rows PASS (0 skipped). Every later commit is docs or a test
+      title only; `test-wave_diff.R` was re-run after the title change (86
+      PASS, 0 FAIL). Re-checks:
+      `.plan/develop/two-mode-undirected-fold-g4-conformance.md` (gaps 1–3,
+      4.4, 4.5 closed; 4.6 refuted, gap A) and
+      `.plan/develop/two-mode-undirected-fold-g4b-conformance.md` (4.6
+      reworked: CONFORMANT; G1–G4 fixed in `49762c32`, `dbe01095`,
+      `d4b2afc0`). The 4.3 rescope went ahead on the user's request, with
+      that file's edits still uncommitted (see 3.4).
