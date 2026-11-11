@@ -89,6 +89,12 @@ None.
   `R/prepare_dynes_data.R`, `R/data_source.R` (the stocnet method only);
   roxygen for `info$directed` in `R/goldfish-data.R`; `vignettes/two-mode.Rmd`.
   The validator (`R/validate_goldfish.R`) and the legacy readers are unchanged.
+- User-visible on unvalidated input (design D2, task 4.6): an undeclared
+  one-mode `info$directed` now reads as directed, where it read as undirected,
+  on the formula path of `estimate_dynam()`/`estimate_rem()`,
+  `compute_statistics()` and `gather_model_data()`. The `NEWS.d/` fragment
+  states it. That those entries skip the validator predates this change and
+  is owned by `estimation-entry-validation`.
 - No per-event cost: the flag is resolved once per layer before any walk.
 - Gates all of `dynes-prepare-data` group 4 (user decision 2026-11-09): no
   session of it starts until this change lands. The mirror corrupts a

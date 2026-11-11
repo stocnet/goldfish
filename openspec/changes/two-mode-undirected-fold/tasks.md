@@ -258,7 +258,15 @@ Three loose ends the report raised without rating them (user decision
       `diff_panel_waves()` internal. The missing validation on those entries
       predates this change (it breaks the living `single-data-object`
       requirement "Dual input path with one validate-and-stamp boundary") and
-      is not fixed here; it needs its own owner.
+      is not fixed here; it is owned by `estimation-entry-validation`.
+      *Follow-up (2026-11-11, scoped 4.6 re-check
+      `.plan/develop/two-mode-undirected-fold-g4b-conformance.md`, G1–G4):*
+      the fragment bullet now leads with `Fixed` (`Updated` is for
+      documentation) and also names `gather_model_data()`, matching D2; the
+      proposal's Impact states the formula-path move; the owner change's
+      artifacts are committed. The re-check also reproduced the
+      `estimate_dynam()` move on a 4-actor, 10-event DyNAM choice fixture
+      (undeclared reads as `FALSE` at `fb7321a0`, as `TRUE` at head).
 - [ ] 4.7 Close the group: NOT_CRAN=true full suite (baselines PASS, not
       SKIP), then a scoped `conformance-inspector` re-check of gaps 1–3 and
       4.4–4.6 by a fresh agent. On CONFORMANT, do the rest of 3.4: rescope
