@@ -198,7 +198,7 @@ pre-fix bug; the legacy readers are already owned by the D3 follow-up).
       starting levels gain the phantom `5 -> 3` (E->C), square raises the
       warning, non-square aborts `subscript out of bounds`. Evidence:
       `.plan/develop/two-mode-undirected-fold-evidence/a6_new_assertions.{R,log}`.
-- [ ] 4.3 (gap 3) Add a `specs/multimode-networks/spec.md` delta with a
+- [x] 4.3 (gap 3) Add a `specs/multimode-networks/spec.md` delta with a
       `## MODIFIED` block for "Effect validity derived per argument from the
       mode map" (living `openspec/specs/multimode-networks/spec.md:91`),
       restating the requirement in full with its line 120 sentence changed
@@ -209,6 +209,10 @@ pre-fix bug; the legacy readers are already owned by the D3 follow-up).
       `bash .plan/opsx-spec-placement-check.sh two-mode-undirected-fold`
       (expect 3 placements, exit 0); add `multimode-networks` to the
       proposal's Modified Capabilities. Commit.
+      *Done (2026-11-11):* the delta restates living lines 91-186 verbatim
+      except that one sentence (diff against the living spec: one hunk);
+      `openspec validate --strict` valid; placement check `OK (3 requirement
+      placements)`, exit 0.
 Three loose ends the report raised without rating them (user decision
 2026-11-11: each gets a task and is fixed here).
 

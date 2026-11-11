@@ -79,6 +79,9 @@ None.
   symmetry is resolved once on the mode map. A new requirement fixes that every
   reader of a goldfish data object takes its fold and mirror decisions from
   that flag.
+- `multimode-networks`: the "Effect validity derived per argument from the
+  mode map" requirement stops saying a two-mode `directed` is "noted and
+  ignored"; it is accepted silently and never read as symmetric.
 
 ## Impact
 
