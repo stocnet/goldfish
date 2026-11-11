@@ -1917,6 +1917,11 @@ test_that("history rows of a count panel are never augmented", {
 test_that("prepare_dynes_data never mirrors an undirected two-mode layer", {
   local_cli_context()
   layers <- c(survey = "mutually_exclusive")
+  # Global ids of the fixture's one tie: G->A (square), C->H (non-square).
+  expected_start <- list(
+    square = data.frame(from = 7L, to = 1L, value = 1),
+    non_square = data.frame(from = 3L, to = 8L, value = 1)
+  )
   check_shape <- function(shape) {
     x_false <- two_mode_survey_fixture(shape, directed = FALSE)
     x_true <- two_mode_survey_fixture(shape, directed = TRUE)
@@ -1929,6 +1934,18 @@ test_that("prepare_dynes_data never mirrors an undirected two-mode layer", {
       as.data.frame(got_true$out$ties)
     )
     expect_false("dissolution" %in% got_false$out$ties$flavor)
+    expect_equal(
+      starting_levels(
+        x_false,
+        "survey",
+        prepare_layer_shape(x_false, "survey")
+      ),
+      expected_start[[shape]]
+    )
+    # The style-contradiction warning carries no condition class, so its
+    # absence is checked on the message.
+    messages <- vapply(got_false$warnings, conditionMessage, character(1))
+    expect_false(any(grepl("but an event contradicts it", messages)))
     expect_identical(
       starting_levels(
         x_false,

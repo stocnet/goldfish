@@ -574,6 +574,7 @@ test_that("a count panel's pinned periods count its events, not its dyads", {
   expect_identical(rs$count, as.numeric(diff$counts))
   expect_identical(rs$count, c(3, 6))
 })
+
 test_that("the panel path never mirrors an undirected two-mode layer", {
   # The square layer's history and wave-10 report are G->A, local cell (3, 1);
   # the non-square layer's are C->H, local cell (3, 5).

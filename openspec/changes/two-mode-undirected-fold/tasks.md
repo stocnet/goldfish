@@ -182,7 +182,7 @@ pre-fix bug; the legacy readers are already owned by the D3 follow-up).
       outside this requirement"), naming the function as outside the
       requirement for that reason. Update the 2.5 tick note to point at it.
       Run `openspec validate --strict`. Commit. No code or test change.
-- [ ] 4.2 (gap 2) Tighten `prepare_dynes_data never mirrors an undirected
+- [x] 4.2 (gap 2) Tighten `prepare_dynes_data never mirrors an undirected
       two-mode layer` (`test-prepare_dynes_data.R:1917`) to state what the
       2.3(a) task and the non-square scenario say, not only parity with the
       `TRUE` object: the starting levels are exactly `7 -> 1` (square, G->A)
@@ -190,6 +190,14 @@ pre-fix bug; the legacy readers are already owned by the D3 follow-up).
       the style-contradiction class is raised on the square fixture. See each
       new assertion red under ablation (`R/prepare_dynes_data.R:975` reading
       the raw flag, as ablation A6 did), then restore. Commit.
+      *Done (2026-11-11):* `expect_equal()` on the starting levels against
+      `7 -> 1` / `3 -> 8`, value 1, for both shapes; the style-contradiction
+      warning (`R/add_flavor.R:381`) has no condition class, so its absence
+      is checked on its message ("but an event contradicts it"). Under A6 in
+      a scratch worktree each new assertion is red, run one at a time: square
+      starting levels gain the phantom `5 -> 3` (E->C), square raises the
+      warning, non-square aborts `subscript out of bounds`. Evidence:
+      `.plan/develop/two-mode-undirected-fold-evidence/a6_new_assertions.{R,log}`.
 - [ ] 4.3 (gap 3) Add a `specs/multimode-networks/spec.md` delta with a
       `## MODIFIED` block for "Effect validity derived per argument from the
       mode map" (living `openspec/specs/multimode-networks/spec.md:91`),
@@ -209,7 +217,7 @@ Three loose ends the report raised without rating them (user decision
       mirrors an undirected two-mode layer" (`:577`) follows the previous
       test's `})` directly. Commit with 4.2 or alone.
       *Done (2026-11-11):* blank line inserted before `:577`; the file is
-      otherwise unchanged. Uncommitted.
+      otherwise unchanged. Committed with 4.2.
 - [x] 4.5 (report §1, unverified claim) Check the two-mode vignette's claim
       (`vignettes/two-mode.Rmd.orig:207-214`) that naming manynet's `FALSE`
       per layer, `directed = c(support = FALSE, contestation = FALSE)`,
