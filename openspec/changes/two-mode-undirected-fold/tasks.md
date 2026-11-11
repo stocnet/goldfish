@@ -115,7 +115,7 @@ history row C->H and a wave-10 report of C->H; each built with
       is a missed reader: add an (a)/(b) pair for it before closing. A
       group-3 hit gets no task; check it against the design's Non-Goals list
       and add it there if it is missing.
-- [ ] 2.6 Close group 2: NOT_CRAN=true full suite, baselines PASS (not SKIP),
+- [x] 2.6 Close group 2: NOT_CRAN=true full suite, baselines PASS (not SKIP),
       commit.
 
 ## 3. Documentation and milestone
