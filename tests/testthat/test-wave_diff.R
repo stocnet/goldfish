@@ -349,7 +349,7 @@ diff_counts <- function(diff, flavor) {
   )
 }
 
-test_that("the pin's per-period counts are the wave diff's per-interval counts", {
+test_that("pin per-period counts are the wave diff's per-interval counts", {
   js <- toy_wave_spec()
   waves <- c(0, 5, 10)
   diff <- diff_panel_waves(js$data, "friendship", wave_times = waves)

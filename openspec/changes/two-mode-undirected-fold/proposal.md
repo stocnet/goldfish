@@ -30,7 +30,8 @@ as not symmetric. The readers that take `info$directed` directly are affected:
 starting fold at `:973`). The legacy readers of `network.goldfish` objects
 mirror too, but no goldfish data object reaches them; they are deferred
 (`design.md` D3).
-Evidence: `.plan/develop/dynes-prepare-data-evidence/probe-twomode-history.{R,log}`
+Evidence:
+`.plan/develop/dynes-prepare-data-evidence/probe-twomode-history.{R,log}`
 (square: a spurious dissolution row plus a style-contradiction warning on
 `prepare_dynes_data()`'s own output; non-square: the crash).
 
