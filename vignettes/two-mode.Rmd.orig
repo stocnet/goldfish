@@ -204,6 +204,15 @@ requirement: it names the layer the flavor-keyed specifications resolve against,
 and a model whose formula LHS (or specification `layer`) names the layer
 directly needs no `focal` at all.
 
+The recipe declares both layers `directed = TRUE`, but `as_stocnet()` emits
+`directed = FALSE` for every two-mode network, because `manynet` treats a tie
+between a mode-1 and a mode-2 node as having no orientation. That value needs no
+change. In goldfish, `directed = FALSE` asks for a *symmetric* matrix, where
+`i -> j` also holds `j -> i`; an `actor x concept` matrix has no such
+counterpart, so a two-mode layer of a goldfish data object is never mirrored,
+whichever value it declares. Naming manynet's `FALSE` per layer,
+`directed = c(support = FALSE, contestation = FALSE)`, gives the same model.
+
 # The shape of the discourse
 
 Before modeling, the pace of the debate is itself informative. Figure 1 of the
