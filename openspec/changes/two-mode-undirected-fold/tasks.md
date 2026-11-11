@@ -93,7 +93,7 @@ history row C->H and a wave-10 report of C->H; each built with
       (`skip_if_not_installed("manynet")`). This pins behavior that is already
       correct through the stocnet method (and the field 1.1(b) added), so it
       is GREEN before 2.4(b); it guards the refactor. Commit the test alone.
-- [ ] 2.4(b) `ds_is_directed.goldfishSourceStocnet` (`R/data_source.R:431`)
+- [x] 2.4(b) `ds_is_directed.goldfishSourceStocnet` (`R/data_source.R:431`)
       returns `!isTRUE(ds_layer_map(src, name)$symmetric)` (`ds_layer_map()`
       already resolves a derived layer to its source; `isTRUE()` keeps a
       `NULL` entry, an unresolved focal, from yielding a zero-length logical)

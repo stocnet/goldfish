@@ -417,8 +417,10 @@ network_initial_may_be_missing <- function(src, name) {
   !is.null(stream) && anyNA(stream$value[is.na(stream$time)])
 }
 
-# A layer's direction flag. Vacuous on a two-mode layer (no symmetry concept in
-# an n1 x n2 matrix), where the validator notes and ignores the declaration.
+# A layer's direction flag: FALSE means the layer's state is kept symmetric
+# (each tie stored in both cells). On a stocnet source the mode map resolves
+# `symmetric` once per layer, and a two-mode layer is never symmetric whatever
+# `info$directed` declares, since an n1 x n2 matrix has no mirror cell.
 ds_is_directed <- function(src, name) UseMethod("ds_is_directed")
 
 #' @exportS3Method
@@ -429,13 +431,9 @@ ds_is_directed.goldfishSourceEnvir <- function(src, name) {
 
 #' @exportS3Method
 ds_is_directed.goldfishSourceStocnet <- function(src, name) {
-  if (ds_layer_is_two_mode(src, name)) {
-    return(TRUE)
-  }
-  if (!is.null(src$derived[[name]])) {
-    name <- src$derived[[name]]$source
-  }
-  isTRUE(unname(src$info$directed[name]))
+  # A name with no map entry (an unresolved focal) reads as not symmetric
+  # rather than as a zero-length logical.
+  !isTRUE(ds_layer_map(src, name)$symmetric)
 }
 
 # The node-set identifiers a layer's two sides carry. Consumed by the fetch
