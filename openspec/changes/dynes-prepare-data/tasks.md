@@ -246,6 +246,13 @@ named line, run in a detached worktree, not a RED commit. The root of gap 3 (the
 walk mirrors a two-mode layer declared `directed = FALSE`) is owned by the new
 change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
 
+**Gate (user decision 2026-11-09):** no group-4 task starts until
+`two-mode-undirected-fold` is settled and landed. The mirror also corrupts the
+read-back of a two-mode layer without history rows (probe P2: `G->A` shows a
+phantom `E->C` in `network_state_at()`), so 4.3 cannot be split around it. With
+the two-mode rule landed first, `prepare_dynes_data()` can no longer crash on
+such a layer, so no interim abort is added here.
+
 - [x] 4.1 Detect the skipped-wave fall (gap 1). On a `"count"` `"states"`
       layer, test a dyad at 2 at wave 1, unreported at wave 2 and at 5 at
       wave 3: it aborts as a total falling from 2 to 0, naming wave 2
@@ -260,13 +267,32 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       unchanged and gains the map. Snapshot the summary of a `"count"`
       `increment` layer with history rows. Red: dropping `start_level +` from
       the increment branch of `row_levels()` makes both fail. No code change.
-- [x] 4.3 Test two-mode layers faithfully (gap 3, test part). Rebuild
-      `T:294`'s fixture so that receivers are receiver-side nodes and a
-      sender's global id is larger than its receiver's (receiver mode listed
-      first). Assert end to end, through `prepare_dynes_data()`, that a
-      two-mode layer declared undirected, without history rows, keeps every
-      sender and receiver and round-trips at every wave. The case with history
-      rows waits for `two-mode-undirected-fold`.
+- [x] 4.3 Test two-mode layers faithfully (gap 3). Rescoped 2026-11-11 when
+      `two-mode-undirected-fold` closed CONFORMANT. The rule it landed: a
+      two-mode layer is never symmetric, and `directed` affects one-mode
+      layers only. The "validator rejects it" branch is dropped (that
+      change's D1 rejected the abort). Its 2.3 and 4.2 already test, through
+      `prepare_dynes_data()` on `two_mode_survey_fixture()` (square, receiver
+      mode listed first so sender G = 7 exceeds receiver A = 1; non-square),
+      each with a `time = NA` history row and one wave: `FALSE` and `TRUE`
+      give identical rows and starting levels, the absolute starting levels,
+      no dissolution row, no style-contradiction warning, no error on the
+      non-square layer. Do not repeat those. Reuse that helper (extend it,
+      for example with a `history` argument and extra wave rows, rather than
+      writing a new fixture) for only what it leaves out:
+      (a) Rebuild `T:294` ("a two-mode layer has no diagonal and is not
+      reordered"; find it by title) on the square shape, so receivers are
+      receiver-side nodes and a sender's global id exceeds its receiver's;
+      `check_rows()` keeps `from`/`to` as given.
+      (b) Without history rows, on both shapes declared `FALSE`: the rows
+      equal those of `TRUE`, with no error.
+      (c) Several waves with a formation and a dissolution, on both shapes
+      declared `FALSE`: the prepared state round-trips at every wave through
+      `network_state_at()`, and no row is written that no wave reported.
+      (d) An explicit `start_time` before the first survey, on a two-mode
+      layer declared `FALSE`: the first survey is an interval endpoint
+      (D11), and its flips are exactly the reported ties, with no mirrored
+      partner.
 - [x] 4.4 Make the flavor record one body (gap 4). Extract the stamping and
       `info` record that `add_flavor()` (`R/add_flavor.R:302-318`) and
       `flavor_prepared_layer()` both write into one internal helper, called by
@@ -275,23 +301,56 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       its behavior is unchanged. If the extraction turns out not to be
       behavior-preserving, reword D5 and the proposal instead ("the same rule,
       guarded by an equality test") and record why.
-- [x] 4.5 Make `Date` grids explicit (gap 5). Document in `@param
-      wave_times` that a `Date` is read as midnight UTC. Format both sides of
-      the off-grid abort with time and zone, so that a mismatch at local
-      midnight is visible. Test with a non-UTC `POSIXct` column (snapshot).
+- [x] 4.5 A grid must have the `time` column's class (gap 5; user decision
+      2026-11-09, design D8, replacing "a `Date` is midnight UTC").
+      (a) Test: a `Date` grid on a `POSIXct` column, and a `POSIXct` grid on a
+      `Date` column, each abort before any row is rewritten, naming the
+      layer, the grid's class and the column's class (snapshot); a character
+      grid on a `POSIXct` column aborts the same way, its hint asking for a
+      conversion and naming no unit (snapshot, plus an assertion against
+      `days|seconds`), and is never parsed; a numeric grid on a numeric
+      column (integer grid on a double column included), a `POSIXct` grid on
+      a non-UTC `POSIXct` column, and a UTC `POSIXct` grid on a
+      Europe/Zurich column at the same instants still match. Turn `T:792` and `T:1178` (the Date-on-POSIXct
+      matches) into the abort case, or replace them with same-class grids;
+      the written-rows-take-the-column's-class scenario uses a `POSIXct`
+      grid. RED.
+      (b) Add the class check to `resolve_wave_grids()` by calling
+      `check_grid_time_class(wave_times, time_column, layer, call)`, which
+      `dynes-augmentation` 6.6.1(b) adds in `R/wave_diff.R` (decided
+      2026-11-16: that change owns the helper, so the two functions give one
+      message; do not write a second check). Call it before the
+      finite-time check, which runs `coerce_time()` and would parse a
+      character grid as GMT. Remove
+      `time_on_column_scale()` (its call sites compare with `coerce_time()`
+      on both sides), state the rule in `@param wave_times`, and format the
+      off-grid abort's times in the column's class. Under one class the zone
+      cannot differ in meaning, but print it for `POSIXct` so a reader sees
+      it.
+      (c) The helper compares classes only and assumes the column is a time
+      class (`dynes-augmentation` 6.6.3 conformance, note N1). `estimate_dynes()`
+      gets that for free, because `validate_goldfish_data()` rejects a
+      character `ties$time`, but `prepare_dynes_data()` never calls it
+      (`check_prepare_object()` checks only for a `ties` table). Without a
+      guard, a character grid on a character `time` column passes the check
+      and `coerce_time()` parses both as GMT, and a numeric grid on that
+      column gets the hint "Convert the grid to <character> first". Test
+      (snapshot): a character `time` column aborts before the grid check
+      with the validator's "unsupported class" message. Then run the same
+      time-class check on `x` at entry; do not loosen the helper.
 - [x] 4.6 Move the journal-only behavior into the tracked artifacts (gap 6).
       (a) Add the abort on a `wave_times` list naming a layer twice to D8 and
       to the spec's grid-abort list and its malformed-grid scenario, and test
       it (snapshot). (b) State in D8/D10 and in `@param wave_times` that a
       declared empty wave on a `"count"` `"states"` layer aborts as a fall to
       0, since a total that drops to nothing is not a count. 4.1 pins it.
-- [ ] 4.7 Wording and cosmetics (gaps 7–9). In the spec, make the `flavor`
+- [x] 4.7 Wording and cosmetics (gaps 7–9). In the spec, make the `flavor`
       column conditional ("created when a `"mutually_exclusive"` layer is
       prepared"). Add to the design's "Storage and per-event cost" section the
       one dense `n1 x n2` starting fold per layer with history rows (about
       93 MB at 3000 actors, setup only, D9). Change `clean_wave_rows()`'s bare
       `\`-newline string continuations to the file's `\\` form.
-- [ ] 4.8 Vignette: when the call is needed (user request 2026-11-09). Add a
+- [x] 4.8 Vignette: when the call is needed (user request 2026-11-09). Add a
       `dynes-panel` section stating when `prepare_dynes_data()` is needed
       (binary, count and valued panels given as survey snapshots), when it is
       not (event layers; a layer already written as a change-list, where
@@ -301,9 +360,10 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       gives 552 creations, no dissolution, and warns on the 206 stable ties
       re-reported at wave 2). Prose only, so the precompiled `.Rmd` takes
       the same text and `dynes-panel.R` is unchanged.
-- [ ] 4.9 Close the group: `openspec validate --strict` and the placement
+- [x] 4.9 Close the group: `openspec validate --strict` and the placement
       pre-flight, `devtools::document()`, full `NOT_CRAN=true` suite with the
       baselines PASS, commit. Then flip `proposal.md` to `status: landed
       (feature/dynes, awaiting fold)` and request a scoped re-check by a fresh
       agent. The re-check must see ablations A07b and A21 red and gaps 3–9
-      closed.
+      closed, gap 3 in full (with and without history rows, under the rule
+      `two-mode-undirected-fold` landed), and gap 5 closed by the class rule.

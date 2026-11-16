@@ -23,8 +23,11 @@ an unnamed `layers` entry, a name repeated within `layers`, `form` or
 `flavor_names`, a style or form outside these vocabularies, a `form` entry naming a
 layer absent from `layers`, the pair `"mutually_exclusive"` with `"per_wave"`,
 a layer absent from the object, or a layer whose observation is not
-`"panel"`. The function SHALL NOT detect the style or the form, or warn about
-either.
+`"panel"`. It SHALL also abort on entry, before any argument or grid check, when
+the ties `time` column is not numeric, `POSIXct` or `Date`, with the same
+"unsupported class" error the goldfish data validator raises, since every
+later comparison of times assumes one of those classes. The function SHALL NOT
+detect the style or the form, or warn about either.
 
 #### Scenario: a layer without a form entry is read as states
 - **WHEN** the function is called with
@@ -58,6 +61,13 @@ either.
 - **WHEN** `layers` names `calls`, whose observation is `"event"`
 - **THEN** the function aborts with a cli error naming the layer, and returns
   nothing
+
+#### Scenario: a character time column aborts at entry
+- **WHEN** the ties `time` column is character and `wave_times` is given as
+  character or numeric values
+- **THEN** the function aborts with the validator's "unsupported class" cli
+  error for the `time` column, before the grid's class is checked and without
+  parsing either side, and returns nothing
 
 ### Requirement: A mutually exclusive layer leaves the function flavored
 
@@ -167,8 +177,10 @@ Rows of layers not named SHALL keep their position and every column value.
 The written rows of a prepared layer SHALL replace its timed rows, sorted by
 time, then sender, then receiver, after the other rows. Their times SHALL be
 in the class of the input's `time` column, whatever the class of the grid. A
-`flavor` or value column the input lacks SHALL be created, holding `NA` flavor
-and the default weight 1 on the rows of other layers.
+value column the input lacks SHALL be created, holding the default weight 1 on
+the rows of other layers. A `flavor` column the input lacks SHALL be created
+only when a `"mutually_exclusive"` layer is prepared, holding `NA` on the rows
+of other layers.
 
 #### Scenario: the first survey is written at its own time
 - **WHEN** a `"states"` layer has no `time = NA` rows and its first wave reports
@@ -226,9 +238,9 @@ and the default weight 1 on the rows of other layers.
 
 #### Scenario: written rows take the time column's class
 - **WHEN** the ties `time` column is `POSIXct` and `wave_times` declares an
-  empty wave as a `Date`
-- **THEN** the dissolution rows at that wave carry `POSIXct` times at the same
-  instant
+  empty wave as a `POSIXct` time
+- **THEN** the dissolution rows at that wave carry `POSIXct` times at that
+  instant, in the column's time zone
 
 #### Scenario: an order column is not carried
 - **WHEN** a `"states"` layer's rows carry an `order` column
@@ -262,11 +274,16 @@ first wave plus the amounts up to that wave. This SHALL hold under both
 `wave_times` SHALL be either one time vector applied to every `"states"` and
 `"per_wave"` layer, or a list naming a vector per layer. Such a layer without
 an entry SHALL take its waves from the distinct times of its own timed rows,
-and SHALL be assumed to have no empty wave. Grid times and row times SHALL be
-compared after conversion to one numeric time scale, so that a grid and rows
-given in different time classes for the same instants match. The
+and SHALL be assumed to have no empty wave. A declared grid SHALL have the
+time class of the ties `time` column: numeric (integer or double) on a numeric
+column, `POSIXct` on a `POSIXct` column whatever either time zone, and `Date`
+on a `Date` column. Grid times and row times SHALL be compared on that class's
+numeric scale. A grid SHALL never be parsed from text. The column side of
+this rule is guaranteed by the entry check on the `time` column, so a grid is
+only ever compared with a numeric, `POSIXct` or `Date` column. The
 documentation SHALL state that `wave_times` must be declared for a layer that
-can have an empty wave. A declared wave at which a `"states"` layer has no
+can have an empty wave, and that a grid must be in the `time` column's class,
+text being converted first with `as.POSIXct()` or `as.Date()`. A declared wave at which a `"states"` layer has no
 rows SHALL be read as the empty network, so every tie of that layer present
 before it SHALL get a dissolution row at that wave. A declared wave at which
 a `"per_wave"` layer has no rows SHALL be read as no events, and SHALL write
@@ -277,10 +294,18 @@ Before any row is rewritten, a `wave_times` list entry naming a layer absent
 from `layers`, or a layer whose form is `"changes"`, SHALL abort with a cli
 error naming the layer. So SHALL a list naming a layer more than once, an
 unnamed list entry, an `NA` or
-non-finite grid time, a `wave_times` vector when every declared layer has form
+non-finite grid time, a grid whose time class differs from the ties `time`
+column's, a `wave_times` vector when every
+declared layer has form
 `"changes"`, and a `"states"` or `"per_wave"` layer with no wave (no timed
-rows and no `wave_times` entry). Each layer's grid SHALL be sorted without a
-message.
+rows and no `wave_times` entry). The class abort SHALL be checked before
+any other check on that grid's times, SHALL name the layer, the grid's class
+and the column's class, and SHALL be the abort `estimate_dynes()` raises for
+the same grid, with class `goldfish_wave_grid_time_class`. Its hint SHALL
+explain the unit difference (days for a `Date`, seconds for a `POSIXct`) only
+when both classes are numeric, `POSIXct` or `Date`, and SHALL otherwise ask
+for the grid to be converted to the column's class. Each layer's grid SHALL
+be sorted without a message.
 A time listed more than once in a grid SHALL be kept once, and the function
 SHALL raise one cli warning of class `goldfish_duplicate_wave_time` per call,
 naming every layer and time affected.
@@ -310,11 +335,25 @@ naming every layer and time affected.
   stamped between them
 - **THEN** the function aborts with a cli error naming the layer and the time
 
-#### Scenario: a Date grid matches POSIXct rows
-- **WHEN** `wave_times` for friendship is given as `Date` values and the
-  friendship rows carry `POSIXct` times at the same instants
-- **THEN** no row is reported off the grid, and each wave is diffed at its
-  own time
+#### Scenario: a grid in another time class aborts
+- **WHEN** `wave_times` for friendship is given as `Date` values and the ties
+  `time` column is `POSIXct`
+- **THEN** the function aborts with a cli error of class
+  `goldfish_wave_grid_time_class`, before any row is rewritten, naming the
+  layer, the grid's class and the column's class
+
+#### Scenario: a character grid aborts without being parsed
+- **WHEN** `wave_times` for friendship is given as character dates and the
+  ties `time` column is `POSIXct`
+- **THEN** the function aborts with a cli error of class
+  `goldfish_wave_grid_time_class`, before any row is rewritten, whose hint
+  asks for the grid to be converted to `POSIXct` and names no time unit
+
+#### Scenario: a POSIXct grid in another time zone matches
+- **WHEN** `wave_times` for friendship is given as `POSIXct` in UTC and the
+  ties `time` column is `POSIXct` in Europe/Zurich, at the same instants
+- **THEN** no class abort and no off-grid abort is raised, and each wave is
+  diffed at its own time
 
 #### Scenario: a grid for an undeclared or changes layer aborts
 - **WHEN** `wave_times` is a list with an entry for `advice`, and `advice` is

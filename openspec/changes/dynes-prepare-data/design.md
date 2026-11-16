@@ -124,10 +124,11 @@ Within a prepared layer, its `time = NA` rows are kept as given, and its timed
 rows are replaced by the written rows, sorted by (time, from, to) and appended
 after the other rows, so the result is deterministic. Written rows carry the
 grid time converted back to the ties `time` column's class with
-`restore_time_class()`, so a `Date` grid on a `POSIXct` column writes `POSIXct`
-rows and the column keeps one class. A `flavor` or value column the input
-lacks is created, with `NA` flavor and the default weight 1 on the other
-layers' rows.
+`restore_time_class()`. The grid has the column's class (D8), so the column
+keeps one class. A value column the input lacks is created, with the
+default weight 1 on the other layers' rows. A `flavor` column the input lacks
+is created only when a `"mutually_exclusive"` layer is prepared, with `NA` on
+the other layers' rows.
 
 **D5. The function flavors a `"mutually_exclusive"` layer (reinstated
 2026-11-04).** Such a layer gets the map `add_flavor()` would record with
@@ -250,9 +251,39 @@ decision 2026-11-02).
 named list per layer. On a `"per_wave"` layer a declared wave with no rows
 means no events at that wave, so it writes nothing (revised 2026-11-04); what
 follows about full dissolution is about `"states"` layers. A layer without an entry takes its waves from the distinct times of its
-own timed rows. Grid times and row times are both converted with
-`coerce_time()` before they are compared, as `panel_wave_grid()` does, so a
-`Date` grid matches `POSIXct` rows at the same instant. A declared wave with no
+own timed rows. A declared grid must have the time class of the ties `time`
+column (numeric, `POSIXct` or `Date`); a grid in another class aborts, naming
+both classes (user decision 2026-11-09, replacing the 2026-11-05 reading of a
+`Date` grid as midnight UTC on a `POSIXct` column). `coerce_time()` returns
+days for a `Date` and seconds for a `POSIXct`, so any conversion between them
+has to pick a time zone for midnight, and the conformance probe showed the
+pick can fail silently: a non-UTC column at local midnight did not match, and
+the abort printed the same date on both sides. `estimate_dynes(wave_times =)`
+does no conversion at all, so a `Date` grid that this function accepted would
+have been read there in days against seconds. Requiring one class keeps the
+two functions on the same grid (the `estimate_dynes()` side is fixed in
+`dynes-augmentation` 6.6). The check is that change's
+`check_grid_time_class()` (`R/wave_diff.R`, its 6.6.1(b), decided 2026-11-16),
+called per layer from `resolve_wave_grids()`, so both functions raise one
+abort, of class `goldfish_wave_grid_time_class`. Integer and double are one
+class, and a `POSIXct` time zone is not part of the class: a UTC grid matches
+a non-UTC column at the same instants. A grid in any other class, `character`
+above all, is rejected and never parsed (user decision 2026-11-16, that
+change's 6.6.3): `coerce_time()` would read text as GMT, a zone the user never
+chose, so the class check runs before the finite-time check, which calls
+`coerce_time()`. Between two time classes the abort's hint explains days
+against seconds; otherwise it asks for a conversion (`as.POSIXct()`,
+`as.Date()`). Whether v2 parses a character grid in the column's own class and
+zone is carried into `dynes-augmenter-driver-v2`. The helper compares classes
+only and assumes the column is numeric, `POSIXct` or `Date` (note N1 of that
+change's 6.6.3 conformance check). `estimate_dynes()` gets that guarantee from
+`validate_goldfish_data()`, which this function does not call, so the function
+checks the ties `time` column's class on entry, before any argument or grid
+check, with the validator's "unsupported class" error, and the helper is not
+loosened. Without it, a character grid on a character column would pass the
+class check and be parsed as GMT. Grid and row times are then
+compared with `coerce_time()` on both sides, as `panel_wave_grid()` does. A
+declared wave with no
 rows means every tie of that layer dissolves there: the input is read as the
 network state at each survey. A
 per-layer list is needed because, with one shared vector, a layer surveyed on a
@@ -490,6 +521,12 @@ ties data frame holds at most (rows of the input) + (dissolutions) rows (a
 `social_evolution` among the 51 actors that is 276 first-wave rows + 140 change
 rows + 364 calls. Nothing it writes is read per event, beyond the walk's
 existing reading of a ties table.
+
+One dense object exists, at setup only: for each layer that has history rows,
+the starting state is folded once into an `n1 x n2` matrix
+(`starting_levels()` through `materialize_network_state()`, D9), about 93 MB at 3000 actors. It is built
+once per layer, before any wave is read, and is not read or kept per event, so
+the walk-cost rules on per-event grids do not apply to it.
 
 ## Risks / Trade-offs
 

@@ -656,7 +656,7 @@ clean_wave_rows <- function(x, layer, form, call) {
       c(
         "Layer {.val {layer}} has a missing tie value.",
         "x" = "Dyad {.val {at$dyad}} at wave {.val {at$wave}} is {.val {NA}}.",
-        "i" = "A wave must report every tie it holds; partially observed \
+        "i" = "A wave must report every tie it holds; partially observed \\
                waves are not supported."
       ),
       call = call
@@ -674,7 +674,7 @@ clean_wave_rows <- function(x, layer, form, call) {
       cli::cli_abort(
         c(
           "Layer {.val {layer}} has a tie from a node to itself.",
-          "x" = "Node {.val {labels[out$from[self[1L]]]}} at wave \
+          "x" = "Node {.val {labels[out$from[self[1L]]]}} at wave \\
                  {.val {at$wave}}.",
           "i" = "A one-mode layer has no diagonal."
         ),
@@ -698,10 +698,10 @@ clean_wave_rows <- function(x, layer, form, call) {
         cli::cli_abort(
           c(
             "A wave must hold one value per dyad.",
-            "x" = "Layer {.val {layer}} reports dyad {.val {at$dyad}} \
+            "x" = "Layer {.val {layer}} reports dyad {.val {at$dyad}} \\
                    {length(g)} times at wave {.val {at$wave}}.",
             "i" = if (reversed && !same_value) {
-              "The two reports of this undirected tie disagree: \
+              "The two reports of this undirected tie disagree: \\
                {.val {out$value[g]}}."
             }
           ),
@@ -713,7 +713,7 @@ clean_wave_rows <- function(x, layer, form, call) {
     at <- describe(doubled[1L])
     cli::cli_warn(
       c(
-        "Layer {.val {layer}} reports {length(doubled)} undirected \
+        "Layer {.val {layer}} reports {length(doubled)} undirected \\
          dyad{?s} in both orders with the same value.",
         "i" = "First: {.val {at$dyad}} at wave {.val {at$wave}}.",
         "i" = "Each is counted once, not twice."
