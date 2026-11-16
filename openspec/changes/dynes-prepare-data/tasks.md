@@ -413,7 +413,7 @@ the named line in a detached worktree, not a RED commit.
       `NEWS.d/dynes-prepare-data--prepare-panel-layers.md` wraps over two
       lines; `NEWS.d/README.md` asks for one line under 81 characters. Shorten
       it to one line, or split it into two bullets.
-- [ ] 5.5 Close the group: `openspec validate --strict` and the placement
+- [x] 5.5 Close the group: `openspec validate --strict` and the placement
       pre-flight, `devtools::document()` if roxygen changed, full
       `NOT_CRAN=true` suite with the baselines PASS, commit. Then request a
       scoped re-check: ablations G5b and G5d red, the all-`NA` character
