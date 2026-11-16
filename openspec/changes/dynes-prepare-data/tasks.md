@@ -409,7 +409,7 @@ the named line in a detached worktree, not a RED commit.
       the row times print with their zone ("2008-09-09 CEST") and the waves
       with theirs ("2008-09-09 UTC"). Red: `format_wave_time()` reduced to
       `format(time)` makes it fail. No code change.
-- [ ] 5.4 Reflow the NEWS fragment (gap 4). The grid-class bullet in
+- [x] 5.4 Reflow the NEWS fragment (gap 4). The grid-class bullet in
       `NEWS.d/dynes-prepare-data--prepare-panel-layers.md` wraps over two
       lines; `NEWS.d/README.md` asks for one line under 81 characters. Shorten
       it to one line, or split it into two bullets.
