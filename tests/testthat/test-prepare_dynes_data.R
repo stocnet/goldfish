@@ -493,6 +493,44 @@ test_that("a count total that falls aborts, naming the wave and the dyad", {
   )
 })
 
+test_that("a count total missing at a middle wave aborts as a fall to 0", {
+  local_cli_context()
+  # (3, 7) is 2 at wave 10, unreported at 20 while (1, 2) keeps the wave on
+  # the grid, and 5 at 30: the unreported total is 0, so it falls at 20 even
+  # though it rises again later.
+  skipped <- make_wave_fixture(
+    wave_rows(
+      c(3, 3, 1, 1, 1),
+      c(7, 7, 2, 2, 2),
+      c(10, 30, 10, 20, 30),
+      c(2, 5, 1, 1, 1)
+    ),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(skipped, layers = c(survey = "count"))
+  )
+})
+
+test_that("a declared empty wave on a count states layer aborts as a fall", {
+  local_cli_context()
+  # Wave 20 is declared and nobody is reported there: every total is 0 at
+  # 20, so (3, 7) falls from 2 before it is reported again at 30.
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3), c(7, 7), c(10, 30), c(2, 5)),
+    update = "increment"
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      layers = c(survey = "count"),
+      wave_times = c(10, 20, 30)
+    )
+  )
+})
+
 test_that("rising count totals pass the checks", {
   x <- make_wave_fixture(
     wave_rows(c(3, 3, 4, 4), c(7, 7, 8, 8), c(10, 20, 10, 20), c(6, 9, 1, 1)),

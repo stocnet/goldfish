@@ -246,7 +246,7 @@ named line, run in a detached worktree, not a RED commit. The root of gap 3 (the
 walk mirrors a two-mode layer declared `directed = FALSE`) is owned by the new
 change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
 
-- [ ] 4.1 Detect the skipped-wave fall (gap 1). On a `"count"` `"states"`
+- [x] 4.1 Detect the skipped-wave fall (gap 1). On a `"count"` `"states"`
       layer, test a dyad at 2 at wave 1, unreported at wave 2 and at 5 at
       wave 3: it aborts as a total falling from 2 to 0, naming wave 2
       (snapshot). Also test that a declared empty wave on a `"count"`

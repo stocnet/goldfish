@@ -346,6 +346,26 @@
       x Layer "survey": dyad "C-G" falls from 6 to 0 at wave "20".
       i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
 
+# a count total missing at a middle wave aborts as a fall to 0
+
+    Code
+      prepare_dynes_data(skipped, layers = c(survey = "count"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! A count total cannot fall.
+      x Layer "survey": dyad "C-G" falls from 2 to 0 at wave "20".
+      i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
+
+# a declared empty wave on a count states layer aborts as a fall
+
+    Code
+      prepare_dynes_data(x, layers = c(survey = "count"), wave_times = c(10, 20, 30))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! A count total cannot fall.
+      x Layer "survey": dyad "C-G" falls from 2 to 0 at wave "20".
+      i A dyad missing from a wave has a total of 0 there. If the values are amounts since the previous wave, declare `form = "per_wave"`.
+
 # a mutually exclusive starting level other than 0 or 1 aborts
 
     Code
