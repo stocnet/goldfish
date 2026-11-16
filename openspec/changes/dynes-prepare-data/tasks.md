@@ -260,7 +260,7 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       unchanged and gains the map. Snapshot the summary of a `"count"`
       `increment` layer with history rows. Red: dropping `start_level +` from
       the increment branch of `row_levels()` makes both fail. No code change.
-- [ ] 4.3 Test two-mode layers faithfully (gap 3, test part). Rebuild
+- [x] 4.3 Test two-mode layers faithfully (gap 3, test part). Rebuild
       `T:294`'s fixture so that receivers are receiver-side nodes and a
       sender's global id is larger than its receiver's (receiver mode listed
       first). Assert end to end, through `prepare_dynes_data()`, that a

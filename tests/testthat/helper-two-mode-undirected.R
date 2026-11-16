@@ -11,10 +11,14 @@
 # A panel-observed "survey" layer from mode "x" (senders) to mode "y"
 # (receivers). `shape = "square"`: receivers A..D, senders E..H, history and
 # wave-10 report G->A. `shape = "non_square"`: senders A..C, receivers D..H,
-# history and wave-10 report C->H.
+# history and wave-10 report C->H. `history = FALSE` drops the `time = NA` row.
+# `rows` (from, to, time) replaces the default wave-10 report with the given
+# timed rows, in global node ids.
 two_mode_survey_fixture <- function(
   shape = c("square", "non_square"),
-  directed
+  directed,
+  history = TRUE,
+  rows = NULL
 ) {
   shape <- match.arg(shape)
   if (shape == "square") {
@@ -24,6 +28,20 @@ two_mode_survey_fixture <- function(
     modes <- c(rep("x", 3L), rep("y", 5L))
     tie <- c(from = 3L, to = 8L)
   }
+  ties <- data.frame(
+    from = unname(rep(tie[["from"]], 2L)),
+    to = unname(rep(tie[["to"]], 2L)),
+    time = c(NA, 10)
+  )
+  if (!is.null(rows)) {
+    ties <- rbind(ties[is.na(ties$time), , drop = FALSE], rows)
+  }
+  if (!history) {
+    ties <- ties[!is.na(ties$time), , drop = FALSE]
+  }
+  ties$weight <- 1
+  ties$layer <- "survey"
+  rownames(ties) <- NULL
   list(
     info = list(
       name = "toy",
@@ -39,14 +57,7 @@ two_mode_survey_fixture <- function(
       mode = modes,
       stringsAsFactors = FALSE
     ),
-    ties = data.frame(
-      from = unname(rep(tie[["from"]], 2L)),
-      to = unname(rep(tie[["to"]], 2L)),
-      time = c(NA, 10),
-      weight = 1,
-      layer = "survey",
-      stringsAsFactors = FALSE
-    )
+    ties = ties
   )
 }
 

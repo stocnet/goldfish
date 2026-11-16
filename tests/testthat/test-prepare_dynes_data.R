@@ -292,13 +292,16 @@ test_that("a self-tie on a one-mode layer aborts", {
 })
 
 test_that("a two-mode layer has no diagonal and is not reordered", {
-  x <- make_wave_fixture(
-    wave_rows(c(4, 2), c(4, 1), c(10, 10)),
+  # Square fixture: receivers A..D, senders E..H, so a sender's global id
+  # exceeds its receiver's. H->D and E->A sit on the matrix diagonal.
+  x <- two_mode_survey_fixture(
+    "square",
     directed = FALSE,
-    two_mode = TRUE
+    history = FALSE,
+    rows = data.frame(from = c(8L, 5L), to = c(4L, 1L), time = c(10, 10))
   )
   out <- check_rows(x)
-  expect_equal(out$from, c(4, 2))
+  expect_equal(out$from, c(8, 5))
   expect_equal(out$to, c(4, 1))
 })
 
@@ -2072,4 +2075,148 @@ test_that("prepare_dynes_data keys a one-mode undirected dyad as before", {
     "reports 2 undirected dyads in both orders",
     all = FALSE
   )
+})
+
+# The reported ties of a two-mode survey at each of waves 10, 20 and 30, in
+# global node ids. A tie forms at 20 and one dissolves at 20 and at 30.
+two_mode_waves <- list(
+  square = data.frame(
+    from = c(7L, 5L, 7L, 6L, 6L, 8L),
+    to = c(1L, 2L, 1L, 3L, 3L, 4L),
+    time = rep(c(10, 20, 30), each = 2L)
+  ),
+  non_square = data.frame(
+    from = c(3L, 1L, 3L, 2L, 2L, 1L),
+    to = c(8L, 4L, 8L, 5L, 5L, 6L),
+    time = rep(c(10, 20, 30), each = 2L)
+  )
+)
+
+state_ties <- function(state) {
+  at <- which(state != 0, arr.ind = TRUE)
+  sort(paste0(rownames(state)[at[, 1L]], "->", colnames(state)[at[, 2L]]))
+}
+
+test_that("a two-mode layer without history rows reads as declared TRUE", {
+  local_cli_context()
+  for (shape in c("square", "non_square")) {
+    got <- lapply(c(FALSE, TRUE), function(directed) {
+      x <- two_mode_survey_fixture(shape, directed, history = FALSE)
+      expect_no_error(
+        out <- prepare_collecting_warnings(
+          x,
+          c(survey = "mutually_exclusive")
+        )
+      )
+      out
+    })
+    expect_identical(
+      as.data.frame(got[[1L]]$out$ties),
+      as.data.frame(got[[2L]]$out$ties)
+    )
+    expect_identical(
+      lapply(got[[1L]]$warnings, conditionMessage),
+      lapply(got[[2L]]$warnings, conditionMessage)
+    )
+  }
+})
+
+test_that("a two-mode panel round-trips and writes only reported ties", {
+  local_cli_context()
+  for (shape in c("square", "non_square")) {
+    waves <- two_mode_waves[[shape]]
+    reported <- paste(waves$from, waves$to)
+    for (history in c(FALSE, TRUE)) {
+      x <- two_mode_survey_fixture(
+        shape,
+        directed = FALSE,
+        history = history,
+        rows = waves
+      )
+      info <- paste(shape, "history", history)
+      out <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+
+      for (wave in c(10, 20, 30)) {
+        reported_now <- waves[waves$time == wave, ]
+        expected <- sort(paste0(
+          LETTERS[reported_now$from],
+          "->",
+          LETTERS[reported_now$to]
+        ))
+        expect_identical(
+          state_ties(network_state_at(out, "survey", time = wave + 1)),
+          expected,
+          info = paste(info, "wave", wave)
+        )
+      }
+
+      rows <- written_rows(out)
+      expect_true(all(paste(rows$from, rows$to) %in% reported), info = info)
+      expect_identical(
+        sort(unique(rows$flavor)),
+        c("creation", "dissolution"),
+        info = info
+      )
+    }
+  }
+})
+
+test_that("a start before the first survey flips only reported two-mode ties", {
+  skip_on_cran()
+  for (shape in c("square", "non_square")) {
+    waves <- two_mode_waves[[shape]][1:4, ]
+    first <- waves[waves$time == 10, ]
+    x <- two_mode_survey_fixture(
+      shape,
+      directed = FALSE,
+      history = FALSE,
+      rows = waves
+    )
+    # The joint specification needs a second process: an event layer on the
+    # same two modes.
+    x$info$update[["calls"]] <- "increment"
+    x$info$directed[["calls"]] <- FALSE
+    x$info$observation[["calls"]] <- "event"
+    x$info$sender[["calls"]] <- "x"
+    x$info$receiver[["calls"]] <- "y"
+    x$ties <- rbind(
+      x$ties,
+      data.frame(
+        from = first$from[1L],
+        to = first$to[1L],
+        time = 15,
+        weight = 1,
+        layer = "calls"
+      )
+    )
+    data <- prepare_quietly(x, layers = c(survey = "mutually_exclusive"))
+    spec <- make_joint_specification(
+      make_specification(
+        rate = list(creation ~ 1, dissolution ~ 1),
+        choice = list(creation ~ tie(calls), dissolution ~ tie(calls)),
+        layer = "survey",
+        model = "DyNAM",
+        data = data
+      ),
+      make_specification(
+        rate = ~1,
+        choice = ~ tie(survey),
+        layer = "calls",
+        model = "DyNAM",
+        data = data
+      ),
+      data = data
+    )
+
+    recipe <- entry_recipe(spec, set_preprocessing(start_time = 0))
+
+    expect_identical(recipe$wave_times, c(0, 10, 20), info = shape)
+    expect_equal(sum(recipe$start_states[[1]]$survey), 0, info = shape)
+    in_first <- recipe$events[recipe$events$interval == 1L, ]
+    expect_identical(in_first$flavor, rep("creation", 2L), info = shape)
+    expect_setequal(
+      paste(in_first$from, in_first$to),
+      paste(first$from, first$to)
+    )
+  }
 })
