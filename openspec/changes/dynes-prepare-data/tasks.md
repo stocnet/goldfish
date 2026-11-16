@@ -397,14 +397,14 @@ the named line in a detached worktree, not a RED commit.
       style and a form" (the entry check applies unless every `time` is a
       logical `NA`) and in D8, with the reason. It lives only in the
       gitignored `progress.md` today.
-- [ ] 5.2 Detect the order of the class check and the finite-time check
+- [x] 5.2 Detect the order of the class check and the finite-time check
       (gap 2). Test that an unparseable character grid (`c("abc", "x")` on a
       `POSIXct` column) and a bare `NA` grid on a numeric column each abort
       with class `goldfish_wave_grid_time_class`, not with "must hold finite
       times". Red: moving the `check_grid_time_class()` call in
       `resolve_wave_grids()` below the finite-time check makes it fail. No
       code change.
-- [ ] 5.3 Detect the zone in the off-grid abort (gap 3). Snapshot the abort
+- [x] 5.3 Detect the zone in the off-grid abort (gap 3). Snapshot the abort
       for a UTC-midnight `POSIXct` grid on rows at Europe/Zurich midnight:
       the row times print with their zone ("2008-09-09 CEST") and the waves
       with theirs ("2008-09-09 UTC"). Red: `format_wave_time()` reduced to

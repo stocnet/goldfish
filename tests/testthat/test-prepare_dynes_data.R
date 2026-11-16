@@ -1291,6 +1291,30 @@ test_that("a character grid aborts, its hint naming no unit", {
   expect_no_match(conditionMessage(cnd), "days|seconds")
 })
 
+test_that("the class abort comes before the finite-time abort", {
+  x <- time_class_fixture(as_posix_days)
+  layers <- c(survey = "none")
+  expect_error(
+    prepare_dynes_data(x, layers, wave_times = c("abc", "x")),
+    class = "goldfish_wave_grid_time_class"
+  )
+  numeric_x <- make_wave_fixture(gapped_survey_rows())
+  expect_error(
+    prepare_dynes_data(numeric_x, layers, wave_times = NA),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
+test_that("an off-grid abort prints the zones of rows and waves", {
+  local_cli_context()
+  x <- time_class_fixture(function(days) as_posix_days(days, "Europe/Zurich"))
+  grid <- as_posix_days(c(10, 30))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"), wave_times = grid)
+  )
+})
+
 test_that("a grid in the time column's class matches its rows", {
   layers <- c(survey = "none")
 

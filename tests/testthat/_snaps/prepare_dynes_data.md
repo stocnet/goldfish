@@ -481,6 +481,16 @@
       x `wave_times` is <character>, but the time column of layer "survey" is <POSIXct>.
       i Convert the grid to <POSIXct> first; a <character> grid is never parsed.
 
+# an off-grid abort prints the zones of rows and waves
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = grid)
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! Layer "survey" has rows off its wave grid.
+      x Row times on no wave: "2008-09-11 CEST" and "2008-10-01 CEST".
+      i Its waves are "2008-09-11 UTC" and "2008-10-01 UTC".
+
 # a character time column aborts at entry, before the grid check
 
     Code
