@@ -157,3 +157,19 @@ admits it; if admitted, the capabilities `abmcem-optimization` and
   D11: about -0.17 at f15, -0.5 at f33). Decide whether the check returns as
   an oracle once this change's augmentation represents more of the
   unobserved flips, or stays a bias measurement.
+- **A character `wave_times` grid** (carried 2026-11-16, from
+  `dynes-augmentation` 6.6.3). v1 rejects it: `check_grid_time_class()`
+  requires the grid in the class of every modeled panel layer's `time`
+  column (numeric, `POSIXct` or `Date`), and a character grid aborts with a
+  hint to convert it first. Before 6.6, `coerce_time()` parsed text as
+  `POSIXct` in GMT, so `"2008-09-01"` became midnight GMT whatever the
+  column's zone: one or two hours off a Europe/Zurich column, enough to
+  move a wave boundary past rows stamped near midnight into the
+  neighboring interval. The user kept it rejected (2026-11-16). To
+  discuss: whether v2 accepts text grids by parsing them in the column's
+  own class and zone (`as.Date()` for a `Date` column,
+  `as.POSIXct(tz = <column zone>)` for a `POSIXct` one, an abort on a
+  numeric column), which then must also apply to
+  `prepare_dynes_data()`, since it shares the helper; or whether rejection
+  stays, since a typed grid costs the user one call and leaves no zone
+  guess to the package.
