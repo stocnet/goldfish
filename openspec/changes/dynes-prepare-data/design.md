@@ -268,7 +268,8 @@ decision and of the `wave_times` argument therefore says to declare
 
 The function checks `wave_times` before any row is rewritten (user decision
 2026-11-04). A list entry naming a layer absent from `layers` aborts, and so
-does an entry naming a `"changes"` layer, which has no grid to diff on. So do,
+does a list naming the same layer twice (the second entry would be ignored
+silently), and an entry naming a `"changes"` layer, which has no grid to diff on. So do,
 for the same reason, a `wave_times` vector when every declared layer is
 `"changes"`, an unnamed list entry, an `NA` or non-finite grid time, and a
 `"states"` or `"per_wave"` layer left with no wave at all (no timed rows and
@@ -311,7 +312,10 @@ dissolution. A violation aborts, naming the layer and the dyad.
 the changed totals in the layer's own semantics: the new total under
 `replace`, the rise under `increment`. A total that falls between waves is a
 data error, and the function aborts on it, naming the layer, the wave and the
-dyad. The first wave is compared with the state before it (user decision
+dyad. A declared empty wave on a `"count"` `"states"` layer is the same error:
+it reads as the empty network, so every total falls to 0 there, and a total
+that drops to nothing is not a count (a `"per_wave"` count layer has no such
+wave, where an empty wave means no events). The first wave is compared with the state before it (user decision
 2026-11-04): a history level of 6 followed by a wave-1 total of 4 aborts,
 naming wave 1. That state acts as a "wave 0" for this check only. It is not
 added to the layer's grid, writes no row, cannot raise the D12 warning, and is

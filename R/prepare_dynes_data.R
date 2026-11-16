@@ -94,9 +94,11 @@ flavor_roles <- c("creation", "dissolution")
 #'   vector per layer. A layer without an entry takes its waves from the
 #'   distinct times of its own timed rows. A declared wave at which a
 #'   `"states"` layer has no rows is read as the empty network, so every tie
-#'   dissolves there; on a `"per_wave"` layer it means no events. An inferred
-#'   grid cannot see a wave at which nobody reported a tie, so declare
-#'   `wave_times` for any layer that can have an empty wave. Every timed row
+#'   dissolves there; on a `"per_wave"` layer it means no events. On a
+#'   `"count"` `"states"` layer that is a total falling to 0, so a declared
+#'   empty wave aborts there. An inferred grid cannot see a wave at which
+#'   nobody reported a tie, so declare `wave_times` for any layer that can
+#'   have an empty wave. Every timed row
 #'   must sit on a wave of its layer's grid. A grid is sorted, and a time
 #'   listed twice is kept once with a warning. A grid must have the class of
 #'   the `time` column of `x$ties`: numeric (integer or double), `POSIXct` or

@@ -32,9 +32,11 @@ layers: either one vector applied to every such layer, or a list naming a
 vector per layer. A layer without an entry takes its waves from the
 distinct times of its own timed rows. A declared wave at which a
 \code{"states"} layer has no rows is read as the empty network, so every tie
-dissolves there; on a \code{"per_wave"} layer it means no events. An inferred
-grid cannot see a wave at which nobody reported a tie, so declare
-\code{wave_times} for any layer that can have an empty wave. Every timed row
+dissolves there; on a \code{"per_wave"} layer it means no events. On a
+\code{"count"} \code{"states"} layer that is a total falling to 0, so a declared
+empty wave aborts there. An inferred grid cannot see a wave at which
+nobody reported a tie, so declare \code{wave_times} for any layer that can
+have an empty wave. Every timed row
 must sit on a wave of its layer's grid. A grid is sorted, and a time
 listed twice is kept once with a warning. A grid must have the class of
 the \code{time} column of \code{x$ties}: numeric (integer or double), \code{POSIXct} or

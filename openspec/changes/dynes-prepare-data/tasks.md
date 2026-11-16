@@ -279,7 +279,7 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       wave_times` that a `Date` is read as midnight UTC. Format both sides of
       the off-grid abort with time and zone, so that a mismatch at local
       midnight is visible. Test with a non-UTC `POSIXct` column (snapshot).
-- [ ] 4.6 Move the journal-only behavior into the tracked artifacts (gap 6).
+- [x] 4.6 Move the journal-only behavior into the tracked artifacts (gap 6).
       (a) Add the abort on a `wave_times` list naming a layer twice to D8 and
       to the spec's grid-abort list and its malformed-grid scenario, and test
       it (snapshot). (b) State in D8/D10 and in `@param wave_times` that a

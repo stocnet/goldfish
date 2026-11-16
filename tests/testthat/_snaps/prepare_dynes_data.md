@@ -559,6 +559,16 @@
       ! `wave_times` is given, but every layer has form "changes".
       i A change-list has no waves to diff on; drop `wave_times`.
 
+# a wave_times list naming a layer twice aborts
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = list(survey = c(10, 30),
+      survey = c(10, 20, 30)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` names a layer more than once.
+      x Repeated layer: "survey".
+
 # a states or per_wave layer with no wave aborts
 
     Code

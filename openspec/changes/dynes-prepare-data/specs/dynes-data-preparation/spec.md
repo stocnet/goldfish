@@ -275,7 +275,8 @@ grid SHALL abort.
 
 Before any row is rewritten, a `wave_times` list entry naming a layer absent
 from `layers`, or a layer whose form is `"changes"`, SHALL abort with a cli
-error naming the layer. So SHALL an unnamed list entry, an `NA` or
+error naming the layer. So SHALL a list naming a layer more than once, an
+unnamed list entry, an `NA` or
 non-finite grid time, a `wave_times` vector when every declared layer has form
 `"changes"`, and a `"states"` or `"per_wave"` layer with no wave (no timed
 rows and no `wave_times` entry). Each layer's grid SHALL be sorted without a
@@ -323,7 +324,8 @@ naming every layer and time affected.
 
 #### Scenario: a malformed grid aborts
 - **WHEN** `wave_times` holds an `NA` time, or is a list with an unnamed
-  entry, or is a vector while every declared layer is `"changes"`
+  entry, or names a layer twice, or is a vector while every declared layer is
+  `"changes"`
 - **THEN** the function aborts with a cli error naming `wave_times`, and
   returns nothing
 

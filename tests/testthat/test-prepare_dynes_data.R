@@ -1412,6 +1412,19 @@ test_that("a malformed wave_times aborts before any row is rewritten", {
   )
 })
 
+test_that("a wave_times list naming a layer twice aborts", {
+  local_cli_context()
+  x <- make_wave_fixture(gapped_survey_rows())
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(survey = "none"),
+      wave_times = list(survey = c(10, 30), survey = c(10, 20, 30))
+    )
+  )
+})
+
 test_that("a states or per_wave layer with no wave aborts", {
   local_cli_context()
   x <- make_wave_fixture(wave_rows(c(1, 3), c(2, 7), c(NA, NA)))
