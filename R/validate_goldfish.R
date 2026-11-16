@@ -293,6 +293,23 @@ check_focal <- function(info, focal, layers, call) {
   focal_layer
 }
 
+# A time column must be numeric, POSIXct or Date; `nm` names the stream in the
+# message. Shared by the data validator and the entry of prepare_dynes_data(),
+# so a character time column gets one message wherever it is met.
+check_time_class <- function(time, nm, call) {
+  if (!any(check_classes(time, allowed_time_classes))) {
+    cli::cli_abort(
+      c(
+        "{.field {nm}$time} has an unsupported class \\
+         {.cls {class(time)}}.",
+        "i" = "Convert {.field time} to numeric, POSIXct, or Date."
+      ),
+      call = call
+    )
+  }
+  invisible(time)
+}
+
 # Time is required on event streams; classes limited to numeric/POSIXct/Date;
 # character/mdate abort; all layers must share a comparable axis (integer waves
 # only when every stream is numeric). NA time is allowed on ties and on global
@@ -321,16 +338,7 @@ check_time_contract <- function(ties, changes, global, call) {
         call = call
       )
     }
-    if (!any(check_classes(time, allowed_time_classes))) {
-      cli::cli_abort(
-        c(
-          "{.field {nm}$time} has an unsupported class \\
-           {.cls {class(time)}}.",
-          "i" = "Convert {.field time} to numeric, POSIXct, or Date."
-        ),
-        call = call
-      )
-    }
+    check_time_class(time, nm, call)
   }
   if (!is.null(changes) && anyNA(changes$time)) {
     cli::cli_abort(

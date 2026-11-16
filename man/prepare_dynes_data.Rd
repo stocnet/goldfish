@@ -36,7 +36,13 @@ dissolves there; on a \code{"per_wave"} layer it means no events. An inferred
 grid cannot see a wave at which nobody reported a tie, so declare
 \code{wave_times} for any layer that can have an empty wave. Every timed row
 must sit on a wave of its layer's grid. A grid is sorted, and a time
-listed twice is kept once with a warning.}
+listed twice is kept once with a warning. A grid must have the class of
+the \code{time} column of \code{x$ties}: numeric (integer or double), \code{POSIXct} or
+\code{Date}. A different class aborts rather than being converted, since a
+\code{Date} counts days and a \code{POSIXct} seconds, and a character grid is never
+parsed. Convert it first with \code{\link[=as.POSIXct]{as.POSIXct()}} or \code{\link[=as.Date]{as.Date()}}. A \code{POSIXct}
+grid may carry another time zone than the column, since a zone only
+changes how an instant is printed.}
 }
 \value{
 \code{x} with the named layers rewritten. Their declared styles are

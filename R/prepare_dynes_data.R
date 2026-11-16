@@ -98,7 +98,13 @@ flavor_roles <- c("creation", "dissolution")
 #'   grid cannot see a wave at which nobody reported a tie, so declare
 #'   `wave_times` for any layer that can have an empty wave. Every timed row
 #'   must sit on a wave of its layer's grid. A grid is sorted, and a time
-#'   listed twice is kept once with a warning.
+#'   listed twice is kept once with a warning. A grid must have the class of
+#'   the `time` column of `x$ties`: numeric (integer or double), `POSIXct` or
+#'   `Date`. A different class aborts rather than being converted, since a
+#'   `Date` counts days and a `POSIXct` seconds, and a character grid is never
+#'   parsed. Convert it first with [as.POSIXct()] or [as.Date()]. A `POSIXct`
+#'   grid may carry another time zone than the column, since a zone only
+#'   changes how an instant is printed.
 #'
 #' @return `x` with the named layers rewritten. Their declared styles are
 #'   recorded in `info$dynes_prepared`, a character vector named by layer, and a
@@ -116,7 +122,7 @@ prepare_dynes_data <- function(
 ) {
   call <- rlang::current_env()
   spec <- resolve_prepare_layers(x, layers, form, flavor_names, call = call)
-  grids <- resolve_wave_grids(spec, wave_times, call = call)
+  grids <- resolve_wave_grids(spec, wave_times, x$ties$time, call = call)
 
   checked <- lapply(seq_len(nrow(spec)), function(i) {
     check_prepare_layer(
@@ -244,7 +250,7 @@ prepared_layer_totals <- function(x, layer, start, first_wave) {
   }
   value <- if ("weight" %in% names(rows)) rows$weight else rep(1, nrow(rows))
   first_wave <- first_wave %||% rows$time[which.min(coerce_time(rows$time))]
-  first_axis <- time_on_column_scale(first_wave, x$ties$time)
+  first_axis <- coerce_time(first_wave)
 
   levels <- row_levels(
     from,
@@ -428,6 +434,14 @@ check_prepare_object <- function(x, call) {
       ),
       call = call
     )
+  }
+  # The grid check compares classes only and assumes a time-class column, as
+  # the data validator guarantees for estimate_dynes(); this entry never runs
+  # the validator, so it is checked here, before any argument or grid check.
+  # A column that is all NA (a layer of history rows only) has no class to
+  # check, and the missing-wave abort below says more.
+  if (!is.null(x$ties$time) && !all(is.na(x$ties$time))) {
+    check_time_class(x$ties$time, "ties", call)
   }
   invisible(TRUE)
 }
@@ -779,7 +793,7 @@ check_prepare_layer <- function(x, layer, style, form, grid = NULL, call) {
 # so an entry for one aborts, as does an entry for an undeclared layer. A time
 # listed twice is harmless for the diff but may hide a typo for a different
 # wave, so it is kept once and reported in one warning per call.
-resolve_wave_grids <- function(spec, wave_times, call) {
+resolve_wave_grids <- function(spec, wave_times, time_column, call) {
   gridded <- spec$layer[spec$form != "changes"]
   grids <- stats::setNames(vector("list", length(gridded)), gridded)
   if (is.null(wave_times)) {
@@ -855,6 +869,7 @@ resolve_wave_grids <- function(spec, wave_times, call) {
     if (is.null(grid)) {
       next
     }
+    check_grid_time_class(grid, time_column, layer, call)
     axis <- suppressWarnings(coerce_time(grid))
     if (length(grid) == 0L || anyNA(axis) || !all(is.finite(axis))) {
       cli::cli_abort(
@@ -896,14 +911,20 @@ resolve_wave_grids <- function(spec, wave_times, call) {
   grids
 }
 
+# A time printed in its own class; a POSIXct shows its zone so a reader sees
+# which clock the instants are on.
+format_wave_time <- function(time) {
+  format(time, usetz = inherits(time, "POSIXct"))
+}
+
 # The waves of one "states" or "per_wave" layer: its declared grid (already
 # checked, sorted and de-duplicated by resolve_wave_grids()), or, without one,
 # the distinct times of its own timed rows. An inferred grid cannot hold a wave
 # at which nobody reported a tie, so its full dissolution is never written;
 # hence the documentation's advice to declare `wave_times` for such a layer.
 # Every timed row, zero-valued ones included, must sit on a wave of the grid;
-# both sides are compared on the ties `time` column's numeric scale, so a Date
-# grid matches POSIXct rows at the same instants.
+# the grid has the column's class (resolve_wave_grids()), so both sides compare
+# on one numeric scale and a POSIXct zone cannot change a match.
 layer_wave_grid <- function(x, layer, grid, call) {
   ties <- as.data.frame(x$ties)
   timed <- ties$time[ties$layer == layer & !is.na(ties$time)]
@@ -921,14 +942,14 @@ layer_wave_grid <- function(x, layer, grid, call) {
     }
     return(sort(unique(timed)))
   }
-  axis <- time_on_column_scale(grid, x$ties$time)
+  axis <- coerce_time(grid)
   off <- unique(timed[!coerce_time(timed) %in% axis])
   if (length(off) > 0L) {
     cli::cli_abort(
       c(
         "Layer {.val {layer}} has rows off its wave grid.",
-        "x" = "Row time{?s} on no wave: {.val {format(off)}}.",
-        "i" = "Its waves are {.val {format(grid)}}."
+        "x" = "Row time{?s} on no wave: {.val {format_wave_time(off)}}.",
+        "i" = "Its waves are {.val {format_wave_time(grid)}}."
       ),
       call = call
     )
@@ -1066,7 +1087,7 @@ check_totals_never_fall <- function(
   template,
   call
 ) {
-  wave_axis <- time_on_column_scale(waves, template)
+  wave_axis <- coerce_time(waves)
   levels <- rbind(
     data.frame(
       from = start$from,
@@ -1279,20 +1300,6 @@ row_levels <- function(from, to, time, value, start, is_replace) {
   list(ord = ord, before = before, after = after)
 }
 
-# A grid time on the numeric scale of the ties `time` column. coerce_time()
-# counts days for a Date and seconds for a POSIXct, so a Date grid against a
-# POSIXct column is first read as midnight UTC of that day, and a POSIXct grid
-# against a Date column as its day; both sides of a match then count the same
-# unit.
-time_on_column_scale <- function(time, template) {
-  if (inherits(time, "Date") && inherits(template, "POSIXct")) {
-    time <- as.POSIXct(time)
-  } else if (inherits(time, "POSIXct") && inherits(template, "Date")) {
-    time <- as.Date(time, tz = attr(time, "tzone") %||% "")
-  }
-  coerce_time(time)
-}
-
 # The change-list of one "states" layer: each wave compared with the level
 # before it, by dyad key, never through an n1 x n2 matrix. The level before the
 # first wave is `start`, folded from the `time = NA` rows as the walk folds
@@ -1305,7 +1312,7 @@ time_on_column_scale <- function(time, template) {
 # `time` column. Returns `from`, `to` (global ids), `time` and `value`, sorted
 # by time, then sender, then receiver.
 diff_wave_states <- function(rows, start, waves, update, template) {
-  wave_axis <- time_on_column_scale(waves, template)
+  wave_axis <- coerce_time(waves)
   wave_of_row <- match(coerce_time(rows$time), wave_axis)
   is_replace <- identical(update, "replace")
 
@@ -1369,7 +1376,7 @@ diff_wave_states <- function(rows, start, waves, update, template) {
 warn_empty_waves <- function(written, waves, template, call) {
   empty <- Map(
     function(rows, grid) {
-      axis <- time_on_column_scale(grid, template)
+      axis <- coerce_time(grid)
       grid[!axis %in% coerce_time(rows$time)]
     },
     written,
@@ -1464,7 +1471,7 @@ flavor_prepared_layer <- function(x, layer, labels, call) {
 # replace. A dyad with no row at a wave had no events there and writes nothing.
 # Arguments and result as for diff_wave_states().
 sum_wave_amounts <- function(rows, start, waves, update, template) {
-  wave_axis <- time_on_column_scale(waves, template)
+  wave_axis <- coerce_time(waves)
   k <- match(coerce_time(rows$time), wave_axis)
   ord <- order(rows$from, rows$to, k)
   from <- rows$from[ord]

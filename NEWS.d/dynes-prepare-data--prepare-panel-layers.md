@@ -8,5 +8,7 @@
   * `wave_times` declares each layer's waves; an empty wave dissolves all ties.
   * Repeated dyads, self-ties, invalid values and falling totals abort.
   * A wave that writes no rows warns, since `estimate_dynes()` would merge it.
+  * A `wave_times` grid must have the class of the `time` column; a
+    different class, a character grid included, aborts.
   * Preparing a layer twice, or one already flavored, aborts.
 * Added a section on `prepare_dynes_data()` to the `dynes-panel` vignette.

@@ -275,7 +275,7 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       its behavior is unchanged. If the extraction turns out not to be
       behavior-preserving, reword D5 and the proposal instead ("the same rule,
       guarded by an equality test") and record why.
-- [ ] 4.5 Make `Date` grids explicit (gap 5). Document in `@param
+- [x] 4.5 Make `Date` grids explicit (gap 5). Document in `@param
       wave_times` that a `Date` is read as midnight UTC. Format both sides of
       the off-grid abort with time and zone, so that a mismatch at local
       midnight is visible. Test with a non-UTC `POSIXct` column (snapshot).

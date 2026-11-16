@@ -450,6 +450,55 @@
       x Row time on no wave: "15".
       i Its waves are "10" and "20".
 
+# a grid of another time class aborts, naming both classes
+
+    Code
+      prepare_dynes_data(at_posix, layers, wave_times = as_date_days(c(10, 30)))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <Date>, but the time column of layer "survey" is <POSIXct>.
+      i Give the grid as <POSIXct>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
+
+---
+
+    Code
+      prepare_dynes_data(at_date, layers, wave_times = list(survey = as_posix_days(c(
+        10, 30))))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <POSIXct>, but the time column of layer "survey" is <Date>.
+      i Give the grid as <Date>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
+
+# a character grid aborts, its hint naming no unit
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = grid)
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <character>, but the time column of layer "survey" is <POSIXct>.
+      i Convert the grid to <POSIXct> first; a <character> grid is never parsed.
+
+# a character time column aborts at entry, before the grid check
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 30))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! ties$time has an unsupported class <character>.
+      i Convert time to numeric, POSIXct, or Date.
+
+---
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! ties$time has an unsupported class <character>.
+      i Convert time to numeric, POSIXct, or Date.
+
 # a malformed wave_times aborts before any row is rewritten
 
     Code

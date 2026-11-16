@@ -830,7 +830,7 @@ test_that("a missing value column is created with 1 on other layers' rows", {
   expect_equal(out$ties$weight[!others], c(1, 0, 1))
 })
 
-test_that("rows written at a Date grid time on a POSIXct column are POSIXct", {
+test_that("rows written at a POSIXct grid time are POSIXct", {
   t1 <- as.POSIXct("2008-09-09", tz = "GMT")
   t2 <- as.POSIXct("2008-10-19", tz = "GMT")
   x <- make_wave_fixture(wave_rows(c(3, 1), c(7, 2), c(t1, t1)))
@@ -839,7 +839,7 @@ test_that("rows written at a Date grid time on a POSIXct column are POSIXct", {
   written <- diff_wave_states(
     checked$rows,
     checked$start,
-    waves = as.Date(c("2008-09-09", "2008-10-19")),
+    waves = c(t1, t2),
     update = "replace",
     template = x$ties$time
   )
@@ -1237,19 +1237,124 @@ test_that("a row off the grid aborts, naming the layer and the time", {
   )
 })
 
-test_that("a Date grid matches POSIXct rows at the same instants", {
-  day <- as.Date(c("2008-09-09", "2008-10-19", "2008-11-29"))
-  at <- as.POSIXct(format(day), tz = "GMT")
+# The gapped survey with its times 10, 20, 30 read as days from 2008-09-01, in
+# the class `as_time` makes of a day number.
+time_class_fixture <- function(as_time) {
   x <- make_wave_fixture(gapped_survey_rows())
-  x$ties$time <- at[match(x$ties$time, c(10, 20, 30))]
+  x$ties$time <- as_time(c(10, 20, 30))[match(x$ties$time, c(10, 20, 30))]
+  x
+}
+
+as_posix_days <- function(days, tz = "UTC") {
+  as.POSIXct("2008-09-01", tz = tz) + days * 86400
+}
+
+as_date_days <- function(days) as.Date("2008-09-01") + days
+
+test_that("a grid of another time class aborts, naming both classes", {
+  local_cli_context()
+  at_posix <- time_class_fixture(as_posix_days)
+  at_date <- time_class_fixture(as_date_days)
+  layers <- c(survey = "none")
+
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(at_posix, layers, wave_times = as_date_days(c(10, 30)))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      at_date,
+      layers,
+      wave_times = list(survey = as_posix_days(c(10, 30)))
+    )
+  )
+  expect_error(
+    prepare_dynes_data(at_posix, layers, wave_times = as_date_days(c(10, 30))),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
+test_that("a character grid aborts, its hint naming no unit", {
+  local_cli_context()
+  x <- time_class_fixture(as_posix_days)
+  grid <- c("2008-09-11", "2008-10-01")
+
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"), wave_times = grid)
+  )
+  cnd <- expect_error(
+    prepare_dynes_data(x, c(survey = "none"), wave_times = grid),
+    class = "goldfish_wave_grid_time_class"
+  )
+  expect_no_match(conditionMessage(cnd), "days|seconds")
+})
+
+test_that("a grid in the time column's class matches its rows", {
+  layers <- c(survey = "none")
+
+  # Integer and double are one numeric class.
   rows <- written_rows(prepare_quietly(
-    x,
-    layers = c(survey = "none"),
-    wave_times = day
+    make_wave_fixture(gapped_survey_rows()),
+    layers,
+    wave_times = c(10L, 20L, 30L)
   ))
-  expect_s3_class(rows$time, "POSIXct")
-  expect_equal(rows$time[rows$weight == 0], c(at[2], at[2]))
-  expect_equal(sum(rows$time == at[3]), 2L)
+  expect_equal(sum(rows$time == 20), 2L)
+
+  # A POSIXct zone changes only the printing: the same instants match.
+  zurich <- time_class_fixture(function(days) {
+    as_posix_days(days, "Europe/Zurich")
+  })
+  for (tz in c("Europe/Zurich", "UTC", "Pacific/Auckland")) {
+    grid <- as_posix_days(c(10, 20, 30), "Europe/Zurich")
+    attr(grid, "tzone") <- tz
+    rows <- written_rows(prepare_quietly(zurich, layers, wave_times = grid))
+    expect_s3_class(rows$time, "POSIXct")
+    expect_equal(
+      as.numeric(rows$time[rows$weight == 0]),
+      as.numeric(grid[c(2L, 2L)]),
+      info = tz
+    )
+    expect_equal(
+      sum(as.numeric(rows$time) == as.numeric(grid[3L])),
+      2L,
+      info = tz
+    )
+  }
+
+  # A Date grid on a Date column.
+  rows <- written_rows(prepare_quietly(
+    time_class_fixture(as_date_days),
+    layers,
+    wave_times = as_date_days(c(10, 20, 30))
+  ))
+  expect_s3_class(rows$time, "Date")
+})
+
+test_that("a character time column aborts at entry, before the grid check", {
+  local_cli_context()
+  x <- make_wave_fixture(gapped_survey_rows())
+  x$ties$time <- format(as_posix_days(c(10, 20, 30)))[
+    match(x$ties$time, c(10, 20, 30))
+  ]
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 30))
+  )
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"))
+  )
+  cnd <- expect_error(
+    prepare_dynes_data(
+      x,
+      c(survey = "none"),
+      wave_times = c("2008-09-11", "2008-10-01")
+    ),
+    "unsupported class"
+  )
+  expect_no_match(conditionMessage(cnd), "wave_times")
 })
 
 test_that("a malformed wave_times aborts before any row is rewritten", {
