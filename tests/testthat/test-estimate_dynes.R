@@ -1127,6 +1127,112 @@ test_that("a window over an observed layer passes validation", {
   expect_s3_class(seen$spec, "goldfishJointSpec")
 })
 
+# The count panel toy of recipe_count_data() with its `time` column recast by
+# `as_time`, the days since an arbitrary origin turned into another class.
+time_class_spec <- function(as_time) {
+  data <- recipe_count_data()
+  data$ties$time <- as_time(data$ties$time)
+  recipe_count_spec(data)
+}
+
+as_posix_days <- function(days, tz = "UTC") {
+  as.POSIXct("2008-09-01", tz = tz) + days * 86400
+}
+
+as_date_days <- function(days) as.Date("2008-09-01") + days
+
+test_that("a Date grid on a POSIXct time column aborts at entry", {
+  local_cli_context()
+  spec <- time_class_spec(as_posix_days)
+
+  expect_snapshot(
+    dynes_entry(spec, wave_times = as_date_days(c(0, 5, 10))),
+    error = TRUE
+  )
+  expect_error(
+    dynes_entry(spec, wave_times = as_date_days(c(0, 5, 10))),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
+test_that("a POSIXct grid on a Date time column aborts at entry", {
+  local_cli_context()
+  spec <- time_class_spec(as_date_days)
+
+  expect_snapshot(
+    dynes_entry(spec, wave_times = as_posix_days(c(0, 5, 10))),
+    error = TRUE
+  )
+  expect_error(
+    dynes_entry(spec, wave_times = as_posix_days(c(0, 5, 10))),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
+test_that("every modeled panel layer's time column is checked", {
+  local_cli_context()
+  data <- recipe_count_data()
+  data$info$update <- c(data$info$update, texts = "increment")
+  data$info$directed <- c(data$info$directed, texts = TRUE)
+  data$info$observation <- c(data$info$observation, texts = "panel")
+  data$ties <- rbind(
+    data$ties,
+    data.frame(from = 3L, to = 4L, time = 10, weight = 1, layer = "texts")
+  )
+  spec <- make_joint_specification(
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "calls",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "texts",
+      model = "DyNAM",
+      data = data
+    ),
+    make_specification(
+      rate = ~1,
+      choice = ~inertia,
+      layer = "emails",
+      model = "DyNAM",
+      data = data
+    ),
+    data = data
+  )
+  # One ties table holds every layer, so its layers share one time class; a
+  # second layer read back in another class stands in for a data object that
+  # keeps its layers' rows apart.
+  real_times <- layer_event_times
+  local_mocked_bindings(
+    layer_event_times = function(data, layer) {
+      times <- real_times(data, layer)
+      if (identical(layer, "texts")) as_date_days(times) else times
+    }
+  )
+
+  expect_snapshot(dynes_entry(spec, wave_times = c(0, 5, 10)), error = TRUE)
+  expect_error(
+    dynes_entry(spec, wave_times = c(0, 5, 10)),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
+test_that("a grid in the time column's class is accepted", {
+  # Integer and double are one numeric class.
+  seen <- dynes_entry(recipe_count_spec(), wave_times = c(0L, 5L, 10L))
+  expect_identical(seen$recipe$wave_times, c(0, 5, 10))
+
+  # Under one class a zone changes only the printing, not the instant.
+  spec <- time_class_spec(function(days) as_posix_days(days, "Europe/Zurich"))
+  grid <- as_posix_days(c(0, 5, 10), "Europe/Zurich")
+  seen <- dynes_entry(spec, wave_times = grid)
+  expect_identical(seen$recipe$wave_times, as.numeric(grid))
+})
+
 test_that("completion runs once at entry, on the panel wave grid", {
   seen <- dynes_entry(
     recipe_state_spec(),
