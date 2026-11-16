@@ -121,6 +121,17 @@ check_grid_time_class <- function(
   } else {
     "the {.field time} column of layer {.val {layer}}"
   }
+  # The unit explanation holds only between time classes. Anything else, a
+  # character grid above all, is not parsed: coerce_time() would read text as
+  # GMT, a zone the user never chose.
+  time_kinds <- c("numeric", "POSIXct", "Date")
+  hint <- if (all(c(grid_class, column_class) %in% time_kinds)) {
+    "Give the grid as {.cls {column_class}}: a {.cls Date} counts days and a
+     {.cls POSIXct} seconds, so mixed classes compare different units."
+  } else {
+    "Convert the grid to {.cls {column_class}} first; a {.cls {grid_class}}
+     grid is never parsed."
+  }
   cli::cli_abort(
     c(
       "{.arg wave_times} must have the time class of the rows it marks.",
@@ -129,9 +140,7 @@ check_grid_time_class <- function(
         column,
         " is {.cls {column_class}}."
       ),
-      "i" = "Give the grid as {.cls {column_class}}: a {.cls Date} counts
-             days and a {.cls POSIXct} seconds, so mixed classes compare
-             different units."
+      "i" = hint
     ),
     class = "goldfish_wave_grid_time_class",
     call = call

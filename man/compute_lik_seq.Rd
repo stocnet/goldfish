@@ -33,7 +33,8 @@ initial condition. A given grid must have the time class of every modeled
 panel layer's \code{time} column: numeric (integer or double) on a numeric
 column, \code{POSIXct} on a \code{POSIXct} column (any time zone) and \code{Date} on a
 \code{Date} column. A grid in another class aborts rather than being read in
-the wrong unit (days for a \code{Date}, seconds for a \code{POSIXct}).}
+the wrong unit (days for a \code{Date}, seconds for a \code{POSIXct}). A character
+grid is never parsed: convert it with \code{\link[=as.POSIXct]{as.POSIXct()}} or \code{\link[=as.Date]{as.Date()}} first.}
 }
 \value{
 A list with the log-likelihood \code{loglik}, the named \code{score} vector,

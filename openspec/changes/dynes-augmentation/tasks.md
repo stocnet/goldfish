@@ -1323,7 +1323,7 @@ already cover argument checks.
       baselines PASS with 0 SKIP. Open notes, not tasks: a character grid
       now aborts (user decision pending), no test goes through
       `compute_lik_seq()`.
-- [ ] 6.6.3 A `character` grid stays rejected (user decision 2026-11-16):
+- [x] 6.6.3 A `character` grid stays rejected (user decision 2026-11-16):
       `coerce_time()` used to parse one as GMT, but the check now runs first
       and a grid is never parsed from text. Its abort's `i` hint must not
       speak of days and seconds, which applies only when both sides are time
@@ -1332,6 +1332,13 @@ already cover argument checks.
       plus an assertion that the hint names no unit), RED; then the hint,
       and the rule in `@param wave_times`. Whether v2 should accept a
       character grid is carried into `dynes-augmenter-driver-v2`'s proposal.
+      **Done 2026-11-16.** RED `d4af9030` (the hint matched `days|seconds`).
+      `check_grid_time_class()` keeps the unit hint when both classes are
+      numeric/`POSIXct`/`Date` and otherwise says "Convert the grid to <cls>
+      first; a <cls> grid is never parsed"; the three existing snapshots are
+      unchanged. `@param wave_times` says to convert text with `as.POSIXct()`
+      or `as.Date()`. v2 item `2a96ff08`. NOT_CRAN PASS 18182 / FAIL 0 /
+      SKIP 5, frozen baselines PASS with 0 SKIP.
 
 **Order with `dynes-prepare-data` 4.5 (decided 2026-11-16):** 6.6.1(b) lands
 first and owns `check_grid_time_class()`; `dynes-prepare-data` session S10

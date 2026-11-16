@@ -68,7 +68,8 @@
 #'   panel layer's `time` column: numeric (integer or double) on a numeric
 #'   column, `POSIXct` on a `POSIXct` column (any time zone) and `Date` on a
 #'   `Date` column. A grid in another class aborts rather than being read in
-#'   the wrong unit (days for a `Date`, seconds for a `POSIXct`).
+#'   the wrong unit (days for a `Date`, seconds for a `POSIXct`). A character
+#'   grid is never parsed: convert it with [as.POSIXct()] or [as.Date()] first.
 #'
 #' @return A `goldfishDynesFit`: the last accepted `parameters` (named by the
 #'   composite labels of [coef_layout()]), `converged`, the number of accepted

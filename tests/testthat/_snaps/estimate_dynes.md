@@ -138,3 +138,13 @@
       x `wave_times` is <numeric>, but the time column of layer "texts" is <Date>.
       i Give the grid as <Date>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
 
+# a character grid aborts, its hint naming no unit
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = grid)
+    Condition
+      Error in `estimate_dynes()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <character>, but the time column of layer "calls" is <POSIXct>.
+      i Convert the grid to <POSIXct> first; a <character> grid is never parsed.
+
