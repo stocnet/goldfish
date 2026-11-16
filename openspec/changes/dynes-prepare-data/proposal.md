@@ -178,7 +178,9 @@ the rows correctly and to record the flavor map the estimator reads.
 - Reuses `add_flavor()`'s validation and recording (`validate_flavor_mapping()`,
   `warn_style_contradicted()`, the `info$values_equivalence` /
   `info$flavor_style` fields), so the map it writes is the one `add_flavor()`
-  writes. `add_flavor()` itself is unchanged and stays the verb for event
+  writes. The flavor stamping and the `info` record move out of
+  `add_flavor()` into one internal helper that both functions call;
+  `add_flavor()`'s behavior is unchanged, and it stays the verb for event
   layers.
 - `estimate_dynam()` and `estimate_dynes()` are unchanged.
 - `dynes-augmenter-driver-v2`'s carried item "an unflavored binary panel is read

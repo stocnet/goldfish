@@ -1453,28 +1453,7 @@ flavor_prepared_layer <- function(x, layer, labels, call) {
     unname(labels[flavor_roles])
   )
   validate_flavor_mapping(mapping, layer, update, call = call)
-
-  ties <- x$ties
-  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
-  timed <- ties$layer == layer & !is.na(ties$time)
-  flavor <- if ("flavor" %in% names(ties)) {
-    ties$flavor
-  } else {
-    rep(NA_character_, nrow(ties))
-  }
-  flavor[timed] <- names(mapping)[match(weight[timed], unname(mapping))]
-  x$ties$flavor <- flavor
-
-  x$info <- x$info %||% list()
-  style <- x$info$flavor_style %||% character(0)
-  style[[layer]] <- "mutually_exclusive"
-  x$info$flavor_style <- style
-  map <- x$info$values_equivalence %||% list()
-  map[[layer]] <- mapping
-  x$info$values_equivalence <- map
-
-  warn_style_contradicted(x, layer, mapping, call = call)
-  x
+  record_flavor_map(x, layer, mapping, "mutually_exclusive", call = call)
 }
 
 # The change-list of one "per_wave" layer, whose value at a wave is the amount

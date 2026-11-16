@@ -299,6 +299,25 @@ add_flavor <- function(
     )
   }
 
+  record_flavor_map(x, layer, values_equivalence, flavor_style, call = call)
+}
+
+# Stamp a validated map onto a layer and record it: each timed row's flavor is
+# the map name at its update value, `time = NA` rows keep theirs, and
+# info$flavor_style / info$values_equivalence gain the layer. Shared by
+# add_flavor() and prepare_dynes_data(), so a flavored layer reads the same
+# whichever function wrote the map. A "mutually_exclusive" map is then checked
+# against the events it describes.
+record_flavor_map <- function(
+  x,
+  layer,
+  values_equivalence,
+  flavor_style,
+  call
+) {
+  ties <- x$ties
+  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
+  timed_rows <- ties$layer == layer & !is.na(ties$time)
   flavor <- if ("flavor" %in% names(ties)) {
     ties$flavor
   } else {

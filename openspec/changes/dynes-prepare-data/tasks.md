@@ -267,7 +267,7 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       two-mode layer declared undirected, without history rows, keeps every
       sender and receiver and round-trips at every wave. The case with history
       rows waits for `two-mode-undirected-fold`.
-- [ ] 4.4 Make the flavor record one body (gap 4). Extract the stamping and
+- [x] 4.4 Make the flavor record one body (gap 4). Extract the stamping and
       `info` record that `add_flavor()` (`R/add_flavor.R:302-318`) and
       `flavor_prepared_layer()` both write into one internal helper, called by
       both. This is behavior-preserving: the frozen baselines and `T:953` stay
