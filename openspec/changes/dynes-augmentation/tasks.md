@@ -1310,9 +1310,19 @@ already cover argument checks.
       `NEWS.d/dynes-augmentation--wave-grid-time-class.md` (the existing one
       does not cover argument checks). NOT_CRAN PASS 18178 / FAIL 0 / SKIP 5,
       frozen baselines PASS with 0 SKIP, `_baselines/` untouched.
-- [ ] 6.6.2 Flip the proposal back to `status: landed (feature/dynes, awaiting
+- [x] 6.6.2 Flip the proposal back to `status: landed (feature/dynes, awaiting
       fold)`, and have a fresh agent do a scoped conformance re-check of 6.6
       (the abort red under ablation).
+      **Done 2026-11-16 (G2).** Flip `3b6bb884`, `openspec validate` valid.
+      Re-check `.plan/develop/dynes-augmentation-6.6-recheck-conformance.md`:
+      CONFORMANT; the call site, a first-layer-only loop, a no-op helper and an
+      integer/double split each turn a test red. Its one should-fix (G1, a
+      mixed-zone `POSIXct` grid untested) is closed by `bbc66abc`: the
+      same instants in UTC on a Europe/Zurich column, red when the zone is
+      part of the class. NOT_CRAN PASS 18179 / FAIL 0 / SKIP 5, frozen
+      baselines PASS with 0 SKIP. Open notes, not tasks: a character grid
+      now aborts (user decision pending), no test goes through
+      `compute_lik_seq()`.
 
 **Order with `dynes-prepare-data` 4.5 (decided 2026-11-16):** 6.6.1(b) lands
 first and owns `check_grid_time_class()`; `dynes-prepare-data` session S10
