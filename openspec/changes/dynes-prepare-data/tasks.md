@@ -254,7 +254,7 @@ change `two-mode-undirected-fold` (user decision 2026-11-05), not by this group.
       `skipped <- same & levels$k > prev_k + 1L` in
       `check_totals_never_fall()` with `rep(FALSE, n)` makes both fail. No
       code change.
-- [ ] 4.2 Detect the history fold under `increment` in `row_levels()`
+- [x] 4.2 Detect the history fold under `increment` in `row_levels()`
       (gap 2). Test that a `"mutually_exclusive"` `"changes"` layer under
       `increment`, with a history tie (3, 7) = 1 and rows −1 then +1, passes
       unchanged and gains the map. Snapshot the summary of a `"count"`

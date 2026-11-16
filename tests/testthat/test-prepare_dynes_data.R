@@ -1032,6 +1032,27 @@ test_that("a mutually exclusive change-list gains the map, rows unchanged", {
   expect_equal(out$info$flavor_style, c(survey = "mutually_exclusive"))
 })
 
+test_that("an increment change-list starts from the history level", {
+  # (3, 7) is present before the first wave, so -1 dissolves it and +1
+  # creates it again: both events suit the style only when the history
+  # level is added to the running sum.
+  x <- make_wave_fixture(
+    wave_rows(c(3, 3, 3), c(7, 7, 7), c(NA, 10, 20), c(1, -1, 1)),
+    update = "increment"
+  )
+  out <- prepare_quietly(
+    x,
+    layers = c(survey = "mutually_exclusive"),
+    form = c(survey = "changes")
+  )
+  expect_equal(out$ties[names(x$ties)], x$ties)
+  expect_equal(out$ties$flavor, c(NA, "dissolution", "creation"))
+  expect_equal(
+    out$info$values_equivalence$survey,
+    c(creation = 1, dissolution = -1)
+  )
+})
+
 test_that("a count or none layer gets no map and no flavor value", {
   x <- make_prepare_fixture()
   out <- prepare_quietly(
@@ -1522,6 +1543,22 @@ test_that("a count reports unit events and changed dyads under either update", {
       form = c(survey = "changes")
     )
   )
+})
+
+test_that("an increment count with history rows counts its rises from it", {
+  local_cli_context()
+  # (3, 7) is 2 before the first wave and at wave 10, so its first written
+  # row is the rise of 3 at wave 20; (4, 8) puts a starting row at wave 10.
+  x <- make_wave_fixture(
+    wave_rows(
+      c(3, 3, 4, 3, 4),
+      c(7, 7, 8, 7, 8),
+      c(NA, 10, 10, 20, 20),
+      c(2, 2, 1, 5, 1)
+    ),
+    update = "increment"
+  )
+  expect_snapshot(out <- prepare_dynes_data(x, layers = c(survey = "count")))
 })
 
 test_that("the summary is silenced by class and leaves the result unchanged", {

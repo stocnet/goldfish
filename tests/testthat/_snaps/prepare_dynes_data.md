@@ -626,3 +626,12 @@
       * "survey" ("count"): 4 unit events on 2 dyads.
         Starting state: 1 row at the first wave "10".
 
+# an increment count with history rows counts its rises from it
+
+    Code
+      out <- prepare_dynes_data(x, layers = c(survey = "count"))
+    Message
+      Prepared 1 layer; rows at the first wave are the starting state, not events.
+      * "survey" ("count"): 3 unit events on 1 dyad.
+        Starting state: 1 row at the first wave "10".
+
