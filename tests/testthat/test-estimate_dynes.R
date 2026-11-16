@@ -1242,6 +1242,10 @@ test_that("a grid in the time column's class is accepted", {
   grid <- as_posix_days(c(0, 5, 10), "Europe/Zurich")
   seen <- dynes_entry(spec, wave_times = grid)
   expect_identical(seen$recipe$wave_times, as.numeric(grid))
+
+  # The grid's zone need not match the column's: the same instants in UTC.
+  seen <- dynes_entry(spec, wave_times = structure(grid, tzone = "UTC"))
+  expect_identical(seen$recipe$wave_times, as.numeric(grid))
 })
 
 test_that("completion runs once at entry, on the panel wave grid", {
