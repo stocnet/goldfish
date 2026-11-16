@@ -15,7 +15,11 @@ indistinguishable latent events for the interval, carrying no flavor and derivin
 support constraint; `Δ < 0` SHALL abort as a data error, monotonicity being what makes
 the count diff exact. The wave grid SHALL be inferred from the data as the distinct times of the modeled
 panel layers' rows (an exogenous panel covariate contributes no boundary), unless the
-user supplies an explicit `wave_times` grid. When an observation start (`start_time`)
+user supplies an explicit `wave_times` grid. An explicit grid SHALL have the time
+class of every modeled panel layer's `time` column (numeric, `POSIXct` or `Date`); a
+grid in another class SHALL abort with a cli error naming the first layer that
+differs, the grid's class and the column's class, since its numeric times would
+count a different unit. When an observation start (`start_time`)
 is given, the intervals SHALL be anchored on it, so the **first wave is the right
 endpoint of the first modeled interval**, never a history boundary: that interval's
 entering state is the initial condition (the data object's starting network, or zero
@@ -86,6 +90,13 @@ same-dyad chain order respected.
 - **THEN** the interval from the observation start to the first wave is diffed and
   augmented like any other, and modeled relational events inside it contribute
   likelihood terms; only events before the observation start are burn-in.
+
+#### Scenario: a wave grid in another time class aborts
+- **WHEN** the data's `time` column is `POSIXct` and `estimate_dynes()` is given
+  `wave_times` as `Date` values
+- **THEN** it aborts with a cli error naming the layer, the grid's class and the
+  column's class before any augmentation, instead of reading the grid's days as
+  seconds
 
 #### Scenario: without an observation start the first wave opens the grid
 - **WHEN** a panel layer records waves at 5 and 10 and neither `start_time` nor

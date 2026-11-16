@@ -611,7 +611,8 @@
 
 ## 5. Process simulation — moved out
 
-- [ ] 5.1 (moved) The general `simulate()` surface is implemented by the standalone
+- [x] 5.1 (moved to `process-simulation`; nothing done here, ticked
+      2026-11-16 so the box count can close) The general `simulate()` surface is implemented by the standalone
       `process-simulation` change. This change consumes it: `augment_seq_sim()`
       (task 3.4) runs as supplied steps on that change's driver, and the recovery
       study (task 6.2) simulates panels through it. No simulation tasks remain
@@ -1257,3 +1258,48 @@ no baseline moves, no Version/`NEWS.md`/archive.
       (`9cdc3fec`), not this change; seven other fragments say "Improved" or
       "Fixed" for `estimate_dynes()` / `set_sgd_options()`, which `develop`
       never shipped, and fold under the "Added `estimate_dynes()`" entry.
+
+## 6.6 Follow-up from `dynes-prepare-data` (reopened 2026-11-09)
+
+Found while closing `dynes-prepare-data`'s open questions (user decision
+2026-11-09). `estimate_dynes(wave_times =)` passes the grid through
+`panel_wave_grid()`, which calls `coerce_time()`, which calls `as.numeric()`
+with no conversion. So a `Date` grid on a `POSIXct` `time` column counts days
+(about 14 000 for 2008) against row times in seconds (about 1.2e9), and a
+`POSIXct` grid on a `Date` column does the opposite. The grid passes
+`check_wave_grid()` and then sits nowhere near the rows. `prepare_dynes_data()`
+now requires the grid in the column's class (its design D8, revised the same
+day), and this task makes `estimate_dynes()` follow the same rule, so the grid
+the empty-wave warning tells users to pass is read the same way by both
+functions. No `src/` edit, no baseline moves, no Version/`NEWS.md`/archive. A
+`NEWS.d/` fragment only if the existing `estimate_dynes()` fragment does not
+already cover argument checks.
+
+- [ ] 6.6.1(a) Test: `estimate_dynes()` given `wave_times` as `Date` on a
+      `POSIXct` column, and as `POSIXct` on a `Date` column, each abort before
+      any augmentation with a cli error naming the first modeled panel layer
+      whose `time` column differs, the grid's class and the column's class
+      (snapshot, pinned cli context). Every modeled panel layer is checked,
+      not only the first (user decision 2026-11-16): a fixture with two
+      panel layers where only the second differs must abort naming the
+      second. Numeric on numeric, and `POSIXct` on `POSIXct` (including
+      a non-UTC zone), are accepted as today. Use the recipe-capture entry
+      (`entry_recipe()` in `test-prepare_dynes_data.R`, or `dynes_entry()`)
+      so no draw runs. RED; commit the test alone.
+- [ ] 6.6.1(b) Add one internal helper, `check_grid_time_class(wave_times,
+      time_column, layer = NULL, call)`, next to `check_wave_grid()` in
+      `R/wave_diff.R`, and call it from `panel_wave_grid()` on every modeled
+      panel layer's `time` column, before `coerce_time()`. This change owns
+      the helper (user decision 2026-11-16): `dynes-prepare-data` depends on
+      this change, so its 4.5(b) calls the helper from
+      `resolve_wave_grids()` instead of writing its own check, and the two
+      messages are one message. Numeric means integer or double on either
+      side. Mention the rule in `@param wave_times`. `air`, `lintr`, `devtools::document()`, full
+      `NOT_CRAN=true` suite with the frozen baselines PASS. Commit.
+- [ ] 6.6.2 Flip the proposal back to `status: landed (feature/dynes, awaiting
+      fold)`, and have a fresh agent do a scoped conformance re-check of 6.6
+      (the abort red under ablation).
+
+**Order with `dynes-prepare-data` 4.5 (decided 2026-11-16):** 6.6.1(b) lands
+first and owns `check_grid_time_class()`; `dynes-prepare-data` session S10
+(its 4.5) calls it, so 6.6 is a soft gate before S10.
