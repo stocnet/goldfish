@@ -1,6 +1,6 @@
 ---
 depends-on: abmcem, process-simulation
-status: reopened 2026-11-09 (feature/dynes) for 6.6, a wave_times grid in another time class than the data; was landed, awaiting fold
+status: landed (feature/dynes, awaiting fold)
 ---
 
 ## Why
