@@ -1381,7 +1381,7 @@ test_that("completed fids contribute no theta, pinned per wave period", {
   expect_identical(layout$index[!layout$fixed], seq_len(sum(!layout$fixed)))
 })
 
-test_that("a statistic with no variation on any path runs under every routine", {
+test_that("a statistic constant on every path runs under every routine", {
   skip_on_cran()
   # calls inertia is identically zero, so every pooled sequence has a singular
   # information matrix; none of them is degenerate.
