@@ -1338,7 +1338,10 @@ already cover argument checks.
       first; a <cls> grid is never parsed"; the three existing snapshots are
       unchanged. `@param wave_times` says to convert text with `as.POSIXct()`
       or `as.Date()`. v2 item `2a96ff08`. NOT_CRAN PASS 18182 / FAIL 0 /
-      SKIP 5, frozen baselines PASS with 0 SKIP.
+      SKIP 5, frozen baselines PASS with 0 SKIP. Fresh-agent check
+      `.plan/develop/dynes-augmentation-6.6.3-conformance.md`: CONFORMANT,
+      each hint branch red under ablation. Its note N1 (the helper assumes a
+      time-class column) is carried into `dynes-prepare-data` 4.5.
 
 **Order with `dynes-prepare-data` 4.5 (decided 2026-11-16):** 6.6.1(b) lands
 first and owns `check_grid_time_class()`; `dynes-prepare-data` session S10
