@@ -108,3 +108,33 @@
       x Windows over a modeled panel layer, whose events are augmented between waves, are not supported in this version.
       i Windows are supported over observed layers only; drop the `window` argument.
 
+# a Date grid on a POSIXct time column aborts at entry
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = as_date_days(c(0, 5, 10)))
+    Condition
+      Error in `estimate_dynes()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <Date>, but the time column of layer "calls" is <POSIXct>.
+      i Give the grid as <POSIXct>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
+
+# a POSIXct grid on a Date time column aborts at entry
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = as_posix_days(c(0, 5, 10)))
+    Condition
+      Error in `estimate_dynes()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <POSIXct>, but the time column of layer "calls" is <Date>.
+      i Give the grid as <Date>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
+
+# every modeled panel layer's time column is checked
+
+    Code
+      estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10))
+    Condition
+      Error in `estimate_dynes()`:
+      ! `wave_times` must have the time class of the rows it marks.
+      x `wave_times` is <numeric>, but the time column of layer "texts" is <Date>.
+      i Give the grid as <Date>: a <Date> counts days and a <POSIXct> seconds, so mixed classes compare different units.
+

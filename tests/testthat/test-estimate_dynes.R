@@ -1146,7 +1146,11 @@ test_that("a Date grid on a POSIXct time column aborts at entry", {
   spec <- time_class_spec(as_posix_days)
 
   expect_snapshot(
-    dynes_entry(spec, wave_times = as_date_days(c(0, 5, 10))),
+    estimate_dynes(
+      spec,
+      surface_control(),
+      wave_times = as_date_days(c(0, 5, 10))
+    ),
     error = TRUE
   )
   expect_error(
@@ -1160,7 +1164,11 @@ test_that("a POSIXct grid on a Date time column aborts at entry", {
   spec <- time_class_spec(as_date_days)
 
   expect_snapshot(
-    dynes_entry(spec, wave_times = as_posix_days(c(0, 5, 10))),
+    estimate_dynes(
+      spec,
+      surface_control(),
+      wave_times = as_posix_days(c(0, 5, 10))
+    ),
     error = TRUE
   )
   expect_error(
@@ -1214,7 +1222,10 @@ test_that("every modeled panel layer's time column is checked", {
     }
   )
 
-  expect_snapshot(dynes_entry(spec, wave_times = c(0, 5, 10)), error = TRUE)
+  expect_snapshot(
+    estimate_dynes(spec, surface_control(), wave_times = c(0, 5, 10)),
+    error = TRUE
+  )
   expect_error(
     dynes_entry(spec, wave_times = c(0, 5, 10)),
     class = "goldfish_wave_grid_time_class"

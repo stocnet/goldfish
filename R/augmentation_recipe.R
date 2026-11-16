@@ -25,6 +25,14 @@ panel_wave_grid <- function(
   call = rlang::caller_env()
 ) {
   if (!is.null(wave_times)) {
+    for (layer in spec$modeled_panel) {
+      check_grid_time_class(
+        wave_times,
+        layer_event_times(spec$data, layer),
+        layer = layer,
+        call = call
+      )
+    }
     wave_times <- coerce_time(wave_times)
     check_wave_grid(wave_times, call = call)
     return(wave_times)

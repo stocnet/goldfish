@@ -100,6 +100,56 @@ check_wave_grid <- function(wave_times, call) {
   invisible(wave_times)
 }
 
+# A grid must share the time class of the rows it is matched against.
+# coerce_time() counts days for a Date and seconds for a POSIXct, and no
+# conversion between them is safe without picking a time zone for midnight,
+# so a grid in another class would sit nowhere near the rows. Integer and
+# double are one class; a POSIXct zone changes only the printing.
+check_grid_time_class <- function(
+  wave_times,
+  time_column,
+  layer = NULL,
+  call = rlang::caller_env()
+) {
+  grid_class <- time_class_kind(wave_times)
+  column_class <- time_class_kind(time_column)
+  if (identical(grid_class, column_class)) {
+    return(invisible(wave_times))
+  }
+  column <- if (is.null(layer)) {
+    "the {.field time} column"
+  } else {
+    "the {.field time} column of layer {.val {layer}}"
+  }
+  cli::cli_abort(
+    c(
+      "{.arg wave_times} must have the time class of the rows it marks.",
+      "x" = paste0(
+        "{.arg wave_times} is {.cls {grid_class}}, but ",
+        column,
+        " is {.cls {column_class}}."
+      ),
+      "i" = "Give the grid as {.cls {column_class}}: a {.cls Date} counts
+             days and a {.cls POSIXct} seconds, so mixed classes compare
+             different units."
+    ),
+    class = "goldfish_wave_grid_time_class",
+    call = call
+  )
+}
+
+time_class_kind <- function(time) {
+  if (inherits(time, "POSIXct")) {
+    "POSIXct"
+  } else if (inherits(time, "Date")) {
+    "Date"
+  } else if (is.numeric(time)) {
+    "numeric"
+  } else {
+    class(time)[[1L]]
+  }
+}
+
 # The (from-value, to-value) -> flavor map of a flavored state layer, read off
 # the flavor mapping add_flavor() records: under `increment` a flavor's value
 # is the step, under `replace` the state it sets. The flavor is never latent,

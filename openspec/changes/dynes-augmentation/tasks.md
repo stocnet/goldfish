@@ -1275,7 +1275,7 @@ functions. No `src/` edit, no baseline moves, no Version/`NEWS.md`/archive. A
 `NEWS.d/` fragment only if the existing `estimate_dynes()` fragment does not
 already cover argument checks.
 
-- [ ] 6.6.1(a) Test: `estimate_dynes()` given `wave_times` as `Date` on a
+- [x] 6.6.1(a) Test: `estimate_dynes()` given `wave_times` as `Date` on a
       `POSIXct` column, and as `POSIXct` on a `Date` column, each abort before
       any augmentation with a cli error naming the first modeled panel layer
       whose `time` column differs, the grid's class and the column's class
@@ -1286,7 +1286,7 @@ already cover argument checks.
       a non-UTC zone), are accepted as today. Use the recipe-capture entry
       (`entry_recipe()` in `test-prepare_dynes_data.R`, or `dynes_entry()`)
       so no draw runs. RED; commit the test alone.
-- [ ] 6.6.1(b) Add one internal helper, `check_grid_time_class(wave_times,
+- [x] 6.6.1(b) Add one internal helper, `check_grid_time_class(wave_times,
       time_column, layer = NULL, call)`, next to `check_wave_grid()` in
       `R/wave_diff.R`, and call it from `panel_wave_grid()` on every modeled
       panel layer's `time` column, before `coerce_time()`. This change owns
@@ -1296,6 +1296,20 @@ already cover argument checks.
       messages are one message. Numeric means integer or double on either
       side. Mention the rule in `@param wave_times`. `air`, `lintr`, `devtools::document()`, full
       `NOT_CRAN=true` suite with the frozen baselines PASS. Commit.
+      **Done 2026-11-16 (G1).** (a) `803e6ce0`: four tests in
+      `test-estimate_dynes.R` via `dynes_entry()`, RED on the three aborts.
+      The ties table holds every layer, so real data cannot give two layers
+      different time classes; the two-layer case mocks `layer_event_times()`
+      to read the second layer back as `Date`. Snapshots call the bare
+      `estimate_dynes()` (the abort precedes the stubs). (b) the helper and
+      `time_class_kind()` (numeric/`POSIXct`/`Date`, else the first class, so
+      a character grid now aborts too) in `R/wave_diff.R`, condition class
+      `goldfish_wave_grid_time_class`, `layer = NULL` drops the layer from the
+      message. `compute_lik_seq()` inherits `@param wave_times` and the check,
+      since it calls `panel_wave_grid()` too. New fragment
+      `NEWS.d/dynes-augmentation--wave-grid-time-class.md` (the existing one
+      does not cover argument checks). NOT_CRAN PASS 18178 / FAIL 0 / SKIP 5,
+      frozen baselines PASS with 0 SKIP, `_baselines/` untouched.
 - [ ] 6.6.2 Flip the proposal back to `status: landed (feature/dynes, awaiting
       fold)`, and have a fresh agent do a scoped conformance re-check of 6.6
       (the abort red under ablation).

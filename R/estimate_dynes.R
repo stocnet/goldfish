@@ -64,7 +64,11 @@
 #'   it is inferred from the data, as the distinct times of the modeled panel
 #'   layers' rows, opened by the `start_time` of `control_prep` when one is
 #'   set and otherwise by the first recorded wave, whose state is then the
-#'   initial condition.
+#'   initial condition. A given grid must have the time class of every modeled
+#'   panel layer's `time` column: numeric (integer or double) on a numeric
+#'   column, `POSIXct` on a `POSIXct` column (any time zone) and `Date` on a
+#'   `Date` column. A grid in another class aborts rather than being read in
+#'   the wrong unit (days for a `Date`, seconds for a `POSIXct`).
 #'
 #' @return A `goldfishDynesFit`: the last accepted `parameters` (named by the
 #'   composite labels of [coef_layout()]), `converged`, the number of accepted

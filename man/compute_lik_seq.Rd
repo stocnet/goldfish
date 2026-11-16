@@ -29,7 +29,11 @@ observation start followed by every wave, strictly increasing. By default
 it is inferred from the data, as the distinct times of the modeled panel
 layers' rows, opened by the \code{start_time} of \code{control_prep} when one is
 set and otherwise by the first recorded wave, whose state is then the
-initial condition.}
+initial condition. A given grid must have the time class of every modeled
+panel layer's \code{time} column: numeric (integer or double) on a numeric
+column, \code{POSIXct} on a \code{POSIXct} column (any time zone) and \code{Date} on a
+\code{Date} column. A grid in another class aborts rather than being read in
+the wrong unit (days for a \code{Date}, seconds for a \code{POSIXct}).}
 }
 \value{
 A list with the log-likelihood \code{loglik}, the named \code{score} vector,
