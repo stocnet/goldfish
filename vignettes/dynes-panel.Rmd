@@ -241,6 +241,57 @@ aborts, since the function writes the map itself; pass it in unflavored. The
 respondent selection stays your step: an actor missing from a wave loses all
 their ties there, written as dissolutions like any dropped tie.
 
+## When the call is needed, and why `add_flavor()` is not enough
+
+goldfish reads every panel layer as a change-list. It applies each row as an
+update to the current state (`increment` adds the value and `replace`
+overwrites it), so a row means *this dyad changed here*. Surveys do not
+record changes. They record a state: every tie that holds at the wave,
+including ties that have not changed, and with nothing at all for a tie that
+has dissolved. `prepare_dynes_data()` turns that state into the change-list
+the walk expects. `estimate_dynes()` does not check which form a layer is in.
+A snapshot passed in as it is gets read as a change-list, with no warning, so
+the choice is yours to make.
+
+Call it when a modeled or covariate panel layer arrives as survey snapshots:
+
+- A **binary panel** where each wave lists the ties present then, like the
+  raw `friendship` rows here. It writes the diff, with explicit dissolutions,
+  and the flavor map.
+- A **count panel** given as totals so far (`"states"`) or as amounts since
+  the last wave (`"per_wave"`). It rewrites them in the layer's update
+  semantics. Raw totals on an `increment` layer would otherwise be summed a
+  second time: 6 then 9 would read as 15.
+- A **valued covariate panel** recorded at each wave (style `"none"`). Without
+  the diff, a value that the next wave no longer reports would stay in place.
+
+It is not required when:
+
+- The layer is an **event stream**, like `calls`. Leave it out of `layers`:
+  layers that are not named are returned untouched.
+- The layer is **already a change-list** in its update semantics: history
+  rows, then only the dyads that changed, with an explicit 0 (`replace`) or
+  −1 (`increment`) for a dissolution. That is the panel built by hand in this
+  step. A binary layer in that form needs only `add_flavor()`, and a count or
+  valued layer needs nothing. You can still declare it with
+  `form = c(<layer> = "changes")`. The call then rewrites no row, but it checks
+  the list: an event that contradicts the style aborts, where `add_flavor()`
+  only warns, and so does a count level that falls. It also records the layer
+  as prepared and writes the flavor map.
+
+`add_flavor()` is not a substitute, because it never touches the rows. It
+labels values as flavors and records the support constraint, and that is
+all. Run on the raw surveys, it labels all 552 rows (276 per wave) as
+creations and writes no dissolution, since no row carries a 0. The 206 stable
+ties come back at wave 2 as creations on ties that are already present. That
+contradicts the mutually exclusive style, so `add_flavor()` warns, and the
+warning itself says a fit would fail when it reached such an event. The 70 dissolved
+friendships are missing altogether: with no row to remove them, the walk
+keeps them at 1. The diff is what corrects both problems, and the flavoring
+comes after it. That is why the function writes the flavor map itself and
+aborts on a layer that is already flavored: flavored before the diff, the
+labels would sit on rows that are not changes.
+
 ## Count panels
 
 `friendship` is a **state panel**: each cell is 0 or 1, and the diff gives
