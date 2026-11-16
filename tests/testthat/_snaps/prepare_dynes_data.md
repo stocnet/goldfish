@@ -589,6 +589,35 @@
       x It has no timed rows and no `wave_times` entry.
       i Declare its waves in `wave_times`, or its form "changes" if its rows are history only.
 
+# an all-NA character time column aborts at entry
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! ties$time has an unsupported class <character>.
+      i Convert time to numeric, POSIXct, or Date.
+
+---
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = c("2008-09-11",
+        "2008-10-01"))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! ties$time has an unsupported class <character>.
+      i Convert time to numeric, POSIXct, or Date.
+
+# a grid on a column with no time says no row has a time
+
+    Code
+      prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 30))
+    Condition
+      Error in `prepare_dynes_data()`:
+      ! `wave_times` has no time class to match.
+      x No row of ties has a time, so the grid of layer "survey" marks nothing.
+      i Give the rows their times, or drop `wave_times`.
+
 # a duplicated grid time warns once and is kept once
 
     Code

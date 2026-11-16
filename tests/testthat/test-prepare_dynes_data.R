@@ -1435,6 +1435,34 @@ test_that("a states or per_wave layer with no wave aborts", {
   )
 })
 
+test_that("an all-NA character time column aborts at entry", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(1, 3), c(2, 7), c(NA, NA)))
+  x$ties$time <- as.character(x$ties$time)
+  expect_snapshot(error = TRUE, prepare_dynes_data(x, c(survey = "none")))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(
+      x,
+      c(survey = "none"),
+      wave_times = c("2008-09-11", "2008-10-01")
+    )
+  )
+})
+
+test_that("a grid on a column with no time says no row has a time", {
+  local_cli_context()
+  x <- make_wave_fixture(wave_rows(c(1, 3), c(2, 7), c(NA, NA)))
+  expect_snapshot(
+    error = TRUE,
+    prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 30))
+  )
+  expect_error(
+    prepare_dynes_data(x, c(survey = "none"), wave_times = c(10, 30)),
+    class = "goldfish_wave_grid_time_class"
+  )
+})
+
 test_that("an unsorted grid gives the sorted result silently", {
   x <- make_wave_fixture(gapped_survey_rows())
   sorted <- prepare_quietly(

@@ -426,6 +426,11 @@ resolve_prepare_layers <- function(x, layers, form, flavor_names, call) {
   )
 }
 
+# `time = NA` on every row: a logical column, which holds no time to check.
+is_untimed_column <- function(time) {
+  is.logical(time) && all(is.na(time))
+}
+
 check_prepare_object <- function(x, call) {
   if (!is.list(x) || is.null(x$ties) || is.null(x$ties$layer)) {
     cli::cli_abort(
@@ -440,9 +445,10 @@ check_prepare_object <- function(x, call) {
   # The grid check compares classes only and assumes a time-class column, as
   # the data validator guarantees for estimate_dynes(); this entry never runs
   # the validator, so it is checked here, before any argument or grid check.
-  # A column that is all NA (a layer of history rows only) has no class to
-  # check, and the missing-wave abort below says more.
-  if (!is.null(x$ties$time) && !all(is.na(x$ties$time))) {
+  # Only a logical column that is all NA (`time = NA`, a layer of history rows
+  # only) carries no class to check, and the missing-wave abort below says
+  # more. An all-NA character column is still a character column.
+  if (!is.null(x$ties$time) && !is_untimed_column(x$ties$time)) {
     check_time_class(x$ties$time, "ties", call)
   }
   invisible(TRUE)
@@ -870,6 +876,18 @@ resolve_wave_grids <- function(spec, wave_times, time_column, call) {
     grid <- grids[[layer]]
     if (is.null(grid)) {
       next
+    }
+    if (is_untimed_column(time_column)) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} has no time class to match.",
+          "x" = "No row of {.field ties} has a time, so the grid of layer \\
+                 {.val {layer}} marks nothing.",
+          "i" = "Give the rows their times, or drop {.arg wave_times}."
+        ),
+        class = "goldfish_wave_grid_time_class",
+        call = call
+      )
     }
     check_grid_time_class(grid, time_column, layer, call)
     axis <- suppressWarnings(coerce_time(grid))

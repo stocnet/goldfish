@@ -367,3 +367,57 @@ such a layer, so no interim abort is added here.
       agent. The re-check must see ablations A07b and A21 red and gaps 3–9
       closed, gap 3 in full (with and without history rows, under the rule
       `two-mode-undirected-fold` landed), and gap 5 closed by the class rule.
+
+## 5. Re-check follow-up
+
+From the S12 scoped re-check
+(`.plan/develop/dynes-prepare-data-g4-conformance.md`, HEAD `65db73bd`,
+CONFORMANT for the scope asked, four should-fix items). As in group 4, where
+the code is already right the red step of a detector task is an ablation of
+the named line in a detached worktree, not a RED commit.
+
+- [x] 5.1 Narrow the entry check's exemption to a logical column (gap 1;
+      user decision 2026-11-16: keep the exemption, logical only).
+      `check_prepare_object()` skips the time-class check when the ties
+      `time` column is entirely `NA`, whatever its class, so an all-`NA`
+      character column with a character grid is parsed as GMT and character
+      times are written.
+      (a) Test: an all-`NA` character `time` column aborts at entry with the
+      validator's "unsupported class" message, with and without a character
+      `wave_times` (snapshot); an all-`NA` logical column still reaches the
+      "layer has no wave" abort. RED on the character case.
+      (b) Exempt the column only when it is logical and entirely `NA`
+      (`time = NA` on every row, which carries no class to check).
+      (c) An all-`NA` logical column with a declared grid now aborts with
+      "Convert the grid to <logical> first; a <numeric> grid is never
+      parsed". Make that case say what is wrong: no row has a time, so the
+      grid has no column class to match. Test it (snapshot). Do not loosen
+      `check_grid_time_class()`; handle the case before calling it.
+      (d) State the exemption in the spec requirement "Each layer declares a
+      style and a form" (the entry check applies unless every `time` is a
+      logical `NA`) and in D8, with the reason. It lives only in the
+      gitignored `progress.md` today.
+- [ ] 5.2 Detect the order of the class check and the finite-time check
+      (gap 2). Test that an unparseable character grid (`c("abc", "x")` on a
+      `POSIXct` column) and a bare `NA` grid on a numeric column each abort
+      with class `goldfish_wave_grid_time_class`, not with "must hold finite
+      times". Red: moving the `check_grid_time_class()` call in
+      `resolve_wave_grids()` below the finite-time check makes it fail. No
+      code change.
+- [ ] 5.3 Detect the zone in the off-grid abort (gap 3). Snapshot the abort
+      for a UTC-midnight `POSIXct` grid on rows at Europe/Zurich midnight:
+      the row times print with their zone ("2008-09-09 CEST") and the waves
+      with theirs ("2008-09-09 UTC"). Red: `format_wave_time()` reduced to
+      `format(time)` makes it fail. No code change.
+- [ ] 5.4 Reflow the NEWS fragment (gap 4). The grid-class bullet in
+      `NEWS.d/dynes-prepare-data--prepare-panel-layers.md` wraps over two
+      lines; `NEWS.d/README.md` asks for one line under 81 characters. Shorten
+      it to one line, or split it into two bullets.
+- [ ] 5.5 Close the group: `openspec validate --strict` and the placement
+      pre-flight, `devtools::document()` if roxygen changed, full
+      `NOT_CRAN=true` suite with the baselines PASS, commit. Then request a
+      scoped re-check: ablations G5b and G5d red, the all-`NA` character
+      probes aborting at entry. The archive-time wording (the spec's
+      "whatever the class of the grid", the two unused `template` formals of
+      `check_totals_never_fall()` and `warn_empty_waves()`) is notes 5 and 6
+      of the report.

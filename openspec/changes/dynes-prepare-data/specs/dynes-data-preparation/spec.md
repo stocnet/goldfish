@@ -26,7 +26,11 @@ a layer absent from the object, or a layer whose observation is not
 `"panel"`. It SHALL also abort on entry, before any argument or grid check, when
 the ties `time` column is not numeric, `POSIXct` or `Date`, with the same
 "unsupported class" error the goldfish data validator raises, since every
-later comparison of times assumes one of those classes. The function SHALL NOT
+later comparison of times assumes one of those classes. The check applies
+unless every `time` is a logical `NA`, a column that holds no time and no class
+(a character column of `NA` is not exempt). A `wave_times` grid given for such
+an untimed column SHALL abort, class `goldfish_wave_grid_time_class`, saying
+that no row has a time. The function SHALL NOT
 detect the style or the form, or warn about either.
 
 #### Scenario: a layer without a form entry is read as states

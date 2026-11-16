@@ -281,7 +281,13 @@ change's 6.6.3 conformance check). `estimate_dynes()` gets that guarantee from
 checks the ties `time` column's class on entry, before any argument or grid
 check, with the validator's "unsupported class" error, and the helper is not
 loosened. Without it, a character grid on a character column would pass the
-class check and be parsed as GMT. Grid and row times are then
+class check and be parsed as GMT. The one exemption is a `time` column
+that is logical and entirely `NA` (`time = NA` on every row, a layer of history
+rows only): it holds no time and no class, so the entry check skips it and the
+missing-wave abort speaks instead (user decision 2026-11-16). An all-`NA`
+character column is not exempt, and a declared grid on an untimed column
+aborts, class `goldfish_wave_grid_time_class`, saying that no row has a time,
+before the helper is called. Grid and row times are then
 compared with `coerce_time()` on both sides, as `panel_wave_grid()` does. A
 declared wave with no
 rows means every tie of that layer dissolves there: the input is read as the
