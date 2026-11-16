@@ -1177,6 +1177,23 @@ test_that("a POSIXct grid on a Date time column aborts at entry", {
   )
 })
 
+test_that("a character grid aborts, its hint naming no unit", {
+  local_cli_context()
+  spec <- time_class_spec(as_posix_days)
+  grid <- c("2008-09-01", "2008-09-06", "2008-09-11")
+
+  expect_snapshot(
+    estimate_dynes(spec, surface_control(), wave_times = grid),
+    error = TRUE
+  )
+  cnd <- expect_error(
+    dynes_entry(spec, wave_times = grid),
+    class = "goldfish_wave_grid_time_class"
+  )
+  # Days against seconds is a Date/POSIXct mix; text is simply not a time.
+  expect_no_match(conditionMessage(cnd), "days|seconds")
+})
+
 test_that("every modeled panel layer's time column is checked", {
   local_cli_context()
   data <- recipe_count_data()
