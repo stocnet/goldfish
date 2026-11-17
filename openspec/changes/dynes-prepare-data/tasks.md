@@ -452,3 +452,6 @@ reported upstream, outside this change.
       that `dynes-panel.R` picked up the change. No `NEWS.d/` entry (no
       user-facing package change). Full `NOT_CRAN=true` suite with the
       baselines PASS, commit (`docs(dynes-prepare-data): 6.x ...`).
+      Suite result (2026-11-17, `NOT_CRAN=true`, shared checkout at 5d547d50
+      plus uncommitted local edits): PASS 18246, FAIL 0, ERROR 0, SKIP 5,
+      WARN 1360; the baseline and golden files report `skipped = FALSE`.
