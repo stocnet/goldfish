@@ -1,5 +1,5 @@
 depends-on: dynes-augmentation
-status: landed (feature/dynes, awaiting fold)
+status: landed (feature/dynes, awaiting fold; post-landing follow-up group 6 open, vignette only)
 
 ## Why
 

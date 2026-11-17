@@ -158,8 +158,39 @@ table(ties$layer)
 #>        364        416
 
 panel <- se
-panel$nodes <- as.data.frame(se$nodes)[both, ]
-panel$ties <- ties
+panel$nodes <- tibble::as_tibble(as.data.frame(se$nodes)[both, ])
+panel$ties <- tibble::as_tibble(ties)
+library(manynet)
+print(panel)
+#> 
+#> ── # Social Evolution MIT ──────────────────────────────────────────────────────
+#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and
+#> 416 friendship arcs and 364 call arcs from 2008-09-11 03:16:14 to 2008-10-19
+#> 
+#> ── Nodes
+#> # A tibble: 51 × 4
+#>   label    active floor gradeType
+#>   <chr>    <lgl>  <dbl>     <dbl>
+#> 1 Actor 47 TRUE       4         3
+#> 2 Actor 57 TRUE       2         1
+#> 3 Actor 9  TRUE       9         2
+#> 4 Actor 68 TRUE       8         1
+#> 5 Actor 23 TRUE       5         2
+#> 6 Actor 49 TRUE       7         4
+#> # ℹ 45 more rows
+#> 
+#> ── Ties
+#> # A tibble: 780 × 5
+#>    from    to time   weight layer     
+#>   <int> <int> <dttm>  <dbl> <chr>     
+#> 1     7    12 NA          1 friendship
+#> 2     8    13 NA          1 friendship
+#> 3     7    14 NA          1 friendship
+#> 4    10     2 NA          1 friendship
+#> 5    12    15 NA          1 friendship
+#> 6     3     8 NA          1 friendship
+#> # ℹ 774 more rows
+#> 
 ```
 
 ## The two flavors of a change
@@ -196,7 +227,9 @@ survey rows, both waves at their own times:
 ``` r
 surveys <- se
 surveys$nodes <- panel$nodes
-surveys$ties <- rbind(ties[ties$layer == "calls", ], friendship)
+surveys$ties <- tibble::as_tibble(
+  rbind(ties[ties$layer == "calls", ], friendship)
+)
 prepared <- prepare_dynes_data(
   surveys,
   layers = c(friendship = "mutually_exclusive")
@@ -204,6 +237,36 @@ prepared <- prepare_dynes_data(
 #> Prepared 1 layer; rows at the first wave are the starting state, not events.
 #> • "friendship" ("mutually_exclusive"): 70 creation, 70 dissolution.
 #>   Starting state: 276 rows at the first wave "2008-09-09".
+print(prepared)
+#> 
+#> ── # Social Evolution MIT ──────────────────────────────────────────────────────
+#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and
+#> 416 friendship arcs and 364 call arcs from 2008-09-09 to 2008-10-19
+#> 
+#> ── Nodes
+#> # A tibble: 51 × 4
+#>   label    active floor gradeType
+#>   <chr>    <lgl>  <dbl>     <dbl>
+#> 1 Actor 47 TRUE       4         3
+#> 2 Actor 57 TRUE       2         1
+#> 3 Actor 9  TRUE       9         2
+#> 4 Actor 68 TRUE       8         1
+#> 5 Actor 23 TRUE       5         2
+#> 6 Actor 49 TRUE       7         4
+#> # ℹ 45 more rows
+#> 
+#> ── Ties
+#> # A tibble: 780 × 6
+#>    from    to time                weight layer flavor
+#>   <int> <int> <dttm>               <dbl> <chr> <chr> 
+#> 1    12    42 2008-09-11 03:16:14      1 calls <NA>  
+#> 2    12    42 2008-09-19 00:31:33      1 calls <NA>  
+#> 3    12    48 2008-09-19 00:58:02      1 calls <NA>  
+#> 4    12    39 2008-09-19 01:21:04      1 calls <NA>  
+#> 5    12    42 2008-09-19 18:20:43      1 calls <NA>  
+#> 6    12    42 2008-09-19 19:36:53      1 calls <NA>  
+#> # ℹ 774 more rows
+#> 
 written <- prepared$ties[prepared$ties$layer == "friendship", ]
 table(wave = format(written$time, "%Y-%m-%d"), flavor = written$flavor)
 #>             flavor

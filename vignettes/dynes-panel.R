@@ -59,8 +59,10 @@ ties <- ties[order(ties$time, na.last = FALSE), ]
 table(ties$layer)
 
 panel <- se
-panel$nodes <- as.data.frame(se$nodes)[both, ]
-panel$ties <- ties
+panel$nodes <- tibble::as_tibble(as.data.frame(se$nodes)[both, ])
+panel$ties <- tibble::as_tibble(ties)
+library(manynet)
+print(panel)
 
 
 ## ----flavor-------------------------------------------------------------------
@@ -75,11 +77,14 @@ panel <- add_flavor(
 ## ----prepare------------------------------------------------------------------
 surveys <- se
 surveys$nodes <- panel$nodes
-surveys$ties <- rbind(ties[ties$layer == "calls", ], friendship)
+surveys$ties <- tibble::as_tibble(
+  rbind(ties[ties$layer == "calls", ], friendship)
+)
 prepared <- prepare_dynes_data(
   surveys,
   layers = c(friendship = "mutually_exclusive")
 )
+print(prepared)
 written <- prepared$ties[prepared$ties$layer == "friendship", ]
 table(wave = format(written$time, "%Y-%m-%d"), flavor = written$flavor)
 

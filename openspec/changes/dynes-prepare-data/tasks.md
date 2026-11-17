@@ -421,3 +421,34 @@ the named line in a detached worktree, not a RED commit.
       "whatever the class of the grid", the two unused `template` formals of
       `check_totals_never_fall()` and `warn_empty_waves()`) is notes 5 and 6
       of the report.
+
+## 6. Vignette print follow-up (post-landing)
+
+A post-landing follow-up: the change stays landed and awaiting fold, and no
+code, spec or design changes. Found while checking the vignette (user report 2026-11-17): `print(prepared)`
+and `print(panel)` abort with "invalid 'na.print' specification". The vignette
+turns the stocnet's tables into plain data frames, and
+`manynet:::print.stocnet` passes `n =` to `print()` on `$nodes` and `$ties`.
+`print.data.frame` has no `n`, so it falls through to `print.default`, which
+partially matches it to `na.print`. `prepare_dynes_data()` is not at fault: it
+keeps the class of `$ties` (a tibble in, a tibble out, and the raw
+`social_evolution` prepares and prints). Scope is the vignette only (user
+decision 2026-11-17); goldfish does not coerce, and the manynet assumption is
+reported upstream, outside this change.
+
+- [x] 6.1 Keep the vignette's stocnet tables as tibbles. In
+      `vignettes/dynes-panel.Rmd.orig` (the source; `dynes-panel.Rmd` and
+      `dynes-panel.R` are generated), wrap the tables assigned back into a
+      stocnet with `tibble::as_tibble()` (tibble is in Imports): the nodes at
+      `panel$nodes <- as.data.frame(se$nodes)[both, ]` and the ties at
+      `panel$ties <- ties` and `surveys$ties <- rbind(...)`. The working
+      `ties` data frame from `as.data.frame(se$ties)` may stay a data frame
+      for the row filtering. Add a `print(prepared)` chunk after the
+      `prepare_dynes_data()` call so a rebuild fails on a regression. Check
+      that the existing outputs (the `table()` counts, the three `TRUE`
+      identities, the report message) are unchanged.
+- [x] 6.2 Rebuild: install, `Rscript vignettes/rebuild-all.R`, confirm
+      `print(panel)` and `print(prepared)` render in the knitted `.Rmd` and
+      that `dynes-panel.R` picked up the change. No `NEWS.d/` entry (no
+      user-facing package change). Full `NOT_CRAN=true` suite with the
+      baselines PASS, commit (`docs(dynes-prepare-data): 6.x ...`).
