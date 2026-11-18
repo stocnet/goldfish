@@ -36,6 +36,7 @@ answer four separate questions that are easy to run together.
 
 ```{r setup}
 library(goldfish)
+library(manynet)
 ```
 
 # Step 1: From two surveys to a list of changes
@@ -146,8 +147,6 @@ table(ties$layer)
 panel <- se
 panel$nodes <- tibble::as_tibble(as.data.frame(se$nodes)[both, ])
 panel$ties <- tibble::as_tibble(ties)
-library(manynet)
-print(panel)
 ```
 
 ## The two flavors of a change
@@ -165,6 +164,7 @@ panel <- add_flavor(
   values_equivalence = c(creation = 1, dissolution = 0),
   flavor_style = "mutually_exclusive"
 )
+print(panel)
 ```
 
 ## The same preparation in one call

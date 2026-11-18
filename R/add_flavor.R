@@ -291,8 +291,8 @@ add_flavor <- function(
         "Layer {.val {layer}} carries update value{?s} outside \\
          {.arg values_equivalence}.",
         "x" = "Uncovered value{?s}: {.val {uncovered}}.",
-        "i" = "Only dichotomous {.val {unname(values_equivalence)}} states are \\
-               supported; a weighted layer is not a creation/dissolution \\
+        "i" = "Only dichotomous {.val {unname(values_equivalence)}} states \\
+               are supported; a weighted layer is not a creation/dissolution \\
                toggle -- consider {.code weighted = FALSE} in effect terms."
       ),
       call = call

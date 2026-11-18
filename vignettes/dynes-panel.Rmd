@@ -30,6 +30,7 @@ answer four separate questions that are easy to run together.
 
 ``` r
 library(goldfish)
+library(manynet)
 ```
 
 # Step 1: From two surveys to a list of changes
@@ -160,37 +161,6 @@ table(ties$layer)
 panel <- se
 panel$nodes <- tibble::as_tibble(as.data.frame(se$nodes)[both, ])
 panel$ties <- tibble::as_tibble(ties)
-library(manynet)
-print(panel)
-#> 
-#> ── # Social Evolution MIT ──────────────────────────────────────────────────────
-#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and
-#> 416 friendship arcs and 364 call arcs from 2008-09-11 03:16:14 to 2008-10-19
-#> 
-#> ── Nodes
-#> # A tibble: 51 × 4
-#>   label    active floor gradeType
-#>   <chr>    <lgl>  <dbl>     <dbl>
-#> 1 Actor 47 TRUE       4         3
-#> 2 Actor 57 TRUE       2         1
-#> 3 Actor 9  TRUE       9         2
-#> 4 Actor 68 TRUE       8         1
-#> 5 Actor 23 TRUE       5         2
-#> 6 Actor 49 TRUE       7         4
-#> # ℹ 45 more rows
-#> 
-#> ── Ties
-#> # A tibble: 780 × 5
-#>    from    to time   weight layer     
-#>   <int> <int> <dttm>  <dbl> <chr>     
-#> 1     7    12 NA          1 friendship
-#> 2     8    13 NA          1 friendship
-#> 3     7    14 NA          1 friendship
-#> 4    10     2 NA          1 friendship
-#> 5    12    15 NA          1 friendship
-#> 6     3     8 NA          1 friendship
-#> # ℹ 774 more rows
-#> 
 ```
 
 ## The two flavors of a change
@@ -209,6 +179,34 @@ panel <- add_flavor(
   values_equivalence = c(creation = 1, dissolution = 0),
   flavor_style = "mutually_exclusive"
 )
+print(panel)
+#> ── # Social Evolution MIT ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and 416 friendship arcs and 364 call arcs from 2008-09-11 03:16:14 to 2008-10-19
+#> 
+#> ── Nodes
+#> # A tibble: 51 × 4
+#>   label    active floor gradeType
+#>   <chr>    <lgl>  <dbl>     <dbl>
+#> 1 Actor 47 TRUE       4         3
+#> 2 Actor 57 TRUE       2         1
+#> 3 Actor 9  TRUE       9         2
+#> 4 Actor 68 TRUE       8         1
+#> 5 Actor 23 TRUE       5         2
+#> 6 Actor 49 TRUE       7         4
+#> # ℹ 45 more rows
+#> 
+#> ── Ties
+#> # A tibble: 780 × 6
+#>    from    to time   weight layer      flavor
+#>   <int> <int> <dttm>  <dbl> <chr>      <chr> 
+#> 1     7    12 NA          1 friendship <NA>  
+#> 2     8    13 NA          1 friendship <NA>  
+#> 3     7    14 NA          1 friendship <NA>  
+#> 4    10     2 NA          1 friendship <NA>  
+#> 5    12    15 NA          1 friendship <NA>  
+#> 6     3     8 NA          1 friendship <NA>  
+#> # ℹ 774 more rows
+#> 
 ```
 
 ## The same preparation in one call
@@ -239,9 +237,8 @@ prepared <- prepare_dynes_data(
 #>   Starting state: 276 rows at the first wave "2008-09-09".
 print(prepared)
 #> 
-#> ── # Social Evolution MIT ──────────────────────────────────────────────────────
-#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and
-#> 416 friendship arcs and 364 call arcs from 2008-09-09 to 2008-10-19
+#> ── # Social Evolution MIT ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+#> # A dynamic, labelled, multiplex, weighted, directed network of 51 nodes and 416 friendship arcs and 364 call arcs from 2008-09-09 to 2008-10-19
 #> 
 #> ── Nodes
 #> # A tibble: 51 × 4
@@ -687,7 +684,7 @@ goldfish:::mcmc_diagnostics(chain)[c("proposals", "accepted", "acceptance_rate")
 #> [1] 0.5214286
 ```
 
-The sweep took 48 seconds on one core, mostly in the
+The sweep took 56 seconds on one core, mostly in the
 likelihood evaluations of the proposed paths. An EM iteration under `mcmc`
 runs tens of sweeps, which is why the fits below were run on a cluster.
 
@@ -700,43 +697,34 @@ cat(support_seen, sep = "\n\n")
 #> ! `support_constraint`: 1 present sender never at risk (always gated out).
 #> ℹ Node: 51.
 #> 
-#> ! `support_constraint`: 2 receivers present at some event, never an allowed
-#>   candidate.
+#> ! `support_constraint`: 2 receivers present at some event, never an allowed candidate.
 #> ℹ Nodes: 15 and 51.
 #> 
 #> ! `support_constraint`: 1 present sender allowed no receiver at any event.
 #> ℹ Node: 51.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 57.
 #> 
-#> ! `support_constraint`: 3 receivers present at some event, never an allowed
-#>   candidate.
+#> ! `support_constraint`: 3 receivers present at some event, never an allowed candidate.
 #> ℹ Nodes: 15, 18, and 51.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 58.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 59.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 60.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 61.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 62.
 #> 
-#> ! `support_constraint`: 1 event with a single candidate (forced choice;
-#>   contributes 0 to the log-likelihood).
+#> ! `support_constraint`: 1 event with a single candidate (forced choice; contributes 0 to the log-likelihood).
 #> ℹ Event: 63.
 labels[c(15, 18, 51)]
 #> [1] "Actor 64" "Actor 52" "Actor 61"
@@ -803,7 +791,7 @@ round(c(
 
 ``` r
 summary(fit_mcmc)
-#> ── <goldfishSummDynesFit> ──────────────────────────────────────────────────────
+#> ── <goldfishSummDynesFit> ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 #> ✔ Converged after 6 accepted EM iterations.
 #> ✔ At the final pool's optimum: Newton step 0.043 standard errors.
 #> 
@@ -833,8 +821,7 @@ summary(fit_mcmc)
 #> inertia/calls  4.0559131  0.2008654 0.0029290  20.192 < 2.2e-16
 #> tie/friendship 2.9557952  0.2289166 0.0050682  12.912 < 2.2e-16
 #> 
-#> MC Error is the Monte-Carlo error of the estimate from the final pool of 121
-#> augmented sequences.
+#> MC Error is the Monte-Carlo error of the estimate from the final pool of 121 augmented sequences.
 #> Largest fraction of missing information: 0.276.
 #> Covariance effective sample size: 97.7.
 ```
@@ -1076,24 +1063,15 @@ compare <- data.frame(
 )
 compare$gap_in_se <- (compare$random - compare$mcmc) / compare$se_mcmc
 round(compare, 3)
-#>                                                      random    mcmc se_mcmc
-#> friendship › creation › rate: Intercept             -14.739 -14.739   0.120
-#> friendship › creation › choice: recip/friendship      2.640   3.019   0.347
-#> friendship › dissolution › rate: Intercept          -14.718 -14.716   0.120
-#> friendship › dissolution › choice: recip/friendship  -1.275  -1.491   0.367
-#> calls › rate: Intercept                             -14.017 -14.931   0.185
-#> calls › rate: indeg/friendship                        0.154   0.292   0.025
-#> calls › choice: inertia/calls                         4.210   4.056   0.201
-#> calls › choice: tie/friendship                        2.701   2.956   0.229
-#>                                                     gap_in_se
-#> friendship › creation › rate: Intercept                 0.000
-#> friendship › creation › choice: recip/friendship       -1.092
-#> friendship › dissolution › rate: Intercept             -0.020
-#> friendship › dissolution › choice: recip/friendship     0.591
-#> calls › rate: Intercept                                 4.936
-#> calls › rate: indeg/friendship                         -5.543
-#> calls › choice: inertia/calls                           0.766
-#> calls › choice: tie/friendship                         -1.113
+#>                                                      random    mcmc se_mcmc gap_in_se
+#> friendship › creation › rate: Intercept             -14.739 -14.739   0.120     0.000
+#> friendship › creation › choice: recip/friendship      2.640   3.019   0.347    -1.092
+#> friendship › dissolution › rate: Intercept          -14.718 -14.716   0.120    -0.020
+#> friendship › dissolution › choice: recip/friendship  -1.275  -1.491   0.367     0.591
+#> calls › rate: Intercept                             -14.017 -14.931   0.185     4.936
+#> calls › rate: indeg/friendship                        0.154   0.292   0.025    -5.543
+#> calls › choice: inertia/calls                         4.210   4.056   0.201     0.766
+#> calls › choice: tie/friendship                        2.701   2.956   0.229    -1.113
 ```
 
 `random`'s `indeg(friendship)` on the calls rate is 5.5 standard errors below

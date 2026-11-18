@@ -314,6 +314,12 @@ tryCatch(
   ),
   error = function(e) cat(conditionMessage(e))
 )
+#> Warning: The `preprocessing_only` argument of `estimate_dynam()` is deprecated as of
+#> goldfish 2.0.0.
+#> ℹ Please use compute_statistics(output = "preprocessed") instead.
+#> This warning is displayed once per session.
+#> Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+#> generated.
 #> `recip()` cannot be computed on "support".
 #> ✖ the sender side of layer "support" (mode "actor") and the receiver side of
 #>   layer "support" (mode "concept") must be the same node set.

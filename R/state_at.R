@@ -20,8 +20,8 @@ coerce_time <- function(time) {
 #' Evaluates a stocnet layer's network as the adjacency matrix implied by all of
 #' its `time = NA` history rows plus every timed update strictly before `time`,
 #' applied under the layer's `info$update` semantics (last `replace` wins;
-#' `increment`s aggregate). This is exactly the initial state preprocessing would
-#' use for `start_time` at `time`.
+#' `increment`s aggregate). This is exactly the initial state preprocessing
+#' would use for `start_time` at `time`.
 #'
 #' @param data a `stocnet` object (or a [as_goldfish()]-stamped one).
 #' @param layer character string naming the layer.
