@@ -27,8 +27,8 @@ a numeric adjacency matrix with \code{label} dimnames.
 Evaluates a stocnet layer's network as the adjacency matrix implied by all of
 its \code{time = NA} history rows plus every timed update strictly before \code{time},
 applied under the layer's \code{info$update} semantics (last \code{replace} wins;
-\code{increment}s aggregate). This is exactly the initial state preprocessing would
-use for \code{start_time} at \code{time}.
+\code{increment}s aggregate). This is exactly the initial state preprocessing
+would use for \code{start_time} at \code{time}.
 }
 \examples{
 nodes <- data.frame(label = c("A", "B", "C"))
